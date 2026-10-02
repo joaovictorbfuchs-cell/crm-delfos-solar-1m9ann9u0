@@ -23,9 +23,7 @@ import {
   Download,
   Eye,
   Paperclip,
-  UploadCloud,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import {
   Dialog,
   DialogContent,
@@ -37,12 +35,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import type { Equipamento, UsinaEquipamentoAtivo } from '@/types/equipamentos'
-import type {
-  AtivoUsina,
-  SalvarAtivoDados,
-  TipoAtivo,
-  StatusOperacionalAtivo,
-} from '@/types/ativos'
+import type { AtivoUsina } from '@/types/ativos'
 import type { UsinaCliente, DocumentoUsinaItem } from '@/types/crm'
 import {
   fetchEquipamentosPorUsina,
@@ -58,13 +51,11 @@ import {
 } from '@/services/equipamentosService'
 import {
   fetchAtivosPorUsina,
-  createAtivo,
   deleteAtivo,
   calcularStatusGarantia,
   getLabelTipoAtivo,
 } from '@/services/ativosService'
 import { formatDate } from '@/lib/formatters'
-import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
 import { normalizarDigitosDestino } from '@/lib/resolverNumeroDestinoCliente'
@@ -103,10 +94,9 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   onUpdateUsinaMultipleFields,
   encontrarDatasheetModuloUsina,
   encontrarEquipamentoComDatasheet,
-  onCloseModalUsina,
+  onCloseModalUsina: _onCloseModalUsina,
 }) => {
   const { user } = useAuth()
-  const navigate = useNavigate()
   const [vinculos, setVinculos] = useState<UsinaEquipamentoAtivo[]>([])
   const [ativosIndividuais, setAtivosIndividuais] = useState<AtivoUsina[]>([])
   const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<Equipamento[]>(
@@ -116,16 +106,15 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [expandido, setExpandido] = useState<boolean>(true)
   const [efetivandoVinculos, setEfetivandoVinculos] = useState<boolean>(false)
 
-  // Modais de Ação
+  // Modal Adicionar Ativo (Seleção em Cascata: Equipamento -> Marca -> Modelo/Potência)
   const [modalVincularAberto, setModalVincularAberto] = useState<boolean>(false)
+  const [filtroTipo, setFiltroTipo] = useState<'modulo_fv' | 'inversor' | ''>('')
+  const [filtroMarca, setFiltroMarca] = useState<string>('')
   const [equipamentoSelecionadoId, setEquipamentoSelecionadoId] = useState<string>('')
   const [quantidade, setQuantidade] = useState<string>('1')
   const [numeroSerie, setNumeroSerie] = useState<string>('')
   const [observacoes, setObservacoes] = useState<string>('')
   const [salvandoVinculo, setSalvandoVinculo] = useState<boolean>(false)
-
-  // Modal Novo Equipamento no Catálogo (reuso do modal de Cadastros de Equipamentos)
-  const [modalNovoEquipamentoAberto, setModalNovoEquipamentoAberto] = useState<boolean>(false)
 
   // Modal de Confirmação para Excluir Equipamento/Ativo da Usina
   const [itemParaExcluirUsina, setItemParaExcluirUsina] = useState<{
@@ -135,20 +124,6 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     campoDeclarado?: 'inversor' | 'modulo'
   } | null>(null)
   const [excluindoAtivoUsina, setExcluindoAtivoUsina] = useState<boolean>(false)
-
-  // Modal Cadastrar Ativo Individual
-  const [modalCadastrarAtivoAberto, setModalCadastrarAtivoAberto] = useState<boolean>(false)
-  const [salvandoAtivoIndividual, setSalvandoAtivoIndividual] = useState<boolean>(false)
-  const [novoAtivoTipo, setNovoAtivoTipo] = useState<TipoAtivo>('inversor')
-  const [novoAtivoTipoOutro, setNovoAtivoTipoOutro] = useState<string>('')
-  const [novoAtivoFabricante, setNovoAtivoFabricante] = useState<string>('')
-  const [novoAtivoModelo, setNovoAtivoModelo] = useState<string>('')
-  const [novoAtivoNumeroSerie, setNovoAtivoNumeroSerie] = useState<string>('')
-  const [novoAtivoDataInstalacao, setNovoAtivoDataInstalacao] = useState<string>('')
-  const [novoAtivoDataFimGarantia, setNovoAtivoDataFimGarantia] = useState<string>('')
-  const [novoAtivoStatusOperacional, setNovoAtivoStatusOperacional] =
-    useState<StatusOperacionalAtivo>('operacional')
-  const [novoAtivoObservacoes, setNovoAtivoObservacoes] = useState<string>('')
 
   // Estado para exclusão/gerenciamento de documentos anexados
   const [docParaExcluir, setDocParaExcluir] = useState<DocumentoUsinaItem | null>(null)
@@ -183,10 +158,62 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     carregarDados()
   }, [usina?.id])
 
+  // Lista de marcas distintas filtradas pelo tipo selecionado no modal Adicionar Ativo
+  const marcasDisponiveis = useMemo(() => {
+    if (!filtroTipo) return []
+    const marcasSet = new Set<string>()
+    catalogoEquipamentos.forEach((eq) => {
+      if (eq.tipo === filtroTipo && eq.marca?.trim()) {
+        marcasSet.add(eq.marca.trim())
+      }
+    })
+    return Array.from(marcasSet).sort((a, b) =>
+      a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }),
+    )
+  }, [catalogoEquipamentos, filtroTipo])
+
+  // Lista de modelos filtrados por tipo + marca selecionados no modal Adicionar Ativo
+  const modelosDisponiveis = useMemo(() => {
+    if (!filtroTipo || !filtroMarca) return []
+    return catalogoEquipamentos
+      .filter(
+        (eq) =>
+          eq.tipo === filtroTipo &&
+          eq.marca?.trim().toLowerCase() === filtroMarca.trim().toLowerCase(),
+      )
+      .sort((a, b) => (a.potencia_w || 0) - (b.potencia_w || 0) || a.modelo.localeCompare(b.modelo))
+  }, [catalogoEquipamentos, filtroTipo, filtroMarca])
+
+  // Equipamento selecionado atualmente
+  const equipamentoSelecionado = useMemo(() => {
+    return catalogoEquipamentos.find((eq) => eq.id === equipamentoSelecionadoId) || null
+  }, [catalogoEquipamentos, equipamentoSelecionadoId])
+
+  const handleTipoChange = (novoTipo: 'modulo_fv' | 'inversor' | '') => {
+    setFiltroTipo(novoTipo)
+    setFiltroMarca('')
+    setEquipamentoSelecionadoId('')
+  }
+
+  const handleMarcaChange = (novaMarca: string) => {
+    setFiltroMarca(novaMarca)
+    setEquipamentoSelecionadoId('')
+  }
+
+  const handleAbrirModalAdicionarAtivo = () => {
+    setFiltroTipo('')
+    setFiltroMarca('')
+    setEquipamentoSelecionadoId('')
+    setQuantidade('1')
+    setNumeroSerie('')
+    setObservacoes('')
+    setModalVincularAberto(true)
+  }
+
   const handleVincularEquipamento = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!equipamentoSelecionadoId) {
-      toast.warning('Selecione um equipamento do catálogo.')
+      toast.warning('Selecione o modelo do equipamento.')
       return
     }
 
@@ -196,13 +223,15 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       await vincularEquipamentoUsina({
         usina_id: usina.id,
         equipamento_id: equipamentoSelecionadoId,
-        quantidade: isNaN(qtdNum) ? 1 : qtdNum,
+        quantidade: isNaN(qtdNum) || qtdNum < 1 ? 1 : qtdNum,
         numero_serie: numeroSerie.trim() || undefined,
         observacoes: observacoes.trim() || undefined,
       })
 
       toast.success('Ativo adicionado à usina com sucesso!')
       setModalVincularAberto(false)
+      setFiltroTipo('')
+      setFiltroMarca('')
       setEquipamentoSelecionadoId('')
       setQuantidade('1')
       setNumeroSerie('')
@@ -283,65 +312,6 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       nome,
       campoDeclarado: tipoEq === 'inversor' ? 'inversor' : 'modulo',
     })
-  }
-
-  const handleNovoEquipamentoCadastrado = async (novoEquipamento: Equipamento) => {
-    try {
-      await vincularEquipamentoUsina({
-        usina_id: usina.id,
-        equipamento_id: novoEquipamento.id,
-        quantidade: 1,
-      })
-      toast.success(`Equipamento "${novoEquipamento.modelo}" cadastrado e vinculado como ativo!`)
-    } catch (err) {
-      console.error('Equipamento criado mas falhou vínculo automático:', err)
-      toast.success('Equipamento criado no catálogo!')
-    }
-    await carregarDados()
-  }
-
-  const handleSalvarAtivoIndividual = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!novoAtivoFabricante.trim() || !novoAtivoModelo.trim()) {
-      toast.warning('Informe o fabricante e o modelo do ativo.')
-      return
-    }
-
-    setSalvandoAtivoIndividual(true)
-    try {
-      const payload: SalvarAtivoDados = {
-        usina_id: usina.id,
-        tipo: novoAtivoTipo,
-        tipo_outro_descricao: novoAtivoTipo === 'outros' ? novoAtivoTipoOutro.trim() : undefined,
-        fabricante: novoAtivoFabricante.trim(),
-        modelo: novoAtivoModelo.trim(),
-        numero_serie: novoAtivoNumeroSerie.trim() || undefined,
-        data_instalacao: novoAtivoDataInstalacao
-          ? `${novoAtivoDataInstalacao} 12:00:00.000Z`
-          : undefined,
-        data_fim_garantia: novoAtivoDataFimGarantia
-          ? `${novoAtivoDataFimGarantia} 12:00:00.000Z`
-          : undefined,
-        status_operacional: novoAtivoStatusOperacional,
-        observacoes: novoAtivoObservacoes.trim() || undefined,
-      }
-
-      await createAtivo(payload)
-      toast.success('Ativo cadastrado com sucesso!')
-      setModalCadastrarAtivoAberto(false)
-      setNovoAtivoFabricante('')
-      setNovoAtivoModelo('')
-      setNovoAtivoNumeroSerie('')
-      setNovoAtivoDataInstalacao('')
-      setNovoAtivoDataFimGarantia('')
-      setNovoAtivoObservacoes('')
-      await carregarDados()
-    } catch (err) {
-      console.error('Erro ao cadastrar ativo individual:', err)
-      toast.error('Erro ao cadastrar o ativo. Verifique os dados.')
-    } finally {
-      setSalvandoAtivoIndividual(false)
-    }
   }
 
   const handleWhatsAppSuporte = (numero: string) => {
@@ -660,7 +630,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
         )
       } else {
         toast.info(
-          'Equipamentos identificados não possuem cadastro no catálogo. Use "Adicionar Ativo" ou "Novo Equipamento" para selecioná-los.',
+          'Equipamentos identificados não possuem cadastro no catálogo. Use "Adicionar Ativo" para selecioná-los.',
         )
       }
       await carregarDados()
@@ -670,15 +640,6 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     } finally {
       setEfetivandoVinculos(false)
     }
-  }
-
-  const handleGerenciarTelaAtivos = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (onCloseModalUsina) {
-      onCloseModalUsina()
-    }
-    navigate('/equipamentos')
   }
 
   return (
@@ -711,54 +672,18 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
           </div>
         </div>
 
-        {/* Barra de Ações Rápidas do Bloco */}
+        {/* Barra de Ações Rápidas do Bloco: Apenas "Adicionar Ativo" e Chevron recolher */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={handleGerenciarTelaAtivos}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:text-emerald-900 bg-white hover:bg-emerald-100/70 px-2.5 py-1.5 rounded-lg border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
-            title="Abrir Cadastro de Equipamentos do catálogo fechando sobreposições"
-          >
-            <span>Gerenciar na Tela de Ativos</span>
-            <ExternalLink className="w-3 h-3 text-emerald-600" />
-          </button>
-
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              setModalVincularAberto(true)
+              handleAbrirModalAdicionarAtivo()
             }}
             className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Adicionar Ativo</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              setModalNovoEquipamentoAberto(true)
-            }}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200/80 px-2.5 py-1.5 rounded-lg border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
-            title="Cadastrar um novo equipamento no catálogo geral e vincular a esta usina"
-          >
-            <Plus className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Novo Equipamento</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              setModalCadastrarAtivoAberto(true)
-            }}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-300 transition-colors shadow-2xs cursor-pointer"
-            title="Cadastrar ativo individual estruturado (S/N e garantia)"
-          >
-            <Plus className="w-3.5 h-3.5 text-amber-600" />
-            <span>Cadastrar Ativo</span>
           </button>
 
           <Button
@@ -1079,7 +1004,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                setModalVincularAberto(true)
+                handleAbrirModalAdicionarAtivo()
               }}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 rounded-xl shadow-xs transition-colors cursor-pointer"
             >
@@ -1755,12 +1680,13 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       </Dialog>
 
       {/* ================================================================ */}
-      {/* MODAL 1: VINCULAR EQUIPAMENTO DO CATÁLOGO (Dialog Radix/shadcn)   */}
+      {/* MODAL: ADICIONAR ATIVO À USINA (Seleção em Cascata do Catálogo)   */}
+      {/* Equipamento (placa/inversor) -> Marca -> Modelo / Potência        */}
       {/* ================================================================ */}
       <Dialog open={modalVincularAberto} onOpenChange={setModalVincularAberto}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-emerald-50/70">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
                 <Plus className="w-4 h-4" />
               </div>
@@ -1769,62 +1695,142 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                   Adicionar Ativo à Usina
                 </DialogTitle>
                 <DialogDescription className="text-[11px] text-slate-500">
-                  Vincule um inversor, módulo ou equipamento do catálogo à usina "{usina.nome}"
+                  Selecione do catálogo o equipamento, a marca e o modelo/potência para vincular à
+                  usina "{usina.nome}".
                 </DialogDescription>
               </div>
             </div>
           </div>
 
-          <form onSubmit={handleVincularEquipamento} className="p-5 space-y-3.5 text-xs">
+          <form onSubmit={handleVincularEquipamento} className="p-5 space-y-4 text-xs">
+            {/* 1. Seleção em Cascata: Equipamento (Tipo) */}
             <div>
               <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                Equipamento do Catálogo *
+                Equipamento *
               </label>
               <select
                 required
-                value={equipamentoSelecionadoId}
-                onChange={(e) => setEquipamentoSelecionadoId(e.target.value)}
+                value={filtroTipo}
+                onChange={(e) => handleTipoChange(e.target.value as 'modulo_fv' | 'inversor' | '')}
                 className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               >
-                <option value="">Selecione um equipamento...</option>
-                {catalogoEquipamentos.map((eq) => (
-                  <option key={eq.id} value={eq.id}>
-                    [
-                    {eq.tipo === 'inversor'
-                      ? 'INVERSOR'
-                      : eq.tipo === 'modulo_fv'
-                        ? 'MÓDULO'
-                        : 'OUTRO'}
-                    ] {eq.marca} {eq.modelo}{' '}
-                    {eq.potencia_w > 0
-                      ? `(${formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)})`
-                      : ''}
+                <option value="">Selecione o tipo de equipamento...</option>
+                <option value="inversor">Inversor Fotovoltaico</option>
+                <option value="modulo_fv">Módulo Fotovoltaico (Placa)</option>
+              </select>
+            </div>
+
+            {/* 2. Seleção em Cascata: Marca */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                Marca{' '}
+                {filtroTipo === 'inversor'
+                  ? 'do Inversor'
+                  : filtroTipo === 'modulo_fv'
+                    ? 'da Placa / Módulo'
+                    : ''}{' '}
+                *
+              </label>
+              <select
+                required
+                disabled={!filtroTipo}
+                value={filtroMarca}
+                onChange={(e) => handleMarcaChange(e.target.value)}
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {!filtroTipo
+                    ? 'Selecione primeiro o equipamento acima...'
+                    : marcasDisponiveis.length === 0
+                      ? 'Nenhuma marca encontrada no catálogo'
+                      : 'Selecione a marca...'}
+                </option>
+                {marcasDisponiveis.map((marca) => (
+                  <option key={marca} value={marca}>
+                    {marca}
                   </option>
                 ))}
               </select>
-              <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
-                <span>Não encontrou na lista?</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalVincularAberto(false)
-                    setModalNovoEquipamentoAberto(true)
-                  }}
-                  className="text-emerald-700 hover:underline font-bold cursor-pointer"
-                >
-                  + Cadastrar novo equipamento agora
-                </button>
-              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* 3. Seleção em Cascata: Modelo / Potência */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                Modelo / Potência *
+              </label>
+              <select
+                required
+                disabled={!filtroMarca}
+                value={equipamentoSelecionadoId}
+                onChange={(e) => setEquipamentoSelecionadoId(e.target.value)}
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {!filtroMarca
+                    ? 'Selecione primeiro a marca acima...'
+                    : modelosDisponiveis.length === 0
+                      ? 'Nenhum modelo cadastrado para esta marca'
+                      : 'Selecione o modelo e potência...'}
+                </option>
+                {modelosDisponiveis.map((eq) => {
+                  const potFormatada =
+                    eq.tipo === 'modulo_fv'
+                      ? `${Math.round(eq.potencia_w || 0).toLocaleString('pt-BR')} W`
+                      : eq.potencia_w
+                        ? `${Math.round(eq.potencia_w).toLocaleString('pt-BR')} W (${formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)})`
+                        : 'Potência não informada'
+                  return (
+                    <option key={eq.id} value={eq.id}>
+                      {eq.modelo} — {potFormatada}
+                    </option>
+                  )
+                })}
+              </select>
+
+              {/* Pré-visualização do Equipamento Selecionado */}
+              {equipamentoSelecionado && (
+                <div className="mt-2 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-[11px] text-emerald-950 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {equipamentoSelecionado.tipo === 'inversor' ? (
+                      <Cpu className="w-4 h-4 text-purple-600 shrink-0" />
+                    ) : (
+                      <Sun className="w-4 h-4 text-amber-500 shrink-0" />
+                    )}
+                    <div>
+                      <span className="font-bold">
+                        {equipamentoSelecionado.marca} {equipamentoSelecionado.modelo}
+                      </span>
+                      <span className="text-slate-600 ml-1.5">
+                        •{' '}
+                        {formatarPotenciaEquipamento(
+                          equipamentoSelecionado.potencia_w,
+                          equipamentoSelecionado.tipo,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  {getDatasheetEquipamentoUrl(equipamentoSelecionado) && (
+                    <Badge
+                      variant="outline"
+                      className="bg-white text-emerald-800 border-emerald-300 font-semibold text-[10px]"
+                    >
+                      Com Datasheet
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Campos Complementares: Quantidade e Número de Série (S/N) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Quantidade
+                  Quantidade *
                 </label>
                 <input
                   type="number"
                   min="1"
+                  required
                   value={quantidade}
                   onChange={(e) => setQuantidade(e.target.value)}
                   placeholder="Ex: 1"
@@ -1845,6 +1851,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
               </div>
             </div>
 
+            {/* Observações */}
             <div>
               <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                 Observações do Ativo
@@ -1869,7 +1876,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={salvandoVinculo}
+                disabled={salvandoVinculo || !equipamentoSelecionadoId}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {salvandoVinculo ? (
@@ -1885,18 +1892,6 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* ================================================================ */}
-      {/* MODAL 2: CADASTRO DE NOVO EQUIPAMENTO (REUSO TELA EQUIPAMENTOS) */}
-      {/* ================================================================ */}
-      <ModalFormEquipamento
-        isOpen={modalNovoEquipamentoAberto}
-        onClose={() => setModalNovoEquipamentoAberto(false)}
-        tipoInicial="inversor"
-        onSalvo={async (salvo) => {
-          await handleNovoEquipamentoCadastrado(salvo)
-        }}
-      />
 
       {/* ================================================================ */}
       {/* MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE EQUIPAMENTO DA USINA           */}
@@ -1955,190 +1950,6 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
               )}
             </button>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ================================================================ */}
-      {/* MODAL 3: CADASTRAR ATIVO INDIVIDUAL (Dialog Radix/shadcn)         */}
-      {/* ================================================================ */}
-      <Dialog open={modalCadastrarAtivoAberto} onOpenChange={setModalCadastrarAtivoAberto}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#0F2038] text-[#E0A838] flex items-center justify-center shadow-2xs">
-                <Plus className="w-4 h-4 text-[#E0A838]" />
-              </div>
-              <div>
-                <DialogTitle className="text-sm font-bold text-slate-900">
-                  Cadastrar Ativo Individual
-                </DialogTitle>
-                <DialogDescription className="text-[11px] text-slate-500">
-                  Cadastre o número de série e garantia para usina "{usina.nome}"
-                </DialogDescription>
-              </div>
-            </div>
-          </div>
-
-          <form onSubmit={handleSalvarAtivoIndividual} className="p-5 space-y-3.5 text-xs">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Tipo de Ativo *
-                </label>
-                <select
-                  value={novoAtivoTipo}
-                  onChange={(e) => setNovoAtivoTipo(e.target.value as TipoAtivo)}
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
-                >
-                  <option value="inversor">Inversor</option>
-                  <option value="placa_solar">Módulo Fotovoltaico</option>
-                  <option value="bateria">Bateria</option>
-                  <option value="string_box">String Box</option>
-                  <option value="outros">Outro Equipamento</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Status Operacional
-                </label>
-                <select
-                  value={novoAtivoStatusOperacional}
-                  onChange={(e) =>
-                    setNovoAtivoStatusOperacional(e.target.value as StatusOperacionalAtivo)
-                  }
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
-                >
-                  <option value="operacional">Operacional</option>
-                  <option value="em_alerta">Em Alerta</option>
-                  <option value="manutencao">Em Manutenção</option>
-                  <option value="desativado">Desativado</option>
-                </select>
-              </div>
-            </div>
-
-            {novoAtivoTipo === 'outros' && (
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Descrição do Tipo
-                </label>
-                <input
-                  type="text"
-                  value={novoAtivoTipoOutro}
-                  onChange={(e) => setNovoAtivoTipoOutro(e.target.value)}
-                  placeholder="Ex: Datalogger Wi-Fi, Medidor Bidirecional"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Fabricante / Marca *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={novoAtivoFabricante}
-                  onChange={(e) => setNovoAtivoFabricante(e.target.value)}
-                  placeholder="Ex: Solis, Growatt, Deye, Canadian..."
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Modelo do Equipamento *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={novoAtivoModelo}
-                  onChange={(e) => setNovoAtivoModelo(e.target.value)}
-                  placeholder="Ex: SOLIS - 75K - 5G - PRO"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                Número de Série (S/N)
-              </label>
-              <input
-                type="text"
-                value={novoAtivoNumeroSerie}
-                onChange={(e) => setNovoAtivoNumeroSerie(e.target.value)}
-                placeholder="Ex: SN-2024-99824"
-                className="w-full text-xs font-mono px-3 py-2 rounded-xl border border-slate-300"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Data de Instalação
-                </label>
-                <input
-                  type="date"
-                  value={novoAtivoDataInstalacao}
-                  onChange={(e) => setNovoAtivoDataInstalacao(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Fim da Garantia
-                </label>
-                <input
-                  type="date"
-                  value={novoAtivoDataFimGarantia}
-                  onChange={(e) => setNovoAtivoDataFimGarantia(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                Observações
-              </label>
-              <textarea
-                rows={2}
-                value={novoAtivoObservacoes}
-                onChange={(e) => setNovoAtivoObservacoes(e.target.value)}
-                placeholder="Local de instalação, chave de ativação, etc."
-                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 resize-none"
-              />
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setModalCadastrarAtivoAberto(false)}
-                disabled={salvandoAtivoIndividual}
-                className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={salvandoAtivoIndividual}
-                className="px-5 py-2 bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-              >
-                {salvandoAtivoIndividual ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <span>Salvar Ativo</span>
-                )}
-              </button>
-            </div>
-          </form>
         </DialogContent>
       </Dialog>
     </div>
