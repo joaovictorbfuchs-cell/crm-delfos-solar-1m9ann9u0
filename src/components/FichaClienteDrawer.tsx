@@ -3164,217 +3164,213 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* ======================================================== */}
               {activeClientTab === 'historico' && (
                 <>
+                  {/* Instalação Elétrica e Telhado */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
+                    <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                      Instalação Elétrica e Telhado
+                    </div>
 
-
-                    {/* Instalação Elétrica e Telhado */}
-                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
-                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                        Instalação Elétrica e Telhado
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                      <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
+                        <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
+                          <Calendar className="w-3 h-3" />
+                          Data Instalação
+                        </div>
+                        <InlineEditField
+                          value={dataInstalacaoExibida}
+                          displayValue={
+                            <span className="font-bold text-gray-800">
+                              {dataInstalacaoExibida
+                                ? formatDate(dataInstalacaoExibida)
+                                : 'Não definida'}
+                            </span>
+                          }
+                          type="date"
+                          placeholder="DD/MM/AAAA"
+                          onSave={async (val) =>
+                            handleUpdateSistemaField('data_instalacao', String(val))
+                          }
+                        />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                        <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
-                          <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
-                            <Calendar className="w-3 h-3" />
-                            Data Instalação
-                          </div>
-                          <InlineEditField
-                            value={dataInstalacaoExibida}
-                            displayValue={
-                              <span className="font-bold text-gray-800">
-                                {dataInstalacaoExibida
-                                  ? formatDate(dataInstalacaoExibida)
-                                  : 'Não definida'}
-                              </span>
-                            }
-                            type="date"
-                            placeholder="DD/MM/AAAA"
-                            onSave={async (val) =>
-                              handleUpdateSistemaField('data_instalacao', String(val))
-                            }
-                          />
+                      <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
+                        <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
+                          <Zap className="w-3 h-3 text-emerald-600" />
+                          Potência Total
                         </div>
+                        <InlineEditField
+                          value={potenciaExibida}
+                          displayValue={
+                            <span className="font-black text-emerald-700 text-sm">
+                              {potenciaExibida} kWp
+                            </span>
+                          }
+                          type="number"
+                          step="0.1"
+                          min={0}
+                          unit="kWp"
+                          placeholder="0"
+                          onSave={async (val) =>
+                            handleUpdateSistemaField('potencia_total_kwp', Number(val))
+                          }
+                        />
+                      </div>
 
-                        <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
-                          <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
-                            <Zap className="w-3 h-3 text-emerald-600" />
-                            Potência Total
-                          </div>
+                      <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
+                        <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
+                          <Home className="w-3 h-3" />
+                          Tipo Telhado
+                        </div>
+                        <InlineEditField
+                          value={telhadoExibido}
+                          displayValue={
+                            <span className="font-semibold text-gray-800 text-xs">
+                              {getTelhadoLabel(telhadoExibido)}
+                            </span>
+                          }
+                          type="select"
+                          options={TELHADOS}
+                          onSave={async (val) =>
+                            handleUpdateSistemaField('tipo_telhado', val as TelhadoTipo)
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Equipamentos Fotovoltaicos */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                    <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                      Equipamentos Fotovoltaicos
+                    </div>
+
+                    {/* Módulos */}
+                    <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-200 space-y-2 text-xs">
+                      <div className="flex items-center justify-between border-b border-gray-200/70 pb-1.5">
+                        <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-blue-600" />
+                          Módulos Fotovoltaicos
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-gray-400 uppercase font-semibold">
+                            Qtd:
+                          </span>
                           <InlineEditField
-                            value={potenciaExibida}
+                            value={
+                              selectedSistema?.quantidade_modulos ??
+                              selectedSistema?.quantidade_placas ??
+                              selectedCliente.placas_qtd ??
+                              0
+                            }
                             displayValue={
-                              <span className="font-black text-emerald-700 text-sm">
-                                {potenciaExibida} kWp
+                              <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                                {selectedSistema?.quantidade_modulos ??
+                                  selectedSistema?.quantidade_placas ??
+                                  selectedCliente.placas_qtd ??
+                                  0}{' '}
+                                un
                               </span>
                             }
                             type="number"
-                            step="0.1"
+                            step="1"
+                            min={0}
+                            unit="un"
+                            placeholder="0"
+                            onSave={async (val) => {
+                              const num = Number(val)
+                              await handleUpdateSistemaField('quantidade_modulos', num)
+                              await handleUpdateSistemaField('quantidade_placas', num)
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-16 shrink-0">Fabricante:</span>
+                          <InlineEditField
+                            value={
+                              selectedSistema?.fabricante_modulos ||
+                              selectedSistema?.marca_placas ||
+                              selectedCliente.placas_marca ||
+                              'Canadian Solar'
+                            }
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {selectedSistema?.fabricante_modulos ||
+                                  selectedSistema?.marca_placas ||
+                                  selectedCliente.placas_marca ||
+                                  'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Canadian Solar, Trina Solar"
+                            onSave={async (val) => {
+                              const s = String(val)
+                              await handleUpdateSistemaField('fabricante_modulos', s)
+                              await handleUpdateSistemaField('marca_placas', s)
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-16 shrink-0">Pot. Pico:</span>
+                          <InlineEditField
+                            value={selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida}
+                            displayValue={
+                              <span className="font-semibold text-emerald-800">
+                                {selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida} kWp
+                              </span>
+                            }
+                            type="number"
+                            step="0.01"
                             min={0}
                             unit="kWp"
                             placeholder="0"
                             onSave={async (val) =>
-                              handleUpdateSistemaField('potencia_total_kwp', Number(val))
+                              handleUpdateSistemaField('potencia_pico_modulos_kwp', Number(val))
                             }
                           />
                         </div>
+                      </div>
 
-                        <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
-                          <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
-                            <Home className="w-3 h-3" />
-                            Tipo Telhado
-                          </div>
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
+                        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                          <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
                           <InlineEditField
-                            value={telhadoExibido}
+                            value={
+                              selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'
+                            }
                             displayValue={
-                              <span className="font-semibold text-gray-800 text-xs">
-                                {getTelhadoLabel(telhadoExibido)}
+                              <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
+                                {selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'}
                               </span>
                             }
-                            type="select"
-                            options={TELHADOS}
+                            type="text"
+                            placeholder="Modelo do módulo"
+                            className="flex-1"
                             onSave={async (val) =>
-                              handleUpdateSistemaField('tipo_telhado', val as TelhadoTipo)
+                              handleUpdateSistemaField('modelo_modulos', String(val))
                             }
                           />
                         </div>
+                        <DatasheetBadge
+                          marca={
+                            selectedSistema?.fabricante_modulos ||
+                            selectedSistema?.marca_placas ||
+                            selectedCliente.placas_marca ||
+                            ''
+                          }
+                          modelo={selectedSistema?.modelo_modulos || ''}
+                          tipo="modulo_fv"
+                          mostrarLinkBusca={true}
+                        />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Equipamentos Fotovoltaicos */}
-                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
-                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-emerald-600" />
-                        Equipamentos Fotovoltaicos
-                      </div>
-
-                      {/* Módulos */}
-                      <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-200 space-y-2 text-xs">
-                        <div className="flex items-center justify-between border-b border-gray-200/70 pb-1.5">
-                          <span className="font-bold text-gray-800 flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5 text-blue-600" />
-                            Módulos Fotovoltaicos
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-400 uppercase font-semibold">
-                              Qtd:
-                            </span>
-                            <InlineEditField
-                              value={
-                                selectedSistema?.quantidade_modulos ??
-                                selectedSistema?.quantidade_placas ??
-                                selectedCliente.placas_qtd ??
-                                0
-                              }
-                              displayValue={
-                                <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
-                                  {selectedSistema?.quantidade_modulos ??
-                                    selectedSistema?.quantidade_placas ??
-                                    selectedCliente.placas_qtd ??
-                                    0}{' '}
-                                  un
-                                </span>
-                              }
-                              type="number"
-                              step="1"
-                              min={0}
-                              unit="un"
-                              placeholder="0"
-                              onSave={async (val) => {
-                                const num = Number(val)
-                                await handleUpdateSistemaField('quantidade_modulos', num)
-                                await handleUpdateSistemaField('quantidade_placas', num)
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 w-16 shrink-0">Fabricante:</span>
-                            <InlineEditField
-                              value={
-                                selectedSistema?.fabricante_modulos ||
-                                selectedSistema?.marca_placas ||
-                                selectedCliente.placas_marca ||
-                                'Canadian Solar'
-                              }
-                              displayValue={
-                                <span className="font-medium text-gray-800">
-                                  {selectedSistema?.fabricante_modulos ||
-                                    selectedSistema?.marca_placas ||
-                                    selectedCliente.placas_marca ||
-                                    'Não informado'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Canadian Solar, Trina Solar"
-                              onSave={async (val) => {
-                                const s = String(val)
-                                await handleUpdateSistemaField('fabricante_modulos', s)
-                                await handleUpdateSistemaField('marca_placas', s)
-                              }}
-                            />
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 w-16 shrink-0">Pot. Pico:</span>
-                            <InlineEditField
-                              value={selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida}
-                              displayValue={
-                                <span className="font-semibold text-emerald-800">
-                                  {selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida}{' '}
-                                  kWp
-                                </span>
-                              }
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              unit="kWp"
-                              placeholder="0"
-                              onSave={async (val) =>
-                                handleUpdateSistemaField('potencia_pico_modulos_kwp', Number(val))
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
-                          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                            <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
-                            <InlineEditField
-                              value={
-                                selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'
-                              }
-                              displayValue={
-                                <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
-                                  {selectedSistema?.modelo_modulos ||
-                                    'CS3W-455MS MONOCRISTAL 455Wp'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Modelo do módulo"
-                              className="flex-1"
-                              onSave={async (val) =>
-                                handleUpdateSistemaField('modelo_modulos', String(val))
-                              }
-                            />
-                          </div>
-                          <DatasheetBadge
-                            marca={
-                              selectedSistema?.fabricante_modulos ||
-                              selectedSistema?.marca_placas ||
-                              selectedCliente.placas_marca ||
-                              ''
-                            }
-                            modelo={selectedSistema?.modelo_modulos || ''}
-                            tipo="modulo_fv"
-                            mostrarLinkBusca={true}
-                          />
-                        </div>
-                      </div>
-
-                <>
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
                   {/* Alterna Anotação vs Agendar Atividade (Seleção 2 etapas) */}
