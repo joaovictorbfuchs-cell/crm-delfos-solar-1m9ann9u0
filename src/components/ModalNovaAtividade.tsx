@@ -125,6 +125,12 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
   // Valores de custo e deslocamento
   const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
+  const [responsavelAvisoBloqueio, setResponsavelAvisoBloqueio] = useState<string | null>(null)
+
+  // Usuários válidos cadastrados no projeto (apenas com id real de PocketBase)
+  const usuariosValidosCadastrados = React.useMemo(() => {
+    return (usuarios || []).filter((u) => u && u.id && u.name)
+  }, [usuarios])
 
   // Quando abre ou muda o initialTipo, preenche automaticamente o título
   useEffect(() => {
@@ -238,6 +244,32 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     if (firstOfCat) {
       setSelectedTipo(firstOfCat.id)
       setTitulo(firstOfCat.tituloPadrao)
+    }
+
+    // Se a nova categoria não for manutenção, verifica se o responsável atual é instalador/técnico
+    if (catId !== 'manutencao' && responsavelId) {
+      const respAtual = usuariosValidosCadastrados.find((u) => u.id === responsavelId)
+      if (
+        respAtual &&
+        (respAtual.role === 'instalador' || (respAtual.role as string) === 'tecnico')
+      ) {
+        // Redefine para outro usuário válido que não seja técnico/instalador, ou limpa
+        const outroUsuario = usuariosValidosCadastrados.find(
+          (u) => u.role !== 'instalador' && (u.role as string) !== 'tecnico',
+        )
+        if (outroUsuario) {
+          setResponsavelId(outroUsuario.id)
+        } else {
+          setResponsavelId('')
+        }
+        setResponsavelAvisoBloqueio(
+          'O responsável anterior (instalador/técnico) foi desvinculado porque só recebe atividades de manutenção.',
+        )
+      } else {
+        setResponsavelAvisoBloqueio(null)
+      }
+    } else {
+      setResponsavelAvisoBloqueio(null)
     }
   }
 
@@ -602,17 +634,41 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               </label>
               <select
                 value={responsavelId}
-                onChange={(e) => setResponsavelId(e.target.value)}
+                onChange={(e) => {
+                  const targetUser = usuariosValidosCadastrados.find((u) => u.id === e.target.value)
+                  const isPerfilTecnico =
+                    targetUser?.role === 'instalador' || (targetUser?.role as string) === 'tecnico'
+                  if (isPerfilTecnico && selectedCategoria !== 'manutencao') {
+                    setResponsavelAvisoBloqueio(
+                      'Este perfil (instalador/técnico) só pode receber atividades do tipo manutenção.',
+                    )
+                    return
+                  }
+                  setResponsavelAvisoBloqueio(null)
+                  setResponsavelId(e.target.value)
+                }}
                 required
                 className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
               >
                 <option value="">Selecione o responsável...</option>
-                {usuarios.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.email})
-                  </option>
-                ))}
+                {usuariosValidosCadastrados.map((u) => {
+                  const isPerfilTecnico =
+                    u.role === 'instalador' || (u.role as string) === 'tecnico'
+                  const bloqueado = isPerfilTecnico && selectedCategoria !== 'manutencao'
+                  return (
+                    <option key={u.id} value={u.id} disabled={bloqueado}>
+                      {u.name} {u.role ? `[${u.role}]` : ''}{' '}
+                      {bloqueado ? '— (somente manutenção)' : ''}
+                    </option>
+                  )
+                })}
               </select>
+              {responsavelAvisoBloqueio && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>{responsavelAvisoBloqueio}</span>
+                </p>
+              )}
             </div>
           </div>
 

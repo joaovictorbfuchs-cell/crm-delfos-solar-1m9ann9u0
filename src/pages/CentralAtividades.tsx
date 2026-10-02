@@ -58,6 +58,7 @@ import { formatDate } from '@/lib/formatters'
 import {
   carregarCentralAtividades,
   determinarCategoriaAtividade,
+  filtrarCentralAtividades,
   bulkAtualizarResponsavelCentral,
   bulkExcluirItensCentral,
   type CentralAtividadeItem,
@@ -110,6 +111,7 @@ export default function CentralAtividadesPage() {
   // Estado dos filtros combináveis (AND) - aplicados
   const [filtros, setFiltros] = useState<CentralAtividadesFiltros>({
     categoriaId: 'todos',
+    tipoEspecifico: 'todos',
     tipoFonte: 'todos',
     status: 'todos',
     responsavel: 'todos',
@@ -121,6 +123,7 @@ export default function CentralAtividadesPage() {
   // Estado rascunho dos filtros dentro do Drawer
   const [draftFiltros, setDraftFiltros] = useState<CentralAtividadesFiltros>({
     categoriaId: 'todos',
+    tipoEspecifico: 'todos',
     tipoFonte: 'todos',
     status: 'todos',
     responsavel: 'todos',
@@ -199,6 +202,7 @@ export default function CentralAtividadesPage() {
   const handleLimparFiltros = () => {
     const limpos: CentralAtividadesFiltros = {
       categoriaId: 'todos',
+      tipoEspecifico: 'todos',
       tipoFonte: 'todos',
       status: 'todos',
       responsavel: 'todos',
@@ -212,64 +216,16 @@ export default function CentralAtividadesPage() {
     setSelectedIds([])
   }
 
-  // Filtragem combinada AND
+  // Filtragem unificada através de filtrarCentralAtividades (com normalização semântica de status e tipos específicos)
   const filteredItems = useMemo(() => {
-    return allItems.filter((item) => {
-      // 1. Filtro por Categoria Oficial (Comerciais, Manutenção, Administrativas)
-      if (filtros.categoriaId && filtros.categoriaId !== 'todos') {
-        if (item.categoriaId !== filtros.categoriaId) return false
-      }
-
-      // 1.1. Filtro por tipo de atividade / fonte (se ativo)
-      if (filtros.tipoFonte && filtros.tipoFonte !== 'todos') {
-        if (item.fonte !== filtros.tipoFonte) return false
-      }
-
-      // 2. Filtro por status
-      if (filtros.status && filtros.status !== 'todos') {
-        if (item.status !== filtros.status && item.statusRaw !== filtros.status) {
-          return false
-        }
-      }
-
-      // 3. Filtro por responsável
-      if (filtros.responsavel && filtros.responsavel !== 'todos') {
-        if (item.responsavel.toLowerCase().trim() !== filtros.responsavel.toLowerCase().trim()) {
-          return false
-        }
-      }
-
-      // 4. Filtro por período de data (de/até)
-      if (filtros.dataInicio) {
-        const itemDateStr = item.data ? item.data.slice(0, 10) : ''
-        if (itemDateStr < filtros.dataInicio) return false
-      }
-      if (filtros.dataFim) {
-        const itemDateStr = item.data ? item.data.slice(0, 10) : ''
-        if (itemDateStr > filtros.dataFim) return false
-      }
-
-      // 5. Busca textual livre (cliente, usina, título ou descrição)
-      if (filtros.buscaTexto && filtros.buscaTexto.trim() !== '') {
-        const termo = filtros.buscaTexto.toLowerCase().trim()
-        const matchCliente = item.clienteNome?.toLowerCase().includes(termo)
-        const matchUsina = item.usinaNome?.toLowerCase().includes(termo)
-        const matchTitulo = item.titulo?.toLowerCase().includes(termo)
-        const matchDescricao = item.descricao?.toLowerCase().includes(termo)
-        const matchResponsavel = item.responsavel?.toLowerCase().includes(termo)
-        if (!matchCliente && !matchUsina && !matchTitulo && !matchDescricao && !matchResponsavel) {
-          return false
-        }
-      }
-
-      return true
-    })
+    return filtrarCentralAtividades(allItems, filtros)
   }, [allItems, filtros])
 
   // Contagem de filtros ativos
   const activeFiltersCount = useMemo(() => {
     let count = 0
     if (filtros.categoriaId && filtros.categoriaId !== 'todos') count++
+    if (filtros.tipoEspecifico && filtros.tipoEspecifico !== 'todos') count++
     if (filtros.tipoFonte && filtros.tipoFonte !== 'todos') count++
     if (filtros.status && filtros.status !== 'todos') count++
     if (filtros.responsavel && filtros.responsavel !== 'todos') count++
@@ -283,6 +239,7 @@ export default function CentralAtividadesPage() {
   const activeDraftFiltersCount = useMemo(() => {
     let count = 0
     if (draftFiltros.categoriaId && draftFiltros.categoriaId !== 'todos') count++
+    if (draftFiltros.tipoEspecifico && draftFiltros.tipoEspecifico !== 'todos') count++
     if (draftFiltros.tipoFonte && draftFiltros.tipoFonte !== 'todos') count++
     if (draftFiltros.status && draftFiltros.status !== 'todos') count++
     if (draftFiltros.responsavel && draftFiltros.responsavel !== 'todos') count++
@@ -392,29 +349,17 @@ export default function CentralAtividadesPage() {
     )
   }
 
-  // Lista unificada de usuários disponíveis para definir responsável
+  // Lista de usuários reais cadastrados no projeto (coleção users)
   const listaUsuariosParaAtribuicao = useMemo(() => {
-    const result: { id: string; name: string }[] = []
-    const seenNames = new Set<string>()
-
-    if (usuarios && usuarios.length > 0) {
-      usuarios.forEach((u) => {
-        if (u.name && !seenNames.has(u.name.toLowerCase().trim())) {
-          seenNames.add(u.name.toLowerCase().trim())
-          result.push({ id: u.id, name: u.name })
-        }
-      })
-    }
-
-    responsaveisDisponiveis.forEach((nome) => {
-      if (nome && nome !== 'Não atribuído' && !seenNames.has(nome.toLowerCase().trim())) {
-        seenNames.add(nome.toLowerCase().trim())
-        result.push({ id: nome, name: nome })
-      }
-    })
-
-    return result
-  }, [usuarios, responsaveisDisponiveis])
+    return (usuarios || [])
+      .filter((u) => u && u.id && u.name)
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        role: u.role,
+        email: u.email,
+      }))
+  }, [usuarios])
 
   // Ação em Lote: Definir Responsável
   const handleConfirmarDefinirResponsavel = async () => {
@@ -583,7 +528,7 @@ export default function CentralAtividadesPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto pb-12">
+    <div className="space-y-5 w-full px-2 sm:px-4 lg:px-6 pb-12">
       {/* 1. Header Unificado com Navegação de Visão (Tabela vs Calendário) e Botões de Ação */}
       <div className="bg-white rounded-2xl p-3 sm:p-4 border border-[#E5E7EB] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3 flex-nowrap overflow-x-auto min-w-0">
         <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-nowrap">

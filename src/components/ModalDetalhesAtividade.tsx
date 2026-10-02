@@ -8,6 +8,7 @@ import {
   Building,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   FileText,
   Tag,
   Save,
@@ -73,8 +74,14 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [clienteId, setClienteId] = useState('')
   const [dataHora, setDataHora] = useState('')
   const [responsavelId, setResponsavelId] = useState('')
+  const [responsavelAvisoBloqueio, setResponsavelAvisoBloqueio] = useState<string | null>(null)
   const [descricao, setDescricao] = useState('')
   const [status, setStatus] = useState<AtividadeStatus>('pendente')
+
+  // Usuários válidos cadastrados no projeto
+  const usuariosValidosCadastrados = React.useMemo(() => {
+    return (usuarios || []).filter((u) => u && u.id && u.name)
+  }, [usuarios])
 
   const clienteAtual = clientes.find((c) => c.id === (clienteId || atividade?.cliente_id))
 
@@ -176,6 +183,27 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     const currentConf = getTipoAtividadeConfig(tipo)
     if (!titulo.trim() || titulo.trim() === currentConf.tituloPadrao) {
       setTitulo(conf.tituloPadrao)
+    }
+
+    // Se o novo tipo não for de manutenção, checa se o responsável atual é instalador/técnico
+    if (conf.categoria !== 'manutencao' && responsavelId) {
+      const respAtual = usuariosValidosCadastrados.find((u) => u.id === responsavelId)
+      if (
+        respAtual &&
+        (respAtual.role === 'instalador' || (respAtual.role as string) === 'tecnico')
+      ) {
+        const outro = usuariosValidosCadastrados.find(
+          (u) => u.role !== 'instalador' && (u.role as string) !== 'tecnico',
+        )
+        setResponsavelId(outro ? outro.id : '')
+        setResponsavelAvisoBloqueio(
+          'O responsável anterior (instalador/técnico) foi desvinculado porque só recebe atividades de manutenção.',
+        )
+      } else {
+        setResponsavelAvisoBloqueio(null)
+      }
+    } else {
+      setResponsavelAvisoBloqueio(null)
     }
   }
 
@@ -578,6 +606,16 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               <select
                 value={responsavelId}
                 onChange={(e) => {
+                  const targetUser = usuariosValidosCadastrados.find((u) => u.id === e.target.value)
+                  const isPerfilTecnico =
+                    targetUser?.role === 'instalador' || (targetUser?.role as string) === 'tecnico'
+                  if (isPerfilTecnico && configAtual.categoria !== 'manutencao') {
+                    setResponsavelAvisoBloqueio(
+                      'Este perfil (instalador/técnico) só pode receber atividades do tipo manutenção.',
+                    )
+                    return
+                  }
+                  setResponsavelAvisoBloqueio(null)
                   setResponsavelId(e.target.value)
                   if (errors.responsavel) setErrors((prev) => ({ ...prev, responsavel: undefined }))
                 }}
@@ -589,12 +627,24 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                 }`}
               >
                 <option value="">Selecione o responsável...</option>
-                {usuarios.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} {u.email ? `(${u.email})` : ''}
-                  </option>
-                ))}
+                {usuariosValidosCadastrados.map((u) => {
+                  const isPerfilTecnico =
+                    u.role === 'instalador' || (u.role as string) === 'tecnico'
+                  const bloqueado = isPerfilTecnico && configAtual.categoria !== 'manutencao'
+                  return (
+                    <option key={u.id} value={u.id} disabled={bloqueado}>
+                      {u.name} {u.role ? `[${u.role}]` : ''}{' '}
+                      {bloqueado ? '— (somente manutenção)' : ''}
+                    </option>
+                  )
+                })}
               </select>
+              {responsavelAvisoBloqueio && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>{responsavelAvisoBloqueio}</span>
+                </p>
+              )}
               {errors.responsavel && (
                 <p className="text-[11px] text-red-600 mt-0.5">{errors.responsavel}</p>
               )}
