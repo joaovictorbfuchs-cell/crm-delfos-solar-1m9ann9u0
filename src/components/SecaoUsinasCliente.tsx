@@ -64,6 +64,11 @@ import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
 import { formatarCPF } from '@/lib/cpfValidator'
 import { TipoAtendimento, NumeroFases, TelhadoTipo } from '@/types/crm'
+import {
+  extrairDadosDocumento,
+  type DocumentoExtraidoData,
+} from '@/services/documentExtractionService'
+import { Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 
 const TELHADOS_USINA: { value: TelhadoTipo; label: string }[] = [
   { value: 'ceramico', label: 'Cerâmico' },
@@ -222,6 +227,13 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [novaUsinaContratoId, setNovaUsinaContratoId] = useState<string>('')
   const [isSavingNovaUsina, setIsSavingNovaUsina] = useState(false)
 
+  // Extração de documento para Nova Usina
+  const [isExtraindoDocNovaUsina, setIsExtraindoDocNovaUsina] = useState(false)
+  const [statusProgressoNovaUsina, setStatusProgressoNovaUsina] = useState<string | null>(null)
+  const [erroExtracaoNovaUsina, setErroExtracaoNovaUsina] = useState<string | null>(null)
+  const [sucessoExtracaoNovaUsina, setSucessoExtracaoNovaUsina] = useState<string | null>(null)
+  const inputArquivoNovaUsinaRef = React.useRef<HTMLInputElement | null>(null)
+
   // Modal Vincular Contrato
   const [modalVincularOpen, setModalVincularOpen] = useState(false)
   const [usinaSelecionadaParaVincular, setUsinaSelecionadaParaVincular] =
@@ -336,7 +348,158 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     setNovaUsinaTipo('residencial')
     setNovaUsinaObservacoes('')
     setNovaUsinaContratoId('')
+    setErroExtracaoNovaUsina(null)
+    setSucessoExtracaoNovaUsina(null)
+    setStatusProgressoNovaUsina(null)
     setModalNovaUsinaOpen(true)
+  }
+
+  // Manipulador de upload de documento técnico / fatura para preenchimento automático da Nova Usina
+  const handleImportarDocumentoNovaUsina = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Limpar o input para permitir selecionar o mesmo arquivo novamente se necessário
+    e.target.value = ''
+
+    setIsExtraindoDocNovaUsina(true)
+    setErroExtracaoNovaUsina(null)
+    setSucessoExtracaoNovaUsina(null)
+    setStatusProgressoNovaUsina('Lendo arquivo e estruturando conteúdo...')
+
+    try {
+      const res = await extrairDadosDocumento(file, {
+        onProgress: (msg) => setStatusProgressoNovaUsina(msg),
+      })
+
+      if (!res.ok || !res.data) {
+        setErroExtracaoNovaUsina(
+          res.message ||
+            'Não foi possível extrair dados legíveis deste documento. Verifique se o arquivo possui texto nítido ou preencha manualmente.',
+        )
+        return
+      }
+
+      const data: DocumentoExtraidoData = res.data
+      const tec = data.dados_tecnicos || {}
+      const cons = data.consumo || {}
+      const end = data.endereco || {}
+
+      const camposPreenchidos: string[] = []
+
+      // Potência
+      if (tec.potencia_kwp !== null && tec.potencia_kwp !== undefined) {
+        setNovaUsinaPotencia(String(tec.potencia_kwp))
+        camposPreenchidos.push(`Potência: ${tec.potencia_kwp} kWp`)
+      }
+
+      // Quantidade de módulos
+      if (tec.numero_modulos !== null && tec.numero_modulos !== undefined) {
+        setNovaUsinaQtdModulos(String(tec.numero_modulos))
+        camposPreenchidos.push(`Módulos: ${tec.numero_modulos}`)
+      }
+
+      // Inversores
+      const invPartes = [tec.fabricante_inversores, tec.modelo_inversores].filter(Boolean)
+      if (invPartes.length > 0) {
+        const infoInv = invPartes.join(' ')
+        setNovaUsinaInversores(infoInv)
+        camposPreenchidos.push(`Inversor: ${infoInv}`)
+      }
+
+      // Geração estimada
+      if (tec.geracao_mensal_kwh !== null && tec.geracao_mensal_kwh !== undefined) {
+        setNovaUsinaGeracao(String(tec.geracao_mensal_kwh))
+        camposPreenchidos.push(`Geração: ${tec.geracao_mensal_kwh} kWh/mês`)
+      }
+
+      // Estrutura / Tipo telhado
+      if (tec.tipo_telhado) {
+        setNovaUsinaEstrutura('telhado')
+      }
+
+      // Endereço completo formatado
+      const partesEnd = [
+        end.endereco,
+        end.numero ? `nº ${end.numero}` : null,
+        end.bairro ? `Bairro ${end.bairro}` : null,
+        end.cidade && end.estado ? `${end.cidade}/${end.estado}` : end.cidade || null,
+        end.cep ? `CEP ${end.cep}` : null,
+      ].filter(Boolean)
+      if (partesEnd.length > 0) {
+        const enderecoFormatado = partesEnd.join(', ')
+        setNovaUsinaEndereco(enderecoFormatado)
+        camposPreenchidos.push('Endereço')
+      }
+
+      // UC
+      if (cons.uc) {
+        setNovaUsinaNumeroUc(cons.uc)
+        camposPreenchidos.push(`UC: ${cons.uc}`)
+      }
+
+      // Concessionária
+      if (cons.concessionaria) {
+        setNovaUsinaConcessionaria(cons.concessionaria)
+        camposPreenchidos.push(`Concessionária: ${cons.concessionaria}`)
+      }
+
+      // Tipo de Usina baseado na classe de consumo ou contexto
+      if (cons.classe_consumo) {
+        const clsLower = cons.classe_consumo.toLowerCase()
+        if (clsLower.includes('comerc')) {
+          setNovaUsinaTipo('comercial')
+        } else if (clsLower.includes('industr')) {
+          setNovaUsinaTipo('industrial')
+        } else if (clsLower.includes('rural')) {
+          setNovaUsinaTipo('rural')
+        } else if (clsLower.includes('resid')) {
+          setNovaUsinaTipo('residencial')
+        }
+      }
+
+      // Observações automáticas com dados complementares do documento
+      const notas: string[] = []
+      if (data.dados_cadastrais?.nome) {
+        notas.push(`Titular no documento: ${data.dados_cadastrais.nome}`)
+      }
+      if (data.dados_cadastrais?.cpf_cnpj) {
+        notas.push(`CPF/CNPJ: ${data.dados_cadastrais.cpf_cnpj}`)
+      }
+      if (tec.fabricante_modulos || tec.modelo_modulos) {
+        notas.push(
+          `Módulos: ${[tec.fabricante_modulos, tec.modelo_modulos].filter(Boolean).join(' ')}`,
+        )
+      }
+      if (tec.padrao_entrada) {
+        notas.push(`Padrão: ${tec.padrao_entrada}`)
+      }
+      if (tec.numero_fases) {
+        notas.push(`Fases: ${tec.numero_fases}`)
+      }
+      if (notas.length > 0) {
+        const obsAtual = novaUsinaObservacoes.trim()
+        const obsAdicional = `[Importado via ${file.name}]\n${notas.join(' | ')}`
+        setNovaUsinaObservacoes(obsAtual ? `${obsAtual}\n\n${obsAdicional}` : obsAdicional)
+      }
+
+      if (camposPreenchidos.length > 0) {
+        setSucessoExtracaoNovaUsina(
+          `Dados importados com sucesso de "${file.name}"! (${camposPreenchidos.length} campos preenchidos: ${camposPreenchidos.slice(0, 4).join(', ')}${camposPreenchidos.length > 4 ? '...' : ''}). Revise os campos abaixo antes de cadastrar.`,
+        )
+      } else {
+        setSucessoExtracaoNovaUsina(
+          `Documento "${file.name}" lido, mas poucos campos técnicos específicos foram encontrados. Revise e complete manualmente.`,
+        )
+      }
+    } catch (err: unknown) {
+      console.error('[SecaoUsinasCliente] Erro na extração de documento da nova usina:', err)
+      const msg = err instanceof Error ? err.message : 'Falha na conexão com o serviço de extração.'
+      setErroExtracaoNovaUsina(`Erro ao extrair dados do documento: ${msg}`)
+    } finally {
+      setIsExtraindoDocNovaUsina(false)
+      setStatusProgressoNovaUsina(null)
+    }
   }
 
   const handleSalvarNovaUsina = async () => {
@@ -2035,6 +2198,87 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
               técnicos.
             </DialogDescription>
           </DialogHeader>
+
+          {/* BLOCO ADITIVO: Importação por Documento (Fatura, Projeto, Memorial, Datasheet) */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-50/80 via-slate-50 to-amber-50/50 border border-amber-200/80 space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                  <UploadCloud className="w-4 h-4 text-amber-700" />
+                </div>
+                <div>
+                  <span className="font-bold text-[#0F2038] text-xs">
+                    Importar Dados por Documento
+                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    Preencha os campos técnicos automaticamente com IA (fatura de energia, proposta,
+                    projeto ou memorial).
+                  </p>
+                </div>
+              </div>
+
+              {/* Input de arquivo invisível acionado pelo botão */}
+              <input
+                ref={inputArquivoNovaUsinaRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls"
+                className="hidden"
+                disabled={isExtraindoDocNovaUsina || isSavingNovaUsina}
+                onChange={handleImportarDocumentoNovaUsina}
+              />
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isExtraindoDocNovaUsina || isSavingNovaUsina}
+                onClick={() => inputArquivoNovaUsinaRef.current?.click()}
+                className="bg-white hover:bg-amber-50 text-[#0F2038] border-amber-300 font-bold text-xs shadow-xs flex items-center gap-1.5 shrink-0"
+              >
+                {isExtraindoDocNovaUsina ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Importar Dados por Documento</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Feedback durante extração */}
+            {isExtraindoDocNovaUsina && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-100/70 border border-amber-300 text-amber-900 text-[11px] animate-pulse">
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-amber-700" />
+                <span>
+                  {statusProgressoNovaUsina || 'Analisando documento com IA especializada Skip...'}
+                </span>
+              </div>
+            )}
+
+            {/* Feedback de erro */}
+            {erroExtracaoNovaUsina && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px]">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600 mt-0.5" />
+                <div className="flex-1">
+                  <span>{erroExtracaoNovaUsina}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Feedback de sucesso */}
+            {sucessoExtracaoNovaUsina && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px]">
+                <CheckCircle className="w-3.5 h-3.5 shrink-0 text-emerald-600 mt-0.5" />
+                <div className="flex-1">
+                  <span>{sucessoExtracaoNovaUsina}</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-3 py-2 text-xs">
             <div>
