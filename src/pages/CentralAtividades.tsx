@@ -9,17 +9,12 @@ import {
   Sun,
   Wrench,
   AlertTriangle,
-  Clock,
   Search,
-  ExternalLink,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   FilterX,
   Layers,
-  CheckCircle2,
-  Sparkles,
-  ClipboardList,
   Info,
   Plus,
   MessageSquare,
@@ -36,6 +31,7 @@ import {
   Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Sheet,
   SheetContent,
@@ -435,96 +431,76 @@ export default function CentralAtividadesPage() {
     }
   }
 
-  // Renderizadores de badges visuais
-  const getFonteBadge = (fonte: CentralAtividadeFonte) => {
-    switch (fonte) {
-      case 'atividade':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-            <ClipboardList className="w-3 h-3 text-blue-600" />
-            Atividade CRM
-          </span>
-        )
-      case 'ordem_servico':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-            <Wrench className="w-3 h-3 text-amber-600" />
-            Ordem de Serviço
-          </span>
-        )
-      case 'manutencao':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <Sun className="w-3 h-3 text-emerald-600" />
-            Manutenção O&M
-          </span>
-        )
-      case 'servico_avulso':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
-            <Sparkles className="w-3 h-3 text-purple-600" />
-            Serviço Avulso
-          </span>
-        )
-      case 'timeline_om':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
-            <Clock className="w-3 h-3 text-cyan-600" />
-            Linha do Tempo
-          </span>
-        )
-      case 'anomalia_om':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-            <AlertTriangle className="w-3 h-3 text-rose-600" />
-            Anomalia O&M
-          </span>
-        )
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-50 text-gray-800 border border-gray-200">
-            Item
-          </span>
-        )
-    }
-  }
+  // Indicador visual de Status (bolinha colorida + legenda ao lado)
+  const renderStatusDot = (status: string, statusRaw?: string) => {
+    const s = (statusRaw || status || '').toLowerCase().trim()
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Concluído':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            Concluído
-          </span>
-        )
-      case 'Pendente / Agendado':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-            <Clock className="w-3 h-3 text-amber-600" />
-            Pendente
-          </span>
-        )
-      case 'Em Execução':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
-            <Wrench className="w-3 h-3 text-blue-600" />
-            Em Execução
-          </span>
-        )
-      case 'Cancelado':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-gray-100 text-gray-700 border border-gray-300 line-through">
-            Cancelado
-          </span>
-        )
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200">
-            {status}
-          </span>
-        )
+    // 1. Concluído / Resolvido / Faturado / Finalizada
+    if (
+      status === 'Concluído' ||
+      ['concluida', 'concluido', 'concluído', 'resolvido', 'faturado', 'finalizada'].includes(s)
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 whitespace-nowrap">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 shrink-0" />
+          <span>Concluído</span>
+        </span>
+      )
     }
+
+    // 2. Em Execução / Em Andamento / Análise
+    if (
+      status === 'Em Execução' ||
+      [
+        'em_andamento',
+        'em andamento',
+        'em execução',
+        'em_execucao',
+        'em análise',
+        'em analise',
+      ].includes(s)
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-800 whitespace-nowrap">
+          <span className="w-2 h-2 rounded-full bg-blue-500 ring-2 ring-blue-200 shrink-0" />
+          <span>Em Execução</span>
+        </span>
+      )
+    }
+
+    // 3. Cancelado / Rejeitado
+    if (
+      status === 'Cancelado' ||
+      ['cancelada', 'cancelado', 'rejeitada', 'rejeitado'].includes(s)
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 line-through whitespace-nowrap">
+          <span className="w-2 h-2 rounded-full bg-gray-400 ring-2 ring-gray-200 shrink-0" />
+          <span>Cancelado</span>
+        </span>
+      )
+    }
+
+    // 4. Registrado / Enviado
+    if (
+      status === 'Registrado / Enviado' ||
+      ['enviado', 'dados_registrados', 'registrado'].includes(s)
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-cyan-800 whitespace-nowrap">
+          <span className="w-2 h-2 rounded-full bg-cyan-500 ring-2 ring-cyan-200 shrink-0" />
+          <span>Registrado</span>
+        </span>
+      )
+    }
+
+    // 5. Pendente / Agendado / Aberto (padrão)
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-800 whitespace-nowrap">
+        <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-200 shrink-0" />
+        <span>Pendente</span>
+      </span>
+    )
   }
 
   // Helper para obter nome curto da categoria (somente Administrativas, Comerciais e Manutenção)
@@ -768,72 +744,248 @@ export default function CentralAtividadesPage() {
             </div>
           ) : (
             <>
-              {/* Visualização Desktop (Tabela Completa) */}
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#F8FAF9] border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider">
-                    <tr>
-                      <th className="py-3 px-3 w-10 text-center">
-                        <button
-                          type="button"
-                          onClick={handleToggleSelectAll}
-                          className="p-1 rounded text-gray-600 hover:text-emerald-700 transition-colors"
-                          title={
-                            isAllSelected
-                              ? 'Desmarcar todas'
-                              : 'Selecionar todas as atividades filtradas'
-                          }
-                        >
-                          {isAllSelected ? (
-                            <CheckSquare className="w-4 h-4 text-emerald-600" />
-                          ) : isSomeSelected ? (
-                            <MinusSquare className="w-4 h-4 text-emerald-600" />
-                          ) : (
-                            <Square className="w-4 h-4 text-gray-400" />
-                          )}
-                        </button>
-                      </th>
-                      <th className="py-3 px-4">Categoria / Tipo</th>
-                      <th className="py-3 px-4">Cliente / Usina</th>
-                      <th className="py-3 px-4">Título</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Responsável</th>
-                      <th className="py-3 px-4">Data</th>
-                      <th className="py-3 px-4 text-right">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {paginatedItems.map((item) => {
-                      const isSelected = selectedIds.includes(item.id)
-                      const categoriaCurta = getCategoriaCurta(item)
-                      return (
-                        <tr
-                          key={item.id}
-                          onClick={() => handleNavegarOriginal(item)}
-                          className={`transition-colors cursor-pointer group ${
-                            isSelected
-                              ? 'bg-emerald-50/70 hover:bg-emerald-100/50'
-                              : 'hover:bg-emerald-50/40'
-                          }`}
-                        >
-                          {/* Checkbox de Seleção */}
-                          <td
-                            className="py-3.5 px-3 text-center"
-                            onClick={(e) => handleToggleSelectOne(item.id, e)}
+              {/* Visualização Desktop (Tabela Completa Compacta e Sem Rolagem Horizontal) */}
+              <TooltipProvider delayDuration={150}>
+                <div className="hidden lg:block w-full overflow-hidden">
+                  <table className="w-full table-fixed text-left text-xs">
+                    <thead className="bg-[#F8FAF9] border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
+                      <tr>
+                        <th className="py-2 px-2.5 w-10 text-center">
+                          <button
+                            type="button"
+                            onClick={handleToggleSelectAll}
+                            className="p-1 rounded text-gray-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                            title={
+                              isAllSelected
+                                ? 'Desmarcar todas'
+                                : 'Selecionar todas as atividades filtradas'
+                            }
                           >
+                            {isAllSelected ? (
+                              <CheckSquare className="w-4 h-4 text-emerald-600" />
+                            ) : isSomeSelected ? (
+                              <MinusSquare className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <Square className="w-4 h-4 text-gray-400" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="py-2 px-2.5 w-[22%]">Categoria / Tipo</th>
+                        <th className="py-2 px-2.5 w-[20%]">Cliente</th>
+                        <th className="py-2 px-2.5 w-[26%]">Título</th>
+                        <th className="py-2 px-2.5 w-[14%]">Status</th>
+                        <th className="py-2 px-2.5 w-[11%]">Responsável</th>
+                        <th className="py-2 px-2.5 w-[7%] text-right">Data</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {paginatedItems.map((item) => {
+                        const isSelected = selectedIds.includes(item.id)
+                        const categoriaCurta = getCategoriaCurta(item)
+                        return (
+                          <tr
+                            key={item.id}
+                            onClick={() => handleNavegarOriginal(item)}
+                            title="Clique para ver os detalhes da atividade"
+                            className={`transition-colors cursor-pointer group ${
+                              isSelected
+                                ? 'bg-emerald-50/70 hover:bg-emerald-100/50'
+                                : 'hover:bg-emerald-50/40'
+                            }`}
+                          >
+                            {/* Checkbox de Seleção */}
+                            <td
+                              className="py-1.5 px-2.5 text-center"
+                              onClick={(e) => handleToggleSelectOne(item.id, e)}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                              />
+                            </td>
+
+                            {/* Categoria e Tipo unificados em tag pequena */}
+                            <td className="py-1.5 px-2.5">
+                              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 border ${
+                                    item.categoriaId === 'manutencao'
+                                      ? 'bg-amber-50 text-amber-900 border-amber-200'
+                                      : item.categoriaId === 'administrativo_pos_venda'
+                                        ? 'bg-purple-50 text-purple-900 border-purple-200'
+                                        : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                  }`}
+                                >
+                                  {item.categoriaId === 'manutencao' && (
+                                    <Wrench className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                  )}
+                                  {item.categoriaId === 'administrativo_pos_venda' && (
+                                    <FileText className="w-2.5 h-2.5 text-purple-600 shrink-0" />
+                                  )}
+                                  {item.categoriaId === 'comercial' && (
+                                    <Briefcase className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                  )}
+                                  <span>{categoriaCurta}</span>
+                                </span>
+
+                                {item.tipoAtividade && (
+                                  <span
+                                    className="text-[11px] font-medium text-gray-600 truncate min-w-0"
+                                    title={item.tipoAtividade}
+                                  >
+                                    {item.tipoAtividade}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Cliente (com Tooltip do nome da Usina no hover) */}
+                            <td className="py-1.5 px-2.5">
+                              {item.usinaNome ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                      <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
+                                        {item.clienteNome || 'Cliente não informado'}
+                                      </span>
+                                      <Sun className="w-3 h-3 text-amber-500 shrink-0 opacity-70 group-hover:opacity-100" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    className="text-xs bg-gray-900 text-white px-2.5 py-1.5 rounded-lg shadow-md max-w-xs"
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                      <span>
+                                        Usina: <strong>{item.usinaNome}</strong>
+                                      </span>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <div
+                                  className="flex items-center gap-1.5 min-w-0"
+                                  title={item.clienteNome || ''}
+                                >
+                                  <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                  <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
+                                    {item.clienteNome || 'Cliente não informado'}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Título com truncamento e tooltip do texto completo */}
+                            <td className="py-1.5 px-2.5">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="font-medium text-gray-800 truncate cursor-pointer">
+                                    {item.titulo}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="top"
+                                  className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg shadow-md max-w-sm"
+                                >
+                                  <p className="font-semibold">{item.titulo}</p>
+                                  {item.descricao && (
+                                    <p className="text-[11px] text-gray-300 mt-1 line-clamp-3">
+                                      {item.descricao}
+                                    </p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </td>
+
+                            {/* Status: indicador visual bolinha colorida + legenda */}
+                            <td className="py-1.5 px-2.5">
+                              {renderStatusDot(item.status, item.statusRaw)}
+                            </td>
+
+                            {/* Responsável */}
+                            <td className="py-1.5 px-2.5 text-gray-700">
+                              <div
+                                className="flex items-center gap-1.5 min-w-0"
+                                title={item.responsavel}
+                              >
+                                <User className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span className="truncate text-[11px]">
+                                  {item.responsavel || '-'}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Data */}
+                            <td className="py-1.5 px-2.5 text-right font-medium text-gray-600 text-[11px] whitespace-nowrap">
+                              {formatDate(item.data)}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </TooltipProvider>
+
+              {/* Visualização Mobile / Tablet (Cards Responsivos com as mesmas regras) */}
+              <TooltipProvider delayDuration={150}>
+                <div className="lg:hidden divide-y divide-gray-100">
+                  {/* Linha de seleção todos mobile */}
+                  <div className="p-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      className="inline-flex items-center gap-2 font-semibold text-gray-700 cursor-pointer"
+                    >
+                      {isAllSelected ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-600" />
+                      ) : isSomeSelected ? (
+                        <MinusSquare className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400" />
+                      )}
+                      <span>
+                        {isAllSelected
+                          ? 'Desmarcar todas'
+                          : `Selecionar todas (${filteredItems.length})`}
+                      </span>
+                    </button>
+                    {selectedFilteredItems.length > 0 && (
+                      <span className="text-[11px] font-bold text-emerald-800">
+                        {selectedFilteredItems.length} selecionada(s)
+                      </span>
+                    )}
+                  </div>
+
+                  {paginatedItems.map((item) => {
+                    const isSelected = selectedIds.includes(item.id)
+                    const categoriaCurta = getCategoriaCurta(item)
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleNavegarOriginal(item)}
+                        className={`p-3 transition-colors cursor-pointer space-y-2 ${
+                          isSelected
+                            ? 'bg-emerald-50/70'
+                            : 'hover:bg-emerald-50/40 active:bg-emerald-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
                             <input
                               type="checkbox"
                               checked={isSelected}
+                              onClick={(e) => handleToggleSelectOne(item.id, e)}
                               onChange={() => {}}
-                              className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer shrink-0"
                             />
-                          </td>
-
-                          {/* Categoria Curta e Tipo de Atividade */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                               <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 border ${
                                   item.categoriaId === 'manutencao'
                                     ? 'bg-amber-50 text-amber-900 border-amber-200'
                                     : item.categoriaId === 'administrativo_pos_venda'
@@ -841,194 +993,62 @@ export default function CentralAtividadesPage() {
                                       : 'bg-emerald-50 text-emerald-900 border-emerald-200'
                                 }`}
                               >
-                                {item.categoriaId === 'manutencao' && (
-                                  <Wrench className="w-3 h-3 text-amber-600" />
-                                )}
-                                {item.categoriaId === 'administrativo_pos_venda' && (
-                                  <FileText className="w-3 h-3 text-purple-600" />
-                                )}
-                                {item.categoriaId === 'comercial' && (
-                                  <Briefcase className="w-3 h-3 text-emerald-600" />
-                                )}
-                                <span>{categoriaCurta}</span>
+                                {categoriaCurta}
                               </span>
-
-                              <div className="text-[11px] font-medium text-gray-600">
-                                {item.tipoAtividade}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Cliente e Usina */}
-                          <td className="py-3.5 px-4">
-                            <div className="space-y-0.5">
-                              <div className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors flex items-center gap-1.5">
-                                <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                <span>{item.clienteNome}</span>
-                              </div>
-                              {item.usinaNome && (
-                                <div className="text-[11px] text-amber-700 flex items-center gap-1 font-medium">
-                                  <Sun className="w-3 h-3 text-amber-500 shrink-0" />
-                                  <span>{item.usinaNome}</span>
-                                </div>
+                              {item.tipoAtividade && (
+                                <span className="text-[11px] text-gray-500 font-medium truncate">
+                                  {item.tipoAtividade}
+                                </span>
                               )}
                             </div>
-                          </td>
-
-                          {/* Título comprimido (sem os detalhes/descrição) */}
-                          <td className="py-3.5 px-4">
-                            <div className="font-semibold text-gray-800" title={item.titulo}>
-                              {item.titulo}
-                            </div>
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            {getStatusBadge(item.status)}
-                          </td>
-
-                          {/* Responsável */}
-                          <td className="py-3.5 px-4 whitespace-nowrap text-gray-700">
-                            <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span>{item.responsavel}</span>
-                            </div>
-                          </td>
-
-                          {/* Data */}
-                          <td className="py-3.5 px-4 whitespace-nowrap font-medium text-gray-700">
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span>{formatDate(item.data)}</span>
-                            </div>
-                          </td>
-
-                          {/* Ação */}
-                          <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 group-hover:underline">
-                              Ver detalhes
-                              <ExternalLink className="w-3 h-3" />
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Visualização Mobile / Tablet (Cards Responsivos) */}
-              <div className="lg:hidden divide-y divide-gray-100">
-                {/* Linha de seleção todos mobile */}
-                <div className="p-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-xs">
-                  <button
-                    type="button"
-                    onClick={handleToggleSelectAll}
-                    className="inline-flex items-center gap-2 font-semibold text-gray-700"
-                  >
-                    {isAllSelected ? (
-                      <CheckSquare className="w-4 h-4 text-emerald-600" />
-                    ) : isSomeSelected ? (
-                      <MinusSquare className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <Square className="w-4 h-4 text-gray-400" />
-                    )}
-                    <span>
-                      {isAllSelected
-                        ? 'Desmarcar todas'
-                        : `Selecionar todas (${filteredItems.length})`}
-                    </span>
-                  </button>
-                  {selectedFilteredItems.length > 0 && (
-                    <span className="text-[11px] font-bold text-emerald-800">
-                      {selectedFilteredItems.length} selecionada(s)
-                    </span>
-                  )}
-                </div>
-
-                {paginatedItems.map((item) => {
-                  const isSelected = selectedIds.includes(item.id)
-                  const categoriaCurta = getCategoriaCurta(item)
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => handleNavegarOriginal(item)}
-                      className={`p-4 transition-colors cursor-pointer space-y-2.5 ${
-                        isSelected
-                          ? 'bg-emerald-50/70'
-                          : 'hover:bg-emerald-50/40 active:bg-emerald-50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onClick={(e) => handleToggleSelectOne(item.id, e)}
-                            onChange={() => {}}
-                            className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
-                          />
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                              item.categoriaId === 'manutencao'
-                                ? 'bg-amber-50 text-amber-900 border-amber-200'
-                                : item.categoriaId === 'administrativo_pos_venda'
-                                  ? 'bg-purple-50 text-purple-900 border-purple-200'
-                                  : 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                            }`}
-                          >
-                            {categoriaCurta}
-                          </span>
-                        </div>
-                        <div>{getStatusBadge(item.status)}</div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-xs font-bold text-gray-900 leading-snug">
-                          {item.titulo}
-                        </h4>
-                        {item.tipoAtividade && (
-                          <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
-                            {item.tipoAtividade}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-1 pt-1 border-t border-gray-100 text-[11px] text-gray-600">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span className="font-semibold text-gray-800">{item.clienteNome}</span>
-                        </div>
-
-                        {item.usinaNome && (
-                          <div className="flex items-center gap-1.5 text-amber-700 font-medium">
-                            <Sun className="w-3 h-3 text-amber-500 shrink-0" />
-                            <span>{item.usinaNome}</span>
                           </div>
-                        )}
+                          <div className="shrink-0">
+                            {renderStatusDot(item.status, item.statusRaw)}
+                          </div>
+                        </div>
 
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="inline-flex items-center gap-1">
-                            <User className="w-3.5 h-3.5 text-gray-400" />
-                            {item.responsavel}
-                          </span>
-                          <span className="inline-flex items-center gap-1 font-medium text-gray-700">
-                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            {formatDate(item.data)}
-                          </span>
+                        <div>
+                          <h4
+                            className="text-xs font-bold text-gray-900 leading-snug truncate"
+                            title={item.titulo}
+                          >
+                            {item.titulo}
+                          </h4>
+                        </div>
+
+                        <div className="space-y-1 pt-1 border-t border-gray-100 text-[11px] text-gray-600">
+                          {/* Cliente com Usina no tooltip/title */}
+                          <div
+                            className="flex items-center gap-1.5"
+                            title={item.usinaNome ? `Usina: ${item.usinaNome}` : undefined}
+                          >
+                            <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="font-semibold text-gray-800 truncate">
+                              {item.clienteNome || 'Cliente não informado'}
+                            </span>
+                            {item.usinaNome && (
+                              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded shrink-0">
+                                Usina vinculada
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="inline-flex items-center gap-1 truncate text-gray-700">
+                              <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="truncate">{item.responsavel || '-'}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 font-medium text-gray-600 shrink-0">
+                              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              {formatDate(item.data)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex justify-end pt-1">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-                          Ver no CRM
-                          <ExternalLink className="w-3 h-3" />
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              </TooltipProvider>
 
               {/* Paginação */}
               <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#F8FAF9]/60">

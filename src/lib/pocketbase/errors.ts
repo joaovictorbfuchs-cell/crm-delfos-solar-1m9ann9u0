@@ -31,23 +31,23 @@ export function getErrorMessage(error: unknown): string {
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const obj = error as Record<string, unknown>
+    const errObj = error as Record<string, unknown>
     if (
-      obj.status === 401 ||
-      obj.status === 403 ||
-      obj.statusCode === 401 ||
-      obj.statusCode === 403
+      errObj.status === 401 ||
+      errObj.status === 403 ||
+      errObj.statusCode === 401 ||
+      errObj.statusCode === 403
     ) {
       return true
     }
-    if (typeof obj.message === 'string') {
-      const msg = obj.message.toLowerCase()
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
       if (
-        msg.includes('token is expired') ||
-        msg.includes('token is invalid') ||
-        msg.includes('autenticação') ||
+        msg.includes('token') ||
+        msg.includes('expired') ||
         msg.includes('unauthorized') ||
-        msg.includes('forbidden')
+        msg.includes('failed to authenticate') ||
+        msg.includes('session')
       ) {
         return true
       }
