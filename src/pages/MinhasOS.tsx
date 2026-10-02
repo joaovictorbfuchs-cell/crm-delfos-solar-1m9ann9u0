@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { OrdemServico, OSTipoServico } from '@/types/crm'
 import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
 import { formatDateTime } from '@/lib/formatters'
 import {
   Wrench,
@@ -13,7 +14,6 @@ import {
   Calendar,
   ChevronRight,
   Search,
-  RefreshCw,
   CheckCheck,
   PlayCircle,
   FileText,
@@ -57,41 +57,115 @@ export default function MinhasOS() {
   const currentUserId = userProfile?.id || user?.id || ''
   const currentUserName = userProfile?.name || user?.name || ''
 
+  const isFetchingRef = useRef(false)
+
   // Carrega OSs atribuídas exclusivamente ao prestador logado
-  const carregarDados = async () => {
-    setIsLoading(true)
-    try {
-      // Buscar todas as ordens com expand
-      const todas = await fetchOrdensServico()
-      // Filtro real e estrito por prestador logado (responsavel_usuario_id ou atribuida_a)
-      const minhas = todas.filter((os) => {
-        if (!os) return false
-        if (currentUserId && os.responsavel_usuario_id === currentUserId) return true
-        if (
-          currentUserName &&
-          os.atribuida_a &&
-          os.atribuida_a.trim().toLowerCase() === currentUserName.trim().toLowerCase()
-        ) {
-          return true
+  const carregarDados = useCallback(
+    async (silent = false) => {
+      if (isFetchingRef.current) return
+      isFetchingRef.current = true
+      if (!silent) {
+        setIsLoading(true)
+      }
+      try {
+        // Buscar todas as ordens com expand
+        const todas = await fetchOrdensServico()
+        // Filtro real e estrito por prestador logado (responsavel_usuario_id ou atribuida_a)
+        const minhas = todas.filter((os) => {
+          if (!os) return false
+          if (currentUserId && os.responsavel_usuario_id === currentUserId) return true
+          if (
+            currentUserName &&
+            os.atribuida_a &&
+            os.atribuida_a.trim().toLowerCase() === currentUserName.trim().toLowerCase()
+          ) {
+            return true
+          }
+          return false
+        })
+        setOrdens(minhas)
+      } catch (err) {
+        console.error('Erro ao carregar Minhas OS:', err)
+        if (!silent) {
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao carregar ordens de serviço',
+            description: 'Tente recarregar a página.',
+          })
         }
-        return false
-      })
-      setOrdens(minhas)
-    } catch (err) {
-      console.error('Erro ao carregar Minhas OS:', err)
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao carregar ordens de serviço',
-        description: 'Tente recarregar a página.',
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      } finally {
+        isFetchingRef.current = false
+        if (!silent) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [currentUserId, currentUserName, toast],
+  )
 
   useEffect(() => {
     carregarDados()
-  }, [currentUserId, currentUserName])
+  }, [carregarDados])
+
+  // Polling automático e recarregamento em foco
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && !selectedOS) {
+        carregarDados(true)
+      }
+    }, 30000)
+
+    const handleFocus = () => {
+      if (!selectedOS) {
+        carregarDados(true)
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !selectedOS) {
+        carregarDados(true)
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [carregarDados, selectedOS])
+
+  // Realtime para Minhas OS
+  useEffect(() => {
+    let unmounted = false
+    let unsubOS: (() => void) | undefined
+
+    pb.collection('ordens_servico')
+      .subscribe('*', () => {
+        if (!unmounted && !selectedOS) {
+          carregarDados(true)
+        }
+      })
+      .then((unsub) => {
+        unsubOS = unsub
+      })
+      .catch((err) => {
+        console.warn('Realtime ordens_servico indisponível em MinhasOS:', err)
+      })
+
+    return () => {
+      unmounted = true
+      if (unsubOS) {
+        try {
+          unsubOS()
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+    }
+  }, [carregarDados, selectedOS])
 
   const handleOSUpdated = (updatedOS: OrdemServico) => {
     setOrdens((prev) => prev.map((item) => (item.id === updatedOS.id ? updatedOS : item)))
@@ -191,20 +265,6 @@ export default function MinhasOS() {
             </p>
           </div>
         </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={carregarDados}
-          disabled={isLoading}
-          className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-700 flex items-center gap-1.5 self-start sm:self-auto text-xs font-semibold"
-          title="Atualizar Minhas OS"
-        >
-          <RefreshCw
-            className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-emerald-600' : ''}`}
-          />
-          <span>Atualizar</span>
-        </Button>
       </div>
 
       {/* Tabs: Pendentes (e em andamento) vs Calendário vs Concluídas (Histórico) */}
@@ -280,7 +340,7 @@ export default function MinhasOS() {
       {activeTab === 'calendario' ? (
         isLoading ? (
           <div className="py-16 flex flex-col items-center justify-center text-center">
-            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <div className="w-8 h-8 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin mb-3 mx-auto" />
             <p className="text-sm font-semibold text-gray-700">Carregando calendário de OS...</p>
           </div>
         ) : (
@@ -323,7 +383,7 @@ export default function MinhasOS() {
           {/* Lista de OSs do Prestador */}
           {isLoading ? (
             <div className="py-16 flex flex-col items-center justify-center text-center">
-              <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+              <div className="w-8 h-8 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin mb-3 mx-auto" />
               <p className="text-sm font-semibold text-gray-700">
                 Carregando suas ordens de serviço...
               </p>

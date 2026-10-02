@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { OrdemServico, OSTipoServico } from '@/types/crm'
 import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
@@ -19,19 +19,17 @@ import {
   User,
   Search,
   Filter,
-  Sparkles,
-  Zap,
-  RefreshCw,
-  Sun,
-  ShieldCheck,
   CheckCheck,
   BarChart3,
   Send,
   Trash2,
+  X,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchInstaladoresAtivos } from '@/services/usuariosService'
@@ -95,6 +93,23 @@ export default function ExecucaoOS() {
   const [selectedPrestadorFilter, setSelectedPrestadorFilter] = useState<string>('todos')
   const [selectedPeriodoFilter, setSelectedPeriodoFilter] = useState<string>('todos')
 
+  // Contagem de filtros ativos para badge no botão de filtro
+  const activeFiltersCount = useMemo(() => {
+    let count = 0
+    if (searchTerm.trim()) count++
+    if (selectedTipoFilter !== 'todos') count++
+    if (selectedPrestadorFilter !== 'todos') count++
+    if (selectedPeriodoFilter !== 'todos') count++
+    return count
+  }, [searchTerm, selectedTipoFilter, selectedPrestadorFilter, selectedPeriodoFilter])
+
+  const handleLimparFiltros = () => {
+    setSearchTerm('')
+    setSelectedTipoFilter('todos')
+    setSelectedPrestadorFilter('todos')
+    setSelectedPeriodoFilter('todos')
+  }
+
   // Mapeamento de tipo de atividade de campo para tipo_servico suportado pela tela
   const mapTipoAtividadeParaTipoServico = (tipo?: string): OSTipoServico => {
     switch (tipo) {
@@ -122,120 +137,222 @@ export default function ExecucaoOS() {
     return 'pendente'
   }
 
+  // Ref para controlar se já há carregamento em andamento e evitar duplicidade
+  const isFetchingRef = useRef(false)
+  const [filtrosPopoverOpen, setFiltrosPopoverOpen] = useState(false)
+
   // Carrega OSs, atividades de manutenção e prestadores do banco
-  const carregarDados = async () => {
-    setIsLoading(true)
-    try {
-      const { fetchProfissionais } = await import('@/services/crmService')
-      const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
+  const carregarDados = useCallback(
+    async (silent = false) => {
+      if (isFetchingRef.current) return
+      isFetchingRef.current = true
+      if (!silent) {
+        setIsLoading(true)
+      }
+      try {
+        const { fetchProfissionais } = await import('@/services/crmService')
+        const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
 
-      // Filtro OR para as atividades de manutenção/campo
-      const filterAtividades =
-        "(tipo='limpeza_manutencao' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger')"
+        // Filtro OR para as atividades de manutenção/campo
+        const filterAtividades =
+          "(tipo='limpeza_manutencao' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger')"
 
-      const promises = [
-        fetchOrdensServico(undefined, responsavelFiltro),
-        pb.collection('atividades').getFullList({
-          filter: filterAtividades,
-          sort: '-data,-created',
-          expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
-          requestKey: null,
-        }),
-        isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
-        fetchProfissionais ? fetchProfissionais() : Promise.resolve([]),
-      ] as const
+        const promises = [
+          fetchOrdensServico(undefined, responsavelFiltro),
+          pb.collection('atividades').getFullList({
+            filter: filterAtividades,
+            sort: '-data,-created',
+            expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+            requestKey: null,
+          }),
+          isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
+          fetchProfissionais ? fetchProfissionais() : Promise.resolve([]),
+        ] as const
 
-      const [osList, atividadesList, instList, profList] = await Promise.all(promises)
+        const [osList, atividadesList, instList, profList] = await Promise.all(promises)
 
-      // Mapear cada atividade para o formato OrdemServico com origem 'atividades'
-      const atividadesMapeadas: OrdemServico[] = (
-        Array.isArray(atividadesList) ? atividadesList : []
-      ).map((atv: any) => {
-        const cli = atv.expand?.cliente_id
-        const usina = atv.expand?.usina_id
-        const resp = atv.expand?.responsavel_id
-        const forn = atv.expand?.fornecedor_id
+        // Mapear cada atividade para o formato OrdemServico com origem 'atividades'
+        const atividadesMapeadas: OrdemServico[] = (
+          Array.isArray(atividadesList) ? atividadesList : []
+        ).map((atv: any) => {
+          const cli = atv.expand?.cliente_id
+          const usina = atv.expand?.usina_id
+          const resp = atv.expand?.responsavel_id
+          const forn = atv.expand?.fornecedor_id
 
-        // Endereço: usina expand -> cliente expand -> endereco_uc
-        const endereco = atv.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
+          // Endereço: usina expand -> cliente expand -> endereco_uc
+          const endereco = atv.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
 
-        // Atribuído a: responsavel_nome -> equipe_nome -> fornecedor -> autor
-        const atribuidaA =
-          atv.responsavel_nome ||
-          resp?.name ||
-          atv.equipe_nome ||
-          forn?.nome_empresa ||
-          forn?.contato_nome ||
-          atv.autor ||
-          ''
+          // Atribuído a: responsavel_nome -> equipe_nome -> fornecedor -> autor
+          const atribuidaA =
+            atv.responsavel_nome ||
+            resp?.name ||
+            atv.equipe_nome ||
+            forn?.nome_empresa ||
+            forn?.contato_nome ||
+            atv.autor ||
+            ''
 
-        // Instruções combinando título e descrição quando existirem
-        const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
-        const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
+          // Instruções combinando título e descrição quando existirem
+          const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
+          const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
 
-        const tipoServico = mapTipoAtividadeParaTipoServico(atv.tipo)
-        const status = mapStatusAtividadeParaOSStatus(atv.status)
+          const tipoServico = mapTipoAtividadeParaTipoServico(atv.tipo)
+          const status = mapStatusAtividadeParaOSStatus(atv.status)
 
-        return {
-          id: atv.id,
-          collectionId: atv.collectionId || 'atividades',
-          collectionName: atv.collectionName || 'atividades',
-          cliente_id: atv.cliente_id,
-          tipo_servico: tipoServico,
-          endereco,
-          data_agendada: atv.data || atv.created,
-          status,
-          atribuida_a: atribuidaA,
-          responsavel_usuario_id: atv.responsavel_id || undefined,
-          profissional_id: undefined,
-          instrucoes,
-          detalhes_execucao: atv.descricao || '',
-          concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
-          origem: 'atividades',
-          created: atv.created,
-          updated: atv.updated,
-          expand: {
-            cliente_id: cli,
-            responsavel_usuario_id: resp,
-          },
-        } as OrdemServico
-      })
+          return {
+            id: atv.id,
+            collectionId: atv.collectionId || 'atividades',
+            collectionName: atv.collectionName || 'atividades',
+            cliente_id: atv.cliente_id,
+            tipo_servico: tipoServico,
+            endereco,
+            data_agendada: atv.data || atv.created,
+            status,
+            atribuida_a: atribuidaA,
+            responsavel_usuario_id: atv.responsavel_id || undefined,
+            profissional_id: undefined,
+            instrucoes,
+            detalhes_execucao: atv.descricao || '',
+            concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
+            origem: 'atividades',
+            created: atv.created,
+            updated: atv.updated,
+            expand: {
+              cliente_id: cli,
+              responsavel_usuario_id: resp,
+            },
+          } as OrdemServico
+        })
 
-      // Coexistência e deduplicação: OSs reais têm precedência se houver mesmo id
-      const osReais = Array.isArray(osList) ? osList : []
-      const osIdSet = new Set(osReais.map((o) => o.id))
-      const atividadesDeduplicadas = atividadesMapeadas.filter((a) => !osIdSet.has(a.id))
-      const ordensCombinadas = [...osReais, ...atividadesDeduplicadas]
+        // Coexistência e deduplicação: OSs reais têm precedência se houver mesmo id
+        const osReais = Array.isArray(osList) ? osList : []
+        const osIdSet = new Set(osReais.map((o) => o.id))
+        const atividadesDeduplicadas = atividadesMapeadas.filter((a) => !osIdSet.has(a.id))
+        const ordensCombinadas = [...osReais, ...atividadesDeduplicadas]
 
-      // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável
-      const ordensFinais =
-        responsavelFiltro && !isAdmin
-          ? ordensCombinadas.filter(
-              (o) =>
-                o.responsavel_usuario_id === responsavelFiltro ||
-                (userProfile?.name &&
-                  o.atribuida_a?.toLowerCase().includes(userProfile.name.toLowerCase())),
-            )
-          : ordensCombinadas
+        // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável
+        const ordensFinais =
+          responsavelFiltro && !isAdmin
+            ? ordensCombinadas.filter(
+                (o) =>
+                  o.responsavel_usuario_id === responsavelFiltro ||
+                  (userProfile?.name &&
+                    o.atribuida_a?.toLowerCase().includes(userProfile.name.toLowerCase())),
+              )
+            : ordensCombinadas
 
-      setOrdens(ordensFinais)
-      setInstaladores(Array.isArray(instList) ? instList : [])
-      setProfissionais(Array.isArray(profList) ? profList : [])
-    } catch (err) {
-      console.error('Erro ao carregar dados de OS e atividades:', err)
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao carregar serviços de campo',
-        description: 'Tente recarregar a página.',
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+        setOrdens(ordensFinais)
+        setInstaladores(Array.isArray(instList) ? instList : [])
+        setProfissionais(Array.isArray(profList) ? profList : [])
+      } catch (err) {
+        console.error('Erro ao carregar dados de OS e atividades:', err)
+        if (!silent) {
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao carregar serviços de campo',
+            description: 'Tente recarregar a página.',
+          })
+        }
+      } finally {
+        isFetchingRef.current = false
+        if (!silent) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [isAdmin, isInstalador, userProfile?.id, userProfile?.name, toast],
+  )
 
+  // Carregamento inicial ao montar ou trocar usuário
   useEffect(() => {
     carregarDados()
-  }, [isInstalador, userProfile?.id])
+  }, [carregarDados])
+
+  // Atualização automática:
+  // 1. Polling a cada 30 segundos em segundo plano (silent: sem spinner invasivo)
+  // 2. Ao voltar para a aba ou janela ganhar foco (window focus / visibilitychange)
+  // 3. Realtime nas coleções ordens_servico e atividades
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Se não estiver com a ficha aberta e aba visível, atualiza suavemente
+      if (document.visibilityState === 'visible' && !selectedOS) {
+        carregarDados(true)
+      }
+    }, 30000)
+
+    const handleFocus = () => {
+      if (!selectedOS) {
+        carregarDados(true)
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !selectedOS) {
+        carregarDados(true)
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [carregarDados, selectedOS])
+
+  // Realtime de ordens_servico e atividades para atualização instantânea
+  useEffect(() => {
+    let unmounted = false
+    let unsubOS: (() => void) | undefined
+    let unsubAtv: (() => void) | undefined
+
+    pb.collection('ordens_servico')
+      .subscribe('*', () => {
+        if (!unmounted && !selectedOS) {
+          carregarDados(true)
+        }
+      })
+      .then((unsub) => {
+        unsubOS = unsub
+      })
+      .catch((err) => {
+        console.warn('Realtime ordens_servico indisponível:', err)
+      })
+
+    pb.collection('atividades')
+      .subscribe('*', () => {
+        if (!unmounted && !selectedOS) {
+          carregarDados(true)
+        }
+      })
+      .then((unsub) => {
+        unsubAtv = unsub
+      })
+      .catch((err) => {
+        console.warn('Realtime atividades indisponível:', err)
+      })
+
+    return () => {
+      unmounted = true
+      if (unsubOS) {
+        try {
+          unsubOS()
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+      if (unsubAtv) {
+        try {
+          unsubAtv()
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+    }
+  }, [carregarDados, selectedOS])
 
   // Callback de OS atualizada (rascunho ou salva)
   const handleOSUpdated = (updatedOS: OrdemServico) => {
@@ -584,142 +701,261 @@ export default function ExecucaoOS() {
   }
 
   return (
-    <div className="space-y-3.5 max-w-5xl mx-auto pb-10">
-      {/* Top Banner de Serviços de Campo */}
-      <div className="bg-white rounded-xl p-3 sm:p-4 border border-[#E5E7EB] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-emerald-100 text-[#166534] inline-flex items-center justify-center">
-              <Wrench className="w-4 h-4" />
-            </span>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">
-                Serviços de Campo
-              </h2>
-              <p className="text-[11px] sm:text-xs text-gray-500">
-                Gestão geral de todas as ordens de serviço, prestadores e vistorias técnicas
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={carregarDados}
-            disabled={isLoading}
-            className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-700 flex items-center gap-1.5 text-xs font-semibold"
-            title="Atualizar lista de OS"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Atualizar</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabs de Navegação: Pendentes vs Calendário vs Concluídas vs Relatório (Apenas Admin) */}
-      <div
-        className={`grid gap-1.5 p-1 bg-gray-100/90 rounded-xl border border-gray-200 ${
-          isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => setActiveTab('pendentes')}
-          className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'pendentes'
-              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
-              : 'text-gray-600 hover:text-gray-900'
+    <div className="space-y-3 max-w-5xl mx-auto pb-10">
+      {/* Barra de Ações do Topo: Tabs de Navegação + Botão de Filtro (Funil) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {/* Tabs de Navegação: Pendentes vs Calendário vs Concluídas vs Relatório (Apenas Admin) */}
+        <div
+          className={`flex-1 min-w-[280px] grid gap-1.5 p-1 bg-gray-100/90 rounded-xl border border-gray-200 ${
+            isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
           }`}
         >
-          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-          <span>Pendentes</span>
-          <span
-            className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-              activeTab === 'pendentes'
-                ? 'bg-amber-100 text-amber-800'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {pendentesList.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('calendario')}
-          className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'calendario'
-              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span>Calendário</span>
-          <span
-            className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-              activeTab === 'calendario'
-                ? 'bg-emerald-100 text-emerald-800'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {ordens.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('concluidas')}
-          className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'concluidas'
-              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span>Concluídas</span>
-          <span
-            className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-              activeTab === 'concluidas'
-                ? 'bg-emerald-100 text-emerald-800'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {concluidasList.length}
-          </span>
-        </button>
-
-        {isAdmin && (
           <button
             type="button"
-            onClick={() => setActiveTab('relatorio')}
+            onClick={() => setActiveTab('pendentes')}
             className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'relatorio'
+              activeTab === 'pendentes'
                 ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Relatório</span>
+            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span>Pendentes</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                activeTab === 'relatorio'
+                activeTab === 'pendentes'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              {pendentesList.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('calendario')}
+            className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'calendario'
+                ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Calendário</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                activeTab === 'calendario'
                   ? 'bg-emerald-100 text-emerald-800'
                   : 'bg-gray-200 text-gray-700'
               }`}
             >
-              Mês
+              {ordens.length}
             </span>
           </button>
-        )}
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('concluidas')}
+            className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'concluidas'
+                ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Concluídas</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                activeTab === 'concluidas'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              {concluidasList.length}
+            </span>
+          </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('relatorio')}
+              className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'relatorio'
+                  ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Relatório</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  activeTab === 'relatorio'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                Mês
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Botão com Ícone de Filtro (Funnel): abre Popover com todos os filtros */}
+        <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={`h-10 px-3 rounded-xl border font-semibold text-xs flex items-center gap-2 transition-all shrink-0 ${
+                activeFiltersCount > 0
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 shadow-2xs'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900 shadow-2xs'
+              }`}
+              title="Filtrar serviços de campo"
+              aria-label="Abrir filtros de serviços de campo"
+            >
+              <Filter
+                className={`w-4 h-4 ${activeFiltersCount > 0 ? 'text-emerald-700' : 'text-gray-500'}`}
+              />
+              <span className="hidden sm:inline">Filtros</span>
+              {activeFiltersCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-600 text-white min-w-[18px] text-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+
+          <PopoverContent
+            align="end"
+            sideOffset={8}
+            className="w-[340px] sm:w-[380px] p-4 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 space-y-3.5"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
+                  <Filter className="w-3.5 h-3.5" />
+                </span>
+                <h4 className="text-xs sm:text-sm font-bold text-gray-900">
+                  Filtros de Serviços de Campo
+                </h4>
+              </div>
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleLimparFiltros}
+                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
+                  title="Limpar todos os filtros"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Limpar</span>
+                </button>
+              )}
+            </div>
+
+            {/* Campo 1: Busca Livre (cliente, endereço, técnico) */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder="Nome do cliente, endereço..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    title="Limpar busca"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Campo 2: Filtro por Prestador / Instalador */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                Prestador / Técnico
+              </label>
+              <select
+                value={selectedPrestadorFilter}
+                onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
+                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Todos os Prestadores</option>
+                {prestadoresOpcoes.map((nome) => (
+                  <option key={nome} value={nome}>
+                    Prestador: {nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Campo 3: Filtro por Tipo de Serviço */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                Tipo de Serviço
+              </label>
+              <select
+                value={selectedTipoFilter}
+                onChange={(e) => setSelectedTipoFilter(e.target.value)}
+                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Todos os Serviços</option>
+                <option value="Limpeza">Limpeza</option>
+                <option value="Manutenção">Manutenção</option>
+                <option value="Instalação">Instalação</option>
+                <option value="Garantia">Garantia</option>
+                <option value="Configuração de Datalogger">Configuração de Datalogger</option>
+              </select>
+            </div>
+
+            {/* Campo 4: Filtro por Período */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                Período Agendado
+              </label>
+              <select
+                value={selectedPeriodoFilter}
+                onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
+                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Qualquer Período</option>
+                <option value="hoje">Agendadas para Hoje</option>
+                <option value="semana">Nesta Semana</option>
+                <option value="mes">Neste Mês</option>
+              </select>
+            </div>
+
+            {/* Rodapé do Popover */}
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[11px] text-gray-500">{filteredList.length} resultado(s)</span>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setFiltrosPopoverOpen(false)}
+                className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
+              >
+                Concluir
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Conteúdo da Aba Relatório (apenas Admin) */}
       {activeTab === 'relatorio' && isAdmin ? (
         isLoading ? (
           <div className="py-16 flex flex-col items-center justify-center text-center">
-            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <div className="w-8 h-8 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin mb-3 mx-auto" />
             <p className="text-sm font-semibold text-gray-700">Carregando relatório mensal...</p>
           </div>
         ) : (
@@ -728,7 +964,7 @@ export default function ExecucaoOS() {
       ) : activeTab === 'calendario' ? (
         isLoading ? (
           <div className="py-16 flex flex-col items-center justify-center text-center">
-            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <div className="w-8 h-8 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin mb-3 mx-auto" />
             <p className="text-sm font-semibold text-gray-700">Carregando calendário de OS...</p>
           </div>
         ) : (
@@ -741,66 +977,55 @@ export default function ExecucaoOS() {
         )
       ) : (
         <>
-          {/* Barra de Filtros Avançados: Prestador, Status/Tipo, Período e Busca */}
-          <div className="bg-white rounded-xl p-2.5 sm:p-3 border border-gray-200 shadow-2xs flex flex-col gap-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder="Buscar cliente, endereço..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
-                />
+          {/* Tag informativa de filtros ativos, se houver algum selecionado */}
+          {activeFiltersCount > 0 && (
+            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 text-xs text-emerald-900 shadow-2xs">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-bold flex items-center gap-1 text-[11px] uppercase tracking-wide text-emerald-800">
+                  <Filter className="w-3 h-3 text-emerald-700" />
+                  Filtros ativos ({activeFiltersCount}):
+                </span>
+                {searchTerm.trim() && (
+                  <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-[11px] font-medium text-emerald-800">
+                    Busca: "{searchTerm}"
+                  </span>
+                )}
+                {selectedPrestadorFilter !== 'todos' && (
+                  <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-[11px] font-medium text-emerald-800">
+                    Prestador: {selectedPrestadorFilter}
+                  </span>
+                )}
+                {selectedTipoFilter !== 'todos' && (
+                  <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-[11px] font-medium text-emerald-800">
+                    Tipo: {selectedTipoFilter}
+                  </span>
+                )}
+                {selectedPeriodoFilter !== 'todos' && (
+                  <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-[11px] font-medium text-emerald-800">
+                    Período:{' '}
+                    {selectedPeriodoFilter === 'hoje'
+                      ? 'Hoje'
+                      : selectedPeriodoFilter === 'semana'
+                        ? 'Nesta Semana'
+                        : 'Neste Mês'}
+                  </span>
+                )}
               </div>
 
-              {/* Filtro por Prestador */}
-              <select
-                value={selectedPrestadorFilter}
-                onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
-                className="h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              <button
+                type="button"
+                onClick={handleLimparFiltros}
+                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-950 underline shrink-0 cursor-pointer"
               >
-                <option value="todos">Todos os Prestadores</option>
-                {prestadoresOpcoes.map((nome) => (
-                  <option key={nome} value={nome}>
-                    Prestador: {nome}
-                  </option>
-                ))}
-              </select>
-
-              {/* Filtro por Tipo de Serviço */}
-              <select
-                value={selectedTipoFilter}
-                onChange={(e) => setSelectedTipoFilter(e.target.value)}
-                className="h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-              >
-                <option value="todos">Todos os Serviços</option>
-                <option value="Limpeza">Limpeza</option>
-                <option value="Manutenção">Manutenção</option>
-                <option value="Instalação">Instalação</option>
-                <option value="Garantia">Garantia</option>
-                <option value="Configuração de Datalogger">Configuração de Datalogger</option>
-              </select>
-
-              {/* Filtro por Período */}
-              <select
-                value={selectedPeriodoFilter}
-                onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
-                className="h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-              >
-                <option value="todos">Qualquer Período</option>
-                <option value="hoje">Agendadas para Hoje</option>
-                <option value="semana">Nesta Semana</option>
-                <option value="mes">Neste Mês</option>
-              </select>
+                Limpar todos
+              </button>
             </div>
-          </div>
+          )}
 
           {/* Lista de Cards de Ordens de Serviço */}
           {isLoading ? (
             <div className="py-16 flex flex-col items-center justify-center text-center">
-              <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+              <div className="w-8 h-8 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin mb-3 mx-auto" />
               <p className="text-sm font-semibold text-gray-700">Carregando ordens de serviço...</p>
             </div>
           ) : filteredList.length === 0 ? (
