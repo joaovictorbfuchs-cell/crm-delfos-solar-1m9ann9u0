@@ -867,8 +867,32 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
             </Badge>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-100 text-xs">
+          <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                Módulos Fotovoltaicos da Usina
+              </span>
+              {(usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos) && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleRemoverEquipamentoDeclarado(
+                      'modulo_fv',
+                      `${usina.fabricante_modulos || usina.marca_placas || 'Módulos'} ${usina.modelo_modulos || ''}`.trim(),
+                    )
+                  }
+                  className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1 text-[11px] font-bold"
+                  aria-label="Excluir equipamento da usina"
+                  title="Excluir equipamento da usina"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
               <div className="flex items-center gap-2">
                 <span className="text-slate-500 w-24 shrink-0 font-medium">Fabricante:</span>
                 <InlineEditField
@@ -895,7 +919,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                 <InlineEditField
                   value={usina.modelo_modulos || ''}
                   displayValue={
-                    <span className="font-mono text-slate-800 text-[11px] bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                    <span className="font-mono text-slate-800 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200">
                       {usina.modelo_modulos || 'Não inf.'}
                     </span>
                   }
@@ -942,7 +966,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                 />
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {/* Inversor(es): Marca / Modelo / Potência + Datasheet (Deduplicação quando já vinculado ao catálogo) */}
@@ -966,28 +990,50 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                 <Cpu className="w-3.5 h-3.5 text-purple-600" />
                 Inversor(es) da Usina (Marca / Modelo / Potência)
               </span>
-              {(() => {
-                const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
-                if (eq && eq.datasheet_pdf) {
-                  const url = getDatasheetEquipamentoUrl(eq)
-                  if (url) {
-                    return (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
-                        title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
-                      >
-                        <FileText className="w-3 h-3 text-emerald-600" />
-                        <span>Ver Datasheet (PDF)</span>
-                        <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                      </a>
-                    )
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
+                  if (eq && eq.datasheet_pdf) {
+                    const url = getDatasheetEquipamentoUrl(eq)
+                    if (url) {
+                      return (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
+                          title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
+                        >
+                          <FileText className="w-3 h-3 text-emerald-600" />
+                          <span>Ver Datasheet (PDF)</span>
+                          <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                        </a>
+                      )
+                    }
                   }
-                }
-                return null
-              })()}
+                  return null
+                })()}
+                {(usina.inversores_info ||
+                  usina.fabricante_inversores ||
+                  usina.modelo_inversores) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleRemoverEquipamentoDeclarado(
+                        'inversor',
+                        usina.inversores_info ||
+                          `${usina.fabricante_inversores || 'Inversor'} ${usina.modelo_inversores || ''}`.trim(),
+                      )
+                    }
+                    className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1 text-[11px] font-bold"
+                    aria-label="Excluir equipamento da usina"
+                    title="Excluir equipamento da usina"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Excluir</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1159,7 +1205,8 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                               `${item.marca} ${item.modelo}`,
                             )
                           }
-                          className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                          className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                          aria-label="Excluir equipamento da usina"
                           title="Excluir equipamento da usina"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1243,8 +1290,9 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)}
-                      className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
-                      title="Remover ativo da usina"
+                      className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                      aria-label="Excluir equipamento da usina"
+                      title="Excluir equipamento da usina"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1399,8 +1447,9 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                     onClick={() =>
                       handleRemoverAtivoIndividual(ativo.id, `${ativo.fabricante} ${ativo.modelo}`)
                     }
-                    className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
-                    title="Remover ativo individual da usina"
+                    className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                    aria-label="Excluir equipamento da usina"
+                    title="Excluir equipamento da usina"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
