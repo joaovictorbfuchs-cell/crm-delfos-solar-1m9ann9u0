@@ -770,12 +770,12 @@ export default function CentralAtividadesPage() {
                             )}
                           </button>
                         </th>
-                        <th className="py-2 px-2.5 w-[22%]">Categoria / Tipo</th>
-                        <th className="py-2 px-2.5 w-[20%]">Cliente</th>
-                        <th className="py-2 px-2.5 w-[26%]">Título</th>
-                        <th className="py-2 px-2.5 w-[14%]">Status</th>
-                        <th className="py-2 px-2.5 w-[11%]">Responsável</th>
-                        <th className="py-2 px-2.5 w-[7%] text-right">Data</th>
+                        <th className="py-2 px-2.5 w-[19%]">Categoria / Tipo</th>
+                        <th className="py-2 px-2.5 w-[21%]">Cliente</th>
+                        <th className="py-2 px-2.5 w-[29%]">Título</th>
+                        <th className="py-2 px-1.5 w-[11%]">Status</th>
+                        <th className="py-2 px-1.5 w-[12%]">Responsável</th>
+                        <th className="py-2 px-2.5 w-[8%] text-right">Data</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -806,9 +806,9 @@ export default function CentralAtividadesPage() {
                               />
                             </td>
 
-                            {/* Categoria e Tipo unificados em tag pequena */}
+                            {/* Categoria e Tipo unificados em tag pequena empilhados verticalmente */}
                             <td className="py-1.5 px-2.5">
-                              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                              <div className="flex flex-col items-start gap-0.5 min-w-0">
                                 <span
                                   className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 border ${
                                     item.categoriaId === 'manutencao'
@@ -832,7 +832,7 @@ export default function CentralAtividadesPage() {
 
                                 {item.tipoAtividade && (
                                   <span
-                                    className="text-[11px] font-medium text-gray-600 truncate min-w-0"
+                                    className="text-[10px] leading-tight font-medium text-gray-500 truncate max-w-full"
                                     title={item.tipoAtividade}
                                   >
                                     {item.tipoAtividade}
@@ -902,14 +902,14 @@ export default function CentralAtividadesPage() {
                             </td>
 
                             {/* Status: indicador visual bolinha colorida + legenda */}
-                            <td className="py-1.5 px-2.5">
+                            <td className="py-1.5 px-1.5">
                               {renderStatusDot(item.status, item.statusRaw)}
                             </td>
 
                             {/* Responsável */}
-                            <td className="py-1.5 px-2.5 text-gray-700">
+                            <td className="py-1.5 px-1.5 text-gray-700">
                               <div
-                                className="flex items-center gap-1.5 min-w-0"
+                                className="flex items-center gap-1 min-w-0"
                                 title={item.responsavel}
                               >
                                 <User className="w-3 h-3 text-gray-400 shrink-0" />
@@ -983,7 +983,7 @@ export default function CentralAtividadesPage() {
                               onChange={() => {}}
                               className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer shrink-0"
                             />
-                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <div className="flex flex-col items-start gap-0.5 min-w-0">
                               <span
                                 className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 border ${
                                   item.categoriaId === 'manutencao'
@@ -996,7 +996,7 @@ export default function CentralAtividadesPage() {
                                 {categoriaCurta}
                               </span>
                               {item.tipoAtividade && (
-                                <span className="text-[11px] text-gray-500 font-medium truncate">
+                                <span className="text-[10px] text-gray-500 font-medium truncate max-w-full">
                                   {item.tipoAtividade}
                                 </span>
                               )}
