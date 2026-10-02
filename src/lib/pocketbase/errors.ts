@@ -28,34 +28,23 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-    const msg = (error.message || '').toLowerCase()
-    return (
-      msg.includes('token') ||
-      msg.includes('autentic') ||
-      msg.includes('session') ||
-      msg.includes('expired') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    )
-  }
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    const msg = String(errObj.message || errObj.error || '').toLowerCase()
-    if (
-      msg.includes('token') ||
-      msg.includes('autentic') ||
-      msg.includes('session') ||
-      msg.includes('expired') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    ) {
-      return true
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const errorObj = err as Record<string, unknown>
+    if (errorObj.status === 401 || errorObj.status === 403) return true
+    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
+    if (typeof errorObj.message === 'string') {
+      const msg = errorObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('unauthorized') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('user not found')
+      ) {
+        return true
+      }
     }
   }
   return false
