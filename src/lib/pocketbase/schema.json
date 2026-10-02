@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T00:14:34.830Z",
+  "generatedAt": "2026-10-02T00:31:18.808Z",
   "collections": [
     {
       "name": "users",
@@ -4288,6 +4288,13 @@
           "type": "file",
           "required": false,
           "system": false
+        },
+        {
+          "name": "usina_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "usinas"
         }
       ],
       "indexes": []
@@ -4858,6 +4865,18 @@
         {
           "name": "consumo_medio_diario_kwh",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "datasheet_inversor_url",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "datasheet_modulo_url",
+          "type": "url",
           "required": false,
           "system": false
         }
