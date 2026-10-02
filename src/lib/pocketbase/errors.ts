@@ -20,34 +20,26 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as {
-    status?: number
-    statusCode?: number
-    message?: string
-    response?: { code?: number; message?: string }
-  }
-  if (err.status === 401 || err.status === 403 || err.statusCode === 401 || err.statusCode === 403)
-    return true
-  if (err.response?.code === 401 || err.response?.code === 403) return true
-  if (
-    typeof err.message === 'string' &&
-    /token.*expired|unauthorized|forbidden|jwt/i.test(err.message)
-  )
-    return true
-  if (
-    typeof err.response?.message === 'string' &&
-    /token.*expired|unauthorized|forbidden|jwt/i.test(err.response.message)
-  )
-    return true
-  return false
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, any>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (
+      typeof errObj.message === 'string' &&
+      /token|expired|authenticate|unauthorized/i.test(errObj.message)
+    ) {
+      return true
+    }
+  }
+  return false
 }

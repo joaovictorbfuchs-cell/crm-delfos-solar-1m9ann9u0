@@ -64,7 +64,7 @@ import {
   getLabelTipoAtivo,
 } from '@/services/ativosService'
 import { formatDate } from '@/lib/formatters'
-import { ModalCadastroEquipamentoRapido } from '@/components/ModalCadastroEquipamentoRapido'
+import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
 import { normalizarDigitosDestino } from '@/lib/resolverNumeroDestinoCliente'
@@ -124,8 +124,17 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [observacoes, setObservacoes] = useState<string>('')
   const [salvandoVinculo, setSalvandoVinculo] = useState<boolean>(false)
 
-  // Modal Novo Equipamento no Catálogo
+  // Modal Novo Equipamento no Catálogo (reuso do modal de Cadastros de Equipamentos)
   const [modalNovoEquipamentoAberto, setModalNovoEquipamentoAberto] = useState<boolean>(false)
+
+  // Modal de Confirmação para Excluir Equipamento/Ativo da Usina
+  const [itemParaExcluirUsina, setItemParaExcluirUsina] = useState<{
+    tipo: 'vinculo' | 'ativo_individual' | 'declarado'
+    id: string
+    nome: string
+    campoDeclarado?: 'inversor' | 'modulo'
+  } | null>(null)
+  const [excluindoAtivoUsina, setExcluindoAtivoUsina] = useState<boolean>(false)
 
   // Modal Cadastrar Ativo Individual
   const [modalCadastrarAtivoAberto, setModalCadastrarAtivoAberto] = useState<boolean>(false)
@@ -207,30 +216,73 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     }
   }
 
-  const handleRemoverVinculo = async (id: string, nomeEq: string) => {
-    if (!confirm(`Remover "${nomeEq}" da relação de ativos desta usina?`)) return
+  const handleConfirmarExclusaoAtivoUsina = async () => {
+    if (!itemParaExcluirUsina) return
+    setExcluindoAtivoUsina(true)
     try {
-      await desvincularEquipamentoUsina(id)
-      toast.success('Ativo desvinculado com sucesso.')
-      setVinculos((prev) => prev.filter((v) => v.id !== id))
+      if (itemParaExcluirUsina.tipo === 'vinculo') {
+        await desvincularEquipamentoUsina(itemParaExcluirUsina.id)
+        toast.success(`Ativo "${itemParaExcluirUsina.nome}" removido da usina com sucesso.`)
+        setVinculos((prev) => prev.filter((v) => v.id !== itemParaExcluirUsina.id))
+      } else if (itemParaExcluirUsina.tipo === 'ativo_individual') {
+        const ok = await deleteAtivo(itemParaExcluirUsina.id)
+        if (ok) {
+          toast.success(
+            `Ativo individual "${itemParaExcluirUsina.nome}" excluído da usina com sucesso.`,
+          )
+          setAtivosIndividuais((prev) => prev.filter((a) => a.id !== itemParaExcluirUsina.id))
+        }
+      } else if (itemParaExcluirUsina.tipo === 'declarado') {
+        if (itemParaExcluirUsina.campoDeclarado === 'inversor') {
+          await onUpdateUsinaMultipleFields({
+            inversores_info: '',
+            fabricante_inversores: '',
+            modelo_inversores: '',
+          })
+          toast.success('Especificação de inversor removida da usina.')
+        } else if (itemParaExcluirUsina.campoDeclarado === 'modulo') {
+          await onUpdateUsinaMultipleFields({
+            fabricante_modulos: '',
+            modelo_modulos: '',
+            marca_placas: '',
+            qtd_modulos: 0,
+            quantidade_placas: 0,
+          })
+          toast.success('Especificação de módulos removida da usina.')
+        }
+      }
+      setItemParaExcluirUsina(null)
     } catch (err) {
-      console.error('Erro ao remover ativo da usina:', err)
-      toast.error('Erro ao remover o ativo da usina.')
+      console.error('Erro ao excluir/remover equipamento da usina:', err)
+      toast.error('Não foi possível excluir o equipamento da usina.')
+    } finally {
+      setExcluindoAtivoUsina(false)
     }
   }
 
-  const handleRemoverAtivoIndividual = async (id: string, nomeAtivo: string) => {
-    if (!confirm(`Excluir o ativo individual "${nomeAtivo}" desta usina?`)) return
-    try {
-      const ok = await deleteAtivo(id)
-      if (ok) {
-        toast.success('Ativo individual removido com sucesso.')
-        setAtivosIndividuais((prev) => prev.filter((a) => a.id !== id))
-      }
-    } catch (err) {
-      console.error('Erro ao remover ativo individual:', err)
-      toast.error('Erro ao remover o ativo.')
-    }
+  const handleRemoverVinculo = (id: string, nomeEq: string) => {
+    setItemParaExcluirUsina({
+      tipo: 'vinculo',
+      id,
+      nome: nomeEq,
+    })
+  }
+
+  const handleRemoverAtivoIndividual = (id: string, nomeAtivo: string) => {
+    setItemParaExcluirUsina({
+      tipo: 'ativo_individual',
+      id,
+      nome: nomeAtivo,
+    })
+  }
+
+  const handleRemoverEquipamentoDeclarado = (tipoEq: 'inversor' | 'modulo_fv', nome: string) => {
+    setItemParaExcluirUsina({
+      tipo: 'declarado',
+      id: tipoEq,
+      nome,
+      campoDeclarado: tipoEq === 'inversor' ? 'inversor' : 'modulo',
+    })
   }
 
   const handleNovoEquipamentoCadastrado = async (novoEquipamento: Equipamento) => {
@@ -1099,6 +1151,19 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                             <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
                           </a>
                         )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemoverEquipamentoDeclarado(
+                              item.tipo,
+                              `${item.marca} ${item.modelo}`,
+                            )
+                          }
+                          className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                          title="Excluir equipamento da usina"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   )
@@ -1773,14 +1838,76 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       </Dialog>
 
       {/* ================================================================ */}
-      {/* MODAL 2: CADASTRO RÁPIDO DE NOVO EQUIPAMENTO NO CATÁLOGO        */}
+      {/* MODAL 2: CADASTRO DE NOVO EQUIPAMENTO (REUSO TELA EQUIPAMENTOS) */}
       {/* ================================================================ */}
-      <ModalCadastroEquipamentoRapido
+      <ModalFormEquipamento
         isOpen={modalNovoEquipamentoAberto}
         onClose={() => setModalNovoEquipamentoAberto(false)}
         tipoInicial="inversor"
-        onEquipamentoCadastrado={handleNovoEquipamentoCadastrado}
+        onSalvo={async (salvo) => {
+          await handleNovoEquipamentoCadastrado(salvo)
+        }}
       />
+
+      {/* ================================================================ */}
+      {/* MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE EQUIPAMENTO DA USINA           */}
+      {/* ================================================================ */}
+      <Dialog
+        open={Boolean(itemParaExcluirUsina)}
+        onOpenChange={(val) => !val && setItemParaExcluirUsina(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-red-600" />
+              Excluir Equipamento da Usina
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Tem certeza que deseja remover este equipamento da usina{' '}
+              <strong>"{usina.nome}"</strong>?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 bg-red-50/60 rounded-xl border border-red-200 text-xs text-red-800 space-y-1">
+            <p className="font-semibold text-slate-900">
+              Equipamento: <strong>{itemParaExcluirUsina?.nome}</strong>
+            </p>
+            <p className="text-slate-600 text-[11px]">
+              {itemParaExcluirUsina?.tipo === 'ativo_individual'
+                ? 'O registro deste ativo individual (S/N e histórico de garantia) será excluído desta usina.'
+                : itemParaExcluirUsina?.tipo === 'declarado'
+                  ? 'A especificação técnica registrada no cadastro desta usina será limpa.'
+                  : 'O vínculo deste equipamento com esta usina será removido. O equipamento continuará disponível no catálogo geral de equipamentos.'}
+            </p>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={excluindoAtivoUsina}
+              onClick={() => setItemParaExcluirUsina(null)}
+              className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={excluindoAtivoUsina}
+              onClick={handleConfirmarExclusaoAtivoUsina}
+              className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            >
+              {excluindoAtivoUsina ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Excluindo...</span>
+                </>
+              ) : (
+                <span>Sim, Excluir Equipamento</span>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ================================================================ */}
       {/* MODAL 3: CADASTRAR ATIVO INDIVIDUAL (Dialog Radix/shadcn)         */}
