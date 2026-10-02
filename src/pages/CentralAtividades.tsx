@@ -527,8 +527,19 @@ export default function CentralAtividadesPage() {
     }
   }
 
+  // Helper para obter nome curto da categoria (somente Administrativas, Comerciais e Manutenção)
+  const getCategoriaCurta = (item: CentralAtividadeItem): string => {
+    if (item.categoriaId === 'comercial') return 'Comerciais'
+    if (item.categoriaId === 'manutencao') return 'Manutenção'
+    if (item.categoriaId === 'administrativo_pos_venda') return 'Administrativas'
+    if (item.categoriaNome?.toLowerCase().includes('comerc')) return 'Comerciais'
+    if (item.categoriaNome?.toLowerCase().includes('manuten')) return 'Manutenção'
+    if (item.categoriaNome?.toLowerCase().includes('admin')) return 'Administrativas'
+    return item.categoriaNome || 'Comerciais'
+  }
+
   return (
-    <div className="space-y-5 w-full px-2 sm:px-4 lg:px-6 pb-12">
+    <div className="space-y-5 w-full pb-12">
       {/* 1. Header Unificado com Navegação de Visão (Tabela vs Calendário) e Botões de Ação */}
       <div className="bg-white rounded-2xl p-3 sm:p-4 border border-[#E5E7EB] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3 flex-nowrap overflow-x-auto min-w-0">
         <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-nowrap">
@@ -784,7 +795,7 @@ export default function CentralAtividadesPage() {
                       </th>
                       <th className="py-3 px-4">Categoria / Tipo</th>
                       <th className="py-3 px-4">Cliente / Usina</th>
-                      <th className="py-3 px-4">Título & Detalhes</th>
+                      <th className="py-3 px-4">Título</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4">Responsável</th>
                       <th className="py-3 px-4">Data</th>
@@ -794,6 +805,7 @@ export default function CentralAtividadesPage() {
                   <tbody className="divide-y divide-gray-100">
                     {paginatedItems.map((item) => {
                       const isSelected = selectedIds.includes(item.id)
+                      const categoriaCurta = getCategoriaCurta(item)
                       return (
                         <tr
                           key={item.id}
@@ -817,7 +829,7 @@ export default function CentralAtividadesPage() {
                             />
                           </td>
 
-                          {/* Categoria Oficial e Tipo de Atividade */}
+                          {/* Categoria Curta e Tipo de Atividade */}
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             <div className="space-y-1">
                               <span
@@ -838,10 +850,10 @@ export default function CentralAtividadesPage() {
                                 {item.categoriaId === 'comercial' && (
                                   <Briefcase className="w-3 h-3 text-emerald-600" />
                                 )}
-                                <span>{item.categoriaNome}</span>
+                                <span>{categoriaCurta}</span>
                               </span>
 
-                              <div className="text-[11px] font-medium text-gray-600 truncate max-w-[200px]">
+                              <div className="text-[11px] font-medium text-gray-600">
                                 {item.tipoAtividade}
                               </div>
                             </div>
@@ -852,34 +864,21 @@ export default function CentralAtividadesPage() {
                             <div className="space-y-0.5">
                               <div className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors flex items-center gap-1.5">
                                 <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                <span className="truncate max-w-[220px]">{item.clienteNome}</span>
+                                <span>{item.clienteNome}</span>
                               </div>
                               {item.usinaNome && (
                                 <div className="text-[11px] text-amber-700 flex items-center gap-1 font-medium">
                                   <Sun className="w-3 h-3 text-amber-500 shrink-0" />
-                                  <span className="truncate max-w-[220px]">{item.usinaNome}</span>
+                                  <span>{item.usinaNome}</span>
                                 </div>
                               )}
                             </div>
                           </td>
 
-                          {/* Título e Descrição */}
-                          <td className="py-3.5 px-4 max-w-xs">
-                            <div className="space-y-0.5">
-                              <div
-                                className="font-semibold text-gray-800 truncate"
-                                title={item.titulo}
-                              >
-                                {item.titulo}
-                              </div>
-                              {item.descricao && (
-                                <div
-                                  className="text-[11px] text-gray-500 line-clamp-1"
-                                  title={item.descricao}
-                                >
-                                  {item.descricao}
-                                </div>
-                              )}
+                          {/* Título comprimido (sem os detalhes/descrição) */}
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-gray-800" title={item.titulo}>
+                              {item.titulo}
                             </div>
                           </td>
 
@@ -892,7 +891,7 @@ export default function CentralAtividadesPage() {
                           <td className="py-3.5 px-4 whitespace-nowrap text-gray-700">
                             <div className="flex items-center gap-1.5">
                               <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="truncate max-w-[150px]">{item.responsavel}</span>
+                              <span>{item.responsavel}</span>
                             </div>
                           </td>
 
@@ -949,6 +948,7 @@ export default function CentralAtividadesPage() {
 
                 {paginatedItems.map((item) => {
                   const isSelected = selectedIds.includes(item.id)
+                  const categoriaCurta = getCategoriaCurta(item)
                   return (
                     <div
                       key={item.id}
@@ -977,7 +977,7 @@ export default function CentralAtividadesPage() {
                                   : 'bg-emerald-50 text-emerald-900 border-emerald-200'
                             }`}
                           >
-                            {item.categoriaNome}
+                            {categoriaCurta}
                           </span>
                         </div>
                         <div>{getStatusBadge(item.status)}</div>
@@ -987,9 +987,9 @@ export default function CentralAtividadesPage() {
                         <h4 className="text-xs font-bold text-gray-900 leading-snug">
                           {item.titulo}
                         </h4>
-                        {item.descricao && (
-                          <p className="text-[11px] text-gray-500 line-clamp-2 mt-0.5">
-                            {item.descricao}
+                        {item.tipoAtividade && (
+                          <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
+                            {item.tipoAtividade}
                           </p>
                         )}
                       </div>

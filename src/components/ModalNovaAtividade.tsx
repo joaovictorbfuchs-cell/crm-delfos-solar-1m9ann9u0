@@ -13,6 +13,7 @@ import {
   CalendarDays,
   FileText,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react'
 import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
 import { ModalCriarAnaliseFatura } from '@/components/ModalCriarAnaliseFatura'
