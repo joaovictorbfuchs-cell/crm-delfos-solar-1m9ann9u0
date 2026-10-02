@@ -154,7 +154,7 @@ export const FichaClienteDrawer: React.FC = () => {
     selectedClienteId,
     selectedSistema,
     projetos,
-    selectedClienteProjeto,
+    selectedClienteProjeto: selectedClienteProjetoFromContext,
     activeClientTab,
     setActiveClientTab,
     closeFichaCliente,
@@ -493,8 +493,8 @@ export const FichaClienteDrawer: React.FC = () => {
       const match = clientProjetos.find((p) => p.id === projetoFichaId)
       if (match) return match
     }
-    return selectedClienteProjeto || clientProjetos[0] || null
-  }, [projetoFichaId, clientProjetos, selectedClienteProjeto])
+    return selectedClienteProjetoFromContext || clientProjetos[0] || null
+  }, [projetoFichaId, clientProjetos, selectedClienteProjetoFromContext])
 
   // Projeto efetivo: se selecionou no seletor da ficha ou contexto
   const selectedClienteProjeto = selectedClienteProjetoEfetivo
