@@ -1,54 +1,29 @@
-export interface PocketBaseErrorResponse {
-  code: number
-  message: string
-  data: Record<string, { code: string; message: string }>
-}
+import { ClientResponseError } from 'pocketbase'
 
-export const isAuthSessionError = (error: unknown): boolean => {
-  if (!error || typeof error !== 'object') return false
-  const err = error as { status?: number; code?: number; response?: { code?: number } }
-  return err.status === 401 || err.code === 401 || err.response?.code === 401
-}
+export type FieldErrors = Record<string, string>
 
-export const isPocketBaseError = (error: unknown): error is PocketBaseErrorResponse => {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    'message' in error &&
-    typeof (error as Record<string, unknown>).code === 'number' &&
-    typeof (error as Record<string, unknown>).message === 'string'
-  )
-}
-
-export const getErrorMessage = (
-  error: unknown,
-  fallback = 'Ocorreu um erro inesperado',
-): string => {
-  if (typeof error === 'string') return error
-  if (error instanceof Error) return error.message
-  if (isPocketBaseError(error)) return error.message
-  return fallback
-}
-
-export const extractFieldErrors = (error: unknown): Record<string, string> => {
-  if (!error || typeof error !== 'object') return {}
-  const err = error as { data?: { data?: Record<string, { message?: string }> } }
-  const fields = err.data?.data
-  if (!fields || typeof fields !== 'object') return {}
-
-  const result: Record<string, string> = {}
-  for (const [key, value] of Object.entries(fields)) {
+export function extractFieldErrors(error: unknown): FieldErrors {
+  if (!(error instanceof ClientResponseError)) return {}
+  const data = error.response?.data
+  if (!data || typeof data !== 'object') return {}
+  const errors: FieldErrors = {}
+  for (const [field, detail] of Object.entries(data)) {
     if (
-      value &&
-      typeof value === 'object' &&
-      'message' in value &&
-      typeof value.message === 'string'
+      detail &&
+      typeof detail === 'object' &&
+      'message' in detail &&
+      typeof (detail as { message: unknown }).message === 'string'
     ) {
-      result[key] = value.message
-    } else if (typeof value === 'string') {
-      result[key] = value
+      errors[field] = (detail as { message: string }).message
     }
   }
-  return result
+  return errors
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+  }
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
