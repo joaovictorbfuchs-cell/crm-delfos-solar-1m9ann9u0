@@ -31,14 +31,20 @@ export function getErrorMessage(error: unknown): string {
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const errObj = error as Record<string, any>
+    const errObj = error as Record<string, unknown>
     if (errObj.status === 401 || errObj.status === 403) return true
     if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (
-      typeof errObj.message === 'string' &&
-      /token|expired|authenticate|unauthorized/i.test(errObj.message)
-    ) {
-      return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('user not found') ||
+        msg.includes('the request requires valid user authorization') ||
+        msg.includes('unauthorized')
+      ) {
+        return true
+      }
     }
   }
   return false
