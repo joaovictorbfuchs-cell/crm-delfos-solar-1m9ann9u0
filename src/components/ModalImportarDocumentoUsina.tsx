@@ -931,6 +931,7 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       await onApplyImport(updates, resumo, modoImportacao)
 
       // Se houver equipamentos existentes correspondentes, vincular como ativo da usina automaticamente
+      // Verificando antes se já existe vínculo (usina_id + equipamento_id) e atualizando em vez de duplicar
       if (sugestaoModulo?.existente) {
         try {
           const qtd = updates.qtd_modulos ?? usina.qtd_modulos ?? 1

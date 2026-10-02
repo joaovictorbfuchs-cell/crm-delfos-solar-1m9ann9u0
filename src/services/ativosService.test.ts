@@ -129,4 +129,45 @@ describe('ativosService - analisarImportacaoInversores', () => {
       pb.collection = origCollection
     }
   })
+
+  it('deduplica registros repetidos de cliente_inversores com mesmos dados', async () => {
+    const mockInversores = [
+      {
+        id: 'inv_a',
+        cliente_id: 'cli_dup',
+        marca_inversor: 'Deye',
+        modelo_inversor: '',
+        numero_serie: '',
+        potencia_kwp: 6.9,
+      },
+      {
+        id: 'inv_b',
+        cliente_id: 'cli_dup',
+        marca_inversor: 'Deye',
+        modelo_inversor: '',
+        numero_serie: '',
+        potencia_kwp: 6.9,
+      },
+    ]
+
+    const origCollection = pb.collection
+    pb.collection = vi.fn().mockImplementation((colName: string) => {
+      return {
+        getFullList: vi.fn().mockImplementation(async () => {
+          if (colName === 'cliente_inversores') return mockInversores
+          return []
+        }),
+      } as any
+    }) as any
+
+    try {
+      const analise = await analisarImportacaoInversores()
+      expect(analise.totalInversores).toBe(2)
+      expect(analise.aptosParaCriar.length).toBe(1)
+      expect(analise.foraPorFaltaDados.length).toBe(1)
+      expect(analise.foraPorFaltaDados[0].motivo).toContain('duplicado')
+    } finally {
+      pb.collection = origCollection
+    }
+  })
 })

@@ -456,7 +456,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     }
   }
 
-  // Deduplicação visual (Problema 2):
+  // Deduplicação visual:
   // Verifica se já existem equipamentos do catálogo vinculados para inversor e módulo
   const temEquipamentoCatalogoInversor = useMemo(() => {
     const temVinculoInversor = vinculos.some((v) => v.expand?.equipamento_id?.tipo === 'inversor')
@@ -488,16 +488,18 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     return temVinculoModulo || temAtivoIndividualModulo
   }, [vinculos, ativosIndividuais])
 
-  // Inferir equipamentos declarados nos campos técnicos da usina
+  // Inferir equipamentos declarados nos campos técnicos da usina.
+  // Precedência total do catálogo: se já existir vínculo do catálogo (ou ativo individual)
+  // correspondente (tipo inversor ou modulo_fv), o equipamento declarado é filtrado para não duplicar.
   const equipamentosDeclarados = useMemo<AtivoDeclaradoUsina[]>(() => {
     const lista: AtivoDeclaradoUsina[] = []
 
-    // 1. Inversor declarado
+    // 1. Inversor declarado: só inclui se NÃO houver vínculo/ativo correspondente no catálogo
     const inversorTexto = (usina.inversores_info || '').trim()
     const inversorFabricante = (usina.fabricante_inversores || '').trim()
     const inversorModelo = (usina.modelo_inversores || '').trim()
 
-    if (inversorTexto || inversorFabricante || inversorModelo) {
+    if (!temEquipamentoCatalogoInversor && (inversorTexto || inversorFabricante || inversorModelo)) {
       let eqCatalogo: Equipamento | null = null
       if (inversorFabricante || inversorModelo) {
         eqCatalogo = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
@@ -530,12 +532,12 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       })
     }
 
-    // 2. Módulos declarados
+    // 2. Módulos declarados: só inclui se NÃO houver vínculo/ativo correspondente no catálogo
     const moduloFabricante = (usina.fabricante_modulos || usina.marca_placas || '').trim()
     const moduloModelo = (usina.modelo_modulos || '').trim()
     const qtdModulos = Number(usina.qtd_modulos || usina.quantidade_placas || 0)
 
-    if (moduloFabricante || moduloModelo || qtdModulos > 0) {
+    if (!temEquipamentoCatalogoModulo && (moduloFabricante || moduloModelo || qtdModulos > 0)) {
       let eqCatalogo = encontrarDatasheetModuloUsina(usina)
       if (!eqCatalogo && (moduloFabricante || moduloModelo)) {
         eqCatalogo = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
@@ -565,6 +567,8 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
 
     return lista
   }, [
+    temEquipamentoCatalogoInversor,
+    temEquipamentoCatalogoModulo,
     usina.inversores_info,
     usina.fabricante_inversores,
     usina.modelo_inversores,
@@ -578,11 +582,46 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     encontrarEquipamentoComDatasheet,
   ])
 
-  // Contagem do badge: vínculos + ativos individuais, ou equipamentos declarados se as tabelas estiverem vazias
-  const registrosPersistidos = vinculos.length + ativosIndividuais.length
-  const totalAtivos =
-    registrosPersistidos > 0 ? registrosPersistidos : equipamentosDeclarados.length
-  const exibindoDeclarados = registrosPersistidos === 0 && equipamentosDeclarados.length > 0
+  // Deduplicação entre vinculos (usina_equipamentos) e ativos individuais (ativos)
+  // Se um ativo individual corresponder ao mesmo equipamento vinculado, mantemos uma única contagem
+  const vinculosDeduplicados = useMemo(() => {
+    return vinculos
+  }, [vinculos])
+
+  // Contagem do badge: vínculos + ativos individuais (filtrando redundâncias com vínculos) + declarados residuais
+  const totalAtivos = useMemo(() => {
+    const totalVinculos = vinculosDeduplicados.length
+    // Ativos individuais que não casam com equipamentos já vinculados no catálogo
+    const ativosIndividuaisSemVinculo = ativosIndividuais.filter((ativo) => {
+      const matchNoVinculo = vinculosDeduplicados.some((v) => {
+        const eq = v.expand?.equipamento_id
+        if (!eq) return false
+        const mesmoTipo =
+          (eq.tipo === 'inversor' && ativo.tipo === 'inversor') ||
+          (eq.tipo === 'modulo_fv' && (ativo.tipo === 'placa_solar' || (ativo.tipo as string) === 'modulo_fv'))
+        const mesmaMarca =
+          eq.marca &&
+          ativo.fabricante &&
+          eq.marca.toLowerCase().trim() === ativo.fabricante.toLowerCase().trim()
+        const mesmoModelo =
+          eq.modelo &&
+          ativo.modelo &&
+          eq.modelo.toLowerCase().trim() === ativo.modelo.toLowerCase().trim()
+        return mesmoTipo && mesmaMarca && mesmoModelo
+      })
+      return !matchNoVinculo
+    })
+
+    const persistidos = totalVinculos + ativosIndividuaisSemVinculo.length
+    if (persistidos > 0) {
+      // Se houver algum tipo ainda não coberto nem por vínculo nem por ativo individual,
+      // soma os declarados desse tipo restante
+      return persistidos + equipamentosDeclarados.length
+    }
+    return equipamentosDeclarados.length
+  }, [vinculosDeduplicados, ativosIndividuais, equipamentosDeclarados])
+
+  const exibindoDeclarados = vinculos.length === 0 && ativosIndividuais.length === 0 && equipamentosDeclarados.length > 0
 
   // Ação de 1 clique para efetivar vínculo dos equipamentos declarados no catálogo
   const handleEfetivarVinculosDeclarados = async () => {

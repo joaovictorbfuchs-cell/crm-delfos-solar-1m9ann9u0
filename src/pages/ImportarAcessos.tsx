@@ -406,20 +406,56 @@ export function ImportarAcessos() {
           })
           atualizados++
         } else {
-          // Cria novo registro de inversor
-          const criado = await createClienteInversor({
-            cliente_id: clienteId,
-            marca_inversor: item.marcaMapeada,
-            app_nome: item.appNome,
-            login: item.loginPlanilha,
-            senha: item.senhaPlanilha,
-            datalogger_url: item.linkPlanilha,
-            observacoes: obsOriginal,
-            ordem: proximaOrdem,
+          // Antes de criar, verifica duplicata existente (cliente + marca + modelo/potência + serial/login)
+          // para reaproveitar em vez de duplicar
+          const marcaNorm = (item.marcaMapeada || '').trim().toLowerCase()
+          const loginNorm = (item.loginPlanilha || '').trim().toLowerCase()
+
+          const duplicataExistente = invsDoCli.find((inv) => {
+            const mesmaMarca =
+              marcaNorm && (inv.marca_inversor || '').trim().toLowerCase() === marcaNorm
+            const mesmoLogin =
+              loginNorm && (inv.login || '').trim().toLowerCase() === loginNorm
+
+            // Se bater marca e login não vazio, é o mesmo acesso
+            if (mesmaMarca && mesmoLogin) return true
+            // Se bater só o login não vazio, também é o mesmo acesso
+            if (loginNorm && mesmoLogin) return true
+            // Se marca for idêntica e não tiver login cadastrado ainda
+            if (mesmaMarca && !inv.login && !loginNorm) return true
+
+            return false
           })
-          importadosCriados++
-          // Atualiza lista local
-          mapaInversoresLocal.set(clienteId, [...invsDoCli, criado])
+
+          if (duplicataExistente) {
+            // Reaproveita e atualiza em vez de inserir novo duplicado
+            await updateClienteInversor(duplicataExistente.id, {
+              marca_inversor: item.marcaMapeada || duplicataExistente.marca_inversor || '',
+              app_nome: item.appNome || duplicataExistente.app_nome || '',
+              login: item.loginPlanilha || duplicataExistente.login || '',
+              senha: item.senhaPlanilha || duplicataExistente.senha || '',
+              datalogger_url: item.linkPlanilha || duplicataExistente.datalogger_url || '',
+              observacoes: duplicataExistente.observacoes
+                ? `${duplicataExistente.observacoes} • ${obsOriginal}`
+                : obsOriginal,
+            })
+            atualizados++
+          } else {
+            // Cria novo registro de inversor
+            const criado = await createClienteInversor({
+              cliente_id: clienteId,
+              marca_inversor: item.marcaMapeada,
+              app_nome: item.appNome,
+              login: item.loginPlanilha,
+              senha: item.senhaPlanilha,
+              datalogger_url: item.linkPlanilha,
+              observacoes: obsOriginal,
+              ordem: proximaOrdem,
+            })
+            importadosCriados++
+            // Atualiza lista local
+            mapaInversoresLocal.set(clienteId, [...invsDoCli, criado])
+          }
         }
       } catch (err: any) {
         console.error(`Erro ao gravar linha ${item.linhaNum}:`, err)

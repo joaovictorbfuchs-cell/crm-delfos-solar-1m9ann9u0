@@ -71,6 +71,39 @@ export async function fetchEquipamentosPorUsina(usinaId: string): Promise<UsinaE
 export async function vincularEquipamentoUsina(
   dados: SalvarUsinaEquipamentoDados,
 ): Promise<UsinaEquipamentoAtivo> {
+  // Idempotência / Deduplicação: antes de criar, verificar se já existe vínculo
+  // com mesmo usina_id + equipamento_id. Se existir, atualiza em vez de inserir duplicata.
+  if (dados.usina_id && dados.equipamento_id) {
+    try {
+      const existentes = await pb.collection('usina_equipamentos').getFullList<UsinaEquipamentoAtivo>({
+        filter: `usina_id = '${dados.usina_id}' && equipamento_id = '${dados.equipamento_id}'`,
+        requestKey: null,
+      })
+      if (existentes && existentes.length > 0) {
+        const existente = existentes[0]
+        const payloadUpdate: Record<string, any> = {}
+        if (dados.quantidade !== undefined && dados.quantidade !== null) {
+          payloadUpdate.quantidade = Number(dados.quantidade)
+        }
+        if (dados.numero_serie !== undefined && dados.numero_serie.trim()) {
+          payloadUpdate.numero_serie = dados.numero_serie.trim()
+        }
+        if (dados.observacoes !== undefined && dados.observacoes.trim()) {
+          payloadUpdate.observacoes = dados.observacoes.trim()
+        }
+        return await pb.collection('usina_equipamentos').update<UsinaEquipamentoAtivo>(
+          existente.id,
+          payloadUpdate,
+          {
+            expand: 'equipamento_id,equipamento_id.fornecedor_id,usina_id',
+          },
+        )
+      }
+    } catch (errCheck) {
+      console.warn('Aviso ao checar vínculo existente em usina_equipamentos:', errCheck)
+    }
+  }
+
   const payload: Record<string, any> = {
     usina_id: dados.usina_id,
     equipamento_id: dados.equipamento_id,
