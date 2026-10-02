@@ -1169,9 +1169,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </span>
         </div>
 
-        {/* Botão Gigante de Câmera (Mobile First) */}
+        {/* Botões de Ação para Fotos */}
         {podeEditarOS && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Input nativo com capture="environment" para abrir câmera traseira no smartphone */}
             <input
               ref={cameraInputRef}
@@ -1186,10 +1186,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             <Button
               type="button"
               onClick={() => cameraInputRef.current?.click()}
-              className="h-16 sm:h-14 rounded-2xl bg-[#166534] hover:bg-[#14532d] text-white font-black text-sm sm:text-base shadow-sm flex items-center justify-center gap-3 transition-transform active:scale-[0.98]"
+              className="h-10 px-3.5 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-semibold text-xs sm:text-sm shadow-2xs flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
             >
-              <Camera className="w-6 h-6 shrink-0" />
-              <span>TIRAR FOTO (CÂMERA)</span>
+              <Camera className="w-4 h-4 shrink-0" />
+              <span>Tirar foto (câmera)</span>
             </Button>
 
             {/* Input alternativo para seleção de fotos da galeria */}
@@ -1206,10 +1206,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               type="button"
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
-              className="h-16 sm:h-14 rounded-2xl border-gray-300 hover:border-emerald-600 hover:bg-emerald-50 text-gray-800 font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-transform active:scale-[0.98]"
+              className="h-10 px-3.5 rounded-xl border-gray-300 hover:border-emerald-600 hover:bg-emerald-50 text-gray-800 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
             >
-              <Upload className="w-5 h-5 text-emerald-700" />
-              <span>ESCOLHER DA GALERIA</span>
+              <Upload className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>Escolher da galeria</span>
             </Button>
           </div>
         )}
