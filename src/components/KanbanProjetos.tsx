@@ -13,6 +13,7 @@ import {
   MoreVertical,
   FolderOpen,
   FileText,
+  Trash2,
   User,
   type LucideIcon,
 } from 'lucide-react'
@@ -29,6 +30,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface KanbanProjetosProps {
   projetos: Projeto[]
@@ -151,10 +162,80 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
     openFichaCliente,
     updateProjeto,
     updateProjetoEtapa,
+    finalizarProjeto,
+    removeProjeto,
     refreshData,
     atividades,
     orcamentosSolar,
   } = useClientes()
+
+  // Estados para diálogos de confirmação de Excluir e Finalizar
+  const [projetoParaExcluir, setProjetoParaExcluir] = useState<Projeto | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [projetoParaFinalizar, setProjetoParaFinalizar] = useState<Projeto | null>(null)
+  const [isFinalizando, setIsFinalizando] = useState(false)
+
+  const handleExcluirClick = (proj: Projeto) => {
+    setProjetoParaExcluir(proj)
+  }
+
+  const handleFinalizarClick = (proj: Projeto) => {
+    setProjetoParaFinalizar(proj)
+  }
+
+  const handleConfirmarExclusao = async () => {
+    if (!projetoParaExcluir) return
+    setIsDeleting(true)
+    const nomeProjeto =
+      projetoParaExcluir.titulo_usina || projetoParaExcluir.expand?.cliente_id?.nome || 'Projeto'
+    try {
+      await removeProjeto(projetoParaExcluir.id)
+      toast({
+        title: 'Projeto excluído',
+        description: `O projeto "${nomeProjeto}" foi excluído com sucesso. O cadastro do cliente não foi afetado.`,
+      })
+      setProjetoParaExcluir(null)
+      if (onProjetoUpdated) onProjetoUpdated()
+      await refreshData()
+    } catch (err: any) {
+      console.error('Erro ao excluir projeto:', err)
+      toast({
+        title: 'Erro ao excluir projeto',
+        description: err?.message || 'Não foi possível excluir o projeto.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleConfirmarFinalizacao = async () => {
+    if (!projetoParaFinalizar) return
+    setIsFinalizando(true)
+    const nomeProjeto =
+      projetoParaFinalizar.titulo_usina ||
+      projetoParaFinalizar.expand?.cliente_id?.nome ||
+      'Projeto'
+    try {
+      await finalizarProjeto(projetoParaFinalizar.id)
+      toast({
+        title: 'Projeto finalizado com sucesso!',
+        description: `"${nomeProjeto}" foi retirado do funil e seu histórico permanece salvo na ficha do cliente.`,
+      })
+      setProjetoParaFinalizar(null)
+      if (onProjetoUpdated) onProjetoUpdated()
+      await refreshData()
+    } catch (err: any) {
+      console.error('Erro ao finalizar projeto:', err)
+      toast({
+        title: 'Erro ao finalizar projeto',
+        description: err?.message || 'Não foi possível finalizar o projeto.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsFinalizando(false)
+    }
+  }
   const { toast } = useToast()
 
   const [draggedProjetoId, setDraggedProjetoId] = useState<string | null>(null)
@@ -666,33 +747,70 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                       </div>
                     </div>
 
-                    {/* Botão de contato direto via WhatsApp */}
-                    {waDigits ? (
-                      <a
-                        href={`https://wa.me/${waDigits}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs shrink-0 transition-transform"
-                        title={`Conversar com ${clienteNome} no WhatsApp`}
-                        aria-label={`Conversar com ${clienteNome} no WhatsApp`}
-                      >
-                        <WhatsAppIcon className="w-4 h-4" />
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleCardClick(proj)
-                        }}
-                        className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0"
-                        title="Sem WhatsApp cadastrado (clique para abrir)"
-                        aria-label="Sem WhatsApp cadastrado"
-                      >
-                        <WhatsAppIcon className="w-4 h-4 opacity-50" />
-                      </button>
-                    )}
+                    <div
+                      className="flex items-center gap-1 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Botão de contato direto via WhatsApp */}
+                      {waDigits ? (
+                        <a
+                          href={`https://wa.me/${waDigits}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs shrink-0 transition-transform"
+                          title={`Conversar com ${clienteNome} no WhatsApp`}
+                          aria-label={`Conversar com ${clienteNome} no WhatsApp`}
+                        >
+                          <WhatsAppIcon className="w-4 h-4" />
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCardClick(proj)
+                          }}
+                          className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0"
+                          title="Sem WhatsApp cadastrado (clique para abrir)"
+                          aria-label="Sem WhatsApp cadastrado"
+                        >
+                          <WhatsAppIcon className="w-4 h-4 opacity-50" />
+                        </button>
+                      )}
+
+                      {/* Menu ⋮ no mobile com Excluir e Finalizar */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            title="Opções do projeto"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44 text-xs">
+                          <DropdownMenuItem
+                            onClick={() => handleFinalizarClick(proj)}
+                            className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>Finalizar</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => handleExcluirClick(proj)}
+                            className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50 font-medium"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                            <span>Excluir</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 )
               }
@@ -773,59 +891,24 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                             <MoreVertical className="w-3.5 h-3.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52 text-xs">
-                          {/* Opções de mover para outras etapas diretamente pelo menu ⋮ (essencial no mobile) */}
-                          {PROJETOS_COLUMNS.filter((other) => other.id !== col.id).map((other) => (
-                            <DropdownMenuItem
-                              key={other.id}
-                              onClick={async () => {
-                                const precisaAtribuir =
-                                  other.id === 'Instalação' && !proj.profissional_id
-                                await moverEtapaProjeto(proj.id, other.id, {
-                                  abrirModalAtribuir: precisaAtribuir,
-                                })
-                              }}
-                              className="cursor-pointer gap-2 text-slate-700 text-xs"
-                            >
-                              <other.icon
-                                className={`w-3.5 h-3.5 ${other.iconColorClass} shrink-0`}
-                              />
-                              <span>Mover para {other.shortTitle || other.title}</span>
-                            </DropdownMenuItem>
-                          ))}
+                        <DropdownMenuContent align="end" className="w-44 text-xs">
+                          <DropdownMenuItem
+                            onClick={() => handleFinalizarClick(proj)}
+                            className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>Finalizar</span>
+                          </DropdownMenuItem>
 
                           <DropdownMenuSeparator />
 
                           <DropdownMenuItem
-                            onClick={() => handleCardClick(proj)}
-                            className="cursor-pointer gap-2 text-slate-700 focus:text-slate-900 focus:bg-slate-100 font-medium"
+                            onClick={() => handleExcluirClick(proj)}
+                            className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50 font-medium"
                           >
-                            <FolderOpen className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span>Abrir ficha / projeto</span>
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                            <span>Excluir</span>
                           </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            onClick={() => onOpenAtribuirModal(proj, col.id)}
-                            className="cursor-pointer gap-2 text-amber-700 focus:text-amber-800 focus:bg-amber-50 font-medium"
-                          >
-                            <HardHat className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span>{profNome ? 'Alterar responsável' : 'Atribuir responsável'}</span>
-                          </DropdownMenuItem>
-
-                          {col.id !== 'Concluído' && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  await moverEtapaProjeto(proj.id, 'Concluído')
-                                }}
-                                className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                <span>Mover para Concluído</span>
-                              </DropdownMenuItem>
-                            </>
-                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -997,6 +1080,77 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
           {PROJETOS_COLUMNS.map((col) => renderColumnContent(col, false))}
         </div>
       </div>
+
+      {/* Diálogo de confirmação de exclusão de projeto */}
+      <AlertDialog
+        open={Boolean(projetoParaExcluir)}
+        onOpenChange={(open) => {
+          if (!open) setProjetoParaExcluir(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este projeto?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-slate-600">
+              Esta ação removerá o projeto{' '}
+              <strong>
+                "
+                {projetoParaExcluir?.titulo_usina ||
+                  projetoParaExcluir?.expand?.cliente_id?.nome ||
+                  'selecionado'}
+                "
+              </strong>
+              . O cadastro do cliente não será afetado. Esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarExclusao}
+              disabled={isDeleting}
+              className="bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-600"
+            >
+              {isDeleting ? 'Excluindo...' : 'Confirmar exclusão'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de confirmação para finalizar projeto */}
+      <AlertDialog
+        open={Boolean(projetoParaFinalizar)}
+        onOpenChange={(open) => {
+          if (!open) setProjetoParaFinalizar(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalizar e encerrar projeto?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-slate-600">
+              O projeto{' '}
+              <strong>
+                "
+                {projetoParaFinalizar?.titulo_usina ||
+                  projetoParaFinalizar?.expand?.cliente_id?.nome ||
+                  'selecionado'}
+                "
+              </strong>{' '}
+              será marcado como finalizado e retirado do funil operacional. O histórico completo
+              continuará disponível na aba <strong>Projetos</strong> da ficha do cliente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isFinalizando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarFinalizacao}
+              disabled={isFinalizando}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-600"
+            >
+              {isFinalizando ? 'Finalizando...' : 'Finalizar projeto'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

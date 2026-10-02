@@ -372,6 +372,7 @@ interface ClientesContextType {
   addProjeto: (data: {
     cliente_id: string
     etapa?: ProjetoEtapa
+    status?: import('@/types/crm').ProjetoStatus
     potencia_kwp?: number
     cidade?: string
     profissional_id?: string
@@ -393,6 +394,7 @@ interface ClientesContextType {
     profissionalId: string | null,
     profissionalNome: string | null,
   ) => Promise<Projeto>
+  finalizarProjeto: (id: string) => Promise<Projeto>
   removeProjeto: (id: string) => Promise<void>
   // O&M Methods
   addContratoOM: (data: Parameters<typeof apiCreateContratoOM>[0]) => Promise<ContratoOM>
@@ -2030,6 +2032,47 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return updated
   }
 
+  const finalizarProjeto = async (id: string) => {
+    const proj = projetos.find((p) => p.id === id)
+    const updated = await apiUpdateProjeto(id, { status: 'finalizado' })
+    setProjetos((prev) => prev.map((p) => (p.id === id ? updated : p)))
+
+    // Registrar evento de finalização no histórico de projeto_eventos
+    try {
+      const ev = await apiCreateProjetoEvento({
+        projeto_id: id,
+        etapa_anterior: proj?.etapa || '',
+        etapa_nova: 'Finalizado',
+        profissional_nome: updated.profissional_nome || '',
+        autor: 'João Silva',
+        descricao: 'Projeto finalizado/encerrado e arquivado do funil operacional.',
+      })
+      setProjetoEventos((prev) => [ev, ...prev])
+    } catch (evErr) {
+      console.warn('Erro ao registrar projeto_evento de finalização:', evErr)
+    }
+
+    // Registrar no histórico/timeline do cliente
+    if (updated.cliente_id) {
+      try {
+        const ativ = await apiCreateAtividade({
+          cliente_id: updated.cliente_id,
+          tipo: 'mudanca_estagio',
+          titulo: 'Projeto Finalizado',
+          descricao: `Projeto de energia solar finalizado com sucesso.${updated.profissional_nome ? ` Responsável: ${updated.profissional_nome}.` : ''}`,
+          data: new Date().toISOString(),
+          autor: 'João Silva',
+          status: 'concluida',
+        })
+        setAtividades((prev) => [ativ, ...prev])
+      } catch (ativErr) {
+        console.warn('Erro ao registrar atividade de finalização:', ativErr)
+      }
+    }
+
+    return updated
+  }
+
   const removeProjeto = async (id: string) => {
     await apiDeleteProjeto(id)
     setProjetos((prev) => prev.filter((p) => p.id !== id))
@@ -2758,7 +2801,14 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const selectedCliente = clientes.find((c) => c.id === selectedClienteId) || null
   const selectedSistema = sistemas.find((s) => s.cliente_id === selectedClienteId) || null
-  const selectedClienteProjeto = projetos.find((p) => p.cliente_id === selectedClienteId) || null
+  // Seleciona preferencialmente o projeto ativo do cliente; se todos estiverem finalizados, pega o mais recente
+  const selectedClienteProjeto = useMemo(() => {
+    if (!selectedClienteId) return null
+    const clis = projetos.filter((p) => p.cliente_id === selectedClienteId)
+    if (clis.length === 0) return null
+    const ativo = clis.find((p) => p.status !== 'finalizado')
+    return ativo || clis[0]
+  }, [projetos, selectedClienteId])
   const selectedContratoOM =
     contratosOM.find((c) => c.cliente_id === (selectedOMClienteId || selectedClienteId)) || null
 
@@ -2841,6 +2891,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateProjeto,
         updateProjetoEtapa,
         assignProjetoProfissional,
+        finalizarProjeto,
         removeProjeto,
         addContratoOM,
         updateContratoOM,
@@ -3104,6 +3155,7 @@ export function useClientes(): ClientesContextType {
       updateProjeto: async () => ({}) as any,
       updateProjetoEtapa: async () => ({}) as any,
       assignProjetoProfissional: async () => ({}) as any,
+      finalizarProjeto: async () => ({}) as any,
       removeProjeto: async () => {},
       addContratoOM: async () => ({}) as any,
       updateContratoOM: async () => ({}) as any,

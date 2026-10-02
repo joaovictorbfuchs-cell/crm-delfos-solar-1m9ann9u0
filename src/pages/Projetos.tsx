@@ -77,9 +77,12 @@ export const Projetos: React.FC = () => {
     }
   }, [])
 
-  // Filtragem de projetos
+  // Filtragem de projetos: projetos finalizados são retirados do funil Kanban
   const filteredProjetos = useMemo(() => {
     return projetos.filter((p) => {
+      // Projetos finalizados não aparecem no funil Kanban
+      if (p.status === 'finalizado') return false
+
       if (mobileProfissionalFilter !== 'todos') {
         const profId = p.profissional_id || ''
         if (profId !== mobileProfissionalFilter) return false

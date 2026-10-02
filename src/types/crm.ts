@@ -1007,12 +1007,15 @@ export type ProjetoEtapa =
   | 'Instalação'
   | 'Concluído'
 
+export type ProjetoStatus = 'ativo' | 'finalizado'
+
 export interface Projeto extends RecordModel {
   id: string
   collectionId: string
   collectionName: string
   cliente_id: string
   etapa: ProjetoEtapa
+  status?: ProjetoStatus
   titulo_usina?: string
   potencia_kwp?: number
   cidade?: string

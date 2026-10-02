@@ -1245,13 +1245,18 @@ export async function fetchProjetoByClienteId(clienteId: string): Promise<Projet
 export async function createProjeto(data: {
   cliente_id: string
   etapa: ProjetoEtapa
+  status?: import('@/types/crm').ProjetoStatus
   potencia_kwp?: number
   cidade?: string
   profissional_id?: string
   profissional_nome?: string
   observacoes?: string
 }): Promise<Projeto> {
-  const record = await pb.collection('projetos').create<Projeto>(data, {
+  const payload = {
+    status: 'ativo',
+    ...data,
+  }
+  const record = await pb.collection('projetos').create<Projeto>(payload, {
     expand: 'cliente_id,profissional_id',
   })
   return record

@@ -153,6 +153,7 @@ export const FichaClienteDrawer: React.FC = () => {
     selectedCliente,
     selectedClienteId,
     selectedSistema,
+    projetos,
     selectedClienteProjeto,
     activeClientTab,
     setActiveClientTab,
@@ -475,6 +476,28 @@ export const FichaClienteDrawer: React.FC = () => {
       .filter((m) => m.cliente_id === selectedCliente.id)
       .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
   }, [manutencoes, selectedCliente])
+
+  // Todos os projetos vinculados a este cliente (ativos e finalizados para histórico completo)
+  const clientProjetos = useMemo(() => {
+    if (!selectedCliente?.id) return []
+    return (projetos || [])
+      .filter((p) => p.cliente_id === selectedCliente.id)
+      .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+  }, [projetos, selectedCliente?.id])
+
+  // Projeto selecionado na ficha do cliente (quando há múltiplos projetos)
+  const [projetoFichaId, setProjetoFichaId] = useState<string | null>(null)
+
+  const selectedClienteProjetoEfetivo = useMemo(() => {
+    if (projetoFichaId) {
+      const match = clientProjetos.find((p) => p.id === projetoFichaId)
+      if (match) return match
+    }
+    return selectedClienteProjeto || clientProjetos[0] || null
+  }, [projetoFichaId, clientProjetos, selectedClienteProjeto])
+
+  // Projeto efetivo: se selecionou no seletor da ficha ou contexto
+  const selectedClienteProjeto = selectedClienteProjetoEfetivo
 
   // Eventos de projeto do cliente
   const clientProjetoEventos = useMemo(() => {
@@ -1556,7 +1579,59 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* ======================================================== */}
               {activeClientTab === 'projeto' && (
                 <div className="space-y-4 animate-in fade-in duration-150">
-                  {!selectedClienteProjeto ? (
+                  {/* Seletor / listagem de projetos quando o cliente tem histórico de múltiplos projetos */}
+                  {clientProjetos.length > 1 && (
+                    <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+                        <span className="flex items-center gap-1.5">
+                          <FolderKanban className="w-3.5 h-3.5 text-emerald-600" />
+                          Projetos vinculados ao cliente ({clientProjetos.length}):
+                        </span>
+                        <span className="text-[11px] text-gray-400 font-normal">
+                          Histórico completo
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {clientProjetos.map((p) => {
+                          const isSel = selectedClienteProjetoEfetivo?.id === p.id
+                          const isFinal = p.status === 'finalizado'
+                          const label =
+                            p.titulo_usina ||
+                            `Projeto ${p.potencia_kwp ? `${p.potencia_kwp} kWp` : ''}`.trim() ||
+                            `Projeto #${p.id.slice(0, 5)}`
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setProjetoFichaId(p.id)}
+                              className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all flex items-center gap-1.5 border ${
+                                isSel
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                              }`}
+                            >
+                              <span>{label}</span>
+                              <span
+                                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                                  isFinal
+                                    ? isSel
+                                      ? 'bg-emerald-800 text-emerald-100'
+                                      : 'bg-slate-200 text-slate-700 font-bold'
+                                    : isSel
+                                      ? 'bg-emerald-700 text-white'
+                                      : 'bg-emerald-100 text-emerald-800 font-bold'
+                                }`}
+                              >
+                                {isFinal ? 'Finalizado' : p.etapa}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!selectedClienteProjetoEfetivo ? (
                     <div className="p-8 text-center bg-gray-50/70 rounded-2xl border-2 border-dashed border-gray-200 space-y-3">
                       <FolderKanban className="w-10 h-10 text-emerald-600 mx-auto opacity-70" />
                       <div>
@@ -1590,17 +1665,34 @@ export const FichaClienteDrawer: React.FC = () => {
                               <FolderKanban className="w-5 h-5 text-emerald-700" />
                             </div>
                             <div>
-                              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-                                Projeto em Execução
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-2">
+                                <span>
+                                  {selectedClienteProjetoEfetivo.status === 'finalizado'
+                                    ? 'Projeto Finalizado (Histórico)'
+                                    : 'Projeto em Execução'}
+                                </span>
+                                {selectedClienteProjetoEfetivo.status === 'finalizado' && (
+                                  <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                                    Encerrado
+                                  </span>
+                                )}
                               </div>
                               <h3 className="text-base font-bold text-gray-900">
-                                {selectedCliente.nome}
+                                {selectedClienteProjetoEfetivo.titulo_usina || selectedCliente.nome}
                               </h3>
                             </div>
                           </div>
 
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            Etapa: {selectedClienteProjeto.etapa}
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                              selectedClienteProjetoEfetivo.status === 'finalizado'
+                                ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            }`}
+                          >
+                            {selectedClienteProjetoEfetivo.status === 'finalizado'
+                              ? 'Status: Finalizado / Concluído'
+                              : `Etapa: ${selectedClienteProjetoEfetivo.etapa}`}
                           </span>
                         </div>
 
