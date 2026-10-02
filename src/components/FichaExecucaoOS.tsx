@@ -6,12 +6,16 @@ import {
   Cliente,
   Sistema,
   OSTipoServico,
+  UsinaCliente,
 } from '@/types/crm'
 import {
   fetchSistemaByClienteId,
+  fetchUsinaById,
   finalizarOrdemServico,
   updateOrdemServico,
 } from '@/services/crmService'
+import { fetchEquipamentosByUsinaId } from '@/services/usinaEquipamentosService'
+import type { UsinaEquipamentoAtivo } from '@/types/equipamentos'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -24,8 +28,6 @@ import {
   Clock,
   MapPin,
   Phone,
-  Sun,
-  Zap,
   CheckSquare,
   Square,
   AlertTriangle,
@@ -36,6 +38,10 @@ import {
   Check,
   ShieldCheck,
   X,
+  ExternalLink,
+  FileCode2,
+  Wifi,
+  Navigation,
 } from 'lucide-react'
 import { formatDateTime } from '@/lib/formatters'
 
@@ -45,6 +51,8 @@ import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
 import { ModalConfirmarEnvioWhatsApp } from '@/components/ModalConfirmarEnvioWhatsApp'
 import { useClientes } from '@/contexts/ClientesContext'
 import { MessageSquare, RotateCcw } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/WhatsAppIcon'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface FichaExecucaoOSProps {
   os: OrdemServico
@@ -168,6 +176,12 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [responsavelId, setResponsavelId] = useState<string>(os.responsavel_usuario_id || '')
 
   const cliente: Cliente | undefined = os.expand?.cliente_id
+  const [usinaVinculada, setUsinaVinculada] = useState<UsinaCliente | null>(() => {
+    return (os.expand?.usina_id as UsinaCliente) || null
+  })
+  const [equipamentosUsina, setEquipamentosUsina] = useState<UsinaEquipamentoAtivo[]>([])
+  const [carregandoUsina, setCarregandoUsina] = useState<boolean>(false)
+
   const [sistema, setSistema] = useState<Sistema | null>(null)
   const [inversoresLista, setInversoresLista] = useState<import('@/types/crm').ClienteInversor[]>(
     [],
@@ -214,21 +228,58 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Carrega dados do sistema solar do cliente e procedimentos do catálogo de atividades
+  // Carrega dados da usina vinculada e equipamentos (com fallback para dados legados do cliente)
   useEffect(() => {
-    if (os.cliente_id) {
-      fetchSistemaByClienteId(os.cliente_id)
-        .then((sist) => setSistema(sist))
-        .catch((e) => console.error('Erro ao carregar sistema:', e))
+    let cancelado = false
+    const usinaId = os.usina_id || (os.expand?.usina_id as any)?.id
 
-      // Carrega lista de inversores caso o cliente tenha mais de um
-      import('@/services/crmService').then(({ fetchInversoresByClienteId }) => {
-        fetchInversoresByClienteId(os.cliente_id)
-          .then((invs) => setInversoresLista(invs))
-          .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
-      })
+    async function carregarDadosUsinaOuCliente() {
+      setCarregandoUsina(true)
+      try {
+        if (usinaId) {
+          // Busca a usina completa
+          const usina = await fetchUsinaById(usinaId)
+          if (!cancelado && usina) {
+            setUsinaVinculada(usina)
+          }
+
+          // Busca equipamentos em usina_equipamentos
+          const eqs = await fetchEquipamentosByUsinaId(usinaId)
+          if (!cancelado) {
+            setEquipamentosUsina(eqs || [])
+          }
+        } else if (os.cliente_id) {
+          // Fallback quando não há usina vinculada à OS: carrega sistema legado
+          fetchSistemaByClienteId(os.cliente_id)
+            .then((sist) => {
+              if (!cancelado) setSistema(sist)
+            })
+            .catch((e) => console.error('Erro ao carregar sistema:', e))
+
+          import('@/services/crmService').then(({ fetchInversoresByClienteId }) => {
+            fetchInversoresByClienteId(os.cliente_id)
+              .then((invs) => {
+                if (!cancelado) setInversoresLista(invs)
+              })
+              .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
+          })
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar dados da usina na Ficha de OS:', err)
+      } finally {
+        if (!cancelado) setCarregandoUsina(false)
+      }
     }
 
+    carregarDadosUsinaOuCliente()
+
+    return () => {
+      cancelado = true
+    }
+  }, [os.usina_id, os.expand?.usina_id, os.cliente_id])
+
+  // Procedimentos do catálogo de atividades
+  useEffect(() => {
     // Buscar procedimentos técnicos padrão no Catálogo de Atividades (tipos_atividades_custom)
     setLoadingCatalogo(true)
     import('@/services/crmService')
@@ -478,6 +529,145 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
+  // Resolução de inversores e módulos para exibição compacta no cabeçalho verde
+  // Prioridade: usina_equipamentos da usina vinculada; fallback: campos diretos da usina ou cliente
+  const inversoresUsina = React.useMemo(() => {
+    const list = equipamentosUsina.filter((ue) => ue.expand?.equipamento_id?.tipo === 'inversor')
+    if (list.length > 0) {
+      return list.map((ue) => {
+        const eq = ue.expand!.equipamento_id!
+        const datasheetUrl =
+          (eq.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
+          eq.datasheet_url ||
+          usinaVinculada?.datasheet_inversor_url ||
+          null
+        const dataloggerUrl =
+          eq.datalogger_url ||
+          usinaVinculada?.monitoramento_datalogger_url ||
+          cliente?.monitoramento_datalogger_url ||
+          null
+
+        return {
+          id: ue.id,
+          marca: eq.marca,
+          modelo: eq.modelo,
+          potencia_w: eq.potencia_w,
+          quantidade: ue.quantidade || 1,
+          numero_serie: ue.numero_serie,
+          datasheetUrl,
+          dataloggerUrl,
+        }
+      })
+    }
+
+    // Se não há usina_equipamentos, olha campos da usina vinculada
+    if (usinaVinculada?.fabricante_inversores || usinaVinculada?.modelo_inversores) {
+      const dataloggerUrl =
+        usinaVinculada.monitoramento_datalogger_url || cliente?.monitoramento_datalogger_url || null
+      return [
+        {
+          id: 'usina-inv-1',
+          marca: usinaVinculada.fabricante_inversores || '',
+          modelo: usinaVinculada.modelo_inversores || '',
+          potencia_w: usinaVinculada.potencia_pico_inversores_kwp
+            ? usinaVinculada.potencia_pico_inversores_kwp * 1000
+            : undefined,
+          quantidade: 1,
+          numero_serie: undefined,
+          datasheetUrl: usinaVinculada.datasheet_inversor_url || null,
+          dataloggerUrl,
+        },
+      ]
+    }
+
+    // Fallback legado do cliente
+    if (inversoresLista.length > 0) {
+      return inversoresLista.map((i, idx) => ({
+        id: `legacy-${idx}`,
+        marca: i.marca_inversor || '',
+        modelo: i.modelo_inversor || '',
+        potencia_w: undefined,
+        quantidade: 1,
+        numero_serie: undefined,
+        datasheetUrl: null,
+        dataloggerUrl: cliente?.monitoramento_datalogger_url || null,
+      }))
+    }
+
+    if (cliente?.inversor_marca || cliente?.inversor_modelo) {
+      return [
+        {
+          id: 'cli-inv-1',
+          marca: cliente.inversor_marca || '',
+          modelo: cliente.inversor_modelo || '',
+          potencia_w: undefined,
+          quantidade: 1,
+          numero_serie: undefined,
+          datasheetUrl: null,
+          dataloggerUrl: cliente?.monitoramento_datalogger_url || null,
+        },
+      ]
+    }
+
+    return []
+  }, [equipamentosUsina, usinaVinculada, cliente, inversoresLista])
+
+  const modulosUsina = React.useMemo(() => {
+    const list = equipamentosUsina.filter((ue) => ue.expand?.equipamento_id?.tipo === 'modulo_fv')
+    if (list.length > 0) {
+      return list.map((ue) => {
+        const eq = ue.expand!.equipamento_id!
+        const datasheetUrl =
+          (eq.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
+          eq.datasheet_url ||
+          usinaVinculada?.datasheet_modulo_url ||
+          null
+
+        return {
+          id: ue.id,
+          marca: eq.marca,
+          modelo: eq.modelo,
+          potencia_w: eq.potencia_w,
+          quantidade: ue.quantidade || 0,
+          datasheetUrl,
+        }
+      })
+    }
+
+    if (
+      usinaVinculada?.fabricante_modulos ||
+      usinaVinculada?.modelo_modulos ||
+      usinaVinculada?.quantidade_placas ||
+      usinaVinculada?.qtd_modulos
+    ) {
+      return [
+        {
+          id: 'usina-mod-1',
+          marca: usinaVinculada.fabricante_modulos || usinaVinculada.marca_placas || '',
+          modelo: usinaVinculada.modelo_modulos || '',
+          potencia_w: undefined,
+          quantidade: usinaVinculada.quantidade_placas || usinaVinculada.qtd_modulos || 0,
+          datasheetUrl: usinaVinculada.datasheet_modulo_url || null,
+        },
+      ]
+    }
+
+    if (cliente?.placas_marca || cliente?.placas_qtd) {
+      return [
+        {
+          id: 'cli-mod-1',
+          marca: cliente.placas_marca || '',
+          modelo: '',
+          potencia_w: undefined,
+          quantidade: cliente.placas_qtd || 0,
+          datasheetUrl: null,
+        },
+      ]
+    }
+
+    return []
+  }, [equipamentosUsina, usinaVinculada, cliente])
+
   // Finalizar OS com geração automática de Relatório em PDF
   const handleFinalizarOS = async () => {
     setIsSubmitting(true)
@@ -489,12 +679,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       try {
         const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
         const inversoresStr =
-          inversoresLista.length > 0
-            ? inversoresLista
-                .map((i) => `${i.marca_inversor || ''} ${i.modelo_inversor || ''}`.trim())
+          inversoresUsina.length > 0
+            ? inversoresUsina
+                .map((i) => `${i.marca || ''} ${i.modelo || ''}`.trim())
                 .filter(Boolean)
                 .join(', ')
-            : undefined
+            : inversoresLista.length > 0
+              ? inversoresLista
+                  .map((i) => `${i.marca_inversor || ''} ${i.modelo_inversor || ''}`.trim())
+                  .filter(Boolean)
+                  .join(', ')
+              : undefined
 
         const osAtualizadaParaPdf: OrdemServico = {
           ...os,
@@ -556,271 +751,305 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const progressoPct = totalItens > 0 ? Math.round((concluidosCount / totalItens) * 100) : 0
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4 pb-24">
-      {/* Barra de Navegação Superior da Ficha */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs flex items-center justify-between sticky top-16 z-20">
+    <div className="max-w-3xl mx-auto space-y-3 pb-24">
+      {/* Barra de Navegação Superior Sticky da Ficha (compacta, sem espaço extra) */}
+      <div className="bg-white rounded-xl px-3 py-2 border border-gray-200 shadow-2xs flex items-center justify-between sticky top-0 z-20">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+          title="Voltar para Lista"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Voltar para Lista</span>
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Voltar</span>
         </button>
 
         <div className="flex items-center gap-2">
-          {os.status === 'concluida' ? (
-            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold px-3 py-1">
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+          {os.status === 'concluida' && (
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold px-2 py-0.5 text-[11px]">
+              <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
               OS Concluída
             </Badge>
-          ) : (
-            <Badge className="bg-amber-100 text-amber-800 border-amber-300 font-bold px-3 py-1">
-              <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" />
-              Pendente de Execução
-            </Badge>
-          )}
-
-          {/* Botão de Envio Manual da OS via WhatsApp (visível para Admin ou quando não for o instalador logado) */}
-          {(!isInstalador || isAdmin) && (
-            <BotaoEnviarOSWhatsApp
-              osId={os.id}
-              responsavelNome={os.atribuida_a || os.expand?.responsavel_usuario_id?.name}
-              responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
-              responsavelId={responsavelId || os.responsavel_usuario_id}
-              size="sm"
-              label="Enviar OS por WhatsApp"
-            />
           )}
         </div>
       </div>
 
-      {/* Cabeçalho da OS */}
-      <div className="bg-gradient-to-br from-emerald-800 via-emerald-900 to-slate-900 text-white rounded-2xl p-4 sm:p-6 shadow-md relative overflow-hidden">
+      {/* Cabeçalho Verde da OS (comprimido em poucas linhas) */}
+      <div className="bg-gradient-to-br from-emerald-800 via-emerald-900 to-slate-900 text-white rounded-xl p-3.5 sm:p-4 shadow-sm relative overflow-hidden">
         <div className="relative z-10 flex flex-col gap-2">
+          {/* Linha 1: Tag OS + Data Agendada */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300 bg-white/10 px-2.5 py-1 rounded-md">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-white/10 px-2 py-0.5 rounded">
               OS #{os.id.slice(-6).toUpperCase()} • {os.tipo_servico}
             </span>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-100 bg-black/20 px-2.5 py-1 rounded-lg">
-              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="flex items-center gap-1 text-[11px] text-emerald-100 bg-black/20 px-2 py-0.5 rounded">
+              <Clock className="w-3 h-3 text-emerald-400" />
               <span>
                 Agendada: <strong>{formatDateTime(os.data_agendada)}</strong>
               </span>
             </div>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
-            {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
-          </h2>
+          {/* Linha 2: Nome do cliente + Telefone em linha única + Botão Whats só de ícone */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <h2 className="text-lg sm:text-xl font-black text-white leading-tight truncate">
+                {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
+              </h2>
 
-          {isAdmin ? (
-            <div className="flex items-center gap-2 text-xs text-emerald-200 bg-white/10 p-2 rounded-xl mt-1 max-w-md">
-              <User className="w-4 h-4 text-emerald-300 shrink-0" />
-              <div className="flex-1 flex items-center gap-2">
-                <span className="font-semibold text-emerald-100 shrink-0">Responsável:</span>
-                <select
-                  value={responsavelId}
-                  onChange={(e) => setResponsavelId(e.target.value)}
-                  disabled={!podeEditarOS}
-                  className="bg-emerald-950/80 border border-emerald-600 text-white text-xs rounded-lg px-2 py-1 w-full focus:outline-hidden disabled:opacity-60"
-                >
-                  <option value="">-- Não atribuído --</option>
-                  {instaladores.map((inst) => (
-                    <option key={inst.id} value={inst.id}>
-                      {inst.name} {inst.phone ? `(${inst.phone})` : '(Sem WhatsApp)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {telefoneAutoritativoCliente && (
+                <div className="inline-flex items-center gap-1.5 text-xs text-emerald-100 bg-white/10 px-2 py-0.5 rounded-md">
+                  <Phone className="w-3 h-3 text-emerald-300 shrink-0" />
+                  <span className="font-medium">{telefoneAutoritativoCliente}</span>
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setModalWhatsAppClienteAberto(true)}
+                          className="w-5 h-5 rounded-sm bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-colors cursor-pointer"
+                          aria-label="Conversar no WhatsApp"
+                        >
+                          <WhatsAppIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Conversar com o cliente no WhatsApp
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              )}
             </div>
-          ) : (
-            os.atribuida_a && (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-200">
-                <User className="w-3.5 h-3.5" />
-                <span>
-                  Instalador responsável: <strong>{os.atribuida_a}</strong>
-                  {os.expand?.responsavel_usuario_id?.phone && (
-                    <span className="ml-1 opacity-80">
-                      ({os.expand?.responsavel_usuario_id?.phone})
-                    </span>
-                  )}
-                </span>
-              </div>
-            )
-          )}
-        </div>
-      </div>
 
-      {/* 1. DADOS DO CLIENTE & SISTEMA SOLAR */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-          <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
-            <Sun className="w-5 h-5 text-amber-500" />
-            1. Dados do Cliente & Usina Solar
-          </h3>
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-            Informações Técnicas
-          </span>
-        </div>
+            {/* Select compacto do Responsável com ícone de enviar OS por WhatsApp ao lado */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isAdmin ? (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-200 bg-white/10 px-2 py-1 rounded-lg">
+                  <User className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+                  <span className="font-medium text-[11px] text-emerald-100 shrink-0 hidden sm:inline">
+                    Resp:
+                  </span>
+                  <select
+                    value={responsavelId}
+                    onChange={(e) => setResponsavelId(e.target.value)}
+                    disabled={!podeEditarOS}
+                    className="bg-emerald-950/90 border border-emerald-600 text-white text-[11px] rounded px-1.5 py-0.5 max-w-[150px] sm:max-w-[180px] focus:outline-hidden disabled:opacity-60"
+                  >
+                    <option value="">-- Não atribuído --</option>
+                    {instaladores.map((inst) => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.name}
+                      </option>
+                    ))}
+                  </select>
 
-        {/* Endereço & Telefone com botões de ação rápida */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
-          <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 flex flex-col justify-between">
-            <div
-              className={`flex items-start gap-2 text-gray-700 ${
-                enderecoCompleto ? 'cursor-pointer group' : ''
-              }`}
-              onClick={enderecoCompleto ? handleAbrirGoogleMaps : undefined}
-              title={enderecoCompleto ? 'Clique para abrir no Google Maps' : undefined}
-            >
-              <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-              <div>
-                <span className="font-bold text-gray-900 block mb-0.5">Endereço de Execução:</span>
-                <span className="text-gray-600 leading-relaxed group-hover:text-emerald-700 transition-colors">
-                  {os.endereco || cliente?.endereco || 'Endereço não informado'}
-                  {cliente?.cidade ? ` - ${cliente.cidade}` : ''}
-                </span>
-              </div>
+                  <BotaoEnviarOSWhatsApp
+                    osId={os.id}
+                    responsavelNome={
+                      instaladores.find((i) => i.id === responsavelId)?.name ||
+                      os.atribuida_a ||
+                      os.expand?.responsavel_usuario_id?.name
+                    }
+                    responsavelTelefone={
+                      instaladores.find((i) => i.id === responsavelId)?.phone ||
+                      os.expand?.responsavel_usuario_id?.phone
+                    }
+                    responsavelId={responsavelId || os.responsavel_usuario_id}
+                    size="icon"
+                    variant="ghost"
+                    showLabel={false}
+                    className="h-6 w-6 p-0 rounded-sm bg-emerald-600/80 hover:bg-emerald-500 text-white border-0"
+                  />
+                </div>
+              ) : (
+                os.atribuida_a && (
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-200 bg-white/10 px-2 py-0.5 rounded">
+                    <User className="w-3 h-3 text-emerald-300" />
+                    <span>{os.atribuida_a}</span>
+                  </div>
+                )
+              )}
             </div>
+          </div>
+
+          {/* Linha 3: Endereço compactado com ícones de Maps e Waze */}
+          <div className="flex items-center justify-between gap-2 text-xs text-emerald-100 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-lg flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <MapPin className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+              <span
+                className="truncate text-[11px]"
+                title={enderecoCompleto || 'Endereço não informado'}
+              >
+                {os.endereco ||
+                  usinaVinculada?.endereco ||
+                  cliente?.endereco ||
+                  'Endereço não informado'}
+                {cliente?.cidade ? ` - ${cliente.cidade}` : ''}
+              </span>
+            </div>
+
             {enderecoCompleto && (
-              <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleAbrirGoogleMaps}
-                  className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-emerald-600 text-emerald-700 font-bold rounded-lg text-xs transition-colors shadow-2xs cursor-pointer"
-                >
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>Google Maps</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAbrirWaze}
-                  className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-blue-600 text-blue-700 font-bold rounded-lg text-xs transition-colors shadow-2xs cursor-pointer"
-                >
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>Waze</span>
-                </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={handleAbrirGoogleMaps}
+                        className="h-6 px-1.5 inline-flex items-center gap-1 rounded bg-white/15 hover:bg-white/25 text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                        aria-label="Abrir no Google Maps"
+                      >
+                        <MapPin className="w-3 h-3 text-emerald-300" />
+                        <span>Maps</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Abrir endereço no Google Maps
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={handleAbrirWaze}
+                        className="h-6 px-1.5 inline-flex items-center gap-1 rounded bg-white/15 hover:bg-white/25 text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                        aria-label="Abrir no Waze"
+                      >
+                        <Navigation className="w-3 h-3 text-sky-300" />
+                        <span>Waze</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Abrir rota no Waze
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             )}
           </div>
 
-          <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 flex flex-col justify-between">
-            <div className="flex items-start gap-2 text-gray-700">
-              <Phone className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-gray-900 block mb-0.5">Contato do Cliente:</span>
-                <span className="text-gray-600">
-                  {telefoneAutoritativoCliente || 'Sem telefone/WhatsApp'}
+          {/* Linha 4: Dados técnicos comprimidos da usina (Inversor + Links Datasheet/Datalogger + Módulos) */}
+          <div className="bg-emerald-950/70 border border-emerald-700/60 rounded-lg p-2 text-xs space-y-1.5">
+            {/* Inversores */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">
+                  Inversor:
                 </span>
-                {cliente?.contato && (
-                  <span className="block text-[11px] text-gray-500">
-                    Falar com: {cliente.contato}
+                {inversoresUsina.length > 0 ? (
+                  inversoresUsina.map((inv, idx) => (
+                    <div key={inv.id || idx} className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-white text-xs">
+                        {inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}
+                        {[inv.marca, inv.modelo].filter(Boolean).join(' ') || 'Inversor Solar'}
+                        {inv.potencia_w ? ` (${(inv.potencia_w / 1000).toFixed(1)} kW)` : ''}
+                      </span>
+                      {inv.numero_serie && (
+                        <span className="text-[10px] text-emerald-300 bg-white/10 px-1 rounded">
+                          SN: {inv.numero_serie}
+                        </span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-emerald-200/80 text-[11px]">
+                    {carregandoUsina ? 'Carregando...' : 'Nenhum inversor vinculado'}
                   </span>
                 )}
               </div>
+
+              {/* Links clicáveis de Datasheet do Inversor e Configuração do Datalogger */}
+              <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-1">
+                {inversoresUsina.map((inv, idx) => (
+                  <React.Fragment key={`links-${inv.id || idx}`}>
+                    {inv.datasheetUrl && (
+                      <a
+                        href={inv.datasheetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-emerald-200 hover:text-white underline decoration-emerald-400 underline-offset-2 hover:decoration-white transition-colors"
+                        title="Ver Datasheet do Inversor (PDF)"
+                      >
+                        <FileCode2 className="w-3 h-3 text-emerald-300" />
+                        <span>Datasheet Inversor</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                      </a>
+                    )}
+                    {inv.dataloggerUrl && (
+                      <a
+                        href={inv.dataloggerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-amber-200 hover:text-white underline decoration-amber-400 underline-offset-2 hover:decoration-white transition-colors"
+                        title="Abrir página/tutorial de Configuração do Datalogger"
+                      >
+                        <Wifi className="w-3 h-3 text-amber-300" />
+                        <span>Configurar Datalogger</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                      </a>
+                    )}
+                  </React.Fragment>
+                ))}
+
+                {/* Caso o link de datalogger venha da usina/cliente mas nenhum inversor tenha o link específico */}
+                {!inversoresUsina.some((i) => i.dataloggerUrl) &&
+                  (usinaVinculada?.monitoramento_datalogger_url ||
+                    cliente?.monitoramento_datalogger_url) && (
+                    <a
+                      href={
+                        usinaVinculada?.monitoramento_datalogger_url ||
+                        cliente?.monitoramento_datalogger_url
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-amber-200 hover:text-white underline decoration-amber-400 underline-offset-2 hover:decoration-white transition-colors"
+                      title="Abrir link de configuração do datalogger"
+                    >
+                      <Wifi className="w-3 h-3 text-amber-300" />
+                      <span>Configurar Datalogger</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                    </a>
+                  )}
+              </div>
             </div>
 
-            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-              {/* Botão verde Enviar Mensagem WhatsApp (fixado ao cliente da OS) */}
-              <button
-                type="button"
-                onClick={() => setModalWhatsAppClienteAberto(true)}
-                disabled={!telefoneAutoritativoCliente}
-                className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold rounded-lg text-xs transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Enviar WhatsApp</span>
-              </button>
-
-              {telefoneAutoritativoCliente && (
-                <a
-                  href={`tel:${telefoneAutoritativoCliente.replace(/\D/g, '')}`}
-                  className="inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-emerald-600 text-emerald-700 font-bold rounded-lg text-xs transition-colors shadow-2xs"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>Ligar</span>
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Ficha do Sistema Solar */}
-        <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-3.5">
-          <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2.5">
-            <Zap className="w-4 h-4 text-amber-600" />
-            <span>Dados da Usina Fotovoltaica Cadastrada:</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div className="bg-white rounded-lg p-2.5 border border-amber-100">
-              <span className="text-[10px] text-gray-500 font-semibold block uppercase">
-                Potência
+            {/* Módulos */}
+            <div className="flex items-center gap-1.5 flex-wrap border-t border-emerald-800/60 pt-1">
+              <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">
+                Módulos:
               </span>
-              <span className="text-sm sm:text-base font-black text-amber-700">
-                {sistema?.potencia_total_kwp || cliente?.potencia_kwp || '—'} kWp
-              </span>
-            </div>
-
-            <div className="bg-white rounded-lg p-2.5 border border-amber-100">
-              <span className="text-[10px] text-gray-500 font-semibold flex items-center justify-between uppercase">
-                <span>
-                  {inversoresLista.length > 1
-                    ? `Inversores (${inversoresLista.length})`
-                    : 'Inversor'}
+              {modulosUsina.length > 0 ? (
+                modulosUsina.map((mod, idx) => (
+                  <div key={mod.id || idx} className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-white text-xs">
+                      {mod.quantidade ? `${mod.quantidade}x ` : ''}
+                      {[mod.marca, mod.modelo].filter(Boolean).join(' ') || 'Módulos Fotovoltaicos'}
+                      {mod.potencia_w ? ` (${mod.potencia_w}W)` : ''}
+                    </span>
+                    {mod.datasheetUrl && (
+                      <a
+                        href={mod.datasheetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[10px] text-emerald-200 hover:text-white underline decoration-emerald-400 underline-offset-2 transition-colors ml-1"
+                        title="Ver Datasheet do Módulo (PDF)"
+                      >
+                        <FileCode2 className="w-3 h-3 text-emerald-300" />
+                        <span>Datasheet Módulo</span>
+                        <ExternalLink className="w-2 h-2 opacity-70" />
+                      </a>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <span className="text-emerald-200/80 text-[11px]">
+                  {carregandoUsina ? 'Carregando...' : 'Nenhum módulo vinculado'}
                 </span>
-              </span>
-              <span
-                className="text-xs sm:text-sm font-bold text-gray-900 block truncate"
-                title={
-                  inversoresLista.length > 0
-                    ? inversoresLista
-                        .map((i) => i.marca_inversor)
-                        .filter(Boolean)
-                        .join(', ')
-                    : sistema?.fabricante_inversores || cliente?.inversor_marca
-                }
-              >
-                {inversoresLista.length > 0
-                  ? inversoresLista
-                      .map((i) => i.marca_inversor)
-                      .filter(Boolean)
-                      .join(' + ')
-                  : sistema?.fabricante_inversores || cliente?.inversor_marca || '—'}
-              </span>
-              <span className="text-[10px] text-gray-500 truncate block">
-                {inversoresLista.length > 0
-                  ? inversoresLista
-                      .map((i) => i.modelo_inversor)
-                      .filter(Boolean)
-                      .join(' / ') || (inversoresLista.length > 1 ? 'Múltiplos inversores' : '')
-                  : sistema?.modelo_inversores || cliente?.inversor_modelo || ''}
-              </span>
-            </div>
-
-            <div className="bg-white rounded-lg p-2.5 border border-amber-100">
-              <span className="text-[10px] text-gray-500 font-semibold block uppercase">
-                Módulos
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-gray-900 block">
-                {sistema?.quantidade_modulos || cliente?.placas_qtd || '—'} placas
-              </span>
-              <span className="text-[10px] text-gray-500 truncate block">
-                {sistema?.fabricante_modulos || cliente?.placas_marca || ''}
-              </span>
-            </div>
-
-            <div className="bg-white rounded-lg p-2.5 border border-amber-100">
-              <span className="text-[10px] text-gray-500 font-semibold block uppercase">
-                Telhado / UC
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-gray-900 capitalize block">
-                {sistema?.tipo_telhado || cliente?.telhado_tipo || '—'}
-              </span>
-              <span className="text-[10px] text-gray-500 truncate block">
-                UC: {sistema?.numero_uc || cliente?.uc || 'N/A'}
-              </span>
+              )}
             </div>
           </div>
         </div>

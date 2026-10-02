@@ -205,6 +205,7 @@ export default function ExecucaoOS() {
             collectionId: atv.collectionId || 'atividades',
             collectionName: atv.collectionName || 'atividades',
             cliente_id: atv.cliente_id,
+            usina_id: atv.usina_id || undefined,
             tipo_servico: tipoServico,
             endereco,
             data_agendada: atv.data || atv.created,
@@ -220,6 +221,7 @@ export default function ExecucaoOS() {
             updated: atv.updated,
             expand: {
               cliente_id: cli,
+              usina_id: usina,
               responsavel_usuario_id: resp,
             },
           } as OrdemServico
@@ -626,15 +628,15 @@ export default function ExecucaoOS() {
   // Se uma OS foi selecionada, exibe a Ficha de Execução com barra de ações de admin caso concluída
   if (selectedOS) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2 pt-0">
         {isAdmin && selectedOS.status === 'concluida' && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5" />
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-xs sm:text-sm font-bold text-emerald-950">
+                <h4 className="text-xs font-bold text-emerald-950">
                   Relatório Técnico de Execução (Admin)
                 </h4>
                 <p className="text-[11px] text-emerald-700">

@@ -419,6 +419,10 @@ export interface UsinaCliente extends RecordModel {
   marca_placas?: string
   tipo_telhado?: TelhadoTipo
 
+  // Links de documentação técnica / datasheets
+  datasheet_inversor_url?: string
+  datasheet_modulo_url?: string
+
   created: string
   updated: string
   expand?: {
@@ -1262,6 +1266,7 @@ export interface OrdemServico extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
+  usina_id?: string
   tipo_servico: OSTipoServico
   endereco?: string
   data_agendada: string
@@ -1280,6 +1285,7 @@ export interface OrdemServico extends RecordModel {
   updated: string
   expand?: {
     cliente_id?: Cliente
+    usina_id?: UsinaCliente
     profissional_id?: Profissional
     responsavel_usuario_id?: SistemaUsuario
   }

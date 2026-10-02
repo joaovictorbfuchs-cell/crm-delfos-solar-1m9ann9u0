@@ -2933,7 +2933,7 @@ export async function fetchOrdensServico(
       .getFullList<import('@/types/crm').OrdemServico>({
         filter: filter || undefined,
         sort: 'data_agendada,-created',
-        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+        expand: 'cliente_id,usina_id,profissional_id,responsavel_usuario_id',
         requestKey: null,
       })
     return records
@@ -2950,7 +2950,7 @@ export async function fetchOrdemServicoById(
     const record = await pb
       .collection('ordens_servico')
       .getOne<import('@/types/crm').OrdemServico>(id, {
-        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+        expand: 'cliente_id,usina_id,profissional_id,responsavel_usuario_id',
       })
     return record
   } catch (err) {
@@ -2983,6 +2983,7 @@ export async function fetchOrdemServicoById(
           collectionId: atv.collectionId || 'atividades',
           collectionName: atv.collectionName || 'atividades',
           cliente_id: atv.cliente_id,
+          usina_id: atv.usina_id || undefined,
           tipo_servico: atv.titulo || 'Manutenção',
           endereco,
           data_agendada: atv.data || atv.created,
@@ -3003,6 +3004,7 @@ export async function fetchOrdemServicoById(
           updated: atv.updated,
           expand: {
             cliente_id: cli,
+            usina_id: usina,
             responsavel_usuario_id: resp,
           },
         } as import('@/types/crm').OrdemServico
@@ -3018,6 +3020,7 @@ export async function fetchOrdemServicoById(
 
 export async function createOrdemServico(data: {
   cliente_id: string
+  usina_id?: string
   tipo_servico: import('@/types/crm').OSTipoServico
   endereco?: string
   data_agendada: string
@@ -3038,7 +3041,7 @@ export async function createOrdemServico(data: {
   const record = await pb
     .collection('ordens_servico')
     .create<import('@/types/crm').OrdemServico>(payload, {
-      expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+      expand: 'cliente_id,usina_id,profissional_id,responsavel_usuario_id',
     })
   return record
 }
@@ -3137,6 +3140,7 @@ async function updateAtividadeComoOrdemServico(
     collectionId: atvRecord.collectionId || 'atividades',
     collectionName: atvRecord.collectionName || 'atividades',
     cliente_id: atvRecord.cliente_id,
+    usina_id: atvRecord.usina_id || undefined,
     tipo_servico: data.tipo_servico || atvRecord.titulo || 'Manutenção',
     endereco,
     data_agendada: atvRecord.data || atvRecord.created,
@@ -3153,6 +3157,7 @@ async function updateAtividadeComoOrdemServico(
     updated: atvRecord.updated,
     expand: {
       cliente_id: cli,
+      usina_id: usina,
       responsavel_usuario_id: resp,
     },
   } as import('@/types/crm').OrdemServico
@@ -3200,7 +3205,7 @@ export async function updateOrdemServico(
       const record = await pb
         .collection('ordens_servico')
         .update<import('@/types/crm').OrdemServico>(id, formData, {
-          expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+          expand: 'cliente_id,usina_id,profissional_id,responsavel_usuario_id',
         })
       return record
     }
@@ -3211,7 +3216,7 @@ export async function updateOrdemServico(
     const record = await pb
       .collection('ordens_servico')
       .update<import('@/types/crm').OrdemServico>(id, payloadSemOrigem, {
-        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+        expand: 'cliente_id,usina_id,profissional_id,responsavel_usuario_id',
       })
     return record
   } catch (err: any) {
@@ -3246,7 +3251,7 @@ export async function salvarRelatorioPdfOrdemServico(
     return await pb
       .collection('ordens_servico')
       .update<import('@/types/crm').OrdemServico>(id, formData, {
-        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+        expand: 'cliente_id,usina_id,profissional_id,responsavel_usuario_id',
       })
   } catch (err: any) {
     const is404 =
@@ -3516,6 +3521,22 @@ export async function fetchAllUsinas(): Promise<import('@/types/crm').UsinaClien
   } catch (err) {
     console.warn('Erro ao buscar todas as usinas:', err)
     return []
+  }
+}
+
+export async function fetchUsinaById(
+  id: string,
+): Promise<import('@/types/crm').UsinaCliente | null> {
+  if (!id) return null
+  try {
+    const usina = await pb.collection('usinas').getOne<import('@/types/crm').UsinaCliente>(id, {
+      expand: 'contrato_id,cliente_id',
+      requestKey: null,
+    })
+    return usina
+  } catch (err) {
+    console.warn(`Erro ao buscar usina por id ${id}:`, err)
+    return null
   }
 }
 

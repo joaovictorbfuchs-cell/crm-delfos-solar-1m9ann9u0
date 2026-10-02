@@ -48,6 +48,8 @@ export async function fetchContagemUsoEquipamentosEmUsinas(): Promise<Record<str
   }
 }
 
+export const fetchEquipamentosByUsinaId = fetchEquipamentosPorUsina
+
 export async function fetchEquipamentosPorUsina(usinaId: string): Promise<UsinaEquipamentoAtivo[]> {
   if (!usinaId) return []
   try {
