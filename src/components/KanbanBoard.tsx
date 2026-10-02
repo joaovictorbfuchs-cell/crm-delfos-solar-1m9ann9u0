@@ -218,10 +218,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
   }
 
-  // Normalização unificada: se negocios foram passados, alimentamos com negócios.
-  // Caso contrário, mantemos compatibilidade com a lista de clientes.
+  // Normalização unificada: quando a prop negocios estiver presente, renderiza APENAS negócios
+  // (evita que clientes apareçam como fallback/flash de leads deletados antes ou quando negocios carregam).
+  // Se a prop negocios não for passada de todo (ex.: páginas legadas que só passam clientes), mantém compatibilidade.
   const cards = useMemo<KanbanCardItem[]>(() => {
-    if (Array.isArray(negociosProp) && negociosProp.length > 0) {
+    if (negociosProp !== undefined) {
+      if (!Array.isArray(negociosProp) || negociosProp.length === 0) {
+        return []
+      }
       return negociosProp
         .filter((n) => {
           if (!n || !n.id) return false

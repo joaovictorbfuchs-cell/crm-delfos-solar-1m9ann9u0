@@ -273,7 +273,10 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
   // Itens unificados de negócios (ou clientes no modo compatibilidade)
   const itensAtivos = useMemo<ComercialListItem[]>(() => {
-    if (Array.isArray(negociosProp) && negociosProp.length > 0) {
+    if (negociosProp !== undefined) {
+      if (!Array.isArray(negociosProp) || negociosProp.length === 0) {
+        return []
+      }
       return negociosProp
         .filter((n) => {
           if (!n || !n.id) return false

@@ -28,6 +28,7 @@ export default function Comercial() {
     useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
   const [negociosList, setNegociosList] = useState<Negocio[]>([])
+  const [isLoadingNegocios, setIsLoadingNegocios] = useState(true)
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'perdidos'>('kanban')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
@@ -36,10 +37,13 @@ export default function Comercial() {
   // Carrega negócios vinculados da coleção `negocios`
   const carregarNegocios = React.useCallback(async () => {
     try {
+      setIsLoadingNegocios(true)
       const data = await fetchNegocios()
       setNegociosList(data)
     } catch (err) {
       console.warn('Erro ao carregar lista de negócios no Comercial:', err)
+    } finally {
+      setIsLoadingNegocios(false)
     }
   }, [])
 
@@ -165,7 +169,7 @@ export default function Comercial() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingNegocios) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center gap-3 text-gray-400">
         <Loader2 className="w-8 h-8 animate-spin text-[#16A34A]" />
@@ -199,26 +203,30 @@ export default function Comercial() {
       )}
 
       {/* Botão de recarga defensivo quando a lista estiver vazia */}
-      {!isLoading && !error && clientesAtivos.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
-          <div>
-            <p className="font-bold">Nenhum cliente ou lead encontrado no Funil Comercial.</p>
-            <p className="text-amber-700">
-              Se você já possui negócios cadastrados, clique no botão para recarregar os dados do
-              sistema.
-            </p>
+      {!isLoading &&
+        !isLoadingNegocios &&
+        !error &&
+        negociosList.length === 0 &&
+        clientesAtivos.length === 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
+            <div>
+              <p className="font-bold">Nenhum negócio ou lead encontrado no Funil Comercial.</p>
+              <p className="text-amber-700">
+                Se você já possui negócios cadastrados, clique no botão para recarregar os dados do
+                sistema.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Recarregar dados</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Recarregar dados</span>
-          </button>
-        </div>
-      )}
+        )}
 
       {/* Action Bar & Container */}
       <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-5 shadow-xs space-y-4">

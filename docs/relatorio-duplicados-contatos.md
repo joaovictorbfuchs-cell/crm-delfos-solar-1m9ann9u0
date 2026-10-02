@@ -1,6 +1,6 @@
 # Relatório de Auditoria de Duplicados e Vínculos de Contatos — CRM Delfos Solar
 
-**Data/Hora da Execução:** 2026-10-02T14:29:13.728Z  
+**Data/Hora da Execução:** 2026-10-02T14:50:54.621Z  
 **Ambiente do Banco:** https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev  
 **Usuário Autenticado:** joao@delfosengenharia.com.br  
 **Validação de Sanidade:** APROVADA (Total carregado bate exatamente com o totalItems do PocketBase)
@@ -12,7 +12,7 @@
 | Métrica | Quantidade | Observações / Detalhes |
 | :--- | :---: | :--- |
 | **Total de Registros em Contatos** | **91** | Base validada contra o banco PocketBase via paginação estrita |
-| **Total de Registros em Clientes** | **1532** | Base validada contra o banco PocketBase via paginação estrita |
+| **Total de Registros em Clientes** | **1531** | Base validada contra o banco PocketBase via paginação estrita |
 | **Contatos com Telefone/WhatsApp Válido** | **4** | Apenas 4 registros possuem WhatsApp/telefone preenchido |
 | **Contatos com Telefone/WhatsApp Vazio** | **87** | Registros migrados originalmente com dados cadastrais sem telefone direto |
 | **Contatos com origem `migracao_outros_contatos`** | **91** | Registros unificados na migração de dados |
@@ -31,7 +31,7 @@
 
 ## 3. Distribuição de Clientes por Status
 
-- **Orçamento:** 8 clientes
+- **Orçamento:** 7 clientes
 - **Negociação:** 3 clientes
 - **Novo Lead:** 1083 clientes
 - **Fechado:** 437 clientes
@@ -82,8 +82,8 @@
   - Total paginado e acumulado localmente: **91**
   - Resultado: **BATEU 100% (Sem divergência)**
 - **Coleção `clientes`:**
-  - Total informado pelo servidor (`totalItems`): **1532**
-  - Total paginado e acumulado localmente: **1532**
+  - Total informado pelo servidor (`totalItems`): **1531**
+  - Total paginado e acumulado localmente: **1531**
   - Resultado: **BATEU 100% (Sem divergência)**
 
 ---
@@ -98,15 +98,15 @@ Autenticação com PocketBase: SUCESSO (usuário autenticado: joao@delfosengenha
 --- 1. LEITURA COMPLETA DAS COLEÇÕES (SANITY CHECK) ---
 Executando paginação direta via SDK/PocketBase API com sanity check...
 Total confirmado na coleção 'contatos': 91
-Total confirmado na coleção 'clientes': 1532
+Total confirmado na coleção 'clientes': 1531
 
 --- RESUMO NUMÉRICO INICIAL ---
 Total geral de contatos: 91
 Distribuição de contatos por papel: {"fornecedor":1,"outro":90}
-Total geral de clientes: 1532
-Distribuição de clientes por status: {"Orçamento":8,"Negociação":3,"Novo Lead":1083,"Fechado":437,"Levantamento":1}
+Total geral de clientes: 1531
+Distribuição de clientes por status: {"Orçamento":7,"Negociação":3,"Novo Lead":1083,"Fechado":437,"Levantamento":1}
 Registros em 'contatos' com telefone/WhatsApp válido: 4 de 91
-Registros em 'clientes' com telefone/WhatsApp válido: 675 de 1532
+Registros em 'clientes' com telefone/WhatsApp válido: 674 de 1531
 
 ======================================================
 GRUPO 1 — MESMO WHATSAPP EM REGISTROS DIFERENTES
@@ -790,7 +790,7 @@ Nenhum contato com nome idêntico encontrado.
 RESUMO DOS RESULTADOS DA AUDITORIA
 ======================================================
 Total contatos lidos e validados: 91
-Total clientes lidos e validados: 1532
+Total clientes lidos e validados: 1531
 Grupo 1.a (mesmo WhatsApp em múltiplos contatos): 0 casos
 Grupo 1.b (mesmo WhatsApp em múltiplos clientes): 128 casos
 Grupo 1.c (mesmo WhatsApp entre contato e cliente com nomes distintos): 0 casos
