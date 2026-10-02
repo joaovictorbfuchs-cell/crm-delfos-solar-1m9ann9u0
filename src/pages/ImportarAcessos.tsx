@@ -414,8 +414,7 @@ export function ImportarAcessos() {
           const duplicataExistente = invsDoCli.find((inv) => {
             const mesmaMarca =
               marcaNorm && (inv.marca_inversor || '').trim().toLowerCase() === marcaNorm
-            const mesmoLogin =
-              loginNorm && (inv.login || '').trim().toLowerCase() === loginNorm
+            const mesmoLogin = loginNorm && (inv.login || '').trim().toLowerCase() === loginNorm
 
             // Se bater marca e login não vazio, é o mesmo acesso
             if (mesmaMarca && mesmoLogin) return true

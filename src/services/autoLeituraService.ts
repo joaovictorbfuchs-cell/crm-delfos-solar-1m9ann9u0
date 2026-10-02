@@ -448,6 +448,8 @@ export async function sincronizarFilhasNovas(
     const dataFormatada = formatarDataParaDDMMAAAA(dataStr)
     const ucDesc = numeroUc ? ` para a UC ${numeroUc}` : ''
 
+    const normalizarDataPb = (d: string) => d.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
+
     const filhaRecord = await pb.collection('atividades').create<Atividade>({
       cliente_id: clienteId,
       usina_id: usinaId || undefined,
@@ -456,9 +458,9 @@ export async function sincronizarFilhasNovas(
       tipo: 'lembrete_auto_leitura',
       titulo: `Lembrete de Auto Leitura - ${dataFormatada}`,
       descricao: `Lembrete de leitura${ucDesc}. Data da leitura programada: ${dataFormatada}. Enviar foto do relógio e registrar grandezas 03 e 103.`,
-      data: dataLembreteIso,
-      data_leitura: dataLeituraIso,
-      data_lembrete: dataLembreteIso,
+      data: normalizarDataPb(dataLembreteIso),
+      data_leitura: normalizarDataPb(dataLeituraIso),
+      data_lembrete: normalizarDataPb(dataLembreteIso),
       status: 'pendente',
       responsavel_id: responsavelId || undefined,
       responsavel_nome: responsavelNome || undefined,

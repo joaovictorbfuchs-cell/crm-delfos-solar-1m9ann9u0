@@ -220,6 +220,17 @@ export async function fetchUsuarios(): Promise<SistemaUsuario[]> {
   }
 }
 
+/**
+ * Normaliza valores de data para o padrão datetime do PocketBase (espaço em vez de 'T' ISO).
+ * O formato do PocketBase é "YYYY-MM-DD HH:mm:ss.sssZ" ou "YYYY-MM-DD HH:mm:ss".
+ */
+function normalizeDateForPocketBase(val?: string | null): string | undefined {
+  if (!val || typeof val !== 'string') return undefined
+  const trimmed = val.trim()
+  if (!trimmed) return undefined
+  return trimmed.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
+}
+
 export async function createAtividade(data: {
   cliente_id: string
   usina_id?: string
@@ -245,19 +256,84 @@ export async function createAtividade(data: {
   leituras_programadas_distribuidora?:
     | Array<{ data: string; responsavel: 'Cliente' | 'Distribuidora' }>
     | unknown
+  [key: string]: any
 }): Promise<Atividade> {
   const descTrim = typeof data.descricao === 'string' ? data.descricao.trim() : ''
   const fallbackDescricao =
     descTrim || (data.titulo && data.titulo.trim()) || 'Atividade registrada'
 
-  const payload = {
+  // Normalização de data obrigatória da atividade
+  const rawData =
+    data.data && typeof data.data === 'string' && data.data.trim()
+      ? data.data
+      : new Date().toISOString()
+  const dataNormalizada = normalizeDateForPocketBase(rawData) || rawData.replace('T', ' ')
+
+  // Construir payload base
+  const payload: Record<string, any> = {
     ...data,
     descricao: fallbackDescricao,
     status: data.status || 'pendente',
-    data: data.data || new Date().toISOString(),
+    data: dataNormalizada,
     autor: data.autor || 'João Delfos',
   }
-  const record = await pb.collection('atividades').create<Atividade>(payload, {
+
+  // Sanitização defensiva de relations conhecidas (PocketBase rejeita string vazia em relation)
+  const relationFields = [
+    'cliente_id',
+    'usina_id',
+    'responsavel_id',
+    'fornecedor_id',
+    'parent_id',
+    'negocio_id',
+    'tipo_custom_id',
+  ]
+  for (const field of relationFields) {
+    if (field in payload) {
+      const val = payload[field]
+      if (typeof val === 'string' && !val.trim()) {
+        delete payload[field]
+      } else if (val === null || val === undefined) {
+        delete payload[field]
+      }
+    }
+  }
+
+  // Sanitização e normalização de campos opcionais do tipo data
+  const dateFields = [
+    'data_leitura',
+    'data_lembrete',
+    'lembrete_whatsapp_enviado_em',
+    'email_enviado_em',
+    'prazo_conclusao_rge',
+  ]
+  for (const field of dateFields) {
+    if (field in payload) {
+      const val = payload[field]
+      if (typeof val === 'string') {
+        const trimmed = val.trim()
+        if (!trimmed) {
+          delete payload[field]
+        } else {
+          payload[field] = normalizeDateForPocketBase(trimmed) || trimmed.replace('T', ' ')
+        }
+      } else if (val === null || val === undefined) {
+        delete payload[field]
+      }
+    }
+  }
+
+  // Validação preventiva: cliente_id é campo obrigatório no PocketBase
+  if (
+    !payload.cliente_id ||
+    (typeof payload.cliente_id === 'string' && !payload.cliente_id.trim())
+  ) {
+    throw new Error(
+      'Não é possível criar atividade sem vincular um cliente (cliente_id obrigatório).',
+    )
+  }
+
+  const record = await pb.collection('atividades').create<Atividade>(payload as any, {
     expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
   })
   return record

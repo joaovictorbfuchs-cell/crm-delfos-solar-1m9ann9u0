@@ -338,8 +338,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!clienteId) {
-      setFormError('Por favor, selecione um cliente.')
+    const clienteIdLimpo = typeof clienteId === 'string' ? clienteId.trim() : ''
+    if (!clienteIdLimpo) {
+      setFormError('Selecione um cliente para vincular à atividade.')
       return
     }
 
@@ -367,6 +368,11 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       const selectedUser = usuarios.find((u) => u.id === responsavelId)
       const responsavelNome = selectedUser?.name || user?.name || 'João Delfos'
 
+      // Normalização de data para o padrão datetime do PocketBase com espaço (sem 'T' nem ms)
+      const normalizarParaPocketBase = (isoOuData: string): string => {
+        return isoOuData.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
+      }
+
       // Se for Auto Leitura - RGE, primeira data da leitura define a data inicial da mãe
       const primeiraData = datasLeituraAutoLeitura[0]
       const dataIsoMae =
@@ -375,19 +381,26 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           : dataHora
             ? new Date(dataHora).toISOString()
             : new Date().toISOString()
+      const dataFormatadaPocketBase = normalizarParaPocketBase(dataIsoMae)
+
+      // Sanitização estrita de relations (omitir completamente quando vazias para não quebrar no PocketBase)
+      const usinaIdLimpa =
+        selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : undefined
+      const responsavelIdLimpo =
+        responsavelId && responsavelId.trim() ? responsavelId.trim() : undefined
 
       const atividadePrincipalPayload: any = {
-        cliente_id: clienteId,
+        cliente_id: clienteIdLimpo,
         tipo: selectedTipo,
         titulo: finalTitulo,
         descricao: descricao.trim(), // Descrição NÃO é obrigatória
-        data: dataIsoMae,
-        responsavel_id: responsavelId || undefined,
+        data: dataFormatadaPocketBase,
+        responsavel_id: responsavelIdLimpo,
         responsavel_nome: responsavelNome,
         status: 'pendente',
         autor: user?.name || 'João Delfos',
-        usina_id: selectedUsinaId || undefined,
-        numero_uc: numeroUcAutoLeitura || undefined,
+        usina_id: usinaIdLimpa,
+        numero_uc: (numeroUcAutoLeitura && numeroUcAutoLeitura.trim()) || undefined,
         // Campos de custo e deslocamento
         valor_servico: custosValores?.valorServico ?? undefined,
         valor_por_placa: custosValores?.valorPorPlaca ?? undefined,
@@ -414,11 +427,11 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       if (selectedTipo === 'auto_leitura_rge' && maeCriada?.id) {
         await sincronizarFilhasNovas({
           maeId: maeCriada.id,
-          clienteId,
-          usinaId: selectedUsinaId || undefined,
-          numeroUc: numeroUcAutoLeitura || undefined,
+          clienteId: clienteIdLimpo,
+          usinaId: usinaIdLimpa,
+          numeroUc: (numeroUcAutoLeitura && numeroUcAutoLeitura.trim()) || undefined,
           datasLeitura: datasLeituraAutoLeitura,
-          responsavelId: responsavelId || undefined,
+          responsavelId: responsavelIdLimpo,
           responsavelNome,
           autor: user?.name || 'João Delfos',
         })

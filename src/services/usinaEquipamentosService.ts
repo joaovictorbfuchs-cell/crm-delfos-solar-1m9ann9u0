@@ -75,10 +75,12 @@ export async function vincularEquipamentoUsina(
   // com mesmo usina_id + equipamento_id. Se existir, atualiza em vez de inserir duplicata.
   if (dados.usina_id && dados.equipamento_id) {
     try {
-      const existentes = await pb.collection('usina_equipamentos').getFullList<UsinaEquipamentoAtivo>({
-        filter: `usina_id = '${dados.usina_id}' && equipamento_id = '${dados.equipamento_id}'`,
-        requestKey: null,
-      })
+      const existentes = await pb
+        .collection('usina_equipamentos')
+        .getFullList<UsinaEquipamentoAtivo>({
+          filter: `usina_id = '${dados.usina_id}' && equipamento_id = '${dados.equipamento_id}'`,
+          requestKey: null,
+        })
       if (existentes && existentes.length > 0) {
         const existente = existentes[0]
         const payloadUpdate: Record<string, any> = {}
@@ -91,13 +93,11 @@ export async function vincularEquipamentoUsina(
         if (dados.observacoes !== undefined && dados.observacoes.trim()) {
           payloadUpdate.observacoes = dados.observacoes.trim()
         }
-        return await pb.collection('usina_equipamentos').update<UsinaEquipamentoAtivo>(
-          existente.id,
-          payloadUpdate,
-          {
+        return await pb
+          .collection('usina_equipamentos')
+          .update<UsinaEquipamentoAtivo>(existente.id, payloadUpdate, {
             expand: 'equipamento_id,equipamento_id.fornecedor_id,usina_id',
-          },
-        )
+          })
       }
     } catch (errCheck) {
       console.warn('Aviso ao checar vínculo existente em usina_equipamentos:', errCheck)

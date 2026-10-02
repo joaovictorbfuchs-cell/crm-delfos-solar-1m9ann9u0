@@ -499,7 +499,10 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     const inversorFabricante = (usina.fabricante_inversores || '').trim()
     const inversorModelo = (usina.modelo_inversores || '').trim()
 
-    if (!temEquipamentoCatalogoInversor && (inversorTexto || inversorFabricante || inversorModelo)) {
+    if (
+      !temEquipamentoCatalogoInversor &&
+      (inversorTexto || inversorFabricante || inversorModelo)
+    ) {
       let eqCatalogo: Equipamento | null = null
       if (inversorFabricante || inversorModelo) {
         eqCatalogo = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
@@ -598,7 +601,8 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
         if (!eq) return false
         const mesmoTipo =
           (eq.tipo === 'inversor' && ativo.tipo === 'inversor') ||
-          (eq.tipo === 'modulo_fv' && (ativo.tipo === 'placa_solar' || (ativo.tipo as string) === 'modulo_fv'))
+          (eq.tipo === 'modulo_fv' &&
+            (ativo.tipo === 'placa_solar' || (ativo.tipo as string) === 'modulo_fv'))
         const mesmaMarca =
           eq.marca &&
           ativo.fabricante &&
@@ -621,7 +625,8 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     return equipamentosDeclarados.length
   }, [vinculosDeduplicados, ativosIndividuais, equipamentosDeclarados])
 
-  const exibindoDeclarados = vinculos.length === 0 && ativosIndividuais.length === 0 && equipamentosDeclarados.length > 0
+  const exibindoDeclarados =
+    vinculos.length === 0 && ativosIndividuais.length === 0 && equipamentosDeclarados.length > 0
 
   // Ação de 1 clique para efetivar vínculo dos equipamentos declarados no catálogo
   const handleEfetivarVinculosDeclarados = async () => {
