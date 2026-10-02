@@ -1324,8 +1324,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       )}
 
       {/* 6. BOTÃO DE AÇÃO: FINALIZAR OS, SALVAR RASCUNHO OU REABRIR */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-200 z-30 shadow-lg">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
+      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-white/95 backdrop-blur-md border-t border-gray-200 z-30 shadow-lg">
+        <div className="max-w-3xl mx-auto flex items-center gap-2">
           {os.status !== 'concluida' ? (
             <>
               {!osEmAndamento ? (
@@ -1333,14 +1333,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   type="button"
                   onClick={handleIniciarAtendimento}
                   disabled={isIniciando || isSubmitting}
-                  className="h-14 sm:h-12 px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 shrink-0 transition-transform active:scale-[0.98]"
+                  className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 sm:gap-2 shrink-0 transition-transform active:scale-[0.98]"
                 >
-                  <Clock className="w-4 h-4" />
-                  <span>{isIniciando ? 'Iniciando...' : 'INICIAR ATENDIMENTO'}</span>
+                  <Clock className="w-4 h-4 shrink-0" />
+                  <span>{isIniciando ? 'Iniciando...' : 'Iniciar atendimento'}</span>
                 </Button>
               ) : (
-                <div className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800 shrink-0">
-                  <Clock className="w-4 h-4 text-amber-600" />
+                <div className="inline-flex items-center gap-1.5 h-10 sm:h-11 px-2.5 sm:px-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-800 shrink-0">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
                   <span className="hidden sm:inline">Em Andamento</span>
                 </div>
               )}
@@ -1350,7 +1350,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 variant="outline"
                 onClick={handleSalvarRascunho}
                 disabled={isSavingDraft || isSubmitting}
-                className="h-14 sm:h-12 px-4 rounded-xl border-gray-300 font-bold text-xs sm:text-sm shrink-0"
+                className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl border-gray-300 font-semibold text-xs sm:text-sm shrink"
               >
                 {isSavingDraft ? 'Salvando...' : 'Salvar'}
               </Button>
@@ -1359,10 +1359,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 type="button"
                 onClick={() => setShowConfirmModal(true)}
                 disabled={isSubmitting || isSavingDraft}
-                className="flex-1 h-14 sm:h-12 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-black text-xs sm:text-base shadow-md flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                className="flex-1 h-10 sm:h-11 px-3 sm:px-4 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-semibold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 sm:gap-2 transition-transform active:scale-[0.98]"
               >
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <span>CONCLUIR OS</span>
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                <span>Concluir OS</span>
               </Button>
             </>
           ) : (
