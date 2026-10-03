@@ -132,6 +132,56 @@ export async function deleteNegocio(id: string): Promise<boolean> {
   return await pb.collection('negocios').delete(id)
 }
 
+/**
+ * Lista canônica de etapas ativas / em andamento do funil comercial (coleção `negocios`).
+ * Correspondem às colunas do Kanban e aos estágios em aberto da esteira comercial:
+ * - novo lead (Coluna: 1 - Novo Lead)
+ * - qualificado (Coluna: 2 - Levantamento)
+ * - proposta enviada (Coluna: 3 - Proposta Enviada)
+ * - negociação (Coluna: 4 - Negociação)
+ * - contrato assinado (estágio de conclusão em andamento até efetivar ganho)
+ */
+export const ETAPAS_FUNIL_EM_ANDAMENTO: readonly EtapaFunilSelect[] = [
+  'novo lead',
+  'qualificado',
+  'proposta enviada',
+  'negociação',
+  'contrato assinado',
+] as const
+
+/**
+ * Predicado canônico que define se um negócio está ativo dentro do funil comercial.
+ * Critérios unificados (idênticos aos usados pelo KanbanBoard e pela Varredura de Limpeza):
+ * 1. Objeto válido com ID
+ * 2. Status em aberto (diferente de 'ganho' e diferente de 'perdido')
+ * 3. Etapa em aberto (se definida, deve pertencer a ETAPAS_FUNIL_EM_ANDAMENTO)
+ * 4. Cliente vinculado NÃO arquivado e NÃO transferido para Pós-Vendas
+ */
+export function isNegocioDentroDoFunil(negocio: Negocio | null | undefined): boolean {
+  if (!negocio || !negocio.id) return false
+  if (negocio.status === 'ganho' || negocio.status === 'perdido') return false
+
+  const etapa = (negocio.etapa_funil || 'novo lead') as EtapaFunilSelect
+  if (!ETAPAS_FUNIL_EM_ANDAMENTO.includes(etapa)) {
+    return false
+  }
+
+  const cli = negocio.expand?.cliente_id as any
+  if (cli && (cli.arquivado || cli.transferido_pos_vendas)) {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Filtra apenas negócios válidos dentro do funil comercial ativo.
+ */
+export function filtrarNegociosDentroDoFunil(negocios: Negocio[] | null | undefined): Negocio[] {
+  if (!Array.isArray(negocios) || negocios.length === 0) return []
+  return negocios.filter(isNegocioDentroDoFunil)
+}
+
 export interface BulkDeleteNegociosResult {
   total: number
   successCount: number
@@ -180,13 +230,7 @@ export async function executarVarreduraELimpezaNegocios(
     requestKey: null,
   })
 
-  const ETAPAS_EM_ANDAMENTO: EtapaFunilSelect[] = [
-    'novo lead',
-    'qualificado',
-    'proposta enviada',
-    'negociação',
-    'contrato assinado',
-  ]
+  const ETAPAS_EM_ANDAMENTO = ETAPAS_FUNIL_EM_ANDAMENTO
 
   const foraDoFunil: ItemNegocioForaDoFunil[] = []
   let dentroDoFunil = 0

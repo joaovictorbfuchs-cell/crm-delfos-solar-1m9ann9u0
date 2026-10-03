@@ -165,4 +165,69 @@ describe('executarVarreduraELimpezaNegocios', () => {
     expect(execRes.negociosApagados).toHaveLength(2)
     expect(deleteMock).toHaveBeenCalledTimes(2)
   })
+
+  it('isNegocioDentroDoFunil e filtrarNegociosDentroDoFunil aplicam exatamente as regras do funil comercial', async () => {
+    const { isNegocioDentroDoFunil, filtrarNegociosDentroDoFunil } =
+      await import('./negociosService')
+
+    const negAtivo1 = {
+      id: 'neg-1',
+      status: 'em andamento',
+      etapa_funil: 'qualificado',
+      expand: { cliente_id: { id: 'c1', arquivado: false, transferido_pos_vendas: false } },
+    } as any
+
+    const negAtivo2 = {
+      id: 'neg-2',
+      status: 'em andamento',
+      etapa_funil: 'novo lead',
+      expand: { cliente_id: { id: 'c2', arquivado: false, transferido_pos_vendas: false } },
+    } as any
+
+    const negGanho = {
+      id: 'neg-3',
+      status: 'ganho',
+      etapa_funil: 'contrato assinado',
+      expand: { cliente_id: { id: 'c3', arquivado: false, transferido_pos_vendas: false } },
+    } as any
+
+    const negPerdido = {
+      id: 'neg-4',
+      status: 'perdido',
+      etapa_funil: 'proposta enviada',
+      expand: { cliente_id: { id: 'c4', arquivado: false, transferido_pos_vendas: false } },
+    } as any
+
+    const negArquivado = {
+      id: 'neg-5',
+      status: 'em andamento',
+      etapa_funil: 'proposta enviada',
+      expand: { cliente_id: { id: 'c5', arquivado: true, transferido_pos_vendas: false } },
+    } as any
+
+    const negPosVendas = {
+      id: 'neg-6',
+      status: 'em andamento',
+      etapa_funil: 'negociação',
+      expand: { cliente_id: { id: 'c6', arquivado: false, transferido_pos_vendas: true } },
+    } as any
+
+    expect(isNegocioDentroDoFunil(negAtivo1)).toBe(true)
+    expect(isNegocioDentroDoFunil(negAtivo2)).toBe(true)
+    expect(isNegocioDentroDoFunil(negGanho)).toBe(false)
+    expect(isNegocioDentroDoFunil(negPerdido)).toBe(false)
+    expect(isNegocioDentroDoFunil(negArquivado)).toBe(false)
+    expect(isNegocioDentroDoFunil(negPosVendas)).toBe(false)
+
+    const filtrados = filtrarNegociosDentroDoFunil([
+      negAtivo1,
+      negAtivo2,
+      negGanho,
+      negPerdido,
+      negArquivado,
+      negPosVendas,
+    ])
+    expect(filtrados).toHaveLength(2)
+    expect(filtrados.map((n) => n.id)).toEqual(['neg-1', 'neg-2'])
+  })
 })

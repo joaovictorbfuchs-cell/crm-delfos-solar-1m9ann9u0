@@ -3971,6 +3971,9 @@ export {
   updateNegocio,
   deleteNegocio,
   executarVarreduraELimpezaNegocios,
+  ETAPAS_FUNIL_EM_ANDAMENTO,
+  isNegocioDentroDoFunil,
+  filtrarNegociosDentroDoFunil,
 } from './negociosService'
 
 export const DEFAULT_SOLARVIEW_CONFIG = {

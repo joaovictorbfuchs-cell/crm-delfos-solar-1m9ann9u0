@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Users, TrendingUp, DollarSign, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { Button } from '@/components/ui/button'
@@ -8,17 +8,38 @@ import { ManutencoesList } from '@/components/ManutencoesList'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
 import { PainelLembretesHoje } from '@/components/PainelLembretesHoje'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { fetchNegocios, filtrarNegociosDentroDoFunil } from '@/services/negociosService'
+import { getValorExibicaoCard } from '@/lib/orcamentoValorCard'
+import type { Negocio } from '@/types/crm'
 
 export default function Index() {
-  const { clientes, isLoading, error, refreshData } = useClientes()
+  const { clientes, orcamentosSolar, isLoading, error, refreshData } = useClientes()
   const [activeTab, setActiveTab] = useState<'comercial' | 'manutencoes'>('comercial')
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [negociosList, setNegociosList] = useState<Negocio[]>([])
+  const [hasLoadedNegocios, setHasLoadedNegocios] = useState(false)
+
+  // Carrega negócios vinculados da coleção `negocios` (mesma fonte usada na tela Comercial)
+  const carregarNegocios = useCallback(async () => {
+    try {
+      const data = await fetchNegocios()
+      setNegociosList(data)
+    } catch (err) {
+      console.warn('Erro ao carregar lista de negócios no Dashboard:', err)
+    } finally {
+      setHasLoadedNegocios(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    carregarNegocios()
+  }, [carregarNegocios])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await refreshData()
+      await Promise.all([refreshData(), carregarNegocios()])
     } finally {
       setIsRefreshing(false)
     }
@@ -26,26 +47,74 @@ export default function Index() {
 
   const safeClientes = Array.isArray(clientes) ? clientes : []
 
-  // Top metric calculations
-  const totalClientes = safeClientes.length
+  // Clientes ativos na base (exclui arquivados para consistência cadastral)
+  const clientesAtivosCadastrados = useMemo(() => {
+    return safeClientes.filter((c) => !c?.arquivado)
+  }, [safeClientes])
+  const totalClientes = clientesAtivosCadastrados.length
 
-  // Negócios em Aberto: etapas ativas do funil (exclui Fechado, Contato Futuro e Perdido)
-  const STATUS_EM_ABERTO = ['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação']
-  const negociosEmAberto = safeClientes.filter(
-    (c) =>
-      Boolean(c) &&
-      c.status &&
-      STATUS_EM_ABERTO.includes(c.status) &&
-      (c.status as string) !== 'Perdido' &&
-      (c.status as string) !== 'Fechado' &&
-      !c.arquivado &&
-      !c.transferido_pos_vendas,
-  )
+  // Negócios em Aberto dentro do Funil Comercial
+  // Alinhado 100% à mesma definição do KanbanBoard e da Varredura:
+  // Negócios com status != 'ganho' && status != 'perdido', em etapas em andamento,
+  // cujo cliente vinculado não esteja arquivado nem transferido para Pós-Vendas.
+  // Se ainda estiver carregando a coleção `negocios` (ou se ela não possuir itens vinculados no modo legado),
+  // mantém fallback defensivo sobre safeClientes.
+  const negociosEmAbertoDoFunil = useMemo(() => {
+    if (hasLoadedNegocios) {
+      return filtrarNegociosDentroDoFunil(negociosList)
+    }
 
-  const valorTotalFunil = negociosEmAberto.reduce((sum, c) => {
-    const val = Number(c?.valor_estimado)
-    return sum + (isNaN(val) ? 0 : val)
-  }, 0)
+    // Fallback defensivo legado enquanto os negócios carregam
+    const STATUS_LEGADO_EM_ABERTO = [
+      'Novo Lead',
+      'Levantamento',
+      'Orçamento',
+      'Negociação',
+      'Contato Futuro',
+    ]
+    return safeClientes.filter(
+      (c) =>
+        Boolean(c) &&
+        c.status &&
+        STATUS_LEGADO_EM_ABERTO.includes(c.status) &&
+        (c.status as string) !== 'Perdido' &&
+        (c.status as string) !== 'Fechado' &&
+        !c.arquivado &&
+        !c.transferido_pos_vendas,
+    )
+  }, [hasLoadedNegocios, negociosList, safeClientes])
+
+  // Contagem do card "Negócios em Aberto"
+  const totalNegociosEmAberto = negociosEmAbertoDoFunil.length
+
+  // Valor Total Estimado do Funil: soma dos valores de cada negócio em aberto dentro do funil,
+  // aplicando getValorExibicaoCard para considerar o orçamento da última revisão quando houver.
+  const valorTotalFunil = useMemo(() => {
+    if (hasLoadedNegocios) {
+      return (negociosEmAbertoDoFunil as Negocio[]).reduce((sum, n) => {
+        const cli = n.expand?.cliente_id as any
+        const cardValor = getValorExibicaoCard(orcamentosSolar, {
+          negocioId: n.id,
+          clienteId: n.cliente_id || cli?.id,
+          valorFinal: Number(n.valor_final || n.valor),
+          valorEstimado: Number(n.valor_estimado) || (cli?.valor_estimado ?? 0),
+          status: n.status,
+        })
+        const val = Number(cardValor.valor)
+        return sum + (isNaN(val) ? 0 : val)
+      }, 0)
+    }
+
+    return (negociosEmAbertoDoFunil as any[]).reduce((sum, c) => {
+      const cardValor = getValorExibicaoCard(orcamentosSolar, {
+        clienteId: c.id,
+        valorEstimado: Number(c.valor_estimado) || 0,
+        status: c.status,
+      })
+      const val = Number(cardValor.valor)
+      return sum + (isNaN(val) ? 0 : val)
+    }, 0)
+  }, [hasLoadedNegocios, negociosEmAbertoDoFunil, orcamentosSolar])
 
   if (isLoading) {
     return (
@@ -138,7 +207,7 @@ export default function Index() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Negócios em Aberto
                 </p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{negociosEmAberto.length}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{totalNegociosEmAberto}</h3>
                 <p className="text-[11px] text-gray-400 mt-0.5">Leads, levantamentos e propostas</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
@@ -230,7 +299,12 @@ export default function Index() {
                     </p>
                   </div>
                 </div>
-                <KanbanBoard clientes={safeClientes} />
+                <KanbanBoard
+                  clientes={clientesAtivosCadastrados}
+                  negocios={negociosList}
+                  onNegocioUpdated={carregarNegocios}
+                  onNegocioDeleted={carregarNegocios}
+                />
               </div>
             </ErrorBoundary>
           ) : (
