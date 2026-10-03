@@ -26,7 +26,9 @@ import {
   ChevronDown,
   BookOpen,
   Layers,
+  RefreshCw,
 } from 'lucide-react'
+import { useClientes } from '@/contexts/ClientesContext'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -69,9 +71,26 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
   const location = useLocation()
   const navigate = useNavigate()
 
+  const { refreshData } = useClientes()
   const [menuMaisOpen, setMenuMaisOpen] = useState(false)
   const [filtrosOpen, setFiltrosOpen] = useState(false)
   const [modalNovoLeadOpen, setModalNovoLeadOpen] = useState(false)
+  const [isRefreshingMobile, setIsRefreshingMobile] = useState(false)
+
+  const handleMobileRefresh = async () => {
+    if (isRefreshingMobile) return
+    setIsRefreshingMobile(true)
+    try {
+      if (typeof refreshData === 'function') {
+        await refreshData()
+      }
+      window.dispatchEvent(new CustomEvent('delfos:recarregar-dados'))
+    } catch (err) {
+      console.error('Erro ao atualizar dados mobile:', err)
+    } finally {
+      setIsRefreshingMobile(false)
+    }
+  }
 
   // Filtros locais aplicáveis nas telas
   const [comercialTipoVenda, setComercialTipoVenda] = useState('todos')
@@ -457,6 +476,20 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                 className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
               >
                 <Plus className="w-5 h-5 stroke-[2.5]" />
+              </button>
+
+              {/* Botão de atualizar no mobile posicionado à ESQUERDA do botão de WhatsApp */}
+              <button
+                type="button"
+                onClick={handleMobileRefresh}
+                disabled={isRefreshingMobile}
+                aria-label="Atualizar dados do sistema"
+                title="Atualizar dados"
+                className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 hover:border-emerald-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+                />
               </button>
 
               {/* Ícone do WhatsApp presente nas demais abas mobile */}

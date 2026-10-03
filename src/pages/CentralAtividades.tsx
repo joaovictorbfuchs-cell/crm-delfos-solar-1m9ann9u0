@@ -185,6 +185,14 @@ export default function CentralAtividadesPage() {
     fetchData()
   }, [fetchData])
 
+  useEffect(() => {
+    const handleRecarregar = () => {
+      fetchData(true)
+    }
+    window.addEventListener('delfos:recarregar-dados', handleRecarregar)
+    return () => window.removeEventListener('delfos:recarregar-dados', handleRecarregar)
+  }, [fetchData])
+
   // Aplicar rascunho de filtros
   const handleAplicarFiltros = () => {
     setFiltros(draftFiltros)
@@ -530,31 +538,37 @@ export default function CentralAtividadesPage() {
             </div>
           </div>
 
-          {/* Seletor Segmentado de Visão: Lista / Calendário */}
-          <div className="inline-flex items-center p-0.5 sm:p-1 bg-gray-100/90 rounded-xl border border-gray-200/80 shadow-2xs text-xs font-semibold shrink-0">
+          {/* Seletor Segmentado de Visão: Lista / Calendário (apenas ícones no estilo h-9 px-2.5 rounded-xl border com tooltip) */}
+          <div className="inline-flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('tabela')}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-9 px-2.5 rounded-xl border text-xs font-bold transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer ${
                 viewMode === 'tabela'
-                  ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                  : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
               }`}
+              title="Visualização em Lista / Fila"
+              aria-label="Visualização em Lista / Fila"
             >
-              <ListTodo className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Lista / Fila</span>
+              <ListTodo
+                className={`w-4 h-4 ${viewMode === 'tabela' ? 'text-white' : 'text-emerald-600'}`}
+              />
             </button>
             <button
               type="button"
               onClick={() => setViewMode('calendario')}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-9 px-2.5 rounded-xl border text-xs font-bold transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer ${
                 viewMode === 'calendario'
-                  ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                  : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
               }`}
+              title="Visualização em Calendário"
+              aria-label="Visualização em Calendário"
             >
-              <CalendarDays className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Calendário</span>
+              <CalendarDays
+                className={`w-4 h-4 ${viewMode === 'calendario' ? 'text-white' : 'text-emerald-600'}`}
+              />
             </button>
           </div>
         </div>

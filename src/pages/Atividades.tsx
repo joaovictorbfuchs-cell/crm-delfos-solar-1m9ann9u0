@@ -52,6 +52,14 @@ export const Atividades: React.FC = () => {
     }
   }
 
+  useEffect(() => {
+    const handleRecarregar = () => {
+      handleRefresh()
+    }
+    window.addEventListener('delfos:recarregar-dados', handleRecarregar)
+    return () => window.removeEventListener('delfos:recarregar-dados', handleRecarregar)
+  }, [])
+
   // Usuário selecionado no filtro global da página de atividades (padrão: usuário logado ou "todos")
   const [usuarioFiltroId, setUsuarioFiltroId] = useState<string>('todos')
 
@@ -152,51 +160,74 @@ export const Atividades: React.FC = () => {
     <div className="space-y-4 max-w-7xl mx-auto pb-12">
       {/* Barra Única Compacta: Abas à esquerda e Ações (Recarregar + Nova Atividade) à direita */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        {/* Abas: Calendário / Fila de Pendências / Timeline */}
-        <div className="inline-flex items-center gap-1 p-1 bg-gray-100/90 rounded-xl text-xs font-semibold border border-gray-200/60 shadow-2xs w-fit">
+        {/* Abas: Calendário / Fila de Pendências / Timeline (botões com ícones apenas no estilo h-9 px-2.5 rounded-xl border com tooltip) */}
+        <div className="inline-flex items-center gap-1.5 w-fit">
           <button
             type="button"
-            onClick={() => setActiveView('calendario')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-              activeView === 'calendario'
-                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
+            onClick={() => setActiveView('pendentes')}
+            className={`h-9 px-2.5 rounded-xl border text-xs font-bold transition-all shadow-2xs inline-flex items-center justify-center gap-1 cursor-pointer ${
+              activeView === 'pendentes'
+                ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
             }`}
+            title={`Fila de Pendências (${totalPendentesGerais} pendentes)`}
+            aria-label={`Fila de Pendências (${totalPendentesGerais} pendentes)`}
           >
-            <CalendarDays className="w-4 h-4 text-emerald-600" />
-            <span>Calendário</span>
+            <ListTodo
+              className={`w-4 h-4 ${activeView === 'pendentes' ? 'text-white' : 'text-amber-500'}`}
+            />
+            {totalPendentesGerais > 0 && (
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeView === 'pendentes'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {totalPendentesGerais}
+              </span>
+            )}
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveView('pendentes')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-              activeView === 'pendentes'
-                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
+            onClick={() => setActiveView('calendario')}
+            className={`h-9 px-2.5 rounded-xl border text-xs font-bold transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer ${
+              activeView === 'calendario'
+                ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
             }`}
+            title="Visualização em Calendário"
+            aria-label="Visualização em Calendário"
           >
-            <ListTodo className="w-4 h-4 text-amber-500" />
-            <span>Fila de Pendências</span>
-            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-bold">
-              {totalPendentesGerais}
-            </span>
+            <CalendarDays
+              className={`w-4 h-4 ${activeView === 'calendario' ? 'text-white' : 'text-emerald-600'}`}
+            />
           </button>
 
           <button
             type="button"
             onClick={() => setActiveView('timeline')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+            className={`h-9 px-2.5 rounded-xl border text-xs font-bold transition-all shadow-2xs inline-flex items-center justify-center gap-1 cursor-pointer ${
               activeView === 'timeline'
-                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
             }`}
+            title={`Timeline Geral (${atividades.length} atividades)`}
+            aria-label={`Timeline Geral (${atividades.length} atividades)`}
           >
-            <Clock className="w-4 h-4 text-blue-500" />
-            <span>Timeline</span>
-            <span className="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.2 rounded-full font-bold">
-              {atividades.length}
-            </span>
+            <Clock
+              className={`w-4 h-4 ${activeView === 'timeline' ? 'text-white' : 'text-blue-500'}`}
+            />
+            {atividades.length > 0 && (
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeView === 'timeline' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {atividades.length}
+              </span>
+            )}
           </button>
         </div>
         {/* Controles à direita: Botão padronizado Atualizar + Disparar Mensagens + Nova Atividade */}

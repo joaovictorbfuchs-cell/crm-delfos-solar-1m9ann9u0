@@ -27,6 +27,7 @@ import {
   ListChecks,
   Contact,
   Layers,
+  RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -44,11 +45,27 @@ const APP_VERSION = (packageJson as { version?: string })?.version || '0.0.710'
 
 export default function Layout() {
   const { user, userProfile, isAdmin, isInstalador, logout } = useAuth()
-  const { whatsAppConversas, profissionais } = useClientes()
+  const { whatsAppConversas, profissionais, refreshData } = useClientes()
   const location = useLocation()
   const navigate = useNavigate()
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
   const [configuracoesExpanded, setConfiguracoesExpanded] = useState(false)
+  const [isRefreshingGlobal, setIsRefreshingGlobal] = useState(false)
+
+  const handleGlobalRefresh = async () => {
+    if (isRefreshingGlobal) return
+    setIsRefreshingGlobal(true)
+    try {
+      if (typeof refreshData === 'function') {
+        await refreshData()
+      }
+      window.dispatchEvent(new CustomEvent('delfos:recarregar-dados'))
+    } catch (err) {
+      console.error('Erro ao atualizar dados globais:', err)
+    } finally {
+      setIsRefreshingGlobal(false)
+    }
+  }
 
   // Contagem de atendimentos pendentes: Fila de Novos + conversas Em Atendimento com novas mensagens não lidas
   const pendentesWhatsAppCount = React.useMemo(() => {
@@ -190,7 +207,7 @@ export default function Layout() {
   const userInitial = displayName ? displayName.charAt(0).toUpperCase() : 'U'
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAF9] text-[#1F2937]">
+    <div className="min-h-screen flex bg-[#F8FAF9] text-[#1F2937] max-w-full overflow-x-hidden min-w-0">
       {/* Chrome do Layout Mobile: Header simplificado (Filtro, Funil/Dropdown, +, WhatsApp) + Bottom Bar (5 abas) + Menu Mais */}
       <MobileLayoutChrome
         isAdmin={isAdmin}
@@ -383,17 +400,32 @@ export default function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden">
         {/* Top Header Desktop (apenas desktop: hidden lg:flex; no mobile o MobileLayoutChrome assume) */}
-        <header className="hidden lg:flex h-16 bg-white border-b border-[#E5E7EB] px-6 lg:px-8 items-center justify-between gap-3 sticky top-0 z-20">
+        <header className="hidden lg:flex h-16 bg-white border-b border-[#E5E7EB] px-4 lg:px-6 items-center justify-between gap-3 sticky top-0 z-20 max-w-full overflow-x-hidden min-w-0">
           {/* Lado Esquerdo: Barra de Busca Central */}
-          <div className="flex items-center gap-3 flex-1 max-w-2xl min-w-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0 max-w-2xl">
             <div className="flex-1 min-w-0">
               <BarraBuscaGlobal />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Botão de Atualizar Geral — posicionado à ESQUERDA do botão de WhatsApp */}
+            <button
+              type="button"
+              onClick={handleGlobalRefresh}
+              disabled={isRefreshingGlobal}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 inline-flex items-center gap-1.5 text-gray-600 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 rounded-lg text-xs font-semibold transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+              title="Atualizar dados do sistema"
+              aria-label="Atualizar dados do sistema"
+            >
+              <RefreshCw
+                className={`w-4 h-4 text-emerald-600 ${isRefreshingGlobal ? 'animate-spin' : ''}`}
+              />
+              <span className="hidden xl:inline text-[11px]">Atualizar</span>
+            </button>
+
             {/* Botões do Topo para Admin (WhatsApp, Templates, Notificações) */}
             {isAdmin && (
               <>
@@ -448,37 +480,6 @@ export default function Layout() {
 
             {/* Botão do Assistente Delfos no Header Desktop (ícone pequeno redondo no topo) */}
             <AssistenteDelfosBotao size="sm" />
-
-            {/* Informações do Usuário no Topo com Badge de Perfil */}
-            <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:border-l border-gray-200">
-              <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-bold text-gray-800 flex items-center justify-end gap-1.5">
-                  {displayName}
-                  <span
-                    className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider ${
-                      isAdmin
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : 'bg-blue-100 text-blue-800 border border-blue-200'
-                    }`}
-                  >
-                    {isAdmin ? 'Admin' : 'Instalador'}
-                  </span>
-                </span>
-                <span className="text-[11px] text-gray-400">
-                  {isAdmin ? 'Acesso Completo' : 'Operação em Campo'}
-                </span>
-              </div>
-              <div
-                className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-xs border border-white shrink-0 ${
-                  isAdmin
-                    ? 'bg-gradient-to-tr from-[#166534] to-[#16A34A]'
-                    : 'bg-gradient-to-tr from-blue-700 to-blue-500'
-                }`}
-                title={`${displayName} (${isAdmin ? 'Administrador' : 'Instalador'})`}
-              >
-                {userInitial}
-              </div>
-            </div>
           </div>
         </header>
 
