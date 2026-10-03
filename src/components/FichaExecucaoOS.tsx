@@ -830,23 +830,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         <div className="flex items-center gap-2">
           {os.status === 'concluida' && (
             <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold px-2 py-0.5 text-[11px]">
-              <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+              <CheckCircle2 className="w-3 h-3 mr-1 text-[#16A34A]" />
               OS Concluída
             </Badge>
           )}
         </div>
       </div>
 
-      {/* Cabeçalho Verde da OS (comprimido em poucas linhas) */}
-      <div className="bg-gradient-to-br from-emerald-800 via-emerald-900 to-slate-900 text-white rounded-xl p-3.5 sm:p-4 shadow-sm relative overflow-hidden">
+      {/* Cabeçalho da OS no padrão do sistema: fundo cinza escuro/navy Delfos (#0F2038 / slate-900) com detalhes em verde solar (#16A34A) e branco */}
+      <div className="bg-[#0F2038] text-white rounded-xl p-3.5 sm:p-4 shadow-sm relative overflow-hidden border border-slate-700/80">
         <div className="relative z-10 flex flex-col gap-2">
           {/* Linha 1: Tag OS + Data Agendada */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-white/10 px-2 py-0.5 rounded">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#4ade80] bg-white/10 px-2 py-0.5 rounded">
               OS #{os.id.slice(-6).toUpperCase()} • {os.tipo_servico}
             </span>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-100 bg-black/20 px-2 py-0.5 rounded">
-              <Clock className="w-3 h-3 text-emerald-400" />
+            <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-black/30 px-2 py-0.5 rounded">
+              <Clock className="w-3 h-3 text-[#4ade80]" />
               <span>
                 Agendada: <strong>{formatDateTime(os.data_agendada)}</strong>
               </span>
@@ -861,8 +861,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </h2>
 
               {telefoneAutoritativoCliente && (
-                <div className="inline-flex items-center gap-1.5 text-xs text-emerald-100 bg-white/10 px-2 py-0.5 rounded-md">
-                  <Phone className="w-3 h-3 text-emerald-300 shrink-0" />
+                <div className="inline-flex items-center gap-1.5 text-xs text-slate-200 bg-white/10 px-2 py-0.5 rounded-md">
+                  <Phone className="w-3 h-3 text-[#4ade80] shrink-0" />
                   <span className="font-medium">{telefoneAutoritativoCliente}</span>
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -870,7 +870,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         <button
                           type="button"
                           onClick={() => setModalWhatsAppClienteAberto(true)}
-                          className="w-5 h-5 rounded-sm bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-colors cursor-pointer"
+                          className="w-5 h-5 rounded-sm bg-[#16A34A] hover:bg-[#15803D] text-white flex items-center justify-center transition-colors cursor-pointer"
                           aria-label="Conversar no WhatsApp"
                         >
                           <WhatsAppIcon className="w-3.5 h-3.5" />
@@ -888,16 +888,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             {/* Select compacto do Responsável com ícone de enviar OS por WhatsApp ao lado */}
             <div className="flex items-center gap-1.5 shrink-0">
               {isAdmin ? (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-200 bg-white/10 px-2 py-1 rounded-lg">
-                  <User className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-                  <span className="font-medium text-[11px] text-emerald-100 shrink-0 hidden sm:inline">
+                <div className="flex items-center gap-1.5 text-xs text-slate-200 bg-white/10 px-2 py-1 rounded-lg">
+                  <User className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
+                  <span className="font-medium text-[11px] text-slate-300 shrink-0 hidden sm:inline">
                     Resp:
                   </span>
                   <select
                     value={responsavelId}
                     onChange={(e) => setResponsavelId(e.target.value)}
                     disabled={!podeEditarOS}
-                    className="bg-emerald-950/90 border border-emerald-600 text-white text-[11px] rounded px-1.5 py-0.5 max-w-[150px] sm:max-w-[180px] focus:outline-hidden disabled:opacity-60"
+                    className="bg-slate-900/90 border border-slate-600 text-white text-[11px] rounded px-1.5 py-0.5 max-w-[150px] sm:max-w-[180px] focus:outline-hidden focus:border-[#16A34A] disabled:opacity-60"
                   >
                     <option value="">-- Não atribuído --</option>
                     {instaladores.map((inst) => (
@@ -922,13 +922,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                     size="icon"
                     variant="ghost"
                     showLabel={false}
-                    className="h-6 w-6 p-0 rounded-sm bg-emerald-600/80 hover:bg-emerald-500 text-white border-0"
+                    className="h-6 w-6 p-0 rounded-sm bg-[#16A34A] hover:bg-[#15803D] text-white border-0"
                   />
                 </div>
               ) : (
                 os.atribuida_a && (
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-200 bg-white/10 px-2 py-0.5 rounded">
-                    <User className="w-3 h-3 text-emerald-300" />
+                  <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-white/10 px-2 py-0.5 rounded">
+                    <User className="w-3 h-3 text-[#4ade80]" />
                     <span>{os.atribuida_a}</span>
                   </div>
                 )
@@ -937,9 +937,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </div>
 
           {/* Linha 3: Endereço compactado com ícones de Maps e Waze */}
-          <div className="flex items-center justify-between gap-2 text-xs text-emerald-100 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-lg flex-wrap sm:flex-nowrap">
+          <div className="flex items-center justify-between gap-2 text-xs text-slate-200 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-lg flex-wrap sm:flex-nowrap">
             <div className="flex items-center gap-1.5 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+              <MapPin className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
               <span
                 className="truncate text-[11px]"
                 title={enderecoCompleto || 'Endereço não informado'}
@@ -954,18 +954,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
             {(enderecoCompleto || temCoordenadasGps) && (
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                {/* Botão Principal: Traçar Rota (GPS Usina) */}
+                {/* Botão Principal: Traçar Rota (GPS Usina) no padrão verde solar primário do sistema */}
                 <button
                   type="button"
                   onClick={handleTraçarRotaGPSUsina}
-                  className="h-6 px-2 inline-flex items-center gap-1 rounded-md bg-amber-400 hover:bg-amber-300 text-[#0F2038] text-[10px] font-extrabold transition-all shadow-xs cursor-pointer"
+                  className="h-6 px-2.5 inline-flex items-center gap-1 rounded-md bg-[#16A34A] hover:bg-[#15803D] text-white text-[10px] font-bold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
                   title={
                     temCoordenadasGps
                       ? `Traçar Rota via GPS (${latCoord}, ${lngCoord}) a partir da sede Delfos Solar`
                       : 'Traçar Rota via endereço textual a partir da sede Delfos Solar'
                   }
                 >
-                  <Navigation className="w-3 h-3 text-[#0F2038]" />
+                  <Navigation className="w-3 h-3 text-white" />
                   <span>Traçar Rota (GPS Usina)</span>
                 </button>
 
@@ -978,7 +978,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         className="h-6 px-1.5 inline-flex items-center gap-1 rounded bg-white/15 hover:bg-white/25 text-white text-[10px] font-semibold transition-colors cursor-pointer"
                         aria-label="Abrir no Google Maps"
                       >
-                        <MapPin className="w-3 h-3 text-emerald-300" />
+                        <MapPin className="w-3 h-3 text-[#4ade80]" />
                         <span>Maps</span>
                       </button>
                     </TooltipTrigger>
@@ -1013,11 +1013,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </div>
 
           {/* Linha 4: Dados técnicos comprimidos da usina (Inversor + Links Datasheet/Datalogger + Módulos) */}
-          <div className="bg-emerald-950/70 border border-emerald-700/60 rounded-lg p-2 text-xs space-y-1.5">
+          <div className="bg-slate-900/80 border border-slate-700/80 rounded-lg p-2 text-xs space-y-1.5">
             {/* Inversores */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
                   Inversor:
                 </span>
                 {inversoresUsina.length > 0 ? (
@@ -1029,14 +1029,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         {inv.potencia_w ? ` (${(inv.potencia_w / 1000).toFixed(1)} kW)` : ''}
                       </span>
                       {inv.numero_serie && (
-                        <span className="text-[10px] text-emerald-300 bg-white/10 px-1 rounded">
+                        <span className="text-[10px] text-[#4ade80] bg-white/10 px-1 rounded">
                           SN: {inv.numero_serie}
                         </span>
                       )}
                     </div>
                   ))
                 ) : (
-                  <span className="text-emerald-200/80 text-[11px]">
+                  <span className="text-slate-400 text-[11px]">
                     {carregandoUsina ? 'Carregando...' : 'Nenhum inversor vinculado'}
                   </span>
                 )}
@@ -1051,10 +1051,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         href={inv.datasheetUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-emerald-200 hover:text-white underline decoration-emerald-400 underline-offset-2 hover:decoration-white transition-colors"
+                        className="inline-flex items-center gap-1 text-[11px] text-[#4ade80] hover:text-white underline decoration-[#16A34A] underline-offset-2 hover:decoration-white transition-colors"
                         title="Ver Datasheet do Inversor (PDF)"
                       >
-                        <FileCode2 className="w-3 h-3 text-emerald-300" />
+                        <FileCode2 className="w-3 h-3 text-[#4ade80]" />
                         <span>Datasheet Inversor</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
@@ -1098,8 +1098,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             </div>
 
             {/* Módulos */}
-            <div className="flex items-center gap-1.5 flex-wrap border-t border-emerald-800/60 pt-1">
-              <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">
+            <div className="flex items-center gap-1.5 flex-wrap border-t border-slate-700/80 pt-1">
+              <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
                 Módulos:
               </span>
               {modulosUsina.length > 0 ? (
@@ -1115,10 +1115,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         href={mod.datasheetUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[10px] text-emerald-200 hover:text-white underline decoration-emerald-400 underline-offset-2 transition-colors ml-1"
+                        className="inline-flex items-center gap-1 text-[10px] text-[#4ade80] hover:text-white underline decoration-[#16A34A] underline-offset-2 transition-colors ml-1"
                         title="Ver Datasheet do Módulo (PDF)"
                       >
-                        <FileCode2 className="w-3 h-3 text-emerald-300" />
+                        <FileCode2 className="w-3 h-3 text-[#4ade80]" />
                         <span>Datasheet Módulo</span>
                         <ExternalLink className="w-2 h-2 opacity-70" />
                       </a>
@@ -1126,7 +1126,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   </div>
                 ))
               ) : (
-                <span className="text-emerald-200/80 text-[11px]">
+                <span className="text-slate-400 text-[11px]">
                   {carregandoUsina ? 'Carregando...' : 'Nenhum módulo vinculado'}
                 </span>
               )}
@@ -1139,7 +1139,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-3">
         <div className="flex items-center justify-between border-b border-gray-100 pb-3">
           <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
-            <FileText className="w-5 h-5 text-emerald-600" />
+            <FileText className="w-5 h-5 text-[#16A34A]" />
             2. Procedimentos de Trabalho Padrão & Orientações Técnicas
           </h3>
           <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold">
@@ -1150,7 +1150,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         {orientacoesCatalogo && (
           <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-1.5">
             <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <ShieldCheck className="w-3.5 h-3.5 text-[#16A34A]" />
               <span>Procedimento Padrão Cadastrado no Catálogo:</span>
             </div>
             <p className="text-xs text-emerald-950 whitespace-pre-line leading-relaxed font-sans">
