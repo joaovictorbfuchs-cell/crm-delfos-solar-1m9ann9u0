@@ -709,19 +709,27 @@ export default function Clientes() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
-            {/* Botão Mesclar Clientes (habilitado com >= 2 selecionados) */}
+            {/* Aviso discreto quando há >= 2 selecionados mas menos de 2 clientes reais da base */}
+            {selectedFilteredRows.length >= 2 && clientesSelecionadosParaMesclar.length < 2 && (
+              <span
+                className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-1 rounded-lg shrink-0"
+                title="Registros de Outros Contatos não participam da mesclagem"
+              >
+                Mesclagem requer 2 clientes da base (outros contatos não mesclam)
+              </span>
+            )}
+
+            {/* Botão Mesclar Clientes (habilitado com >= 2 clientes selecionados da base) */}
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={
-                selectedFilteredRows.length < 2 || clientesSelecionadosParaMesclar.length < 2
-              }
+              disabled={clientesSelecionadosParaMesclar.length < 2}
               onClick={() => setIsModalMesclarOpen(true)}
               className="h-8 px-3 rounded-xl border-emerald-300 bg-white hover:bg-emerald-100/60 text-emerald-900 font-bold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
               title={
-                selectedFilteredRows.length < 2
-                  ? 'Selecione 2 ou mais clientes para mesclar'
+                clientesSelecionadosParaMesclar.length < 2
+                  ? 'Selecione 2 ou mais clientes da base para mesclar'
                   : 'Mesclar clientes selecionados em um único registro unificado'
               }
             >
