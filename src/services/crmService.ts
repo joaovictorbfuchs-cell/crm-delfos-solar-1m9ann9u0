@@ -769,6 +769,17 @@ export async function bulkDeleteClientes(ids: string[]): Promise<boolean> {
   return true
 }
 
+export interface ProgressoMesclagemInfo {
+  etapa: string
+  colecao?: string
+  concluidos: number
+  total: number
+  porcentagem?: number
+  detalhe?: string
+}
+
+export type ProgressoMesclagemCallback = (progresso: ProgressoMesclagemInfo) => void
+
 export interface MesclagemOpcoes {
   clienteMestreId: string
   clienteSecundarioId?: string
@@ -782,6 +793,7 @@ export interface MesclagemOpcoes {
     is_principal?: boolean
     cargo?: string
   }
+  onProgresso?: ProgressoMesclagemCallback
 }
 
 export interface MesclagemMultiplaOpcoes {
@@ -798,6 +810,7 @@ export interface MesclagemMultiplaOpcoes {
       cargo?: string
     }
   >
+  onProgresso?: ProgressoMesclagemCallback
 }
 
 export interface VinculosClienteSumario {
@@ -890,13 +903,70 @@ export async function contarVinculosCliente(clienteId: string): Promise<Vinculos
 }
 
 /**
+ * Utilitário para executar tarefas em lotes com concorrência controlada (chunks).
+ */
+export async function executeInChunks<T, R>(
+  items: T[],
+  chunkSize: number,
+  task: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = []
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize)
+    const chunkResults = await Promise.all(chunk.map((item, localIdx) => task(item, i + localIdx)))
+    results.push(...chunkResults)
+  }
+  return results
+}
+
+/**
+ * Nomes amigáveis em português para cada coleção do CRM durante o progresso de mesclagem.
+ */
+export const NOMES_COLECOES_CRM: Record<string, string> = {
+  negocios: 'Negócios e Oportunidades',
+  atividades: 'Atividades e Tarefas',
+  propostas_om: 'Propostas de O&M',
+  orcamentos_solar: 'Orçamentos Fotovoltaicos',
+  manutencoes: 'Manutenções Preventivas/Corretivas',
+  sistemas: 'Sistemas e Usinas',
+  contratos_om: 'Contratos O&M',
+  anomalias_om: 'Anomalias de Operação',
+  servicos_adicionais_om: 'Serviços Adicionais O&M',
+  timeline_om: 'Histórico da Timeline',
+  servicos_avulsos: 'Serviços Avulsos',
+  documentos_cliente: 'Documentos Anexados',
+  fornecedores_orcamentos: 'Cotações de Fornecedores',
+  whatsapp_mensagens: 'Mensagens de WhatsApp',
+  whatsapp_conversas: 'Conversas de WhatsApp',
+  ordens_servico: 'Ordens de Serviço de Campo',
+  cliente_inversores: 'Inversores Vinculados',
+  usinas: 'Usinas Fotovoltaicas',
+  projetos: 'Projetos Técnicos',
+  analises_fatura: 'Análises de Fatura RGE',
+  notificacoes_internas: 'Notificações Internas',
+  contatos_adicionais: 'Contatos Adicionais',
+  transferencias_creditos: 'Transferências de Créditos',
+  contatos: 'Vínculos de Contatos',
+}
+
+/**
  * Reatribui em lote todos os vínculos de um cliente de origem para um cliente destino.
+ * Otimizado: atualizações paralelizadas em chunks concorrentes de 8 a 10 requisições simultâneas.
  */
 export async function reatribuirTodosVinculosCliente(
   clienteOrigemId: string,
   clienteDestinoId: string,
-): Promise<void> {
-  if (clienteOrigemId === clienteDestinoId) return
+  onProgresso?: (info: {
+    colecao: string
+    concluidos: number
+    total: number
+    detalhe?: string
+  }) => void,
+): Promise<number> {
+  if (clienteOrigemId === clienteDestinoId) return 0
+
+  const CHUNK_SIZE = 8
+  let totalTransferidos = 0
 
   // 1. Coleções com cliente_id
   const collectionsComClienteId = [
@@ -930,15 +1000,29 @@ export async function reatribuirTodosVinculosCliente(
         fields: 'id',
         requestKey: null,
       })
-      for (const rec of records) {
-        try {
-          await pb.collection(col).update(rec.id, { cliente_id: clienteDestinoId })
-        } catch (err) {
-          console.warn(
-            `Falha ao reatribuir ${col} ${rec.id} para cliente ${clienteDestinoId}:`,
-            err,
-          )
-        }
+
+      if (records.length > 0) {
+        let concluidosNaColecao = 0
+        const nomeAmigavel = NOMES_COLECOES_CRM[col] || col
+
+        await executeInChunks(records, CHUNK_SIZE, async (rec) => {
+          try {
+            await pb.collection(col).update(rec.id, { cliente_id: clienteDestinoId })
+            totalTransferidos++
+            concluidosNaColecao++
+            onProgresso?.({
+              colecao: col,
+              concluidos: concluidosNaColecao,
+              total: records.length,
+              detalhe: `${nomeAmigavel}... ${concluidosNaColecao}/${records.length}`,
+            })
+          } catch (err) {
+            console.warn(
+              `Falha ao reatribuir ${col} ${rec.id} para cliente ${clienteDestinoId}:`,
+              err,
+            )
+          }
+        })
       }
     } catch (err) {
       console.warn(`Erro ao consultar ${col} para reatribuição:`, err)
@@ -952,12 +1036,23 @@ export async function reatribuirTodosVinculosCliente(
       fields: 'id',
       requestKey: null,
     })
-    for (const c of contatos) {
-      try {
-        await pb.collection('contatos_adicionais').update(c.id, { cliente: clienteDestinoId })
-      } catch (err) {
-        console.warn(`Falha ao reatribuir contato_adicional ${c.id}:`, err)
-      }
+    if (contatos.length > 0) {
+      let concluidos = 0
+      await executeInChunks(contatos, CHUNK_SIZE, async (c) => {
+        try {
+          await pb.collection('contatos_adicionais').update(c.id, { cliente: clienteDestinoId })
+          totalTransferidos++
+          concluidos++
+          onProgresso?.({
+            colecao: 'contatos_adicionais',
+            concluidos,
+            total: contatos.length,
+            detalhe: `Contatos adicionais... ${concluidos}/${contatos.length}`,
+          })
+        } catch (err) {
+          console.warn(`Falha ao reatribuir contato_adicional ${c.id}:`, err)
+        }
+      })
     }
   } catch (err) {
     console.warn('Erro ao reatribuir contatos_adicionais:', err)
@@ -970,14 +1065,17 @@ export async function reatribuirTodosVinculosCliente(
       fields: 'id',
       requestKey: null,
     })
-    for (const t of transfOrigem) {
-      try {
-        await pb
-          .collection('transferencias_creditos')
-          .update(t.id, { cliente_origem_id: clienteDestinoId })
-      } catch {
-        /* ignore */
-      }
+    if (transfOrigem.length > 0) {
+      await executeInChunks(transfOrigem, CHUNK_SIZE, async (t) => {
+        try {
+          await pb
+            .collection('transferencias_creditos')
+            .update(t.id, { cliente_origem_id: clienteDestinoId })
+          totalTransferidos++
+        } catch {
+          /* ignore */
+        }
+      })
     }
 
     const transfDestino = await pb.collection('transferencias_creditos').getFullList({
@@ -985,14 +1083,17 @@ export async function reatribuirTodosVinculosCliente(
       fields: 'id',
       requestKey: null,
     })
-    for (const t of transfDestino) {
-      try {
-        await pb
-          .collection('transferencias_creditos')
-          .update(t.id, { cliente_destino_id: clienteDestinoId })
-      } catch {
-        /* ignore */
-      }
+    if (transfDestino.length > 0) {
+      await executeInChunks(transfDestino, CHUNK_SIZE, async (t) => {
+        try {
+          await pb
+            .collection('transferencias_creditos')
+            .update(t.id, { cliente_destino_id: clienteDestinoId })
+          totalTransferidos++
+        } catch {
+          /* ignore */
+        }
+      })
     }
   } catch (err) {
     console.warn('Erro ao reatribuir transferencias_creditos:', err)
@@ -1004,20 +1105,27 @@ export async function reatribuirTodosVinculosCliente(
       filter: `clientes_vinculados ~ '${clienteOrigemId}'`,
       requestKey: null,
     })
-    for (const c of contatosRel) {
-      const vinculados: string[] = Array.isArray(c.clientes_vinculados) ? c.clientes_vinculados : []
-      const novosVinculados = Array.from(
-        new Set(vinculados.filter((id) => id !== clienteOrigemId).concat(clienteDestinoId)),
-      )
-      try {
-        await pb.collection('contatos').update(c.id, { clientes_vinculados: novosVinculados })
-      } catch {
-        /* ignore */
-      }
+    if (contatosRel.length > 0) {
+      await executeInChunks(contatosRel, CHUNK_SIZE, async (c) => {
+        const vinculados: string[] = Array.isArray(c.clientes_vinculados)
+          ? c.clientes_vinculados
+          : []
+        const novosVinculados = Array.from(
+          new Set(vinculados.filter((id) => id !== clienteOrigemId).concat(clienteDestinoId)),
+        )
+        try {
+          await pb.collection('contatos').update(c.id, { clientes_vinculados: novosVinculados })
+          totalTransferidos++
+        } catch {
+          /* ignore */
+        }
+      })
     }
   } catch {
     /* ignore se coleção não tiver registros */
   }
+
+  return totalTransferidos
 }
 
 /**
@@ -1153,6 +1261,7 @@ export async function mesclarMultiplosClientes({
   camposSobrescritos,
   modo = 'unificar_cliente',
   contatosAdicionaisConfig = {},
+  onProgresso,
 }: MesclagemMultiplaOpcoes): Promise<Cliente> {
   const secundariosLimpos = Array.from(
     new Set((clientesSecundariosIds || []).filter((id) => id && id !== clientePrincipalId)),
@@ -1166,56 +1275,122 @@ export async function mesclarMultiplosClientes({
     return await pb.collection('clientes').getOne<Cliente>(clientePrincipalId)
   }
 
-  // Buscar dados dos clientes secundários para auditoria e histórico
+  // Notificar início
+  onProgresso?.({
+    etapa: 'preparando',
+    concluidos: 0,
+    total: 100,
+    porcentagem: 5,
+    detalhe: 'Verificando cadastros dos clientes participantes...',
+  })
+
+  // Buscar dados dos clientes secundários em paralelo para auditoria e histórico
   const clientesSecundarios: Cliente[] = []
-  for (const secId of secundariosLimpos) {
-    try {
-      const cli = await pb.collection('clientes').getOne<Cliente>(secId)
-      clientesSecundarios.push(cli)
-    } catch (e) {
-      console.warn(`Aviso ao buscar cliente secundário ${secId} antes da mesclagem:`, e)
+  const buscaResultados = await Promise.allSettled(
+    secundariosLimpos.map((secId) => pb.collection('clientes').getOne<Cliente>(secId)),
+  )
+  buscaResultados.forEach((res, i) => {
+    if (res.status === 'fulfilled') {
+      clientesSecundarios.push(res.value)
+    } else {
+      console.warn(`Aviso ao buscar cliente secundário ${secundariosLimpos[i]}:`, res.reason)
     }
+  })
+
+  // 1. Se modo converter_contato_adicional, criar contatos adicionais em paralelo
+  if (modo === 'converter_contato_adicional' && clientesSecundarios.length > 0) {
+    onProgresso?.({
+      etapa: 'contatos_adicionais',
+      concluidos: 0,
+      total: clientesSecundarios.length,
+      porcentagem: 15,
+      detalhe: 'Convertendo clientes em contatos adicionais...',
+    })
+
+    await Promise.allSettled(
+      clientesSecundarios.map(async (sec) => {
+        const cfg = contatosAdicionaisConfig[sec.id] || {}
+        const telContato = sec.whatsapp || sec.telefone || undefined
+        try {
+          await pb
+            .collection('contatos_adicionais')
+            .create<import('@/types/crm').ContatoAdicional>({
+              cliente: clientePrincipalId,
+              nome: sec.nome || 'Contato Adicional',
+              cargo:
+                cfg.cargo || (sec.tipo_pessoa === 'juridica' ? 'Representante Legal' : 'Contato'),
+              papel: cfg.papel || 'outro',
+              telefone: telContato,
+              email: sec.email || undefined,
+              is_whatsapp:
+                typeof cfg.is_whatsapp === 'boolean' ? cfg.is_whatsapp : Boolean(sec.whatsapp),
+              is_principal: Boolean(cfg.is_principal),
+            })
+        } catch (err) {
+          console.warn(`Falha ao converter ${sec.id} em contato_adicional:`, err)
+        }
+      }),
+    )
   }
 
-  // 1. Se modo converter_contato_adicional, criar contato adicional para cada secundário
-  if (modo === 'converter_contato_adicional') {
-    for (const sec of clientesSecundarios) {
-      const cfg = contatosAdicionaisConfig[sec.id] || {}
-      const telContato = sec.whatsapp || sec.telefone || undefined
-      try {
-        await pb.collection('contatos_adicionais').create<import('@/types/crm').ContatoAdicional>({
-          cliente: clientePrincipalId,
-          nome: sec.nome || 'Contato Adicional',
-          cargo: cfg.cargo || (sec.tipo_pessoa === 'juridica' ? 'Representante Legal' : 'Contato'),
-          papel: cfg.papel || 'outro',
-          telefone: telContato,
-          email: sec.email || undefined,
-          is_whatsapp:
-            typeof cfg.is_whatsapp === 'boolean' ? cfg.is_whatsapp : Boolean(sec.whatsapp),
-          is_principal: Boolean(cfg.is_principal),
-        })
-      } catch (err) {
-        console.warn(`Falha ao converter ${sec.id} em contato_adicional:`, err)
-      }
-    }
-  }
+  // 2. Reatribuir TODOS os vínculos de TODOS os clientes secundários em paralelo
+  // Cada secundário é repontado de forma independente para o clientePrincipalId
+  onProgresso?.({
+    etapa: 'reatribuindo',
+    concluidos: 0,
+    total: 100,
+    porcentagem: 25,
+    detalhe: 'Transferindo vínculos e histórico em paralelo...',
+  })
 
-  // 2. Reatribuir TODOS os vínculos de TODOS os clientes secundários para o cliente principal
-  for (const secId of secundariosLimpos) {
-    await reatribuirTodosVinculosCliente(secId, clientePrincipalId)
-  }
+  let totalTransferidosGeral = 0
 
-  // 3. Atualizar o cliente principal com os campos sobrescritos escolhidos pelo usuário
+  // Cada cliente secundário roda sua reatribuição concorrentemente
+  const reatribuicaoPromises = secundariosLimpos.map(async (secId, secIdx) => {
+    const nomeSec = clientesSecundarios.find((c) => c.id === secId)?.nome || `Cliente ${secIdx + 1}`
+    const qtd = await reatribuirTodosVinculosCliente(secId, clientePrincipalId, (info) => {
+      onProgresso?.({
+        etapa: 'transferindo_registros',
+        colecao: info.colecao,
+        concluidos: info.concluidos,
+        total: info.total,
+        porcentagem: 30 + Math.min(50, Math.round((totalTransferidosGeral + info.concluidos) * 2)),
+        detalhe: `[${nomeSec}] Transferindo ${info.detalhe || info.colecao}...`,
+      })
+    })
+    totalTransferidosGeral += qtd
+    return qtd
+  })
+
+  await Promise.all(reatribuicaoPromises)
+
+  // 3. Atualizar o cliente principal com os campos sobrescritos escolhidos pelo usuário (executado uma única vez)
+  onProgresso?.({
+    etapa: 'atualizando_principal',
+    concluidos: 85,
+    total: 100,
+    porcentagem: 85,
+    detalhe: 'Atualizando dados e campos no cliente principal...',
+  })
+
   const clienteAtualizado = await updateCliente(clientePrincipalId, camposSobrescritos)
 
-  // 4. Registrar atividade informativa de auditoria detalhada no cliente principal
+  // 4. Registrar atividade informativa de auditoria detalhada no cliente principal (uma única vez)
+  onProgresso?.({
+    etapa: 'auditoria',
+    concluidos: 90,
+    total: 100,
+    porcentagem: 90,
+    detalhe: 'Registrando auditoria da mesclagem no histórico...',
+  })
+
   try {
     const nomesSecundarios = clientesSecundarios.map((c) => `"${c.nome}" (ID: ${c.id})`).join(', ')
     await createAtividade({
       cliente_id: clientePrincipalId,
       tipo: 'anotacao',
       titulo: `Mesclagem de ${secundariosLimpos.length + 1} clientes realizada`,
-      descricao: `Mesclagem de múltiplos clientes realizada com sucesso em ${new Date().toLocaleString('pt-BR')}. ${secundariosLimpos.length} cadastro(s) foram absorvidos neste registro: ${nomesSecundarios || secundariosLimpos.join(', ')}. Todos os negócios/oportunidades, usinas, atividades, orçamentos, contratos e histórico foram unificados com segurança no cadastro principal.`,
+      descricao: `Mesclagem de múltiplos clientes realizada com sucesso em ${new Date().toLocaleString('pt-BR')}. ${secundariosLimpos.length} cadastro(s) foram absorvidos neste registro: ${nomesSecundarios || secundariosLimpos.join(', ')}. ${totalTransferidosGeral} vínculo(s) foram repontados. Todos os negócios/oportunidades, usinas, atividades, orçamentos, contratos e histórico foram unificados com segurança no cadastro principal.`,
       data: new Date().toISOString(),
       status: 'concluida',
       autor: 'Sistema Delfos',
@@ -1224,14 +1399,32 @@ export async function mesclarMultiplosClientes({
     console.warn('Falha ao registrar atividade de mesclagem múltipla:', e)
   }
 
-  // 5. Excluir os registros dos clientes secundários que deixam de existir como registros separados
-  for (const secId of secundariosLimpos) {
-    try {
-      await pb.collection('clientes').delete(secId)
-    } catch (err) {
-      console.warn(`Falha ao excluir cliente secundário ${secId} após mesclagem múltipla:`, err)
-    }
-  }
+  // 5. Excluir os registros dos clientes secundários em paralelo
+  onProgresso?.({
+    etapa: 'limpeza',
+    concluidos: 95,
+    total: 100,
+    porcentagem: 95,
+    detalhe: 'Removendo cadastros secundários absorvidos...',
+  })
+
+  await Promise.allSettled(
+    secundariosLimpos.map(async (secId) => {
+      try {
+        await pb.collection('clientes').delete(secId)
+      } catch (err) {
+        console.warn(`Falha ao excluir cliente secundário ${secId} após mesclagem múltipla:`, err)
+      }
+    }),
+  )
+
+  onProgresso?.({
+    etapa: 'concluido',
+    concluidos: 100,
+    total: 100,
+    porcentagem: 100,
+    detalhe: `Mesclagem concluída com sucesso! ${totalTransferidosGeral} vínculos transferidos.`,
+  })
 
   return clienteAtualizado
 }
@@ -1248,6 +1441,7 @@ export async function mesclarClientes(opcoes: MesclagemOpcoes): Promise<Cliente>
     camposSobrescritos,
     modo = 'unificar_cliente',
     contatoAdicionalConfig,
+    onProgresso,
   } = opcoes
 
   // Suporte unificado tanto para clienteSecundarioId quanto para clientesSecundariosIds
@@ -1273,6 +1467,7 @@ export async function mesclarClientes(opcoes: MesclagemOpcoes): Promise<Cliente>
     camposSobrescritos,
     modo,
     contatosAdicionaisConfig,
+    onProgresso,
   })
 }
 

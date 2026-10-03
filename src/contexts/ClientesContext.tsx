@@ -65,6 +65,7 @@ import {
   bulkDeleteClientes as apiBulkDeleteClientes,
   mesclarClientes as apiMesclarClientes,
   MesclagemOpcoes,
+  ProgressoMesclagemCallback,
   upsertSistemaForCliente,
   createProfissional as apiCreateProfissional,
   updateProfissional as apiUpdateProfissional,
@@ -258,7 +259,10 @@ interface ClientesContextType {
   bulkMoverClientesParaOutrosContatos: (
     clientesParaMover: Cliente[],
   ) => Promise<{ sucesso: number; falhas: number }>
-  mesclarClientes: (opcoes: MesclagemOpcoes) => Promise<Cliente>
+  mesclarClientes: (
+    opcoes: MesclagemOpcoes,
+    onProgresso?: ProgressoMesclagemCallback,
+  ) => Promise<Cliente>
   addManutencao: (data: {
     cliente_id: string
     data: string
@@ -1255,9 +1259,13 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
-  const mesclarClientes = async (opcoes: MesclagemOpcoes): Promise<Cliente> => {
+  const mesclarClientes = async (
+    opcoes: MesclagemOpcoes,
+    onProgresso?: ProgressoMesclagemCallback,
+  ): Promise<Cliente> => {
     const { clienteMestreId, clienteSecundarioId, clientesSecundariosIds, camposSobrescritos } =
       opcoes
+    const callbackProgresso = onProgresso || opcoes.onProgresso
 
     const todosSecundarios = Array.from(
       new Set(
@@ -1341,7 +1349,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     )
 
     try {
-      const clienteFinal = await apiMesclarClientes(opcoes)
+      const clienteFinal = await apiMesclarClientes({
+        ...opcoes,
+        onProgresso: callbackProgresso,
+      })
       setClientes((prev) => prev.map((c) => (c.id === clienteMestreId ? clienteFinal : c)))
       // Recarregar histórico de atividades para refletir a nota de auditoria
       fetchAtividades().then(setAtividades).catch(console.error)

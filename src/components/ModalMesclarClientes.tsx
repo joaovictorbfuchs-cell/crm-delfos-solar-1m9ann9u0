@@ -18,11 +18,13 @@ import {
   Phone,
   Mail,
   Zap,
+  Loader2,
 } from 'lucide-react'
 import {
   contarVinculosCliente,
   type VinculosClienteSumario,
   type MesclagemOpcoes,
+  type ProgressoMesclagemInfo,
 } from '@/services/crmService'
 import type { Cliente } from '@/types/crm'
 import {
@@ -246,6 +248,7 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
   // Mapa de escolhas por campo: { campoKey: clienteIdEscolhido }
   const [escolhasCampos, setEscolhasCampos] = useState<Record<CampoMesclavel, string>>({} as any)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [progressoMesclagem, setProgressoMesclagem] = useState<ProgressoMesclagemInfo | null>(null)
 
   // Filtro de visualização dos campos (mostrar todos ou apenas divergentes)
   const [filtroApenasDivergentes, setFiltroApenasDivergentes] = useState<boolean>(false)
@@ -274,6 +277,7 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
     setModoMesclagem('unificar_cliente')
     setContatosConfig({})
     setSumariosVinculos({})
+    setProgressoMesclagem(null)
     setFiltroApenasDivergentes(false)
   }, [isOpen, clienteInicial, clientesIniciais, todosClientes])
 
@@ -556,6 +560,14 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
 
     try {
       setIsSubmitting(true)
+      setProgressoMesclagem({
+        etapa: 'iniciando',
+        concluidos: 0,
+        total: 100,
+        porcentagem: 0,
+        detalhe: 'Iniciando unificação de clientes...',
+      })
+
       await onConfirmarMesclagem({
         clienteMestreId: clientePrincipal.id,
         clienteSecundarioId: clientesSecundarios[0]?.id,
@@ -566,10 +578,14 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
           clientesSecundarios.length === 1 && modoMesclagem === 'converter_contato_adicional'
             ? contatosConfig[clientesSecundarios[0].id]
             : undefined,
+        onProgresso: (p) => {
+          setProgressoMesclagem(p)
+        },
       })
       onClose()
     } catch (err) {
       console.error('Falha ao confirmar mesclagem:', err)
+      setProgressoMesclagem(null)
     } finally {
       setIsSubmitting(false)
     }
@@ -1187,6 +1203,54 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
             </div>
           </div>
 
+          {/* Indicador de Progresso em Tempo Real durante a Mesclagem */}
+          {isSubmitting && (
+            <div
+              data-testid="progresso-mesclagem-container"
+              className="p-4 bg-emerald-50 border-2 border-emerald-500 rounded-xl space-y-2.5 shadow-xs animate-in fade-in"
+            >
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+                  <span data-testid="progresso-etapa-texto">
+                    {progressoMesclagem?.detalhe || 'Executando mesclagem segura dos cadastros...'}
+                  </span>
+                </div>
+                {typeof progressoMesclagem?.porcentagem === 'number' && (
+                  <span className="text-emerald-800 font-mono font-extrabold text-xs">
+                    {progressoMesclagem.porcentagem}%
+                  </span>
+                )}
+              </div>
+
+              {/* Barra de progresso */}
+              <div className="w-full bg-emerald-200/80 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-emerald-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+                  style={{
+                    width: `${
+                      typeof progressoMesclagem?.porcentagem === 'number'
+                        ? Math.max(5, Math.min(100, progressoMesclagem.porcentagem))
+                        : 20
+                    }%`,
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-emerald-800">
+                <span>
+                  Processando em lotes concorrentes (8 requisições simultâneas). Não feche esta
+                  janela.
+                </span>
+                {progressoMesclagem?.total ? (
+                  <span className="font-semibold text-emerald-900">
+                    {progressoMesclagem.concluidos}/{progressoMesclagem.total} itens
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          )}
+
           {/* Alerta de exclusão com segurança reforçada */}
           <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 space-y-1">
             <div className="font-bold flex items-center gap-1.5 text-amber-900">
@@ -1219,6 +1283,12 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
           </Button>
 
           <div className="flex items-center gap-2">
+            {isSubmitting && (
+              <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1.5 mr-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Mesclando registros...</span>
+              </span>
+            )}
             <Button
               type="button"
               size="sm"
@@ -1226,12 +1296,17 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
               onClick={handleConfirmar}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 shadow-xs"
             >
-              <GitMerge className="w-4 h-4" />
-              <span>
-                {isSubmitting
-                  ? 'Unificando clientes...'
-                  : `Confirmar e Mesclar ${clientesParticipantes.length} Clientes`}
-              </span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Unificando clientes...</span>
+                </>
+              ) : (
+                <>
+                  <GitMerge className="w-4 h-4" />
+                  <span>{`Confirmar e Mesclar ${clientesParticipantes.length} Clientes`}</span>
+                </>
+              )}
             </Button>
           </div>
         </div>

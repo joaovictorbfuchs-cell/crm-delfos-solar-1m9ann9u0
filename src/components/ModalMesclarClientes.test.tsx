@@ -173,4 +173,55 @@ describe('ModalMesclarClientes - N clientes lado a lado', () => {
     expect(payload.camposSobrescritos).toBeDefined()
     expect(payload.modo).toBe('unificar_cliente')
   })
+
+  it('exibe indicador de progresso em tempo real e desabilita botões durante a mesclagem', async () => {
+    let resolverMesclagem: () => void = () => {}
+    const promessaPendente = new Promise<void>((resolve) => {
+      resolverMesclagem = resolve
+    })
+
+    const onConfirmar = vi.fn().mockImplementation(async (opcoes) => {
+      // Simula disparos de progresso do crmService
+      opcoes.onProgresso?.({
+        etapa: 'transferindo_registros',
+        concluidos: 12,
+        total: 40,
+        porcentagem: 45,
+        detalhe: 'Transferindo atividades... 12/40',
+      })
+      await promessaPendente
+    })
+    const onClose = vi.fn()
+
+    render(
+      <ModalMesclarClientes
+        isOpen={true}
+        onClose={onClose}
+        clientesIniciais={mockClientes}
+        todosClientes={mockClientes}
+        onConfirmarMesclagem={onConfirmar}
+      />,
+    )
+
+    const btnConfirmar = screen.getByRole('button', { name: /Confirmar e Mesclar 3 Clientes/i })
+    fireEvent.click(btnConfirmar)
+
+    // O indicador de progresso deve aparecer em tela com o texto em pt-BR
+    await waitFor(() => {
+      expect(screen.getByTestId('progresso-mesclagem-container')).toBeTruthy()
+      expect(screen.getByText('Transferindo atividades... 12/40')).toBeTruthy()
+      expect(screen.getByText('45%')).toBeTruthy()
+      expect(screen.getByText('12/40 itens')).toBeTruthy()
+    })
+
+    // O botão deve estar desabilitado durante o processamento
+    const btnDuranteEnvio = screen.getByRole('button', { name: /Unificando clientes.../i })
+    expect(btnDuranteEnvio).toHaveProperty('disabled', true)
+
+    // Concluir a mesclagem
+    resolverMesclagem()
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled()
+    })
+  })
 })
