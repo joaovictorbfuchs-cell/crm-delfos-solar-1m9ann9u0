@@ -241,4 +241,38 @@ describe('ModalMesclarClientes - N clientes lado a lado', () => {
 
     expect(container).toBeDefined()
   })
+
+  it('permite mesclar com exatamente 2 clientes selecionados', async () => {
+    const onConfirmar = vi.fn().mockResolvedValue(undefined)
+    const onClose = vi.fn()
+    const doisClientes = mockClientes.slice(0, 2)
+
+    render(
+      <ModalMesclarClientes
+        isOpen={true}
+        onClose={onClose}
+        clientesIniciais={doisClientes}
+        todosClientes={mockClientes}
+        onConfirmarMesclagem={onConfirmar}
+      />,
+    )
+
+    // Título indica 2 selecionados
+    expect(screen.getByText(/Mesclar Clientes \(2 selecionados\)/i)).toBeTruthy()
+
+    // Botão de confirmar deve estar habilitado para 2 clientes
+    const btnConfirmar = screen.getByRole('button', { name: /Confirmar e Mesclar 2 Clientes/i })
+    expect(btnConfirmar).toBeTruthy()
+    expect(btnConfirmar).not.toHaveProperty('disabled', true)
+
+    fireEvent.click(btnConfirmar)
+
+    await waitFor(() => {
+      expect(onConfirmar).toHaveBeenCalledTimes(1)
+    })
+
+    const payload = onConfirmar.mock.calls[0][0]
+    expect(payload.clienteMestreId).toBe('cli-1')
+    expect(payload.clientesSecundariosIds).toEqual(['cli-2'])
+  })
 })
