@@ -771,7 +771,9 @@ export async function bulkDeleteClientes(ids: string[]): Promise<boolean> {
 
 export interface MesclagemOpcoes {
   clienteMestreId: string
-  clienteSecundarioId: string
+  clienteSecundarioId?: string
+  // Suporte a N clientes secundários mesclados
+  clientesSecundariosIds?: string[]
   camposSobrescritos: Partial<Cliente>
   modo?: 'unificar_cliente' | 'converter_contato_adicional'
   contatoAdicionalConfig?: {
@@ -780,6 +782,22 @@ export interface MesclagemOpcoes {
     is_principal?: boolean
     cargo?: string
   }
+}
+
+export interface MesclagemMultiplaOpcoes {
+  clientePrincipalId: string
+  clientesSecundariosIds: string[]
+  camposSobrescritos: Partial<Cliente>
+  modo?: 'unificar_cliente' | 'converter_contato_adicional'
+  contatosAdicionaisConfig?: Record<
+    string,
+    {
+      papel?: 'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro'
+      is_whatsapp?: boolean
+      is_principal?: boolean
+      cargo?: string
+    }
+  >
 }
 
 export interface VinculosClienteSumario {
@@ -1121,61 +1139,141 @@ export async function converterClienteEmContatoAdicional({
  * - 'unificar_cliente': funde dados e campos no cliente mestre e exclui o secundário (padrão)
  * - 'converter_contato_adicional': transforma o clienteSecundario em contato adicional do clienteMestre, transferindo tudo e excluindo o cadastro secundário
  */
-export async function mesclarClientes({
-  clienteMestreId,
-  clienteSecundarioId,
+/**
+ * Mescla com segurança múltiplos clientes secundários no cliente principal (N clientes):
+ * - Reatribui todos os relacionamentos (negócios, atividades, usinas, orçamentos, contratos O&M, etc.)
+ * - Atualiza o cliente principal com os campos selecionados pelo usuário
+ * - Se em modo converter_contato_adicional, cria registros em contatos_adicionais
+ * - Registra nota de auditoria detalhada no histórico do cliente principal
+ * - Exclui apenas os registros dos clientes secundários mesclados (nunca os registros vinculados)
+ */
+export async function mesclarMultiplosClientes({
+  clientePrincipalId,
+  clientesSecundariosIds,
   camposSobrescritos,
   modo = 'unificar_cliente',
-  contatoAdicionalConfig,
-}: MesclagemOpcoes): Promise<Cliente> {
-  if (clienteMestreId === clienteSecundarioId) {
-    throw new Error('Não é possível mesclar um cliente nele mesmo.')
+  contatosAdicionaisConfig = {},
+}: MesclagemMultiplaOpcoes): Promise<Cliente> {
+  const secundariosLimpos = Array.from(
+    new Set((clientesSecundariosIds || []).filter((id) => id && id !== clientePrincipalId)),
+  )
+
+  if (secundariosLimpos.length === 0) {
+    // Se nenhum secundário, apenas aplica os campos no principal se houver
+    if (camposSobrescritos && Object.keys(camposSobrescritos).length > 0) {
+      return await updateCliente(clientePrincipalId, camposSobrescritos)
+    }
+    return await pb.collection('clientes').getOne<Cliente>(clientePrincipalId)
   }
 
+  // Buscar dados dos clientes secundários para auditoria e histórico
+  const clientesSecundarios: Cliente[] = []
+  for (const secId of secundariosLimpos) {
+    try {
+      const cli = await pb.collection('clientes').getOne<Cliente>(secId)
+      clientesSecundarios.push(cli)
+    } catch (e) {
+      console.warn(`Aviso ao buscar cliente secundário ${secId} antes da mesclagem:`, e)
+    }
+  }
+
+  // 1. Se modo converter_contato_adicional, criar contato adicional para cada secundário
   if (modo === 'converter_contato_adicional') {
-    const res = await converterClienteEmContatoAdicional({
-      clientePrincipalId: clienteMestreId,
-      clienteConvertidoId: clienteSecundarioId,
-      papel:
-        contatoAdicionalConfig?.papel ||
-        (contatoAdicionalConfig?.is_principal ? 'principal' : 'outro'),
-      cargo: contatoAdicionalConfig?.cargo,
-      is_principal: contatoAdicionalConfig?.is_principal,
-      is_whatsapp: contatoAdicionalConfig?.is_whatsapp,
-    })
-    return res.clientePrincipal
+    for (const sec of clientesSecundarios) {
+      const cfg = contatosAdicionaisConfig[sec.id] || {}
+      const telContato = sec.whatsapp || sec.telefone || undefined
+      try {
+        await pb.collection('contatos_adicionais').create<import('@/types/crm').ContatoAdicional>({
+          cliente: clientePrincipalId,
+          nome: sec.nome || 'Contato Adicional',
+          cargo: cfg.cargo || (sec.tipo_pessoa === 'juridica' ? 'Representante Legal' : 'Contato'),
+          papel: cfg.papel || 'outro',
+          telefone: telContato,
+          email: sec.email || undefined,
+          is_whatsapp:
+            typeof cfg.is_whatsapp === 'boolean' ? cfg.is_whatsapp : Boolean(sec.whatsapp),
+          is_principal: Boolean(cfg.is_principal),
+        })
+      } catch (err) {
+        console.warn(`Falha ao converter ${sec.id} em contato_adicional:`, err)
+      }
+    }
   }
 
-  // Modo unificar_cliente:
-  // 1. Reatribuir coleções que usam `cliente_id` e contatos adicionais
-  await reatribuirTodosVinculosCliente(clienteSecundarioId, clienteMestreId)
+  // 2. Reatribuir TODOS os vínculos de TODOS os clientes secundários para o cliente principal
+  for (const secId of secundariosLimpos) {
+    await reatribuirTodosVinculosCliente(secId, clientePrincipalId)
+  }
 
-  // 2. Atualizar o cliente mestre com os campos definidos
-  const clienteAtualizado = await updateCliente(clienteMestreId, camposSobrescritos)
+  // 3. Atualizar o cliente principal com os campos sobrescritos escolhidos pelo usuário
+  const clienteAtualizado = await updateCliente(clientePrincipalId, camposSobrescritos)
 
-  // 3. Registrar atividade informativa de auditoria no cliente mestre
+  // 4. Registrar atividade informativa de auditoria detalhada no cliente principal
   try {
+    const nomesSecundarios = clientesSecundarios.map((c) => `"${c.nome}" (ID: ${c.id})`).join(', ')
     await createAtividade({
-      cliente_id: clienteMestreId,
+      cliente_id: clientePrincipalId,
       tipo: 'anotacao',
-      titulo: 'Clientes mesclados',
-      descricao: `Mesclagem de clientes realizada com sucesso em ${new Date().toLocaleString('pt-BR')}. O cliente duplicado (ID: ${clienteSecundarioId}) foi fundido neste cadastro e todos os relacionamentos e históricos foram transferidos.`,
+      titulo: `Mesclagem de ${secundariosLimpos.length + 1} clientes realizada`,
+      descricao: `Mesclagem de múltiplos clientes realizada com sucesso em ${new Date().toLocaleString('pt-BR')}. ${secundariosLimpos.length} cadastro(s) foram absorvidos neste registro: ${nomesSecundarios || secundariosLimpos.join(', ')}. Todos os negócios/oportunidades, usinas, atividades, orçamentos, contratos e histórico foram unificados com segurança no cadastro principal.`,
       data: new Date().toISOString(),
       status: 'concluida',
       autor: 'Sistema Delfos',
     })
   } catch (e) {
-    console.warn('Falha ao registrar atividade de mesclagem:', e)
+    console.warn('Falha ao registrar atividade de mesclagem múltipla:', e)
   }
 
-  // 4. Agora que todos os relacionamentos foram migrados, excluir o registro do cliente secundário
-  try {
-    await pb.collection('clientes').delete(clienteSecundarioId)
-  } catch (err) {
-    console.warn(`Falha ao excluir cliente secundário ${clienteSecundarioId} após mesclagem:`, err)
+  // 5. Excluir os registros dos clientes secundários que deixam de existir como registros separados
+  for (const secId of secundariosLimpos) {
+    try {
+      await pb.collection('clientes').delete(secId)
+    } catch (err) {
+      console.warn(`Falha ao excluir cliente secundário ${secId} após mesclagem múltipla:`, err)
+    }
   }
 
   return clienteAtualizado
+}
+
+/**
+ * Mescla com segurança o clienteSecundario no clienteMestre:
+ * Mantido para retrocompatibilidade com chamadas existentes de 2 clientes.
+ */
+export async function mesclarClientes(opcoes: MesclagemOpcoes): Promise<Cliente> {
+  const {
+    clienteMestreId,
+    clienteSecundarioId,
+    clientesSecundariosIds,
+    camposSobrescritos,
+    modo = 'unificar_cliente',
+    contatoAdicionalConfig,
+  } = opcoes
+
+  // Suporte unificado tanto para clienteSecundarioId quanto para clientesSecundariosIds
+  const listaSecundarios = [
+    ...(clienteSecundarioId ? [clienteSecundarioId] : []),
+    ...(clientesSecundariosIds || []),
+  ].filter((id) => id && id !== clienteMestreId)
+
+  const secundariosUnicos = Array.from(new Set(listaSecundarios))
+
+  if (secundariosUnicos.length === 0) {
+    throw new Error('Nenhum cliente secundário informado para mesclagem.')
+  }
+
+  const contatosAdicionaisConfig: Record<string, any> = {}
+  if (contatoAdicionalConfig && clienteSecundarioId) {
+    contatosAdicionaisConfig[clienteSecundarioId] = contatoAdicionalConfig
+  }
+
+  return await mesclarMultiplosClientes({
+    clientePrincipalId: clienteMestreId,
+    clientesSecundariosIds: secundariosUnicos,
+    camposSobrescritos,
+    modo,
+    contatosAdicionaisConfig,
+  })
 }
 
 export async function createSistema(

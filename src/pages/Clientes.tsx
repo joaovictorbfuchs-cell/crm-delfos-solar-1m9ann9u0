@@ -264,6 +264,7 @@ export default function Clientes() {
   // Mesclagem de clientes
   const [isModalMesclarOpen, setIsModalMesclarOpen] = useState(false)
   const [clienteMesclarInicial, setClienteMesclarInicial] = useState<any>(null)
+  const [clientesMesclarLista, setClientesMesclarLista] = useState<Cliente[]>([])
 
   // Ordenação alfabética por padrão (A-Z respeitando pt-BR)
   const [sortField, setSortField] = useState<SortField>('nome')
@@ -557,11 +558,20 @@ export default function Clientes() {
     if (e) e.stopPropagation()
     if (cliente) {
       setClienteMesclarInicial(cliente)
+      // Se há clientes já selecionados e o clicado está entre eles (ou não), preservamos a seleção
+      if (selectedIds.length > 1 && selectedIds.includes(cliente.id)) {
+        const selecionados = clientes.filter((c) => selectedIds.includes(c.id))
+        setClientesMesclarLista(selecionados)
+      } else {
+        setClientesMesclarLista([cliente])
+      }
     } else if (selectedIds.length > 0) {
-      const primeiro = clientes.find((c) => c.id === selectedIds[0])
-      setClienteMesclarInicial(primeiro || null)
+      const selecionados = clientes.filter((c) => selectedIds.includes(c.id))
+      setClienteMesclarInicial(selecionados[0] || null)
+      setClientesMesclarLista(selecionados)
     } else {
       setClienteMesclarInicial(null)
+      setClientesMesclarLista([])
     }
     setIsModalMesclarOpen(true)
   }
@@ -874,15 +884,15 @@ export default function Clientes() {
                   <span>WhatsApp ({selectedIds.length})</span>
                 </button>
 
-                {/* Ação 4: Mesclar */}
+                {/* Ação 4: Mesclar N clientes */}
                 <button
                   type="button"
                   onClick={() => handleAbrirMesclagem()}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  title="Mesclar cadastros selecionados em um só cliente mestre"
+                  title="Mesclar todos os cadastros selecionados em um só cliente mestre"
                 >
                   <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Mesclar</span>
+                  <span>Mesclar ({selectedIds.length})</span>
                 </button>
 
                 {/* Ação 5: Deletar clientes selecionados (com confirmação reforçada) */}
@@ -1892,18 +1902,25 @@ export default function Clientes() {
             initialClienteId={selectedIds.length === 1 ? selectedIds[0] : null}
           />
 
-          {/* Modal de Mesclagem Campo a Campo */}
+          {/* Modal de Mesclagem Campo a Campo (N Clientes) */}
           <ModalMesclarClientes
             isOpen={isModalMesclarOpen}
             onClose={() => {
               setIsModalMesclarOpen(false)
               setClienteMesclarInicial(null)
+              setClientesMesclarLista([])
             }}
             clienteInicial={clienteMesclarInicial}
+            clientesIniciais={clientesMesclarLista}
             todosClientes={clientes}
             onConfirmarMesclagem={async (opcoes) => {
               await mesclarClientes(opcoes)
-              setSelectedIds((prev) => prev.filter((id) => id !== opcoes.clienteSecundarioId))
+              // Limpar todos os secundários selecionados
+              const secundarioRemovidos = new Set([
+                ...(opcoes.clienteSecundarioId ? [opcoes.clienteSecundarioId] : []),
+                ...(opcoes.clientesSecundariosIds || []),
+              ])
+              setSelectedIds((prev) => prev.filter((id) => !secundarioRemovidos.has(id)))
               await refreshClientes()
             }}
           />

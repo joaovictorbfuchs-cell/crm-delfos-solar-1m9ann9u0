@@ -1256,76 +1256,87 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }
 
   const mesclarClientes = async (opcoes: MesclagemOpcoes): Promise<Cliente> => {
-    const { clienteMestreId, clienteSecundarioId, camposSobrescritos } = opcoes
+    const { clienteMestreId, clienteSecundarioId, clientesSecundariosIds, camposSobrescritos } =
+      opcoes
 
-    if (selectedClienteId === clienteSecundarioId) {
+    const todosSecundarios = Array.from(
+      new Set(
+        [
+          ...(clienteSecundarioId ? [clienteSecundarioId] : []),
+          ...(clientesSecundariosIds || []),
+        ].filter((id) => id && id !== clienteMestreId),
+      ),
+    )
+
+    if (todosSecundarios.includes(selectedClienteId || '')) {
       setSelectedClienteId(clienteMestreId)
     }
-    if (selectedOMClienteId === clienteSecundarioId) {
+    if (todosSecundarios.includes(selectedOMClienteId || '')) {
       setSelectedOMClienteId(clienteMestreId)
     }
 
-    // Optimistic update: atualiza mestre e remove secundário
+    // Optimistic update: atualiza mestre e remove todos os secundários
+    const setSecundarios = new Set(todosSecundarios)
     setClientes((prev) => {
       return prev
-        .filter((c) => c.id !== clienteSecundarioId)
+        .filter((c) => !setSecundarios.has(c.id))
         .map((c) => (c.id === clienteMestreId ? { ...c, ...camposSobrescritos } : c))
     })
 
     // Reatribuir relacionamentos localmente no state
     setAtividades((prev) =>
       prev.map((a) =>
-        a.cliente_id === clienteSecundarioId ? { ...a, cliente_id: clienteMestreId } : a,
+        setSecundarios.has(a.cliente_id) ? { ...a, cliente_id: clienteMestreId } : a,
       ),
     )
     setProjetos((prev) =>
       prev.map((p) =>
-        p.cliente_id === clienteSecundarioId ? { ...p, cliente_id: clienteMestreId } : p,
+        setSecundarios.has(p.cliente_id) ? { ...p, cliente_id: clienteMestreId } : p,
       ),
     )
     setContratosOM((prev) =>
       prev.map((c) =>
-        c.cliente_id === clienteSecundarioId ? { ...c, cliente_id: clienteMestreId } : c,
+        setSecundarios.has(c.cliente_id) ? { ...c, cliente_id: clienteMestreId } : c,
       ),
     )
     setAnomaliasOM((prev) =>
       prev.map((a) =>
-        a.cliente_id === clienteSecundarioId ? { ...a, cliente_id: clienteMestreId } : a,
+        setSecundarios.has(a.cliente_id) ? { ...a, cliente_id: clienteMestreId } : a,
       ),
     )
     setServicosAdicionaisOM((prev) =>
       prev.map((s) =>
-        s.cliente_id === clienteSecundarioId ? { ...s, cliente_id: clienteMestreId } : s,
+        setSecundarios.has(s.cliente_id) ? { ...s, cliente_id: clienteMestreId } : s,
       ),
     )
     setTimelineOM((prev) =>
       prev.map((t) =>
-        t.cliente_id === clienteSecundarioId ? { ...t, cliente_id: clienteMestreId } : t,
+        setSecundarios.has(t.cliente_id) ? { ...t, cliente_id: clienteMestreId } : t,
       ),
     )
     setPropostasOM((prev) =>
       prev.map((p) =>
-        p.cliente_id === clienteSecundarioId ? { ...p, cliente_id: clienteMestreId } : p,
+        setSecundarios.has(p.cliente_id) ? { ...p, cliente_id: clienteMestreId } : p,
       ),
     )
     setOrcamentosSolar((prev) =>
       prev.map((o) =>
-        o.cliente_id === clienteSecundarioId ? { ...o, cliente_id: clienteMestreId } : o,
+        setSecundarios.has(o.cliente_id) ? { ...o, cliente_id: clienteMestreId } : o,
       ),
     )
     setManutencoes((prev) =>
       prev.map((m) =>
-        m.cliente_id === clienteSecundarioId ? { ...m, cliente_id: clienteMestreId } : m,
+        setSecundarios.has(m.cliente_id) ? { ...m, cliente_id: clienteMestreId } : m,
       ),
     )
     setServicosAvulsos((prev) =>
       prev.map((s) =>
-        s.cliente_id === clienteSecundarioId ? { ...s, cliente_id: clienteMestreId } : s,
+        setSecundarios.has(s.cliente_id) ? { ...s, cliente_id: clienteMestreId } : s,
       ),
     )
     setDocumentosCliente((prev) =>
       prev.map((d) =>
-        d.cliente_id === clienteSecundarioId ? { ...d, cliente_id: clienteMestreId } : d,
+        setSecundarios.has(d.cliente_id) ? { ...d, cliente_id: clienteMestreId } : d,
       ),
     )
 
