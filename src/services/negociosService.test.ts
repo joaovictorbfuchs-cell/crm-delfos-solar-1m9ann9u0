@@ -92,3 +92,77 @@ describe('bulkDeleteNegocios', () => {
     )
   })
 })
+
+describe('executarVarreduraELimpezaNegocios', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('identifica e separa negócios dentro e fora do funil comercial', async () => {
+    const { executarVarreduraELimpezaNegocios } = await import('./negociosService')
+
+    const mockNegocios = [
+      {
+        id: 'neg-valido',
+        titulo: 'Negócio Válido',
+        status: 'em andamento',
+        etapa_funil: 'qualificado',
+        expand: {
+          cliente_id: {
+            id: 'cli-1',
+            nome: 'Cliente Normal',
+            arquivado: false,
+            transferido_pos_vendas: false,
+          },
+        },
+      },
+      {
+        id: 'neg-fora-posvendas',
+        titulo: 'Negócio de Pós Vendas',
+        status: 'em andamento',
+        etapa_funil: 'novo lead',
+        expand: {
+          cliente_id: {
+            id: 'cli-2',
+            nome: 'Cliente Pós Vendas',
+            arquivado: false,
+            transferido_pos_vendas: true,
+          },
+        },
+      },
+      {
+        id: 'neg-fora-arquivado',
+        titulo: 'Negócio Arquivado',
+        status: 'em andamento',
+        etapa_funil: 'proposta enviada',
+        expand: {
+          cliente_id: {
+            id: 'cli-3',
+            nome: 'Cliente Arquivado',
+            arquivado: true,
+            transferido_pos_vendas: false,
+          },
+        },
+      },
+    ]
+
+    const deleteMock = vi.fn().mockResolvedValue(true)
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      getFullList: vi.fn().mockResolvedValue(mockNegocios),
+      delete: deleteMock,
+    } as any)
+
+    const dryRes = await executarVarreduraELimpezaNegocios({ dryRun: true })
+    expect(dryRes.totalEmAbertoAnalisados).toBe(3)
+    expect(dryRes.totalDentroDoFunil).toBe(1)
+    expect(dryRes.totalForaDoFunil).toBe(2)
+    expect(dryRes.negociosIdentificados).toHaveLength(2)
+    expect(dryRes.negociosApagados).toHaveLength(0)
+    expect(deleteMock).not.toHaveBeenCalled()
+
+    const execRes = await executarVarreduraELimpezaNegocios({ dryRun: false })
+    expect(execRes.totalForaDoFunil).toBe(2)
+    expect(execRes.negociosApagados).toHaveLength(2)
+    expect(deleteMock).toHaveBeenCalledTimes(2)
+  })
+})

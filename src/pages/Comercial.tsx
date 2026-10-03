@@ -9,6 +9,7 @@ import {
   ArchiveX,
   RotateCcw,
   Search,
+  Sparkles,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
@@ -18,7 +19,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
-import { fetchNegocios } from '@/services/negociosService'
+import { fetchNegocios, executarVarreduraELimpezaNegocios } from '@/services/negociosService'
 import type { Negocio } from '@/types/crm'
 
 export default function Comercial() {
@@ -31,6 +32,35 @@ export default function Comercial() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
   const [reativandoId, setReativandoId] = useState<string | null>(null)
+  const [isLimpandoNegocios, setIsLimpandoNegocios] = useState(false)
+
+  const handleLimparNegociosForaDoFunil = async () => {
+    setIsLimpandoNegocios(true)
+    try {
+      const res = await executarVarreduraELimpezaNegocios()
+      if (res.negociosApagados.length > 0) {
+        toast({
+          title: 'Limpeza concluída com sucesso!',
+          description: `${res.negociosApagados.length} negócio(s) fora do funil foram excluídos. Clientes e registros vinculados permanecem intactos.`,
+        })
+      } else {
+        toast({
+          title: 'Funil já está limpo!',
+          description: `Todos os ${res.totalDentroDoFunil} negócio(s) em aberto estão perfeitamente alinhados ao funil comercial ativo.`,
+        })
+      }
+      await handleRefresh()
+    } catch (err: any) {
+      console.error('Erro na varredura e limpeza de negócios:', err)
+      toast({
+        title: 'Erro na limpeza',
+        description: err?.message || 'Falha ao executar a varredura de negócios.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLimpandoNegocios(false)
+    }
+  }
 
   // Carrega negócios vinculados da coleção `negocios`
   const carregarNegocios = React.useCallback(async () => {
@@ -226,11 +256,28 @@ export default function Comercial() {
               type="button"
               variant="outline"
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isRefreshing || isLimpandoNegocios}
               className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
               title="Atualizar dados"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+
+            {/* Ação rápida de varredura e limpeza do funil comercial */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleLimparNegociosForaDoFunil}
+              disabled={isLimpandoNegocios || isRefreshing}
+              className="h-10 px-3 rounded-xl border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-medium"
+              title="Varredura de limpeza: apaga negócios em aberto de clientes arquivados ou em pós-vendas"
+            >
+              {isLimpandoNegocios ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+              )}
+              <span className="hidden xl:inline text-xs">Limpar Negócios Fora do Funil</span>
             </Button>
 
             {/* Botão único Novo Negócio / Lead unificado (abre o fluxo rico de Novo Lead) */}

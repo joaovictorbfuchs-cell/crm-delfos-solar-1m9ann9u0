@@ -3970,6 +3970,7 @@ export {
   createNegocio,
   updateNegocio,
   deleteNegocio,
+  executarVarreduraELimpezaNegocios,
 } from './negociosService'
 
 export const DEFAULT_SOLARVIEW_CONFIG = {

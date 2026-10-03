@@ -140,6 +140,131 @@ export interface BulkDeleteNegociosResult {
   firstErrorMessage?: string
 }
 
+export interface ItemNegocioForaDoFunil {
+  id: string
+  titulo: string
+  etapa_funil: EtapaFunilSelect
+  status: NegocioStatus
+  valor: number
+  cliente_id: string
+  cliente_nome: string
+  motivo_fora_funil: 'cliente_arquivado' | 'cliente_transferido_pos_vendas'
+}
+
+export interface VarreduraNegociosResult {
+  totalEmAbertoAnalisados: number
+  totalDentroDoFunil: number
+  totalForaDoFunil: number
+  negociosIdentificados: ItemNegocioForaDoFunil[]
+  negociosApagados: ItemNegocioForaDoFunil[]
+  falhasExclusao: Array<{ id: string; erro: string }>
+}
+
+/**
+ * Realiza uma varredura em todos os negócios em aberto do sistema
+ * e identifica/apaga os que estão fora do funil comercial (clientes arquivados ou transferidos para pós-vendas).
+ * Apaga EXCLUSIVAMENTE o registro do negócio, preservando todas as atividades, propostas,
+ * usinas, ordens de serviço e contatos do cliente.
+ */
+export async function executarVarreduraELimpezaNegocios(
+  options: { dryRun?: boolean; concurrency?: number } = {},
+): Promise<VarreduraNegociosResult> {
+  const dryRun = options.dryRun ?? false
+  const concurrency = options.concurrency ?? 6
+
+  // 1. Busca todos os negócios em aberto (status != ganho && status != perdido)
+  const todosNegocios = await pb.collection('negocios').getFullList<Negocio>({
+    filter: "status != 'ganho' && status != 'perdido'",
+    expand: 'cliente_id',
+    sort: 'created',
+    requestKey: null,
+  })
+
+  const ETAPAS_EM_ANDAMENTO: EtapaFunilSelect[] = [
+    'novo lead',
+    'qualificado',
+    'proposta enviada',
+    'negociação',
+    'contrato assinado',
+  ]
+
+  const foraDoFunil: ItemNegocioForaDoFunil[] = []
+  let dentroDoFunil = 0
+
+  for (const neg of todosNegocios) {
+    const etapa = (neg.etapa_funil || 'novo lead') as EtapaFunilSelect
+    // Confirma que a etapa é uma etapa de andamento
+    if (!ETAPAS_EM_ANDAMENTO.includes(etapa)) {
+      continue
+    }
+
+    const cli = neg.expand?.cliente_id as any
+    const isArquivado = Boolean(cli?.arquivado)
+    const isTransferidoPosVendas = Boolean(cli?.transferido_pos_vendas)
+
+    if (isArquivado || isTransferidoPosVendas) {
+      foraDoFunil.push({
+        id: neg.id,
+        titulo: neg.titulo || 'Negócio sem título',
+        etapa_funil: etapa,
+        status: neg.status,
+        valor: Number(neg.valor || neg.valor_estimado || 0),
+        cliente_id: neg.cliente_id || cli?.id || '',
+        cliente_nome: cli?.nome || cli?.razao_social || 'Cliente não identificado',
+        motivo_fora_funil: isArquivado ? 'cliente_arquivado' : 'cliente_transferido_pos_vendas',
+      })
+    } else {
+      dentroDoFunil++
+    }
+  }
+
+  const apagados: ItemNegocioForaDoFunil[] = []
+  const falhas: Array<{ id: string; erro: string }> = []
+
+  if (!dryRun && foraDoFunil.length > 0) {
+    const ids = foraDoFunil.map((item) => item.id)
+    const itemMap = new Map(foraDoFunil.map((item) => [item.id, item]))
+
+    try {
+      const deleteResult = await bulkDeleteNegocios(ids, { concurrency })
+      for (const id of ids) {
+        if (!deleteResult.failedIds.includes(id)) {
+          const item = itemMap.get(id)
+          if (item) apagados.push(item)
+        }
+      }
+      for (const id of deleteResult.failedIds) {
+        falhas.push({
+          id,
+          erro: deleteResult.firstErrorMessage || 'Erro ao excluir negócio',
+        })
+      }
+    } catch (err: any) {
+      const failedIds: string[] = err?.result?.failedIds || ids
+      for (const id of ids) {
+        if (!failedIds.includes(id)) {
+          const item = itemMap.get(id)
+          if (item) apagados.push(item)
+        } else {
+          falhas.push({
+            id,
+            erro: err?.message || 'Falha na exclusão em lote',
+          })
+        }
+      }
+    }
+  }
+
+  return {
+    totalEmAbertoAnalisados: todosNegocios.length,
+    totalDentroDoFunil: dentroDoFunil,
+    totalForaDoFunil: foraDoFunil.length,
+    negociosIdentificados: foraDoFunil,
+    negociosApagados: dryRun ? [] : apagados,
+    falhasExclusao: falhas,
+  }
+}
+
 /**
  * Exclui múltiplos negócios em lote com controle de taxa (concorrência limitada e retries com backoff).
  * ATENÇÃO: Exclui APENAS os registros de negócios. Os clientes permanecem 100% intactos.
