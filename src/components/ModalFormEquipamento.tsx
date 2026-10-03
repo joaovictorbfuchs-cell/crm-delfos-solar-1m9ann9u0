@@ -21,7 +21,7 @@ import {
   Edit2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
+import type { Equipamento, TipoEquipamento, ConfiguracaoMonitoramento } from '@/types/equipamentos'
 import type { Fornecedor } from '@/types/crm'
 import {
   createEquipamento,
@@ -33,9 +33,15 @@ import {
   getUnidadePorTipo,
   getRotuloCampoPotencia,
 } from '@/services/equipamentosService'
+import {
+  fetchConfiguracoesMonitoramento,
+  sugerirConfiguracaoPorMarca,
+  getProcedimentoMonitoramentoUrl,
+} from '@/services/configuracoesMonitoramentoService'
 import { fetchFornecedores } from '@/services/crmService'
 import { extractDatasheetFromPdf } from '@/lib/datasheetExtractor'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import { MonitoramentoConfigBadge } from './MonitoramentoConfigBadge'
 
 export interface ModalFormEquipamentoProps {
   isOpen: boolean
@@ -43,6 +49,7 @@ export interface ModalFormEquipamentoProps {
   editingItem?: Equipamento | null
   tipoInicial?: TipoEquipamento
   fornecedores?: Fornecedor[]
+  configuracoesMonitoramento?: ConfiguracaoMonitoramento[]
   onSalvo?: (equipamentoSalvo: Equipamento, isEdicao: boolean) => void | Promise<void>
 }
 
@@ -52,9 +59,13 @@ export function ModalFormEquipamento({
   editingItem = null,
   tipoInicial = 'inversor',
   fornecedores: fornecedoresProp,
+  configuracoesMonitoramento: configuracoesProp,
   onSalvo,
 }: ModalFormEquipamentoProps) {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>(fornecedoresProp || [])
+  const [configuracoesMonitoramento, setConfiguracoesMonitoramento] = useState<
+    ConfiguracaoMonitoramento[]
+  >(configuracoesProp || [])
 
   // Campos do formulário
   const [tipo, setTipo] = useState<TipoEquipamento>(tipoInicial)
@@ -65,6 +76,9 @@ export function ModalFormEquipamento({
   const [garantiaAnos, setGarantiaAnos] = useState<string>('')
   const [datasheetUrl, setDatasheetUrl] = useState<string>('')
   const [dataloggerUrl, setDataloggerUrl] = useState<string>('')
+  const [configuracaoMonitoramentoId, setConfiguracaoMonitoramentoId] = useState<string>('')
+  const [configuracaoAlteradaManualmente, setConfiguracaoAlteradaManualmente] =
+    useState<boolean>(false)
   const [fornecedorId, setFornecedorId] = useState<string>('')
   const [telefoneSuporte, setTelefoneSuporte] = useState<string>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -87,7 +101,7 @@ export function ModalFormEquipamento({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Carregar fornecedores caso não tenham sido passados por prop
+  // Carregar fornecedores e configurações de monitoramento caso não tenham sido passados por prop
   useEffect(() => {
     if (fornecedoresProp && fornecedoresProp.length > 0) {
       setFornecedores(fornecedoresProp)
@@ -96,7 +110,15 @@ export function ModalFormEquipamento({
         .then((data) => setFornecedores(data || []))
         .catch((err) => console.error('Erro ao carregar fornecedores no modal:', err))
     }
-  }, [fornecedoresProp, isOpen])
+
+    if (configuracoesProp && configuracoesProp.length > 0) {
+      setConfiguracoesMonitoramento(configuracoesProp)
+    } else if (isOpen) {
+      fetchConfiguracoesMonitoramento()
+        .then((data) => setConfiguracoesMonitoramento(data || []))
+        .catch((err) => console.error('Erro ao carregar configurações de monitoramento:', err))
+    }
+  }, [fornecedoresProp, configuracoesProp, isOpen])
 
   // Resetar/popular campos quando o modal abre ou editingItem muda
   useEffect(() => {
@@ -115,6 +137,8 @@ export function ModalFormEquipamento({
       )
       setDatasheetUrl(editingItem.datasheet_url || '')
       setDataloggerUrl(editingItem.datalogger_url || '')
+      setConfiguracaoMonitoramentoId(editingItem.configuracao_monitoramento_id || '')
+      setConfiguracaoAlteradaManualmente(Boolean(editingItem.configuracao_monitoramento_id))
       setFornecedorId(editingItem.fornecedor_id || '')
       setTelefoneSuporte(editingItem.telefone_suporte_fornecedor || '')
       setSelectedFile(null)
@@ -137,6 +161,8 @@ export function ModalFormEquipamento({
       setGarantiaAnos('')
       setDatasheetUrl('')
       setDataloggerUrl('')
+      setConfiguracaoMonitoramentoId('')
+      setConfiguracaoAlteradaManualmente(false)
       setFornecedorId('')
       setTelefoneSuporte('')
       setSelectedFile(null)
@@ -149,6 +175,22 @@ export function ModalFormEquipamento({
       setErrorMessage(null)
     }
   }, [isOpen, editingItem, tipoInicial])
+
+  // Sugestão automática de configuração de monitoramento ao alterar a marca (apenas se tipo === 'inversor')
+  const handleMarcaChange = (novaMarca: string) => {
+    setMarca(novaMarca)
+    if (errorMessage) setErrorMessage(null)
+
+    // Se o usuário não alterou manualmente a configuração e for inversor, tenta sugerir por marca
+    if (tipo === 'inversor' && !configuracaoAlteradaManualmente) {
+      const sugestao = sugerirConfiguracaoPorMarca(novaMarca, configuracoesMonitoramento)
+      if (sugestao) {
+        setConfiguracaoMonitoramentoId(sugestao.id)
+      } else if (!novaMarca.trim()) {
+        setConfiguracaoMonitoramentoId('')
+      }
+    }
+  }
 
   // Preencher telefone de suporte se mudar o fornecedor e o campo estiver vazio
   const handleFornecedorChange = (novoId: string) => {
@@ -219,6 +261,14 @@ export function ModalFormEquipamento({
       if (extraidos.marca) {
         setMarca(extraidos.marca)
         camposPreenchidos.push('Marca')
+        // Sugerir configuração de monitoramento compatível
+        if ((extraidos.tipo || tipo) === 'inversor' && !configuracaoAlteradaManualmente) {
+          const sug = sugerirConfiguracaoPorMarca(extraidos.marca, configuracoesMonitoramento)
+          if (sug) {
+            setConfiguracaoMonitoramentoId(sug.id)
+            camposPreenchidos.push('Config. Monitoramento')
+          }
+        }
       }
       if (extraidos.modelo) {
         setModelo(extraidos.modelo)
@@ -341,6 +391,7 @@ export function ModalFormEquipamento({
         garantia_anos: garantiaNum,
         datasheet_url: datasheetUrl.trim(),
         datalogger_url: dataloggerUrl.trim(),
+        configuracao_monitoramento_id: configuracaoMonitoramentoId || undefined,
         fornecedor_id: fornecedorId || undefined,
         telefone_suporte_fornecedor: telefoneSuporte.trim(),
       }
@@ -547,10 +598,7 @@ export function ModalFormEquipamento({
                 type="text"
                 required
                 value={marca}
-                onChange={(e) => {
-                  setMarca(e.target.value)
-                  if (errorMessage) setErrorMessage(null)
-                }}
+                onChange={(e) => handleMarcaChange(e.target.value)}
                 placeholder="Ex: Huawei, Growatt, JA Solar"
                 className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
@@ -681,6 +729,99 @@ export function ModalFormEquipamento({
               </span>
             </div>
           </div>
+
+          {/* Bloco Configuração de Monitoramento (Específico para Inversor) */}
+          {tipo === 'inversor' && (
+            <div className="p-3.5 bg-gradient-to-r from-emerald-50/70 to-blue-50/70 rounded-2xl border border-emerald-200/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-gray-800 uppercase flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Configuração de Monitoramento (Datalogger)</span>
+                </label>
+                {configuracaoMonitoramentoId && (
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
+                    Vínculo ativo
+                  </span>
+                )}
+              </div>
+
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                O sistema sugere automaticamente o procedimento compatível com base na marca
+                informada. Você pode selecionar ou trocar para outra configuração se desejar.
+              </p>
+
+              <div className="space-y-2 pt-1">
+                <select
+                  value={configuracaoMonitoramentoId}
+                  onChange={(e) => {
+                    setConfiguracaoMonitoramentoId(e.target.value)
+                    setConfiguracaoAlteradaManualmente(true)
+                  }}
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                >
+                  <option value="">Nenhuma configuração vinculada</option>
+                  {configuracoesMonitoramento.map((cfg) => {
+                    const rotuloTipo = cfg.arquivo_pdf ? 'PDF' : 'Link'
+                    return (
+                      <option key={cfg.id} value={cfg.id}>
+                        {cfg.marca} - {cfg.titulo || 'Configuração'} ({rotuloTipo})
+                      </option>
+                    )
+                  })}
+                </select>
+
+                {/* Exibição do Item Anexado (estilo datasheet) */}
+                {configuracaoMonitoramentoId &&
+                  (() => {
+                    const cfgSelecionada = configuracoesMonitoramento.find(
+                      (c) => c.id === configuracaoMonitoramentoId,
+                    )
+                    if (!cfgSelecionada) return null
+
+                    const { url, tipo: tipoItem } = getProcedimentoMonitoramentoUrl(cfgSelecionada)
+
+                    return (
+                      <div className="p-2.5 bg-white rounded-xl border border-emerald-200 flex items-center justify-between gap-2 shadow-2xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {tipoItem === 'pdf' ? (
+                            <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <ExternalLink className="w-4 h-4 text-emerald-600 shrink-0" />
+                          )}
+                          <div className="truncate">
+                            <span className="text-xs font-bold text-gray-800 block truncate">
+                              {cfgSelecionada.titulo ||
+                                `Configuração Datalogger - ${cfgSelecionada.marca}`}
+                            </span>
+                            <span className="text-[10px] text-gray-500 block truncate">
+                              Marca: {cfgSelecionada.marca} • Formato:{' '}
+                              {tipoItem === 'pdf' ? 'Documento PDF' : 'Link / Vídeo'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {url && (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0"
+                            title={
+                              tipoItem === 'pdf'
+                                ? 'Abrir PDF do passo a passo'
+                                : 'Acessar link do procedimento'
+                            }
+                          >
+                            <span>{tipoItem === 'pdf' ? 'Abrir PDF' : 'Acessar Link'}</span>
+                            <ExternalLink className="w-3 h-3 text-emerald-700 ml-0.5" />
+                          </a>
+                        )}
+                      </div>
+                    )
+                  })()}
+              </div>
+            </div>
+          )}
 
           {/* Fornecedor e Telefone do Suporte */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

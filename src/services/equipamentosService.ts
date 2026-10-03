@@ -7,7 +7,7 @@ export async function fetchEquipamentos(tipo?: TipoEquipamento): Promise<Equipam
     const records = await pb.collection('equipamentos').getFullList<Equipamento>({
       filter: filter || undefined,
       sort: 'tipo,marca,modelo',
-      expand: 'fornecedor_id',
+      expand: 'fornecedor_id,configuracao_monitoramento_id',
     })
     return records
   } catch (err) {
@@ -42,6 +42,9 @@ export async function createEquipamento(
   }
   if (dados.datalogger_url !== undefined) {
     cleaned.datalogger_url = dados.datalogger_url ? dados.datalogger_url.trim() : ''
+  }
+  if (dados.configuracao_monitoramento_id !== undefined) {
+    cleaned.configuracao_monitoramento_id = dados.configuracao_monitoramento_id || null
   }
   if (dados.fornecedor_id !== undefined) {
     cleaned.fornecedor_id = dados.fornecedor_id || null
@@ -106,6 +109,9 @@ export async function updateEquipamento(
   }
   if (dados.datalogger_url !== undefined) {
     cleaned.datalogger_url = dados.datalogger_url ? dados.datalogger_url.trim() : ''
+  }
+  if (dados.configuracao_monitoramento_id !== undefined) {
+    cleaned.configuracao_monitoramento_id = dados.configuracao_monitoramento_id || null
   }
   if (dados.fornecedor_id !== undefined) {
     cleaned.fornecedor_id = dados.fornecedor_id || null

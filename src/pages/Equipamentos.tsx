@@ -30,7 +30,7 @@ import {
   Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
+import type { Equipamento, TipoEquipamento, ConfiguracaoMonitoramento } from '@/types/equipamentos'
 import type { Fornecedor } from '@/types/crm'
 import {
   fetchEquipamentos,
@@ -49,15 +49,21 @@ import {
   getUnidadePorTipo,
   getRotuloCampoPotencia,
 } from '@/services/equipamentosService'
+import {
+  fetchConfiguracoesMonitoramento,
+  getProcedimentoMonitoramentoUrl,
+} from '@/services/configuracoesMonitoramentoService'
 import { fetchContagemUsoEquipamentosEmUsinas } from '@/services/usinaEquipamentosService'
 import { fetchFornecedores } from '@/services/crmService'
 import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
+import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
+import { AbaConfiguracoesMonitoramento } from '@/components/AbaConfiguracoesMonitoramento'
 import { normalizarDigitosDestino } from '@/lib/resolverNumeroDestinoCliente'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { useAuth } from '@/contexts/AuthContext'
 import { buildXlsxBuffer, downloadFileInBrowser, type XlsxSheet } from '@/lib/xlsxBuilderClient'
 
-type TabFiltro = 'todos' | 'inversor' | 'modulo_fv' | 'outro'
+type TabFiltro = 'todos' | 'inversor' | 'modulo_fv' | 'outro' | 'configuracoes_monitoramento'
 type CriterioOrdenacao = 'recentes' | 'marca_asc' | 'modelo_asc' | 'potencia_desc' | 'potencia_asc'
 
 export function EquipamentosPage() {
@@ -66,6 +72,9 @@ export function EquipamentosPage() {
 
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
+  const [configuracoesMonitoramento, setConfiguracoesMonitoramento] = useState<
+    ConfiguracaoMonitoramento[]
+  >([])
   const [contagemUsinas, setContagemUsinas] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState<boolean>(true)
   const [tabAtiva, setTabAtiva] = useState<TabFiltro>('todos')
@@ -91,19 +100,30 @@ export function EquipamentosPage() {
   const carregar = async () => {
     setLoading(true)
     try {
-      const [dataEq, dataForn, mapaUsinas] = await Promise.all([
+      const [dataEq, dataForn, dataCfg, mapaUsinas] = await Promise.all([
         fetchEquipamentos(),
         fetchFornecedores(),
+        fetchConfiguracoesMonitoramento(),
         fetchContagemUsoEquipamentosEmUsinas(),
       ])
       setEquipamentos(dataEq)
       setFornecedores(dataForn)
+      setConfiguracoesMonitoramento(dataCfg)
       setContagemUsinas(mapaUsinas)
     } catch (err) {
       console.error('Erro ao carregar equipamentos:', err)
       toast.error('Erro ao carregar lista de equipamentos.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const recarregarConfiguracoes = async () => {
+    try {
+      const dataCfg = await fetchConfiguracoesMonitoramento()
+      setConfiguracoesMonitoramento(dataCfg)
+    } catch (err) {
+      console.error('Erro ao recarregar configurações:', err)
     }
   }
 
@@ -163,8 +183,9 @@ export function EquipamentosPage() {
     const inversores = equipamentos.filter((e) => e.tipo === 'inversor').length
     const modulos = equipamentos.filter((e) => e.tipo === 'modulo_fv').length
     const outros = equipamentos.filter((e) => e.tipo === 'outro').length
-    return { total, inversores, modulos, outros }
-  }, [equipamentos])
+    const configuracoes = configuracoesMonitoramento.length
+    return { total, inversores, modulos, outros, configuracoes }
+  }, [equipamentos, configuracoesMonitoramento])
 
   // Lista filtrada e ordenada
   const filtrados = useMemo(() => {
@@ -495,6 +516,28 @@ export function EquipamentosPage() {
                 {contagens.outros}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setTabAtiva('configuracoes_monitoramento')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                tabAtiva === 'configuracoes_monitoramento'
+                  ? 'bg-white text-emerald-900 shadow-xs ring-1 ring-emerald-300'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Settings className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Config. de Monitoramento</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  tabAtiva === 'configuracoes_monitoramento'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {contagens.configuracoes}
+              </span>
+            </button>
           </div>
 
           {/* Busca e Totalizador */}
@@ -586,262 +629,309 @@ export function EquipamentosPage() {
         </div>
       </div>
 
-      {/* Lista / Grade de Cards */}
-      {loading ? (
-        <div className="py-20 text-center">
-          <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto mb-3" />
-          <p className="text-xs font-semibold text-gray-500">
-            Carregando catálogo de equipamentos...
-          </p>
-        </div>
-      ) : filtrados.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-50 text-gray-400 flex items-center justify-center mx-auto mb-3 border border-gray-200">
-            {tabAtiva === 'inversor' ? (
-              <Cpu className="w-7 h-7 text-gray-400" />
-            ) : tabAtiva === 'modulo_fv' ? (
-              <Sun className="w-7 h-7 text-gray-400" />
-            ) : (
-              <Layers className="w-7 h-7 text-gray-400" />
-            )}
-          </div>
-          <h3 className="text-base font-bold text-gray-800">Nenhum equipamento encontrado</h3>
-          <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 mb-5">
-            {busca
-              ? `Nenhum resultado corresponde à busca "${busca}". Tente outros termos.`
-              : 'Não há equipamentos cadastrados nesta categoria ainda.'}
-          </p>
-          <button
-            onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D] shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Cadastrar Equipamento</span>
-          </button>
-        </div>
+      {/* Se a tab ativa for Configurações de Monitoramento */}
+      {tabAtiva === 'configuracoes_monitoramento' ? (
+        <AbaConfiguracoesMonitoramento
+          configuracoes={configuracoesMonitoramento}
+          loading={loading}
+          onRecarregar={async () => {
+            await Promise.all([recarregarConfiguracoes(), carregar()])
+          }}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtrados.map((item) => {
-            const fotoUrl = getFotoEquipamentoUrl(item)
-            const isInversor = item.tipo === 'inversor'
-
-            return (
-              <div
-                key={item.id}
-                className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden flex flex-col group hover:shadow-md hover:border-emerald-300 transition-all duration-200"
+        <>
+          {/* Lista / Grade de Cards */}
+          {loading ? (
+            <div className="py-20 text-center">
+              <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto mb-3" />
+              <p className="text-xs font-semibold text-gray-500">
+                Carregando catálogo de equipamentos...
+              </p>
+            </div>
+          ) : filtrados.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-gray-50 text-gray-400 flex items-center justify-center mx-auto mb-3 border border-gray-200">
+                {tabAtiva === 'inversor' ? (
+                  <Cpu className="w-7 h-7 text-gray-400" />
+                ) : tabAtiva === 'modulo_fv' ? (
+                  <Sun className="w-7 h-7 text-gray-400" />
+                ) : (
+                  <Layers className="w-7 h-7 text-gray-400" />
+                )}
+              </div>
+              <h3 className="text-base font-bold text-gray-800">Nenhum equipamento encontrado</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 mb-5">
+                {busca
+                  ? `Nenhum resultado corresponde à busca "${busca}". Tente outros termos.`
+                  : 'Não há equipamentos cadastrados nesta categoria ainda.'}
+              </p>
+              <button
+                onClick={handleOpenCreate}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D] shadow-xs"
               >
-                {/* Cabeçalho Visual: Foto ou Placeholder Profissional */}
-                <div className="relative h-44 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden border-b border-gray-100">
-                  {fotoUrl ? (
-                    <img
-                      src={fotoUrl}
-                      alt={`${item.marca} ${item.modelo}`}
-                      className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-300 group-hover:text-emerald-500 transition-colors">
-                      {isInversor ? (
-                        <Cpu className="w-16 h-16 stroke-1 mb-1" />
+                <Plus className="w-4 h-4" />
+                <span>Cadastrar Equipamento</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtrados.map((item) => {
+                const fotoUrl = getFotoEquipamentoUrl(item)
+                const isInversor = item.tipo === 'inversor'
+
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden flex flex-col group hover:shadow-md hover:border-emerald-300 transition-all duration-200"
+                  >
+                    {/* Cabeçalho Visual: Foto ou Placeholder Profissional */}
+                    <div className="relative h-44 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden border-b border-gray-100">
+                      {fotoUrl ? (
+                        <img
+                          src={fotoUrl}
+                          alt={`${item.marca} ${item.modelo}`}
+                          className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
                       ) : (
-                        <Sun className="w-16 h-16 stroke-1 mb-1" />
-                      )}
-                      <span className="text-[11px] font-medium text-gray-400">
-                        {isInversor ? 'Inversor Fotovoltaico' : 'Módulo Fotovoltaico'}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Badge de Tipo */}
-                  <div className="absolute top-3 left-3">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-xs ${
-                        isInversor
-                          ? 'bg-blue-600 text-white'
-                          : item.tipo === 'modulo_fv'
-                            ? 'bg-amber-500 text-white'
-                            : 'bg-purple-600 text-white'
-                      }`}
-                    >
-                      {isInversor ? (
-                        <Cpu className="w-3.5 h-3.5" />
-                      ) : item.tipo === 'modulo_fv' ? (
-                        <Sun className="w-3.5 h-3.5" />
-                      ) : (
-                        <Wrench className="w-3.5 h-3.5" />
-                      )}
-                      {isInversor ? 'Inversor' : item.tipo === 'modulo_fv' ? 'Módulo FV' : 'Outro'}
-                    </span>
-                  </div>
-
-                  {/* Potência em Destaque */}
-                  <div className="absolute top-3 right-3">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-gray-900/80 text-white backdrop-blur-xs shadow-xs">
-                      <Zap className="w-3 h-3 text-amber-300" />
-                      {formatarPotenciaPorTipo(item.potencia_w, item.tipo)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Corpo do Card */}
-                <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
-                  <div>
-                    {/* Marca e Modelo */}
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700">
-                      <span>{item.marca}</span>
-                    </div>
-                    <h3 className="text-base font-bold text-gray-900 leading-snug mt-0.5">
-                      {item.modelo}
-                    </h3>
-
-                    {/* Metadados Técnicos: Garantia e Links */}
-                    <div className="flex items-center flex-wrap gap-2 mt-2.5">
-                      {item.garantia_anos !== undefined && item.garantia_anos !== null ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                          <Shield className="w-3 h-3 text-emerald-600" />
-                          Garantia: {item.garantia_anos} {item.garantia_anos === 1 ? 'ano' : 'anos'}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
-                          <Shield className="w-3 h-3 text-gray-300" />
-                          Garantia não informada
-                        </span>
-                      )}
-
-                      {/* Datasheet (link ou PDF) */}
-                      {getDatasheetEquipamentoUrl(item) && (
-                        <a
-                          href={getDatasheetEquipamentoUrl(item)!}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200/80 px-2.5 py-0.5 rounded-lg border border-emerald-300 transition-colors"
-                          title="Abrir datasheet do equipamento"
-                        >
-                          <FileText className="w-3 h-3 text-emerald-700" />
-                          <span>Datasheet</span>
-                          <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-emerald-600" />
-                        </a>
-                      )}
-
-                      {/* Configurar Datalogger */}
-                      {getDataloggerEquipamentoUrl(item) && (
-                        <a
-                          href={getDataloggerEquipamentoUrl(item)!}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-100/70 hover:bg-blue-200/80 px-2.5 py-0.5 rounded-lg border border-blue-300 transition-colors"
-                          title="Abrir página/link de configuração do datalogger"
-                        >
-                          <Settings className="w-3 h-3 text-blue-700" />
-                          <span>Configurar Datalogger</span>
-                          <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-blue-600" />
-                        </a>
-                      )}
-
-                      {/* Contador de uso como ativo de usina */}
-                      {Boolean(contagemUsinas[item.id]) && (
-                        <span
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 shadow-2xs"
-                          title={`Este equipamento está vinculado como ativo em ${contagemUsinas[item.id]} usina(s)`}
-                        >
-                          <Building2 className="w-3 h-3 text-amber-600" />
-                          <span>
-                            Em uso em {contagemUsinas[item.id]}{' '}
-                            {contagemUsinas[item.id] === 1 ? 'usina' : 'usinas'}
+                        <div className="flex flex-col items-center justify-center text-gray-300 group-hover:text-emerald-500 transition-colors">
+                          {isInversor ? (
+                            <Cpu className="w-16 h-16 stroke-1 mb-1" />
+                          ) : (
+                            <Sun className="w-16 h-16 stroke-1 mb-1" />
+                          )}
+                          <span className="text-[11px] font-medium text-gray-400">
+                            {isInversor ? 'Inversor Fotovoltaico' : 'Módulo Fotovoltaico'}
                           </span>
-                        </span>
+                        </div>
                       )}
+
+                      {/* Badge de Tipo */}
+                      <div className="absolute top-3 left-3">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-xs ${
+                            isInversor
+                              ? 'bg-blue-600 text-white'
+                              : item.tipo === 'modulo_fv'
+                                ? 'bg-amber-500 text-white'
+                                : 'bg-purple-600 text-white'
+                          }`}
+                        >
+                          {isInversor ? (
+                            <Cpu className="w-3.5 h-3.5" />
+                          ) : item.tipo === 'modulo_fv' ? (
+                            <Sun className="w-3.5 h-3.5" />
+                          ) : (
+                            <Wrench className="w-3.5 h-3.5" />
+                          )}
+                          {isInversor
+                            ? 'Inversor'
+                            : item.tipo === 'modulo_fv'
+                              ? 'Módulo FV'
+                              : 'Outro'}
+                        </span>
+                      </div>
+
+                      {/* Potência em Destaque */}
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-gray-900/80 text-white backdrop-blur-xs shadow-xs">
+                          <Zap className="w-3 h-3 text-amber-300" />
+                          {formatarPotenciaPorTipo(item.potencia_w, item.tipo)}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Bloco Fornecedor + Suporte */}
-                    {(item.expand?.fornecedor_id || item.telefone_suporte_fornecedor) && (
-                      <div className="mt-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Building2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                          <div className="truncate">
-                            <span className="text-[10px] uppercase font-bold text-gray-400 block leading-tight">
-                              Fornecedor / Suporte
+                    {/* Corpo do Card */}
+                    <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
+                      <div>
+                        {/* Marca e Modelo */}
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700">
+                          <span>{item.marca}</span>
+                        </div>
+                        <h3 className="text-base font-bold text-gray-900 leading-snug mt-0.5">
+                          {item.modelo}
+                        </h3>
+
+                        {/* Metadados Técnicos: Garantia e Links */}
+                        <div className="flex items-center flex-wrap gap-2 mt-2.5">
+                          {item.garantia_anos !== undefined && item.garantia_anos !== null ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                              <Shield className="w-3 h-3 text-emerald-600" />
+                              Garantia: {item.garantia_anos}{' '}
+                              {item.garantia_anos === 1 ? 'ano' : 'anos'}
                             </span>
-                            <span className="font-semibold text-gray-800 truncate block text-xs">
-                              {item.expand?.fornecedor_id?.nome_empresa || 'Fornecedor cadastrado'}
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+                              <Shield className="w-3 h-3 text-gray-300" />
+                              Garantia não informada
                             </span>
-                          </div>
+                          )}
+
+                          {/* Datasheet (link ou PDF) */}
+                          {getDatasheetEquipamentoUrl(item) && (
+                            <a
+                              href={getDatasheetEquipamentoUrl(item)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200/80 px-2.5 py-0.5 rounded-lg border border-emerald-300 transition-colors"
+                              title="Abrir datasheet do equipamento"
+                            >
+                              <FileText className="w-3 h-3 text-emerald-700" />
+                              <span>Datasheet</span>
+                              <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-emerald-600" />
+                            </a>
+                          )}
+
+                          {/* Item Anexado: Configuração de Monitoramento (mesmo formato visual do Datasheet) */}
+                          {(() => {
+                            // Buscar configuração vinculada via expand ou no catálogo
+                            const cfgVinculada =
+                              item.expand?.configuracao_monitoramento_id ||
+                              configuracoesMonitoramento.find(
+                                (c) => c.id === item.configuracao_monitoramento_id,
+                              ) ||
+                              (isInversor
+                                ? configuracoesMonitoramento.find(
+                                    (c) =>
+                                      c.marca?.toLowerCase().trim() ===
+                                      item.marca?.toLowerCase().trim(),
+                                  )
+                                : null)
+
+                            if (!cfgVinculada) return null
+
+                            return (
+                              <MonitoramentoConfigBadge
+                                configuracao={cfgVinculada}
+                                rotulo="Config. de Monitoramento"
+                                mostrarTipo
+                              />
+                            )
+                          })()}
+
+                          {/* Configurar Datalogger (URL direta legada caso exista e não tenha cfg vinculada) */}
+                          {getDataloggerEquipamentoUrl(item) &&
+                            !item.configuracao_monitoramento_id && (
+                              <a
+                                href={getDataloggerEquipamentoUrl(item)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-100/70 hover:bg-blue-200/80 px-2.5 py-0.5 rounded-lg border border-blue-300 transition-colors"
+                                title="Abrir página/link de configuração do datalogger"
+                              >
+                                <Settings className="w-3 h-3 text-blue-700" />
+                                <span>Configurar Datalogger</span>
+                                <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-blue-600" />
+                              </a>
+                            )}
+
+                          {/* Contador de uso como ativo de usina */}
+                          {Boolean(contagemUsinas[item.id]) && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 shadow-2xs"
+                              title={`Este equipamento está vinculado como ativo em ${contagemUsinas[item.id]} usina(s)`}
+                            >
+                              <Building2 className="w-3 h-3 text-amber-600" />
+                              <span>
+                                Em uso em {contagemUsinas[item.id]}{' '}
+                                {contagemUsinas[item.id] === 1 ? 'usina' : 'usinas'}
+                              </span>
+                            </span>
+                          )}
                         </div>
 
-                        {/* Botão Telefone / WhatsApp do Suporte */}
-                        {(item.telefone_suporte_fornecedor ||
-                          item.expand?.fornecedor_id?.telefone_suporte ||
-                          item.expand?.fornecedor_id?.whatsapp ||
-                          item.expand?.fornecedor_id?.telefone) && (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {(() => {
-                              const tel =
-                                item.telefone_suporte_fornecedor ||
-                                item.expand?.fornecedor_id?.telefone_suporte ||
-                                item.expand?.fornecedor_id?.whatsapp ||
-                                item.expand?.fornecedor_id?.telefone ||
-                                ''
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleOpenWhatsAppSuporte(tel, item.marca, item.modelo)
-                                  }
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-2xs transition-colors"
-                                  title={`Entrar em contato com o suporte: ${tel}`}
-                                >
-                                  <Phone className="w-3 h-3" />
-                                  <span>{tel}</span>
-                                </button>
-                              )
-                            })()}
+                        {/* Bloco Fornecedor + Suporte */}
+                        {(item.expand?.fornecedor_id || item.telefone_suporte_fornecedor) && (
+                          <div className="mt-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Building2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                              <div className="truncate">
+                                <span className="text-[10px] uppercase font-bold text-gray-400 block leading-tight">
+                                  Fornecedor / Suporte
+                                </span>
+                                <span className="font-semibold text-gray-800 truncate block text-xs">
+                                  {item.expand?.fornecedor_id?.nome_empresa ||
+                                    'Fornecedor cadastrado'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Botão Telefone / WhatsApp do Suporte */}
+                            {(item.telefone_suporte_fornecedor ||
+                              item.expand?.fornecedor_id?.telefone_suporte ||
+                              item.expand?.fornecedor_id?.whatsapp ||
+                              item.expand?.fornecedor_id?.telefone) && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {(() => {
+                                  const tel =
+                                    item.telefone_suporte_fornecedor ||
+                                    item.expand?.fornecedor_id?.telefone_suporte ||
+                                    item.expand?.fornecedor_id?.whatsapp ||
+                                    item.expand?.fornecedor_id?.telefone ||
+                                    ''
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleOpenWhatsAppSuporte(tel, item.marca, item.modelo)
+                                      }
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-2xs transition-colors"
+                                      title={`Entrar em contato com o suporte: ${tel}`}
+                                    >
+                                      <Phone className="w-3 h-3" />
+                                      <span>{tel}</span>
+                                    </button>
+                                  )
+                                })()}
+                              </div>
+                            )}
                           </div>
                         )}
+
+                        {/* Descrição Padrão */}
+                        <div className="mt-3">
+                          {item.descricao_padrao ? (
+                            <p className="text-xs text-gray-600 leading-relaxed line-clamp-3 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                              {item.descricao_padrao}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-400 italic">
+                              Sem descrição técnica cadastrada.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    )}
 
-                    {/* Descrição Padrão */}
-                    <div className="mt-3">
-                      {item.descricao_padrao ? (
-                        <p className="text-xs text-gray-600 leading-relaxed line-clamp-3 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
-                          {item.descricao_padrao}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-gray-400 italic">
-                          Sem descrição técnica cadastrada.
-                        </p>
-                      )}
+                      {/* Rodapé do Card com Ações */}
+                      <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[10px] text-gray-400">ID: #{item.id.slice(-5)}</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(item)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-gray-200 hover:border-emerald-200"
+                            title="Editar equipamento"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDeleteConfirm(item)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Excluir equipamento"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Rodapé do Card com Ações */}
-                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-[10px] text-gray-400">ID: #{item.id.slice(-5)}</span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(item)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-gray-200 hover:border-emerald-200"
-                        title="Editar equipamento"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Editar</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDeleteConfirm(item)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir equipamento"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal Criar / Editar Equipamento (reusável compartilhado) */}
@@ -853,6 +943,7 @@ export function EquipamentosPage() {
           tabAtiva === 'modulo_fv' ? 'modulo_fv' : tabAtiva === 'outro' ? 'outro' : 'inversor'
         }
         fornecedores={fornecedores}
+        configuracoesMonitoramento={configuracoesMonitoramento}
         onSalvo={async () => {
           await carregar()
         }}
