@@ -64,7 +64,6 @@ import {
 } from '@/services/centralAtividadesService'
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
-import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
 import { ModalGerenciarAtividades } from '@/components/ModalGerenciarAtividades'
 import type { Atividade, AtividadeCategoriaId, AtividadeStatus } from '@/types/crm'
 
@@ -91,7 +90,6 @@ export default function CentralAtividadesPage() {
 
   // Modais
   const [modalNovaAtividadeOpen, setModalNovaAtividadeOpen] = useState(false)
-  const [modalMensagemMassaOpen, setModalMensagemMassaOpen] = useState(false)
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
 
   // Drawer lateral de filtros combinados
@@ -623,16 +621,6 @@ export default function CentralAtividadesPage() {
 
           <Button
             type="button"
-            onClick={() => setModalMensagemMassaOpen(true)}
-            className="h-9 px-2.5 sm:px-3 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
-            title="Disparar mensagens em massa via WhatsApp"
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>Disparar Mensagens</span>
-          </Button>
-
-          <Button
-            type="button"
             onClick={() => setModalNovaAtividadeOpen(true)}
             className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Criar nova atividade no CRM"
@@ -1107,16 +1095,7 @@ export default function CentralAtividadesPage() {
         }}
       />
 
-      {/* 5. Modal Disparo em Massa WhatsApp */}
-      <ModalDisparoMensagensMassa
-        open={modalMensagemMassaOpen}
-        onOpenChange={setModalMensagemMassaOpen}
-        segmentoInicial="todos"
-        titulo="Disparar Mensagens em Massa via WhatsApp"
-        descricao="Envie mensagens personalizadas via WhatsApp para clientes com registro automático na Central de Atividades."
-      />
-
-      {/* 6. Modal Gerenciar Atividades (Padrões, Checklists e Links) */}
+      {/* 5. Modal Gerenciar Atividades (Padrões, Checklists e Links) */}
       <ModalGerenciarAtividades
         open={modalGerenciarAtividadesOpen}
         onOpenChange={setModalGerenciarAtividadesOpen}
