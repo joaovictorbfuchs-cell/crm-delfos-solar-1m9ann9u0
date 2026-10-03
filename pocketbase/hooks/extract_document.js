@@ -29,7 +29,9 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
     "cidade": string | null,
     "estado": string | null,
     "cep": string | null,
-    "complemento": string | null
+    "complemento": string | null,
+    "latitude": number | null,
+    "longitude": number | null
   },
   "dados_tecnicos": {
     "potencia_kwp": number | null,
@@ -60,10 +62,10 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
   * Em faturas da RGE/CPFL, a UC está no campo "Número da UC" e segue o padrão formatado com pontos e hífen: ex: "200.419.001-19".
   * O campo "consumo.uc" só deve receber a Unidade Consumidora real. Códigos alfanuméricos de rota/instalação como "ERCBU..." são estritamente proibidos.
   * O campo "dados_cadastrais.cpf_cnpj" só recebe valores com EXATAMENTE 11 dígitos (CPF) ou 14 dígitos (CNPJ) próximos a termos como "CPF", "CNPJ", "CPF/CNPJ", "Titular", "Documento", "CNPJ/CPF". Se não constar CPF ou CNPJ de 11 ou 14 dígitos, deixe "cpf_cnpj" como null. NUNCA coloque número de UC ou instalação em "cpf_cnpj".
-- Conta de energia:
+- Conta de energia e Documentos Técnicos:
   * nome: nome do titular/cliente na fatura
   * endereco / cidade / estado / cep: endereço da instalação/unidade consumidora
-  * uc: número da UC (na RGE: padrão com pontos e hífen, ex: "200.419.001-19"). Rejeite códigos alfanuméricos como "ERCBU...".
+  * latitude / longitude: coordenadas geográficas numéricas (ex: -27.634, -52.269) se constarem no memorial, projeto, ART ou conta. Se não constar, retorne null.  * uc: número da UC (na RGE: padrão com pontos e hífen, ex: "200.419.001-19"). Rejeite códigos alfanuméricos como "ERCBU...".
   * consumo_kwh_mes: consumo médio mensal da fatura em kWh. Se houver histórico de meses (ex: 12 ou 13 meses), a média é a soma de todos os meses dividida pela quantidade de meses registrados. NUNCA coloque apenas o consumo de um único mês (ex: 132) se houver histórico.
   * tarifa: valor da tarifa de energia da distribuidora em R$/kWh (TUSD com tributos + TE com tributos, tipicamente entre 0.80 e 1.40 R$/kWh). NUNCA coloque valores espúrios como 0.12 ou parcelas isoladas como Iluminação Pública.
   * classe_consumo: Residencial, Comercial, Industrial, Rural, Poder Público, etc.

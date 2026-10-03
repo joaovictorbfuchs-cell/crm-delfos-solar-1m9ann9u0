@@ -215,6 +215,8 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [novaUsinaNome, setNovaUsinaNome] = useState('')
   const [novaUsinaEndereco, setNovaUsinaEndereco] = useState('')
   const [novaUsinaCidade, setNovaUsinaCidade] = useState('')
+  const [novaUsinaLatitude, setNovaUsinaLatitude] = useState<number | undefined>(undefined)
+  const [novaUsinaLongitude, setNovaUsinaLongitude] = useState<number | undefined>(undefined)
   const [novaUsinaPotencia, setNovaUsinaPotencia] = useState('')
   const [novaUsinaQtdModulos, setNovaUsinaQtdModulos] = useState('')
   const [novaUsinaInversores, setNovaUsinaInversores] = useState('')
@@ -341,6 +343,8 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     setNovaUsinaNome(`Usina ${usinas.length + 1} - ${clienteNome.split(' ')[0]}`)
     setNovaUsinaEndereco('')
     setNovaUsinaCidade(cliente?.cidade || '')
+    setNovaUsinaLatitude(cliente?.latitude !== undefined ? Number(cliente?.latitude) : undefined)
+    setNovaUsinaLongitude(cliente?.longitude !== undefined ? Number(cliente?.longitude) : undefined)
     setNovaUsinaPotencia('')
     setNovaUsinaQtdModulos('')
     setNovaUsinaInversores('')
@@ -443,6 +447,15 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
         camposPreenchidos.push(`Cidade: ${end.cidade}`)
       }
 
+      if (end.latitude !== null && end.latitude !== undefined && !isNaN(Number(end.latitude))) {
+        setNovaUsinaLatitude(Number(end.latitude))
+        camposPreenchidos.push(`Latitude: ${end.latitude}`)
+      }
+      if (end.longitude !== null && end.longitude !== undefined && !isNaN(Number(end.longitude))) {
+        setNovaUsinaLongitude(Number(end.longitude))
+        camposPreenchidos.push(`Longitude: ${end.longitude}`)
+      }
+
       // UC
       if (cons.uc) {
         setNovaUsinaNumeroUc(cons.uc)
@@ -526,6 +539,8 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
           nome: novaUsinaNome.trim(),
           endereco: novaUsinaEndereco.trim(),
           cidade: novaUsinaCidade.trim(),
+          latitude: novaUsinaLatitude,
+          longitude: novaUsinaLongitude,
           potencia_kwp: Number(novaUsinaPotencia) || 0,
           qtd_modulos: Number(novaUsinaQtdModulos) || 0,
           inversores_info: novaUsinaInversores.trim(),

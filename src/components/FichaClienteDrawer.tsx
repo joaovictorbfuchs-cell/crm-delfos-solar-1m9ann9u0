@@ -2361,10 +2361,12 @@ export const FichaClienteDrawer: React.FC = () => {
                     onCreateUsina={async (data) => {
                       await createUsina(data)
                       await recarregarUsinas()
+                      await refreshData()
                     }}
                     onUpdateUsina={async (usinaId, data) => {
                       await updateUsina(usinaId, data)
                       await recarregarUsinas()
+                      await refreshData()
                     }}
                     onDeleteUsina={async (usinaId) => {
                       await deleteUsina(usinaId)

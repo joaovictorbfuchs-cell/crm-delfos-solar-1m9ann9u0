@@ -3932,12 +3932,122 @@ export async function fetchUsinasByClienteId(
   }
 }
 
+export async function sincronizarUsinaComCliente(
+  clienteId: string,
+  dadosUsina: {
+    cidade?: string | null
+    latitude?: number | string | null
+    longitude?: number | string | null
+    usina_endereco?: string | null
+    endereco?: string | null
+  },
+  opcoes?: {
+    isUsinaPrincipal?: boolean
+    forcar?: boolean
+  },
+): Promise<Cliente | null> {
+  if (!clienteId) return null
+  try {
+    const clienteAtual = await pb.collection('clientes').getOne<Cliente>(clienteId, {
+      requestKey: null,
+    })
+
+    const payload: Partial<Cliente> = {}
+    const isPrincipal = Boolean(opcoes?.isUsinaPrincipal || opcoes?.forcar)
+
+    // Sincronizar cidade se cliente não tiver ou for a usina principal
+    const cidadeNova = dadosUsina.cidade ? String(dadosUsina.cidade).trim() : ''
+    if (cidadeNova && (!clienteAtual.cidade || isPrincipal)) {
+      payload.cidade = cidadeNova
+    }
+
+    // Sincronizar usina_endereco se cliente não tiver ou for a usina principal
+    const enderecoNovo = (dadosUsina.usina_endereco || dadosUsina.endereco || '').trim()
+    if (enderecoNovo && (!clienteAtual.usina_endereco || isPrincipal)) {
+      payload.usina_endereco = enderecoNovo
+      if (!clienteAtual.endereco) {
+        payload.endereco = enderecoNovo
+      }
+    }
+
+    // Sincronizar latitude e longitude
+    const latNum =
+      dadosUsina.latitude !== undefined &&
+      dadosUsina.latitude !== null &&
+      dadosUsina.latitude !== ''
+        ? Number(dadosUsina.latitude)
+        : NaN
+    const lngNum =
+      dadosUsina.longitude !== undefined &&
+      dadosUsina.longitude !== null &&
+      dadosUsina.longitude !== ''
+        ? Number(dadosUsina.longitude)
+        : NaN
+
+    if (!isNaN(latNum) && latNum !== 0) {
+      const cliLat =
+        clienteAtual.latitude !== undefined && clienteAtual.latitude !== null
+          ? Number(clienteAtual.latitude)
+          : NaN
+      if (isNaN(cliLat) || cliLat === 0 || isPrincipal) {
+        payload.latitude = latNum
+      }
+    }
+
+    if (!isNaN(lngNum) && lngNum !== 0) {
+      const cliLng =
+        clienteAtual.longitude !== undefined && clienteAtual.longitude !== null
+          ? Number(clienteAtual.longitude)
+          : NaN
+      if (isNaN(cliLng) || cliLng === 0 || isPrincipal) {
+        payload.longitude = lngNum
+      }
+    }
+
+    if (Object.keys(payload).length > 0) {
+      const updated = await pb.collection('clientes').update<Cliente>(clienteId, payload, {
+        requestKey: null,
+      })
+      return updated
+    }
+    return clienteAtual
+  } catch (err) {
+    console.warn(
+      `[sincronizarUsinaComCliente] Falha não bloqueante ao sincronizar cliente ${clienteId}:`,
+      err,
+    )
+    return null
+  }
+}
+
 export async function createUsina(
   data: Partial<import('@/types/crm').UsinaCliente> & { cliente_id: string; nome: string },
 ): Promise<import('@/types/crm').UsinaCliente> {
   const created = await pb.collection('usinas').create<import('@/types/crm').UsinaCliente>(data, {
     expand: 'contrato_id',
   })
+
+  // Sincronização automática usina -> ficha do cliente (aditivo)
+  if (created.cliente_id) {
+    try {
+      const outrasUsinas = await fetchUsinasByClienteId(created.cliente_id)
+      const isPrimeiraUsina = outrasUsinas.length <= 1
+      await sincronizarUsinaComCliente(
+        created.cliente_id,
+        {
+          cidade: created.cidade,
+          latitude: created.latitude,
+          longitude: created.longitude,
+          usina_endereco: created.endereco,
+          endereco: created.endereco,
+        },
+        { isUsinaPrincipal: isPrimeiraUsina },
+      )
+    } catch (syncErr) {
+      console.warn('Erro na sincronização pós createUsina:', syncErr)
+    }
+  }
+
   return created
 }
 
@@ -3950,6 +4060,34 @@ export async function updateUsina(
     .update<import('@/types/crm').UsinaCliente>(id, data, {
       expand: 'contrato_id',
     })
+
+  // Sincronização automática usina -> ficha do cliente quando endereço/coordenadas/cidade forem alterados
+  if (
+    updated.cliente_id &&
+    (data.cidade !== undefined ||
+      data.latitude !== undefined ||
+      data.longitude !== undefined ||
+      data.endereco !== undefined)
+  ) {
+    try {
+      const todas = await fetchUsinasByClienteId(updated.cliente_id)
+      const isPrincipal = todas.length === 0 || todas[0].id === updated.id
+      await sincronizarUsinaComCliente(
+        updated.cliente_id,
+        {
+          cidade: updated.cidade,
+          latitude: updated.latitude,
+          longitude: updated.longitude,
+          usina_endereco: updated.endereco,
+          endereco: updated.endereco,
+        },
+        { isUsinaPrincipal: isPrincipal },
+      )
+    } catch (syncErr) {
+      console.warn('Erro na sincronização pós updateUsina:', syncErr)
+    }
+  }
+
   return updated
 }
 

@@ -15,7 +15,10 @@ import {
   ChevronRight,
   Info,
   Check,
+  GitMerge,
+  Trash2,
 } from 'lucide-react'
+import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -34,6 +37,7 @@ import {
   DadosCadastroForm,
 } from '@/components/ModalCadastroClienteFornecedor'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useToast } from '@/hooks/use-toast'
 import { formatDate } from '@/lib/formatters'
 import { fetchOutrosContatos, fetchAllUsinas } from '@/services/crmService'
 import type { Cliente, ClienteStatus, OutroContato, Atividade, UsinaCliente } from '@/types/crm'
@@ -97,12 +101,15 @@ export interface ClientesFiltrosAvancados {
 const ITEMS_PER_PAGE = 25
 
 export default function Clientes() {
+  const { toast } = useToast()
   const {
     clientes,
     contratosOM,
     atividades,
     openFichaCliente,
     addCliente,
+    bulkRemoveClientes,
+    mesclarClientes,
     isLoading,
     isSessionExpired,
     authError,
@@ -149,6 +156,8 @@ export default function Clientes() {
   // Modais
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
   const [isModalMensagemMassaOpen, setIsModalMensagemMassaOpen] = useState(false)
+  const [isModalMesclarOpen, setIsModalMesclarOpen] = useState(false)
+  const [isExcluindoMassa, setIsExcluindoMassa] = useState(false)
 
   // Carregar outros contatos e usinas para unificação
   const carregarDadosExtras = useCallback(async () => {
@@ -444,6 +453,40 @@ export default function Clientes() {
     }
   }
 
+  // Clientes selecionados para o ModalMesclarClientes (somente clientes reais da coleção clientes)
+  const clientesSelecionadosParaMesclar = useMemo(() => {
+    const set = new Set(selectedIds)
+    return clientes.filter((c) => set.has(c.id))
+  }, [selectedIds, clientes])
+
+  const handleExcluirSelecionados = async () => {
+    if (selectedFilteredRows.length === 0) return
+    const idsParaExcluir = selectedFilteredRows.map((r) => r.id)
+    const confirmou = window.confirm(
+      `Deseja realmente excluir ${idsParaExcluir.length} cliente(s) selecionado(s)? Esta ação não pode ser desfeita.`,
+    )
+    if (!confirmou) return
+
+    setIsExcluindoMassa(true)
+    try {
+      await bulkRemoveClientes(idsParaExcluir)
+      setSelectedIds([])
+      toast({
+        title: 'Clientes excluídos',
+        description: `${idsParaExcluir.length} cliente(s) excluído(s) com sucesso.`,
+      })
+    } catch (err) {
+      console.error('Erro ao excluir clientes selecionados:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir alguns ou todos os clientes selecionados.',
+      })
+    } finally {
+      setIsExcluindoMassa(false)
+    }
+  }
+
   // Destinatários para o modal de mensagem em massa baseado nos clientes selecionados
   const destinatariosMensagemMassa = useMemo(() => {
     if (selectedIds.length === 0) return undefined
@@ -666,7 +709,41 @@ export default function Clientes() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
-            {/* Botão Disparar Mensagens WhatsApp Massa movido da Central de Atividades */}
+            {/* Botão Mesclar Clientes (habilitado com >= 2 selecionados) */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={
+                selectedFilteredRows.length < 2 || clientesSelecionadosParaMesclar.length < 2
+              }
+              onClick={() => setIsModalMesclarOpen(true)}
+              className="h-8 px-3 rounded-xl border-emerald-300 bg-white hover:bg-emerald-100/60 text-emerald-900 font-bold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                selectedFilteredRows.length < 2
+                  ? 'Selecione 2 ou mais clientes para mesclar'
+                  : 'Mesclar clientes selecionados em um único registro unificado'
+              }
+            >
+              <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Mesclar Clientes</span>
+            </Button>
+
+            {/* Botão Excluir Selecionados */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isExcluindoMassa}
+              onClick={handleExcluirSelecionados}
+              className="h-8 px-3 rounded-xl border-red-200 bg-white hover:bg-red-50 text-red-700 hover:text-red-800 font-bold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50"
+              title="Excluir todos os clientes selecionados"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-600" />
+              <span>{isExcluindoMassa ? 'Excluindo...' : 'Excluir Selecionados'}</span>
+            </Button>
+
+            {/* Botão Disparar Mensagens WhatsApp Massa */}
             <Button
               type="button"
               onClick={() => setIsModalMensagemMassaOpen(true)}
@@ -1222,6 +1299,23 @@ export default function Clientes() {
         open={isModalMensagemMassaOpen}
         onOpenChange={setIsModalMensagemMassaOpen}
         destinatariosIniciais={destinatariosMensagemMassa}
+      />
+
+      {/* 6. Modal Mesclar Clientes */}
+      <ModalMesclarClientes
+        isOpen={isModalMesclarOpen}
+        onClose={() => setIsModalMesclarOpen(false)}
+        clientesIniciais={clientesSelecionadosParaMesclar}
+        todosClientes={clientes}
+        onConfirmarMesclagem={async (opcoes) => {
+          await mesclarClientes(opcoes)
+          setSelectedIds([])
+          setIsModalMesclarOpen(false)
+          toast({
+            title: 'Clientes mesclados',
+            description: 'Os clientes foram unificados com sucesso.',
+          })
+        }}
       />
     </div>
   )

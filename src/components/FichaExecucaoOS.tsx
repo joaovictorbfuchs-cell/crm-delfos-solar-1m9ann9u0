@@ -377,13 +377,76 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
-  // Navegação no Google Maps e Waze
-  const enderecoCompleto = [os.endereco || cliente?.endereco, cliente?.cidade]
+  // Navegação no Google Maps e Waze com suporte a coordenadas GPS da Usina / Cliente
+  const SEDE_DELFOS = 'Rua Espírito Santo, 275, Erechim - RS, CEP 99709296'
+
+  const enderecoCompleto = [
+    os.endereco || usinaVinculada?.endereco || cliente?.usina_endereco || cliente?.endereco,
+    usinaVinculada?.cidade || cliente?.cidade,
+  ]
     .filter(Boolean)
     .join(' - ')
 
+  // Coordenadas GPS prioritárias: usina vinculada -> cliente
+  const latCoord =
+    usinaVinculada?.latitude !== undefined &&
+    usinaVinculada?.latitude !== null &&
+    !isNaN(Number(usinaVinculada.latitude)) &&
+    Number(usinaVinculada.latitude) !== 0
+      ? Number(usinaVinculada.latitude)
+      : cliente?.latitude !== undefined &&
+          cliente?.latitude !== null &&
+          !isNaN(Number(cliente.latitude)) &&
+          Number(cliente.latitude) !== 0
+        ? Number(cliente.latitude)
+        : null
+
+  const lngCoord =
+    usinaVinculada?.longitude !== undefined &&
+    usinaVinculada?.longitude !== null &&
+    !isNaN(Number(usinaVinculada.longitude)) &&
+    Number(usinaVinculada.longitude) !== 0
+      ? Number(usinaVinculada.longitude)
+      : cliente?.longitude !== undefined &&
+          cliente?.longitude !== null &&
+          !isNaN(Number(cliente.longitude)) &&
+          Number(cliente.longitude) !== 0
+        ? Number(cliente.longitude)
+        : null
+
+  const temCoordenadasGps = latCoord !== null && lngCoord !== null
+
+  const handleTraçarRotaGPSUsina = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
+    if (temCoordenadasGps) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${latCoord},${lngCoord}`
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    if (enderecoCompleto) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${encodeURIComponent(enderecoCompleto)}`
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    toast({
+      variant: 'destructive',
+      title: 'Destino não disponível',
+      description: 'Esta OS não possui coordenadas GPS nem endereço cadastrado para traçar rota.',
+    })
+  }
+
   const handleAbrirGoogleMaps = (e?: React.MouseEvent) => {
     if (e) e.preventDefault()
+    if (temCoordenadasGps) {
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${latCoord},${lngCoord}`,
+        '_blank',
+        'noopener,noreferrer',
+      )
+      return
+    }
     if (!enderecoCompleto) return
     window.open(
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`,
@@ -889,8 +952,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </span>
             </div>
 
-            {enderecoCompleto && (
-              <div className="flex items-center gap-1 shrink-0">
+            {(enderecoCompleto || temCoordenadasGps) && (
+              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                {/* Botão Principal: Traçar Rota (GPS Usina) */}
+                <button
+                  type="button"
+                  onClick={handleTraçarRotaGPSUsina}
+                  className="h-6 px-2 inline-flex items-center gap-1 rounded-md bg-amber-400 hover:bg-amber-300 text-[#0F2038] text-[10px] font-extrabold transition-all shadow-xs cursor-pointer"
+                  title={
+                    temCoordenadasGps
+                      ? `Traçar Rota via GPS (${latCoord}, ${lngCoord}) a partir da sede Delfos Solar`
+                      : 'Traçar Rota via endereço textual a partir da sede Delfos Solar'
+                  }
+                >
+                  <Navigation className="w-3 h-3 text-[#0F2038]" />
+                  <span>Traçar Rota (GPS Usina)</span>
+                </button>
+
                 <TooltipProvider delayDuration={150}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -905,7 +983,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
-                      Abrir endereço no Google Maps
+                      {temCoordenadasGps
+                        ? `Abrir coordenadas da usina (${latCoord}, ${lngCoord}) no Google Maps`
+                        : 'Abrir endereço no Google Maps'}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

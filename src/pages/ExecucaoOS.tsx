@@ -25,6 +25,7 @@ import {
   Trash2,
   X,
   RotateCcw,
+  Navigation,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -1208,6 +1209,82 @@ export default function ExecucaoOS() {
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {/* Botão Traçar Rota (GPS Usina / Cliente) direto no card */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const SEDE_DELFOS =
+                              'Rua Espírito Santo, 275, Erechim - RS, CEP 99709296'
+                            const usina = os.expand?.usina_id
+                            const cli = os.expand?.cliente_id
+                            const lat =
+                              usina?.latitude !== undefined &&
+                              usina?.latitude !== null &&
+                              !isNaN(Number(usina.latitude)) &&
+                              Number(usina.latitude) !== 0
+                                ? Number(usina.latitude)
+                                : cli?.latitude !== undefined &&
+                                    cli?.latitude !== null &&
+                                    !isNaN(Number(cli.latitude)) &&
+                                    Number(cli.latitude) !== 0
+                                  ? Number(cli.latitude)
+                                  : null
+                            const lng =
+                              usina?.longitude !== undefined &&
+                              usina?.longitude !== null &&
+                              !isNaN(Number(usina.longitude)) &&
+                              Number(usina.longitude) !== 0
+                                ? Number(usina.longitude)
+                                : cli?.longitude !== undefined &&
+                                    cli?.longitude !== null &&
+                                    !isNaN(Number(cli.longitude)) &&
+                                    Number(cli.longitude) !== 0
+                                  ? Number(cli.longitude)
+                                  : null
+
+                            if (lat !== null && lng !== null) {
+                              window.open(
+                                `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${lat},${lng}`,
+                                '_blank',
+                                'noopener,noreferrer',
+                              )
+                              return
+                            }
+
+                            const dest = [
+                              os.endereco ||
+                                usina?.endereco ||
+                                cli?.usina_endereco ||
+                                cli?.endereco,
+                              usina?.cidade || cli?.cidade,
+                            ]
+                              .filter(Boolean)
+                              .join(' - ')
+
+                            if (dest) {
+                              window.open(
+                                `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${encodeURIComponent(dest)}`,
+                                '_blank',
+                                'noopener,noreferrer',
+                              )
+                              return
+                            }
+
+                            toast({
+                              variant: 'destructive',
+                              title: 'Destino não disponível',
+                              description:
+                                'Esta OS não possui coordenadas GPS nem endereço para traçar rota.',
+                            })
+                          }}
+                          className="h-8 px-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-[#0F2038] bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors shadow-2xs"
+                          title="Traçar Rota a partir da sede Delfos Solar via GPS da usina ou endereço"
+                        >
+                          <Navigation className="w-3.5 h-3.5 text-[#0F2038]" />
+                          <span>Traçar Rota</span>
+                        </button>
+
                         {/* OS CONCLUÍDA: Ações exclusivas de Admin para Relatório Técnico em PDF e WhatsApp para Cliente */}
                         {os.status === 'concluida' && isAdmin && (
                           <div

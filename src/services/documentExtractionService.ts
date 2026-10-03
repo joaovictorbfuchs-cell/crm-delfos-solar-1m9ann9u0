@@ -25,6 +25,8 @@ export interface EnderecoExtraido {
   estado?: string | null
   cep?: string | null
   complemento?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface DadosTecnicosExtraidos {

@@ -34,6 +34,7 @@ import {
 } from '@/services/documentExtractionService'
 import { fetchEquipamentos } from '@/services/equipamentosService'
 import { vincularEquipamentoUsina } from '@/services/usinaEquipamentosService'
+import { sincronizarUsinaComCliente } from '@/services/crmService'
 import { ModalCadastroEquipamentoRapido } from '@/components/ModalCadastroEquipamentoRapido'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import type { UsinaCliente } from '@/types/crm'
@@ -548,6 +549,38 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       })
     }
 
+    if (end.latitude !== null && end.latitude !== undefined && !isNaN(Number(end.latitude))) {
+      const valAtual = usinaAtual.latitude
+      const numLat = Number(end.latitude)
+      lista.push({
+        id: 'latitude',
+        chaveUsina: 'latitude',
+        categoria: 'endereco',
+        label: 'Latitude (GPS)',
+        valorFormatado: String(numLat),
+        valorBruto: numLat,
+        valorAtual: valAtual ? String(valAtual) : null,
+        jaPreenchido: Boolean(valAtual && Number(valAtual) !== 0),
+        diferente: valAtual !== numLat,
+      })
+    }
+
+    if (end.longitude !== null && end.longitude !== undefined && !isNaN(Number(end.longitude))) {
+      const valAtual = usinaAtual.longitude
+      const numLng = Number(end.longitude)
+      lista.push({
+        id: 'longitude',
+        chaveUsina: 'longitude',
+        categoria: 'endereco',
+        label: 'Longitude (GPS)',
+        valorFormatado: String(numLng),
+        valorBruto: numLng,
+        valorAtual: valAtual ? String(valAtual) : null,
+        jaPreenchido: Boolean(valAtual && Number(valAtual) !== 0),
+        diferente: valAtual !== numLng,
+      })
+    }
+
     // 4. TITULAR / RESPONSÁVEL DA USINA
     if (cad.nome) {
       const valAtual = usinaAtual.titular_nome
@@ -929,6 +962,28 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       }
 
       await onApplyImport(updates, resumo, modoImportacao)
+
+      // Propagar cidade, latitude, longitude e endereço para o cliente vinculado caso haja cliente_id
+      if (usina.cliente_id) {
+        try {
+          await sincronizarUsinaComCliente(
+            usina.cliente_id,
+            {
+              cidade: (updates.cidade as string) || usina.cidade,
+              latitude: (updates.latitude as number) ?? usina.latitude,
+              longitude: (updates.longitude as number) ?? usina.longitude,
+              usina_endereco: (updates.endereco as string) || usina.endereco,
+              endereco: (updates.endereco as string) || usina.endereco,
+            },
+            { isUsinaPrincipal: true },
+          )
+        } catch (syncErr) {
+          console.warn(
+            '[ModalImportarDocumentoUsina] Erro ao sincronizar dados com cliente:',
+            syncErr,
+          )
+        }
+      }
 
       // Se houver equipamentos existentes correspondentes, vincular como ativo da usina automaticamente
       // Verificando antes se já existe vínculo (usina_id + equipamento_id) e atualizando em vez de duplicar
