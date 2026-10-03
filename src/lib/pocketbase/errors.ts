@@ -32,13 +32,16 @@ export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
     const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    const status = errObj.status ?? errObj.statusCode
+    if (status === 401 || status === 403) return true
+    const msg = String(errObj.message || '').toLowerCase()
     if (
-      typeof errObj.message === 'string' &&
-      (errObj.message.includes('Token is expired') ||
-        errObj.message.includes('The request requires valid record authorization') ||
-        errObj.message.includes('Failed to authenticate'))
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('the request requires valid user authorization token')
     ) {
       return true
     }

@@ -26,18 +26,32 @@ function ensureConversaForMessage(app, clienteId, telefoneDestino, previewTexto,
       } catch (_) {}
     }
 
-    // 2. Se não achou por cliente_id e temos dígitos do telefone, buscar por número
+    // 2. Se não achou por cliente_id e temos dígitos do telefone, buscar por número com tolerância ao 9º dígito
     if (!conversaRecord && last8) {
       try {
         const phoneConvs = app.findRecordsByFilter(
           convCol.id,
           `numero ~ '${last8}'`,
           '-updated',
-          1,
+          10,
           0,
         )
         if (phoneConvs && phoneConvs.length > 0) {
-          conversaRecord = phoneConvs[0]
+          // Prioridade para casamento exato dos dígitos essenciais
+          for (let i = 0; i < phoneConvs.length; i++) {
+            const cNum = (phoneConvs[i].getString('numero') || '').replace(/\D/g, '')
+            if (
+              cNum === cleanPhone ||
+              (cNum.startsWith('55') && cNum.slice(2) === cleanPhone) ||
+              (cleanPhone.startsWith('55') && cleanPhone.slice(2) === cNum)
+            ) {
+              conversaRecord = phoneConvs[i]
+              break
+            }
+          }
+          if (!conversaRecord) {
+            conversaRecord = phoneConvs[0]
+          }
         }
       } catch (_) {}
     }

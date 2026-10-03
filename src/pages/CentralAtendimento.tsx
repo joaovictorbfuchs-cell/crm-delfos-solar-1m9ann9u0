@@ -14,6 +14,7 @@ import {
   X,
   FileSpreadsheet,
   DownloadCloud,
+  Sparkles,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -42,6 +43,11 @@ import { MoreVertical, UserCheck, Building2 } from 'lucide-react'
 import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
 import { fetchOutrosContatos, createWhatsAppConversa } from '@/services/crmService'
 import { fetchContatosUnicos } from '@/services/contatosService'
+import {
+  casarRemetenteComContatos,
+  normalizarNumeroWhatsApp,
+  compararTelefonesFlexivel,
+} from '@/lib/reconhecimentoRemetenteWhatsApp'
 import {
   resolverNumeroDestinoCliente,
   MENSAGEM_ALERTA_SEM_NUMERO,
@@ -294,6 +300,8 @@ export const CentralAtendimento: React.FC = () => {
     const digitsTerm = rawTerm.replace(/\D/g, '')
 
     const safeConversas = Array.isArray(whatsAppConversas) ? whatsAppConversas : []
+    const safeClientes = Array.isArray(clientes) ? clientes : []
+    const safeContatosAdic = Array.isArray(contatosAdicionais) ? contatosAdicionais : []
 
     // Mapear conversas que possuem mensagens no histórico correspondentes ao termo buscado
     const conversasComMensagemMatch = new Set<string>()
@@ -325,7 +333,8 @@ export const CentralAtendimento: React.FC = () => {
         matchNumero =
           numDigits.includes(digitsTerm) ||
           numWithout55.includes(digitsTerm) ||
-          (digitsTerm.startsWith('55') && numDigits.includes(digitsTerm.slice(2)))
+          (digitsTerm.startsWith('55') && numDigits.includes(digitsTerm.slice(2))) ||
+          compararTelefonesFlexivel(rawNumero, digitsTerm) !== 'nenhum'
       }
       if (!matchNumero) {
         matchNumero =
@@ -793,13 +802,14 @@ export const CentralAtendimento: React.FC = () => {
     const numeroFinal =
       cleanNum.length === 10 || cleanNum.length === 11 ? `55${cleanNum}` : cleanNum
 
-    // 1. Verificar se por ventura já existe conversa com esse número (ou número sem DDI 55)
+    // 1. Verificar se por ventura já existe conversa com esse número (ou número sem DDI 55, ou tolerância ao 9º dígito)
     const conversaExistente = whatsAppConversas.find((conv) => {
       if (item.clienteId && conv.cliente_id === item.clienteId) return true
       const cNum = cleanPhoneDigits(conv.numero || '')
       if (cNum === numeroFinal || cNum === cleanNum) return true
       if (numeroFinal.startsWith('55') && cNum === numeroFinal.slice(2)) return true
       if (cNum.startsWith('55') && cNum.slice(2) === numeroFinal) return true
+      if (compararTelefonesFlexivel(conv.numero, numeroFinal) !== 'nenhum') return true
       return false
     })
 
@@ -1256,6 +1266,47 @@ export const CentralAtendimento: React.FC = () => {
                           "{conv.ultima_mensagem_preview || 'Nova mensagem recebida'}"
                         </p>
 
+                        {/* Ambiguidade / Sugestão de Contatos Compatíveis (9º dígito / Adicionais) */}
+                        {(() => {
+                          const resMatch = casarRemetenteComContatos(
+                            conv.numero,
+                            clientes as any,
+                            contatosAdicionais as any,
+                          )
+                          if (resMatch.candidatosCompativeis.length === 0) return null
+                          const isMultiplos = resMatch.candidatosCompativeis.length > 1
+                          return (
+                            <div className="mt-2 p-2 bg-amber-50/90 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 space-y-1">
+                              <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span>
+                                  {isMultiplos
+                                    ? `${resMatch.candidatosCompativeis.length} contatos compatíveis encontrados:`
+                                    : 'Contato compatível identificado:'}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-amber-800 leading-tight">
+                                {resMatch.candidatosCompativeis.slice(0, 2).map((cand, idx) => (
+                                  <div key={idx} className="truncate">
+                                    • <strong className="text-gray-900">{cand.clienteNome}</strong>
+                                    {cand.tipoMatch === 'tolerante_nono_digito' && (
+                                      <span className="ml-1 text-[9px] text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
+                                        (9º dígito)
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                                {resMatch.candidatosCompativeis.length > 2 && (
+                                  <div className="text-[9px] text-amber-700 italic">
+                                    + {resMatch.candidatosCompativeis.length - 2} outro(s)
+                                    contato(s)
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })()}
+
                         <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
                           <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded">
                             Número Não Vinculado
@@ -1529,12 +1580,13 @@ export const CentralAtendimento: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal para Vincular Cliente a Conversa Desconhecida */}
+      {/* Modal para Vincular Cliente a Conversa Desconhecida com Reconhecimento Flexível */}
       <ModalVincularCliente
         isOpen={Boolean(conversaParaVincular)}
         onClose={() => setConversaParaVincular(null)}
         conversa={conversaParaVincular}
         clientes={clientes}
+        contatosAdicionais={contatosAdicionais}
         onVincular={handleVincularCliente}
         onCadastrarLead={(conv) => {
           setSelectedConversaId(conv.id)

@@ -27,7 +27,42 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       return e.json(200, { ok: true, ignored: true, reason: 'phone_not_found' })
     }
 
-    // Normalizar telefone (apenas dígitos e prefixo 55 se BR)
+    // Normalizar telefone com regras flexíveis de DDI, prefixo e dígitos essenciais
+    function normalizarTelefoneCru(raw) {
+      if (!raw) return ''
+      let s = raw.toString().split('@')[0].split(':')[0].trim()
+      let d = s.replace(/\D/g, '')
+      while (d.startsWith('00')) d = d.slice(2)
+      if (d.startsWith('0') && (d.length === 11 || d.length === 12)) {
+        d = d.slice(1)
+      }
+      if (d.startsWith('55') && (d.length === 12 || d.length === 13)) {
+        d = d.slice(2)
+      }
+      if (d.length === 8 || d.length === 9) {
+        d = '54' + d
+      }
+      return d
+    }
+
+    function compararFlexivel(telA, telB) {
+      const a = normalizarTelefoneCru(telA)
+      const b = normalizarTelefoneCru(telB)
+      if (!a || !b || a.length < 8 || b.length < 8) return 'nenhum'
+      if (a === b) return 'exato'
+      const ultA = a.slice(-8)
+      const ultB = b.slice(-8)
+      if (ultA === ultB) {
+        if (a.length >= 10 && b.length >= 10) {
+          if (a.slice(0, 2) === b.slice(0, 2)) return 'tolerante_nono_digito'
+          return 'nenhum'
+        }
+        return 'tolerante_nono_digito'
+      }
+      return 'nenhum'
+    }
+
+    const normPhone = normalizarTelefoneCru(rawPhone)
     let cleanPhone = rawPhone.replace(/\D/g, '')
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
       cleanPhone = '55' + cleanPhone
@@ -341,40 +376,122 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     const messageIdGateway = (body.messageId || body.zaapId || body.id || '').toString().trim()
     const nowIso = new Date().toISOString()
 
-    // 1. Verificar se existe cliente com esse número
-    // O número de clientes pode estar em 'whatsapp' ou 'telefone', mascarado ou não
-    // Para busca tolerante, buscar clientes e comparar dígitos normalizados
+    // 1. Verificar se existe cliente com esse número (com tolerância ao 9º dígito e busca em contatos_adicionais)
+    // Regra:
+    // - Casamento com tolerância ao 9º dígito (comparar últimos 8 dígitos + DDD nos dois sentidos: 8 vs 9 e 9 vs 8)
+    // - Varrer cliente principal (whatsapp, telefone, telefone_secundario, titular_telefone) e contatos_adicionais
+    // - Prioridade ao contato cujo número bater EXATAMENTE
+    // - Se houver mais de um compatível e nenhum exato único: marcar ambiguidade (conversa criada na Fila de Novos como 'novo')
     let clienteEncontrado = null
+    let candidatosExatos = []
+    let candidatosTolerantes = []
+    const last8Digits = normPhone.length >= 8 ? normPhone.slice(-8) : cleanPhone.slice(-8)
+
     try {
-      // Tentativa 1: busca exata direta pelo campo whatsapp ou telefone
-      const directClients = $app.findRecordsByFilter(
-        'clientes',
-        `whatsapp ~ '${cleanPhone.slice(-8)}' || telefone ~ '${cleanPhone.slice(-8)}'`,
-        '-updated',
-        10,
-        0,
-      )
+      if (last8Digits) {
+        // A) Buscar clientes principais por fragmento dos últimos 8 dígitos
+        const directClients = $app.findRecordsByFilter(
+          'clientes',
+          `whatsapp ~ '${last8Digits}' || telefone ~ '${last8Digits}' || telefone_secundario ~ '${last8Digits}' || titular_telefone ~ '${last8Digits}'`,
+          '-updated',
+          25,
+          0,
+        )
 
-      for (let i = 0; i < directClients.length; i++) {
-        const c = directClients[i]
-        const cWhats = (c.getString('whatsapp') || '').replace(/\D/g, '')
-        const cTel = (c.getString('telefone') || '').replace(/\D/g, '')
-
-        const matchWhats =
-          cWhats &&
-          (cWhats === cleanPhone ||
-            cWhats.endsWith(cleanPhone.slice(-8)) ||
-            cleanPhone.endsWith(cWhats.slice(-8)))
-        const matchTel =
-          cTel &&
-          (cTel === cleanPhone ||
-            cTel.endsWith(cleanPhone.slice(-8)) ||
-            cleanPhone.endsWith(cTel.slice(-8)))
-
-        if (matchWhats || matchTel) {
-          clienteEncontrado = c
-          break
+        for (let i = 0; i < directClients.length; i++) {
+          const c = directClients[i]
+          const campos = [
+            c.getString('whatsapp'),
+            c.getString('telefone'),
+            c.getString('telefone_secundario'),
+            c.getString('titular_telefone'),
+          ]
+          for (let f = 0; f < campos.length; f++) {
+            const num = campos[f]
+            if (!num) continue
+            const match = compararFlexivel(normPhone, num)
+            if (match === 'exato') {
+              candidatosExatos.push({ cliente: c, origem: 'cliente', numero: num })
+              break
+            } else if (match === 'tolerante_nono_digito') {
+              candidatosTolerantes.push({ cliente: c, origem: 'cliente', numero: num })
+              break
+            }
+          }
         }
+
+        // B) Buscar contatos adicionais vinculados aos clientes
+        try {
+          const adicRecs = $app.findRecordsByFilter(
+            'contatos_adicionais',
+            `telefone ~ '${last8Digits}'`,
+            '-updated',
+            25,
+            0,
+          )
+          for (let i = 0; i < adicRecs.length; i++) {
+            const adic = adicRecs[i]
+            const cliId = adic.getString('cliente') || adic.getString('cliente_id')
+            if (!cliId) continue
+            const num = adic.getString('telefone')
+            const match = compararFlexivel(normPhone, num)
+            if (match !== 'nenhum') {
+              try {
+                const cliRec = $app.findRecordById('clientes', cliId)
+                if (cliRec) {
+                  if (match === 'exato') {
+                    candidatosExatos.push({
+                      cliente: cliRec,
+                      origem: 'contato_adicional',
+                      contatoAdicional: adic,
+                      numero: num,
+                    })
+                  } else {
+                    candidatosTolerantes.push({
+                      cliente: cliRec,
+                      origem: 'contato_adicional',
+                      contatoAdicional: adic,
+                      numero: num,
+                    })
+                  }
+                }
+              } catch (_) {}
+            }
+          }
+        } catch (errAdic) {
+          console.log('[WEBHOOK AVISO CONTATOS ADICIONAIS]', errAdic)
+        }
+      }
+
+      // Deduplicar candidatos por ID de cliente
+      const deduplicarPorCliente = (lista) => {
+        const unicos = []
+        const vistos = {}
+        for (let i = 0; i < lista.length; i++) {
+          const id = lista[i].cliente.id
+          if (!vistos[id]) {
+            vistos[id] = true
+            unicos.push(lista[i])
+          }
+        }
+        return unicos
+      }
+
+      const exatosUnicos = deduplicarPorCliente(candidatosExatos)
+      const tolerantesUnicos = deduplicarPorCliente(candidatosTolerantes)
+
+      if (exatosUnicos.length === 1) {
+        // Prioridade máxima: 1 único cliente com casamento EXATO
+        clienteEncontrado = exatosUnicos[0].cliente
+      } else if (exatosUnicos.length > 1) {
+        // Ambiguidade: mais de um cliente bate exato
+        clienteEncontrado = null
+      } else if (tolerantesUnicos.length === 1) {
+        // Tolerância de 9º dígito: 1 único cliente compatível
+        clienteEncontrado = tolerantesUnicos[0].cliente
+      } else if (tolerantesUnicos.length > 1) {
+        // Ambiguidade: mais de um cliente compatível com tolerância de 9º dígito
+        clienteEncontrado = null
       }
     } catch (errBuscaCliente) {
       console.log('[WEBHOOK AVISO BUSCA CLIENTE]', errBuscaCliente)

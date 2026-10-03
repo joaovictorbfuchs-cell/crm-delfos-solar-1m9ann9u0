@@ -9,16 +9,22 @@ import {
   X,
   RefreshCw,
   Plus,
+  Sparkles,
 } from 'lucide-react'
-import type { Cliente, WhatsAppConversa } from '@/types/crm'
+import type { Cliente, WhatsAppConversa, ContatoAdicional } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
+import {
+  casarRemetenteComContatos,
+  CandidatoContatoCasamento,
+} from '@/lib/reconhecimentoRemetenteWhatsApp'
 
 interface ModalVincularClienteProps {
   isOpen: boolean
   onClose: () => void
   conversa: WhatsAppConversa | null
   clientes: Cliente[]
+  contatosAdicionais?: ContatoAdicional[]
   onVincular: (clienteId: string) => Promise<void>
   onCadastrarLead?: (conversa: WhatsAppConversa) => void
 }
@@ -28,6 +34,7 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
   onClose,
   conversa,
   clientes,
+  contatosAdicionais = [],
   onVincular,
   onCadastrarLead,
 }) => {
@@ -37,6 +44,17 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isReloading, setIsReloading] = useState(false)
+
+  // Reconhecimento inteligente com tolerância ao 9º dígito e busca em contatos adicionais
+  const sugestoesCompativeis = useMemo<CandidatoContatoCasamento[]>(() => {
+    if (!isOpen || !conversa?.numero) return []
+    const resultado = casarRemetenteComContatos(
+      conversa.numero,
+      clientes as any,
+      contatosAdicionais as any,
+    )
+    return resultado.candidatosCompativeis
+  }, [isOpen, conversa, clientes, contatosAdicionais])
 
   const handleRecarregarClientes = async () => {
     try {
@@ -206,6 +224,80 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {/* Sugestões Inteligentes por Casamento Flexível (9º dígito / Contatos Adicionais) */}
+          {sugestoesCompativeis.length > 0 && !searchTerm.trim() && (
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  {sugestoesCompativeis.length === 1
+                    ? 'Contato compatível detectado (tolerância ao 9º dígito ou contato adicional):'
+                    : `Múltiplos contatos compatíveis encontrados (${sugestoesCompativeis.length}) — escolha o contato correto:`}
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                O número recebido ({formatWhatsAppPhone(conversa.numero)}) coincide com os registros
+                abaixo (considerando DDD, últimos 8 dígitos do celular ou vínculos).
+              </p>
+
+              <div className="space-y-1.5 pt-1">
+                {sugestoesCompativeis.map((cand) => {
+                  const isSelected = selectedClienteId === cand.clienteId
+                  return (
+                    <div
+                      key={`sugestao_${cand.clienteId}_${cand.origem}_${cand.numeroNormalizado}`}
+                      onClick={() => setSelectedClienteId(cand.clienteId)}
+                      className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-2.5 text-xs ${
+                        isSelected
+                          ? 'bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                          : 'bg-white/90 hover:bg-white border-amber-200'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-gray-900">{cand.clienteNome}</span>
+                          {cand.contatoNome && cand.contatoNome !== cand.clienteNome && (
+                            <span className="text-[11px] text-gray-600 font-medium">
+                              • Contato: {cand.contatoNome}
+                            </span>
+                          )}
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
+                              cand.tipoMatch === 'exato'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {cand.tipoMatch === 'exato'
+                              ? 'Casamento Exato'
+                              : 'Compatível (9º Dígito)'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                          <span>{cand.detalhe}</span>
+                          <span>•</span>
+                          <span className="font-mono text-gray-700">
+                            Cadastrado: {formatWhatsAppPhone(cand.numeroCadastrado)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
+                          isSelected
+                            ? 'bg-amber-600 border-amber-600 text-white'
+                            : 'border-gray-300 bg-white'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 
