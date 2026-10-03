@@ -45,7 +45,7 @@ export interface ModalMesclarClientesProps {
   clienteInicial?: Cliente | null
   // Lista inicial de clientes selecionados (2 ou mais)
   clientesIniciais?: Cliente[]
-  todosClientes: Cliente[]
+  todosClientes?: Cliente[]
   onConfirmarMesclagem: (opcoes: MesclagemOpcoes) => Promise<void>
 }
 
@@ -210,7 +210,7 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
   onClose,
   clienteInicial,
   clientesIniciais = [],
-  todosClientes,
+  todosClientes = [],
   onConfirmarMesclagem,
 }) => {
   // Lista de IDs dos clientes participantes da mesclagem (pode ser 2, 3, 4... N)
@@ -259,12 +259,15 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
 
     let idsIniciais: string[] = []
 
-    if (clientesIniciais && clientesIniciais.length > 0) {
-      idsIniciais = clientesIniciais.map((c) => c.id)
-    } else if (clienteInicial) {
+    const listaIniciais = clientesIniciais ?? []
+    const listaTodos = todosClientes ?? []
+
+    if (listaIniciais.length > 0) {
+      idsIniciais = listaIniciais.map((c) => c?.id).filter((id): id is string => Boolean(id))
+    } else if (clienteInicial?.id) {
       idsIniciais = [clienteInicial.id]
-    } else if (todosClientes.length > 0) {
-      idsIniciais = [todosClientes[0].id]
+    } else if (listaTodos.length > 0 && listaTodos[0]?.id) {
+      idsIniciais = [listaTodos[0].id]
     }
 
     // Remove duplicados
@@ -283,8 +286,11 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
 
   // Obter objetos completos dos clientes participantes na ordem
   const clientesParticipantes = useMemo(() => {
-    const map = new Map(todosClientes.map((c) => [c.id, c]))
-    return clientesParticipantesIds.map((id) => map.get(id)).filter((c): c is Cliente => Boolean(c))
+    const listaTodos = todosClientes ?? []
+    const map = new Map(listaTodos.map((c) => [c.id, c]))
+    return (clientesParticipantesIds ?? [])
+      .map((id) => map.get(id))
+      .filter((c): c is Cliente => Boolean(c))
   }, [todosClientes, clientesParticipantesIds])
 
   const clientePrincipal = useMemo(() => {
@@ -426,9 +432,9 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
   // Candidatos para adicionar à mesclagem
   const candidatosParaAdicionar = useMemo(() => {
     const termo = buscaAdicional.trim().toLowerCase()
-    const setIds = new Set(clientesParticipantesIds)
+    const setIds = new Set(clientesParticipantesIds ?? [])
 
-    return todosClientes
+    return (todosClientes ?? [])
       .filter((c) => !setIds.has(c.id))
       .filter((c) => {
         if (!termo) return true

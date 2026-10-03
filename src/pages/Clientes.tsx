@@ -1305,8 +1305,8 @@ export default function Clientes() {
       <ModalMesclarClientes
         isOpen={isModalMesclarOpen}
         onClose={() => setIsModalMesclarOpen(false)}
-        clientesIniciais={clientesSelecionadosParaMesclar}
-        todosClientes={clientes}
+        clientesIniciais={clientesSelecionadosParaMesclar ?? []}
+        todosClientes={clientes ?? []}
         onConfirmarMesclagem={async (opcoes) => {
           await mesclarClientes(opcoes)
           setSelectedIds([])

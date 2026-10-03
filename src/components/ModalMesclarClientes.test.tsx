@@ -224,4 +224,21 @@ describe('ModalMesclarClientes - N clientes lado a lado', () => {
       expect(onClose).toHaveBeenCalled()
     })
   })
+
+  it('renderiza com segurança mesmo quando todosClientes ou clientesIniciais forem undefined', () => {
+    const onClose = vi.fn()
+    const onConfirmar = vi.fn().mockResolvedValue(undefined)
+
+    const { container } = render(
+      <ModalMesclarClientes
+        isOpen={true}
+        onClose={onClose}
+        clientesIniciais={undefined}
+        todosClientes={undefined}
+        onConfirmarMesclagem={onConfirmar}
+      />,
+    )
+
+    expect(container).toBeDefined()
+  })
 })
