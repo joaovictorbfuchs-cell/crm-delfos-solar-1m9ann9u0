@@ -56,6 +56,7 @@ import {
   Wrench,
   Copy,
   UploadCloud,
+  Navigation,
 } from 'lucide-react'
 import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
@@ -139,6 +140,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   // Form states para edição na ficha própria
   const [editNome, setEditNome] = useState('')
   const [editEndereco, setEditEndereco] = useState('')
+  const [editCidade, setEditCidade] = useState('')
   const [editPotencia, setEditPotencia] = useState('')
   const [editQtdModulos, setEditQtdModulos] = useState('')
   const [editInversores, setEditInversores] = useState('')
@@ -212,6 +214,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [modalNovaUsinaOpen, setModalNovaUsinaOpen] = useState(false)
   const [novaUsinaNome, setNovaUsinaNome] = useState('')
   const [novaUsinaEndereco, setNovaUsinaEndereco] = useState('')
+  const [novaUsinaCidade, setNovaUsinaCidade] = useState('')
   const [novaUsinaPotencia, setNovaUsinaPotencia] = useState('')
   const [novaUsinaQtdModulos, setNovaUsinaQtdModulos] = useState('')
   const [novaUsinaInversores, setNovaUsinaInversores] = useState('')
@@ -246,6 +249,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     setUsinaDetalhes(usina)
     setEditNome(usina.nome || '')
     setEditEndereco(usina.endereco || '')
+    setEditCidade(usina.cidade || '')
     setEditPotencia(usina.potencia_kwp ? String(usina.potencia_kwp) : '')
     setEditQtdModulos(usina.qtd_modulos ? String(usina.qtd_modulos) : '')
     setEditInversores(usina.inversores_info || '')
@@ -303,6 +307,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
       const payload: Partial<UsinaCliente> = {
         nome: editNome.trim(),
         endereco: editEndereco.trim(),
+        cidade: editCidade.trim(),
         potencia_kwp: Number(editPotencia) || 0,
         qtd_modulos: Number(editQtdModulos) || 0,
         inversores_info: editInversores.trim(),
@@ -335,6 +340,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const handleOpenNovaUsina = () => {
     setNovaUsinaNome(`Usina ${usinas.length + 1} - ${clienteNome.split(' ')[0]}`)
     setNovaUsinaEndereco('')
+    setNovaUsinaCidade(cliente?.cidade || '')
     setNovaUsinaPotencia('')
     setNovaUsinaQtdModulos('')
     setNovaUsinaInversores('')
@@ -432,6 +438,11 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
         camposPreenchidos.push('Endereço')
       }
 
+      if (end.cidade) {
+        setNovaUsinaCidade(end.cidade)
+        camposPreenchidos.push(`Cidade: ${end.cidade}`)
+      }
+
       // UC
       if (cons.uc) {
         setNovaUsinaNumeroUc(cons.uc)
@@ -514,6 +525,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
           cliente_id: clienteId,
           nome: novaUsinaNome.trim(),
           endereco: novaUsinaEndereco.trim(),
+          cidade: novaUsinaCidade.trim(),
           potencia_kwp: Number(novaUsinaPotencia) || 0,
           qtd_modulos: Number(novaUsinaQtdModulos) || 0,
           inversores_info: novaUsinaInversores.trim(),
@@ -758,8 +770,57 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const SEDE_DELFOS = 'Rua Espírito Santo, 275, Erechim - RS, CEP 99709296'
+                        const latVal =
+                          typeof usina.latitude === 'number'
+                            ? usina.latitude
+                            : Number(usina.latitude)
+                        const lngVal =
+                          typeof usina.longitude === 'number'
+                            ? usina.longitude
+                            : Number(usina.longitude)
+                        const temCoords =
+                          !isNaN(latVal) && !isNaN(lngVal) && (latVal !== 0 || lngVal !== 0)
+
+                        if (temCoords) {
+                          const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${latVal},${lngVal}`
+                          window.open(url, '_blank')
+                          return
+                        }
+
+                        const partes = [
+                          usina.endereco,
+                          usina.bairro,
+                          usina.cidade,
+                          usina.estado || 'RS',
+                        ].filter(Boolean)
+
+                        if (partes.length > 0) {
+                          const query = encodeURIComponent(partes.join(', '))
+                          const url = `https://www.google.com/maps/search/?api=1&query=${query}`
+                          window.open(url, '_blank')
+                          return
+                        }
+
+                        alert(
+                          'Esta usina não possui coordenadas nem endereço cadastrado para traçar rota.',
+                        )
+                      }}
+                      className="h-7 px-2.5 text-[11px] font-bold text-sky-700 bg-sky-50/60 hover:bg-sky-100 hover:text-sky-800 border-sky-300 transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+                      title="Traçar rota no Google Maps a partir da sede Delfos Solar"
+                    >
+                      <Navigation className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Traçar Rota / Mapa</span>
+                    </Button>
+
                     <span className="text-xs font-bold text-[#0F2038] group-hover:text-amber-600 transition-colors inline-flex items-center gap-1">
-                      <span>Ver Ficha Técnica</span>
+                      <span>Ver Ficha</span>
                       <ChevronRight className="w-4 h-4" />
                     </span>
                   </div>
@@ -1957,7 +2018,17 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     <Input
                       value={editEndereco}
                       onChange={(e) => setEditEndereco(e.target.value)}
-                      placeholder="Rua, número, bairro, cidade/UF"
+                      placeholder="Rua, número, bairro"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-bold text-slate-700">Cidade da Usina</Label>
+                    <Input
+                      value={editCidade}
+                      onChange={(e) => setEditCidade(e.target.value)}
+                      placeholder="Ex: Erechim"
                       className="mt-1"
                     />
                   </div>
@@ -2298,7 +2369,17 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
               <Input
                 value={novaUsinaEndereco}
                 onChange={(e) => setNovaUsinaEndereco(e.target.value)}
-                placeholder="Rua, número, bairro, cidade/UF"
+                placeholder="Rua, número, bairro"
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-700">Cidade da Usina</Label>
+              <Input
+                value={novaUsinaCidade}
+                onChange={(e) => setNovaUsinaCidade(e.target.value)}
+                placeholder="Ex: Erechim"
                 className="mt-1"
               />
             </div>

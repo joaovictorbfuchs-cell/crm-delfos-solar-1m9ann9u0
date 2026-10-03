@@ -218,6 +218,8 @@ export interface Cliente extends RecordModel {
   origem_lead?: OrigemLeadTipo
   tipo_cliente?: ClienteTipo
   usina_endereco?: string
+  latitude?: number
+  longitude?: number
   // Proposta O&M ID
   proposta_om_id?: string
   // Campos de Análise de Fatura de Energia (RGE / Gemini)
