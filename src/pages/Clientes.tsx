@@ -1,55 +1,23 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { fetchOutrosContatos } from '@/services/crmService'
-import { fetchContatosUnicos } from '@/services/contatosService'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Search,
-  Eye,
-  MapPin,
-  Zap,
-  Users,
-  Loader2,
-  MessageSquare,
+  Filter,
+  FilterX,
   Plus,
-  Sparkles,
-  Building2,
-  User,
-  ArrowUpDown,
-  ArrowUpAZ,
-  ArrowDownZA,
-  X,
+  MessageSquare,
+  Users,
+  AlertTriangle,
   RotateCcw,
-  Trash2,
-  GitMerge,
   CheckSquare,
   Square,
   MinusSquare,
-  MoreVertical,
-  Briefcase,
-  GitFork,
-  Check,
-  Filter,
-  FileSpreadsheet,
-  ArrowRightLeft,
-  Phone,
-  PhoneOff,
-  UserCheck,
-  UserX,
-  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
   Info,
+  Check,
 } from 'lucide-react'
-import { useClientes } from '@/contexts/ClientesContext'
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Sheet,
   SheetContent,
@@ -58,47 +26,22 @@ import {
   SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
-import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
-import { ModalOferecerLimpezaAvulsa } from '@/components/ModalOferecerLimpezaAvulsa'
 import { ModalMensagemWhatsAppMassa } from '@/components/ModalMensagemWhatsAppMassa'
-import { OutrosContatosView } from '@/components/OutrosContatosView'
-import { Contact } from 'lucide-react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { StatusBadge, ProductBadge } from '@/components/StatusBadge'
-import { OrigemClienteBadge } from '@/components/OrigemClienteBadge'
-import { identificarOrigemCliente } from '@/lib/origemCliente'
-import { formatCurrency } from '@/lib/formatters'
-import { exportarClientesSegmentadosXlsx } from '@/lib/exportClientesSegmentadosXlsx'
 import {
   ModalCadastroClienteFornecedor,
   DadosCadastroForm,
 } from '@/components/ModalCadastroClienteFornecedor'
-import type { Cliente, ClienteStatus, ContatoAdicional } from '@/types/crm'
+import { useClientes } from '@/contexts/ClientesContext'
+import { formatDate } from '@/lib/formatters'
+import { fetchOutrosContatos, fetchAllUsinas } from '@/services/crmService'
+import type { Cliente, ClienteStatus, OutroContato, Atividade, UsinaCliente } from '@/types/crm'
 
 export type SortField = 'nome' | 'origem' | 'produto' | 'cidade' | 'potencia' | 'valor' | 'status'
 export type SortDirection = 'asc' | 'desc'
 export type SubAbaClientes = 'base' | 'outros_contatos'
 
-// Lista canônica de etapas do funil comercial Delfos Solar
 export const ETAPAS_FUNIL_CLIENTES: { id: ClienteStatus; label: string; cor: string }[] = [
   { id: 'Novo Lead', label: '1 - Novo Lead', cor: 'bg-slate-100 text-slate-800 border-slate-300' },
   { id: 'Levantamento', label: '2 - Levantamento', cor: 'bg-sky-100 text-sky-800 border-sky-300' },
@@ -125,111 +68,112 @@ export const ETAPAS_FUNIL_CLIENTES: { id: ClienteStatus; label: string; cor: str
   { id: 'Perdido', label: 'Perdido', cor: 'bg-rose-100 text-rose-800 border-rose-300' },
 ]
 
+export interface ClienteUnificadoRow {
+  id: string
+  origemRegistro: 'cliente' | 'outro_contato'
+  nome: string
+  cpfOuCnpj?: string
+  tipoPessoa?: 'fisica' | 'juridica'
+  telefone?: string
+  whatsapp?: string
+  totalUsinas: number
+  temContratoOM: boolean
+  ultimaAtividade?: {
+    data: string
+    resumo: string
+  }
+  clienteRaw?: Cliente
+  outroContatoRaw?: OutroContato
+}
+
+export interface ClientesFiltrosAvancados {
+  tipoPessoa: 'todos' | 'fisica' | 'juridica'
+  temTelefone: 'todos' | 'sim' | 'nao'
+  temContratoOM: 'todos' | 'sim' | 'nao'
+  temUsinas: 'todos' | 'com_usinas' | 'sem_usinas'
+  origemRegistro: 'todos' | 'cliente' | 'outro_contato'
+}
+
+const ITEMS_PER_PAGE = 25
+
 export default function Clientes() {
-  const navigate = useNavigate()
-  const [activeSubTab, setActiveSubTab] = useState<SubAbaClientes>('base')
-  const [totalOutrosContatos, setTotalOutrosContatos] = useState<number>(0)
-
-  // Carrega contagem inicial de outros contatos para o badge da sub-aba
-  useEffect(() => {
-    let mounted = true
-    fetchOutrosContatos()
-      .then((data) => {
-        if (mounted) {
-          setTotalOutrosContatos(data.length)
-        }
-      })
-      .catch((err) => {
-        console.error('Erro ao contar outros contatos:', err)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
   const {
-    isSessionExpired,
-    authError,
     clientes,
-    contatosAdicionais = [],
-    isLoading,
+    contratosOM,
+    atividades,
     openFichaCliente,
     addCliente,
-    updateCliente,
-    updateClienteStatus,
-    bulkUpdateEtapa,
-    removeCliente,
-    bulkRemoveClientes,
-    mesclarClientes,
-    refreshClientes,
+    isLoading,
+    isSessionExpired,
+    authError,
   } = useClientes()
 
-  // Mapear contatos únicos da área unificada vinculados aos clientes (N:N)
-  const [contatosUnicosVinculadosMap, setContatosUnicosVinculadosMap] = useState<
-    Map<string, number>
-  >(new Map())
-  useEffect(() => {
-    let mounted = true
-    fetchContatosUnicos()
-      .then((unicos) => {
-        if (!mounted) return
-        const map = new Map<string, number>()
-        unicos.forEach((cu) => {
-          if (Array.isArray(cu.clientes_vinculados)) {
-            cu.clientes_vinculados.forEach((cid) => {
-              if (cid) map.set(cid, (map.get(cid) || 0) + 1)
-            })
-          }
-        })
-        setContatosUnicosVinculadosMap(map)
-      })
-      .catch((err) => {
-        console.warn('Erro ao carregar contatos únicos para contagem de vínculos:', err)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [])
+  // Estados locais de dados adicionais
+  const [outrosContatos, setOutrosContatos] = useState<OutroContato[]>([])
+  const [usinasList, setUsinasList] = useState<UsinaCliente[]>([])
+  const [loadingExtras, setLoadingExtras] = useState(false)
 
+  // Busca rápida no topo
   const [searchTerm, setSearchTerm] = useState('')
-  const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
 
-  // Painel lateral de filtros (Drawer / Sheet)
+  // Drawer de filtros avançados
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
+  const [filtros, setFiltros] = useState<ClientesFiltrosAvancados>({
+    tipoPessoa: 'todos',
+    temTelefone: 'todos',
+    temContratoOM: 'todos',
+    temUsinas: 'todos',
+    origemRegistro: 'todos',
+  })
+  const [draftFiltros, setDraftFiltros] = useState<ClientesFiltrosAvancados>({
+    tipoPessoa: 'todos',
+    temTelefone: 'todos',
+    temContratoOM: 'todos',
+    temUsinas: 'todos',
+    origemRegistro: 'todos',
+  })
 
-  // Estados dos Filtros Avançados
-  // 1. Etapas do funil comercial (multiseleção: array com os IDs selecionados)
-  const [selectedEtapas, setSelectedEtapas] = useState<string[]>([])
-
-  // 2. Filtros tem/não tem (Sim/Não checkboxes independentes)
-  // Se ambos marcados ou ambos desmarcados => sem restrição
-  const [telefoneSim, setTelefoneSim] = useState(false)
-  const [telefoneNao, setTelefoneNao] = useState(false)
-
-  const [whatsAppSim, setWhatsAppSim] = useState(false)
-  const [whatsAppNao, setWhatsAppNao] = useState(false)
-
-  const [contatoVinculadoSim, setContatoVinculadoSim] = useState(false)
-  const [contatoVinculadoNao, setContatoVinculadoNao] = useState(false)
-
-  // Ouvinte para receber alteração de busca/filtro do drawer mobile global
+  // Sincronizar draft ao abrir o drawer
   useEffect(() => {
-    const handleMobileFilterChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ statusFilter?: string }>
-      if (customEvent.detail && customEvent.detail.statusFilter !== undefined) {
-        const st = customEvent.detail.statusFilter
-        if (st === 'todos') {
-          setSelectedEtapas([])
-        } else {
-          setSelectedEtapas([st])
-        }
-      }
+    if (isFilterDrawerOpen) {
+      setDraftFiltros(filtros)
     }
-    window.addEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
-    return () => {
-      window.removeEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+  }, [isFilterDrawerOpen, filtros])
+
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Seleção múltipla
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  // Modais
+  const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
+  const [isModalMensagemMassaOpen, setIsModalMensagemMassaOpen] = useState(false)
+
+  // Carregar outros contatos e usinas para unificação
+  const carregarDadosExtras = useCallback(async () => {
+    setLoadingExtras(true)
+    try {
+      const [ocList, usinas] = await Promise.all([
+        fetchOutrosContatos().catch((e) => {
+          console.warn('Erro ao carregar outros contatos para unificação:', e)
+          return [] as OutroContato[]
+        }),
+        fetchAllUsinas().catch((e) => {
+          console.warn('Erro ao carregar usinas:', e)
+          return [] as UsinaCliente[]
+        }),
+      ])
+      setOutrosContatos(ocList)
+      setUsinasList(usinas)
+    } finally {
+      setLoadingExtras(false)
     }
   }, [])
+
+  useEffect(() => {
+    carregarDadosExtras()
+  }, [carregarDadosExtras])
 
   // Ouvinte para abrir modal de novo cliente via header mobile (+)
   useEffect(() => {
@@ -242,239 +186,224 @@ export default function Clientes() {
     }
   }, [])
 
-  const [isModalOferecerLimpezaOpen, setIsModalOferecerLimpezaOpen] = useState(false)
-  const [isModalMensagemMassaOpen, setIsModalMensagemMassaOpen] = useState(false)
-  const [clienteParaExcluir, setClienteParaExcluir] = useState<{ id: string; nome: string } | null>(
-    null,
-  )
-  const [isDeletingCliente, setIsDeletingCliente] = useState(false)
-
-  // Seleção múltipla
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-
-  // Ações em lote
-  const [isModalExcluirLoteOpen, setIsModalExcluirLoteOpen] = useState(false)
-  const [isDeletingLote, setIsDeletingLote] = useState(false)
-  const [textoConfirmacaoExclusao, setTextoConfirmacaoExclusao] = useState('')
-
-  const [isModalMoverEtapaLoteOpen, setIsModalMoverEtapaLoteOpen] = useState(false)
-  const [etapaDestinoLote, setEtapaDestinoLote] = useState<ClienteStatus>('Novo Lead')
-  const [isMovingEtapaLote, setIsMovingEtapaLote] = useState(false)
-
-  // Mesclagem de clientes
-  const [isModalMesclarOpen, setIsModalMesclarOpen] = useState(false)
-  const [clienteMesclarInicial, setClienteMesclarInicial] = useState<any>(null)
-  const [clientesMesclarLista, setClientesMesclarLista] = useState<Cliente[]>([])
-
-  // Ordenação alfabética por padrão (A-Z respeitando pt-BR)
-  const [sortField, setSortField] = useState<SortField>('nome')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-
-  // Mapear antecipadamente a origem e status de telefone/whatsapp/contato de cada cliente para performance
-  const clientesComMetadados = useMemo(() => {
-    // Mapa auxiliar de contatos adicionais por cliente_id
-    const contatosAdicionaisMap = new Map<string, ContatoAdicional[]>()
-    ;(contatosAdicionais || []).forEach((ca) => {
-      if (!ca.cliente) return
-      const list = contatosAdicionaisMap.get(ca.cliente) || []
-      list.push(ca)
-      contatosAdicionaisMap.set(ca.cliente, list)
-    })
-
-    return clientes.map((c) => {
-      const telDigits = (c.telefone || '').replace(/\D/g, '')
-      const temTelefone = telDigits.length >= 8
-
-      const waDigits = (c.whatsapp || '').replace(/\D/g, '')
-      const temWhatsApp = waDigits.length >= 8
-
-      const totalAdicionais = (contatosAdicionaisMap.get(c.id) || []).length
-      const totalUnicos = contatosUnicosVinculadosMap.get(c.id) || 0
-      const temNomeContato = Boolean(c.contato_principal?.trim() || c.contato?.trim())
-      const temContatoVinculado = totalAdicionais > 0 || totalUnicos > 0 || temNomeContato
-
-      return {
-        ...c,
-        origemInfo: identificarOrigemCliente(c),
-        temTelefone,
-        temWhatsApp,
-        temContatoVinculado,
-        totalVinculos: totalAdicionais + totalUnicos + (temNomeContato ? 1 : 0),
+  // Mapa de contagem de usinas por cliente_id
+  const usinasCountMap = useMemo(() => {
+    const map = new Map<string, number>()
+    usinasList.forEach((u) => {
+      if (u.cliente_id) {
+        map.set(u.cliente_id, (map.get(u.cliente_id) || 0) + 1)
       }
     })
-  }, [clientes, contatosAdicionais, contatosUnicosVinculadosMap])
+    return map
+  }, [usinasList])
 
-  // Contagem de filtros ativos no botão de funil
+  // Set de cliente_ids com contrato O&M ativo ou cadastrado
+  const contratosOMClienteSet = useMemo(() => {
+    const set = new Set<string>()
+    ;(contratosOM || []).forEach((c) => {
+      if (c?.cliente_id) set.add(c.cliente_id)
+    })
+    return set
+  }, [contratosOM])
+
+  // Mapa da atividade mais recente por cliente_id
+  const ultimaAtividadeMap = useMemo(() => {
+    const map = new Map<string, { data: string; resumo: string }>()
+    if (!Array.isArray(atividades)) return map
+
+    // Ordenar atividades por data decrescente
+    const sorted = [...atividades].sort((a, b) => {
+      const da = new Date(a.data || a.created || 0).getTime()
+      const db = new Date(b.data || b.created || 0).getTime()
+      return db - da
+    })
+
+    sorted.forEach((at) => {
+      if (at.cliente_id && !map.has(at.cliente_id)) {
+        const resumoCurto = at.titulo?.trim() || at.descricao?.trim() || at.tipo || 'Atividade'
+        map.set(at.cliente_id, {
+          data: at.data || at.created,
+          resumo: resumoCurto,
+        })
+      }
+    })
+
+    return map
+  }, [atividades])
+
+  // Listagem Unificada (Clientes da base + Outros contatos da coleção outros_contatos)
+  const rowsUnificadas = useMemo<ClienteUnificadoRow[]>(() => {
+    const rows: ClienteUnificadoRow[] = []
+
+    // 1. Clientes da Base
+    clientes.forEach((cli) => {
+      const doc = (cli.cnpj || cli.cpf || '').trim()
+      const tipoPessoa: 'fisica' | 'juridica' =
+        cli.tipo_pessoa === 'juridica' || Boolean(cli.cnpj) ? 'juridica' : 'fisica'
+
+      const totalUsinas = usinasCountMap.get(cli.id) || 0
+      const temContratoOM =
+        Boolean(cli.contratou_om) ||
+        contratosOMClienteSet.has(cli.id) ||
+        (cli.tipo_negocio || '').toLowerCase().includes('o&m') ||
+        (cli.tipo_venda || '').toLowerCase().includes('o&m')
+
+      rows.push({
+        id: cli.id,
+        origemRegistro: 'cliente',
+        nome: cli.nome,
+        cpfOuCnpj: doc || undefined,
+        tipoPessoa,
+        telefone: cli.telefone?.trim() || undefined,
+        whatsapp: cli.whatsapp?.trim() || undefined,
+        totalUsinas,
+        temContratoOM,
+        ultimaAtividade: ultimaAtividadeMap.get(cli.id),
+        clienteRaw: cli,
+      })
+    })
+
+    // 2. Outros Contatos (unificados na mesma listagem, sem separação por categoria)
+    outrosContatos.forEach((oc) => {
+      rows.push({
+        id: oc.id,
+        origemRegistro: 'outro_contato',
+        nome: oc.nome,
+        cpfOuCnpj: undefined,
+        tipoPessoa: 'fisica',
+        telefone: oc.telefone?.trim() || undefined,
+        whatsapp: oc.telefone?.trim() || undefined,
+        totalUsinas: 0,
+        temContratoOM: false,
+        ultimaAtividade: oc.observacao
+          ? {
+              data: oc.created,
+              resumo: oc.observacao,
+            }
+          : undefined,
+        outroContatoRaw: oc,
+      })
+    })
+
+    // Ordenação alfabética padrão (A-Z respeitando pt-BR)
+    rows.sort((a, b) =>
+      (a.nome || '').localeCompare(b.nome || '', 'pt-BR', {
+        sensitivity: 'base',
+        numeric: true,
+      }),
+    )
+
+    return rows
+  }, [clientes, outrosContatos, usinasCountMap, contratosOMClienteSet, ultimaAtividadeMap])
+
+  // Contagem de filtros ativos
   const activeFiltersCount = useMemo(() => {
     let count = 0
-    if (selectedEtapas.length > 0) count += 1
-    if ((telefoneSim || telefoneNao) && !(telefoneSim && telefoneNao)) count += 1
-    if ((whatsAppSim || whatsAppNao) && !(whatsAppSim && whatsAppNao)) count += 1
-    if (
-      (contatoVinculadoSim || contatoVinculadoNao) &&
-      !(contatoVinculadoSim && contatoVinculadoNao)
-    )
-      count += 1
+    if (filtros.tipoPessoa !== 'todos') count++
+    if (filtros.temTelefone !== 'todos') count++
+    if (filtros.temContratoOM !== 'todos') count++
+    if (filtros.temUsinas !== 'todos') count++
+    if (filtros.origemRegistro !== 'todos') count++
     return count
-  }, [
-    selectedEtapas,
-    telefoneSim,
-    telefoneNao,
-    whatsAppSim,
-    whatsAppNao,
-    contatoVinculadoSim,
-    contatoVinculadoNao,
-  ])
+  }, [filtros])
+
+  const activeDraftFiltersCount = useMemo(() => {
+    let count = 0
+    if (draftFiltros.tipoPessoa !== 'todos') count++
+    if (draftFiltros.temTelefone !== 'todos') count++
+    if (draftFiltros.temContratoOM !== 'todos') count++
+    if (draftFiltros.temUsinas !== 'todos') count++
+    if (draftFiltros.origemRegistro !== 'todos') count++
+    return count
+  }, [draftFiltros])
 
   const hasAnyFilterActive = activeFiltersCount > 0 || Boolean(searchTerm.trim())
 
-  const handleLimparTodosFiltros = () => {
-    setSearchTerm('')
-    setSelectedEtapas([])
-    setTelefoneSim(false)
-    setTelefoneNao(false)
-    setWhatsAppSim(false)
-    setWhatsAppNao(false)
-    setContatoVinculadoSim(false)
-    setContatoVinculadoNao(false)
-    setSortField('nome')
-    setSortDirection('asc')
-  }
-
-  const handleSortToggle = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
+  const handleLimparFiltros = () => {
+    const limpos: ClientesFiltrosAvancados = {
+      tipoPessoa: 'todos',
+      temTelefone: 'todos',
+      temContratoOM: 'todos',
+      temUsinas: 'todos',
+      origemRegistro: 'todos',
     }
+    setDraftFiltros(limpos)
+    setFiltros(limpos)
+    setSearchTerm('')
+    setCurrentPage(1)
   }
 
-  // Filtragem combinada (Search + Drawer Filtros com AND entre grupos e OR dentro) e Ordenação
-  const processedClientes = useMemo(() => {
-    // 1. Filtragem
-    const filtered = clientesComMetadados.filter((c) => {
-      // Busca textual geral
-      if (searchTerm.trim()) {
-        const lower = searchTerm.toLowerCase()
-        const matchesSearch =
-          c.nome.toLowerCase().includes(lower) ||
-          (c.razao_social && c.razao_social.toLowerCase().includes(lower)) ||
-          (c.nome_fantasia && c.nome_fantasia.toLowerCase().includes(lower)) ||
-          (c.cnpj && c.cnpj.includes(searchTerm)) ||
-          (c.cpf && c.cpf.includes(searchTerm)) ||
-          (c.cidade && c.cidade.toLowerCase().includes(lower)) ||
-          (c.uc && c.uc.includes(lower)) ||
-          (c.telefone && c.telefone.includes(searchTerm)) ||
-          (c.whatsapp && c.whatsapp.includes(searchTerm)) ||
-          c.origemInfo.label.toLowerCase().includes(lower)
+  const handleAplicarFiltros = () => {
+    setFiltros(draftFiltros)
+    setCurrentPage(1)
+    setIsFilterDrawerOpen(false)
+  }
 
-        if (!matchesSearch) return false
+  // Filtragem da lista unificada
+  const filteredRows = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+
+    return rowsUnificadas.filter((row) => {
+      // 1. Busca por nome (e CPF/CNPJ ou telefone)
+      if (term) {
+        const matchesNome = (row.nome || '').toLowerCase().includes(term)
+        const matchesDoc = row.cpfOuCnpj ? row.cpfOuCnpj.toLowerCase().includes(term) : false
+        const matchesTel = row.telefone ? row.telefone.replace(/\D/g, '').includes(term) : false
+        if (!matchesNome && !matchesDoc && !matchesTel) return false
       }
 
-      // Filtro 1: Etapas do Funil (multiseleção com OR)
-      if (selectedEtapas.length > 0) {
-        const statusAtual = (c.status || '').trim() || 'Novo Lead'
-        if (!selectedEtapas.includes(statusAtual)) {
-          return false
-        }
-      }
+      // 2. Filtro Tipo Pessoa (PF / PJ)
+      if (filtros.tipoPessoa === 'fisica' && row.tipoPessoa !== 'fisica') return false
+      if (filtros.tipoPessoa === 'juridica' && row.tipoPessoa !== 'juridica') return false
 
-      // Filtro 2: Telefone cadastrado (Sim / Não)
-      // Se ambos marcados ou ambos desmarcados, aceita todos
-      const telRestrito = (telefoneSim || telefoneNao) && !(telefoneSim && telefoneNao)
-      if (telRestrito) {
-        if (telefoneSim && !c.temTelefone) return false
-        if (telefoneNao && c.temTelefone) return false
-      }
+      // 3. Filtro Tem Telefone
+      const temTel = Boolean(
+        (row.whatsapp && row.whatsapp.replace(/\D/g, '').length >= 8) ||
+        (row.telefone && row.telefone.replace(/\D/g, '').length >= 8),
+      )
+      if (filtros.temTelefone === 'sim' && !temTel) return false
+      if (filtros.temTelefone === 'nao' && temTel) return false
 
-      // Filtro 3: WhatsApp cadastrado (Sim / Não)
-      const waRestrito = (whatsAppSim || whatsAppNao) && !(whatsAppSim && whatsAppNao)
-      if (waRestrito) {
-        if (whatsAppSim && !c.temWhatsApp) return false
-        if (whatsAppNao && c.temWhatsApp) return false
-      }
+      // 4. Filtro Contrato O&M
+      if (filtros.temContratoOM === 'sim' && !row.temContratoOM) return false
+      if (filtros.temContratoOM === 'nao' && row.temContratoOM) return false
 
-      // Filtro 4: Algum contato vinculado (Sim / Não)
-      const contatoRestrito =
-        (contatoVinculadoSim || contatoVinculadoNao) &&
-        !(contatoVinculadoSim && contatoVinculadoNao)
-      if (contatoRestrito) {
-        if (contatoVinculadoSim && !c.temContatoVinculado) return false
-        if (contatoVinculadoNao && c.temContatoVinculado) return false
-      }
+      // 5. Filtro Número de Usinas
+      if (filtros.temUsinas === 'com_usinas' && row.totalUsinas === 0) return false
+      if (filtros.temUsinas === 'sem_usinas' && row.totalUsinas > 0) return false
+
+      // 6. Filtro Origem do Registro
+      if (filtros.origemRegistro === 'cliente' && row.origemRegistro !== 'cliente') return false
+      if (filtros.origemRegistro === 'outro_contato' && row.origemRegistro !== 'outro_contato')
+        return false
 
       return true
     })
+  }, [rowsUnificadas, searchTerm, filtros])
 
-    // 2. Ordenação (Alfabética A-Z por padrão com localeCompare pt-BR)
-    return [...filtered].sort((a, b) => {
-      let result = 0
+  // Paginação
+  const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE) || 1
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredRows.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredRows, currentPage])
 
-      switch (sortField) {
-        case 'nome':
-          result = (a.nome || '').localeCompare(b.nome || '', 'pt-BR', {
-            sensitivity: 'base',
-            numeric: true,
-          })
-          break
-        case 'origem':
-          result = a.origemInfo.label.localeCompare(b.origemInfo.label, 'pt-BR', {
-            sensitivity: 'base',
-          })
-          if (result === 0) {
-            result = (a.nome || '').localeCompare(b.nome || '', 'pt-BR', {
-              sensitivity: 'base',
-            })
-          }
-          break
-        case 'produto':
-          result = (a.produto || '').localeCompare(b.produto || '', 'pt-BR')
-          break
-        case 'cidade':
-          result = (a.cidade || '').localeCompare(b.cidade || '', 'pt-BR')
-          break
-        case 'potencia':
-          result = (a.potencia_kwp || 0) - (b.potencia_kwp || 0)
-          break
-        case 'valor':
-          result = (a.valor_estimado || 0) - (b.valor_estimado || 0)
-          break
-        case 'status':
-          result = (a.status || '').localeCompare(b.status || '', 'pt-BR')
-          break
-        default:
-          result = (a.nome || '').localeCompare(b.nome || '', 'pt-BR')
-      }
+  // Limpeza de IDs selecionados que não existam mais na lista filtrada
+  const selectedFilteredRows = useMemo(() => {
+    const set = new Set(selectedIds)
+    return filteredRows.filter((r) => set.has(r.id))
+  }, [filteredRows, selectedIds])
 
-      return sortDirection === 'asc' ? result : -result
-    })
-  }, [
-    clientesComMetadados,
-    searchTerm,
-    selectedEtapas,
-    telefoneSim,
-    telefoneNao,
-    whatsAppSim,
-    whatsAppNao,
-    contatoVinculadoSim,
-    contatoVinculadoNao,
-    sortField,
-    sortDirection,
-  ])
-
-  // Limpar seleção de IDs que já não estejam na lista processada (quando filtros mudam)
-  // Mantemos apenas selecionados válidos
-  const selectedCount = selectedIds.length
   const isAllSelected =
-    processedClientes.length > 0 && processedClientes.every((c) => selectedIds.includes(c.id))
-  const isSomeSelected = processedClientes.some((c) => selectedIds.includes(c.id)) && !isAllSelected
+    filteredRows.length > 0 && selectedFilteredRows.length === filteredRows.length
+  const isSomeSelected =
+    selectedFilteredRows.length > 0 && selectedFilteredRows.length < filteredRows.length
 
   const handleToggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds([])
     } else {
-      setSelectedIds(processedClientes.map((c) => c.id))
+      setSelectedIds(filteredRows.map((r) => r.id))
     }
   }
 
@@ -485,98 +414,81 @@ export default function Clientes() {
     )
   }
 
-  // Lista de clientes selecionados atualmente
-  const clientesSelecionados = useMemo(() => {
-    if (selectedIds.length === 0) return []
+  // Resolver link direto wa.me para ação rápida de WhatsApp
+  const resolverWhatsAppLink = (row: ClienteUnificadoRow): string | null => {
+    const raw = row.whatsapp || row.telefone || ''
+    let digits = raw.replace(/\D/g, '')
+    if (!digits || digits.length < 8) return null
+
+    // Adicionar DDI Brasil 55 quando necessário
+    if (!digits.startsWith('55') && (digits.length === 10 || digits.length === 11)) {
+      digits = `55${digits}`
+    } else if (digits.length === 8 || digits.length === 9) {
+      digits = `5554${digits}` // DDD regional Erechim/RS padrão
+    }
+
+    return `https://wa.me/${digits}`
+  }
+
+  // Navegar para ficha do cliente
+  const handleAbrirCliente = (row: ClienteUnificadoRow) => {
+    if (row.origemRegistro === 'cliente') {
+      openFichaCliente(row.id)
+    }
+  }
+
+  const handleAbrirUsinas = (row: ClienteUnificadoRow, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (row.origemRegistro === 'cliente') {
+      openFichaCliente(row.id, 'usinas')
+    }
+  }
+
+  // Destinatários para o modal de mensagem em massa baseado nos clientes selecionados
+  const destinatariosMensagemMassa = useMemo(() => {
+    if (selectedIds.length === 0) return undefined
     const set = new Set(selectedIds)
-    return clientes.filter((c) => set.has(c.id))
-  }, [clientes, selectedIds])
 
-  // Ação em lote: Exportar Excel (.xlsx) segmentado
-  const handleExportarExcelLote = (somenteSelecionados = false) => {
-    const listaAlvo =
-      somenteSelecionados && clientesSelecionados.length > 0
-        ? clientesSelecionados
-        : processedClientes
+    return rowsUnificadas
+      .filter((r) => set.has(r.id))
+      .map((r) => {
+        if (r.clienteRaw) {
+          return {
+            cliente: r.clienteRaw,
+            valor: r.clienteRaw.valor_final || r.clienteRaw.valor_estimado,
+          }
+        }
+        // Sintetizar cliente a partir do outro_contato
+        const sintetico: Cliente = {
+          id: r.id,
+          collectionId: 'outros_contatos',
+          collectionName: 'outros_contatos',
+          nome: r.nome,
+          telefone: r.telefone || '',
+          whatsapp: r.whatsapp || r.telefone || '',
+          cidade: 'Erechim',
+          endereco: '',
+          uc: '',
+          potencia_kwp: 0,
+          valor_estimado: 0,
+          status: 'Novo Lead',
+          data_instalacao: '',
+          inversor_marca: '',
+          inversor_modelo: '',
+          placas_qtd: 0,
+          placas_marca: '',
+          telhado_tipo: 'ceramico',
+          created: '',
+          updated: '',
+        }
+        return {
+          cliente: sintetico,
+          valor: 0,
+        }
+      })
+  }, [selectedIds, rowsUnificadas])
 
-    if (listaAlvo.length === 0) {
-      alert('Não há clientes na lista para exportar.')
-      return
-    }
-
-    const prefixo = somenteSelecionados
-      ? `clientes-selecionados-${listaAlvo.length}`
-      : `clientes-filtrados-${listaAlvo.length}`
-
-    exportarClientesSegmentadosXlsx({
-      clientes: listaAlvo,
-      contatosAdicionais,
-      contatosUnicosVinculadosMap,
-      nomePrefixo: prefixo,
-    })
-  }
-
-  // Ação em lote: Mover para outra etapa do funil
-  const handleConfirmarMoverEtapaLote = async () => {
-    if (selectedIds.length === 0) return
-    try {
-      setIsMovingEtapaLote(true)
-      await bulkUpdateEtapa(selectedIds, etapaDestinoLote)
-      setIsModalMoverEtapaLoteOpen(false)
-      setSelectedIds([])
-    } catch (err) {
-      console.error('Erro ao mover clientes de etapa em lote:', err)
-      alert('Ocorreu um erro ao mover os clientes de etapa. Tente novamente.')
-    } finally {
-      setIsMovingEtapaLote(false)
-    }
-  }
-
-  // Ação em lote: Excluir clientes selecionados com verificação de segurança reforçada
-  const handleExcluirLote = async () => {
-    if (selectedIds.length === 0) return
-    if (textoConfirmacaoExclusao.trim() !== String(selectedIds.length)) {
-      alert(`Por favor, digite "${selectedIds.length}" para confirmar a exclusão.`)
-      return
-    }
-
-    try {
-      setIsDeletingLote(true)
-      await bulkRemoveClientes(selectedIds)
-      setSelectedIds([])
-      setIsModalExcluirLoteOpen(false)
-      setTextoConfirmacaoExclusao('')
-    } catch (err) {
-      console.error('Erro ao excluir clientes em lote:', err)
-      alert('Erro ao excluir clientes selecionados. Tente novamente.')
-    } finally {
-      setIsDeletingLote(false)
-    }
-  }
-
-  const handleAbrirMesclagem = (cliente?: any, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation()
-    if (cliente) {
-      setClienteMesclarInicial(cliente)
-      // Se há clientes já selecionados e o clicado está entre eles (ou não), preservamos a seleção
-      if (selectedIds.length > 1 && selectedIds.includes(cliente.id)) {
-        const selecionados = clientes.filter((c) => selectedIds.includes(c.id))
-        setClientesMesclarLista(selecionados)
-      } else {
-        setClientesMesclarLista([cliente])
-      }
-    } else if (selectedIds.length > 0) {
-      const selecionados = clientes.filter((c) => selectedIds.includes(c.id))
-      setClienteMesclarInicial(selecionados[0] || null)
-      setClientesMesclarLista(selecionados)
-    } else {
-      setClienteMesclarInicial(null)
-      setClientesMesclarLista([])
-    }
-    setIsModalMesclarOpen(true)
-  }
-
-  const handleSalvarCliente = async (dados: DadosCadastroForm) => {
+  const handleSalvarNovoCliente = async (dados: DadosCadastroForm) => {
     await addCliente({
       nome: dados.nome,
       tipo_pessoa: dados.tipo_pessoa,
@@ -619,331 +531,209 @@ export default function Clientes() {
       placas_marca: 'Canadian Solar',
       data_instalacao: new Date().toISOString().split('T')[0],
     })
+    await carregarDadosExtras()
   }
 
   if (isLoading) {
     return (
-      <div className="h-[60vh] flex flex-col items-center justify-center gap-3 text-gray-400">
-        <Loader2 className="w-8 h-8 animate-spin text-[#16A34A]" />
-        <p className="text-sm">Carregando base de clientes...</p>
+      <div className="p-16 text-center space-y-3">
+        <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-gray-500 font-medium">Carregando listagem de clientes...</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 pt-1 sm:pt-0">
-      {/* Alerta de Sessão Expirada exibido no topo quando o token expira */}
+    <div className="space-y-5 w-full pb-12">
+      {/* Alerta de sessão expirada */}
       {isSessionExpired && (
         <SessaoExpiradaAlert
           mensagem={
             authError ||
-            'Por motivos de segurança, sua sessão foi encerrada após um período de inatividade ou o token de acesso tornou-se inválido. Por favor, faça login novamente para continuar.'
+            'Por motivos de segurança, sua sessão foi encerrada. Por favor, faça login novamente.'
           }
         />
       )}
 
-      {/* Navegação por Sub-Abas Compactas de 2º Nível: Base de Clientes vs Outros Contatos + Botões de Ação */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
-        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 w-full sm:w-auto shrink min-w-0">
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('base')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
-              activeSubTab === 'base'
-                ? 'bg-white text-emerald-800 shadow-xs font-bold border border-gray-200/80'
-                : 'hover:text-gray-900'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="truncate">Base de Clientes</span>
-            <span
-              className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeSubTab === 'base'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-gray-200 text-gray-600'
-              }`}
+      {/* 1. Header no padrão visual da Central de Atividades:
+          Título com contagem + Campo de busca + Botão "Filtros" + Botão Limpar Filtros + Botão "Adicionar novo cliente" */}
+      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-[#E5E7EB] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3 flex-nowrap min-w-0">
+        {/* Lado Esquerdo: Ícone + Título com contagem de clientes */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-nowrap">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-2xs shrink-0">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap">
+              Clientes
+            </h1>
+            {/* Contagem de clientes encontrados */}
+            <div
+              className="h-8 inline-flex items-center gap-1 px-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 shadow-2xs shrink-0 whitespace-nowrap"
+              title="Clientes encontrados após filtros e busca"
             >
-              {clientes.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('outros_contatos')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
-              activeSubTab === 'outros_contatos'
-                ? 'bg-white text-blue-800 shadow-xs font-bold border border-gray-200/80'
-                : 'hover:text-gray-900'
-            }`}
-          >
-            <Contact className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="truncate">Outros Contatos</span>
-            <span
-              className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeSubTab === 'outros_contatos'
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-gray-200 text-gray-600'
-              }`}
-            >
-              {totalOutrosContatos}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/contatos')}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-emerald-800 hover:bg-white/80 transition-all font-semibold"
-            title="Abrir Visão Consolidada de todos os contatos (principais e adicionais) por cliente"
-          >
-            <Users className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-            <span className="truncate">Visão Consolidada</span>
-          </button>
+              <span>
+                <strong className="text-gray-900 font-extrabold">{filteredRows.length}</strong> de{' '}
+                {rowsUnificadas.length}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Botões de Ação do Topo */}
-        <div className="flex items-center justify-end gap-2 shrink-0">
+        {/* Lado Direito: Campo de busca por nome + Botão Filtros + Botão Limpar Filtros + Botão Adicionar Novo Cliente */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap shrink-0 justify-start md:justify-end">
+          {/* Campo de Busca por nome */}
+          <div className="relative w-full sm:w-56 md:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setCurrentPage(1)
+              }}
+              placeholder="Buscar por nome..."
+              className="w-full text-xs bg-gray-50 hover:bg-white focus:bg-white border border-gray-200 focus:border-emerald-500 rounded-xl pl-9 pr-3 py-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+            />
+          </div>
+
+          {/* Botão "Filtros" com indicador de ativos */}
           <button
             type="button"
-            onClick={() => setIsModalOferecerLimpezaOpen(true)}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 active:scale-[0.98] text-xs sm:text-sm font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer"
-            title="Disparar oferta de limpeza periódica de módulos solares via WhatsApp"
-            aria-label="Oferecer Limpeza Avulsa"
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className={`h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer border shrink-0 whitespace-nowrap ${
+              activeFiltersCount > 0
+                ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/40'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
+            }`}
+            title="Abrir filtros de clientes"
           >
-            <Sparkles className="w-4 h-4 text-emerald-600 stroke-[2.5] shrink-0" />
-            <span className="inline">Oferecer Limpeza Avulsa</span>
+            <Filter
+              className={`w-3.5 h-3.5 ${activeFiltersCount > 0 ? 'text-white' : 'text-emerald-600'}`}
+            />
+            <span>Filtros</span>
+            {activeFiltersCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-white text-emerald-800 text-[10px] font-extrabold flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
           </button>
 
-          <button
+          {/* Botão de limpar filtros (visível quando há qualquer filtro ou busca ativa) */}
+          {hasAnyFilterActive && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleLimparFiltros}
+              className="h-9 px-2.5 sm:px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-semibold shrink-0 whitespace-nowrap"
+              title="Limpar todos os filtros e busca"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              <span>Limpar</span>
+            </Button>
+          )}
+
+          {/* Botão "Adicionar novo cliente" */}
+          <Button
             type="button"
             onClick={() => setIsModalNovoOpen(true)}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
-            title="Adicionar Novo Cliente"
-            aria-label="Adicionar Novo"
+            className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+            title="Adicionar novo cliente ou contato"
           >
-            <Plus className="w-4 h-4 stroke-[2.5] shrink-0" />
-            <span className="inline">Adicionar Novo</span>
-          </button>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Adicionar novo cliente</span>
+          </Button>
         </div>
       </div>
 
-      {/* Conteúdo da Sub-Aba 2: Outros Contatos */}
-      {activeSubTab === 'outros_contatos' && (
-        <OutrosContatosView onTotalChange={setTotalOutrosContatos} />
-      )}
-
-      {/* Conteúdo da Sub-Aba 1: Base de Clientes */}
-      {activeSubTab === 'base' && (
-        <>
-          {/* BARRA SUPERIOR DE FILTROS REORGANIZADA (Botão Único de Funil + Contador ao Lado + Busca Rápida) */}
-          <div className="bg-white rounded-2xl p-3 border border-gray-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Lado Esquerdo: Botão Único com Ícone de Funil + Contador de Clientes Filtrados */}
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {/* Botão de Funil (Abre o Drawer Lateral de Filtros Combinados) */}
-              <button
-                type="button"
-                onClick={() => setIsFilterDrawerOpen(true)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs active:scale-[0.98] cursor-pointer ${
-                  activeFiltersCount > 0
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-400 ring-offset-1'
-                    : 'bg-white text-gray-700 hover:text-emerald-700 hover:bg-emerald-50/50 border border-gray-300'
-                }`}
-                title="Abrir painel com todas as opções de filtros combinados"
-              >
-                <Filter
-                  className={`w-4 h-4 ${activeFiltersCount > 0 ? 'text-white' : 'text-emerald-600'}`}
-                />
-                <span>Filtros</span>
-                {activeFiltersCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-white text-emerald-800 text-[11px] font-extrabold flex items-center justify-center">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-
-              {/* CONTADOR AO LADO DO BOTÃO DE FILTRO (Requisito 3) */}
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700">
-                <Users className="w-3.5 h-3.5 text-gray-500" />
-                <span>
-                  <strong className="text-emerald-700 font-extrabold">
-                    {processedClientes.length}
-                  </strong>
-                  {processedClientes.length === 1 ? ' cliente encontrado' : ' clientes encontrados'}
-                </span>
-                {processedClientes.length !== clientes.length && (
-                  <span className="text-[11px] text-gray-400 font-normal">
-                    (de {clientes.length} no total)
-                  </span>
-                )}
-              </div>
-
-              {/* Botão para limpar filtros caso haja algum ativo */}
-              {hasAnyFilterActive && (
-                <button
-                  type="button"
-                  onClick={handleLimparTodosFiltros}
-                  className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 font-medium underline px-1 py-1 cursor-pointer transition-colors"
-                  title="Limpar todos os filtros e pesquisa"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Limpar filtros</span>
-                </button>
-              )}
-            </div>
-
-            {/* Lado Direito: Busca Rápida Textual + Exportar Planilha Filtrada */}
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por nome, CPF/CNPJ, cidade, tel..."
-                  className="w-full pl-9 pr-8 py-1.5 text-xs bg-gray-50 hover:bg-white focus:bg-white border border-gray-200 focus:border-emerald-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-gray-400"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Botão de Exportar Lista Filtrada em Excel */}
-              <button
-                type="button"
-                onClick={() => handleExportarExcelLote(false)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs shrink-0 cursor-pointer"
-                title="Exportar a lista atual para Excel (.xlsx) segmentada por grupos de telefone, WhatsApp e contatos"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                <span className="hidden sm:inline">Gerar Lista (.xlsx)</span>
-              </button>
+      {/* Barra de Ações em Lote quando há clientes selecionados (com botão Disparar Mensagens WhatsApp Massa) */}
+      {selectedFilteredRows.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-150">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-extrabold text-xs shadow-2xs">
+              {selectedFilteredRows.length}
+            </span>
+            <div>
+              <p className="text-xs font-bold text-emerald-950">
+                {selectedFilteredRows.length === 1
+                  ? '1 cliente selecionado'
+                  : `${selectedFilteredRows.length} clientes selecionados`}
+              </p>
+              <p className="text-[11px] text-emerald-700">
+                Ações em lote sobre os clientes marcados
+              </p>
             </div>
           </div>
 
-          {/* BARRA DE AÇÕES EM LOTE (Exibida sempre que houver clientes selecionados) (Requisitos 4 e 5) */}
-          {selectedIds.length > 0 && (
-            <div className="bg-emerald-50/90 border-2 border-emerald-500 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-200">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="w-7 h-7 rounded-full bg-emerald-700 text-white flex items-center justify-center text-xs font-black shadow-xs">
-                  {selectedIds.length}
-                </span>
-                <div>
-                  <span className="text-xs font-bold text-emerald-950 block sm:inline">
-                    {selectedIds.length === 1
-                      ? '1 cliente selecionado'
-                      : `${selectedIds.length} clientes selecionados`}
-                  </span>
-                  <span className="text-[11px] text-emerald-800 font-medium sm:ml-2 block sm:inline">
-                    (de {processedClientes.length} no resultado filtrado)
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds([])}
-                  className="text-xs text-gray-600 hover:text-red-700 underline ml-2 cursor-pointer font-medium"
-                >
-                  Desmarcar todos
-                </button>
-              </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
+            {/* Botão Disparar Mensagens WhatsApp Massa movido da Central de Atividades */}
+            <Button
+              type="button"
+              onClick={() => setIsModalMensagemMassaOpen(true)}
+              className="h-8 px-3 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+              title="Disparar mensagens individuais via WhatsApp para os clientes selecionados"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Disparar Mensagens ({selectedFilteredRows.length})</span>
+            </Button>
 
-              {/* Conjunto de Ações em Lote */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Ação 1: Gerar Lista Segmentada em Excel (.xlsx) dos selecionados */}
-                <button
-                  type="button"
-                  onClick={() => handleExportarExcelLote(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  title="Gerar planilha .xlsx segmentando os clientes selecionados (com/sem telefone, com/sem WhatsApp, com/sem contato vinculado)"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Gerar Lista Excel ({selectedIds.length})</span>
-                </button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds([])}
+              className="h-8 px-2 text-xs text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/50"
+            >
+              Desmarcar
+            </Button>
+          </div>
+        </div>
+      )}
 
-                {/* Ação 2: Mover para outra etapa do funil */}
-                <button
-                  type="button"
-                  onClick={() => setIsModalMoverEtapaLoteOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  title="Mover os clientes selecionados para outra etapa do funil comercial"
-                >
-                  <ArrowRightLeft className="w-3.5 h-3.5" />
-                  <span>Mover de Etapa ({selectedIds.length})</span>
-                </button>
-
-                {/* Ação 3: Mensagem WhatsApp em Massa */}
-                <button
-                  type="button"
-                  onClick={() => setIsModalMensagemMassaOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  title="Enviar mensagem para selecionados via WhatsApp"
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>WhatsApp ({selectedIds.length})</span>
-                </button>
-
-                {/* Ação 4: Mesclar N clientes */}
-                <button
-                  type="button"
-                  onClick={() => handleAbrirMesclagem()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  title="Mesclar todos os cadastros selecionados em um só cliente mestre"
-                >
-                  <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Mesclar ({selectedIds.length})</span>
-                </button>
-
-                {/* Ação 5: Deletar clientes selecionados (com confirmação reforçada) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTextoConfirmacaoExclusao('')
-                    setIsModalExcluirLoteOpen(true)
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  title="Excluir permanentemente todos os clientes selecionados"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Deletar ({selectedIds.length})</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Table / Cards */}
-          {isSessionExpired ? null : processedClientes.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500 space-y-3">
-              <p className="text-sm">Nenhum cliente encontrado com os filtros aplicados.</p>
-              {hasAnyFilterActive && (
-                <button
-                  type="button"
-                  onClick={handleLimparTodosFiltros}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Limpar Filtros e Busca</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Desktop Table View com Ordenação nos Cabeçalhos e Checkbox Selecionar Todos */}
-              <div className="hidden md:block bg-white rounded-xl border border-gray-200/80 shadow-xs overflow-hidden">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead className="bg-[#F8FAF9] border-b border-gray-200 text-xs font-semibold text-gray-700 uppercase tracking-wider select-none">
+      {/* 2. Tabela de Clientes no padrão visual da Central de Atividades:
+          Colunas na ordem:
+          1. Checkbox de seleção (individual + em massa)
+          2. Nome do Cliente em destaque (sem rótulo PF/PJ; CPF/CNPJ em fonte secundária)
+          3. Telefone (ação rápida wa.me; vazio/alerta se sem telefone)
+          4. Número de Usinas (quando zero, célula vazia; clique abre ficha na aba 'usinas')
+          5. Contrato O&M ("Sim" ou "Não")
+          6. Última Atividade (data + resumo curto) */}
+      <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-xs overflow-hidden">
+        {filteredRows.length === 0 ? (
+          <div className="p-16 text-center space-y-3">
+            <Info className="w-10 h-10 text-gray-300 mx-auto" />
+            <h3 className="text-sm font-bold text-gray-800">Nenhum cliente encontrado</h3>
+            <p className="text-xs text-gray-500 max-w-md mx-auto">
+              Nenhum registro corresponde aos filtros ou à busca. Experimente limpar os filtros.
+            </p>
+            {hasAnyFilterActive && (
+              <button
+                type="button"
+                onClick={handleLimparFiltros}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Limpar filtros e busca
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Visualização Desktop (Tabela Completa sem rolagem horizontal e com items-center) */}
+            <TooltipProvider delayDuration={150}>
+              <div className="hidden lg:block w-full overflow-hidden">
+                <table className="w-full table-fixed text-left text-xs">
+                  <thead className="bg-[#F8FAF9] border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
-                      {/* Checkbox Selecionar Todos do Resultado Filtrado */}
-                      <th className="py-3 px-3 w-10 text-center">
+                      {/* 1. Checkbox em massa */}
+                      <th className="py-2.5 px-2.5 w-10 text-center">
                         <button
                           type="button"
                           onClick={handleToggleSelectAll}
-                          className="text-gray-500 hover:text-emerald-700 p-0.5 rounded transition-colors cursor-pointer"
+                          className="p-1 rounded text-gray-600 hover:text-emerald-700 transition-colors cursor-pointer"
                           title={
                             isAllSelected
-                              ? 'Desmarcar todos os clientes do resultado'
-                              : 'Selecionar todos os clientes do resultado filtrado'
+                              ? 'Desmarcar todos'
+                              : 'Selecionar todos os clientes filtrados'
                           }
                         >
                           {isAllSelected ? (
@@ -956,343 +746,154 @@ export default function Clientes() {
                         </button>
                       </th>
 
-                      {/* Nome */}
-                      <th
-                        onClick={() => handleSortToggle('nome')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Nome do Cliente</span>
-                          {sortField === 'nome' ? (
-                            sortDirection === 'asc' ? (
-                              <ArrowUpAZ className="w-4 h-4 text-emerald-600 font-bold" />
-                            ) : (
-                              <ArrowDownZA className="w-4 h-4 text-emerald-600 font-bold" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
-                          )}
-                        </div>
-                      </th>
+                      {/* 2. Nome do Cliente */}
+                      <th className="py-2.5 px-3 w-[32%]">Nome do Cliente</th>
 
-                      {/* Telefones / Contatos Cadastrados */}
-                      <th className="py-3 px-4">
-                        <span>Telefone & Contatos</span>
-                      </th>
+                      {/* 3. Telefone */}
+                      <th className="py-2.5 px-3 w-[18%]">Telefone</th>
 
-                      {/* Origem */}
-                      <th
-                        onClick={() => handleSortToggle('origem')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Origem</span>
-                          {sortField === 'origem' ? (
-                            <span className="text-emerald-700 font-bold">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
-                          )}
-                        </div>
-                      </th>
+                      {/* 4. Número de Usinas */}
+                      <th className="py-2.5 px-2 w-[12%] text-center">Usinas</th>
 
-                      {/* Cidade */}
-                      <th
-                        onClick={() => handleSortToggle('cidade')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Cidade</span>
-                          {sortField === 'cidade' && (
-                            <span className="text-emerald-700 font-bold">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
+                      {/* 5. Contrato O&M */}
+                      <th className="py-2.5 px-2 w-[12%] text-center">Contrato O&M</th>
 
-                      {/* Potência */}
-                      <th
-                        onClick={() => handleSortToggle('potencia')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Potência</span>
-                          {sortField === 'potencia' && (
-                            <span className="text-emerald-700 font-bold">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-
-                      {/* Valor Estimado */}
-                      <th
-                        onClick={() => handleSortToggle('valor')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Valor Estimado</span>
-                          {sortField === 'valor' && (
-                            <span className="text-emerald-700 font-bold">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-
-                      {/* Etapa Comercial (Status) */}
-                      <th
-                        onClick={() => handleSortToggle('status')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Etapa no Funil</span>
-                          {sortField === 'status' && (
-                            <span className="text-emerald-700 font-bold">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-
-                      {/* Ação */}
-                      <th className="py-3 px-4 text-right">Ação</th>
+                      {/* 6. Última Atividade */}
+                      <th className="py-2.5 px-3 w-[26%] text-right">Última Atividade</th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-gray-100">
-                    {processedClientes.map((c) => {
-                      const isChecked = selectedIds.includes(c.id)
+                    {paginatedRows.map((row) => {
+                      const isSelected = selectedIds.includes(row.id)
+                      const waLink = resolverWhatsAppLink(row)
+
                       return (
                         <tr
-                          key={c.id}
-                          onClick={() => openFichaCliente(c.id)}
+                          key={row.id}
+                          onClick={() => handleAbrirCliente(row)}
                           className={`transition-colors cursor-pointer group ${
-                            isChecked
-                              ? 'bg-emerald-50/70 hover:bg-emerald-50'
+                            isSelected
+                              ? 'bg-emerald-50/70 hover:bg-emerald-100/50'
                               : 'hover:bg-emerald-50/40'
                           }`}
                         >
-                          {/* Checkbox Individual */}
+                          {/* 1. Checkbox individual */}
                           <td
-                            className="py-3 px-3 text-center select-none"
-                            onClick={(e) => handleToggleSelectOne(c.id, e)}
+                            className="py-2.5 px-2.5 text-center align-middle"
+                            onClick={(e) => handleToggleSelectOne(row.id, e)}
                           >
-                            <button
-                              type="button"
-                              className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors cursor-pointer"
-                              title={isChecked ? 'Desmarcar' : 'Selecionar'}
-                            >
-                              {isChecked ? (
-                                <CheckSquare className="w-4 h-4 text-emerald-600" />
-                              ) : (
-                                <Square className="w-4 h-4 text-gray-300 group-hover:text-gray-400" />
-                              )}
-                            </button>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                            />
                           </td>
 
-                          {/* Nome & Documentos */}
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                                {c.nome}
+                          {/* 2. Nome do Cliente em destaque - SEM rótulo PF/PJ ao lado; CPF/CNPJ discreto abaixo */}
+                          <td className="py-2.5 px-3 align-middle">
+                            <div className="flex flex-col items-start justify-center min-w-0">
+                              <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors truncate max-w-full text-xs">
+                                {row.nome}
                               </span>
-                              {c.tipo_pessoa === 'juridica' || c.cnpj ? (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                  <Building2 className="w-2.5 h-2.5" /> PJ
+                              {row.cpfOuCnpj && (
+                                <span className="text-[11px] text-gray-400 font-mono font-normal truncate max-w-full">
+                                  {row.cpfOuCnpj}
                                 </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* 3. Telefone - botão de ação rápida wa.me diretamente; sem retângulo cinza quando vazio */}
+                          <td
+                            className="py-2.5 px-3 align-middle"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {waLink ? (
+                                <a
+                                  href={waLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`Conversar com ${row.nome} no WhatsApp`}
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors text-xs font-semibold cursor-pointer shrink-0"
+                                >
+                                  <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span className="truncate max-w-[130px]">
+                                    {row.whatsapp || row.telefone}
+                                  </span>
+                                </a>
                               ) : (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                                  <User className="w-2.5 h-2.5" /> PF
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-400 font-mono flex items-center gap-1.5 flex-wrap mt-0.5">
-                              {c.cnpj && (
-                                <span className="text-gray-600 font-medium">CNPJ: {c.cnpj}</span>
-                              )}
-                              {c.cpf && (
-                                <span className="text-gray-600 font-medium">CPF: {c.cpf}</span>
-                              )}
-                              {c.uc && <span>• UC: {c.uc}</span>}
-                            </div>
-                          </td>
-
-                          {/* Telefones / Contatos Cadastrados com Badges Visuais Claros */}
-                          <td className="py-3 px-4">
-                            <div className="flex flex-col gap-1 items-start text-xs">
-                              {/* WhatsApp / Telefone */}
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {c.temWhatsApp ? (
-                                  <span
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold"
-                                    title={`WhatsApp: ${c.whatsapp}`}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center justify-center p-1 text-amber-500 hover:text-amber-600 transition-colors">
+                                      <AlertTriangle className="w-3.5 h-3.5" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    className="text-xs bg-gray-900 text-white px-2 py-1 rounded-md"
                                   >
-                                    <MessageSquare className="w-3 h-3 text-emerald-600" />
-                                    <span>{c.whatsapp}</span>
-                                  </span>
-                                ) : c.temTelefone ? (
-                                  <span
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200"
-                                    title={`Telefone: ${c.telefone}`}
-                                  >
-                                    <Phone className="w-3 h-3 text-gray-500" />
-                                    <span>{c.telefone}</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200 italic text-[11px]">
-                                    <PhoneOff className="w-3 h-3 text-gray-400" />
-                                    Sem telefone
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Vínculo de Contato */}
-                              {c.temContatoVinculado ? (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200"
-                                  title={`Possui ${c.totalVinculos} contato(s) vinculado(s)`}
-                                >
-                                  <UserCheck className="w-2.5 h-2.5 text-blue-600" />
-                                  <span>Contato vinculado</span>
-                                </span>
-                              ) : (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal text-gray-400"
-                                  title="Sem outros contatos vinculados a este cliente"
-                                >
-                                  <UserX className="w-2.5 h-2.5 text-gray-300" />
-                                  <span>Sem contato</span>
-                                </span>
+                                    Telefone não cadastrado
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
                             </div>
                           </td>
 
-                          {/* Origem */}
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <OrigemClienteBadge origemInfo={c.origemInfo} />
+                          {/* 4. Número de Usinas - Quando zero: célula VAZIA. Ao clicar, abre a ficha na aba usinas */}
+                          <td className="py-2.5 px-2 align-middle text-center">
+                            {row.totalUsinas > 0 ? (
+                              <button
+                                type="button"
+                                onClick={(e) => handleAbrirUsinas(row, e)}
+                                title={`Ver ${row.totalUsinas} usina(s) deste cliente`}
+                                className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold transition-colors cursor-pointer"
+                              >
+                                {row.totalUsinas}
+                              </button>
+                            ) : null}
                           </td>
 
-                          {/* Cidade */}
-                          <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
-                            <div className="inline-flex items-center gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span>{c.cidade || 'Não informada'}</span>
-                            </div>
+                          {/* 5. Contrato O&M - "Sim" ou "Não" com cor semântica */}
+                          <td className="py-2.5 px-2 align-middle text-center">
+                            <span
+                              className={`text-[11px] font-bold ${
+                                row.temContratoOM ? 'text-emerald-700' : 'text-gray-400'
+                              }`}
+                            >
+                              {row.temContratoOM ? 'Sim' : 'Não'}
+                            </span>
                           </td>
 
-                          {/* Potência */}
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <div className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-xs">
-                              <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>{c.potencia_kwp} kWp</span>
-                            </div>
-                          </td>
-
-                          {/* Valor Estimado */}
-                          <td className="py-3 px-4 text-gray-800 font-medium whitespace-nowrap">
-                            {formatCurrency(c.valor_estimado)}
-                          </td>
-
-                          {/* Status / Etapa Comercial */}
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <div className="flex flex-col gap-1 items-start">
-                              <StatusBadge status={c.status} />
-                              {c.status === 'Perdido' && c.motivo_perda && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize"
-                                  title={`Motivo da perda: ${c.motivo_perda}`}
+                          {/* 6. Última Atividade - Data + resumo curto com tooltip */}
+                          <td className="py-2.5 px-3 align-middle text-right">
+                            {row.ultimaAtividade ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="inline-flex flex-col items-end justify-center min-w-0 max-w-full cursor-pointer">
+                                    <span className="text-[11px] font-medium text-gray-500 whitespace-nowrap">
+                                      {formatDate(row.ultimaAtividade.data)}
+                                    </span>
+                                    <span className="text-[11px] font-normal text-gray-700 truncate max-w-[190px]">
+                                      {row.ultimaAtividade.resumo}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="top"
+                                  className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg shadow-md max-w-sm"
                                 >
-                                  Motivo:{' '}
-                                  {c.motivo_perda === 'preco'
-                                    ? 'Preço'
-                                    : c.motivo_perda === 'concorrente'
-                                      ? 'Concorrente'
-                                      : c.motivo_perda === 'desistiu'
-                                        ? 'Desistiu'
-                                        : c.motivo_perda === 'outro'
-                                          ? 'Outro'
-                                          : c.motivo_perda}
-                                </span>
-                              )}
-                              {c.status === 'Fechado' && c.area_destino && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                  title={`Área de destino: ${c.area_destino}`}
-                                >
-                                  {c.area_destino === 'projetos'
-                                    ? 'Projetos (Levantamento)'
-                                    : 'O&M (Manutenção)'}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Ações */}
-                          <td className="py-3 px-4 text-right">
-                            <div className="inline-flex items-center gap-1.5">
-                              <button
-                                onClick={(e) => handleAbrirMesclagem(c, e)}
-                                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
-                                title="Mesclar este cliente com outro da base"
-                              >
-                                <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                                <span className="hidden xl:inline">Mesclar</span>
-                              </button>
-                              {c.status === 'Perdido' && (
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation()
-                                    const confirmou = window.confirm(
-                                      `Deseja reativar o cliente "${c.nome}" e devolver ao funil como Novo Lead?`,
-                                    )
-                                    if (confirmou) {
-                                      await updateClienteStatus(c.id, 'Novo Lead')
-                                    }
-                                  }}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-2xs"
-                                  title="Reativar cliente como Novo Lead"
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5" />
-                                  <span>Reativar</span>
-                                </button>
-                              )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openFichaCliente(c.id, 'whatsapp')
-                                }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300"
-                                title="Abrir WhatsApp do cliente"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
-                                <span className="hidden sm:inline">WhatsApp</span>
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openFichaCliente(c.id)
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
-                                title="Ver Ficha Técnica Completa"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                Ver Ficha
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setClienteParaExcluir({ id: c.id, nome: c.nome })
-                                }}
-                                className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 hover:text-red-700"
-                                title={`Excluir cliente ${c.nome}`}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span className="sr-only">Excluir</span>
-                              </button>
-                            </div>
+                                  <p className="font-semibold">
+                                    {formatDate(row.ultimaAtividade.data)}
+                                  </p>
+                                  <p className="text-[11px] text-gray-300 mt-0.5">
+                                    {row.ultimaAtividade.resumo}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : null}
                           </td>
                         </tr>
                       )
@@ -1300,851 +901,328 @@ export default function Clientes() {
                   </tbody>
                 </table>
               </div>
+            </TooltipProvider>
 
-              {/* Mobile Cards View */}
-              <div className="md:hidden space-y-2.5">
-                {/* Selecionar todos no mobile */}
-                <div className="bg-white p-2.5 rounded-xl border border-gray-200 flex items-center justify-between text-xs">
-                  <button
-                    type="button"
-                    onClick={handleToggleSelectAll}
-                    className="flex items-center gap-2 font-bold text-gray-700"
-                  >
-                    {isAllSelected ? (
-                      <CheckSquare className="w-4 h-4 text-emerald-600" />
-                    ) : isSomeSelected ? (
-                      <MinusSquare className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <Square className="w-4 h-4 text-gray-400" />
-                    )}
-                    <span>
-                      {isAllSelected
-                        ? 'Desmarcar todos'
-                        : `Selecionar todos (${processedClientes.length})`}
-                    </span>
-                  </button>
-                  {selectedIds.length > 0 && (
-                    <span className="text-emerald-700 font-extrabold text-[11px]">
-                      {selectedIds.length} marcado{selectedIds.length > 1 ? 's' : ''}
-                    </span>
+            {/* Visualização Mobile / Tablet (Cards Responsivos) */}
+            <div className="lg:hidden divide-y divide-gray-100">
+              {/* Linha de seleção todos mobile */}
+              <div className="p-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={handleToggleSelectAll}
+                  className="inline-flex items-center gap-2 font-semibold text-gray-700 cursor-pointer"
+                >
+                  {isAllSelected ? (
+                    <CheckSquare className="w-4 h-4 text-emerald-600" />
+                  ) : isSomeSelected ? (
+                    <MinusSquare className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-gray-400" />
                   )}
-                </div>
+                  <span>
+                    {isAllSelected
+                      ? 'Desmarcar todos'
+                      : `Selecionar todos (${filteredRows.length})`}
+                  </span>
+                </button>
+                {selectedFilteredRows.length > 0 && (
+                  <span className="text-[11px] font-bold text-emerald-800">
+                    {selectedFilteredRows.length} selecionado(s)
+                  </span>
+                )}
+              </div>
 
-                {processedClientes.map((c) => {
-                  const rawWa = (c.whatsapp || '').trim() || (c.telefone || '').trim()
-                  let waDigits = rawWa.replace(/\D/g, '')
-                  if (
-                    waDigits &&
-                    !waDigits.startsWith('55') &&
-                    (waDigits.length === 10 || waDigits.length === 11)
-                  ) {
-                    waDigits = `55${waDigits}`
-                  }
+              {paginatedRows.map((row) => {
+                const isSelected = selectedIds.includes(row.id)
+                const waLink = resolverWhatsAppLink(row)
 
-                  const tipoNegocioAtual = (
-                    c.tipo_negocio ||
-                    c.produto ||
-                    'energia solar'
-                  ).toLowerCase()
-
-                  const isChecked = selectedIds.includes(c.id)
-
-                  return (
-                    <div
-                      key={c.id}
-                      onClick={() => openFichaCliente(c.id)}
-                      className={`bg-white rounded-xl p-3.5 border transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
-                        isChecked
-                          ? 'border-emerald-500 bg-emerald-50/50'
-                          : 'border-gray-200/90 shadow-2xs hover:border-emerald-300'
-                      }`}
-                    >
-                      {/* Checkbox Individual no Mobile */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleSelectOne(c.id, e)}
-                        className="p-1 -ml-1 text-gray-400 hover:text-emerald-600 shrink-0"
-                      >
-                        {isChecked ? (
-                          <CheckSquare className="w-5 h-5 text-emerald-600" />
-                        ) : (
-                          <Square className="w-5 h-5 text-gray-300" />
-                        )}
-                      </button>
-
-                      {/* Nome do cliente e badges */}
-                      <div className="flex-1 min-w-0 pr-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-extrabold text-gray-900 text-sm leading-snug truncate">
-                            {c.nome}
+                return (
+                  <div
+                    key={row.id}
+                    onClick={() => handleAbrirCliente(row)}
+                    className={`p-3 transition-colors cursor-pointer space-y-2 ${
+                      isSelected
+                        ? 'bg-emerald-50/70'
+                        : 'hover:bg-emerald-50/40 active:bg-emerald-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onClick={(e) => handleToggleSelectOne(row.id, e)}
+                          onChange={() => {}}
+                          className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-gray-900 leading-snug truncate">
+                            {row.nome}
                           </h4>
-                          {c.tipo_pessoa === 'juridica' || c.cnpj ? (
-                            <span className="text-[9px] font-bold px-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              PJ
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-bold px-1 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                              PF
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap mt-0.5">
-                          <span className="font-medium text-emerald-700">
-                            {c.status || 'Novo Lead'}
-                          </span>
-                          {c.cidade && <span>• {c.cidade}</span>}
-                          {c.temContatoVinculado && (
-                            <span className="text-blue-700 font-semibold">• Contato vinc.</span>
+                          {row.cpfOuCnpj && (
+                            <p className="text-[11px] text-gray-400 font-mono truncate">
+                              {row.cpfOuCnpj}
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      {/* Ações diretas: WhatsApp + Menu ⋮ */}
-                      <div
-                        className="flex items-center gap-1.5 shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {waDigits ? (
-                          <a
-                            href={`https://wa.me/${waDigits}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Conversar com ${c.nome} no WhatsApp`}
-                            title={`Conversar com ${c.nome} no WhatsApp`}
-                            className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-transform cursor-pointer"
-                          >
-                            <WhatsAppIcon className="w-4 h-4" />
-                          </a>
-                        ) : (
+                      {/* Ação WhatsApp Rápida */}
+                      {waLink && (
+                        <a
+                          href={waLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-8 h-8 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200"
+                        >
+                          <WhatsAppIcon className="w-4 h-4 text-emerald-600" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-[11px] text-gray-600">
+                      <div className="flex items-center gap-2">
+                        {row.totalUsinas > 0 && (
                           <button
                             type="button"
-                            onClick={() => openFichaCliente(c.id, 'whatsapp')}
-                            aria-label="Abrir WhatsApp do cliente"
-                            title="Sem WhatsApp direto - abrir ficha"
-                            className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95 flex items-center justify-center border border-emerald-200 transition-colors cursor-pointer"
+                            onClick={(e) => handleAbrirUsinas(row, e)}
+                            className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200"
                           >
-                            <WhatsAppIcon className="w-4 h-4 opacity-70" />
+                            {row.totalUsinas} {row.totalUsinas === 1 ? 'usina' : 'usinas'}
                           </button>
                         )}
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label="Opções do cliente"
-                              title="Opções do cliente"
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:scale-95 transition-colors cursor-pointer"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 text-xs p-1.5 shadow-lg">
-                            <DropdownMenuItem
-                              onClick={() => handleAbrirMesclagem(c)}
-                              className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700"
-                            >
-                              <GitMerge className="w-4 h-4 text-emerald-700 shrink-0" />
-                              <span>Mesclar clientes</span>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => {
-                                const etapaMsg = c.status
-                                  ? `Etapa atual do cliente "${c.nome}": ${c.status}`
-                                  : `Cliente "${c.nome}" não possui etapa definida no funil.`
-                                alert(etapaMsg)
-                              }}
-                              className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700"
-                            >
-                              <GitFork className="w-4 h-4 text-blue-600 shrink-0" />
-                              <div className="flex flex-col min-w-0">
-                                <span>Ver etapa do funil</span>
-                                <span className="text-[10px] text-gray-400 font-semibold truncate">
-                                  {c.status || 'Sem etapa'}
-                                </span>
-                              </div>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator className="my-1" />
-
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700">
-                                <Briefcase className="w-4 h-4 text-amber-600 shrink-0" />
-                                <div className="flex flex-col min-w-0 text-left">
-                                  <span>Tipo de negócio</span>
-                                  <span className="text-[10px] text-gray-400 font-semibold capitalize truncate">
-                                    {tipoNegocioAtual.includes('carregador') ||
-                                    tipoNegocioAtual.includes('veículo') ||
-                                    tipoNegocioAtual.includes('veiculo') ||
-                                    tipoNegocioAtual.includes('wallbox')
-                                      ? 'Carregadores VE'
-                                      : tipoNegocioAtual.includes('bateria')
-                                        ? 'Baterias'
-                                        : tipoNegocioAtual.includes('o&m') ||
-                                            tipoNegocioAtual.includes('om') ||
-                                            tipoNegocioAtual.includes('manuten')
-                                          ? 'O&M'
-                                          : 'Solar'}
-                                  </span>
-                                </div>
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent className="w-56 text-xs p-1.5 shadow-lg">
-                                <DropdownMenuLabel className="text-[10px] text-gray-400 uppercase tracking-wider px-2 py-1">
-                                  Definir Tipo
-                                </DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  onClick={async () => {
-                                    try {
-                                      await updateCliente(c.id, {
-                                        tipo_venda: 'Energia Solar',
-                                        tipo_negocio: 'energia solar',
-                                        produto: 'Energia Solar',
-                                      })
-                                    } catch (err) {
-                                      console.error('Erro ao definir tipo Solar:', err)
-                                    }
-                                  }}
-                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
-                                >
-                                  <span>Energia Solar</span>
-                                  {!tipoNegocioAtual.includes('bateria') &&
-                                    !tipoNegocioAtual.includes('o&m') &&
-                                    !tipoNegocioAtual.includes('om') &&
-                                    !tipoNegocioAtual.includes('manuten') &&
-                                    !tipoNegocioAtual.includes('carregador') &&
-                                    !tipoNegocioAtual.includes('veículo') &&
-                                    !tipoNegocioAtual.includes('veiculo') && (
-                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                    )}
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  onClick={async () => {
-                                    try {
-                                      await updateCliente(c.id, {
-                                        tipo_venda: 'O&M (Operação e Manutenção)',
-                                        tipo_negocio: 'Planos de O&M',
-                                        produto: 'Plano de O&M',
-                                      })
-                                    } catch (err) {
-                                      console.error('Erro ao definir tipo O&M:', err)
-                                    }
-                                  }}
-                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
-                                >
-                                  <span>O&M</span>
-                                  {(tipoNegocioAtual.includes('o&m') ||
-                                    tipoNegocioAtual.includes('om') ||
-                                    tipoNegocioAtual.includes('manuten')) && (
-                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                  )}
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  onClick={async () => {
-                                    try {
-                                      await updateCliente(c.id, {
-                                        tipo_venda: 'Baterias',
-                                        tipo_negocio: 'baterias',
-                                        produto: 'Sistemas Híbridos',
-                                      })
-                                    } catch (err) {
-                                      console.error('Erro ao definir tipo Baterias:', err)
-                                    }
-                                  }}
-                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
-                                >
-                                  <span>Baterias</span>
-                                  {tipoNegocioAtual.includes('bateria') && (
-                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                  )}
-                                </DropdownMenuItem>
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <span className="text-gray-500">
+                          O&M:{' '}
+                          <strong
+                            className={row.temContratoOM ? 'text-emerald-700' : 'text-gray-500'}
+                          >
+                            {row.temContratoOM ? 'Sim' : 'Não'}
+                          </strong>
+                        </span>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          )}
 
-          {/* PAINEL LATERAL DE FILTROS COMBINADOS (Sheet / Drawer lateral do botão de funil) (Requisitos 1 e 2) */}
-          <Sheet open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
-            <SheetContent
-              side="right"
-              className="w-full sm:max-w-md p-0 flex flex-col bg-white overflow-hidden shadow-2xl"
-            >
-              <SheetHeader className="p-5 border-b border-gray-100 bg-gray-50/70 text-left">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                    <Filter className="w-5 h-5 text-emerald-700" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <SheetTitle className="text-base font-extrabold text-gray-900 flex items-center gap-2">
-                      <span>Filtros de Clientes</span>
-                      {activeFiltersCount > 0 && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                          {activeFiltersCount} ativo{activeFiltersCount > 1 ? 's' : ''}
+                      {row.ultimaAtividade && (
+                        <span className="text-[10px] text-gray-400 truncate max-w-[150px]">
+                          {formatDate(row.ultimaAtividade.data)} • {row.ultimaAtividade.resumo}
                         </span>
                       )}
-                    </SheetTitle>
-                    <SheetDescription className="text-xs text-gray-500">
-                      Combine múltiplos filtros ao mesmo tempo para refinar sua lista.
-                    </SheetDescription>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              {/* Corpo de Filtros */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-6">
-                {/* 1. FILTRO DE ETAPA DO FUNIL COMERCIAL (Multiseleção) */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
-                      <GitFork className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Etapa do Funil Comercial</span>
-                    </label>
-                    {selectedEtapas.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedEtapas([])}
-                        className="text-[11px] text-gray-500 hover:text-red-600 underline font-medium cursor-pointer"
-                      >
-                        Limpar etapas
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500">
-                    Selecione uma ou mais etapas para listar clientes presentes em qualquer uma
-                    delas:
-                  </p>
-
-                  <div className="grid grid-cols-1 gap-1.5">
-                    {ETAPAS_FUNIL_CLIENTES.map((etapa) => {
-                      const isSelected = selectedEtapas.includes(etapa.id)
-                      const count = clientesComMetadados.filter(
-                        (c) => (c.status || 'Novo Lead') === etapa.id,
-                      ).length
-
-                      return (
-                        <button
-                          key={etapa.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedEtapas((prev) =>
-                              prev.includes(etapa.id)
-                                ? prev.filter((id) => id !== etapa.id)
-                                : [...prev, etapa.id],
-                            )
-                          }}
-                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all border cursor-pointer ${
-                            isSelected
-                              ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-2xs'
-                              : 'bg-white border-gray-200/90 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                                isSelected
-                                  ? 'bg-emerald-600 border-emerald-600 text-white'
-                                  : 'border-gray-300 bg-white'
-                              }`}
-                            >
-                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                            </div>
-                            <span>{etapa.label}</span>
-                          </div>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isSelected
-                                ? 'bg-emerald-200 text-emerald-900'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {count}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200/80 pt-4 space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Filtros de Dados de Contato</span>
-                  </h4>
-
-                  {/* 2. FILTRO: TELEFONE CADASTRADO (SIM / NÃO) */}
-                  <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-gray-600" />
-                        <span>Telefone cadastrado</span>
-                      </span>
-                      {(telefoneSim || telefoneNao) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTelefoneSim(false)
-                            setTelefoneNao(false)
-                          }}
-                          className="text-[10px] text-gray-400 hover:text-red-600 underline font-medium cursor-pointer"
-                        >
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
-                          telefoneSim
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={telefoneSim}
-                          onChange={(e) => setTelefoneSim(e.target.checked)}
-                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span>Sim (Tem)</span>
-                      </label>
-                      <label
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
-                          telefoneNao
-                            ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={telefoneNao}
-                          onChange={(e) => setTelefoneNao(e.target.checked)}
-                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
-                        />
-                        <span>Não (Sem)</span>
-                      </label>
                     </div>
                   </div>
+                )
+              })}
+            </div>
 
-                  {/* 3. FILTRO: WHATSAPP CADASTRADO (SIM / NÃO) */}
-                  <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                        <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>WhatsApp cadastrado</span>
-                      </span>
-                      {(whatsAppSim || whatsAppNao) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setWhatsAppSim(false)
-                            setWhatsAppNao(false)
-                          }}
-                          className="text-[10px] text-gray-400 hover:text-red-600 underline font-medium cursor-pointer"
-                        >
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
-                          whatsAppSim
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={whatsAppSim}
-                          onChange={(e) => setWhatsAppSim(e.target.checked)}
-                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span>Sim (Tem)</span>
-                      </label>
-                      <label
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
-                          whatsAppNao
-                            ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={whatsAppNao}
-                          onChange={(e) => setWhatsAppNao(e.target.checked)}
-                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
-                        />
-                        <span>Não (Sem)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* 4. FILTRO: CONTATO VINCULADO (SIM / NÃO) */}
-                  <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                        <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Contato vinculado</span>
-                      </span>
-                      {(contatoVinculadoSim || contatoVinculadoNao) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setContatoVinculadoSim(false)
-                            setContatoVinculadoNao(false)
-                          }}
-                          className="text-[10px] text-gray-400 hover:text-red-600 underline font-medium cursor-pointer"
-                        >
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
-                          contatoVinculadoSim
-                            ? 'bg-blue-50 border-blue-500 text-blue-900 font-bold'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={contatoVinculadoSim}
-                          onChange={(e) => setContatoVinculadoSim(e.target.checked)}
-                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
-                        />
-                        <span>Sim (Tem)</span>
-                      </label>
-                      <label
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
-                          contatoVinculadoNao
-                            ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={contatoVinculadoNao}
-                          onChange={(e) => setContatoVinculadoNao(e.target.checked)}
-                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
-                        />
-                        <span>Não (Sem)</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
+            {/* Paginação */}
+            <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#F8FAF9]/60">
+              <div className="text-xs text-gray-500">
+                Mostrando{' '}
+                <span className="font-bold text-gray-900">
+                  {Math.min(filteredRows.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}
+                </span>{' '}
+                a{' '}
+                <span className="font-bold text-gray-900">
+                  {Math.min(filteredRows.length, currentPage * ITEMS_PER_PAGE)}
+                </span>{' '}
+                de <span className="font-bold text-gray-900">{filteredRows.length}</span> registros
               </div>
 
-              {/* Rodapé do Drawer com Resumo e Botão de Aplicar */}
-              <SheetFooter className="p-4 border-t border-gray-100 bg-gray-50/90 flex flex-row items-center justify-between gap-2">
-                <div className="text-xs text-gray-600 font-medium">
-                  Resultado:{' '}
-                  <strong className="text-emerald-700 font-extrabold text-sm">
-                    {processedClientes.length}
-                  </strong>{' '}
-                  clientes
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {hasAnyFilterActive && (
-                    <button
-                      type="button"
-                      onClick={handleLimparTodosFiltros}
-                      className="px-3 py-2 text-xs font-semibold text-gray-600 hover:text-red-600 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
-                    >
-                      Limpar tudo
-                    </button>
-                  )}
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setIsFilterDrawerOpen(false)}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="Página anterior"
                   >
-                    Ver Resultado ({processedClientes.length})
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="text-xs font-semibold px-2 text-gray-700">
+                    Página {currentPage} de {totalPages}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="Próxima página"
+                  >
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
-          {/* Modal de Cadastro Unificado PF/PJ com Consulta CNPJ */}
-          <ModalCadastroClienteFornecedor
-            isOpen={isModalNovoOpen}
-            onClose={() => setIsModalNovoOpen(false)}
-            tipoEntidade="cliente"
-            onSubmit={handleSalvarCliente}
-          />
-
-          {/* Modal Enviar Mensagem WhatsApp em Massa */}
-          <ModalMensagemWhatsAppMassa
-            open={isModalMensagemMassaOpen}
-            onOpenChange={setIsModalMensagemMassaOpen}
-            destinatariosIniciais={selectedIds
-              .map((id) => {
-                const c = clientes.find((cli) => cli.id === id)
-                return c ? { cliente: c, valor: c.valor_final || c.valor_estimado } : null
-              })
-              .filter((d): d is NonNullable<typeof d> => Boolean(d))}
-          />
-
-          {/* Modal Oferecer Limpeza Avulsa em Lote / Individual */}
-          <ModalOferecerLimpezaAvulsa
-            open={isModalOferecerLimpezaOpen}
-            onOpenChange={setIsModalOferecerLimpezaOpen}
-            initialClienteId={selectedIds.length === 1 ? selectedIds[0] : null}
-          />
-
-          {/* Modal de Mesclagem Campo a Campo (N Clientes) */}
-          <ModalMesclarClientes
-            isOpen={isModalMesclarOpen}
-            onClose={() => {
-              setIsModalMesclarOpen(false)
-              setClienteMesclarInicial(null)
-              setClientesMesclarLista([])
-            }}
-            clienteInicial={clienteMesclarInicial}
-            clientesIniciais={clientesMesclarLista}
-            todosClientes={clientes}
-            onConfirmarMesclagem={async (opcoes) => {
-              await mesclarClientes(opcoes)
-              // Limpar todos os secundários selecionados
-              const secundarioRemovidos = new Set([
-                ...(opcoes.clienteSecundarioId ? [opcoes.clienteSecundarioId] : []),
-                ...(opcoes.clientesSecundariosIds || []),
-              ])
-              setSelectedIds((prev) => prev.filter((id) => !secundarioRemovidos.has(id)))
-              await refreshClientes()
-            }}
-          />
-
-          {/* MODAL DE AÇÃO EM LOTE: MOVER PARA OUTRA ETAPA DO FUNIL (Requisito 4 e 5) */}
-          <Dialog
-            open={isModalMoverEtapaLoteOpen}
-            onOpenChange={(open) => {
-              if (!open && !isMovingEtapaLote) {
-                setIsModalMoverEtapaLoteOpen(false)
-              }
-            }}
-          >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-base text-gray-900 font-extrabold">
-                  <ArrowRightLeft className="w-5 h-5 text-blue-600" />
-                  <span>Mover {selectedIds.length} Clientes de Etapa</span>
-                </DialogTitle>
-                <DialogDescription className="text-xs text-gray-500">
-                  Selecione a etapa de destino no funil comercial para os clientes selecionados.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="py-3 space-y-3">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5">
-                  <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                  <div className="text-xs text-blue-900">
-                    <p className="font-semibold">
-                      Você está prestes a mover <strong>{selectedIds.length} clientes</strong>{' '}
-                      simultaneamente.
-                    </p>
-                    <p className="text-[11px] text-blue-700 mt-0.5">
-                      Esta ação atualizará o status de todos eles no funil comercial de vendas.
-                    </p>
-                  </div>
+      {/* 3. Painel Lateral (Drawer / Sheet) de Filtros */}
+      <Sheet open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col bg-white">
+          <SheetHeader className="p-5 border-b border-gray-100 bg-[#F8FAF9]/80">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Filter className="w-4 h-4" />
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700">
-                    Escolha a Etapa de Destino:
-                  </label>
-                  <select
-                    value={etapaDestinoLote}
-                    onChange={(e) => setEtapaDestinoLote(e.target.value as ClienteStatus)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  >
-                    {ETAPAS_FUNIL_CLIENTES.map((etapa) => (
-                      <option key={etapa.id} value={etapa.id}>
-                        {etapa.label}
-                      </option>
-                    ))}
-                  </select>
+                <div>
+                  <SheetTitle className="text-base font-bold text-gray-900">
+                    Filtros de Clientes
+                  </SheetTitle>
+                  <SheetDescription className="text-xs text-gray-500">
+                    Refine os clientes listados pelos critérios abaixo
+                  </SheetDescription>
                 </div>
               </div>
+              {activeDraftFiltersCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {activeDraftFiltersCount} ativo{activeDraftFiltersCount > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </SheetHeader>
 
-              <DialogFooter className="flex flex-row items-center justify-end gap-2">
-                <button
-                  type="button"
-                  disabled={isMovingEtapaLote}
-                  onClick={() => setIsModalMoverEtapaLoteOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={isMovingEtapaLote}
-                  onClick={handleConfirmarMoverEtapaLote}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  {isMovingEtapaLote ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Movendo...</span>
-                    </>
-                  ) : (
-                    <span>Confirmar Mudança de Etapa</span>
-                  )}
-                </button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Corpo rolável com filtros */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* A. Tipo Pessoa (PF / PJ) - Acessível apenas pelo filtro conforme especificação */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800">Tipo de Pessoa</label>
+              <select
+                value={draftFiltros.tipoPessoa}
+                onChange={(e) =>
+                  setDraftFiltros((prev) => ({
+                    ...prev,
+                    tipoPessoa: e.target.value as any,
+                  }))
+                }
+                className="w-full text-xs bg-gray-50 hover:bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-gray-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all cursor-pointer"
+              >
+                <option value="todos">Todos (Pessoa Física e Jurídica)</option>
+                <option value="fisica">Pessoa Física (PF)</option>
+                <option value="juridica">Pessoa Jurídica (PJ)</option>
+              </select>
+            </div>
 
-          {/* CONFIRMAÇÃO REFORÇADA DE EXCLUSÃO EM LOTE (Requisitos 4 e 5) */}
-          <AlertDialog
-            open={isModalExcluirLoteOpen}
-            onOpenChange={(open) => {
-              if (!open && !isDeletingLote) {
-                setIsModalExcluirLoteOpen(false)
-                setTextoConfirmacaoExclusao('')
-              }
-            }}
-          >
-            <AlertDialogContent className="max-w-md">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-red-600 flex items-center gap-2">
-                  <Trash2 className="w-5 h-5" />
-                  Atenção: Exclusão de {selectedIds.length} Clientes
-                </AlertDialogTitle>
-                <AlertDialogDescription asChild>
-                  <div className="space-y-3 text-xs text-gray-600 text-left">
-                    <p>
-                      Você selecionou{' '}
-                      <strong className="text-gray-900 font-bold">
-                        {selectedIds.length} {selectedIds.length === 1 ? 'cliente' : 'clientes'}
-                      </strong>{' '}
-                      para exclusão definitiva.
-                    </p>
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-900 space-y-1">
-                      <p className="font-bold flex items-center gap-1">
-                        <span>Aviso de impacto irreversível:</span>
-                      </p>
-                      <p className="text-[11px] text-red-800">
-                        Esta operação apagará permanentemente o cadastro e todos os registros
-                        vinculados (orçamentos, manutenções, propostas, atividades na timeline,
-                        etc.).
-                      </p>
-                    </div>
+            {/* B. Telefone Cadastrado */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800">Telefone / WhatsApp</label>
+              <select
+                value={draftFiltros.temTelefone}
+                onChange={(e) =>
+                  setDraftFiltros((prev) => ({
+                    ...prev,
+                    temTelefone: e.target.value as any,
+                  }))
+                }
+                className="w-full text-xs bg-gray-50 hover:bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-gray-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all cursor-pointer"
+              >
+                <option value="todos">Todos</option>
+                <option value="sim">Com telefone/WhatsApp cadastrado</option>
+                <option value="nao">Sem telefone cadastrado</option>
+              </select>
+            </div>
 
-                    <div className="space-y-1 pt-1">
-                      <label className="text-xs font-bold text-gray-800 block">
-                        Para confirmar a exclusão sem enganos, digite exatamente{' '}
-                        <span className="text-red-600 font-black px-1 py-0.5 bg-red-100 rounded">
-                          {selectedIds.length}
-                        </span>{' '}
-                        abaixo:
-                      </label>
-                      <input
-                        type="text"
-                        value={textoConfirmacaoExclusao}
-                        onChange={(e) => setTextoConfirmacaoExclusao(e.target.value)}
-                        placeholder={`Digite ${selectedIds.length} para confirmar`}
-                        className="w-full text-xs font-mono font-bold px-3 py-2 bg-white border border-red-300 focus:border-red-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500"
-                      />
-                    </div>
-                  </div>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel
-                  disabled={isDeletingLote}
-                  onClick={() => setTextoConfirmacaoExclusao('')}
-                >
-                  Cancelar
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={
-                    isDeletingLote || textoConfirmacaoExclusao.trim() !== String(selectedIds.length)
-                  }
-                  onClick={async (e) => {
-                    e.preventDefault()
-                    await handleExcluirLote()
-                  }}
-                  className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:hover:bg-red-600 text-white focus:ring-red-600 font-bold"
-                >
-                  {isDeletingLote ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Excluindo {selectedIds.length} clientes...
-                    </>
-                  ) : (
-                    `Excluir ${selectedIds.length} Clientes Definitivamente`
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            {/* C. Contrato O&M */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800">Contrato O&M</label>
+              <select
+                value={draftFiltros.temContratoOM}
+                onChange={(e) =>
+                  setDraftFiltros((prev) => ({
+                    ...prev,
+                    temContratoOM: e.target.value as any,
+                  }))
+                }
+                className="w-full text-xs bg-gray-50 hover:bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-gray-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all cursor-pointer"
+              >
+                <option value="todos">Todos</option>
+                <option value="sim">Com Contrato O&M ("Sim")</option>
+                <option value="nao">Sem Contrato O&M ("Não")</option>
+              </select>
+            </div>
 
-          {/* Confirmação Segura de Exclusão Individual de Cliente */}
-          <AlertDialog
-            open={Boolean(clienteParaExcluir)}
-            onOpenChange={(open) => {
-              if (!open && !isDeletingCliente) {
-                setClienteParaExcluir(null)
-              }
-            }}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirmar Exclusão de Cliente</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja excluir o cliente{' '}
-                  <strong className="text-gray-900 font-semibold">
-                    {clienteParaExcluir?.nome}
-                  </strong>
-                  ? Esta ação é irreversível e excluirá todas as atividades, propostas, orçamentos e
-                  registros vinculados a ele.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeletingCliente}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={isDeletingCliente}
-                  onClick={async (e) => {
-                    e.preventDefault()
-                    if (!clienteParaExcluir) return
-                    try {
-                      setIsDeletingCliente(true)
-                      await removeCliente(clienteParaExcluir.id)
-                      setClienteParaExcluir(null)
-                    } catch (err) {
-                      console.error('Erro ao excluir cliente:', err)
-                      alert('Ocorreu um erro ao excluir o cliente. Tente novamente.')
-                    } finally {
-                      setIsDeletingCliente(false)
-                    }
-                  }}
-                  className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
-                >
-                  {isDeletingCliente ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Excluindo...
-                    </>
-                  ) : (
-                    'Confirmar Exclusão'
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      )}
+            {/* D. Número de Usinas */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800">Usinas Vinculadas</label>
+              <select
+                value={draftFiltros.temUsinas}
+                onChange={(e) =>
+                  setDraftFiltros((prev) => ({
+                    ...prev,
+                    temUsinas: e.target.value as any,
+                  }))
+                }
+                className="w-full text-xs bg-gray-50 hover:bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-gray-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all cursor-pointer"
+              >
+                <option value="todos">Todos</option>
+                <option value="com_usinas">Com pelo menos 1 usina</option>
+                <option value="sem_usinas">Sem usinas vinculadas</option>
+              </select>
+            </div>
+
+            {/* E. Origem do Registro */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800">Origem do Cadastro</label>
+              <select
+                value={draftFiltros.origemRegistro}
+                onChange={(e) =>
+                  setDraftFiltros((prev) => ({
+                    ...prev,
+                    origemRegistro: e.target.value as any,
+                  }))
+                }
+                className="w-full text-xs bg-gray-50 hover:bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-gray-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all cursor-pointer"
+              >
+                <option value="todos">Todos (Base + Outros Contatos)</option>
+                <option value="cliente">Base de Clientes</option>
+                <option value="outro_contato">Outros Contatos</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Rodapé com botões de Aplicar e Limpar filtros */}
+          <SheetFooter className="p-4 border-t border-gray-100 bg-[#F8FAF9]/80 flex flex-row items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleLimparFiltros}
+              className="h-9 px-3 rounded-xl border-gray-200 text-gray-700 hover:bg-gray-100 text-xs font-semibold"
+            >
+              <FilterX className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
+              Limpar filtros
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAplicarFiltros}
+              className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+            >
+              <Check className="w-3.5 h-3.5 mr-1.5" />
+              Aplicar filtros
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* 4. Modal Cadastro de Novo Cliente */}
+      <ModalCadastroClienteFornecedor
+        isOpen={isModalNovoOpen}
+        onClose={() => setIsModalNovoOpen(false)}
+        tipoEntidade="cliente"
+        onSubmit={handleSalvarNovoCliente}
+      />
+
+      {/* 5. Modal Mensagem WhatsApp em Massa */}
+      <ModalMensagemWhatsAppMassa
+        open={isModalMensagemMassaOpen}
+        onOpenChange={setIsModalMensagemMassaOpen}
+        destinatariosIniciais={destinatariosMensagemMassa}
+      />
     </div>
   )
 }

@@ -27,3 +27,37 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const obj = error as Record<string, unknown>
+    const status =
+      obj.status ??
+      obj.statusCode ??
+      (obj.response as Record<string, unknown> | undefined)?.status ??
+      (obj.response as Record<string, unknown> | undefined)?.code
+    if (status === 401 || status === 403) return true
+
+    const msg = String(
+      obj.message ?? (obj.response as Record<string, unknown> | undefined)?.message ?? '',
+    ).toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('unauthorized') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('sessao expirada') ||
+      msg.includes('jwt expired') ||
+      msg.includes('invalid token')
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
