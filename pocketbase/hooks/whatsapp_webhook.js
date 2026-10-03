@@ -1,6 +1,7 @@
 // Webhook público para receber mensagens do WhatsApp (Z-API / On-Message-Received)
 // Endpoint: POST /backend/v1/whatsapp/webhook
 // Também atende GET /backend/v1/whatsapp/webhook para verificação/ping de conformidade
+// Validação e homologação v0.0.848 Delfos Solar
 routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
   try {
     const body = e.requestInfo().body || {}
