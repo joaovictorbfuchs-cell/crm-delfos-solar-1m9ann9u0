@@ -786,7 +786,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
           <div className="flex items-center gap-2 justify-between sm:justify-end text-xs text-gray-600 flex-wrap">
             <span className="font-medium text-[11px] sm:text-xs">
-              <strong className="text-gray-900 font-bold">{filteredItens.length}</strong>{' '}
+              <strong className="text-slate-900 font-bold">{filteredItens.length}</strong>{' '}
               {filteredItens.length === 1 ? 'negócio' : 'negócios'}
             </span>
 
@@ -803,7 +803,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               variant="outline"
               size="sm"
               onClick={onBackToKanban}
-              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 font-medium text-xs h-8"
+              className="border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-medium text-xs h-8"
             >
               ← Voltar para Kanban
             </Button>

@@ -118,9 +118,9 @@ export default function Comercial() {
     return true
   })
 
-  // Negócios e Clientes filtrados por Responsável e por Estado
+  // Negócios e Clientes filtrados por Responsável e por Estado, com ordenação
   const negociosFiltrados = React.useMemo(() => {
-    let lista = negociosList
+    let lista = [...negociosList]
 
     // Filtro por Responsável
     if (filtroResponsavel !== 'todos') {
@@ -146,11 +146,22 @@ export default function Comercial() {
       lista = lista.filter((n) => n.status === 'perdido')
     }
 
+    // Ordenação
+    if (ordenacao === 'valor_maior') {
+      lista.sort((a, b) => (b.valor_estimado || 0) - (a.valor_estimado || 0))
+    } else if (ordenacao === 'valor_menor') {
+      lista.sort((a, b) => (a.valor_estimado || 0) - (b.valor_estimado || 0))
+    } else if (ordenacao === 'nome_az') {
+      lista.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || ''))
+    } else if (ordenacao === 'recente') {
+      lista.sort((a, b) => new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime())
+    }
+
     return lista
-  }, [negociosList, filtroResponsavel, filtroEstado])
+  }, [negociosList, filtroResponsavel, filtroEstado, ordenacao])
 
   const clientesAtivosFiltrados = React.useMemo(() => {
-    let lista = clientesAtivos
+    let lista = [...clientesAtivos]
 
     // Filtro por Responsável
     if (filtroResponsavel !== 'todos') {
@@ -170,8 +181,19 @@ export default function Comercial() {
       lista = lista.filter((c) => c.status === 'Perdido')
     }
 
+    // Ordenação
+    if (ordenacao === 'valor_maior') {
+      lista.sort((a, b) => (b.valor_estimado || 0) - (a.valor_estimado || 0))
+    } else if (ordenacao === 'valor_menor') {
+      lista.sort((a, b) => (a.valor_estimado || 0) - (b.valor_estimado || 0))
+    } else if (ordenacao === 'nome_az') {
+      lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+    } else if (ordenacao === 'recente') {
+      lista.sort((a, b) => new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime())
+    }
+
     return lista
-  }, [clientesAtivos, filtroResponsavel, filtroEstado])
+  }, [clientesAtivos, filtroResponsavel, filtroEstado, ordenacao])
 
   // Clientes perdidos
   const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)
