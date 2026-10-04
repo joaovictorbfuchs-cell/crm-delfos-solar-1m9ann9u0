@@ -59,6 +59,7 @@ import {
   Navigation,
 } from 'lucide-react'
 import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
+import { SecaoDocumentosUsina } from '@/components/SecaoDocumentosUsina'
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { InlineEditField } from '@/components/InlineEditField'
@@ -1897,6 +1898,13 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     encontrarDatasheetModuloUsina={encontrarDatasheetModuloUsina}
                     encontrarEquipamentoComDatasheet={encontrarEquipamentoComDatasheet}
                     onCloseModalUsina={() => setUsinaDetalhes(null)}
+                  />
+
+                  {/* Documentos da Usina (Upload Múltiplo, Descrição por Documento, Lightbox & Download) */}
+                  <SecaoDocumentosUsina
+                    usinaId={usinaDetalhes.id}
+                    usinaNome={usinaDetalhes.nome}
+                    readOnly={false}
                   />
 
                   {/* Observações Técnicas */}

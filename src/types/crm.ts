@@ -363,6 +363,25 @@ export interface DocumentoUsinaItem {
   observacoes?: string
 }
 
+/**
+ * Registro de documento salvo na coleção `documentos_usina` do PocketBase
+ */
+export interface DocumentoUsinaRegistro extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  usina_id: string
+  arquivo: string
+  nome_original?: string
+  descricao?: string
+  ativo?: boolean
+  created: string
+  updated: string
+  expand?: {
+    usina_id?: UsinaCliente
+  }
+}
+
 export interface UsinaCliente extends RecordModel {
   id: string
   collectionId: string

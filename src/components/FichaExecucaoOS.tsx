@@ -21,6 +21,7 @@ import {
   sugerirConfiguracaoPorMarca,
 } from '@/services/configuracoesMonitoramentoService'
 import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
+import { SecaoDocumentosUsina } from '@/components/SecaoDocumentosUsina'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -1193,6 +1194,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </div>
         </div>
       </div>
+
+      {/* DOCUMENTOS DA USINA (Consulta em Campo: Laudos, Projetos, Medições, Comprovantes e Fotos) */}
+      {(os.usina_id || usinaVinculada?.id) && (
+        <SecaoDocumentosUsina
+          usinaId={os.usina_id || usinaVinculada?.id || ''}
+          usinaNome={usinaVinculada?.nome || cliente?.nome || 'Usina'}
+          readOnly={true}
+        />
+      )}
 
       {/* 2. PROCEDIMENTOS DE TRABALHO PADRÃO & INSTRUÇÕES (Vindos do Catálogo de Atividades) */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-3">
