@@ -821,10 +821,10 @@ export function ModalFormEquipamento({
                   <option value="">Nenhuma configuração vinculada</option>
                   {configuracoesMonitoramento.map((cfg) => {
                     const rotuloTipo =
-                      cfg.tipo_conteudo === 'ambos' ||
-                      (cfg.arquivo_pdf && (cfg.link_procedimento || cfg.url_procedimento))
+                      cfg.tipo_procedimento === 'ambos' ||
+                      (cfg.arquivo_pdf && cfg.link_procedimento)
                         ? 'PDF + Link'
-                        : cfg.tipo_conteudo === 'pdf' || cfg.arquivo_pdf
+                        : cfg.tipo_procedimento === 'pdf' || cfg.arquivo_pdf
                           ? 'PDF'
                           : 'Link'
                     return (

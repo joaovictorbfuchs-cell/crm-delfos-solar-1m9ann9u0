@@ -42,6 +42,7 @@ import {
   vincularEquipamentoUsina,
   desvincularEquipamentoUsina,
 } from '@/services/usinaEquipamentosService'
+import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import type { ConfiguracaoMonitoramento } from '@/types/equipamentos'
 import { fetchConfiguracoesMonitoramento } from '@/services/configuracoesMonitoramentoService'
 import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
@@ -111,6 +112,10 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [loading, setLoading] = useState<boolean>(true)
   const [expandido, setExpandido] = useState<boolean>(true)
   const [efetivandoVinculos, setEfetivandoVinculos] = useState<boolean>(false)
+
+  // Modal Cadastrar Equipamento (formulário completo com datasheet, monitoramento, etc.)
+  const [modalCadastrarEquipamentoAberto, setModalCadastrarEquipamentoAberto] =
+    useState<boolean>(false)
 
   // Modal Adicionar Ativo (Seleção em Cascata: Equipamento -> Marca -> Modelo/Potência)
   const [modalVincularAberto, setModalVincularAberto] = useState<boolean>(false)
@@ -240,6 +245,75 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     setNumeroSerie('')
     setObservacoes('')
     setModalVincularAberto(true)
+  }
+
+  const handleEquipamentoCadastrado = async (
+    equipamentoCriado: Equipamento,
+    _isEdicao: boolean,
+    extra?: { quantidade?: number },
+  ) => {
+    const qtd = extra?.quantidade && extra.quantidade > 0 ? extra.quantidade : 1
+    try {
+      await vincularEquipamentoUsina({
+        usina_id: usina.id,
+        equipamento_id: equipamentoCriado.id,
+        quantidade: qtd,
+      })
+
+      // Se tipo === 'inversor' e houver onUpdateUsinaMultipleFields / onUpdateUsinaField:
+      if (equipamentoCriado.tipo === 'inversor') {
+        const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
+        const updatesInversor: Partial<UsinaCliente> = {
+          fabricante_inversores: equipamentoCriado.marca || '',
+          modelo_inversores: equipamentoCriado.modelo || '',
+          potencia_pico_inversores_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
+        }
+        if (onUpdateUsinaMultipleFields) {
+          await onUpdateUsinaMultipleFields(updatesInversor)
+        } else if (onUpdateUsinaField) {
+          if (equipamentoCriado.marca) {
+            await onUpdateUsinaField('fabricante_inversores', equipamentoCriado.marca)
+          }
+          if (equipamentoCriado.modelo) {
+            await onUpdateUsinaField('modelo_inversores', equipamentoCriado.modelo)
+          }
+          if (potPicoKwp > 0) {
+            await onUpdateUsinaField('potencia_pico_inversores_kwp', potPicoKwp)
+          }
+        }
+      } else if (equipamentoCriado.tipo === 'modulo_fv') {
+        const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
+        const updatesModulo: Partial<UsinaCliente> = {
+          fabricante_modulos: equipamentoCriado.marca || '',
+          modelo_modulos: equipamentoCriado.modelo || '',
+          quantidade_placas: qtd,
+          potencia_pico_modulos_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
+        }
+        if (onUpdateUsinaMultipleFields) {
+          await onUpdateUsinaMultipleFields(updatesModulo)
+        } else if (onUpdateUsinaField) {
+          if (equipamentoCriado.marca) {
+            await onUpdateUsinaField('fabricante_modulos', equipamentoCriado.marca)
+          }
+          if (equipamentoCriado.modelo) {
+            await onUpdateUsinaField('modelo_modulos', equipamentoCriado.modelo)
+          }
+          await onUpdateUsinaField('quantidade_placas', qtd)
+          if (potPicoKwp > 0) {
+            await onUpdateUsinaField('potencia_pico_modulos_kwp', potPicoKwp)
+          }
+        }
+      }
+
+      await carregarDados()
+      toast.success('Equipamento cadastrado e vinculado à usina!')
+      setModalCadastrarEquipamentoAberto(false)
+    } catch (err) {
+      console.error('Erro ao vincular equipamento cadastrado à usina:', err)
+      toast.error('O equipamento foi criado, mas o vínculo à usina falhou.')
+    } finally {
+      setModalCadastrarEquipamentoAberto(false)
+    }
   }
 
   const handleVincularEquipamento = async (e: React.FormEvent) => {
@@ -748,7 +822,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
           </div>
         </div>
 
-        {/* Barra de Ações Rápidas do Bloco: Apenas "Adicionar Ativo" e Chevron recolher */}
+        {/* Barra de Ações Rápidas do Bloco: "Adicionar Ativo", "Cadastrar Equipamento" e Chevron recolher */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
@@ -761,6 +835,20 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
             <Plus className="w-3.5 h-3.5" />
             <span>Adicionar Ativo</span>
           </button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              setModalCadastrarEquipamentoAberto(true)
+            }}
+            className="inline-flex items-center gap-1 text-[11px] font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50 h-8 px-3 rounded-lg shadow-2xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Cadastrar Equipamento</span>
+          </Button>
 
           <Button
             type="button"
@@ -2058,6 +2146,17 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ================================================================ */}
+      {/* MODAL: CADASTRAR EQUIPAMENTO (NOVO NOVO CATALOGO + VINCULO DIRETO) */}
+      {/* ================================================================ */}
+      <ModalFormEquipamento
+        isOpen={modalCadastrarEquipamentoAberto}
+        onClose={() => setModalCadastrarEquipamentoAberto(false)}
+        tiposPermitidos={['inversor', 'modulo_fv']}
+        exibirQuantidade={true}
+        onSalvo={handleEquipamentoCadastrado}
+      />
     </div>
   )
 }
