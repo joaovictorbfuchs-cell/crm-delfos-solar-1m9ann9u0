@@ -2,7 +2,7 @@ import type { Fornecedor } from './crm'
 
 export type TipoEquipamento = 'inversor' | 'modulo_fv' | 'outro'
 
-export type TipoProcedimentoMonitoramento = 'pdf' | 'link'
+export type TipoProcedimentoMonitoramento = 'pdf' | 'link' | 'ambos'
 
 export interface ConfiguracaoMonitoramento {
   id: string

@@ -143,9 +143,9 @@ export function AbaConfiguracoesMonitoramento({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtrados.map((item) => {
             const pdfUrl = getPdfConfiguracaoMonitoramentoUrl(item)
-            const isPdf = Boolean(item.arquivo_pdf || pdfUrl)
-            const isLink = Boolean(item.link_procedimento && item.link_procedimento.trim())
-            const linkAcessar = isPdf ? pdfUrl : item.link_procedimento
+            const hasPdf = Boolean(item.arquivo_pdf || pdfUrl)
+            const hasLink = Boolean(item.link_procedimento && item.link_procedimento.trim())
+            const linkHref = item.link_procedimento && item.link_procedimento.trim()
 
             return (
               <div
@@ -157,20 +157,25 @@ export function AbaConfiguracoesMonitoramento({
                     <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                       Inversor {item.marca}
                     </span>
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isPdf
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-blue-100 text-blue-800 border border-blue-200'
-                      }`}
-                    >
-                      {isPdf ? (
+                    {hasPdf && hasLink ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300">
                         <FileText className="w-3 h-3 text-emerald-700" />
-                      ) : (
+                        <span>PDF</span>
+                        <span className="text-gray-400 font-normal">+</span>
                         <LinkIcon className="w-3 h-3 text-blue-700" />
-                      )}
-                      <span>{isPdf ? 'Documento PDF' : 'Link / Vídeo'}</span>
-                    </span>
+                        <span>Link</span>
+                      </span>
+                    ) : hasPdf ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <FileText className="w-3 h-3 text-emerald-700" />
+                        <span>Documento PDF</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                        <LinkIcon className="w-3 h-3 text-blue-700" />
+                        <span>Link / Vídeo</span>
+                      </span>
+                    )}
                   </div>
 
                   <h4 className="text-sm font-bold text-gray-900 mt-2 leading-snug">
@@ -183,34 +188,36 @@ export function AbaConfiguracoesMonitoramento({
                     </p>
                   )}
 
-                  {/* Anexo Clicável */}
-                  {linkAcessar && (
-                    <div className="mt-3">
-                      <a
-                        href={linkAcessar}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors shadow-2xs ${
-                          isPdf
-                            ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200'
-                        }`}
-                        title={
-                          isPdf
-                            ? 'Visualizar / Baixar PDF do passo a passo'
-                            : `Abrir link: ${linkAcessar}`
-                        }
-                      >
-                        {isPdf ? (
+                  {/* Anexos Clicáveis (mostra ambos se existirem) */}
+                  {(hasPdf || hasLink) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {hasPdf && pdfUrl && (
+                        <a
+                          href={pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors shadow-2xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          title="Visualizar / Baixar PDF do passo a passo"
+                        >
                           <FileText className="w-3.5 h-3.5 text-emerald-700" />
-                        ) : (
+                          <span>PDF Passo a Passo</span>
+                          <ExternalLink className="w-3 h-3 ml-0.5 text-emerald-600" />
+                        </a>
+                      )}
+
+                      {hasLink && linkHref && (
+                        <a
+                          href={linkHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors shadow-2xs bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200"
+                          title={`Abrir link: ${linkHref}`}
+                        >
                           <ExternalLink className="w-3.5 h-3.5 text-blue-700" />
-                        )}
-                        <span>
-                          {isPdf ? 'Abrir PDF do Passo a Passo' : 'Acessar Link do Procedimento'}
-                        </span>
-                        <ExternalLink className="w-3 h-3 ml-0.5" />
-                      </a>
+                          <span>Acessar Link</span>
+                          <ExternalLink className="w-3 h-3 ml-0.5 text-blue-600" />
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>

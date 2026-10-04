@@ -31,19 +31,53 @@ export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> =
 }) => {
   if (!configuracao) return null
 
-  const { url, tipo } = getProcedimentoMonitoramentoUrl(configuracao)
-  if (!url) return null
+  const proc = getProcedimentoMonitoramentoUrl(configuracao)
+  if (!proc.temPdf && !proc.temLink && !proc.url) return null
 
-  const isPdf = tipo === 'pdf'
-  const isVideoOrLink = tipo === 'link'
+  // Se tem ambos cadastrados para o mesmo procedimento (PDF e Link), renderiza os dois badges lado a lado
+  if (proc.temAmbos && proc.pdfUrl && proc.linkUrl) {
+    return (
+      <div className={`inline-flex flex-wrap items-center gap-1.5 ${className}`}>
+        <a
+          href={proc.pdfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-200 transition-colors shrink-0 shadow-2xs"
+          title={`Abrir PDF com passo a passo de configuração do datalogger (${configuracao.marca})`}
+        >
+          <FileText className="w-3 h-3 text-emerald-600 shrink-0" />
+          <span>{rotulo} (PDF)</span>
+          <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5 shrink-0" />
+        </a>
+
+        <a
+          href={proc.linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 hover:text-blue-900 bg-blue-50 hover:bg-blue-100/90 px-2 py-0.5 rounded border border-blue-200 transition-colors shrink-0 shadow-2xs"
+          title={`Acessar link/vídeo de configuração do datalogger (${configuracao.marca}): ${proc.linkUrl}`}
+        >
+          <ExternalLink className="w-3 h-3 text-blue-600 shrink-0" />
+          <span>{rotulo} (Link)</span>
+          <ExternalLink className="w-2.5 h-2.5 text-blue-600 ml-0.5 shrink-0" />
+        </a>
+      </div>
+    )
+  }
+
+  // Caso tenha apenas PDF ou apenas Link
+  const isPdf = proc.temPdf || proc.tipo === 'pdf'
+  const urlFinal = proc.pdfUrl || proc.linkUrl || proc.url!
 
   const tituloTooltip = isPdf
     ? `Abrir PDF com passo a passo de configuração do datalogger (${configuracao.marca})`
-    : `Acessar link/vídeo de instrução de configuração do datalogger (${configuracao.marca}): ${url}`
+    : `Acessar link/vídeo de instrução de configuração do datalogger (${configuracao.marca}): ${urlFinal}`
 
   return (
     <a
-      href={url}
+      href={urlFinal}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}

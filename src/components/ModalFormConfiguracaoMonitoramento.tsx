@@ -43,7 +43,7 @@ export function ModalFormConfiguracaoMonitoramento({
 }: ModalFormConfiguracaoMonitoramentoProps) {
   const [marca, setMarca] = useState<string>('')
   const [titulo, setTitulo] = useState<string>('')
-  const [tipoProcedimento, setTipoProcedimento] = useState<TipoProcedimentoMonitoramento>('pdf')
+  const [tipoProcedimento, setTipoProcedimento] = useState<TipoProcedimentoMonitoramento>('ambos')
   const [linkProcedimento, setLinkProcedimento] = useState<string>('')
   const [instrucoes, setInstrucoes] = useState<string>('')
   const [ativo, setAtivo] = useState<boolean>(true)
@@ -63,9 +63,14 @@ export function ModalFormConfiguracaoMonitoramento({
     if (editingItem) {
       setMarca(editingItem.marca || '')
       setTitulo(editingItem.titulo || '')
-      setTipoProcedimento(
-        editingItem.tipo_procedimento || (editingItem.arquivo_pdf ? 'pdf' : 'link'),
+      const temArquivoPdf = Boolean(editingItem.arquivo_pdf)
+      const temLinkCadastrado = Boolean(
+        editingItem.link_procedimento && editingItem.link_procedimento.trim(),
       )
+      const tipoPadrao: TipoProcedimentoMonitoramento =
+        editingItem.tipo_procedimento ||
+        (temArquivoPdf && temLinkCadastrado ? 'ambos' : temArquivoPdf ? 'pdf' : 'link')
+      setTipoProcedimento(tipoPadrao)
       setLinkProcedimento(editingItem.link_procedimento || '')
       setInstrucoes(editingItem.instrucoes || '')
       setAtivo(editingItem.ativo !== undefined ? editingItem.ativo : true)
@@ -77,7 +82,7 @@ export function ModalFormConfiguracaoMonitoramento({
     } else {
       setMarca(marcaSugerida || '')
       setTitulo(marcaSugerida ? `Configuração Datalogger - ${marcaSugerida}` : '')
-      setTipoProcedimento('pdf')
+      setTipoProcedimento('ambos')
       setLinkProcedimento('')
       setInstrucoes('')
       setAtivo(true)
@@ -105,7 +110,6 @@ export function ModalFormConfiguracaoMonitoramento({
 
     setSelectedPdf(file)
     setRemoverPdfExistente(false)
-    setTipoProcedimento('pdf')
     setErrorMessage(null)
   }
 
@@ -130,8 +134,15 @@ export function ModalFormConfiguracaoMonitoramento({
     const temPdf = Boolean(selectedPdf || (pdfExistenteUrl && !removerPdfExistente))
     const temLink = Boolean(linkProcedimento.trim())
 
+    if (!temPdf && !temLink) {
+      setErrorMessage(
+        'Por favor, adicione ao menos um modo de acesso: faça upload do arquivo PDF ou preencha o link do procedimento (você também pode preencher ambos).',
+      )
+      return
+    }
+
     if (tipoProcedimento === 'pdf' && !temPdf) {
-      setErrorMessage('Por favor, selecione o arquivo PDF do passo a passo ou alterne para link.')
+      setErrorMessage('Por favor, selecione o arquivo PDF do passo a passo.')
       return
     }
 
@@ -142,19 +153,25 @@ export function ModalFormConfiguracaoMonitoramento({
       return
     }
 
+    if (tipoProcedimento === 'ambos' && (!temPdf || !temLink)) {
+      setErrorMessage(
+        'Para a opção "PDF + Link", por favor forneça tanto o arquivo PDF quanto a URL do link.',
+      )
+      return
+    }
+
     try {
       setIsSubmitting(true)
+
+      // Se preencheu os dois, define tipo_procedimento como 'ambos' para garantir integridade
+      const tipoEfetivo: TipoProcedimentoMonitoramento =
+        temPdf && temLink ? 'ambos' : temPdf ? 'pdf' : 'link'
 
       const dados: SalvarConfiguracaoMonitoramentoDados = {
         marca: marca.trim(),
         titulo: titulo.trim() || `Configuração Datalogger - ${marca.trim()}`,
-        tipo_procedimento: tipoProcedimento,
-        link_procedimento:
-          tipoProcedimento === 'link'
-            ? linkProcedimento.trim()
-            : temLink
-              ? linkProcedimento.trim()
-              : '',
+        tipo_procedimento: tipoEfetivo,
+        link_procedimento: temLink ? linkProcedimento.trim() : '',
         instrucoes: instrucoes.trim(),
         ativo,
       }
@@ -275,16 +292,33 @@ export function ModalFormConfiguracaoMonitoramento({
             />
           </div>
 
-          {/* Seleção do Formato: PDF OU Link */}
+          {/* Seleção do Formato: PDF, Link OU Ambos */}
           <div>
             <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1.5">
-              Formato do Procedimento * (PDF ou Link alternativo)
+              Acesso ao Procedimento * (PDF, Link ou Ambos ao mesmo tempo)
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setTipoProcedimento('ambos')}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  tipoProcedimento === 'ambos'
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-1 ring-emerald-500'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-1 text-emerald-600">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-black">+</span>
+                  <LinkIcon className="w-3.5 h-3.5" />
+                </div>
+                <span>PDF + Link (Ambos)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setTipoProcedimento('pdf')}
-                className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                   tipoProcedimento === 'pdf'
                     ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs ring-1 ring-emerald-500'
                     : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -293,13 +327,13 @@ export function ModalFormConfiguracaoMonitoramento({
                 <FileText
                   className={`w-4 h-4 ${tipoProcedimento === 'pdf' ? 'text-emerald-600' : 'text-gray-400'}`}
                 />
-                <span>Upload de PDF</span>
+                <span>Apenas PDF</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setTipoProcedimento('link')}
-                className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                   tipoProcedimento === 'link'
                     ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs ring-1 ring-blue-500'
                     : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -308,21 +342,28 @@ export function ModalFormConfiguracaoMonitoramento({
                 <LinkIcon
                   className={`w-4 h-4 ${tipoProcedimento === 'link' ? 'text-blue-600' : 'text-gray-400'}`}
                 />
-                <span>Link Externo / Vídeo</span>
+                <span>Apenas Link</span>
               </button>
             </div>
-            <span className="text-[10px] text-gray-400 block mt-1">
-              São formas alternativas: anexe um documento PDF com o passo a passo OU informe um link
-              clicável.
+            <span className="text-[10px] text-gray-500 block mt-1.5 leading-snug">
+              Você pode cadastrar o PDF do passo a passo e o link ao mesmo tempo para o mesmo
+              registro: ambos aparecerão anexados ao inversor e na execução de serviço de campo.
             </span>
           </div>
 
-          {/* Bloco PDF */}
-          {tipoProcedimento === 'pdf' && (
+          {/* Bloco PDF (aparece se for 'pdf' ou 'ambos') */}
+          {(tipoProcedimento === 'pdf' || tipoProcedimento === 'ambos') && (
             <div className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-200/80 space-y-2 animate-in fade-in">
-              <label className="text-[11px] font-bold text-emerald-950 uppercase flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Arquivo PDF do Passo a Passo</span>
+              <label className="text-[11px] font-bold text-emerald-950 uppercase flex items-center justify-between gap-1.5">
+                <span className="flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Arquivo PDF do Passo a Passo {tipoProcedimento === 'pdf' ? '*' : ''}</span>
+                </span>
+                {tipoProcedimento === 'ambos' && (
+                  <span className="text-[10px] font-normal text-emerald-800 lowercase">
+                    (opção 1 de acesso)
+                  </span>
+                )}
               </label>
 
               <input
@@ -385,25 +426,35 @@ export function ModalFormConfiguracaoMonitoramento({
             </div>
           )}
 
-          {/* Bloco Link */}
-          {tipoProcedimento === 'link' && (
+          {/* Bloco Link (aparece se for 'link' ou 'ambos') */}
+          {(tipoProcedimento === 'link' || tipoProcedimento === 'ambos') && (
             <div className="p-3.5 bg-blue-50/50 rounded-2xl border border-blue-200/80 space-y-2 animate-in fade-in">
-              <label className="text-[11px] font-bold text-blue-950 uppercase flex items-center gap-1.5">
-                <LinkIcon className="w-3.5 h-3.5 text-blue-700" />
-                <span>Link Clicável / Vídeo de Instrução (URL) *</span>
+              <label className="text-[11px] font-bold text-blue-950 uppercase flex items-center justify-between gap-1.5">
+                <span className="flex items-center gap-1.5">
+                  <LinkIcon className="w-3.5 h-3.5 text-blue-700" />
+                  <span>
+                    Link Clicável / Vídeo de Instrução (URL){' '}
+                    {tipoProcedimento === 'link' ? '*' : ''}
+                  </span>
+                </span>
+                {tipoProcedimento === 'ambos' && (
+                  <span className="text-[10px] font-normal text-blue-800 lowercase">
+                    (opção 2 de acesso)
+                  </span>
+                )}
               </label>
 
               <input
                 type="url"
-                required
+                required={tipoProcedimento === 'link'}
                 value={linkProcedimento}
                 onChange={(e) => setLinkProcedimento(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=... ou https://server.exemplo.com"
+                placeholder="https://www.youtube.com/watch?v=... ou http://192.168.10.100 ou https://fusionsolar.huawei.com"
                 className="w-full text-xs px-3 py-2 rounded-xl border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               />
               <span className="text-[10px] text-blue-800/80 block">
-                Ao clicar no item anexado no cadastro do equipamento, o link será aberto em uma nova
-                aba (target _blank).
+                Ao clicar no link no card do equipamento ou em serviços de campo, o endereço abrirá
+                em uma nova aba.
               </span>
             </div>
           )}

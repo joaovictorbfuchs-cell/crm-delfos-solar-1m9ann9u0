@@ -58,14 +58,16 @@ export async function createConfiguracaoMonitoramento(
   dados: SalvarConfiguracaoMonitoramentoDados,
   arquivoPdf?: File,
 ): Promise<ConfiguracaoMonitoramento> {
-  const tipoDeterminado =
-    dados.tipo_procedimento || (arquivoPdf ? 'pdf' : dados.link_procedimento ? 'link' : 'link')
+  const temPdf = Boolean(arquivoPdf)
+  const temLink = Boolean(dados.link_procedimento && dados.link_procedimento.trim())
+  const tipoCalculado: TipoProcedimentoMonitoramento =
+    dados.tipo_procedimento || (temPdf && temLink ? 'ambos' : temPdf ? 'pdf' : 'link')
 
   const cleaned: Record<string, any> = {
     marca: dados.marca.trim(),
     titulo: dados.titulo ? dados.titulo.trim() : `Configuração Datalogger - ${dados.marca.trim()}`,
-    tipo_procedimento: tipoDeterminado,
-    link_procedimento: dados.link_procedimento ? dados.link_procedimento.trim() : '',
+    tipo_procedimento: tipoCalculado,
+    link_procedimento: temLink ? dados.link_procedimento!.trim() : '',
     instrucoes: dados.instrucoes ? dados.instrucoes.trim() : '',
     ativo: dados.ativo !== undefined ? Boolean(dados.ativo) : true,
   }
@@ -103,11 +105,11 @@ export async function updateConfiguracaoMonitoramento(
   if (dados.titulo !== undefined) {
     cleaned.titulo = dados.titulo ? dados.titulo.trim() : ''
   }
-  if (dados.tipo_procedimento !== undefined) {
-    cleaned.tipo_procedimento = dados.tipo_procedimento
-  }
   if (dados.link_procedimento !== undefined) {
     cleaned.link_procedimento = dados.link_procedimento ? dados.link_procedimento.trim() : ''
+  }
+  if (dados.tipo_procedimento !== undefined) {
+    cleaned.tipo_procedimento = dados.tipo_procedimento
   }
   if (dados.instrucoes !== undefined) {
     cleaned.instrucoes = dados.instrucoes ? dados.instrucoes.trim() : ''
@@ -159,23 +161,45 @@ export function getPdfConfiguracaoMonitoramentoUrl(cfg: ConfiguracaoMonitorament
 /**
  * Retorna o link ou PDF dependendo de qual estiver cadastrado
  */
-export function getProcedimentoMonitoramentoUrl(cfg: ConfiguracaoMonitoramento): {
+export interface ProcedimentoMonitoramentoAcesso {
   url: string | null
   tipo: 'pdf' | 'link' | null
-} {
-  if (cfg.arquivo_pdf) {
-    return {
-      url: pb.files.getURL(cfg, cfg.arquivo_pdf),
-      tipo: 'pdf',
-    }
+  pdfUrl?: string | null
+  linkUrl?: string | null
+  temPdf: boolean
+  temLink: boolean
+  temAmbos: boolean
+}
+
+/**
+ * Retorna os acessos de PDF e link cadastrados na configuração de monitoramento.
+ * Suporta quando apenas um existe OU quando ambos (PDF e Link) estão cadastrados no mesmo registro.
+ */
+export function getProcedimentoMonitoramentoUrl(
+  cfg: ConfiguracaoMonitoramento,
+): ProcedimentoMonitoramentoAcesso {
+  const pdfUrl = cfg.arquivo_pdf ? pb.files.getURL(cfg, cfg.arquivo_pdf) : null
+  const linkUrl =
+    cfg.link_procedimento && cfg.link_procedimento.trim() ? cfg.link_procedimento.trim() : null
+
+  const temPdf = Boolean(pdfUrl)
+  const temLink = Boolean(linkUrl)
+  const temAmbos = temPdf && temLink
+
+  // Compatibilidade com o formato anterior: se tiver PDF prioriza para o campo 'url'/'tipo' legado,
+  // ou linkUrl se não tiver PDF.
+  const urlPrincipal = pdfUrl || linkUrl || null
+  const tipoPrincipal = temPdf ? 'pdf' : temLink ? 'link' : null
+
+  return {
+    url: urlPrincipal,
+    tipo: tipoPrincipal,
+    pdfUrl,
+    linkUrl,
+    temPdf,
+    temLink,
+    temAmbos,
   }
-  if (cfg.link_procedimento && cfg.link_procedimento.trim()) {
-    return {
-      url: cfg.link_procedimento.trim(),
-      tipo: 'link',
-    }
-  }
-  return { url: null, tipo: null }
 }
 
 /**

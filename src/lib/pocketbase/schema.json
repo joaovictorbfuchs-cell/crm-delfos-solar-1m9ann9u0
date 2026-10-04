@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T23:45:58.524Z",
+  "generatedAt": "2026-10-03T23:59:31.427Z",
   "collections": [
     {
       "name": "users",
@@ -6425,7 +6425,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["pdf", "link"]
+          "selectValues": ["pdf", "link", "ambos"]
         },
         {
           "name": "arquivo_pdf",

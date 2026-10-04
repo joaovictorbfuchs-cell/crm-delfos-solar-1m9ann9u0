@@ -42,6 +42,9 @@ import {
   vincularEquipamentoUsina,
   desvincularEquipamentoUsina,
 } from '@/services/usinaEquipamentosService'
+import type { ConfiguracaoMonitoramento } from '@/types/equipamentos'
+import { fetchConfiguracoesMonitoramento } from '@/services/configuracoesMonitoramentoService'
+import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
 import {
   fetchEquipamentos,
   getDatasheetEquipamentoUrl,
@@ -102,6 +105,9 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<Equipamento[]>(
     catalogoInicial || [],
   )
+  const [configuracoesMonitoramento, setConfiguracoesMonitoramento] = useState<
+    ConfiguracaoMonitoramento[]
+  >([])
   const [loading, setLoading] = useState<boolean>(true)
   const [expandido, setExpandido] = useState<boolean>(true)
   const [efetivandoVinculos, setEfetivandoVinculos] = useState<boolean>(false)
@@ -138,14 +144,16 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     if (!usina?.id) return
     setLoading(true)
     try {
-      const [vinculosData, ativosData, catalogoData] = await Promise.all([
+      const [vinculosData, ativosData, catalogoData, monitoramentoData] = await Promise.all([
         fetchEquipamentosPorUsina(usina.id),
         fetchAtivosPorUsina(usina.id),
         fetchEquipamentos(),
+        fetchConfiguracoesMonitoramento().catch(() => []),
       ])
       setVinculos(vinculosData)
       setAtivosIndividuais(ativosData)
       setCatalogoEquipamentos(catalogoData)
+      setConfiguracoesMonitoramento(monitoramentoData)
     } catch (err) {
       console.error('Erro ao carregar ativos da usina:', err)
       toast.error('Erro ao carregar ativos da usina.')
@@ -157,6 +165,30 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   useEffect(() => {
     carregarDados()
   }, [usina?.id])
+
+  /**
+   * Helper para resolver a configuração de monitoramento associada a um inversor.
+   * Procura via expand.configuracao_monitoramento_id, ID direto ou correspondência por marca.
+   */
+  const encontrarConfigMonitoramentoInversor = (
+    eq?: Equipamento | null,
+    marcaFallback?: string,
+  ): ConfiguracaoMonitoramento | null => {
+    if (eq?.expand?.configuracao_monitoramento_id) {
+      return eq.expand.configuracao_monitoramento_id
+    }
+    if (eq?.configuracao_monitoramento_id) {
+      const encontradaPorId = configuracoesMonitoramento.find(
+        (c) => c.id === eq.configuracao_monitoramento_id,
+      )
+      if (encontradaPorId) return encontradaPorId
+    }
+    const marcaAlvo = (eq?.marca || marcaFallback || '').toLowerCase().trim()
+    if (!marcaAlvo) return null
+    return (
+      configuracoesMonitoramento.find((c) => c.marca?.toLowerCase().trim() === marcaAlvo) || null
+    )
+  }
 
   // Lista de marcas distintas filtradas pelo tipo selecionado no modal Adicionar Ativo
   const marcasDisponiveis = useMemo(() => {
@@ -1166,6 +1198,22 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                             <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
                           </a>
                         )}
+                        {/* Configuração de Monitoramento para inversor declarado */}
+                        {isInversor &&
+                          (() => {
+                            const cfg = encontrarConfigMonitoramentoInversor(
+                              item.equipamentoCatalogo,
+                              item.marca,
+                            )
+                            if (!cfg) return null
+                            return (
+                              <MonitoramentoConfigBadge
+                                configuracao={cfg}
+                                rotulo="Config. de Monitoramento"
+                                mostrarTipo
+                              />
+                            )
+                          })()}
                         <button
                           type="button"
                           onClick={() =>
@@ -1285,7 +1333,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                   </div>
                 )}
 
-                {/* Datasheet, Datalogger e Fornecedor com Suporte */}
+                {/* Datasheet, Configuração de Monitoramento, Datalogger e Fornecedor com Suporte */}
                 <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-slate-100 text-[11px]">
                   <div className="flex items-center gap-2 flex-wrap">
                     {datasheetUrl ? (
@@ -1304,7 +1352,22 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                       <span className="text-slate-400 text-[10px] italic">Sem datasheet</span>
                     )}
 
-                    {dataloggerUrl && (
+                    {/* Configuração de Monitoramento vinculada ao inversor (no mesmo formato do Datasheet) */}
+                    {isInversor &&
+                      (() => {
+                        const cfg = encontrarConfigMonitoramentoInversor(eq, eq.marca)
+                        if (!cfg) return null
+                        return (
+                          <MonitoramentoConfigBadge
+                            configuracao={cfg}
+                            rotulo="Config. de Monitoramento"
+                            mostrarTipo
+                          />
+                        )
+                      })()}
+
+                    {/* Link direto legado de datalogger caso exista e não tenha cfg vinculada */}
+                    {dataloggerUrl && !eq.configuracao_monitoramento_id && (
                       <a
                         href={dataloggerUrl}
                         target="_blank"
@@ -1318,7 +1381,6 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                       </a>
                     )}
                   </div>
-
                   {(fornecedor || eq.telefone_suporte_fornecedor) && (
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 text-slate-700">
