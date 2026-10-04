@@ -1,7 +1,55 @@
-import { describe, it, expect, vi } from 'vitest'
-import { HighlightMatch, DropdownResultadosErrorBoundary } from './BarraBuscaGlobal'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import {
+  HighlightMatch,
+  DropdownResultadosErrorBoundary,
+  BarraBuscaGlobal,
+} from './BarraBuscaGlobal'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+
+// Mock do contexto de clientes
+const mockClientes = [
+  {
+    id: 'cli-1',
+    nome: 'Mauro Antônio Serraglio',
+    razao_social: 'Mauro Serraglio ME',
+    cidade: 'Erechim',
+    telefone: '(54) 9176-6675',
+    whatsapp: '5491766675',
+    status: 'Novo Lead',
+  },
+  {
+    id: 'cli-2',
+    nome: 'Mauro da Silva',
+    cidade: 'Passo Fundo',
+    telefone: '(54) 9988-1122',
+    status: 'Em Negociação',
+  },
+]
+
+const mockOpenFichaCliente = vi.fn()
+
+vi.mock('@/contexts/ClientesContext', () => ({
+  useClientes: () => ({
+    clientes: mockClientes,
+    contatosAdicionais: [],
+    projetos: [],
+    contratosOM: [],
+    manutencoes: [],
+    openFichaCliente: mockOpenFichaCliente,
+  }),
+}))
+
+vi.mock('@/services/crmService', () => ({
+  fetchOrdensServico: vi.fn().mockResolvedValue([]),
+  fetchOutrosContatos: vi.fn().mockResolvedValue([]),
+}))
+
+vi.mock('@/services/contatosService', () => ({
+  fetchContatosUnicos: vi.fn().mockResolvedValue([]),
+}))
 
 describe('BarraBuscaGlobal - HighlightMatch', () => {
   it('deve renderizar texto sem alteração quando a query for vazia', () => {
@@ -186,5 +234,92 @@ describe('BarraBuscaGlobal - HighlightMatch', () => {
     expect(html).toContain('Ocorreu uma inconsistência transitória')
 
     consoleErrorSpy.mockRestore()
+  })
+})
+
+describe('BarraBuscaGlobal - Renderização via Portal e Interatividade', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('deve renderizar o dropdown no document.body via portal quando a query tiver >= 2 caracteres', async () => {
+    render(
+      <MemoryRouter>
+        <BarraBuscaGlobal />
+      </MemoryRouter>,
+    )
+
+    const input = screen.getByPlaceholderText(
+      'Pesquisar no CRM (clientes, negócios, OS, contratos...)',
+    )
+    expect(input).not.toBeNull()
+
+    // Inicialmente o dropdown não deve existir no DOM
+    expect(screen.queryByTestId('dropdown-resultados-busca')).toBeNull()
+
+    // Digita "mauro"
+    fireEvent.change(input, { target: { value: 'mauro' } })
+
+    // O dropdown deve agora estar no documento (renderizado via createPortal diretamente em document.body)
+    await waitFor(() => {
+      const dropdown = screen.getByTestId('dropdown-resultados-busca')
+      expect(dropdown).not.toBeNull()
+      expect(dropdown.parentElement).toBe(document.body)
+    })
+
+    // Deve exibir ambos os clientes "Mauro" encontrados
+    expect(screen.getByText('Mauro Antônio Serraglio')).not.toBeNull()
+    expect(screen.getByText('Mauro da Silva')).not.toBeNull()
+    expect(screen.getByText(/2 resultados/i)).not.toBeNull()
+  })
+
+  it('permite abrir a ficha do cliente ao clicar no resultado da lista suspensa', async () => {
+    render(
+      <MemoryRouter>
+        <BarraBuscaGlobal />
+      </MemoryRouter>,
+    )
+
+    const input = screen.getByPlaceholderText(
+      'Pesquisar no CRM (clientes, negócios, OS, contratos...)',
+    )
+    fireEvent.change(input, { target: { value: 'mauro' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dropdown-resultados-busca')).not.toBeNull()
+    })
+
+    // Clica no segundo Mauro ("Mauro da Silva")
+    const itemMauroSilva = screen.getByText('Mauro da Silva').closest('button')
+    expect(itemMauroSilva).not.toBeNull()
+    if (itemMauroSilva) {
+      fireEvent.click(itemMauroSilva)
+    }
+
+    expect(mockOpenFichaCliente).toHaveBeenCalledWith('cli-2')
+  })
+
+  it('fecha o dropdown ao pressionar Escape ou clicar fora', async () => {
+    render(
+      <MemoryRouter>
+        <BarraBuscaGlobal />
+      </MemoryRouter>,
+    )
+
+    const input = screen.getByPlaceholderText(
+      'Pesquisar no CRM (clientes, negócios, OS, contratos...)',
+    )
+    fireEvent.change(input, { target: { value: 'mauro' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dropdown-resultados-busca')).not.toBeNull()
+    })
+
+    // Pressiona Escape
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('dropdown-resultados-busca')).toBeNull()
+    })
   })
 })

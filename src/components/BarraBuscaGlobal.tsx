@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Search,
@@ -218,6 +219,47 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
+  // Normalizador de texto para busca case-insensitive e acentos
+  const normalize = (str?: string) =>
+    (str || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+
+  const trimmedQuery = query.trim()
+  const normalizedQuery = normalize(trimmedQuery)
+
+  // Posição calculada para renderização do dropdown via Portal diretamente no document.body
+  // Evita qualquer corte/clipping por contêineres ancestrais com overflow-x/overflow-y (ex: header sticky)
+  const [dropdownCoords, setDropdownCoords] = useState<{
+    top: number
+    left: number
+    width: number
+  } | null>(null)
+
+  const updateDropdownCoords = useCallback(() => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setDropdownCoords({
+      top: rect.bottom + 8, // 8px de espaçamento vertical
+      left: rect.left,
+      width: rect.width,
+    })
+  }, [])
+
+  useEffect(() => {
+    if (isOpen && trimmedQuery.length >= 2) {
+      updateDropdownCoords()
+      window.addEventListener('resize', updateDropdownCoords, { passive: true })
+      window.addEventListener('scroll', updateDropdownCoords, { passive: true, capture: true })
+      return () => {
+        window.removeEventListener('resize', updateDropdownCoords)
+        window.removeEventListener('scroll', updateDropdownCoords, { capture: true })
+      }
+    }
+  }, [isOpen, trimmedQuery, updateDropdownCoords])
+
   // Carrega Ordens de Serviço sob demanda quando o usuário foca na busca ou digita query >= 2 caracteres
   const carregarOrdensServico = useCallback(async () => {
     if (hasLoadedOS || isLoadingOS) return
@@ -274,17 +316,6 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     }, 1500)
     return () => clearTimeout(timer)
   }, [carregarContatosExtras, carregarOrdensServico])
-
-  // Normalizador de texto para busca case-insensitive e acentos
-  const normalize = (str?: string) =>
-    (str || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-
-  const trimmedQuery = query.trim()
-  const normalizedQuery = normalize(trimmedQuery)
 
   // Tokens da busca (multi-token): se todos os tokens estiverem presentes, dá match
   const queryTokens = useMemo(() => {
@@ -755,10 +786,13 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     setSelectedIndex(0)
   }, [trimmedQuery])
 
-  // Fecha dropdown ao clicar fora
+  // Fecha dropdown ao clicar fora (considerando tanto o input quanto o menu renderizado no portal)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      const isInsideContainer = containerRef.current && containerRef.current.contains(target)
+      const isInsideDropdown = listRef.current && listRef.current.contains(target)
+      if (!isInsideContainer && !isInsideDropdown) {
         setIsOpen(false)
       }
     }
@@ -767,7 +801,6 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
-
   // Gerenciamento de teclas de atalho: ArrowDown, ArrowUp, Enter, Escape, e Ctrl+K / Cmd+K para focar
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -883,169 +916,180 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
         </div>
       </div>
 
-      {/* Dropdown de Resultados em Tempo Real */}
-      {isOpen && trimmedQuery.length >= 2 && (
-        <div
-          ref={listRef}
-          className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border border-gray-200/90 shadow-2xl z-50 overflow-hidden max-h-[75vh] sm:max-h-[500px] flex flex-col animate-in fade-in-0 zoom-in-95 duration-150"
-        >
-          {/* Cabeçalho do Dropdown */}
-          <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">
-                {totalResultsCount} resultado{totalResultsCount === 1 ? '' : 's'}
-              </span>
-              <span>para &ldquo;{trimmedQuery}&rdquo;</span>
+      {/* Dropdown de Resultados em Tempo Real renderizado via React Portal no document.body */}
+      {isOpen &&
+        trimmedQuery.length >= 2 &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={listRef}
+            data-testid="dropdown-resultados-busca"
+            style={{
+              position: 'fixed',
+              top: dropdownCoords ? `${dropdownCoords.top}px` : undefined,
+              left: dropdownCoords ? `${dropdownCoords.left}px` : undefined,
+              width: dropdownCoords ? `${dropdownCoords.width}px` : undefined,
+            }}
+            className="bg-white rounded-2xl border border-gray-200/90 shadow-2xl z-[9999] overflow-hidden max-h-[75vh] sm:max-h-[500px] flex flex-col animate-in fade-in-0 zoom-in-95 duration-150"
+          >
+            {/* Cabeçalho do Dropdown */}
+            <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-700">
+                  {totalResultsCount} resultado{totalResultsCount === 1 ? '' : 's'}
+                </span>
+                <span>para &ldquo;{trimmedQuery}&rdquo;</span>
+              </div>
+              <div className="hidden sm:flex items-center gap-3 text-[11px] text-gray-400">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1 py-0.2 bg-white border rounded text-[10px]">↑</kbd>
+                  <kbd className="px-1 py-0.2 bg-white border rounded text-[10px]">↓</kbd> navegar
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.2 bg-white border rounded text-[10px]">↵</kbd> abrir
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1 py-0.2 bg-white border rounded text-[10px]">esc</kbd> fechar
+                </span>
+              </div>
             </div>
-            <div className="hidden sm:flex items-center gap-3 text-[11px] text-gray-400">
-              <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.2 bg-white border rounded text-[10px]">↑</kbd>
-                <kbd className="px-1 py-0.2 bg-white border rounded text-[10px]">↓</kbd> navegar
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.2 bg-white border rounded text-[10px]">↵</kbd> abrir
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.2 bg-white border rounded text-[10px]">esc</kbd> fechar
-              </span>
-            </div>
-          </div>
 
-          {/* Conteúdo com scroll e ErrorBoundary Local */}
-          <div className="overflow-y-auto divide-y divide-gray-100/80 p-2 space-y-3">
-            <DropdownResultadosErrorBoundary>
-              {totalResultsCount === 0 ? (
-                <div className="py-12 px-4 text-center">
-                  <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
-                    <Search className="w-6 h-6 text-gray-400" />
+            {/* Conteúdo com scroll e ErrorBoundary Local */}
+            <div className="overflow-y-auto divide-y divide-gray-100/80 p-2 space-y-3">
+              <DropdownResultadosErrorBoundary>
+                {totalResultsCount === 0 ? (
+                  <div className="py-12 px-4 text-center">
+                    <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                      <Search className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-800">
+                      Nenhum resultado para &ldquo;{trimmedQuery}&rdquo;
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                      Tente pesquisar por outro nome, telefone, cidade, número de OS ou contrato.
+                    </p>
                   </div>
-                  <p className="text-sm font-bold text-gray-800">
-                    Nenhum resultado para &ldquo;{trimmedQuery}&rdquo;
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                    Tente pesquisar por outro nome, telefone, cidade, número de OS ou contrato.
-                  </p>
-                </div>
-              ) : (
-                (
-                  [
-                    'clientes',
-                    'negocios',
-                    'ordens_servico',
-                    'projetos',
-                    'contratos_om',
-                  ] as SearchCategoryType[]
-                ).map((catKey) => {
-                  const items = resultsGrouped[catKey]
-                  if (!items || items.length === 0) return null
-                  const catConfig = CATEGORY_CONFIG[catKey]
-                  const CatIcon = catConfig.icon
+                ) : (
+                  (
+                    [
+                      'clientes',
+                      'negocios',
+                      'ordens_servico',
+                      'projetos',
+                      'contratos_om',
+                    ] as SearchCategoryType[]
+                  ).map((catKey) => {
+                    const items = resultsGrouped[catKey]
+                    if (!items || items.length === 0) return null
+                    const catConfig = CATEGORY_CONFIG[catKey]
+                    const CatIcon = catConfig.icon
 
-                  return (
-                    <div key={catKey} className="pt-2 first:pt-0">
-                      {/* Título da Categoria */}
-                      <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        <div className="flex items-center gap-1.5">
-                          <CatIcon className="w-3.5 h-3.5 text-gray-400" />
-                          <span>{catConfig.label}</span>
+                    return (
+                      <div key={catKey} className="pt-2 first:pt-0">
+                        {/* Título da Categoria */}
+                        <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                          <div className="flex items-center gap-1.5">
+                            <CatIcon className="w-3.5 h-3.5 text-gray-400" />
+                            <span>{catConfig.label}</span>
+                          </div>
+                          <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded-full">
+                            {items.length}
+                          </span>
                         </div>
-                        <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded-full">
-                          {items.length}
-                        </span>
-                      </div>
 
-                      {/* Lista de Itens */}
-                      <div className="mt-1 space-y-1">
-                        {items.map((item) => {
-                          runningItemIndex += 1
-                          const isSelected = runningItemIndex === selectedIndex
-                          const itemIndex = runningItemIndex
+                        {/* Lista de Itens */}
+                        <div className="mt-1 space-y-1">
+                          {items.map((item) => {
+                            runningItemIndex += 1
+                            const isSelected = runningItemIndex === selectedIndex
+                            const itemIndex = runningItemIndex
 
-                          return (
-                            <button
-                              key={item.id}
-                              type="button"
-                              data-search-item
-                              onClick={item.action}
-                              onMouseEnter={() => setSelectedIndex(itemIndex)}
-                              className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 group ${
-                                isSelected
-                                  ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/30'
-                                  : 'hover:bg-gray-50 text-gray-800'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                                    isSelected
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-700'
-                                  }`}
-                                >
-                                  <item.icon className="w-4 h-4" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-xs sm:text-sm font-semibold truncate flex items-center gap-2">
-                                    <HighlightMatch text={item.title} query={trimmedQuery} />
-                                    {item.badge && (
-                                      <span
-                                        className={`inline-flex text-[10px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${
-                                          item.badgeColorClass ||
-                                          'bg-gray-100 text-gray-700 border-gray-200'
-                                        }`}
-                                      >
-                                        {item.badge}
-                                      </span>
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                data-search-item
+                                onClick={item.action}
+                                onMouseEnter={() => setSelectedIndex(itemIndex)}
+                                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 group ${
+                                  isSelected
+                                    ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/30'
+                                    : 'hover:bg-gray-50 text-gray-800'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                                      isSelected
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-700'
+                                    }`}
+                                  >
+                                    <item.icon className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs sm:text-sm font-semibold truncate flex items-center gap-2">
+                                      <HighlightMatch text={item.title} query={trimmedQuery} />
+                                      {item.badge && (
+                                        <span
+                                          className={`inline-flex text-[10px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${
+                                            item.badgeColorClass ||
+                                            'bg-gray-100 text-gray-700 border-gray-200'
+                                          }`}
+                                        >
+                                          {item.badge}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {item.subtitle && (
+                                      <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                                        <HighlightMatch text={item.subtitle} query={trimmedQuery} />
+                                      </p>
                                     )}
                                   </div>
-                                  {item.subtitle && (
-                                    <p className="text-[11px] text-gray-500 truncate mt-0.5">
-                                      <HighlightMatch text={item.subtitle} query={trimmedQuery} />
-                                    </p>
+                                </div>
+
+                                <div className="shrink-0 flex items-center gap-1.5 text-gray-400 group-hover:text-emerald-600">
+                                  {isSelected ? (
+                                    <span className="text-[11px] font-medium text-emerald-700 hidden sm:flex items-center gap-0.5">
+                                      Abrir <CornerDownLeft className="w-3 h-3" />
+                                    </span>
+                                  ) : (
+                                    <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                   )}
                                 </div>
-                              </div>
-
-                              <div className="shrink-0 flex items-center gap-1.5 text-gray-400 group-hover:text-emerald-600">
-                                {isSelected ? (
-                                  <span className="text-[11px] font-medium text-emerald-700 hidden sm:flex items-center gap-0.5">
-                                    Abrir <CornerDownLeft className="w-3 h-3" />
-                                  </span>
-                                ) : (
-                                  <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                )}
-                              </div>
-                            </button>
-                          )
-                        })}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })
-              )}
-            </DropdownResultadosErrorBoundary>
-          </div>
-
-          {/* Rodapé informativo */}
-          {totalResultsCount > 0 && (
-            <div className="p-2.5 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500 px-4">
-              <span>
-                Pressione{' '}
-                <kbd className="px-1 py-0.5 bg-white border rounded font-mono text-[10px]">
-                  Enter
-                </kbd>{' '}
-                para abrir o item selecionado
-              </span>
-              <span
-                className="text-emerald-700 font-semibold hover:underline cursor-pointer"
-                onClick={() => navigate('/clientes')}
-              >
-                Ver todos os clientes →
-              </span>
+                    )
+                  })
+                )}
+              </DropdownResultadosErrorBoundary>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Rodapé informativo */}
+            {totalResultsCount > 0 && (
+              <div className="p-2.5 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500 px-4">
+                <span>
+                  Pressione{' '}
+                  <kbd className="px-1 py-0.5 bg-white border rounded font-mono text-[10px]">
+                    Enter
+                  </kbd>{' '}
+                  para abrir o item selecionado
+                </span>
+                <span
+                  className="text-emerald-700 font-semibold hover:underline cursor-pointer"
+                  onClick={() => navigate('/clientes')}
+                >
+                  Ver todos os clientes →
+                </span>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

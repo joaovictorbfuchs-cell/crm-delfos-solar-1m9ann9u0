@@ -402,7 +402,7 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden">
         {/* Top Header Desktop (apenas desktop: hidden lg:flex; no mobile o MobileLayoutChrome assume) */}
-        <header className="hidden lg:flex h-16 bg-white border-b border-[#E5E7EB] px-4 lg:px-6 items-center justify-between gap-3 sticky top-0 z-20 max-w-full overflow-x-hidden min-w-0">
+        <header className="hidden lg:flex h-16 bg-white border-b border-[#E5E7EB] px-4 lg:px-6 items-center justify-between gap-3 sticky top-0 z-20 max-w-full min-w-0">
           {/* Lado Esquerdo: Barra de Busca Central */}
           <div className="flex items-center gap-3 flex-1 min-w-0 max-w-2xl">
             <div className="flex-1 min-w-0">
