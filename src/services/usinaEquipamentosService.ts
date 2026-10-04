@@ -56,7 +56,8 @@ export async function fetchEquipamentosPorUsina(usinaId: string): Promise<UsinaE
     const records = await pb.collection('usina_equipamentos').getFullList<UsinaEquipamentoAtivo>({
       filter: `usina_id = '${usinaId}'`,
       sort: '-created',
-      expand: 'equipamento_id,equipamento_id.fornecedor_id,usina_id',
+      expand:
+        'equipamento_id,equipamento_id.fornecedor_id,equipamento_id.configuracao_monitoramento_id,usina_id',
     })
     return records
   } catch (err) {
@@ -96,7 +97,8 @@ export async function vincularEquipamentoUsina(
         return await pb
           .collection('usina_equipamentos')
           .update<UsinaEquipamentoAtivo>(existente.id, payloadUpdate, {
-            expand: 'equipamento_id,equipamento_id.fornecedor_id,usina_id',
+            expand:
+              'equipamento_id,equipamento_id.fornecedor_id,equipamento_id.configuracao_monitoramento_id,usina_id',
           })
       }
     } catch (errCheck) {
@@ -119,7 +121,8 @@ export async function vincularEquipamentoUsina(
   }
 
   const record = await pb.collection('usina_equipamentos').create<UsinaEquipamentoAtivo>(payload, {
-    expand: 'equipamento_id,equipamento_id.fornecedor_id,usina_id',
+    expand:
+      'equipamento_id,equipamento_id.fornecedor_id,equipamento_id.configuracao_monitoramento_id,usina_id',
   })
   return record
 }
@@ -146,7 +149,8 @@ export async function updateVinculoEquipamentoUsina(
   const record = await pb
     .collection('usina_equipamentos')
     .update<UsinaEquipamentoAtivo>(id, payload, {
-      expand: 'equipamento_id,equipamento_id.fornecedor_id,usina_id',
+      expand:
+        'equipamento_id,equipamento_id.fornecedor_id,equipamento_id.configuracao_monitoramento_id,usina_id',
     })
   return record
 }

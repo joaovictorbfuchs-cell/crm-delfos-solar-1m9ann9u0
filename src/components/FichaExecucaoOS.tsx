@@ -15,7 +15,12 @@ import {
   updateOrdemServico,
 } from '@/services/crmService'
 import { fetchEquipamentosByUsinaId } from '@/services/usinaEquipamentosService'
-import type { UsinaEquipamentoAtivo } from '@/types/equipamentos'
+import type { UsinaEquipamentoAtivo, ConfiguracaoMonitoramento } from '@/types/equipamentos'
+import {
+  fetchConfiguracoesMonitoramento,
+  sugerirConfiguracaoPorMarca,
+} from '@/services/configuracoesMonitoramentoService'
+import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -181,6 +186,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   })
   const [equipamentosUsina, setEquipamentosUsina] = useState<UsinaEquipamentoAtivo[]>([])
   const [carregandoUsina, setCarregandoUsina] = useState<boolean>(false)
+  const [configuracoesMonitoramento, setConfiguracoesMonitoramento] = useState<
+    ConfiguracaoMonitoramento[]
+  >([])
 
   const [sistema, setSistema] = useState<Sistema | null>(null)
   const [inversoresLista, setInversoresLista] = useState<import('@/types/crm').ClienteInversor[]>(
@@ -228,7 +236,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Carrega dados da usina vinculada e equipamentos (com fallback para dados legados do cliente)
+  // Carrega dados da usina vinculada, equipamentos e catálogo de configurações de monitoramento
   useEffect(() => {
     let cancelado = false
     const usinaId = os.usina_id || (os.expand?.usina_id as any)?.id
@@ -236,6 +244,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     async function carregarDadosUsinaOuCliente() {
       setCarregandoUsina(true)
       try {
+        // Busca configurações de monitoramento em paralelo
+        fetchConfiguracoesMonitoramento()
+          .then((configs) => {
+            if (!cancelado) setConfiguracoesMonitoramento(configs || [])
+          })
+          .catch((e) => console.warn('Erro ao carregar configurações de monitoramento:', e))
+
         if (usinaId) {
           // Busca a usina completa
           const usina = await fetchUsinaById(usinaId)
@@ -592,6 +607,28 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
+  /**
+   * Helper para resolver a configuração de monitoramento associada a um inversor.
+   * Procura via expand.configuracao_monitoramento_id, ID direto ou correspondência inteligente por marca.
+   */
+  const encontrarConfigMonitoramentoInversor = (
+    eq?: import('@/types/equipamentos').Equipamento | null,
+    marcaFallback?: string,
+  ): ConfiguracaoMonitoramento | null => {
+    if (eq?.expand?.configuracao_monitoramento_id) {
+      return eq.expand.configuracao_monitoramento_id
+    }
+    if (eq?.configuracao_monitoramento_id) {
+      const encontradaPorId = configuracoesMonitoramento.find(
+        (c) => c.id === eq.configuracao_monitoramento_id,
+      )
+      if (encontradaPorId) return encontradaPorId
+    }
+    const marcaAlvo = (eq?.marca || marcaFallback || '').trim()
+    if (!marcaAlvo) return null
+    return sugerirConfiguracaoPorMarca(marcaAlvo, configuracoesMonitoramento)
+  }
+
   // Resolução de inversores e módulos para exibição compacta no cabeçalho verde
   // Prioridade: usina_equipamentos da usina vinculada; fallback: campos diretos da usina ou cliente
   const inversoresUsina = React.useMemo(() => {
@@ -610,6 +647,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           cliente?.monitoramento_datalogger_url ||
           null
 
+        const configMonitoramento = encontrarConfigMonitoramentoInversor(eq, eq.marca)
+
         return {
           id: ue.id,
           marca: eq.marca,
@@ -619,6 +658,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           numero_serie: ue.numero_serie,
           datasheetUrl,
           dataloggerUrl,
+          configMonitoramento,
         }
       })
     }
@@ -627,10 +667,12 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     if (usinaVinculada?.fabricante_inversores || usinaVinculada?.modelo_inversores) {
       const dataloggerUrl =
         usinaVinculada.monitoramento_datalogger_url || cliente?.monitoramento_datalogger_url || null
+      const marca = usinaVinculada.fabricante_inversores || ''
+      const configMonitoramento = encontrarConfigMonitoramentoInversor(null, marca)
       return [
         {
           id: 'usina-inv-1',
-          marca: usinaVinculada.fabricante_inversores || '',
+          marca,
           modelo: usinaVinculada.modelo_inversores || '',
           potencia_w: usinaVinculada.potencia_pico_inversores_kwp
             ? usinaVinculada.potencia_pico_inversores_kwp * 1000
@@ -639,41 +681,50 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           numero_serie: undefined,
           datasheetUrl: usinaVinculada.datasheet_inversor_url || null,
           dataloggerUrl,
+          configMonitoramento,
         },
       ]
     }
 
     // Fallback legado do cliente
     if (inversoresLista.length > 0) {
-      return inversoresLista.map((i, idx) => ({
-        id: `legacy-${idx}`,
-        marca: i.marca_inversor || '',
-        modelo: i.modelo_inversor || '',
-        potencia_w: undefined,
-        quantidade: 1,
-        numero_serie: undefined,
-        datasheetUrl: null,
-        dataloggerUrl: cliente?.monitoramento_datalogger_url || null,
-      }))
+      return inversoresLista.map((i, idx) => {
+        const marca = i.marca_inversor || ''
+        const configMonitoramento = encontrarConfigMonitoramentoInversor(null, marca)
+        return {
+          id: `legacy-${idx}`,
+          marca,
+          modelo: i.modelo_inversor || '',
+          potencia_w: undefined,
+          quantidade: 1,
+          numero_serie: undefined,
+          datasheetUrl: null,
+          dataloggerUrl: cliente?.monitoramento_datalogger_url || null,
+          configMonitoramento,
+        }
+      })
     }
 
     if (cliente?.inversor_marca || cliente?.inversor_modelo) {
+      const marca = cliente.inversor_marca || ''
+      const configMonitoramento = encontrarConfigMonitoramentoInversor(null, marca)
       return [
         {
           id: 'cli-inv-1',
-          marca: cliente.inversor_marca || '',
+          marca,
           modelo: cliente.inversor_modelo || '',
           potencia_w: undefined,
           quantidade: 1,
           numero_serie: undefined,
           datasheetUrl: null,
           dataloggerUrl: cliente?.monitoramento_datalogger_url || null,
+          configMonitoramento,
         },
       ]
     }
 
     return []
-  }, [equipamentosUsina, usinaVinculada, cliente, inversoresLista])
+  }, [equipamentosUsina, usinaVinculada, cliente, inversoresLista, configuracoesMonitoramento])
 
   const modulosUsina = React.useMemo(() => {
     const list = equipamentosUsina.filter((ue) => ue.expand?.equipamento_id?.tipo === 'modulo_fv')
@@ -1042,7 +1093,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 )}
               </div>
 
-              {/* Links clicáveis de Datasheet do Inversor e Configuração do Datalogger */}
+              {/* Links clicáveis de Datasheet do Inversor e Configuração do Datalogger / Monitoramento */}
               <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-1">
                 {inversoresUsina.map((inv, idx) => (
                   <React.Fragment key={`links-${inv.id || idx}`}>
@@ -1051,7 +1102,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         href={inv.datasheetUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-[#4ade80] hover:text-white underline decoration-[#16A34A] underline-offset-2 hover:decoration-white transition-colors"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4ade80] hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-[#16A34A]/40 transition-colors shadow-2xs"
                         title="Ver Datasheet do Inversor (PDF)"
                       >
                         <FileCode2 className="w-3 h-3 text-[#4ade80]" />
@@ -1059,24 +1110,32 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     )}
-                    {inv.dataloggerUrl && (
+
+                    {/* Configuração de Monitoramento do Datalogger vinculada ao inversor (PDF / Link / Ambos) */}
+                    {inv.configMonitoramento ? (
+                      <MonitoramentoConfigBadge
+                        configuracao={inv.configMonitoramento}
+                        rotulo="Config. de Monitoramento"
+                        mostrarTipo
+                      />
+                    ) : inv.dataloggerUrl ? (
                       <a
                         href={inv.dataloggerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-amber-200 hover:text-white underline decoration-amber-400 underline-offset-2 hover:decoration-white transition-colors"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
                         title="Abrir página/tutorial de Configuração do Datalogger"
                       >
                         <Wifi className="w-3 h-3 text-amber-300" />
                         <span>Configurar Datalogger</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
-                    )}
+                    ) : null}
                   </React.Fragment>
                 ))}
 
-                {/* Caso o link de datalogger venha da usina/cliente mas nenhum inversor tenha o link específico */}
-                {!inversoresUsina.some((i) => i.dataloggerUrl) &&
+                {/* Caso o link ou configuração de datalogger venha da usina/cliente mas nenhum inversor tenha o item específico */}
+                {!inversoresUsina.some((i) => i.configMonitoramento || i.dataloggerUrl) &&
                   (usinaVinculada?.monitoramento_datalogger_url ||
                     cliente?.monitoramento_datalogger_url) && (
                     <a
@@ -1086,7 +1145,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-amber-200 hover:text-white underline decoration-amber-400 underline-offset-2 hover:decoration-white transition-colors"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
                       title="Abrir link de configuração do datalogger"
                     >
                       <Wifi className="w-3 h-3 text-amber-300" />

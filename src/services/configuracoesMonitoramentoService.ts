@@ -2,6 +2,7 @@ import pb from '@/lib/pocketbase/client'
 import type {
   ConfiguracaoMonitoramento,
   SalvarConfiguracaoMonitoramentoDados,
+  TipoProcedimentoMonitoramento,
 } from '@/types/equipamentos'
 
 /**
