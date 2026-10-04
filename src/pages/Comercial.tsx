@@ -12,11 +12,13 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ComercialListView } from '@/components/ComercialListView'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
+import { ComercialActionBar, type OrdenacaoOpcao } from '@/components/ComercialActionBar'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { fetchNegocios, executarVarreduraELimpezaNegocios } from '@/services/negociosService'
@@ -32,12 +34,15 @@ export default function Comercial() {
     updateClienteStatus,
     openFichaCliente,
   } = useClientes()
+  const { user, userProfile } = useAuth()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
   const [negociosList, setNegociosList] = useState<Negocio[]>([])
   const [isLoadingNegocios, setIsLoadingNegocios] = useState(true)
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'perdidos'>('kanban')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
+  const [filtroEstado, setFiltroEstado] = useState<string>('todos')
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoOpcao>('proxima_atividade')
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
   const [reativandoId, setReativandoId] = useState<string | null>(null)
   const [isLimpandoNegocios, setIsLimpandoNegocios] = useState(false)
@@ -113,28 +118,60 @@ export default function Comercial() {
     return true
   })
 
-  // Negócios e Clientes filtrados por Responsável
+  // Negócios e Clientes filtrados por Responsável e por Estado
   const negociosFiltrados = React.useMemo(() => {
-    if (filtroResponsavel === 'todos') return negociosList
-    if (filtroResponsavel === 'sem_responsavel') {
-      return negociosList.filter((n) => {
-        const respId = n.consultor_responsavel || (n.expand?.cliente_id as any)?.responsavel_id
-        return !respId
-      })
+    let lista = negociosList
+
+    // Filtro por Responsável
+    if (filtroResponsavel !== 'todos') {
+      if (filtroResponsavel === 'sem_responsavel') {
+        lista = lista.filter((n) => {
+          const respId = n.consultor_responsavel || (n.expand?.cliente_id as any)?.responsavel_id
+          return !respId
+        })
+      } else {
+        lista = lista.filter((n) => {
+          const respId = n.consultor_responsavel || (n.expand?.cliente_id as any)?.responsavel_id
+          return respId === filtroResponsavel
+        })
+      }
     }
-    return negociosList.filter((n) => {
-      const respId = n.consultor_responsavel || (n.expand?.cliente_id as any)?.responsavel_id
-      return respId === filtroResponsavel
-    })
-  }, [negociosList, filtroResponsavel])
+
+    // Filtro por Estado (abertos, ganhos, perdidos)
+    if (filtroEstado === 'abertos') {
+      lista = lista.filter((n) => n.status !== 'ganho' && n.status !== 'perdido')
+    } else if (filtroEstado === 'ganhos') {
+      lista = lista.filter((n) => n.status === 'ganho')
+    } else if (filtroEstado === 'perdidos') {
+      lista = lista.filter((n) => n.status === 'perdido')
+    }
+
+    return lista
+  }, [negociosList, filtroResponsavel, filtroEstado])
 
   const clientesAtivosFiltrados = React.useMemo(() => {
-    if (filtroResponsavel === 'todos') return clientesAtivos
-    if (filtroResponsavel === 'sem_responsavel') {
-      return clientesAtivos.filter((c) => !c.responsavel_id)
+    let lista = clientesAtivos
+
+    // Filtro por Responsável
+    if (filtroResponsavel !== 'todos') {
+      if (filtroResponsavel === 'sem_responsavel') {
+        lista = lista.filter((c) => !c.responsavel_id)
+      } else {
+        lista = lista.filter((c) => c.responsavel_id === filtroResponsavel)
+      }
     }
-    return clientesAtivos.filter((c) => c.responsavel_id === filtroResponsavel)
-  }, [clientesAtivos, filtroResponsavel])
+
+    // Filtro por Estado
+    if (filtroEstado === 'abertos') {
+      lista = lista.filter((c) => c.status !== 'Fechado' && c.status !== 'Perdido')
+    } else if (filtroEstado === 'ganhos') {
+      lista = lista.filter((c) => c.status === 'Fechado')
+    } else if (filtroEstado === 'perdidos') {
+      lista = lista.filter((c) => c.status === 'Perdido')
+    }
+
+    return lista
+  }, [clientesAtivos, filtroResponsavel, filtroEstado])
 
   // Clientes perdidos
   const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)
@@ -230,89 +267,30 @@ export default function Comercial() {
           </div>
         )}
 
-      {/* Action Bar & Container */}
+      {/* Action Bar & Container Estilo Pipedrive */}
       <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Seletor de Modo de Visualização: Kanban vs Lista vs Oportunidades Perdidas */}
-          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 pt-[0px] pb-[0px]">
-            <button
-              type="button"
-              onClick={() => setViewMode('kanban')}
-              className="pr-[0px] pl-[4px]"
-              title="Visualização Kanban"
-            >
-              <LayoutGrid className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">
-                <br />
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className="pr-[2px] pl-[7px]"
-              title="Visualização em Lista"
-            >
-              <List className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">
-                <br />
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('perdidos')}
-              className="pr-[0px] pl-[7px]"
-              title="Oportunidades Perdidas"
-            >
-              <ArchiveX className="w-4 h-4 text-rose-600" />
-              <span className="hidden sm:inline">
-                <br />
-              </span>
-              {clientesPerdidos.length > 0 && (
-                <span className="ml-1 bg-rose-100 text-rose-800 font-bold px-1.5 py-0.2 rounded-full text-[10px]">
-                  {clientesPerdidos.length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Filtro por Responsável do Negócio */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-gray-500 hidden sm:inline">
-                Responsável:
-              </span>
-              <select
-                value={filtroResponsavel}
-                onChange={(e) => setFiltroResponsavel(e.target.value)}
-                className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${
-                  filtroResponsavel !== 'todos'
-                    ? 'border-emerald-500 bg-emerald-50/60 text-emerald-900 shadow-xs'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                } focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
-                title="Filtrar por consultor responsável do negócio"
-              >
-                <option value="todos">Todos os Responsáveis</option>
-                <option value="sem_responsavel">Sem responsável</option>
-                {usuarios.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Botão padronizado Atualizar (apenas desktop — no mobile atualiza via realtime) */}
-
-            {/* Botão único Novo Negócio / Lead unificado */}
-            <button
-              onClick={() => setIsNovoLeadOpen(true)}
-              className="h-10 inline-flex items-center justify-center gap-2 px-4 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
-              title="Criar novo negócio / lead no funil comercial"
-            >
-              <UserPlus className="w-4 h-4 stroke-[2.5]" />
-            </button>
-          </div>
-        </div>
+        {/* Barra de Ações Superior Pipedrive */}
+        <ComercialActionBar
+          viewMode={viewMode}
+          onViewModeChange={(mode) => setViewMode(mode)}
+          totalNegocios={negociosFiltrados.length || clientesAtivosFiltrados.length}
+          totalPerdidos={clientesPerdidos.length}
+          onNovoNegocio={() => setIsNovoLeadOpen(true)}
+          onNovoLead={() => setIsNovoLeadOpen(true)}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          filtroResponsavel={filtroResponsavel}
+          onFiltroResponsavelChange={(id) => setFiltroResponsavel(id)}
+          usuarios={usuarios}
+          currentUserId={user?.id}
+          currentUserName={userProfile?.name || user?.name || user?.email}
+          filtroEstado={filtroEstado}
+          onFiltroEstadoChange={(estado) => setFiltroEstado(estado)}
+          ordenacao={ordenacao}
+          onOrdenacaoChange={(ord) => setOrdenacao(ord)}
+          onLimparNegocios={handleLimparNegociosForaDoFunil}
+          isLimpandoNegocios={isLimpandoNegocios}
+        />
 
         {/* Alternância de Visualização */}
         {viewMode === 'kanban' ? (

@@ -468,9 +468,6 @@ export const Orcamentos: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
                   Propostas & Orçamentos Solares
                 </h1>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  CRM Delfos
-                </span>
               </div>
             </div>
           </div>

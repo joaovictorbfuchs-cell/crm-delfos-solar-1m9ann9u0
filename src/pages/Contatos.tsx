@@ -589,9 +589,6 @@ export const ContatosView: React.FC = () => {
               <h2 className="text-base sm:text-lg font-bold text-gray-900">
                 Cadastro Único de Contatos
               </h2>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Centralizado
-              </span>
             </div>
             <p className="text-xs text-gray-500">
               Todos os contatos do CRM reunidos em um único lugar: clientes, leads, fornecedores,
@@ -631,19 +628,7 @@ export const ContatosView: React.FC = () => {
       {/* Regra de Ouro do WhatsApp — Banner Informativo e Auditável */}
 
       {/* Métricas Rápidas */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
-          <span className="text-[11px] font-medium text-gray-500">Total de Contatos</span>
-          <div className="text-xl font-bold text-gray-900 mt-0.5">{totalContatos}</div>
-          <span className="text-[10px] text-gray-400">Na base centralizada</span>
-        </div>
-
-        <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
-          <span className="text-[11px] font-medium text-gray-500">Com WhatsApp Ativo</span>
-          <div className="text-xl font-bold text-emerald-700 mt-0.5">{totalComWhatsApp}</div>
-          <span className="text-[10px] text-gray-400">Canal autoritativo pronto</span>
-        </div>
-      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3"></div>
 
       {/* Barra de Filtros e Busca */}
       <div className="bg-white p-3 rounded-xl border border-gray-200/80 shadow-2xs space-y-2.5">

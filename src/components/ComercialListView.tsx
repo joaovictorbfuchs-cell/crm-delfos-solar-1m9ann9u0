@@ -33,6 +33,8 @@ import { formatCurrency } from '@/lib/formatters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { getValorExibicaoCard } from '@/lib/orcamentoValorCard'
+import { PipedriveFilterPopover } from '@/components/PipedriveFilterPopover'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -201,6 +203,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     updateClienteStatus,
     updateCliente,
   } = useClientes()
+  const { user, userProfile } = useAuth()
 
   const [busca, setBusca] = useState('')
   const [filtroEtapa, setFiltroEtapa] = useState<string>('todos')
@@ -781,11 +784,21 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2 justify-between sm:justify-end text-xs text-gray-600">
+          <div className="flex items-center gap-2 justify-between sm:justify-end text-xs text-gray-600 flex-wrap">
             <span className="font-medium text-[11px] sm:text-xs">
-              Exibindo <strong className="text-gray-900 font-bold">{filteredItens.length}</strong>{' '}
-              de <strong className="text-gray-900 font-bold">{itensAtivos.length}</strong> negócios
+              <strong className="text-gray-900 font-bold">{filteredItens.length}</strong>{' '}
+              {filteredItens.length === 1 ? 'negócio' : 'negócios'}
             </span>
+
+            {/* Filtro formato Pipedrive para Responsável e Estados */}
+            <PipedriveFilterPopover
+              usuarios={usuarios}
+              usuarioAtual={userProfile || user}
+              filtroResponsavel={filtroResponsavel}
+              onSelectResponsavel={(id) => setFiltroResponsavel(id)}
+              totalGeral={filteredItens.length}
+            />
+
             <Button
               variant="outline"
               size="sm"
@@ -797,8 +810,8 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
           </div>
         </div>
 
-        {/* Linha 2: 4 Filtros Combináveis (Etapa, Responsável, Motivo da Perda, Tipo de Negócio) + Limpar */}
-        <div className="pt-2 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end">
+        {/* Linha 2: Filtros Complementares da Lista (Etapa, Motivo da Perda, Tipo de Negócio) + Limpar */}
+        <div className="pt-2 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end">
           {/* 1. Filtro Etapa */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
@@ -819,37 +832,6 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                 return (
                   <option key={etapa.id} value={etapa.id}>
                     {etapa.label} ({count})
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-
-          {/* 2. Filtro Responsável */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-              Responsável
-            </label>
-            <select
-              value={filtroResponsavel}
-              onChange={(e) => setFiltroResponsavel(e.target.value)}
-              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                filtroResponsavel !== 'todos'
-                  ? 'bg-blue-50 text-blue-900 border-blue-400 font-bold'
-                  : 'bg-gray-50/80 text-gray-700 border-gray-200 font-medium'
-              }`}
-            >
-              <option value="todos">Todos os Responsáveis</option>
-              <option value="sem_responsavel">Não atribuído</option>
-              {usuarios.map((u) => {
-                const count = itensAtivos.filter(
-                  (c) =>
-                    c.responsavelId === u.id ||
-                    (c.responsavelNome && c.responsavelNome.toLowerCase() === u.name.toLowerCase()),
-                ).length
-                return (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({count})
                   </option>
                 )
               })}
