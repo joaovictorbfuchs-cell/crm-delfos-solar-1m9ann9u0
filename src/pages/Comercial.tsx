@@ -234,7 +234,7 @@ export default function Comercial() {
       <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           {/* Seletor de Modo de Visualização: Kanban vs Lista vs Oportunidades Perdidas */}
-          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 pt-[0px] pb-[0px]">
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
@@ -320,7 +320,6 @@ export default function Comercial() {
               title="Criar novo negócio / lead no funil comercial"
             >
               <UserPlus className="w-4 h-4 stroke-[2.5]" />
-              <span>+ Novo Negócio</span>
             </button>
           </div>
         </div>
