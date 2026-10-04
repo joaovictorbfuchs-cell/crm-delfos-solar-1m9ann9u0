@@ -466,7 +466,7 @@ export const Orcamentos: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                  Propostas & Orçamentos Solares
+                  Propostas &amp; Orçamentos
                 </h1>
               </div>
             </div>
