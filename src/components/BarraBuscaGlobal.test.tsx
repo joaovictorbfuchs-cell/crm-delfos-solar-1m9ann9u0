@@ -33,6 +33,36 @@ describe('BarraBuscaGlobal - HighlightMatch', () => {
     expect(html).toContain('Fundo/RS')
   })
 
+  it('deve destacar múltiplos tokens separadamente (ex: "mauro se" em "Mauro Antônio Serraglio")', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 'Mauro Antônio Serraglio',
+        query: 'mauro se',
+      }),
+    )
+    // "Mauro" e "Se" devem estar destacados individualmente
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Mauro</mark>',
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Se</mark>',
+    )
+    expect(html).toContain('Antônio')
+    expect(html).toContain('rraglio')
+  })
+
+  it('preserva destaque contíguo com acentuação compatível', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 'Mauro Antônio Serraglio',
+        query: 'Mauro Antônio',
+      }),
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Mauro Antônio</mark>',
+    )
+  })
+
   it('formata badge Encontrado via contato corretamente', () => {
     const contatoNome = 'Rodrigo Becker'
     const badge = `Encontrado via contato: ${contatoNome}`

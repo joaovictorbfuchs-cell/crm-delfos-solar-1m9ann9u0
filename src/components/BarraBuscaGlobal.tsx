@@ -17,8 +17,9 @@ import {
   CornerDownLeft,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { fetchOrdensServico } from '@/services/crmService'
-import type { OrdemServico } from '@/types/crm'
+import { fetchOrdensServico, fetchOutrosContatos } from '@/services/crmService'
+import { fetchContatosUnicos } from '@/services/contatosService'
+import type { OrdemServico, OutroContato, ContatoUnico } from '@/types/crm'
 
 export type SearchCategoryType =
   | 'clientes'
@@ -42,23 +43,66 @@ export interface SearchResultItem {
 /**
  * Utilitário para destacar trechos de texto que batem com a busca
  */
+/**
+ * Utilitário para destacar trechos de texto que batem com a busca (multi-token e substring)
+ */
 export function HighlightMatch({ text, query }: { text: string; query: string }) {
   if (!query || !text) return <span>{text}</span>
 
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+  const normalizeToken = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+
+  const trimmed = query.trim()
+  if (!trimmed) return <span>{text}</span>
+
+  // Extrai tokens significativos da query (ao menos 1 caractere)
+  const tokens = Array.from(
+    new Set(
+      trimmed
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter(Boolean),
+    ),
+  )
+
+  // Substring contígua tem prioridade máxima se houver match direto
+  // Ordena por comprimento decrescente para que frases mais longas casem primeiro
+  const searchPatterns = [trimmed, ...tokens].sort((a, b) => b.length - a.length)
+  const escapedPatterns = searchPatterns
+    .filter((pat, idx, self) => pat.length > 0 && self.indexOf(pat) === idx)
+    .map((pat) => pat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+
+  if (escapedPatterns.length === 0) return <span>{text}</span>
+
+  const normalizedTokensSet = new Set(tokens.map((t) => normalizeToken(t)).filter(Boolean))
+  const normalizedTrimmed = normalizeToken(trimmed)
+
+  const regex = new RegExp(`(${escapedPatterns.join('|')})`, 'gi')
+  const parts = text.split(regex)
 
   return (
     <span>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
+      {parts.map((part, i) => {
+        if (!part) return null
+        const partNorm = normalizeToken(part)
+        const isMatch =
+          part.toLowerCase() === trimmed.toLowerCase() ||
+          partNorm === normalizedTrimmed ||
+          normalizedTokensSet.has(partNorm) ||
+          tokens.some((t) => normalizeToken(t) === partNorm)
+
+        return isMatch ? (
           <mark key={i} className="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">
             {part}
           </mark>
         ) : (
           <span key={i}>{part}</span>
-        ),
-      )}
+        )
+      })}
     </span>
   )
 }
@@ -106,6 +150,11 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
   const [isLoadingOS, setIsLoadingOS] = useState(false)
   const [hasLoadedOS, setHasLoadedOS] = useState(false)
 
+  // Contatos unificados das coleções `contatos` e `outros_contatos` (aditivo)
+  const [contatosUnificados, setContatosUnificados] = useState<ContatoUnico[]>([])
+  const [outrosContatos, setOutrosContatos] = useState<OutroContato[]>([])
+  const [hasLoadedExtraContatos, setHasLoadedExtraContatos] = useState(false)
+
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -125,6 +174,27 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     }
   }, [hasLoadedOS, isLoadingOS])
 
+  // Carrega contatos unificados (`contatos` e `outros_contatos`) sob demanda
+  const carregarContatosExtras = useCallback(async () => {
+    if (hasLoadedExtraContatos) return
+    try {
+      const [unicosRes, outrosRes] = await Promise.allSettled([
+        fetchContatosUnicos(),
+        fetchOutrosContatos(),
+      ])
+
+      if (unicosRes.status === 'fulfilled' && Array.isArray(unicosRes.value)) {
+        setContatosUnificados(unicosRes.value)
+      }
+      if (outrosRes.status === 'fulfilled' && Array.isArray(outrosRes.value)) {
+        setOutrosContatos(outrosRes.value)
+      }
+      setHasLoadedExtraContatos(true)
+    } catch (err) {
+      console.warn('Erro ao carregar contatos unificados para busca global:', err)
+    }
+  }, [hasLoadedExtraContatos])
+
   // Normalizador de texto para busca case-insensitive e acentos
   const normalize = (str?: string) =>
     (str || '')
@@ -135,6 +205,38 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
 
   const trimmedQuery = query.trim()
   const normalizedQuery = normalize(trimmedQuery)
+
+  // Tokens da busca (multi-token): se todos os tokens estiverem presentes, dá match
+  const queryTokens = useMemo(() => {
+    return normalizedQuery.split(/\s+/).filter(Boolean)
+  }, [normalizedQuery])
+
+  /**
+   * Avalia se um conjunto de campos de texto de um registro dá match com a busca:
+   * Retorna true se:
+   * 1. A query completa casar como substring contígua em algum dos campos (preservando o comportamento existente); OU
+   * 2. Todos os tokens da query estiverem presentes no texto consolidado pesquisável do registro.
+   */
+  const matchMultiToken = useCallback(
+    (campos: (string | undefined | null | number)[]): boolean => {
+      if (queryTokens.length === 0) return false
+
+      const normalizados = campos
+        .map((c) => (c !== undefined && c !== null ? normalize(String(c)) : ''))
+        .filter(Boolean)
+
+      if (normalizados.length === 0) return false
+
+      // 1. Substring contígua direta (comportamento atual preservado)
+      const hasContiguousMatch = normalizados.some((campo) => campo.includes(normalizedQuery))
+      if (hasContiguousMatch) return true
+
+      // 2. Multi-token: todos os tokens devem estar presentes no texto consolidado
+      const consolidated = normalizados.join(' ')
+      return queryTokens.every((token) => consolidated.includes(token))
+    },
+    [normalizedQuery, queryTokens],
+  )
 
   // Mapeia os resultados por categoria
   const resultsGrouped = useMemo(() => {
@@ -148,32 +250,24 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
       }
     }
 
-    // 1. Clientes (nome, cidade, email, telefone, whatsapp, doc)
+    // 1. Clientes (nome, nome_fantasia, razao_social, cidade, email, telefone, whatsapp, cpf/cnpj)
     const matchedClientes: SearchResultItem[] = []
     const matchedClienteIds = new Set<string>()
 
     clientes.forEach((cli) => {
-      const matchNome = normalize(cli.nome).includes(normalizedQuery)
-      const matchFantasia = normalize(cli.nome_fantasia).includes(normalizedQuery)
-      const matchRazao = normalize(cli.razao_social).includes(normalizedQuery)
-      const matchCidade = normalize(cli.cidade).includes(normalizedQuery)
-      const matchEmail = normalize(cli.email).includes(normalizedQuery)
-      const matchTelefone = normalize(cli.telefone).includes(normalizedQuery)
-      const matchWhats = normalize(cli.whatsapp).includes(normalizedQuery)
-      const matchCnpj = normalize(cli.cnpj).includes(normalizedQuery)
-      const matchCpf = normalize(cli.cpf).includes(normalizedQuery)
+      const match = matchMultiToken([
+        cli.nome,
+        cli.nome_fantasia,
+        cli.razao_social,
+        cli.cidade,
+        cli.email,
+        cli.telefone,
+        cli.whatsapp,
+        cli.cnpj,
+        cli.cpf,
+      ])
 
-      if (
-        matchNome ||
-        matchFantasia ||
-        matchRazao ||
-        matchCidade ||
-        matchEmail ||
-        matchTelefone ||
-        matchWhats ||
-        matchCnpj ||
-        matchCpf
-      ) {
+      if (match) {
         matchedClienteIds.add(cli.id)
 
         // Detalhe prioritário para exibir
@@ -203,12 +297,15 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     // Quando o usuário digitar o nome/cargo/fone/email de um contato adicional,
     // exibe o CLIENTE PAI com badge "Encontrado via contato: [Nome]"
     contatosAdicionais.forEach((contato) => {
-      const matchNomeContato = normalize(contato.nome).includes(normalizedQuery)
-      const matchCargoContato = normalize(contato.cargo).includes(normalizedQuery)
-      const matchTelefoneContato = normalize(contato.telefone).includes(normalizedQuery)
-      const matchEmailContato = normalize(contato.email).includes(normalizedQuery)
+      const match = matchMultiToken([
+        contato.nome,
+        contato.cargo,
+        contato.telefone,
+        contato.email,
+        contato.papel,
+      ])
 
-      if (matchNomeContato || matchCargoContato || matchTelefoneContato || matchEmailContato) {
+      if (match) {
         const clientePai = clientes.find((c) => c.id === contato.cliente)
         if (!clientePai) return
 
@@ -255,29 +352,120 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
       }
     })
 
+    // 1c. Contatos unificados das coleções `contatos` e `outros_contatos` (aditivo - causa secundária)
+    // Se o contato tiver vínculo com cliente existente, permite abrir a ficha do cliente;
+    // caso contrário ou para outros_contatos/contatos autônomos, navega para a central/contatos
+    contatosUnificados.forEach((cu) => {
+      const match = matchMultiToken([
+        cu.nome,
+        cu.telefone,
+        cu.whatsapp,
+        cu.email,
+        cu.cargo,
+        cu.papel,
+        cu.observacoes,
+      ])
+
+      if (match) {
+        // Verifica se possui clientes_vinculados
+        const clienteVinculadoId =
+          Array.isArray(cu.clientes_vinculados) && cu.clientes_vinculados.length > 0
+            ? cu.clientes_vinculados[0]
+            : undefined
+        const clienteVinculado = clienteVinculadoId
+          ? clientes.find((c) => c.id === clienteVinculadoId)
+          : undefined
+
+        // Se o cliente vinculado já foi adicionado, não duplica
+        if (clienteVinculado && matchedClienteIds.has(clienteVinculado.id)) {
+          return
+        }
+
+        const detalhes: string[] = []
+        if (cu.cargo) detalhes.push(cu.cargo)
+        if (cu.telefone || cu.whatsapp) detalhes.push(cu.whatsapp || cu.telefone || '')
+        if (cu.email) detalhes.push(cu.email)
+        if (clienteVinculado?.nome) detalhes.push(`Cliente: ${clienteVinculado.nome}`)
+
+        matchedClientes.push({
+          id: `contato-unico-${cu.id}`,
+          category: 'clientes',
+          title: cu.nome,
+          subtitle: detalhes.join(' • ') || 'Contato da base unificada',
+          badge: cu.papel ? `Contato (${cu.papel})` : 'Contato',
+          badgeColorClass: 'bg-teal-50 text-teal-700 border-teal-200',
+          icon: Users,
+          clienteId: clienteVinculadoId,
+          action: () => {
+            if (clienteVinculadoId) {
+              openFichaCliente(clienteVinculadoId)
+            } else {
+              navigate('/contatos')
+            }
+            setIsOpen(false)
+          },
+        })
+      }
+    })
+
+    // Outros contatos da tabela `outros_contatos`
+    outrosContatos.forEach((oc) => {
+      const match = matchMultiToken([oc.nome, oc.telefone, oc.tipo_contato, oc.observacao])
+
+      if (match) {
+        const jaAdicionado = matchedClientes.some(
+          (m) =>
+            m.id === `outro-contato-${oc.id}` || m.title.toLowerCase() === oc.nome.toLowerCase(),
+        )
+        if (jaAdicionado) return
+
+        const detalhes: string[] = []
+        if (oc.telefone) detalhes.push(oc.telefone)
+        if (oc.tipo_contato) detalhes.push(`Tipo: ${oc.tipo_contato}`)
+        if (oc.observacao) detalhes.push(oc.observacao)
+
+        matchedClientes.push({
+          id: `outro-contato-${oc.id}`,
+          category: 'clientes',
+          title: oc.nome,
+          subtitle: detalhes.join(' • ') || 'Contato avulso',
+          badge: oc.tipo_contato ? `Contato (${oc.tipo_contato})` : 'Contato',
+          badgeColorClass: 'bg-teal-50 text-teal-700 border-teal-200',
+          icon: Users,
+          action: () => {
+            navigate('/contatos')
+            setIsOpen(false)
+          },
+        })
+      }
+    })
+
     // 2. Negócios / Oportunidades do Funil Comercial
     // Clientes que possuem status de funil ativo ou que o usuário buscou por valor/etapa/produto
     const matchedNegocios: SearchResultItem[] = []
     clientes.forEach((cli) => {
       const statusFunil = cli.status || 'Novo Lead'
-      const matchStatus = normalize(statusFunil).includes(normalizedQuery)
-      const matchProduto = normalize(cli.produto).includes(normalizedQuery)
-      const matchNome = normalize(cli.nome).includes(normalizedQuery)
-      const matchOrigem = normalize(cli.origem_lead).includes(normalizedQuery)
+      const matchCamposNegocio = matchMultiToken([
+        statusFunil,
+        cli.produto,
+        cli.origem_lead,
+        cli.nome,
+        cli.nome_fantasia,
+        cli.razao_social,
+      ])
 
-      // Se der match na etapa ou produto, ou se buscou o nome e o cliente está no funil comercial
+      const isFunilAtivo = [
+        'Novo Lead',
+        'Levantamento',
+        'Orçamento',
+        'Negociação',
+        'Fechado',
+        'Contato Futuro',
+      ].includes(cli.status)
+
       if (
-        matchStatus ||
-        matchProduto ||
-        (matchNome &&
-          [
-            'Novo Lead',
-            'Levantamento',
-            'Orçamento',
-            'Negociação',
-            'Fechado',
-            'Contato Futuro',
-          ].includes(cli.status))
+        matchCamposNegocio &&
+        (isFunilAtivo || matchMultiToken([statusFunil, cli.produto, cli.origem_lead]))
       ) {
         const valorFormatado = cli.valor_estimado
           ? `R$ ${Number(cli.valor_estimado).toLocaleString('pt-BR')}`
@@ -313,14 +501,17 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     // Da tabela ordens_servico
     ordensServico.forEach((os) => {
       const clienteNome = os.expand?.cliente_id?.nome || os.expand?.cliente_id?.razao_social || ''
-      const matchId = normalize(os.id).includes(normalizedQuery)
-      const matchTipo = normalize(os.tipo_servico).includes(normalizedQuery)
-      const matchCliente = normalize(clienteNome).includes(normalizedQuery)
-      const matchTecnico = normalize(os.atribuida_a).includes(normalizedQuery)
-      const matchDesc = normalize(os.detalhes_execucao || os.instrucoes).includes(normalizedQuery)
-      const matchEnd = normalize(os.endereco).includes(normalizedQuery)
+      const match = matchMultiToken([
+        os.id,
+        os.tipo_servico,
+        clienteNome,
+        os.atribuida_a,
+        os.detalhes_execucao,
+        os.instrucoes,
+        os.endereco,
+      ])
 
-      if (matchId || matchTipo || matchCliente || matchTecnico || matchDesc || matchEnd) {
+      if (match) {
         seenOSIds.add(os.id)
         matchedOS.push({
           id: `os-${os.id}`,
@@ -351,12 +542,9 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
       if (seenOSIds.has(m.id)) return
       const cli = clientes.find((c) => c.id === m.cliente_id)
       const cliNome = cli?.nome || ''
-      const matchTipo = normalize(m.tipo).includes(normalizedQuery)
-      const matchCli = normalize(cliNome).includes(normalizedQuery)
-      const matchTec = normalize(m.tecnico).includes(normalizedQuery)
-      const matchDesc = normalize(m.descricao).includes(normalizedQuery)
+      const match = matchMultiToken([m.tipo, cliNome, m.tecnico, m.descricao])
 
-      if (matchTipo || matchCli || matchTec || matchDesc) {
+      if (match) {
         matchedOS.push({
           id: `manutencao-${m.id}`,
           category: 'ordens_servico',
@@ -382,13 +570,15 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     projetos.forEach((proj) => {
       const cli = clientes.find((c) => c.id === proj.cliente_id)
       const cliNome = cli?.nome || ''
-      const matchEtapa = normalize(proj.etapa).includes(normalizedQuery)
-      const matchCli = normalize(cliNome).includes(normalizedQuery)
-      const matchCidade = normalize(proj.cidade).includes(normalizedQuery)
-      const matchProf = normalize(proj.profissional_nome).includes(normalizedQuery)
-      const matchObs = normalize(proj.observacoes).includes(normalizedQuery)
+      const match = matchMultiToken([
+        proj.etapa,
+        cliNome,
+        proj.cidade,
+        proj.profissional_nome,
+        proj.observacoes,
+      ])
 
-      if (matchEtapa || matchCli || matchCidade || matchProf || matchObs) {
+      if (match) {
         matchedProjetos.push({
           id: `projeto-${proj.id}`,
           category: 'projetos',
@@ -411,12 +601,9 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     contratosOM.forEach((ct) => {
       const cli = clientes.find((c) => c.id === ct.cliente_id)
       const cliNome = cli?.nome || ''
-      const matchPlano = normalize(ct.plano).includes(normalizedQuery)
-      const matchNumero = normalize(ct.numero_contrato).includes(normalizedQuery)
-      const matchCli = normalize(cliNome).includes(normalizedQuery)
-      const matchStatus = normalize(ct.status).includes(normalizedQuery)
+      const match = matchMultiToken([ct.plano, ct.numero_contrato, cliNome, ct.status])
 
-      if (matchPlano || matchNumero || matchCli || matchStatus) {
+      if (match) {
         matchedContratos.push({
           id: `contrato-${ct.id}`,
           category: 'contratos_om',
@@ -435,7 +622,7 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     })
 
     return {
-      clientes: matchedClientes.slice(0, 6),
+      clientes: matchedClientes.slice(0, 8),
       negocios: matchedNegocios.slice(0, 5),
       ordens_servico: matchedOS.slice(0, 5),
       projetos: matchedProjetos.slice(0, 4),
@@ -443,8 +630,11 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     }
   }, [
     normalizedQuery,
+    matchMultiToken,
     clientes,
     contatosAdicionais,
+    contatosUnificados,
+    outrosContatos,
     ordensServico,
     manutencoes,
     projetos,
@@ -563,6 +753,7 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
           }}
           onFocus={() => {
             carregarOrdensServico()
+            carregarContatosExtras()
             if (trimmedQuery.length >= 2) {
               setIsOpen(true)
             }
