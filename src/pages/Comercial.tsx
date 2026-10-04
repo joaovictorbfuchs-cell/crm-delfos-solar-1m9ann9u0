@@ -302,16 +302,6 @@ export default function Comercial() {
             </div>
 
             {/* Botão padronizado Atualizar (apenas desktop — no mobile atualiza via realtime) */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isRefreshing || isLimpandoNegocios}
-              className="hidden lg:inline-flex h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
-              title="Atualizar dados"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
 
             {/* Botão único Novo Negócio / Lead unificado */}
             <button
