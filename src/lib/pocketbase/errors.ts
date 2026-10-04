@@ -29,40 +29,26 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object' && error !== null) {
-    const obj = error as Record<string, unknown>
+  if (!error || typeof error !== 'object') return false
+  const err = error as Record<string, unknown>
+  if (
+    err.status === 401 ||
+    err.status === 403 ||
+    err.statusCode === 401 ||
+    err.statusCode === 403
+  ) {
+    return true
+  }
+  if (typeof err.message === 'string') {
+    const msg = err.message.toLowerCase()
     if (
-      obj.status === 401 ||
-      obj.status === 403 ||
-      obj.statusCode === 401 ||
-      obj.statusCode === 403
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('the request requires valid user authorization')
     ) {
       return true
     }
-    if (typeof obj.message === 'string') {
-      const msg = obj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('token expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('unauthorized') ||
-        msg.includes('forbidden') ||
-        msg.includes('something went wrong while processing your request')
-      ) {
-        return true
-      }
-    }
   }
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  const errStr = String(error).toLowerCase()
-  return (
-    errStr.includes('something went wrong while processing your request') ||
-    errStr.includes('failed to authenticate') ||
-    errStr.includes('token expired') ||
-    errStr.includes('unauthorized') ||
-    errStr.includes('forbidden')
-  )
+  return false
 }
