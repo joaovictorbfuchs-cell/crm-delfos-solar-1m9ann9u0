@@ -199,14 +199,23 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     }
   }, [hasLoadedExtraContatos, isLoadingContatos])
 
-  // Carregamento automático na digitação (query >= 2 caracteres)
-  // Garante que contatos unificados e OS estejam disponíveis mesmo sem foco prévio ou em fluxos automáticos
+  // Carregamento automático na digitação (query >= 2 caracteres) ou na montagem inicial
+  // Garante que contatos unificados e OS estejam disponíveis imediatamente
   useEffect(() => {
-    if (query.trim().length >= 2) {
+    if (query.trim().length >= 1) {
       carregarContatosExtras()
       carregarOrdensServico()
     }
   }, [query, carregarContatosExtras, carregarOrdensServico])
+
+  // Pré-carrega contatos extras e ordens de serviço em background com atraso para garantir buscas instantâneas
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      carregarContatosExtras()
+      carregarOrdensServico()
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [carregarContatosExtras, carregarOrdensServico])
 
   // Normalizador de texto para busca case-insensitive e acentos
   const normalize = (str?: string) =>

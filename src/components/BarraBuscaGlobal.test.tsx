@@ -98,4 +98,15 @@ describe('BarraBuscaGlobal - HighlightMatch', () => {
       '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Beck</mark>',
     )
   })
+
+  it('verifica que HighlightMatch suporta termos vazios e múltiplos espaços sem quebrar', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 'Gabriel Becker Engenharia',
+        query: '   ',
+      }),
+    )
+    expect(html).toContain('Gabriel Becker Engenharia')
+    expect(html).not.toContain('<mark')
+  })
 })

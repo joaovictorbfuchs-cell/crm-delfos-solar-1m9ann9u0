@@ -28,25 +28,41 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
+/**
+ * Identifica se um erro recebido é relacionado à sessão de autenticação expirada, inválida ou não autorizada (401, 403, token inválido).
+ */
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as Record<string, unknown>
-  if (
-    err.status === 401 ||
-    err.status === 403 ||
-    err.statusCode === 401 ||
-    err.statusCode === 403
-  ) {
-    return true
+  if (!error) return false
+
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const msg = (error.message || '').toLowerCase()
+    if (
+      msg.includes('token') ||
+      msg.includes('auth') ||
+      msg.includes('unauthorized') ||
+      msg.includes('expired')
+    ) {
+      return true
+    }
   }
-  const msg = typeof err.message === 'string' ? err.message.toLowerCase() : ''
-  if (
-    msg.includes('token is expired') ||
-    msg.includes('invalid token') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('the request requires valid user authorization')
-  ) {
-    return true
+
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    const status = errObj.status ?? errObj.statusCode
+    if (status === 401 || status === 403) return true
+    const msg = String(errObj.message || errObj.error || '').toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('jwt expired') ||
+      msg.includes('unauthorized') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('invalid token')
+    ) {
+      return true
+    }
   }
+
   return false
 }
