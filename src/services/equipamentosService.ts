@@ -153,28 +153,57 @@ export async function deleteEquipamento(id: string): Promise<boolean> {
   return true
 }
 
-export function getFotoEquipamentoUrl(equipamento: Equipamento): string | null {
-  if (equipamento.foto) {
-    return pb.files.getURL(equipamento, equipamento.foto)
+export function getFotoEquipamentoUrl(equipamento?: Equipamento | null): string | null {
+  if (
+    !equipamento ||
+    !equipamento.foto ||
+    typeof equipamento.foto !== 'string' ||
+    !equipamento.foto.trim()
+  ) {
+    return null
   }
-  return null
+  try {
+    return pb.files.getURL(equipamento, equipamento.foto)
+  } catch (err) {
+    console.error('Erro ao obter URL da foto do equipamento:', err)
+    return null
+  }
 }
 
-export function getDatasheetEquipamentoUrl(equipamento: Equipamento): string | null {
-  if (equipamento.datasheet_url && equipamento.datasheet_url.trim()) {
+export function getDatasheetEquipamentoUrl(equipamento?: Equipamento | null): string | null {
+  if (!equipamento) return null
+  if (
+    equipamento.datasheet_url &&
+    typeof equipamento.datasheet_url === 'string' &&
+    equipamento.datasheet_url.trim()
+  ) {
     return equipamento.datasheet_url.trim()
   }
-  if (equipamento.datasheet_pdf) {
-    return pb.files.getURL(equipamento, equipamento.datasheet_pdf)
+  if (
+    equipamento.datasheet_pdf &&
+    typeof equipamento.datasheet_pdf === 'string' &&
+    equipamento.datasheet_pdf.trim()
+  ) {
+    try {
+      return pb.files.getURL(equipamento, equipamento.datasheet_pdf)
+    } catch (err) {
+      console.error('Erro ao obter URL do datasheet PDF:', err)
+      return null
+    }
   }
   return null
 }
 
-export function getDataloggerEquipamentoUrl(equipamento: Equipamento): string | null {
-  if (equipamento.datalogger_url && equipamento.datalogger_url.trim()) {
-    return equipamento.datalogger_url.trim()
+export function getDataloggerEquipamentoUrl(equipamento?: Equipamento | null): string | null {
+  if (
+    !equipamento ||
+    !equipamento.datalogger_url ||
+    typeof equipamento.datalogger_url !== 'string' ||
+    !equipamento.datalogger_url.trim()
+  ) {
+    return null
   }
-  return null
+  return equipamento.datalogger_url.trim()
 }
 
 export type UnidadePotenciaTipo = 'W' | 'kW'

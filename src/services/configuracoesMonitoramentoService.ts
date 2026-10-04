@@ -152,11 +152,18 @@ export async function deleteConfiguracaoMonitoramento(id: string): Promise<boole
 /**
  * Retorna a URL pública ou do PocketBase para o PDF do procedimento
  */
-export function getPdfConfiguracaoMonitoramentoUrl(cfg: ConfiguracaoMonitoramento): string | null {
-  if (cfg.arquivo_pdf) {
-    return pb.files.getURL(cfg, cfg.arquivo_pdf)
+export function getPdfConfiguracaoMonitoramentoUrl(
+  cfg: ConfiguracaoMonitoramento | null | undefined,
+): string | null {
+  if (!cfg || !cfg.arquivo_pdf || typeof cfg.arquivo_pdf !== 'string' || !cfg.arquivo_pdf.trim()) {
+    return null
   }
-  return null
+  try {
+    return pb.files.getURL(cfg, cfg.arquivo_pdf)
+  } catch (err) {
+    console.error('Erro ao gerar URL do PDF da configuração de monitoramento:', err)
+    return null
+  }
 }
 
 /**
@@ -177,11 +184,36 @@ export interface ProcedimentoMonitoramentoAcesso {
  * Suporta quando apenas um existe OU quando ambos (PDF e Link) estão cadastrados no mesmo registro.
  */
 export function getProcedimentoMonitoramentoUrl(
-  cfg: ConfiguracaoMonitoramento,
+  cfg: ConfiguracaoMonitoramento | null | undefined,
 ): ProcedimentoMonitoramentoAcesso {
-  const pdfUrl = cfg.arquivo_pdf ? pb.files.getURL(cfg, cfg.arquivo_pdf) : null
+  if (!cfg) {
+    return {
+      url: null,
+      tipo: null,
+      pdfUrl: null,
+      linkUrl: null,
+      temPdf: false,
+      temLink: false,
+      temAmbos: false,
+    }
+  }
+
+  let pdfUrl: string | null = null
+  if (cfg.arquivo_pdf && typeof cfg.arquivo_pdf === 'string' && cfg.arquivo_pdf.trim()) {
+    try {
+      pdfUrl = pb.files.getURL(cfg, cfg.arquivo_pdf)
+    } catch (err) {
+      console.error('Erro ao obter URL do PDF de monitoramento:', err)
+      pdfUrl = null
+    }
+  }
+
   const linkUrl =
-    cfg.link_procedimento && cfg.link_procedimento.trim() ? cfg.link_procedimento.trim() : null
+    cfg.link_procedimento &&
+    typeof cfg.link_procedimento === 'string' &&
+    cfg.link_procedimento.trim()
+      ? cfg.link_procedimento.trim()
+      : null
 
   const temPdf = Boolean(pdfUrl)
   const temLink = Boolean(linkUrl)
@@ -207,32 +239,37 @@ export function getProcedimentoMonitoramentoUrl(
  * Sugere a melhor configuração de monitoramento compatível com a marca informada
  */
 export function sugerirConfiguracaoPorMarca(
-  marcaBuscada: string,
-  catalogo: ConfiguracaoMonitoramento[],
+  marcaBuscada: string | null | undefined,
+  catalogo: (ConfiguracaoMonitoramento | null | undefined)[] | null | undefined,
 ): ConfiguracaoMonitoramento | null {
-  if (!marcaBuscada || !marcaBuscada.trim() || !catalogo || catalogo.length === 0) {
+  if (!marcaBuscada || typeof marcaBuscada !== 'string' || !marcaBuscada.trim()) {
+    return null
+  }
+  if (!catalogo || !Array.isArray(catalogo) || catalogo.length === 0) {
     return null
   }
 
   const marcaNorm = cleanString(marcaBuscada).replace(/[^a-z0-9]/g, '')
   if (!marcaNorm) return null
 
+  const listaValida = catalogo.filter((c): c is ConfiguracaoMonitoramento => Boolean(c && c.id))
+
   // 1. Match exato normalizado
-  const matchExato = catalogo.find((c) => {
-    const cNorm = cleanString(c.marca).replace(/[^a-z0-9]/g, '')
+  const matchExato = listaValida.find((c) => {
+    const cNorm = cleanString(c.marca || '').replace(/[^a-z0-9]/g, '')
     return cNorm === marcaNorm
   })
   if (matchExato) return matchExato
 
   // 2. Match por inclusão (ex: "Huawei Solar" contém "Huawei", ou vice-versa)
-  const matchInclusao = catalogo.find((c) => {
-    const cNorm = cleanString(c.marca).replace(/[^a-z0-9]/g, '')
+  const matchInclusao = listaValida.find((c) => {
+    const cNorm = cleanString(c.marca || '').replace(/[^a-z0-9]/g, '')
     return cNorm.length >= 3 && (cNorm.includes(marcaNorm) || marcaNorm.includes(cNorm))
   })
   if (matchInclusao) return matchInclusao
 
   // 3. Match no título do procedimento
-  const matchTitulo = catalogo.find((c) => {
+  const matchTitulo = listaValida.find((c) => {
     const tNorm = cleanString(c.titulo || '')
     return tNorm.includes(cleanString(marcaBuscada))
   })

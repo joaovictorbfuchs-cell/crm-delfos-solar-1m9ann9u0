@@ -46,6 +46,7 @@ import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import type { ConfiguracaoMonitoramento } from '@/types/equipamentos'
 import { fetchConfiguracoesMonitoramento } from '@/services/configuracoesMonitoramentoService'
 import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   fetchEquipamentos,
   getDatasheetEquipamentoUrl,
@@ -90,7 +91,7 @@ interface BlocoAtivosDaUsinaProps {
   onCloseModalUsina?: () => void
 }
 
-export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
+const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
   usina,
   clienteNome = '',
   catalogoEquipamentos: catalogoInicial,
@@ -150,17 +151,29 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     setLoading(true)
     try {
       const [vinculosData, ativosData, catalogoData, monitoramentoData] = await Promise.all([
-        fetchEquipamentosPorUsina(usina.id),
-        fetchAtivosPorUsina(usina.id),
-        fetchEquipamentos(),
-        fetchConfiguracoesMonitoramento().catch(() => []),
+        fetchEquipamentosPorUsina(usina.id).catch((err) => {
+          console.error('[BlocoAtivosDaUsina] Erro ao buscar vínculos:', err)
+          return []
+        }),
+        fetchAtivosPorUsina(usina.id).catch((err) => {
+          console.error('[BlocoAtivosDaUsina] Erro ao buscar ativos individuais:', err)
+          return []
+        }),
+        fetchEquipamentos().catch((err) => {
+          console.error('[BlocoAtivosDaUsina] Erro ao buscar catálogo:', err)
+          return []
+        }),
+        fetchConfiguracoesMonitoramento().catch((err) => {
+          console.error('[BlocoAtivosDaUsina] Erro ao buscar configurações de monitoramento:', err)
+          return []
+        }),
       ])
-      setVinculos(vinculosData)
-      setAtivosIndividuais(ativosData)
-      setCatalogoEquipamentos(catalogoData)
-      setConfiguracoesMonitoramento(monitoramentoData)
+      setVinculos(Array.isArray(vinculosData) ? vinculosData : [])
+      setAtivosIndividuais(Array.isArray(ativosData) ? ativosData : [])
+      setCatalogoEquipamentos(Array.isArray(catalogoData) ? catalogoData : [])
+      setConfiguracoesMonitoramento(Array.isArray(monitoramentoData) ? monitoramentoData : [])
     } catch (err) {
-      console.error('Erro ao carregar ativos da usina:', err)
+      console.error('[BlocoAtivosDaUsina] Erro ao carregar ativos da usina:', err)
       toast.error('Erro ao carregar ativos da usina.')
     } finally {
       setLoading(false)
@@ -252,65 +265,90 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     _isEdicao: boolean,
     extra?: { quantidade?: number },
   ) => {
+    if (!equipamentoCriado || !usina?.id) {
+      setModalCadastrarEquipamentoAberto(false)
+      return
+    }
+
     const qtd = extra?.quantidade && extra.quantidade > 0 ? extra.quantidade : 1
     try {
-      await vincularEquipamentoUsina({
-        usina_id: usina.id,
-        equipamento_id: equipamentoCriado.id,
-        quantidade: qtd,
-      })
-
-      // Se tipo === 'inversor' e houver onUpdateUsinaMultipleFields / onUpdateUsinaField:
-      if (equipamentoCriado.tipo === 'inversor') {
-        const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
-        const updatesInversor: Partial<UsinaCliente> = {
-          fabricante_inversores: equipamentoCriado.marca || '',
-          modelo_inversores: equipamentoCriado.modelo || '',
-          potencia_pico_inversores_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
-        }
-        if (onUpdateUsinaMultipleFields) {
-          await onUpdateUsinaMultipleFields(updatesInversor)
-        } else if (onUpdateUsinaField) {
-          if (equipamentoCriado.marca) {
-            await onUpdateUsinaField('fabricante_inversores', equipamentoCriado.marca)
-          }
-          if (equipamentoCriado.modelo) {
-            await onUpdateUsinaField('modelo_inversores', equipamentoCriado.modelo)
-          }
-          if (potPicoKwp > 0) {
-            await onUpdateUsinaField('potencia_pico_inversores_kwp', potPicoKwp)
-          }
-        }
-      } else if (equipamentoCriado.tipo === 'modulo_fv') {
-        const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
-        const updatesModulo: Partial<UsinaCliente> = {
-          fabricante_modulos: equipamentoCriado.marca || '',
-          modelo_modulos: equipamentoCriado.modelo || '',
-          quantidade_placas: qtd,
-          potencia_pico_modulos_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
-        }
-        if (onUpdateUsinaMultipleFields) {
-          await onUpdateUsinaMultipleFields(updatesModulo)
-        } else if (onUpdateUsinaField) {
-          if (equipamentoCriado.marca) {
-            await onUpdateUsinaField('fabricante_modulos', equipamentoCriado.marca)
-          }
-          if (equipamentoCriado.modelo) {
-            await onUpdateUsinaField('modelo_modulos', equipamentoCriado.modelo)
-          }
-          await onUpdateUsinaField('quantidade_placas', qtd)
-          if (potPicoKwp > 0) {
-            await onUpdateUsinaField('potencia_pico_modulos_kwp', potPicoKwp)
-          }
-        }
+      try {
+        await vincularEquipamentoUsina({
+          usina_id: usina.id,
+          equipamento_id: equipamentoCriado.id,
+          quantidade: qtd,
+        })
+      } catch (vincErr) {
+        console.error('[BlocoAtivosDaUsina] Erro ao vincular equipamento:', vincErr)
+        toast.error(
+          'O equipamento foi salvo no catálogo, mas não foi possível vinculá-lo à usina automaticamente.',
+        )
       }
 
-      await carregarDados()
-      toast.success('Equipamento cadastrado e vinculado à usina!')
-      setModalCadastrarEquipamentoAberto(false)
+      // Se tipo === 'inversor' e houver onUpdateUsinaMultipleFields / onUpdateUsinaField:
+      try {
+        if (equipamentoCriado.tipo === 'inversor') {
+          const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
+          const updatesInversor: Partial<UsinaCliente> = {
+            fabricante_inversores: equipamentoCriado.marca || '',
+            modelo_inversores: equipamentoCriado.modelo || '',
+            potencia_pico_inversores_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
+          }
+          if (onUpdateUsinaMultipleFields) {
+            await onUpdateUsinaMultipleFields(updatesInversor)
+          } else if (onUpdateUsinaField) {
+            if (equipamentoCriado.marca) {
+              await onUpdateUsinaField('fabricante_inversores', equipamentoCriado.marca)
+            }
+            if (equipamentoCriado.modelo) {
+              await onUpdateUsinaField('modelo_inversores', equipamentoCriado.modelo)
+            }
+            if (potPicoKwp > 0) {
+              await onUpdateUsinaField('potencia_pico_inversores_kwp', potPicoKwp)
+            }
+          }
+        } else if (equipamentoCriado.tipo === 'modulo_fv') {
+          const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
+          const updatesModulo: Partial<UsinaCliente> = {
+            fabricante_modulos: equipamentoCriado.marca || '',
+            modelo_modulos: equipamentoCriado.modelo || '',
+            quantidade_placas: qtd,
+            potencia_pico_modulos_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
+          }
+          if (onUpdateUsinaMultipleFields) {
+            await onUpdateUsinaMultipleFields(updatesModulo)
+          } else if (onUpdateUsinaField) {
+            if (equipamentoCriado.marca) {
+              await onUpdateUsinaField('fabricante_modulos', equipamentoCriado.marca)
+            }
+            if (equipamentoCriado.modelo) {
+              await onUpdateUsinaField('modelo_modulos', equipamentoCriado.modelo)
+            }
+            await onUpdateUsinaField('quantidade_placas', qtd)
+            if (potPicoKwp > 0) {
+              await onUpdateUsinaField('potencia_pico_modulos_kwp', potPicoKwp)
+            }
+          }
+        }
+      } catch (updateErr) {
+        console.error(
+          '[BlocoAtivosDaUsina] Erro ao sincronizar especificações da usina:',
+          updateErr,
+        )
+      }
+
+      try {
+        await carregarDados()
+      } catch (carregarErr) {
+        console.error('[BlocoAtivosDaUsina] Erro ao recarregar dados após cadastro:', carregarErr)
+      }
+
+      toast.success('Equipamento cadastrado com sucesso!')
     } catch (err) {
-      console.error('Erro ao vincular equipamento cadastrado à usina:', err)
-      toast.error('O equipamento foi criado, mas o vínculo à usina falhou.')
+      console.error('[BlocoAtivosDaUsina] Erro no fluxo de cadastro de equipamento:', err)
+      toast.error(
+        'O equipamento foi criado, mas houve uma falha ao atualizar a visualização da usina.',
+      )
     } finally {
       setModalCadastrarEquipamentoAberto(false)
     }
@@ -2158,5 +2196,13 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
         onSalvo={handleEquipamentoCadastrado}
       />
     </div>
+  )
+}
+
+export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = (props) => {
+  return (
+    <ErrorBoundary compact={true} errorMessage="Não foi possível exibir o bloco de Ativos da Usina">
+      <BlocoAtivosDaUsinaInterno {...props} />
+    </ErrorBoundary>
   )
 }
