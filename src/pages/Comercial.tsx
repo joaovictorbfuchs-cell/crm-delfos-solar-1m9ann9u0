@@ -264,21 +264,6 @@ export default function Comercial() {
             </Button>
 
             {/* Ação rápida de varredura e limpeza do funil comercial */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleLimparNegociosForaDoFunil}
-              disabled={isLimpandoNegocios || isRefreshing}
-              className="h-10 px-3 rounded-xl border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-medium"
-              title="Varredura de limpeza: apaga negócios em aberto de clientes arquivados ou em pós-vendas"
-            >
-              {isLimpandoNegocios ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-              ) : (
-                <Sparkles className="w-4 h-4 text-emerald-600" />
-              )}
-              <span className="hidden xl:inline text-xs">Limpar Negócios Fora do Funil</span>
-            </Button>
 
             {/* Botão único Novo Negócio / Lead unificado (abre o fluxo rico de Novo Lead) */}
             <button
