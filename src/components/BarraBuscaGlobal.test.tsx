@@ -68,4 +68,34 @@ describe('BarraBuscaGlobal - HighlightMatch', () => {
     const badge = `Encontrado via contato: ${contatoNome}`
     expect(badge).toBe('Encontrado via contato: Rodrigo Becker')
   })
+
+  it('destaca tokens mesmo com pontuações ou acentos', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 'Mauro Antônio Serraglio - (54) 9176-6675',
+        query: 'mauro se',
+      }),
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Mauro</mark>',
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Se</mark>',
+    )
+  })
+
+  it('destaca contato de base unificada com tokens parciais', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 'Gabriel Becker Engenharia',
+        query: 'gabriel beck',
+      }),
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Gabriel</mark>',
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">Beck</mark>',
+    )
+  })
 })

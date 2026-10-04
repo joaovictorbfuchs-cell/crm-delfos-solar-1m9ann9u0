@@ -154,12 +154,13 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
   const [contatosUnificados, setContatosUnificados] = useState<ContatoUnico[]>([])
   const [outrosContatos, setOutrosContatos] = useState<OutroContato[]>([])
   const [hasLoadedExtraContatos, setHasLoadedExtraContatos] = useState(false)
+  const [isLoadingContatos, setIsLoadingContatos] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Carrega Ordens de Serviço sob demanda quando o usuário foca na busca
+  // Carrega Ordens de Serviço sob demanda quando o usuário foca na busca ou digita query >= 2 caracteres
   const carregarOrdensServico = useCallback(async () => {
     if (hasLoadedOS || isLoadingOS) return
     try {
@@ -174,10 +175,11 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
     }
   }, [hasLoadedOS, isLoadingOS])
 
-  // Carrega contatos unificados (`contatos` e `outros_contatos`) sob demanda
+  // Carrega contatos unificados (`contatos` e `outros_contatos`) sob demanda ou ao digitar
   const carregarContatosExtras = useCallback(async () => {
-    if (hasLoadedExtraContatos) return
+    if (hasLoadedExtraContatos || isLoadingContatos) return
     try {
+      setIsLoadingContatos(true)
       const [unicosRes, outrosRes] = await Promise.allSettled([
         fetchContatosUnicos(),
         fetchOutrosContatos(),
@@ -192,8 +194,19 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
       setHasLoadedExtraContatos(true)
     } catch (err) {
       console.warn('Erro ao carregar contatos unificados para busca global:', err)
+    } finally {
+      setIsLoadingContatos(false)
     }
-  }, [hasLoadedExtraContatos])
+  }, [hasLoadedExtraContatos, isLoadingContatos])
+
+  // Carregamento automático na digitação (query >= 2 caracteres)
+  // Garante que contatos unificados e OS estejam disponíveis mesmo sem foco prévio ou em fluxos automáticos
+  useEffect(() => {
+    if (query.trim().length >= 2) {
+      carregarContatosExtras()
+      carregarOrdensServico()
+    }
+  }, [query, carregarContatosExtras, carregarOrdensServico])
 
   // Normalizador de texto para busca case-insensitive e acentos
   const normalize = (str?: string) =>
@@ -748,8 +761,13 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
           type="text"
           value={query}
           onChange={(e) => {
-            setQuery(e.target.value)
+            const val = e.target.value
+            setQuery(val)
             setIsOpen(true)
+            if (val.trim().length >= 2) {
+              carregarContatosExtras()
+              carregarOrdensServico()
+            }
           }}
           onFocus={() => {
             carregarOrdensServico()
