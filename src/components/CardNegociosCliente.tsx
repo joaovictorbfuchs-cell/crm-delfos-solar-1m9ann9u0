@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import type { Negocio, TipoNegocioSelect, EtapaFunilSelect, NegocioStatus } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { getValorExibicaoCard } from '@/lib/orcamentoValorCard'
 import {
   createNegocio,
@@ -398,9 +399,14 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
   const [condicaoPagamento, setCondicaoPagamento] = useState<string>(
     negocio.condicao_pagamento || '',
   )
+  const [consultorResponsavel, setConsultorResponsavel] = useState<string>(
+    negocio.consultor_responsavel || '',
+  )
   const [motivoPerda, setMotivoPerda] = useState<string>(negocio.motivo_perda || '')
   const [reabertura, setReabertura] = useState<boolean>(Boolean(negocio.reabertura))
   const [motivoReabertura, setMotivoReabertura] = useState<string>(negocio.motivo_reabertura || '')
+
+  const { usuarios } = useClientes()
 
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -429,6 +435,7 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
       negocio.data_fechamento ? negocio.data_fechamento.split(' ')[0].split('T')[0] : '',
     )
     setCondicaoPagamento(negocio.condicao_pagamento || '')
+    setConsultorResponsavel(negocio.consultor_responsavel || '')
     setMotivoPerda(negocio.motivo_perda || '')
     setReabertura(Boolean(negocio.reabertura))
     setMotivoReabertura(negocio.motivo_reabertura || '')
@@ -458,6 +465,10 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
         data_previsao_fechamento: dataPrevisao ? dataPrevisao : '',
         data_fechamento: dataFechamento ? dataFechamento : '',
         condicao_pagamento: condicaoPagamento.trim(),
+        consultor_responsavel:
+          consultorResponsavel && consultorResponsavel.trim()
+            ? consultorResponsavel.trim()
+            : undefined,
         motivo_perda: status === 'perdido' ? motivoPerda.trim() : '',
         reabertura,
         motivo_reabertura: reabertura ? motivoReabertura.trim() : '',
@@ -675,16 +686,34 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
             </div>
           </div>
 
-          {/* Condição de Pagamento */}
-          <div className="space-y-1">
-            <Label className="text-xs font-bold text-slate-700">Condição de Pagamento</Label>
-            <Input
-              type="text"
-              value={condicaoPagamento}
-              onChange={(e) => setCondicaoPagamento(e.target.value)}
-              placeholder="Ex: Entrada 30% + Financiamento Santander em 60x"
-              className="text-xs h-9"
-            />
+          {/* Linha: Condição de Pagamento e Responsável pelo Negócio */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-700">Condição de Pagamento</Label>
+              <Input
+                type="text"
+                value={condicaoPagamento}
+                onChange={(e) => setCondicaoPagamento(e.target.value)}
+                placeholder="Ex: Entrada 30% + Financiamento Santander em 60x"
+                className="text-xs h-9"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-700">Responsável pelo Negócio</Label>
+              <select
+                value={consultorResponsavel}
+                onChange={(e) => setConsultorResponsavel(e.target.value)}
+                className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              >
+                <option value="">Sem responsável definido</option>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} {u.role ? `(${u.role})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Se status for perdido, campo motivo de perda */}
@@ -829,17 +858,23 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
   const [probabilidade, setProbabilidade] = useState<string>('25')
   const [dataPrevisao, setDataPrevisao] = useState<string>('')
   const [condicaoPagamento, setCondicaoPagamento] = useState<string>('')
+  const { user } = useAuth()
+  const { usuarios } = useClientes()
+  const [consultorResponsavel, setConsultorResponsavel] = useState<string>(user?.id || '')
   const [reabertura, setReabertura] = useState<boolean>(false)
   const [motivoReabertura, setMotivoReabertura] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [erroInline, setErroInline] = useState<string | null>(null)
 
-  // Limpa erro inline ao abrir/fechar
+  // Limpa erro inline e pré-preenche consultor com usuário logado ao abrir
   useEffect(() => {
     if (open) {
       setErroInline(null)
+      if (user?.id) {
+        setConsultorResponsavel(user.id)
+      }
     }
-  }, [open])
+  }, [open, user?.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -870,6 +905,10 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
         probabilidade: probabilidade ? Number(probabilidade) : 10,
         data_previsao_fechamento: dataPrevisao ? dataPrevisao : undefined,
         condicao_pagamento: condicaoPagamento.trim() || undefined,
+        consultor_responsavel:
+          consultorResponsavel && consultorResponsavel.trim()
+            ? consultorResponsavel.trim()
+            : undefined,
         reabertura,
         motivo_reabertura:
           reabertura && motivoReabertura.trim() ? motivoReabertura.trim() : undefined,
@@ -888,6 +927,7 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       setProbabilidade('25')
       setDataPrevisao('')
       setCondicaoPagamento('')
+      setConsultorResponsavel(user?.id || '')
       setReabertura(false)
       setMotivoReabertura('')
       setErroInline(null)
@@ -1028,6 +1068,22 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
                 className="text-xs h-9"
               />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-bold text-slate-700">Responsável pelo Negócio</Label>
+            <select
+              value={consultorResponsavel}
+              onChange={(e) => setConsultorResponsavel(e.target.value)}
+              className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="">Sem responsável definido</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} {u.role ? `(${u.role})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">

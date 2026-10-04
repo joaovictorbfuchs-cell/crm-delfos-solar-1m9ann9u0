@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, Briefcase, UserPlus, Search, Building2, User } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { createNegocio } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
@@ -62,6 +63,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
   onCreated,
 }) => {
   const { clientes, addCliente, usuarios, refreshData } = useClientes()
+  const { user } = useAuth()
 
   // Modo de cliente: 'existente' ou 'novo'
   const [modoCliente, setModoCliente] = useState<'existente' | 'novo'>('existente')
@@ -112,20 +114,26 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
           const nomeClean = removerPrefixoMensagemManual(targetCli.nome)
           setTitulo(`Negócio - ${nomeClean}`)
         }
+        // Prioriza o responsável já definido no cliente, ou assume o usuário logado
         if (targetCli.responsavel_id) {
           setConsultorResponsavel(targetCli.responsavel_id)
+        } else if (user?.id) {
+          setConsultorResponsavel(user.id)
         }
       } else {
         setClienteId('')
         setClienteSelecionado(null)
         setModoCliente('existente')
+        if (user?.id) {
+          setConsultorResponsavel(user.id)
+        }
       }
 
       setEtapa(etapaInicial)
       const etapaOpt = ETAPAS_FUNIL_OPCOES.find((e) => e.value === etapaInicial)
       if (etapaOpt) setProbabilidade(String(etapaOpt.defaultProb))
     }
-  }, [open, clientePredefinido, clienteIdPredefinido, etapaInicial, clientes])
+  }, [open, clientePredefinido, clienteIdPredefinido, etapaInicial, clientes, user?.id])
 
   // Ajusta título automático se usuário mudar o cliente existente
   const handleSelectClienteExistente = (id: string, cli?: Cliente) => {
@@ -159,7 +167,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
     setProbabilidade('10')
     setDataPrevisao('')
     setCondicaoPagamento('')
-    setConsultorResponsavel('')
+    setConsultorResponsavel(user?.id || '')
     setReabertura(false)
     setMotivoReabertura('')
     setRecorrenciaMensal(false)
@@ -246,7 +254,10 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
         probabilidade: probabilidade ? Number(probabilidade) : 10,
         data_previsao_fechamento: dataPrevisao ? `${dataPrevisao} 12:00:00.000Z` : undefined,
         condicao_pagamento: condicaoPagamento.trim() || undefined,
-        consultor_responsavel: consultorResponsavel || undefined,
+        consultor_responsavel:
+          consultorResponsavel && consultorResponsavel.trim()
+            ? consultorResponsavel.trim()
+            : undefined,
         reabertura,
         motivo_reabertura: reabertura ? motivoReabertura.trim() : undefined,
         recorrencia_mensal: recorrenciaMensal,

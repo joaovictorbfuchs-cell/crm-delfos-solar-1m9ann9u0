@@ -23,13 +23,21 @@ import { fetchNegocios, executarVarreduraELimpezaNegocios } from '@/services/neg
 import type { Negocio } from '@/types/crm'
 
 export default function Comercial() {
-  const { clientes, isLoading, error, refreshData, updateClienteStatus, openFichaCliente } =
-    useClientes()
+  const {
+    clientes,
+    usuarios,
+    isLoading,
+    error,
+    refreshData,
+    updateClienteStatus,
+    openFichaCliente,
+  } = useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
   const [negociosList, setNegociosList] = useState<Negocio[]>([])
   const [isLoadingNegocios, setIsLoadingNegocios] = useState(true)
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'perdidos'>('kanban')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
   const [reativandoId, setReativandoId] = useState<string | null>(null)
   const [isLimpandoNegocios, setIsLimpandoNegocios] = useState(false)
@@ -104,6 +112,29 @@ export default function Comercial() {
     if (c.arquivado || c.transferido_pos_vendas) return false
     return true
   })
+
+  // Negócios e Clientes filtrados por Responsável
+  const negociosFiltrados = React.useMemo(() => {
+    if (filtroResponsavel === 'todos') return negociosList
+    if (filtroResponsavel === 'sem_responsavel') {
+      return negociosList.filter((n) => {
+        const respId = n.consultor_responsavel || (n.expand?.cliente_id as any)?.responsavel_id
+        return !respId
+      })
+    }
+    return negociosList.filter((n) => {
+      const respId = n.consultor_responsavel || (n.expand?.cliente_id as any)?.responsavel_id
+      return respId === filtroResponsavel
+    })
+  }, [negociosList, filtroResponsavel])
+
+  const clientesAtivosFiltrados = React.useMemo(() => {
+    if (filtroResponsavel === 'todos') return clientesAtivos
+    if (filtroResponsavel === 'sem_responsavel') {
+      return clientesAtivos.filter((c) => !c.responsavel_id)
+    }
+    return clientesAtivos.filter((c) => c.responsavel_id === filtroResponsavel)
+  }, [clientesAtivos, filtroResponsavel])
 
   // Clientes perdidos
   const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)
@@ -207,41 +238,35 @@ export default function Comercial() {
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'kanban'
-                  ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80 font-bold'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className="pr-[0px] pl-[4px]"
               title="Visualização Kanban"
             >
               <LayoutGrid className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">Kanban</span>
+              <span className="hidden sm:inline">
+                <br />
+              </span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80 font-bold'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className="pr-[2px] pl-[7px]"
               title="Visualização em Lista"
             >
               <List className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">Lista</span>
+              <span className="hidden sm:inline">
+                <br />
+              </span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('perdidos')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'perdidos'
-                  ? 'bg-white text-rose-800 shadow-xs border border-rose-200/80 font-bold'
-                  : 'text-gray-600 hover:text-rose-700'
-              }`}
+              className="pr-[0px] pl-[7px]"
               title="Oportunidades Perdidas"
             >
               <ArchiveX className="w-4 h-4 text-rose-600" />
-              <span className="hidden sm:inline">Oportunidades Perdidas</span>
+              <span className="hidden sm:inline">
+                <br />
+              </span>
               {clientesPerdidos.length > 0 && (
                 <span className="ml-1 bg-rose-100 text-rose-800 font-bold px-1.5 py-0.2 rounded-full text-[10px]">
                   {clientesPerdidos.length}
@@ -250,22 +275,45 @@ export default function Comercial() {
             </button>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Filtro por Responsável do Negócio */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-gray-500 hidden sm:inline">
+                Responsável:
+              </span>
+              <select
+                value={filtroResponsavel}
+                onChange={(e) => setFiltroResponsavel(e.target.value)}
+                className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${
+                  filtroResponsavel !== 'todos'
+                    ? 'border-emerald-500 bg-emerald-50/60 text-emerald-900 shadow-xs'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                } focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
+                title="Filtrar por consultor responsável do negócio"
+              >
+                <option value="todos">Todos os Responsáveis</option>
+                <option value="sem_responsavel">Sem responsável</option>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Botão padronizado Atualizar (apenas desktop — no mobile atualiza via realtime) */}
             <Button
               type="button"
               variant="outline"
               onClick={handleRefresh}
               disabled={isRefreshing || isLimpandoNegocios}
-              className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
+              className="hidden lg:inline-flex h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
               title="Atualizar dados"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
 
-            {/* Ação rápida de varredura e limpeza do funil comercial */}
-
-            {/* Botão único Novo Negócio / Lead unificado (abre o fluxo rico de Novo Lead) */}
+            {/* Botão único Novo Negócio / Lead unificado */}
             <button
               onClick={() => setIsNovoLeadOpen(true)}
               className="h-10 inline-flex items-center justify-center gap-2 px-4 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
@@ -281,8 +329,8 @@ export default function Comercial() {
         {viewMode === 'kanban' ? (
           <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
             <KanbanBoard
-              clientes={clientesAtivos}
-              negocios={negociosList}
+              clientes={clientesAtivosFiltrados}
+              negocios={negociosFiltrados}
               onNegocioUpdated={carregarNegocios}
               onNegocioDeleted={carregarNegocios}
             />
@@ -290,8 +338,8 @@ export default function Comercial() {
         ) : viewMode === 'list' ? (
           <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
             <ComercialListView
-              clientes={clientesAtivos}
-              negocios={negociosList}
+              clientes={clientesAtivosFiltrados}
+              negocios={negociosFiltrados}
               onBackToKanban={() => setViewMode('kanban')}
               onNegociosChanged={carregarNegocios}
             />

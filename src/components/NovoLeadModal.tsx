@@ -3,6 +3,7 @@ import { X, UserPlus, AlertCircle, Loader2, Sparkles, FileText, Zap, Building2 }
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import type { Cliente } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import type { OrigemLeadTipo, ProdutoTipo, TipoVendaSelect } from '@/types/crm'
 import { TIPOS_VENDA_OPTIONS, TIPOS_VENDA_CONFIG } from '@/constants/tipoVenda'
@@ -48,6 +49,7 @@ const PRODUTOS: ProdutoTipo[] = [
 
 export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose }) => {
   const { addCliente, clientes, refreshData } = useClientes()
+  const { user } = useAuth()
   const { toast } = useToast()
 
   // Modo de seleção: cadastrar novo cliente/lead ou vincular a cliente existente
@@ -425,6 +427,8 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
           status: 'em andamento',
           valor_estimado: valorEstimado,
           probabilidade: 10,
+          consultor_responsavel:
+            user?.id && user.id.trim() ? user.id.trim() : cliRef.responsavel_id || undefined,
         })
 
         toast({
@@ -490,6 +494,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
           status: 'em andamento',
           valor_estimado: Number(payloadNovoCliente.valor_estimado || 0),
           probabilidade: 10,
+          consultor_responsavel: user?.id && user.id.trim() ? user.id.trim() : undefined,
         })
       } catch (errNegocio) {
         console.warn(
