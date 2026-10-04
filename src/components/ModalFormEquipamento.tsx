@@ -48,9 +48,16 @@ export interface ModalFormEquipamentoProps {
   onClose: () => void
   editingItem?: Equipamento | null
   tipoInicial?: TipoEquipamento
+  tiposPermitidos?: TipoEquipamento[]
   fornecedores?: Fornecedor[]
   configuracoesMonitoramento?: ConfiguracaoMonitoramento[]
-  onSalvo?: (equipamentoSalvo: Equipamento, isEdicao: boolean) => void | Promise<void>
+  quantidadeInicial?: number
+  exibirQuantidade?: boolean
+  onSalvo?: (
+    equipamentoSalvo: Equipamento,
+    isEdicao: boolean,
+    extra?: { quantidade?: number },
+  ) => void | Promise<void>
 }
 
 export function ModalFormEquipamento({
@@ -58,8 +65,11 @@ export function ModalFormEquipamento({
   onClose,
   editingItem = null,
   tipoInicial = 'inversor',
+  tiposPermitidos,
   fornecedores: fornecedoresProp,
   configuracoesMonitoramento: configuracoesProp,
+  quantidadeInicial = 1,
+  exibirQuantidade = false,
   onSalvo,
 }: ModalFormEquipamentoProps) {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>(fornecedoresProp || [])
@@ -81,6 +91,7 @@ export function ModalFormEquipamento({
     useState<boolean>(false)
   const [fornecedorId, setFornecedorId] = useState<string>('')
   const [telefoneSuporte, setTelefoneSuporte] = useState<string>('')
+  const [quantidade, setQuantidade] = useState<number>(quantidadeInicial || 1)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [removerFotoExistente, setRemoverFotoExistente] = useState<boolean>(false)
@@ -153,7 +164,11 @@ export function ModalFormEquipamento({
       setExtracaoStatus(null)
       setErrorMessage(null)
     } else {
-      setTipo(tipoInicial)
+      setTipo(
+        tiposPermitidos && !tiposPermitidos.includes(tipoInicial)
+          ? tiposPermitidos[0]
+          : tipoInicial,
+      )
       setMarca('')
       setModelo('')
       setPotenciaInput('')
@@ -165,6 +180,7 @@ export function ModalFormEquipamento({
       setConfiguracaoAlteradaManualmente(false)
       setFornecedorId('')
       setTelefoneSuporte('')
+      setQuantidade(quantidadeInicial || 1)
       setSelectedFile(null)
       setPreviewUrl(null)
       setRemoverFotoExistente(false)
@@ -417,7 +433,9 @@ export function ModalFormEquipamento({
       }
 
       if (onSalvo) {
-        await onSalvo(salvo, Boolean(editingItem))
+        await onSalvo(salvo, Boolean(editingItem), {
+          quantidade: exibirQuantidade ? Math.max(1, Number(quantidade) || 1) : undefined,
+        })
       }
       onClose()
     } catch (err: any) {
@@ -513,93 +531,115 @@ export function ModalFormEquipamento({
             <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1.5">
               Tipo de Equipamento *
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (tipo !== 'inversor') {
-                    // Se estiver trocando de módulo (W) para inversor (kW), converte valor se existir
-                    const num = parseFloat(potenciaInput.replace(',', '.'))
-                    if (!isNaN(num) && num > 0) {
-                      const potW = converterInputParaWatts(num, tipo)
-                      setPotenciaInput(converterWattsParaInput(potW, 'inversor'))
+            <div
+              className={`grid gap-2 ${
+                tiposPermitidos && tiposPermitidos.length === 2
+                  ? 'grid-cols-2'
+                  : tiposPermitidos && tiposPermitidos.length === 1
+                    ? 'grid-cols-1'
+                    : 'grid-cols-3'
+              }`}
+            >
+              {(!tiposPermitidos || tiposPermitidos.includes('inversor')) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tipo !== 'inversor') {
+                      // Se estiver trocando de módulo (W) para inversor (kW), converte valor se existir
+                      const num = parseFloat(potenciaInput.replace(',', '.'))
+                      if (!isNaN(num) && num > 0) {
+                        const potW = converterInputParaWatts(num, tipo)
+                        setPotenciaInput(converterWattsParaInput(potW, 'inversor'))
+                      }
+                      setTipo('inversor')
                     }
-                    setTipo('inversor')
-                  }
-                }}
-                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                  tipo === 'inversor'
-                    ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs ring-1 ring-blue-500'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Cpu
-                  className={`w-4 h-4 ${tipo === 'inversor' ? 'text-blue-600' : 'text-gray-400'}`}
-                />
-                <span>Inversor</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (tipo !== 'modulo_fv') {
-                    // Se estiver trocando de inversor (kW) para módulo (W), converte valor se existir
-                    const num = parseFloat(potenciaInput.replace(',', '.'))
-                    if (!isNaN(num) && num > 0) {
-                      const potW = converterInputParaWatts(num, tipo)
-                      setPotenciaInput(converterWattsParaInput(potW, 'modulo_fv'))
+                  }}
+                  className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                    tipo === 'inversor'
+                      ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs ring-1 ring-blue-500'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Cpu
+                    className={`w-4 h-4 ${tipo === 'inversor' ? 'text-blue-600' : 'text-gray-400'}`}
+                  />
+                  <span>Inversor</span>
+                </button>
+              )}
+              {(!tiposPermitidos || tiposPermitidos.includes('modulo_fv')) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tipo !== 'modulo_fv') {
+                      // Se estiver trocando de inversor (kW) para módulo (W), converte valor se existir
+                      const num = parseFloat(potenciaInput.replace(',', '.'))
+                      if (!isNaN(num) && num > 0) {
+                        const potW = converterInputParaWatts(num, tipo)
+                        setPotenciaInput(converterWattsParaInput(potW, 'modulo_fv'))
+                      }
+                      setTipo('modulo_fv')
                     }
-                    setTipo('modulo_fv')
-                  }
-                }}
-                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                  tipo === 'modulo_fv'
-                    ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs ring-1 ring-amber-500'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Sun
-                  className={`w-4 h-4 ${tipo === 'modulo_fv' ? 'text-amber-600' : 'text-gray-400'}`}
-                />
-                <span>Módulo FV</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (tipo !== 'outro') {
-                    const num = parseFloat(potenciaInput.replace(',', '.'))
-                    if (!isNaN(num) && num > 0) {
-                      const potW = converterInputParaWatts(num, tipo)
-                      setPotenciaInput(converterWattsParaInput(potW, 'outro'))
+                  }}
+                  className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                    tipo === 'modulo_fv'
+                      ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs ring-1 ring-amber-500'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Sun
+                    className={`w-4 h-4 ${tipo === 'modulo_fv' ? 'text-amber-600' : 'text-gray-400'}`}
+                  />
+                  <span>Módulo FV / Placa</span>
+                </button>
+              )}
+              {(!tiposPermitidos || tiposPermitidos.includes('outro')) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tipo !== 'outro') {
+                      const num = parseFloat(potenciaInput.replace(',', '.'))
+                      if (!isNaN(num) && num > 0) {
+                        const potW = converterInputParaWatts(num, tipo)
+                        setPotenciaInput(converterWattsParaInput(potW, 'outro'))
+                      }
+                      setTipo('outro')
                     }
-                    setTipo('outro')
-                  }
-                }}
-                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                  tipo === 'outro'
-                    ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs ring-1 ring-purple-500'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Wrench
-                  className={`w-4 h-4 ${tipo === 'outro' ? 'text-purple-600' : 'text-gray-400'}`}
-                />
-                <span>Outro</span>
-              </button>
+                  }}
+                  className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                    tipo === 'outro'
+                      ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs ring-1 ring-purple-500'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Wrench
+                    className={`w-4 h-4 ${tipo === 'outro' ? 'text-purple-600' : 'text-gray-400'}`}
+                  />
+                  <span>Outro</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Marca e Modelo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          {/* Marca, Modelo e Quantidade opcional */}
+          <div
+            className={`grid gap-3 text-xs ${
+              exibirQuantidade ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'
+            }`}
+          >
             <div>
               <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
-                Marca *
+                {tipo === 'modulo_fv' ? 'Fabricante / Marca *' : 'Marca *'}
               </label>
               <input
                 type="text"
                 required
                 value={marca}
                 onChange={(e) => handleMarcaChange(e.target.value)}
-                placeholder="Ex: Huawei, Growatt, JA Solar"
+                placeholder={
+                  tipo === 'modulo_fv'
+                    ? 'Ex: JA Solar, Canadian, Jinko'
+                    : 'Ex: Huawei, Growatt, Deye'
+                }
                 className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
@@ -615,10 +655,29 @@ export function ModalFormEquipamento({
                   setModelo(e.target.value)
                   if (errorMessage) setErrorMessage(null)
                 }}
-                placeholder="Ex: SUN2000-6KTL-L1, JAM66D45LB"
+                placeholder={tipo === 'modulo_fv' ? 'Ex: JAM66D45-585/LB' : 'Ex: SUN2000-6KTL-L1'}
                 className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
+            {exibirQuantidade && (
+              <div>
+                <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
+                  Quantidade instalada
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  placeholder="1"
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+                <span className="text-[10px] text-gray-400 block mt-1">
+                  {tipo === 'modulo_fv' ? 'Qtd de painéis na usina' : 'Qtd de inversores'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Potência (W para Placas, kW para Inversores) e Garantia (anos) */}
@@ -761,7 +820,13 @@ export function ModalFormEquipamento({
                 >
                   <option value="">Nenhuma configuração vinculada</option>
                   {configuracoesMonitoramento.map((cfg) => {
-                    const rotuloTipo = cfg.arquivo_pdf ? 'PDF' : 'Link'
+                    const rotuloTipo =
+                      cfg.tipo_conteudo === 'ambos' ||
+                      (cfg.arquivo_pdf && (cfg.link_procedimento || cfg.url_procedimento))
+                        ? 'PDF + Link'
+                        : cfg.tipo_conteudo === 'pdf' || cfg.arquivo_pdf
+                          ? 'PDF'
+                          : 'Link'
                     return (
                       <option key={cfg.id} value={cfg.id}>
                         {cfg.marca} - {cfg.titulo || 'Configuração'} ({rotuloTipo})
@@ -770,7 +835,7 @@ export function ModalFormEquipamento({
                   })}
                 </select>
 
-                {/* Exibição do Item Anexado (estilo datasheet) */}
+                {/* Exibição do Item Anexado (estilo datasheet, com suporte a PDF, Link ou Ambos) */}
                 {configuracaoMonitoramentoId &&
                   (() => {
                     const cfgSelecionada = configuracoesMonitoramento.find(
@@ -778,11 +843,12 @@ export function ModalFormEquipamento({
                     )
                     if (!cfgSelecionada) return null
 
-                    const { url, tipo: tipoItem } = getProcedimentoMonitoramentoUrl(cfgSelecionada)
+                    const proc = getProcedimentoMonitoramentoUrl(cfgSelecionada)
+                    const { url, tipo: tipoItem, pdfUrl, linkUrl, temAmbos } = proc
 
                     return (
-                      <div className="p-2.5 bg-white rounded-xl border border-emerald-200 flex items-center justify-between gap-2 shadow-2xs">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="p-2.5 bg-white rounded-xl border border-emerald-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shadow-2xs">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           {tipoItem === 'pdf' ? (
                             <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
                           ) : (
@@ -795,27 +861,64 @@ export function ModalFormEquipamento({
                             </span>
                             <span className="text-[10px] text-gray-500 block truncate">
                               Marca: {cfgSelecionada.marca} • Formato:{' '}
-                              {tipoItem === 'pdf' ? 'Documento PDF' : 'Link / Vídeo'}
+                              {temAmbos
+                                ? 'Documento PDF e Link'
+                                : tipoItem === 'pdf'
+                                  ? 'Documento PDF'
+                                  : 'Link / Vídeo'}
                             </span>
                           </div>
                         </div>
 
-                        {url && (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0"
-                            title={
-                              tipoItem === 'pdf'
-                                ? 'Abrir PDF do passo a passo'
-                                : 'Acessar link do procedimento'
-                            }
-                          >
-                            <span>{tipoItem === 'pdf' ? 'Abrir PDF' : 'Acessar Link'}</span>
-                            <ExternalLink className="w-3 h-3 text-emerald-700 ml-0.5" />
-                          </a>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                          {temAmbos && pdfUrl && linkUrl ? (
+                            <>
+                              <a
+                                href={pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 transition-colors"
+                                title="Abrir PDF do passo a passo"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                                <span>Abrir PDF</span>
+                                <ExternalLink className="w-3 h-3 text-emerald-700 ml-0.5" />
+                              </a>
+                              <a
+                                href={linkUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-300 transition-colors"
+                                title="Acessar link do procedimento"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 text-blue-700" />
+                                <span>Acessar Link</span>
+                              </a>
+                            </>
+                          ) : (
+                            url && (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0"
+                                title={
+                                  tipoItem === 'pdf'
+                                    ? 'Abrir PDF do passo a passo'
+                                    : 'Acessar link do procedimento'
+                                }
+                              >
+                                {tipoItem === 'pdf' ? (
+                                  <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                                ) : (
+                                  <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
+                                )}
+                                <span>{tipoItem === 'pdf' ? 'Abrir PDF' : 'Acessar Link'}</span>
+                                <ExternalLink className="w-3 h-3 text-emerald-700 ml-0.5" />
+                              </a>
+                            )
+                          )}
+                        </div>
                       </div>
                     )
                   })()}

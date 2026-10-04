@@ -30,41 +30,21 @@ export function getErrorMessage(error: unknown): string {
 
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-    const msg = (error.message || '').toLowerCase()
-    if (
-      msg.includes('token') ||
-      msg.includes('auth') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    ) {
-      return true
-    }
-  }
-
   if (typeof error === 'object') {
-    const obj = error as Record<string, unknown>
-    if (
-      obj.status === 401 ||
-      obj.status === 403 ||
-      obj.statusCode === 401 ||
-      obj.statusCode === 403
-    ) {
-      return true
-    }
-    const msg = String(obj.message || obj.error || '').toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('token expired') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('unauthorized') ||
-      msg.includes('the request requires valid user authorization')
-    ) {
-      return true
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('the request requires valid user authorization') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('unauthorized')
+      ) {
+        return true
+      }
     }
   }
-
   return false
 }
