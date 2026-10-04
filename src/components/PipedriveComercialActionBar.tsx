@@ -1,5 +1,5 @@
 import React from 'react'
-import { Info, HelpCircle } from 'lucide-react'
+import { HelpCircle, Kanban, ChevronDown } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PipedriveViewControlGroup } from './PipedriveViewControlGroup'
 import { PipedriveNovoNegocioSplitButton } from './PipedriveNovoNegocioSplitButton'
@@ -25,7 +25,7 @@ interface PipedriveComercialActionBarProps {
 
   // Filtro
   usuarios: Usuario[]
-  usuarioAtual?: { id?: string; name?: string } | null
+  usuarioAtual?: { id?: string; name?: string; email?: string } | null
   filtroResponsavel: string
   onSelectResponsavel: (id: string) => void
   filtroEstado?: string
@@ -51,10 +51,10 @@ export const PipedriveComercialActionBar: React.FC<PipedriveComercialActionBarPr
   onSelectFiltroEstado,
 }) => {
   return (
-    <div className="flex flex-col gap-2 select-none">
+    <div className="flex flex-col gap-2.5 select-none">
       {/* Linha Principal de Ferramentas */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        {/* Esquerda: Grupo de Visualização + Botão Split "+ Negócio" */}
+        {/* Esquerda: Segmented Control + Botão Primário Verde Split "+ Negócio" */}
         <div className="flex items-center gap-2.5 flex-wrap">
           <PipedriveViewControlGroup
             viewMode={viewMode}
@@ -73,11 +73,11 @@ export const PipedriveComercialActionBar: React.FC<PipedriveComercialActionBarPr
         </div>
 
         {/* Direita: Contador ("58 negócios (i)"), Funil ("Comercial ▾") e Filtro Pipedrive */}
-        <div className="flex items-center gap-3 flex-wrap justify-end">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
           {/* Contador de Negócios no Formato Pipedrive */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+          <div className="flex items-center gap-1 text-xs text-slate-600 font-medium">
             <span>
-              <strong className="text-gray-900 font-bold">{totalNegocios}</strong>{' '}
+              <strong className="text-slate-900 font-bold">{totalNegocios}</strong>{' '}
               {totalNegocios === 1 ? 'negócio' : 'negócios'}
             </span>
             <TooltipProvider delayDuration={150}>
@@ -85,22 +85,24 @@ export const PipedriveComercialActionBar: React.FC<PipedriveComercialActionBarPr
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="text-gray-400 hover:text-gray-600 p-0.5 rounded-full transition-colors cursor-help"
+                    className="text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-help"
                     aria-label="Informações sobre os negócios"
                   >
-                    <Info className="w-3.5 h-3.5" />
+                    <HelpCircle className="w-3.5 h-3.5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs max-w-xs">
-                  Total de negócios em andamento no funil comercial comercial ativo.
+                  Total de negócios em andamento no funil comercial com os filtros atuais.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
 
           {/* Badge Funil Comercial (Padrão visual Pipedrive: [| Comercial ▾]) */}
-          <div className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-700 shadow-2xs">
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-300 rounded-md text-xs font-semibold text-slate-800 shadow-2xs">
+            <Kanban className="w-3.5 h-3.5 text-slate-500" />
             <span>Comercial</span>
+            <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
           </div>
 
           {/* Seletor de Filtro no formato Pipedrive */}
@@ -118,3 +120,4 @@ export const PipedriveComercialActionBar: React.FC<PipedriveComercialActionBarPr
     </div>
   )
 }
+export default PipedriveComercialActionBar
