@@ -474,75 +474,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       {/* ========================================================================= */}
       {/* BARRA CONTEXTUAL DE CONTROLE DE ETAPA DO FUNIL (APENAS ADMIN / GESTORES)    */}
       {/* ========================================================================= */}
-      {isAdmin && (
-        <div className="bg-gradient-to-r from-emerald-50/90 via-white to-emerald-50/40 rounded-xl border border-emerald-200 p-3 shadow-2xs">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
-                Estágio no Funil:
-              </span>
-              <StatusBadge status={estagioAtual} />
-              {etapaAnterior && (
-                <span className="text-[11px] text-gray-400 hidden md:inline">
-                  (Anterior: <strong className="text-gray-600 font-medium">{etapaAnterior}</strong>)
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Botão Voltar Etapa (ordem estrita: Lead → Orçamento Enviado → Proposta → Negociação → Fechado → Perdido) */}
-              <button
-                type="button"
-                onClick={handleVoltarEtapaAnterior}
-                disabled={!etapaAnterior || isUpdatingEstagio}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                  etapaAnterior && !isUpdatingEstagio
-                    ? 'bg-white hover:bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs hover:scale-[1.02] cursor-pointer'
-                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
-                }`}
-                title={
-                  etapaAnterior
-                    ? `Voltar etapa para "${etapaAnterior}"`
-                    : 'Já está na primeira etapa do funil'
-                }
-              >
-                {isUpdatingEstagio ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
-                ) : (
-                  <ArrowLeft className="w-3.5 h-3.5 text-emerald-700" />
-                )}
-                <span>Voltar etapa</span>
-                {etapaAnterior && (
-                  <span className="hidden lg:inline text-[11px] font-normal text-emerald-700/80">
-                    ({etapaAnterior})
-                  </span>
-                )}
-              </button>
-
-              {/* Seletor de etapa direta (dropdown) */}
-              <div className="flex items-center gap-1">
-                <select
-                  value={estagioAtual}
-                  disabled={isUpdatingEstagio}
-                  onChange={(e) => handleMudarEtapa(e.target.value as ClienteStatus)}
-                  className="px-2.5 py-1.5 text-xs font-bold rounded-lg border border-emerald-300 bg-white text-gray-800 shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#16A34A] focus:border-[#16A34A] cursor-pointer"
-                  title="Selecionar qualquer etapa do funil diretamente"
-                >
-                  {ORDEM_FUNIL_CLIENTE.map((statusOpcao) => (
-                    <option key={statusOpcao} value={statusOpcao}>
-                      {statusOpcao} {statusOpcao === estagioAtual ? '(Atual)' : ''}
-                    </option>
-                  ))}
-                  {/* Inclui qualquer outro status legado se houver fora do padrão */}
-                  {!ORDEM_FUNIL_CLIENTE.includes(estagioAtual) && (
-                    <option value={estagioAtual}>{estagioAtual} (Atual)</option>
-                  )}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {isAdmin && null}
 
       {/* Cabeçalho com Filtros por Tipo */}
       <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-2xs space-y-2.5">
