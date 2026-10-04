@@ -483,8 +483,8 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Content Body: no mobile, header fixo tem h-14 (3.5rem / 56px) + margem de segurança; bottom bar tem h-16 (4rem / 64px) + margem */}
-        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-4 overflow-y-auto pt-[4.5rem] pt-[0px] pb-[0px]">
+        {/* Content Body: no mobile, header fixo tem h-14 (3.5rem / 56px); no desktop, header tem h-16 (top-0 sticky) e respiro compacto de ~12-14px */}
+        <main className="flex-1 px-3 sm:px-6 lg:px-8 pt-3 pb-6 overflow-y-auto max-lg:pt-[4.5rem] max-lg:pb-20">
           <Outlet />
         </main>
       </div>

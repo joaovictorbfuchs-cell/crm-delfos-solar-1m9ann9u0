@@ -455,7 +455,7 @@ export const Orcamentos: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5 p-4 sm:p-6 max-w-7xl mx-auto pt-[5px] pb-[0px]">
+    <div className="space-y-5 max-w-7xl mx-auto">
       {/* Header da Página */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
