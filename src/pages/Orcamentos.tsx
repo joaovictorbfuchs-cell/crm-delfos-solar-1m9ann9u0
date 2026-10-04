@@ -883,12 +883,7 @@ export const Orcamentos: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-gray-500">
-            <span>Ordenado por:</span>
-            <span className="font-bold text-gray-800">
-              Data de criação ({ordemDirecao === 'desc' ? 'Decrescente' : 'Crescente'})
-            </span>
-          </div>
+          <div className="flex items-center gap-2 text-[11px] text-gray-500"></div>
         </div>
       </div>
 

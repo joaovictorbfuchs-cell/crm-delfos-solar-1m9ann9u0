@@ -629,18 +629,6 @@ export const ContatosView: React.FC = () => {
       </div>
 
       {/* Regra de Ouro do WhatsApp — Banner Informativo e Auditável */}
-      <div className="bg-gradient-to-r from-emerald-50 via-emerald-50/70 to-white border border-emerald-200/90 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-950 shadow-2xs">
-        <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-        <div className="leading-relaxed">
-          <span className="font-bold text-emerald-900">
-            Regra Permanente do WhatsApp Autoritativo:{' '}
-          </span>
-          O WhatsApp é a fonte da verdade de contato da Delfos Solar. Quando telefone e WhatsApp
-          divergirem, o telefone é automaticamente igualado ao WhatsApp. Um contato pode existir de
-          forma independente ou estar vinculado a múltiplos clientes e negócios sem duplicar o
-          cadastro.
-        </div>
-      </div>
 
       {/* Métricas Rápidas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
@@ -654,18 +642,6 @@ export const ContatosView: React.FC = () => {
           <span className="text-[11px] font-medium text-gray-500">Com WhatsApp Ativo</span>
           <div className="text-xl font-bold text-emerald-700 mt-0.5">{totalComWhatsApp}</div>
           <span className="text-[10px] text-gray-400">Canal autoritativo pronto</span>
-        </div>
-
-        <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
-          <span className="text-[11px] font-medium text-gray-500">Vinculados a Clientes</span>
-          <div className="text-xl font-bold text-blue-700 mt-0.5">{totalComVinculoCliente}</div>
-          <span className="text-[10px] text-gray-400">Relação N:N preservada</span>
-        </div>
-
-        <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
-          <span className="text-[11px] font-medium text-gray-500">Sem Vínculo Cadastrado</span>
-          <div className="text-xl font-bold text-amber-700 mt-0.5">{totalSemVinculo}</div>
-          <span className="text-[10px] text-gray-400">Contatos autônomos/relacionamento</span>
         </div>
       </div>
 
