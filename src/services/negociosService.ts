@@ -70,48 +70,243 @@ export async function getNegocioById(id: string): Promise<Negocio> {
   })
 }
 
+// Opções canônicas válidas conforme schema do PocketBase da coleção `negocios`
+export const OPCOES_ETAPA_FUNIL_SCHEMA = [
+  'novo lead',
+  'qualificado',
+  'proposta enviada',
+  'negociação',
+  'contrato assinado',
+] as const
+
+export const OPCOES_TIPO_NEGOCIO_SCHEMA = [
+  'venda usina',
+  'bateria',
+  'expansão',
+  'renovação',
+  'serviço',
+  'venda bateria',
+] as const
+
+export const OPCOES_STATUS_SCHEMA = ['em andamento', 'ganho', 'perdido'] as const
+
+export const OPCOES_TIPO_VENDA_SCHEMA = [
+  'Energia Solar',
+  'O&M (Operação e Manutenção)',
+  'Baterias',
+  'Carregadores Veículos Elétricos',
+] as const
+
+/**
+ * Normaliza e mapeia o valor de tipo_negocio para uma das opções estritas do schema.
+ * Se o valor fornecido for um tipo_venda (ex: 'Energia Solar', 'O&M...'), mapeia para o tipo_negocio equivalente.
+ */
+export function normalizarTipoNegocioSchema(valor?: string | null): string | undefined {
+  if (!valor || typeof valor !== 'string') return undefined
+  const v = valor.trim().toLowerCase()
+
+  if (OPCOES_TIPO_NEGOCIO_SCHEMA.includes(v as any)) {
+    return v
+  }
+  if (v.includes('usina') || v.includes('solar')) return 'venda usina'
+  if (v.includes('renov') || v.includes('o&m') || v.includes('manuten')) return 'renovação'
+  if (v.includes('bateria') || v.includes('armazenamento')) return 'bateria'
+  if (v.includes('expans')) return 'expansão'
+  if (
+    v.includes('veículo') ||
+    v.includes('veiculo') ||
+    v.includes('carregador') ||
+    v.includes('servi')
+  )
+    return 'serviço'
+
+  return undefined
+}
+
+/**
+ * Normaliza e mapeia o valor de tipo_venda para uma das opções estritas do schema.
+ */
+export function normalizarTipoVendaSchema(valor?: string | null): string | undefined {
+  if (!valor || typeof valor !== 'string') return undefined
+  const v = valor.trim()
+
+  const matchExato = OPCOES_TIPO_VENDA_SCHEMA.find((opt) => opt.toLowerCase() === v.toLowerCase())
+  if (matchExato) return matchExato
+
+  const lower = v.toLowerCase()
+  if (lower.includes('o&m') || lower.includes('manuten') || lower.includes('renov')) {
+    return 'O&M (Operação e Manutenção)'
+  }
+  if (lower.includes('bateria')) {
+    return 'Baterias'
+  }
+  if (lower.includes('carregador') || lower.includes('veículo') || lower.includes('veiculo')) {
+    return 'Carregadores Veículos Elétricos'
+  }
+  if (lower.includes('solar') || lower.includes('usina')) {
+    return 'Energia Solar'
+  }
+
+  return undefined
+}
+
+/**
+ * Normaliza e mapeia a etapa do funil estritamente para o schema do PocketBase.
+ */
+export function normalizarEtapaFunilSchema(valor?: string | null): string | undefined {
+  if (!valor || typeof valor !== 'string') return undefined
+  const v = valor.trim().toLowerCase()
+
+  if (OPCOES_ETAPA_FUNIL_SCHEMA.includes(v as any)) {
+    return v
+  }
+  if (v.includes('lead')) return 'novo lead'
+  if (v.includes('qualif') || v.includes('levantamento')) return 'qualificado'
+  if (v.includes('proposta')) return 'proposta enviada'
+  if (v.includes('negoc') || v.includes('negociação')) return 'negociação'
+  if (v.includes('contrato') || v.includes('assinado') || v.includes('fechado'))
+    return 'contrato assinado'
+
+  return undefined
+}
+
+/**
+ * Normaliza e mapeia o status geral estritamente para o schema do PocketBase.
+ */
+export function normalizarStatusSchema(valor?: string | null): string | undefined {
+  if (!valor || typeof valor !== 'string') return undefined
+  const v = valor.trim().toLowerCase()
+
+  if (OPCOES_STATUS_SCHEMA.includes(v as any)) {
+    return v
+  }
+  if (v.includes('andamento') || v.includes('aberto')) return 'em andamento'
+  if (v.includes('ganho') || v.includes('vencido') || v.includes('fechado')) return 'ganho'
+  if (v.includes('perdido') || v.includes('cancelado')) return 'perdido'
+
+  return undefined
+}
+
+/**
+ * Normaliza uma data no formato aceito pelo PocketBase (YYYY-MM-DD HH:mm:ss.SSSZ).
+ * Retorna undefined caso seja inválida ou vazia.
+ */
+export function normalizarDataPocketBase(data?: string | null): string | undefined {
+  if (!data || typeof data !== 'string') return undefined
+  const trimmed = data.trim()
+  if (!trimmed) return undefined
+
+  // Padrão YYYY-MM-DD
+  const matchIsoDate = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (matchIsoDate) {
+    const [, y, m, d] = matchIsoDate
+    return `${y}-${m}-${d} 12:00:00.000Z`
+  }
+
+  const parsed = new Date(trimmed)
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getUTCFullYear()
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, '0')
+    const d = String(parsed.getUTCDate()).padStart(2, '0')
+    return `${y}-${m}-${d} 12:00:00.000Z`
+  }
+
+  return undefined
+}
+
 /**
  * Cria um novo negócio vinculado a um cliente.
+ * Sanitiza rigorosamente o payload:
+ * - Omite strings vazias em relations (consultor_responsavel, etc.)
+ * - Valida selects contra o schema do PocketBase
+ * - Sanitiza datas para formato PocketBase ou omite
+ * - Coerção estrita de números para number
  */
 export async function createNegocio(data: CreateNegocioInput): Promise<Negocio> {
+  if (!data.cliente_id || typeof data.cliente_id !== 'string' || !data.cliente_id.trim()) {
+    throw new Error('cliente_id é obrigatório para criar um negócio.')
+  }
+
+  const valorEstimado = Number(data.valor_estimado) || 0
+  const valorFinal = Number(data.valor_final) || 0
+  const valor =
+    data.valor !== undefined && data.valor !== null
+      ? Number(data.valor) || 0
+      : valorFinal > 0
+        ? valorFinal
+        : valorEstimado
+
   const payload: Record<string, any> = {
-    cliente_id: data.cliente_id,
-    titulo: data.titulo || 'Negócio Comercial',
-    tipo_negocio: data.tipo_negocio || 'venda usina',
-    tipo_venda: data.tipo_venda || 'Energia Solar',
-    valor_estimado: data.valor_estimado ?? 0,
-    valor_final: data.valor_final ?? 0,
-    valor:
-      data.valor ??
-      (data.valor_final && data.valor_final > 0 ? data.valor_final : (data.valor_estimado ?? 0)),
-    etapa_funil: data.etapa_funil || 'novo lead',
-    probabilidade: data.probabilidade ?? 10,
-    status: data.status || 'em andamento',
+    cliente_id: data.cliente_id.trim(),
+    titulo: data.titulo ? String(data.titulo).trim() : 'Negócio Comercial',
+    valor_estimado: valorEstimado,
+    valor_final: valorFinal,
+    valor,
+    probabilidade:
+      data.probabilidade !== undefined && data.probabilidade !== null
+        ? Math.max(0, Math.min(100, Number(data.probabilidade) || 0))
+        : 10,
     reabertura: Boolean(data.reabertura),
     recorrencia_mensal: Boolean(data.recorrencia_mensal),
   }
 
-  if (data.data_previsao_fechamento) {
-    payload.data_previsao_fechamento = data.data_previsao_fechamento
-  }
-  if (data.data_fechamento) {
-    payload.data_fechamento = data.data_fechamento
-  }
-  if (data.motivo_perda) {
-    payload.motivo_perda = data.motivo_perda
-  }
-  if (data.motivo_reabertura) {
-    payload.motivo_reabertura = data.motivo_reabertura
-  }
-  if (data.condicao_pagamento) {
-    payload.condicao_pagamento = data.condicao_pagamento
-  }
-  if (data.consultor_responsavel) {
-    payload.consultor_responsavel = data.consultor_responsavel
+  // Select: tipo_negocio
+  const tipoNegocioNormalizado = normalizarTipoNegocioSchema(data.tipo_negocio) || 'venda usina'
+  if (tipoNegocioNormalizado) {
+    payload.tipo_negocio = tipoNegocioNormalizado
   }
 
+  // Select: tipo_venda
+  const tipoVendaNormalizado = normalizarTipoVendaSchema(data.tipo_venda) || 'Energia Solar'
+  if (tipoVendaNormalizado) {
+    payload.tipo_venda = tipoVendaNormalizado
+  }
+
+  // Select: etapa_funil
+  const etapaNormalizada = normalizarEtapaFunilSchema(data.etapa_funil) || 'novo lead'
+  if (etapaNormalizada) {
+    payload.etapa_funil = etapaNormalizada
+  }
+
+  // Select: status
+  const statusNormalizado = normalizarStatusSchema(data.status) || 'em andamento'
+  if (statusNormalizado) {
+    payload.status = statusNormalizado
+  }
+
+  // Datas
+  const dtPrev = normalizarDataPocketBase(data.data_previsao_fechamento)
+  if (dtPrev) {
+    payload.data_previsao_fechamento = dtPrev
+  }
+  const dtFech = normalizarDataPocketBase(data.data_fechamento)
+  if (dtFech) {
+    payload.data_fechamento = dtFech
+  }
+
+  // Campos de texto opcionais (apenas se preenchidos)
+  if (data.motivo_perda && String(data.motivo_perda).trim()) {
+    payload.motivo_perda = String(data.motivo_perda).trim()
+  }
+  if (data.motivo_reabertura && String(data.motivo_reabertura).trim()) {
+    payload.motivo_reabertura = String(data.motivo_reabertura).trim()
+  }
+  if (data.condicao_pagamento && String(data.condicao_pagamento).trim()) {
+    payload.condicao_pagamento = String(data.condicao_pagamento).trim()
+  }
+
+  // Relation: consultor_responsavel (NUNCA enviar string vazia "")
+  const consultor =
+    typeof data.consultor_responsavel === 'string' ? data.consultor_responsavel.trim() : undefined
+  if (consultor) {
+    payload.consultor_responsavel = consultor
+  }
+
+  // Se consultor_responsavel estiver vazio, faz expand apenas de cliente_id para evitar 400
+  const expandQuery = consultor ? 'cliente_id,consultor_responsavel' : 'cliente_id'
+
   return await pb.collection('negocios').create<Negocio>(payload, {
-    expand: 'cliente_id,consultor_responsavel',
+    expand: expandQuery,
   })
 }
 
@@ -119,8 +314,75 @@ export async function createNegocio(data: CreateNegocioInput): Promise<Negocio> 
  * Atualiza um negócio existente.
  */
 export async function updateNegocio(id: string, data: UpdateNegocioInput): Promise<Negocio> {
-  return await pb.collection('negocios').update<Negocio>(id, data, {
-    expand: 'cliente_id,consultor_responsavel',
+  const payload: Record<string, any> = {}
+
+  if (data.titulo !== undefined) {
+    payload.titulo = String(data.titulo).trim()
+  }
+  if (data.tipo_negocio !== undefined) {
+    const tn = normalizarTipoNegocioSchema(data.tipo_negocio)
+    if (tn) payload.tipo_negocio = tn
+  }
+  if (data.tipo_venda !== undefined) {
+    const tv = normalizarTipoVendaSchema(data.tipo_venda)
+    if (tv) payload.tipo_venda = tv
+  }
+  if (data.etapa_funil !== undefined) {
+    const ef = normalizarEtapaFunilSchema(data.etapa_funil)
+    if (ef) payload.etapa_funil = ef
+  }
+  if (data.status !== undefined) {
+    const st = normalizarStatusSchema(data.status)
+    if (st) payload.status = st
+  }
+  if (data.valor_estimado !== undefined) {
+    payload.valor_estimado = Number(data.valor_estimado) || 0
+  }
+  if (data.valor_final !== undefined) {
+    payload.valor_final = Number(data.valor_final) || 0
+  }
+  if (data.valor !== undefined) {
+    payload.valor = Number(data.valor) || 0
+  }
+  if (data.probabilidade !== undefined) {
+    payload.probabilidade = Math.max(0, Math.min(100, Number(data.probabilidade) || 0))
+  }
+  if (data.reabertura !== undefined) {
+    payload.reabertura = Boolean(data.reabertura)
+  }
+  if (data.recorrencia_mensal !== undefined) {
+    payload.recorrencia_mensal = Boolean(data.recorrencia_mensal)
+  }
+  if (data.data_previsao_fechamento !== undefined) {
+    const dt = normalizarDataPocketBase(data.data_previsao_fechamento)
+    payload.data_previsao_fechamento = dt || ''
+  }
+  if (data.data_fechamento !== undefined) {
+    const dt = normalizarDataPocketBase(data.data_fechamento)
+    payload.data_fechamento = dt || ''
+  }
+  if (data.motivo_perda !== undefined) {
+    payload.motivo_perda = String(data.motivo_perda || '').trim()
+  }
+  if (data.motivo_reabertura !== undefined) {
+    payload.motivo_reabertura = String(data.motivo_reabertura || '').trim()
+  }
+  if (data.condicao_pagamento !== undefined) {
+    payload.condicao_pagamento = String(data.condicao_pagamento || '').trim()
+  }
+  if (data.consultor_responsavel !== undefined) {
+    const c =
+      typeof data.consultor_responsavel === 'string' ? data.consultor_responsavel.trim() : ''
+    // No PocketBase relation field, enviar null desvincula a relation; string vazia pode dar 400
+    payload.consultor_responsavel = c || null
+  }
+
+  const expandQuery = payload.consultor_responsavel
+    ? 'cliente_id,consultor_responsavel'
+    : 'cliente_id'
+
+  return await pb.collection('negocios').update<Negocio>(id, payload, {
+    expand: expandQuery,
   })
 }
 

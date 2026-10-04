@@ -93,6 +93,89 @@ describe('bulkDeleteNegocios', () => {
   })
 })
 
+describe('createNegocio sanitização de payload', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('omite consultor_responsavel se vazio ou não informado, e expande apenas cliente_id', async () => {
+    const { createNegocio } = await import('./negociosService')
+    const createMock = vi.fn().mockImplementation((payload, options) => {
+      return Promise.resolve({ id: 'neg-123', ...payload, ...options })
+    })
+
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      create: createMock,
+    } as any)
+
+    await createNegocio({
+      cliente_id: 'cli-test',
+      titulo: 'Negócio Teste',
+      consultor_responsavel: '',
+      tipo_negocio: 'venda usina',
+      etapa_funil: 'novo lead',
+    })
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    const [payload, options] = createMock.mock.calls[0]
+    expect(payload.consultor_responsavel).toBeUndefined()
+    expect(payload.cliente_id).toBe('cli-test')
+    expect(payload.tipo_negocio).toBe('venda usina')
+    expect(payload.etapa_funil).toBe('novo lead')
+    expect(payload.status).toBe('em andamento')
+    expect(payload.tipo_venda).toBe('Energia Solar')
+    expect(options.expand).toBe('cliente_id')
+  })
+
+  it('inclui consultor_responsavel quando válido e expande cliente_id,consultor_responsavel', async () => {
+    const { createNegocio } = await import('./negociosService')
+    const createMock = vi.fn().mockImplementation((payload, options) => {
+      return Promise.resolve({ id: 'neg-123', ...payload, ...options })
+    })
+
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      create: createMock,
+    } as any)
+
+    await createNegocio({
+      cliente_id: 'cli-test',
+      consultor_responsavel: 'user-456',
+      data_previsao_fechamento: '2026-12-15',
+    })
+
+    const [payload, options] = createMock.mock.calls[0]
+    expect(payload.consultor_responsavel).toBe('user-456')
+    expect(payload.data_previsao_fechamento).toBe('2026-12-15 12:00:00.000Z')
+    expect(options.expand).toBe('cliente_id,consultor_responsavel')
+  })
+
+  it('normaliza selects e coerção de valores numéricos', async () => {
+    const { createNegocio } = await import('./negociosService')
+    const createMock = vi.fn().mockImplementation((payload) => {
+      return Promise.resolve({ id: 'neg-123', ...payload })
+    })
+
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      create: createMock,
+    } as any)
+
+    await createNegocio({
+      cliente_id: 'cli-test',
+      tipo_negocio: 'Energia Solar' as any,
+      valor_estimado: '55000.5' as any,
+      valor_final: '50000' as any,
+      probabilidade: '75' as any,
+    })
+
+    const [payload] = createMock.mock.calls[0]
+    expect(payload.tipo_negocio).toBe('venda usina')
+    expect(payload.valor_estimado).toBe(55000.5)
+    expect(payload.valor_final).toBe(50000)
+    expect(payload.valor).toBe(50000)
+    expect(payload.probabilidade).toBe(75)
+  })
+})
+
 describe('executarVarreduraELimpezaNegocios', () => {
   beforeEach(() => {
     vi.restoreAllMocks()

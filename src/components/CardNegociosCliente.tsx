@@ -49,16 +49,72 @@ export const ETAPAS_FUNIL_OPCOES: {
   { value: 'contrato assinado', label: 'Contrato Assinado', defaultProb: 100 },
 ]
 
-export const TIPOS_NEGOCIO_OPCOES: { value: TipoNegocioSelect; label: string }[] = [
-  { value: 'Energia Solar', label: 'Energia Solar' },
-  { value: 'O&M (Operação e Manutenção)', label: 'O&M (Operação e Manutenção)' },
-  { value: 'Baterias', label: 'Baterias' },
-  { value: 'Carregadores Veículos Elétricos', label: 'Carregadores Veículos Elétricos' },
-  { value: 'venda usina', label: 'Venda Usina (Legado)' },
-  { value: 'bateria', label: 'Bateria (Legado)' },
-  { value: 'expansão', label: 'Expansão' },
-  { value: 'renovação', label: 'Renovação' },
-  { value: 'serviço', label: 'Serviço' },
+export const TIPOS_NEGOCIO_OPCOES: {
+  value: TipoNegocioSelect
+  label: string
+  tipoVendaPadrao: string
+  tipoNegocioSchema: string
+}[] = [
+  {
+    value: 'venda usina',
+    label: 'Venda Usina Fotovoltaica',
+    tipoVendaPadrao: 'Energia Solar',
+    tipoNegocioSchema: 'venda usina',
+  },
+  {
+    value: 'renovação',
+    label: 'O&M (Operação e Manutenção) / Renovação',
+    tipoVendaPadrao: 'O&M (Operação e Manutenção)',
+    tipoNegocioSchema: 'renovação',
+  },
+  {
+    value: 'bateria',
+    label: 'Baterias / Armazenamento',
+    tipoVendaPadrao: 'Baterias',
+    tipoNegocioSchema: 'bateria',
+  },
+  {
+    value: 'serviço',
+    label: 'Carregadores VE / Serviços Elétricos',
+    tipoVendaPadrao: 'Carregadores Veículos Elétricos',
+    tipoNegocioSchema: 'serviço',
+  },
+  {
+    value: 'expansão',
+    label: 'Expansão de Usina',
+    tipoVendaPadrao: 'Energia Solar',
+    tipoNegocioSchema: 'expansão',
+  },
+  {
+    value: 'venda bateria',
+    label: 'Venda de Bateria Avulsa',
+    tipoVendaPadrao: 'Baterias',
+    tipoNegocioSchema: 'venda bateria',
+  },
+  {
+    value: 'Energia Solar',
+    label: 'Energia Solar',
+    tipoVendaPadrao: 'Energia Solar',
+    tipoNegocioSchema: 'venda usina',
+  },
+  {
+    value: 'O&M (Operação e Manutenção)',
+    label: 'O&M (Operação e Manutenção)',
+    tipoVendaPadrao: 'O&M (Operação e Manutenção)',
+    tipoNegocioSchema: 'renovação',
+  },
+  {
+    value: 'Baterias',
+    label: 'Baterias',
+    tipoVendaPadrao: 'Baterias',
+    tipoNegocioSchema: 'bateria',
+  },
+  {
+    value: 'Carregadores Veículos Elétricos',
+    label: 'Carregadores Veículos Elétricos',
+    tipoVendaPadrao: 'Carregadores Veículos Elétricos',
+    tipoNegocioSchema: 'serviço',
+  },
 ]
 
 export const STATUS_NEGOCIO_OPCOES: {
@@ -349,9 +405,11 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [erroInline, setErroInline] = useState<string | null>(null)
 
   // Atualiza estados quando o negócio selecionado muda
   useEffect(() => {
+    setErroInline(null)
     setTipo(negocio.tipo_negocio || 'venda usina')
     setEtapa(negocio.etapa_funil || 'novo lead')
     setStatus(negocio.status || 'em andamento')
@@ -378,16 +436,27 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
 
   const handleSalvar = async () => {
     setIsSaving(true)
+    setErroInline(null)
     try {
+      const tipoConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipo)
+      const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema || tipo) as TipoNegocioSelect
+      const tipoVendaFinal = tipoConfig?.tipoVendaPadrao || 'Energia Solar'
+
+      const numEstimado = valorEstimado ? Number(valorEstimado) : 0
+      const numFinal = valorFinal ? Number(valorFinal) : 0
+      const numValor = numFinal > 0 ? numFinal : numEstimado
+
       await updateNegocio(negocio.id, {
-        tipo_negocio: tipo,
+        tipo_negocio: tipoNegocioFinal,
+        tipo_venda: tipoVendaFinal,
         etapa_funil: etapa,
         status,
-        valor_estimado: valorEstimado ? Number(valorEstimado) : 0,
-        valor_final: valorFinal ? Number(valorFinal) : 0,
+        valor_estimado: numEstimado,
+        valor_final: numFinal,
+        valor: numValor,
         probabilidade: probabilidade ? Number(probabilidade) : 0,
-        data_previsao_fechamento: dataPrevisao ? `${dataPrevisao} 12:00:00.000Z` : '',
-        data_fechamento: dataFechamento ? `${dataFechamento} 12:00:00.000Z` : '',
+        data_previsao_fechamento: dataPrevisao ? dataPrevisao : '',
+        data_fechamento: dataFechamento ? dataFechamento : '',
         condicao_pagamento: condicaoPagamento.trim(),
         motivo_perda: status === 'perdido' ? motivoPerda.trim() : '',
         reabertura,
@@ -396,9 +465,26 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
       toast.success('Ficha do negócio atualizada com sucesso!')
       onSaved()
       onOpenChange(false)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao atualizar negócio:', err)
-      toast.error('Erro ao atualizar negócio. Tente novamente.')
+
+      let detalhesCampos = ''
+      const dataErrors = err?.response?.data
+      if (dataErrors && typeof dataErrors === 'object') {
+        const msgs = Object.entries(dataErrors)
+          .map(([campo, det]: [string, any]) => {
+            const msg = det?.message || (typeof det === 'string' ? det : '')
+            return msg ? `${campo}: ${msg}` : ''
+          })
+          .filter(Boolean)
+        if (msgs.length > 0) {
+          detalhesCampos = ` (${msgs.join('; ')})`
+        }
+      }
+
+      const msgErro = `Não foi possível salvar o negócio. Verifique os dados e tente novamente.${detalhesCampos}`
+      setErroInline(msgErro)
+      toast.error(msgErro)
     } finally {
       setIsSaving(false)
     }
@@ -447,6 +533,13 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
             </Badge>
           </div>
         </DialogHeader>
+
+        {erroInline && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800 font-semibold animate-in fade-in">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">{erroInline}</div>
+          </div>
+        )}
 
         <div className="space-y-4 py-2">
           {/* Linha 1: Tipo de negócio e Status */}
@@ -739,30 +832,53 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
   const [reabertura, setReabertura] = useState<boolean>(false)
   const [motivoReabertura, setMotivoReabertura] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [erroInline, setErroInline] = useState<string | null>(null)
+
+  // Limpa erro inline ao abrir/fechar
+  useEffect(() => {
+    if (open) {
+      setErroInline(null)
+    }
+  }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!clienteId) return
     setIsSubmitting(true)
+    setErroInline(null)
+
     try {
       const nomeLimpo = removerPrefixoMensagemManual(clienteNome)
+      const tipoConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipo)
+      const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema || 'venda usina') as TipoNegocioSelect
+      const tipoVendaFinal = tipoConfig?.tipoVendaPadrao || 'Energia Solar'
+
+      const numEstimado = valorEstimado ? Number(valorEstimado) : 0
+      const numFinal = valorFinal ? Number(valorFinal) : 0
+      const numValor = numFinal > 0 ? numFinal : numEstimado
+
       await createNegocio({
         cliente_id: clienteId,
         titulo: `Negócio - ${nomeLimpo}`,
-        tipo_negocio: tipo,
+        tipo_negocio: tipoNegocioFinal,
+        tipo_venda: tipoVendaFinal,
         etapa_funil: etapa,
         status,
-        valor_estimado: valorEstimado ? Number(valorEstimado) : 0,
-        valor_final: valorFinal ? Number(valorFinal) : 0,
+        valor_estimado: numEstimado,
+        valor_final: numFinal,
+        valor: numValor,
         probabilidade: probabilidade ? Number(probabilidade) : 10,
-        data_previsao_fechamento: dataPrevisao ? `${dataPrevisao} 12:00:00.000Z` : undefined,
-        condicao_pagamento: condicaoPagamento.trim(),
+        data_previsao_fechamento: dataPrevisao ? dataPrevisao : undefined,
+        condicao_pagamento: condicaoPagamento.trim() || undefined,
         reabertura,
-        motivo_reabertura: reabertura ? motivoReabertura.trim() : undefined,
+        motivo_reabertura:
+          reabertura && motivoReabertura.trim() ? motivoReabertura.trim() : undefined,
       })
+
       toast.success('Novo negócio criado com sucesso!')
       onCreated()
       onOpenChange(false)
+
       // Resetar form
       setTipo('venda usina')
       setEtapa('novo lead')
@@ -774,9 +890,28 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       setCondicaoPagamento('')
       setReabertura(false)
       setMotivoReabertura('')
-    } catch (err) {
+      setErroInline(null)
+    } catch (err: any) {
       console.error('Erro ao criar negócio:', err)
-      toast.error('Erro ao cadastrar negócio. Tente novamente.')
+
+      // Extrai mensagens detalhadas de campo se presentes no erro do PocketBase
+      let detalhesCampos = ''
+      const dataErrors = err?.response?.data
+      if (dataErrors && typeof dataErrors === 'object') {
+        const msgs = Object.entries(dataErrors)
+          .map(([campo, det]: [string, any]) => {
+            const msg = det?.message || (typeof det === 'string' ? det : '')
+            return msg ? `${campo}: ${msg}` : ''
+          })
+          .filter(Boolean)
+        if (msgs.length > 0) {
+          detalhesCampos = ` (${msgs.join('; ')})`
+        }
+      }
+
+      const msgErro = `Não foi possível salvar o negócio. Verifique os dados e tente novamente.${detalhesCampos}`
+      setErroInline(msgErro)
+      toast.error(msgErro)
     } finally {
       setIsSubmitting(false)
     }
@@ -800,6 +935,13 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
             </div>
           </div>
         </DialogHeader>
+
+        {erroInline && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800 font-semibold animate-in fade-in">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">{erroInline}</div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
