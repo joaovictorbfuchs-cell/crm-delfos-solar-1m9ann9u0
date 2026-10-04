@@ -313,17 +313,13 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
             {/* Contador de Negócios + Ícone de Info */}
             <div className="flex items-center gap-1 text-xs text-slate-600">
-              <span className="font-semibold text-slate-900">{totalNegocios}</span>
-              <span>negócios</span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     aria-label="Informações do funil"
                     className="text-slate-400 hover:text-slate-600 p-0.5 rounded"
-                  >
-                    <HelpCircle className="w-3.5 h-3.5" />
-                  </button>
+                  ></button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs max-w-xs">
                   Total de negócios em aberto no funil comercial com os filtros atuais.
@@ -332,11 +328,6 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
             </div>
 
             {/* Seletor do Funil: "Comercial" com ícone de funil/kanban */}
-            <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-300 rounded-md text-xs font-semibold text-slate-800 shadow-2xs">
-              <Kanban className="w-3.5 h-3.5 text-slate-500" />
-              <span>Comercial</span>
-              <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
-            </div>
 
             {/* BOTÃO DE FILTRO PIPEDRIVE COM POPOVER FLUTUANTE */}
             <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
@@ -694,106 +685,6 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
         </div>
 
         {/* Linha Auxiliar Inferior (Estilo Pipedrive): Ordenação e Mostrar Fechados/Perdidos */}
-        <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-500 flex-wrap gap-2">
-          {/* Lado esquerdo da linha auxiliar: Tag informativa quando há filtros ativos */}
-          <div className="flex items-center gap-2">
-            {isFiltroAtivo ? (
-              <span className="inline-flex items-center gap-1.5 text-slate-600 text-xs">
-                <span className="w-2 h-2 rounded-full bg-blue-600" />
-                <span>
-                  Filtro ativo:{' '}
-                  <strong className="text-slate-900 font-semibold">
-                    {[
-                      responsavelAtivo ? responsavelAtivo.name : null,
-                      estadoAtivoLabel ? estadoAtivoLabel : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' • ')}
-                  </strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={handleLimparFiltros}
-                  className="text-blue-600 hover:text-blue-800 hover:underline font-semibold ml-1 cursor-pointer"
-                >
-                  limpar
-                </button>
-              </span>
-            ) : (
-              <span className="text-slate-400 text-[11px]">
-                Todos os negócios em andamento no funil comercial
-              </span>
-            )}
-          </div>
-
-          {/* Lado direito da linha auxiliar: Ordenação (Pipedrive) */}
-          <div className="flex items-center gap-3">
-            {onOrdenacaoChange && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
-                  >
-                    <ArrowUpDown className="w-3.5 h-3.5" />
-                    <span>Ordenar por: {ordenacaoLabels[ordenacao]}</span>
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem
-                    onClick={() => onOrdenacaoChange('proxima_atividade')}
-                    className="cursor-pointer gap-2 text-xs"
-                  >
-                    {ordenacao === 'proxima_atividade' && (
-                      <Check className="w-3.5 h-3.5 text-blue-600" />
-                    )}
-                    <span>Próxima atividade</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onOrdenacaoChange('recente')}
-                    className="cursor-pointer gap-2 text-xs"
-                  >
-                    {ordenacao === 'recente' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-                    <span>Mais recente</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onOrdenacaoChange('valor_maior')}
-                    className="cursor-pointer gap-2 text-xs"
-                  >
-                    {ordenacao === 'valor_maior' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-                    <span>Maior valor</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onOrdenacaoChange('valor_menor')}
-                    className="cursor-pointer gap-2 text-xs"
-                  >
-                    {ordenacao === 'valor_menor' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-                    <span>Menor valor</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onOrdenacaoChange('nome_az')}
-                    className="cursor-pointer gap-2 text-xs"
-                  >
-                    {ordenacao === 'nome_az' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-                    <span>Nome (A-Z)</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            {/* Alternância rápida para mostrar perdidos/fechados se não estiver no modo perdidos */}
-            {viewMode !== 'perdidos' && (
-              <button
-                type="button"
-                onClick={() => onViewModeChange('perdidos')}
-                className="text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-              >
-                Mostrar negócios fechados/perdidos
-              </button>
-            )}
-          </div>
-        </div>
       </div>
     </TooltipProvider>
   )
