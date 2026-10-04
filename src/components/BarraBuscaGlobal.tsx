@@ -46,8 +46,69 @@ export interface SearchResultItem {
 /**
  * Utilitário para destacar trechos de texto que batem com a busca (multi-token e substring)
  */
-export function HighlightMatch({ text, query }: { text: string; query: string }) {
-  if (!query || !text) return <span>{text}</span>
+/**
+ * ErrorBoundary local para a lista de resultados da Barra de Busca Global.
+ * Impede que qualquer erro pontual de renderização derrube o Layout ou a aplicação inteira.
+ */
+interface DropdownErrorBoundaryProps {
+  children: React.ReactNode
+}
+
+interface DropdownErrorBoundaryState {
+  hasError: boolean
+}
+
+export class DropdownResultadosErrorBoundary extends React.Component<
+  DropdownErrorBoundaryProps,
+  DropdownErrorBoundaryState
+> {
+  constructor(props: DropdownErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(): DropdownErrorBoundaryState {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error('Erro ao renderizar resultados da busca global:', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="py-8 px-4 text-center">
+          <p className="text-sm font-semibold text-gray-700">
+            Não foi possível exibir os resultados
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Ocorreu uma inconsistência transitória ao renderizar os itens encontrados.
+          </p>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+/**
+ * Utilitário para destacar trechos de texto que batem com a busca (multi-token e substring)
+ * Totalmente blindado contra text ou query nulos/indefinidos/não-strings.
+ */
+export function HighlightMatch({
+  text,
+  query,
+}: {
+  text?: string | null | number
+  query?: string | null
+}) {
+  const safeText = text != null ? String(text) : ''
+  const safeQuery = query != null ? String(query) : ''
+
+  if (!safeText) return <span></span>
+  const trimmed = safeQuery.trim()
+  if (!trimmed) return <span>{safeText}</span>
 
   const normalizeToken = (s: string) =>
     s
@@ -55,9 +116,6 @@ export function HighlightMatch({ text, query }: { text: string; query: string })
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
-
-  const trimmed = query.trim()
-  if (!trimmed) return <span>{text}</span>
 
   // Extrai tokens significativos da query (ao menos 1 caractere)
   const tokens = Array.from(
@@ -76,13 +134,13 @@ export function HighlightMatch({ text, query }: { text: string; query: string })
     .filter((pat, idx, self) => pat.length > 0 && self.indexOf(pat) === idx)
     .map((pat) => pat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
 
-  if (escapedPatterns.length === 0) return <span>{text}</span>
+  if (escapedPatterns.length === 0) return <span>{safeText}</span>
 
   const normalizedTokensSet = new Set(tokens.map((t) => normalizeToken(t)).filter(Boolean))
   const normalizedTrimmed = normalizeToken(trimmed)
 
   const regex = new RegExp(`(${escapedPatterns.join('|')})`, 'gi')
-  const parts = text.split(regex)
+  const parts = safeText.split(regex)
 
   return (
     <span>
@@ -294,16 +352,20 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
 
         // Detalhe prioritário para exibir
         const detalhes: string[] = []
-        if (cli.cidade) detalhes.push(cli.cidade)
-        if (cli.telefone || cli.whatsapp) detalhes.push(cli.telefone || cli.whatsapp || '')
-        if (cli.email) detalhes.push(cli.email)
+        if (cli.cidade) detalhes.push(String(cli.cidade))
+        if (cli.telefone || cli.whatsapp) detalhes.push(String(cli.telefone || cli.whatsapp || ''))
+        if (cli.email) detalhes.push(String(cli.email))
 
         matchedClientes.push({
           id: `cliente-${cli.id}`,
           category: 'clientes',
-          title: cli.nome || cli.razao_social || 'Cliente sem nome',
+          title: String(cli.nome || cli.razao_social || 'Cliente sem nome'),
           subtitle: detalhes.join(' • ') || 'Cliente cadastrado',
-          badge: cli.cidade || (cli.tipo_cliente ? String(cli.tipo_cliente) : undefined),
+          badge: cli.cidade
+            ? String(cli.cidade)
+            : cli.tipo_cliente
+              ? String(cli.tipo_cliente)
+              : undefined,
           badgeColorClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
           icon: Users,
           clienteId: cli.id,
@@ -351,17 +413,17 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
           matchedClienteIds.add(clientePai.id)
 
           const detalhesContato: string[] = []
-          if (contato.cargo) detalhesContato.push(contato.cargo)
-          if (contato.telefone) detalhesContato.push(contato.telefone)
-          if (contato.email) detalhesContato.push(contato.email)
-          if (clientePai.cidade) detalhesContato.push(clientePai.cidade)
+          if (contato.cargo) detalhesContato.push(String(contato.cargo))
+          if (contato.telefone) detalhesContato.push(String(contato.telefone))
+          if (contato.email) detalhesContato.push(String(contato.email))
+          if (clientePai.cidade) detalhesContato.push(String(clientePai.cidade))
 
           matchedClientes.push({
             id: `cliente-${clientePai.id}-via-contato-${contato.id}`,
             category: 'clientes',
-            title: clientePai.nome || clientePai.razao_social || 'Cliente sem nome',
-            subtitle: `Contato: ${contato.nome}${detalhesContato.length > 0 ? ` (${detalhesContato.join(' • ')})` : ''}`,
-            badge: `Encontrado via contato: ${contato.nome}`,
+            title: String(clientePai.nome || clientePai.razao_social || 'Cliente sem nome'),
+            subtitle: `Contato: ${contato.nome || 'Sem nome'}${detalhesContato.length > 0 ? ` (${detalhesContato.join(' • ')})` : ''}`,
+            badge: `Encontrado via contato: ${contato.nome || 'Contato'}`,
             badgeColorClass: 'bg-teal-50 text-teal-800 border-teal-300 font-semibold',
             icon: Users,
             clienteId: clientePai.id,
@@ -404,15 +466,15 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
         }
 
         const detalhes: string[] = []
-        if (cu.cargo) detalhes.push(cu.cargo)
-        if (cu.telefone || cu.whatsapp) detalhes.push(cu.whatsapp || cu.telefone || '')
-        if (cu.email) detalhes.push(cu.email)
+        if (cu.cargo) detalhes.push(String(cu.cargo))
+        if (cu.telefone || cu.whatsapp) detalhes.push(String(cu.whatsapp || cu.telefone || ''))
+        if (cu.email) detalhes.push(String(cu.email))
         if (clienteVinculado?.nome) detalhes.push(`Cliente: ${clienteVinculado.nome}`)
 
         matchedClientes.push({
           id: `contato-unico-${cu.id}`,
           category: 'clientes',
-          title: cu.nome,
+          title: String(cu.nome || 'Contato sem nome'),
           subtitle: detalhes.join(' • ') || 'Contato da base unificada',
           badge: cu.papel ? `Contato (${cu.papel})` : 'Contato',
           badgeColorClass: 'bg-teal-50 text-teal-700 border-teal-200',
@@ -442,14 +504,14 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
         if (jaAdicionado) return
 
         const detalhes: string[] = []
-        if (oc.telefone) detalhes.push(oc.telefone)
+        if (oc.telefone) detalhes.push(String(oc.telefone))
         if (oc.tipo_contato) detalhes.push(`Tipo: ${oc.tipo_contato}`)
-        if (oc.observacao) detalhes.push(oc.observacao)
+        if (oc.observacao) detalhes.push(String(oc.observacao))
 
         matchedClientes.push({
           id: `outro-contato-${oc.id}`,
           category: 'clientes',
-          title: oc.nome,
+          title: String(oc.nome || 'Contato avulso'),
           subtitle: detalhes.join(' • ') || 'Contato avulso',
           badge: oc.tipo_contato ? `Contato (${oc.tipo_contato})` : 'Contato',
           badgeColorClass: 'bg-teal-50 text-teal-700 border-teal-200',
@@ -492,14 +554,14 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
         const valorFormatado = cli.valor_estimado
           ? `R$ ${Number(cli.valor_estimado).toLocaleString('pt-BR')}`
           : 'Sem valor definido'
-        const subtitulo = `${cli.nome} • ${valorFormatado} • ${cli.produto || 'Energia Solar'}`
+        const subtitulo = `${cli.nome || 'Cliente'} • ${valorFormatado} • ${cli.produto || 'Energia Solar'}`
 
         matchedNegocios.push({
           id: `negocio-${cli.id}`,
           category: 'negocios',
-          title: `Oportunidade: ${cli.nome}`,
+          title: `Oportunidade: ${cli.nome || 'Sem nome'}`,
           subtitle: subtitulo,
-          badge: statusFunil,
+          badge: String(statusFunil),
           badgeColorClass:
             statusFunil === 'Fechado'
               ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
@@ -535,10 +597,15 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
 
       if (match) {
         seenOSIds.add(os.id)
+        const osIdStr = String(os.id || '')
+        const osIdSuffix =
+          osIdStr.length > 6 ? osIdStr.slice(-6).toUpperCase() : osIdStr.toUpperCase()
+        const tipoServicoStr = os.tipo_servico ? String(os.tipo_servico) : 'Serviço'
+
         matchedOS.push({
           id: `os-${os.id}`,
           category: 'ordens_servico',
-          title: `OS #${os.id.slice(-6).toUpperCase()} - ${os.tipo_servico}`,
+          title: `OS #${osIdSuffix} - ${tipoServicoStr}`,
           subtitle: `${clienteNome || 'Cliente não identificado'} • ${os.atribuida_a ? `Técnico: ${os.atribuida_a}` : os.endereco || 'Campo'}`,
           badge: os.status === 'concluida' ? 'Concluída' : 'Pendente',
           badgeColorClass:
@@ -570,9 +637,9 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
         matchedOS.push({
           id: `manutencao-${m.id}`,
           category: 'ordens_servico',
-          title: `Manutenção: ${m.tipo}`,
+          title: `Manutenção: ${m.tipo || 'Geral'}`,
           subtitle: `${cliNome || 'Cliente'} • ${m.tecnico || 'Equipe O&M'}${m.descricao ? ` • ${m.descricao}` : ''}`,
-          badge: m.status,
+          badge: m.status ? String(m.status) : 'Pendente',
           badgeColorClass:
             m.status === 'Concluído'
               ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
@@ -601,12 +668,17 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
       ])
 
       if (match) {
+        const detalhesProj: string[] = []
+        if (proj.etapa) detalhesProj.push(String(proj.etapa))
+        if (proj.potencia_kwp) detalhesProj.push(`${proj.potencia_kwp} kWp`)
+        if (proj.cidade) detalhesProj.push(String(proj.cidade))
+
         matchedProjetos.push({
           id: `projeto-${proj.id}`,
           category: 'projetos',
           title: `Projeto: ${cliNome || 'Sem cliente'}`,
-          subtitle: `${proj.etapa} • ${proj.potencia_kwp ? `${proj.potencia_kwp} kWp` : ''} • ${proj.cidade || ''}`,
-          badge: proj.etapa,
+          subtitle: detalhesProj.join(' • ') || 'Projeto Fotovoltaico',
+          badge: proj.etapa ? String(proj.etapa) : 'Projeto',
           badgeColorClass: 'bg-purple-100 text-purple-800 border-purple-200',
           icon: FolderKanban,
           clienteId: proj.cliente_id,
@@ -629,9 +701,9 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
         matchedContratos.push({
           id: `contrato-${ct.id}`,
           category: 'contratos_om',
-          title: `Contrato O&M: ${cliNome || 'Cliente'} (${ct.plano})`,
+          title: `Contrato O&M: ${cliNome || 'Cliente'} (${ct.plano || 'Padrão'})`,
           subtitle: `${ct.numero_contrato ? `Nº ${ct.numero_contrato} • ` : ''}${ct.valor_mensal !== undefined && ct.valor_mensal !== null && !isNaN(Number(ct.valor_mensal)) ? `R$ ${ct.valor_mensal}/mês` : 'Valor a definir'} • Status: ${ct.status || 'Ativo'}`,
-          badge: ct.plano,
+          badge: ct.plano ? String(ct.plano) : 'O&M',
           badgeColorClass: 'bg-teal-100 text-teal-800 border-teal-200',
           icon: FileSignature,
           clienteId: ct.cliente_id,
@@ -839,117 +911,119 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
             </div>
           </div>
 
-          {/* Conteúdo com scroll */}
+          {/* Conteúdo com scroll e ErrorBoundary Local */}
           <div className="overflow-y-auto divide-y divide-gray-100/80 p-2 space-y-3">
-            {totalResultsCount === 0 ? (
-              <div className="py-12 px-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
-                  <Search className="w-6 h-6 text-gray-400" />
+            <DropdownResultadosErrorBoundary>
+              {totalResultsCount === 0 ? (
+                <div className="py-12 px-4 text-center">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                    <Search className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-800">
+                    Nenhum resultado para &ldquo;{trimmedQuery}&rdquo;
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                    Tente pesquisar por outro nome, telefone, cidade, número de OS ou contrato.
+                  </p>
                 </div>
-                <p className="text-sm font-bold text-gray-800">
-                  Nenhum resultado para &ldquo;{trimmedQuery}&rdquo;
-                </p>
-                <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                  Tente pesquisar por outro nome, telefone, cidade, número de OS ou contrato.
-                </p>
-              </div>
-            ) : (
-              (
-                [
-                  'clientes',
-                  'negocios',
-                  'ordens_servico',
-                  'projetos',
-                  'contratos_om',
-                ] as SearchCategoryType[]
-              ).map((catKey) => {
-                const items = resultsGrouped[catKey]
-                if (!items || items.length === 0) return null
-                const catConfig = CATEGORY_CONFIG[catKey]
-                const CatIcon = catConfig.icon
+              ) : (
+                (
+                  [
+                    'clientes',
+                    'negocios',
+                    'ordens_servico',
+                    'projetos',
+                    'contratos_om',
+                  ] as SearchCategoryType[]
+                ).map((catKey) => {
+                  const items = resultsGrouped[catKey]
+                  if (!items || items.length === 0) return null
+                  const catConfig = CATEGORY_CONFIG[catKey]
+                  const CatIcon = catConfig.icon
 
-                return (
-                  <div key={catKey} className="pt-2 first:pt-0">
-                    {/* Título da Categoria */}
-                    <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      <div className="flex items-center gap-1.5">
-                        <CatIcon className="w-3.5 h-3.5 text-gray-400" />
-                        <span>{catConfig.label}</span>
+                  return (
+                    <div key={catKey} className="pt-2 first:pt-0">
+                      {/* Título da Categoria */}
+                      <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                        <div className="flex items-center gap-1.5">
+                          <CatIcon className="w-3.5 h-3.5 text-gray-400" />
+                          <span>{catConfig.label}</span>
+                        </div>
+                        <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded-full">
+                          {items.length}
+                        </span>
                       </div>
-                      <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded-full">
-                        {items.length}
-                      </span>
-                    </div>
 
-                    {/* Lista de Itens */}
-                    <div className="mt-1 space-y-1">
-                      {items.map((item) => {
-                        runningItemIndex += 1
-                        const isSelected = runningItemIndex === selectedIndex
-                        const itemIndex = runningItemIndex
+                      {/* Lista de Itens */}
+                      <div className="mt-1 space-y-1">
+                        {items.map((item) => {
+                          runningItemIndex += 1
+                          const isSelected = runningItemIndex === selectedIndex
+                          const itemIndex = runningItemIndex
 
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            data-search-item
-                            onClick={item.action}
-                            onMouseEnter={() => setSelectedIndex(itemIndex)}
-                            className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 group ${
-                              isSelected
-                                ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/30'
-                                : 'hover:bg-gray-50 text-gray-800'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                                  isSelected
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-700'
-                                }`}
-                              >
-                                <item.icon className="w-4 h-4" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-xs sm:text-sm font-semibold truncate flex items-center gap-2">
-                                  <HighlightMatch text={item.title} query={trimmedQuery} />
-                                  {item.badge && (
-                                    <span
-                                      className={`inline-flex text-[10px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${
-                                        item.badgeColorClass ||
-                                        'bg-gray-100 text-gray-700 border-gray-200'
-                                      }`}
-                                    >
-                                      {item.badge}
-                                    </span>
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              data-search-item
+                              onClick={item.action}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 group ${
+                                isSelected
+                                  ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/30'
+                                  : 'hover:bg-gray-50 text-gray-800'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                                    isSelected
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-700'
+                                  }`}
+                                >
+                                  <item.icon className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-xs sm:text-sm font-semibold truncate flex items-center gap-2">
+                                    <HighlightMatch text={item.title} query={trimmedQuery} />
+                                    {item.badge && (
+                                      <span
+                                        className={`inline-flex text-[10px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${
+                                          item.badgeColorClass ||
+                                          'bg-gray-100 text-gray-700 border-gray-200'
+                                        }`}
+                                      >
+                                        {item.badge}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {item.subtitle && (
+                                    <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                                      <HighlightMatch text={item.subtitle} query={trimmedQuery} />
+                                    </p>
                                   )}
                                 </div>
-                                {item.subtitle && (
-                                  <p className="text-[11px] text-gray-500 truncate mt-0.5">
-                                    <HighlightMatch text={item.subtitle} query={trimmedQuery} />
-                                  </p>
+                              </div>
+
+                              <div className="shrink-0 flex items-center gap-1.5 text-gray-400 group-hover:text-emerald-600">
+                                {isSelected ? (
+                                  <span className="text-[11px] font-medium text-emerald-700 hidden sm:flex items-center gap-0.5">
+                                    Abrir <CornerDownLeft className="w-3 h-3" />
+                                  </span>
+                                ) : (
+                                  <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 )}
                               </div>
-                            </div>
-
-                            <div className="shrink-0 flex items-center gap-1.5 text-gray-400 group-hover:text-emerald-600">
-                              {isSelected ? (
-                                <span className="text-[11px] font-medium text-emerald-700 hidden sm:flex items-center gap-0.5">
-                                  Abrir <CornerDownLeft className="w-3 h-3" />
-                                </span>
-                              ) : (
-                                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              )}
-                            </div>
-                          </button>
-                        )
-                      })}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )
-              })
-            )}
+                  )
+                })
+              )}
+            </DropdownResultadosErrorBoundary>
           </div>
 
           {/* Rodapé informativo */}

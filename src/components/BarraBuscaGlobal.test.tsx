@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { HighlightMatch } from './BarraBuscaGlobal'
+import { describe, it, expect, vi } from 'vitest'
+import { HighlightMatch, DropdownResultadosErrorBoundary } from './BarraBuscaGlobal'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
@@ -108,5 +108,83 @@ describe('BarraBuscaGlobal - HighlightMatch', () => {
     )
     expect(html).toContain('Gabriel Becker Engenharia')
     expect(html).not.toContain('<mark')
+  })
+
+  it('deve lidar defensivamente com text undefined ou null sem lançar erro', () => {
+    // text como undefined
+    const htmlUndefined = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: undefined as unknown as string,
+        query: 'mauro',
+      }),
+    )
+    expect(htmlUndefined).toBe('<span></span>')
+
+    // text como null
+    const htmlNull = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: null as unknown as string,
+        query: 'mauro',
+      }),
+    )
+    expect(htmlNull).toBe('<span></span>')
+  })
+
+  it('deve lidar com query null ou undefined sem lançar erro', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 'Mauro Serraglio',
+        query: null as unknown as string,
+      }),
+    )
+    expect(html).toBe('<span>Mauro Serraglio</span>')
+  })
+
+  it('deve escapar corretamente caracteres especiais de regex na query', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 'Delfos Solar (54) 9999-0000 [RS]',
+        query: '(54) [RS]',
+      }),
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">(54)</mark>',
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">[RS]</mark>',
+    )
+  })
+
+  it('deve renderizar números como text de forma segura', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(HighlightMatch, {
+        text: 12345,
+        query: '234',
+      }),
+    )
+    expect(html).toContain(
+      '<mark class="bg-emerald-100 text-emerald-900 font-bold px-0.5 rounded-xs">234</mark>',
+    )
+  })
+
+  it('ErrorBoundary local deve renderizar mensagem amigável caso um filho lance exceção', () => {
+    const BuggyComponent = () => {
+      throw new Error('Falha simulada na renderização de item')
+    }
+
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const html = renderToStaticMarkup(
+      React.createElement(
+        DropdownResultadosErrorBoundary,
+        null,
+        React.createElement(BuggyComponent, null),
+      ),
+    )
+
+    expect(html).toContain('Não foi possível exibir os resultados')
+    expect(html).toContain('Ocorreu uma inconsistência transitória')
+
+    consoleErrorSpy.mockRestore()
   })
 })
