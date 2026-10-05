@@ -60,7 +60,7 @@ const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
   Levantamento: 'qualificado',
   Orçamento: 'proposta enviada',
   Negociação: 'negociação',
-  'Contato Futuro': 'novo lead',
+  'Contato Futuro': 'contato_futuro',
   Fechado: 'contrato assinado',
 }
 
@@ -69,6 +69,7 @@ const ETAPA_NEGOCIO_TO_STATUS: Record<string, ClienteStatus> = {
   qualificado: 'Levantamento',
   'proposta enviada': 'Orçamento',
   negociação: 'Negociação',
+  contato_futuro: 'Contato Futuro',
   'contrato assinado': 'Fechado',
 }
 
@@ -175,6 +176,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   const [itemParaMover, setItemParaMover] = useState<KanbanCardItem | null>(null)
   const [isMovingContato, setIsMovingContato] = useState(false)
+  // Estado local para overrides otimistas imediatos de status de card (cardId -> status)
+  const [optimisticStatusMap, setOptimisticStatusMap] = useState<Record<string, ClienteStatus>>({})
 
   // Edição do nome do negócio (Kanban)
   const [editingCard, setEditingCard] = useState<KanbanCardItem | null>(null)
@@ -239,7 +242,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         .map((n) => {
           const cli = n.expand?.cliente_id
           const etapa = n.etapa_funil || 'novo lead'
-          const statusKanban = ETAPA_NEGOCIO_TO_STATUS[etapa] || 'Novo Lead'
+          const baseStatus = ETAPA_NEGOCIO_TO_STATUS[etapa] || 'Novo Lead'
+          const statusKanban = optimisticStatusMap[n.id] ?? baseStatus
           const nomeCliente = (cli?.nome || cli?.razao_social || 'Cliente vinculado').trim()
           const rawTitulo = (n.titulo || '').trim() || nomeCliente
           const tituloNegocio = removerPrefixoMensagemManual(rawTitulo) || nomeCliente
@@ -296,7 +300,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         clienteId: String(c.id || ''),
         titulo: removerPrefixoMensagemManual((c.nome || '').trim()) || 'Cliente sem nome',
         nomeCliente: (c.nome || '').trim() || 'Cliente sem nome',
-        status: (c.status || 'Novo Lead') as ClienteStatus,
+        status: optimisticStatusMap[c.id] ?? ((c.status || 'Novo Lead') as ClienteStatus),
         valorEstimado: getValorExibicaoCard(orcamentosSolar, {
           clienteId: c.id,
           valorEstimado: Number(c.valor_estimado) || 0,
@@ -316,7 +320,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         rawCliente: c,
         responsavelNome: c.responsavel_nome || '',
       }))
-  }, [negociosProp, clientesProp, orcamentosSolar])
+  }, [negociosProp, clientesProp, orcamentosSolar, optimisticStatusMap])
 
   // Mapeamento otimizado de próxima atividade agendada por cliente
   const proximaAcaoPorCliente = useMemo(() => {
@@ -420,13 +424,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const targetCard = cards.find((c) => c.id === cardId)
     if (!targetCard || targetCard.status === targetStatus) return
 
-    // Atualização otimista imediata para feedback instantâneo ao usuário
+    // Atualização otimista imediata via estado React para feedback instantâneo ao usuário sem nenhum loading
     const previousStatus = targetCard.status
-    targetCard.status = targetStatus
+    setOptimisticStatusMap((prev) => ({ ...prev, [cardId]: targetStatus }))
 
     try {
       if (targetCard.negocioId) {
-        // Atualiza a etapa do negócio
+        // Grava no PocketBase em segundo plano sem disparar loading de tela cheia
         const novaEtapa = STATUS_TO_ETAPA_NEGOCIO[targetStatus] || 'novo lead'
         await updateNegocio(targetCard.negocioId, {
           etapa_funil: novaEtapa,
@@ -436,7 +440,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           description: `"${targetCard.titulo}" movido para ${targetStatus}.`,
         })
         if (onNegocioUpdated) onNegocioUpdated()
-        await refreshData()
       } else {
         // Modo legado cliente (ou card sem negócio ainda)
         await updateClienteStatus(cardId, targetStatus)
@@ -447,8 +450,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         if (onNegocioUpdated) onNegocioUpdated()
       }
     } catch (err: any) {
-      // Reverte em caso de erro
-      targetCard.status = previousStatus
+      // Reverte o card imediatamente para a coluna anterior em caso de erro
+      setOptimisticStatusMap((prev) => {
+        const next = { ...prev }
+        delete next[cardId]
+        return next
+      })
       console.error('Falha ao mover card:', err)
       const errorMsg =
         err?.message || err?.data?.message || 'Não foi possível alterar a etapa no funil.'

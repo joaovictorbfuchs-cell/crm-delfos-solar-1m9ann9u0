@@ -76,15 +76,20 @@ export default function Comercial() {
   }
 
   // Carrega negócios vinculados da coleção `negocios`
-  const carregarNegocios = React.useCallback(async () => {
+  // silent: quando true (ex: após mover card de etapa), atualiza sem ativar o loading que desmonta a tela
+  const carregarNegocios = React.useCallback(async (silent = false) => {
     try {
-      setIsLoadingNegocios(true)
+      if (!silent) {
+        setIsLoadingNegocios(true)
+      }
       const data = await fetchNegocios()
       setNegociosList(data)
     } catch (err) {
       console.warn('Erro ao carregar lista de negócios no Comercial:', err)
     } finally {
-      setIsLoadingNegocios(false)
+      if (!silent) {
+        setIsLoadingNegocios(false)
+      }
     }
   }, [])
 
@@ -320,8 +325,8 @@ export default function Comercial() {
             <KanbanBoard
               clientes={clientesAtivosFiltrados}
               negocios={negociosFiltrados}
-              onNegocioUpdated={carregarNegocios}
-              onNegocioDeleted={carregarNegocios}
+              onNegocioUpdated={() => carregarNegocios(true)}
+              onNegocioDeleted={() => carregarNegocios(true)}
             />
           </ErrorBoundary>
         ) : viewMode === 'list' ? (
@@ -330,7 +335,7 @@ export default function Comercial() {
               clientes={clientesAtivosFiltrados}
               negocios={negociosFiltrados}
               onBackToKanban={() => setViewMode('kanban')}
-              onNegociosChanged={carregarNegocios}
+              onNegociosChanged={() => carregarNegocios(true)}
             />
           </ErrorBoundary>
         ) : (
