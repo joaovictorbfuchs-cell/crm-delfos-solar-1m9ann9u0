@@ -562,6 +562,256 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                 </div>
               )}
 
+              {/* Bloco Condicional de Atividade & Manutenção */}
+              {(item.categoria === 'atividade' || item.rawAtividade) &&
+                (() => {
+                  const rawAtiv = item.rawAtividade
+                  const subtituloOuTipo =
+                    item.subtitulo ||
+                    (rawAtiv?.tipo ? String(rawAtiv.tipo).replace(/_/g, ' ') : undefined)
+                  const statusAtividade =
+                    rawAtiv?.status || item.status
+                      ? String(rawAtiv?.status || item.status)
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, (c) => c.toUpperCase())
+                      : undefined
+                  const usinaNome =
+                    rawAtiv?.expand?.usina_id?.nome || (rawAtiv as any)?.expand?.usina?.nome
+                  const valorServico = Number(rawAtiv?.valor_servico) || 0
+                  const custoTotal = Number(rawAtiv?.custo_total) || 0
+                  const qtdModulos = Number(rawAtiv?.qtd_modulos) || 0
+                  const distanciaKm = Number(rawAtiv?.distancia_km) || 0
+                  const equipeNome = rawAtiv?.equipe_nome
+
+                  // Parse do Checklist (aceita array ou string JSON)
+                  let checklistItems: Array<{
+                    id?: string
+                    item?: string
+                    texto?: string
+                    concluido?: boolean
+                  }> = []
+                  if (Array.isArray(rawAtiv?.checklist)) {
+                    checklistItems = rawAtiv.checklist as any
+                  } else if (typeof rawAtiv?.checklist === 'string') {
+                    try {
+                      const parsed = JSON.parse(rawAtiv.checklist)
+                      if (Array.isArray(parsed)) checklistItems = parsed
+                    } catch {
+                      checklistItems = []
+                    }
+                  } else if (Array.isArray((rawAtiv as any)?.itens_checklist)) {
+                    checklistItems = (rawAtiv as any).itens_checklist
+                  }
+
+                  const totalChecklist = checklistItems.length
+                  const concluidosChecklist = checklistItems.filter((chk) => chk?.concluido).length
+
+                  // Parse de documentos_anexados
+                  let docsAnexados: Array<{ nome: string; url?: string; tamanho?: number }> = []
+                  if (Array.isArray(rawAtiv?.documentos_anexados)) {
+                    docsAnexados = rawAtiv.documentos_anexados as any
+                  } else if (typeof rawAtiv?.documentos_anexados === 'string') {
+                    try {
+                      const parsed = JSON.parse(rawAtiv.documentos_anexados)
+                      if (Array.isArray(parsed)) docsAnexados = parsed
+                    } catch {
+                      docsAnexados = []
+                    }
+                  }
+
+                  const obsTecnicas =
+                    rawAtiv?.auto_leitura_obs || (rawAtiv as any)?.observacoes_tecnicas
+                  const solucaoAdotada =
+                    (rawAtiv as any)?.solucao_adotada || (rawAtiv as any)?.solucao
+
+                  return (
+                    <div className="space-y-4">
+                      {/* 1. Card Informações da Atividade & Manutenção */}
+                      <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-xs space-y-3">
+                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">
+                          Informações da Atividade &amp; Manutenção
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                          {subtituloOuTipo && (
+                            <div className="p-2.5 rounded-lg bg-gray-50/80 border border-gray-200">
+                              <span className="text-[11px] text-gray-400 block">
+                                Tipo de Atividade
+                              </span>
+                              <span className="font-bold text-gray-900 capitalize">
+                                {subtituloOuTipo}
+                              </span>
+                            </div>
+                          )}
+                          {statusAtividade && (
+                            <div className="p-2.5 rounded-lg bg-gray-50/80 border border-gray-200">
+                              <span className="text-[11px] text-gray-400 block">Status</span>
+                              <span className="font-bold text-gray-900">{statusAtividade}</span>
+                            </div>
+                          )}
+                          {usinaNome && (
+                            <div className="p-2.5 rounded-lg bg-gray-50/80 border border-gray-200">
+                              <span className="text-[11px] text-gray-400 block">
+                                Usina Vinculada
+                              </span>
+                              <span className="font-bold text-emerald-800">{usinaNome}</span>
+                            </div>
+                          )}
+                          {valorServico > 0 && (
+                            <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200">
+                              <span className="text-[11px] text-emerald-700 block">
+                                Valor do Serviço
+                              </span>
+                              <span className="font-bold text-emerald-900 text-sm">
+                                {formatCurrencyBRL(valorServico)}
+                              </span>
+                            </div>
+                          )}
+                          {custoTotal > 0 && (
+                            <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200">
+                              <span className="text-[11px] text-emerald-700 block">
+                                Custo Total Previsto
+                              </span>
+                              <span className="font-bold text-emerald-900 text-sm">
+                                {formatCurrencyBRL(custoTotal)}
+                              </span>
+                            </div>
+                          )}
+                          {qtdModulos > 0 && (
+                            <div className="p-2.5 rounded-lg bg-gray-50/80 border border-gray-200">
+                              <span className="text-[11px] text-gray-400 block">
+                                Qtd. Módulos / Placas
+                              </span>
+                              <span className="font-bold text-gray-900">{qtdModulos} unidades</span>
+                            </div>
+                          )}
+                          {distanciaKm > 0 && (
+                            <div className="p-2.5 rounded-lg bg-gray-50/80 border border-gray-200">
+                              <span className="text-[11px] text-gray-400 block">Deslocamento</span>
+                              <span className="font-bold text-gray-900">{distanciaKm} km</span>
+                            </div>
+                          )}
+                          {equipeNome && (
+                            <div className="p-2.5 rounded-lg bg-gray-50/80 border border-gray-200">
+                              <span className="text-[11px] text-gray-400 block">
+                                Equipe de Campo
+                              </span>
+                              <span className="font-bold text-gray-900">{equipeNome}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2. Card Checklist de Execução */}
+                      {totalChecklist > 0 && (
+                        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-xs space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                              Checklist de Execução
+                            </span>
+                            <span className="text-xs font-bold text-emerald-700">
+                              {concluidosChecklist} de {totalChecklist} concluídos
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {checklistItems.map((chk, idx) => {
+                              const isDone = !!chk?.concluido
+                              const textoItem = chk?.texto || chk?.item || `Item ${idx + 1}`
+                              return (
+                                <div
+                                  key={chk?.id || idx}
+                                  className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs ${
+                                    isDone
+                                      ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                                      : 'bg-gray-50/60 border-gray-200 text-gray-800'
+                                  }`}
+                                >
+                                  {isDone ? (
+                                    <div className="w-4 h-4 rounded bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                      <Check className="w-3 h-3 stroke-[3]" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-4 h-4 rounded-full border border-gray-400 flex items-center justify-center shrink-0 text-gray-400">
+                                      <span className="text-[10px] leading-none">○</span>
+                                    </div>
+                                  )}
+                                  <span
+                                    className={
+                                      isDone ? 'line-through text-emerald-800' : 'font-medium'
+                                    }
+                                  >
+                                    {textoItem}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. Card Observações Técnicas / Campo */}
+                      {obsTecnicas && (
+                        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-xs space-y-1.5">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
+                            Observações Técnicas / Campo
+                          </span>
+                          <p className="text-xs sm:text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                            {obsTecnicas}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 4. Card Solução Adotada */}
+                      {solucaoAdotada && (
+                        <div className="rounded-xl p-4 border border-emerald-200 bg-emerald-50/40 shadow-xs space-y-1.5">
+                          <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">
+                            Solução Adotada
+                          </span>
+                          <p className="text-xs sm:text-sm text-emerald-950 whitespace-pre-wrap leading-relaxed">
+                            {solucaoAdotada}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 5. Card Anexos e Documentos */}
+                      {docsAnexados.length > 0 && (
+                        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-xs space-y-2.5">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">
+                            Anexos e Documentos
+                          </span>
+                          <div className="divide-y divide-gray-100">
+                            {docsAnexados.map((doc, idx) => (
+                              <div
+                                key={idx}
+                                className="py-2 flex items-center justify-between text-xs gap-2"
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                                  <span className="font-medium text-gray-800 truncate">
+                                    {doc.nome || `Documento ${idx + 1}`}
+                                  </span>
+                                </div>
+                                {doc.url ? (
+                                  <a
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-bold shrink-0 hover:underline"
+                                  >
+                                    <span>Abrir</span>
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                ) : (
+                                  <span className="text-[11px] text-gray-400 italic">Sem link</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
               {/* Descrição / Conteúdo completo */}
               <div className="bg-white rounded-xl p-4 border border-gray-200 space-y-1.5 shadow-xs">
                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
