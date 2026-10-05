@@ -87,21 +87,17 @@ const App = () => (
             <Route
               path="/servicos-campo"
               element={
-                <ProtectedRoute requiredRole="admin">
-                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
-                    <ExecucaoOS />
-                  </ErrorBoundary>
-                </ProtectedRoute>
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
+                  <ExecucaoOS />
+                </ErrorBoundary>
               }
             />
             <Route
               path="/execucao-os"
               element={
-                <ProtectedRoute requiredRole="admin">
-                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
-                    <ExecucaoOS />
-                  </ErrorBoundary>
-                </ProtectedRoute>
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
+                  <ExecucaoOS />
+                </ErrorBoundary>
               }
             />
             <Route
@@ -112,13 +108,15 @@ const App = () => (
                 </ErrorBoundary>
               }
             />
-            {/* Rotas restritas para Administradores: Layout já tem ProtectedRoute de autenticação geral, aqui apenas requiredRole="admin" se necessário */}
+            {/* Rotas restritas para Administradores: instalador é redirecionado para Serviços de Campo */}
             <Route
               path="/"
               element={
-                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o Dashboard">
-                  <Index />
-                </ErrorBoundary>
+                <ProtectedRoute requiredRole="admin">
+                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o Dashboard">
+                    <Index />
+                  </ErrorBoundary>
+                </ProtectedRoute>
               }
             />
             <Route
@@ -315,13 +313,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            {/* Base de Conhecimento (acessível por todos os usuários autenticados: vendedores, técnicos, admin) */}
+            {/* Base de Conhecimento (acessível por administradores e equipe de vendas/gestão) */}
             <Route
               path="/base-conhecimento"
               element={
-                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Base de Conhecimento">
-                  <BaseConhecimento />
-                </ErrorBoundary>
+                <ProtectedRoute requiredRole="admin">
+                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Base de Conhecimento">
+                    <BaseConhecimento />
+                  </ErrorBoundary>
+                </ProtectedRoute>
               }
             />
           </Route>

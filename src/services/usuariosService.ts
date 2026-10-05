@@ -94,7 +94,7 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
       email: normalizedEmail,
       phone: data.phone?.trim() || '',
       password: data.password,
-      passwordConfirm: data.passwordConfirm,
+      passwordConfirm: data.passwordConfirm || data.password,
       emailVisibility: false,
       role: data.role,
       ativo: data.ativo ?? true,
@@ -109,7 +109,7 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
       })
     } catch (createErr: any) {
       // Se falhar devido a validação de verified ou similar em cliente não-superuser,
-      // tentar sem a chave verified
+      // tentar sem a chave verified mantendo as credenciais de autenticação
       const isVerifiedIssue =
         createErr?.data?.data?.verified ||
         createErr?.response?.data?.verified ||

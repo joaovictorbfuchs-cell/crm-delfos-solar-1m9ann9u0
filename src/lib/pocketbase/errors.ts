@@ -20,20 +20,20 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  const err = error as any
-  const status = Number(err?.status || err?.statusCode || err?.response?.status || 0)
+export function isAuthSessionError(err: any): boolean {
+  if (!err) return false
+  const status = err.status || err.statusCode || err.response?.status
   if (status === 401 || status === 403) return true
-  const msg = String(err?.message || err?.response?.message || '').toLowerCase()
-  return (
+  const msg = String(err.message || '').toLowerCase()
+  if (
     msg.includes('token is expired') ||
-    msg.includes('token expired') ||
     msg.includes('failed to authenticate') ||
-    msg.includes('unauthorized') ||
-    msg.includes('session expired') ||
-    msg.includes('sessão expirada')
-  )
+    msg.includes('token has expired') ||
+    msg.includes('invalid token')
+  ) {
+    return true
+  }
+  return false
 }
 
 export function getErrorMessage(error: unknown): string {

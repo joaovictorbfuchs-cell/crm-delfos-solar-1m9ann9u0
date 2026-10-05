@@ -173,7 +173,7 @@ export default function Layout() {
   const isConfiguracoesActive = configuracoesSubItems.some((sub) => location.pathname === sub.path)
 
   const navItems: NavItem[] = isInstalador
-    ? [{ name: 'Minhas OS', path: '/minhas-os', icon: ClipboardCheck }]
+    ? [{ name: 'Serviços de Campo', path: '/servicos-campo', icon: Wrench }]
     : [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
@@ -226,7 +226,7 @@ export default function Layout() {
         {/* Brand Logo */}
         <div className="h-16 px-2 border-b border-[#E5E7EB] flex items-center justify-center bg-white shrink-0">
           <NavLink
-            to="/"
+            to={isInstalador ? '/servicos-campo' : '/'}
             className="flex items-center justify-center group overflow-hidden py-1"
             title="Delfos Solar - Ir para o início"
           >
@@ -403,10 +403,17 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden">
         {/* Top Header Desktop (apenas desktop: hidden lg:flex; no mobile o MobileLayoutChrome assume) */}
         <header className="hidden lg:flex h-16 bg-white border-b border-[#E5E7EB] px-4 lg:px-6 items-center justify-between gap-3 sticky top-0 z-20 max-w-full min-w-0">
-          {/* Lado Esquerdo: Barra de Busca Central */}
+          {/* Lado Esquerdo: Barra de Busca Central (apenas admin tem busca global de clientes/negócios/propostas) */}
           <div className="flex items-center gap-3 flex-1 min-w-0 max-w-2xl">
             <div className="flex-1 min-w-0">
-              <BarraBuscaGlobal />
+              {isAdmin ? (
+                <BarraBuscaGlobal />
+              ) : (
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
+                  <Wrench className="w-4 h-4 text-emerald-600" />
+                  <span>Painel do Instalador — Serviços de Campo Delfos Solar</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -489,8 +496,8 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Assistente Inteligente Delfos (Chat com RAG na Base de Conhecimento - Visível em todas as telas) */}
-      <AssistenteDelfosChat />
+      {/* Assistente Inteligente Delfos (Chat com RAG na Base de Conhecimento - Visível para Admin) */}
+      {isAdmin && <AssistenteDelfosChat />}
 
       {/* Universal Ficha do Cliente Drawer (Apenas para Admin) */}
       {isAdmin && (

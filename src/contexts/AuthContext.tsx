@@ -216,6 +216,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     pb.authStore.clear()
+    try {
+      localStorage.removeItem('pocketbase_auth')
+    } catch {
+      /* intentionally ignored */
+    }
     setUser(null)
     setUserProfile(null)
     setToken(null)

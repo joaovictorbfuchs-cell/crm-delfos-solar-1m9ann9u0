@@ -67,14 +67,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     return <Navigate to="/login" state={{ from: currentPath }} replace />
   }
 
-  // Se rota requer admin e usuário não for admin (ex.: instalador), redireciona para /minhas-os
+  // Se rota requer admin e usuário não for admin (ex.: instalador), redireciona para Serviços de Campo
   if (requiredRole === 'admin' && !isAdmin) {
-    return <Navigate to="/minhas-os" replace />
+    return <Navigate to="/servicos-campo" replace />
   }
 
-  // Se for instalador e tentar acessar rota restrita (não sendo permitido a instalador), redireciona para /minhas-os
+  // Se for instalador e tentar acessar rota restrita (não sendo permitido a instalador), redireciona para Serviços de Campo
   if (isInstalador && requiredRole !== 'instalador' && requiredRole !== undefined) {
-    return <Navigate to="/minhas-os" replace />
+    return <Navigate to="/servicos-campo" replace />
   }
 
   // Se não houver children ou se for a rota pai do layout sem sub-conteúdo

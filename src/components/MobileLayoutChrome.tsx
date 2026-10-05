@@ -242,88 +242,111 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     (clientesStatus !== 'todos' && location.pathname === '/clientes' ? 1 : 0) +
     (projetosProfissional !== 'todos' && location.pathname === '/projetos' ? 1 : 0)
 
-  // Itens da bottom bar enxuta
-  const bottomBarTabs = [
-    {
-      id: 'comercial',
-      label: 'Comercial',
-      path: '/comercial',
-      icon: KanbanSquare,
-      isActive: location.pathname === '/comercial',
-    },
-    {
-      id: 'central-atividades',
-      label: 'Atividades',
-      path: '/central-atividades',
-      icon: Layers,
-      isActive: location.pathname === '/central-atividades',
-    },
-    {
-      id: 'clientes',
-      label: 'Clientes',
-      path: '/clientes',
-      icon: Users,
-      isActive: location.pathname === '/clientes',
-    },
-    {
-      id: 'servicos-campo',
-      label: 'Serviços de campo',
-      path: isInstalador ? '/minhas-os' : '/servicos-campo',
-      icon: Wrench,
-      isActive:
-        location.pathname === '/servicos-campo' ||
-        location.pathname === '/execucao-os' ||
-        location.pathname === '/minhas-os',
-    },
-  ]
-
-  // Menu Mais com todas as rotas existentes (preservadas e organizadas)
-  const menuMaisSections = [
-    {
-      title: 'Principal',
-      items: [
-        { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-        { label: 'Funil Comercial', path: '/comercial', icon: KanbanSquare },
-        { label: 'Funil de Projetos', path: '/projetos', icon: FolderKanban },
-        { label: 'Propostas & Orçamentos', path: '/propostas', icon: Sun },
-        { label: 'Central de Atividades', path: '/central-atividades', icon: Layers },
-        { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
-        { label: 'Contatos', path: '/contatos', icon: Contact },
-        { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
-      ],
-    },
-    {
-      title: 'Operação e Serviços',
-      items: [
+  // Itens da bottom bar enxuta: se instalador, apenas Serviços de Campo
+  const bottomBarTabs = isInstalador
+    ? [
         {
-          label: isInstalador ? 'Minhas OS' : 'Serviços de Campo',
-          path: isInstalador ? '/minhas-os' : '/servicos-campo',
+          id: 'servicos-campo',
+          label: 'Serviços de Campo',
+          path: '/servicos-campo',
           icon: Wrench,
+          isActive: true,
         },
-        { label: 'O&M / Manutenções', path: '/manutencoes', icon: ShieldCheck },
+      ]
+    : [
         {
-          label: 'Central WhatsApp',
-          path: '/central-atendimento',
-          icon: WhatsAppIcon,
-          badge: pendentesWhatsAppCount,
+          id: 'comercial',
+          label: 'Comercial',
+          path: '/comercial',
+          icon: KanbanSquare,
+          isActive: location.pathname === '/comercial',
         },
-      ],
-    },
-    {
-      title: 'Configurações & Gestão',
-      items: [
-        { label: 'Automações do CRM', path: '/automacoes', icon: Zap },
-        { label: 'Equipamentos', path: '/equipamentos', icon: Cpu },
-        { label: 'Ativos das Usinas', path: '/ativos', icon: Cpu },
-        { label: 'Galeria de Usinas', path: '/instalacoes-galeria', icon: Images },
-        { label: 'Fornecedores', path: '/fornecedores', icon: Truck },
-        { label: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
-        ...(isAdmin
-          ? [{ label: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog }]
-          : []),
-      ],
-    },
-  ]
+        {
+          id: 'central-atividades',
+          label: 'Atividades',
+          path: '/central-atividades',
+          icon: Layers,
+          isActive: location.pathname === '/central-atividades',
+        },
+        {
+          id: 'clientes',
+          label: 'Clientes',
+          path: '/clientes',
+          icon: Users,
+          isActive: location.pathname === '/clientes',
+        },
+        {
+          id: 'servicos-campo',
+          label: 'Serviços de campo',
+          path: '/servicos-campo',
+          icon: Wrench,
+          isActive:
+            location.pathname === '/servicos-campo' ||
+            location.pathname === '/execucao-os' ||
+            location.pathname === '/minhas-os',
+        },
+      ]
+
+  // Menu Mais com todas as rotas existentes (se instalador, apenas Serviços de Campo)
+  const menuMaisSections = isInstalador
+    ? [
+        {
+          title: 'Operação',
+          items: [
+            {
+              label: 'Serviços de Campo',
+              path: '/servicos-campo',
+              icon: Wrench,
+            },
+          ],
+        },
+      ]
+    : [
+        {
+          title: 'Principal',
+          items: [
+            { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+            { label: 'Funil Comercial', path: '/comercial', icon: KanbanSquare },
+            { label: 'Funil de Projetos', path: '/projetos', icon: FolderKanban },
+            { label: 'Propostas & Orçamentos', path: '/propostas', icon: Sun },
+            { label: 'Central de Atividades', path: '/central-atividades', icon: Layers },
+            { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
+            { label: 'Contatos', path: '/contatos', icon: Contact },
+            { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
+          ],
+        },
+        {
+          title: 'Operação e Serviços',
+          items: [
+            {
+              label: 'Serviços de Campo',
+              path: '/servicos-campo',
+              icon: Wrench,
+            },
+            { label: 'O&M / Manutenções', path: '/manutencoes', icon: ShieldCheck },
+            {
+              label: 'Central WhatsApp',
+              path: '/central-atendimento',
+              icon: WhatsAppIcon,
+              badge: pendentesWhatsAppCount,
+            },
+          ],
+        },
+        {
+          title: 'Configurações & Gestão',
+          items: [
+            { label: 'Automações do CRM', path: '/automacoes', icon: Zap },
+            { label: 'Equipamentos', path: '/equipamentos', icon: Cpu },
+            { label: 'Ativos das Usinas', path: '/ativos', icon: Cpu },
+            { label: 'Galeria de Usinas', path: '/instalacoes-galeria', icon: Images },
+            { label: 'Fornecedores', path: '/fornecedores', icon: Truck },
+            { label: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
+            ...(isAdmin
+              ? [{ label: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog }]
+              : []),
+          ],
+        },
+      ]
 
   return (
     <>
@@ -331,183 +354,212 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       {/* 1. HEADER MOBILE SIMPLIFICADO (APENAS MOBILE: lg:hidden)       */}
       {/* ============================================================== */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200/90 z-30 px-3 flex items-center justify-between shadow-2xs select-none">
-        {/* Lado Esquerdo: Ícone de Filtro */}
+        {/* Lado Esquerdo: Ícone de Filtro (ou Logo para instalador) */}
         <div className="flex items-center">
-          <button
-            type="button"
-            onClick={() => setFiltrosOpen(true)}
-            aria-label="Abrir filtros"
-            className="relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 active:scale-95 transition-all"
-            title="Filtros"
-          >
-            <Filter className="w-5 h-5" />
-            {activeFiltersCount > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-600 ring-2 ring-white" />
-            )}
-          </button>
+          {!isInstalador ? (
+            <button
+              type="button"
+              onClick={() => setFiltrosOpen(true)}
+              aria-label="Abrir filtros"
+              className="relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 active:scale-95 transition-all"
+              title="Filtros"
+            >
+              <Filter className="w-5 h-5" />
+              {activeFiltersCount > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-600 ring-2 ring-white" />
+              )}
+            </button>
+          ) : (
+            <div className="pl-1">
+              <DelfosLogo height={28} />
+            </div>
+          )}
         </div>
 
-        {/* Centro: Nome do funil/tela atual com seta/dropdown para alternar funil e telas principais */}
+        {/* Centro: Nome do funil/tela atual com seta/dropdown para alternar funil e telas principais (apenas para Admin) */}
         <div className="flex-1 min-w-0 flex items-center justify-center px-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 active:bg-gray-200/80 transition-colors max-w-full cursor-pointer focus:outline-none"
-                title="Clique para alternar funis e navegação"
-              >
-                <span className="font-extrabold text-sm sm:text-base text-gray-900 truncate">
-                  {currentFunil.label}
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-60 p-1.5">
-              <DropdownMenuLabel className="text-[11px] text-gray-400 uppercase tracking-wider px-2 py-1">
-                Alternar Funil & Telas
-              </DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigate('/comercial')}
-                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-semibold ${
-                  location.pathname === '/comercial'
-                    ? 'bg-emerald-50 text-emerald-800'
-                    : 'text-gray-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <KanbanSquare className="w-4 h-4 text-emerald-600" />
-                  <span>Funil Comercial</span>
-                </div>
-                {location.pathname === '/comercial' && (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                )}
-              </DropdownMenuItem>
+          {isAdmin ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 active:bg-gray-200/80 transition-colors max-w-full cursor-pointer focus:outline-none"
+                  title="Clique para alternar funis e navegação"
+                >
+                  <span className="font-extrabold text-sm sm:text-base text-gray-900 truncate">
+                    {currentFunil.label}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-60 p-1.5">
+                <DropdownMenuLabel className="text-[11px] text-gray-400 uppercase tracking-wider px-2 py-1">
+                  Alternar Funil & Telas
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => navigate('/comercial')}
+                  className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-semibold ${
+                    location.pathname === '/comercial'
+                      ? 'bg-emerald-50 text-emerald-800'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <KanbanSquare className="w-4 h-4 text-emerald-600" />
+                    <span>Funil Comercial</span>
+                  </div>
+                  {location.pathname === '/comercial' && (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  )}
+                </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => navigate('/projetos')}
-                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-semibold ${
-                  location.pathname === '/projetos'
-                    ? 'bg-emerald-50 text-emerald-800'
-                    : 'text-gray-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FolderKanban className="w-4 h-4 text-blue-600" />
-                  <span>Funil de Projetos</span>
-                </div>
-                {location.pathname === '/projetos' && (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                )}
-              </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => navigate('/projetos')}
+                  className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-semibold ${
+                    location.pathname === '/projetos'
+                      ? 'bg-emerald-50 text-emerald-800'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FolderKanban className="w-4 h-4 text-blue-600" />
+                    <span>Funil de Projetos</span>
+                  </div>
+                  {location.pathname === '/projetos' && (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  )}
+                </DropdownMenuItem>
 
-              <DropdownMenuSeparator className="my-1" />
+                <DropdownMenuSeparator className="my-1" />
 
-              <DropdownMenuItem
-                onClick={() => navigate('/central-atividades')}
-                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
-                  location.pathname === '/central-atividades'
-                    ? 'bg-emerald-50 text-emerald-800 font-bold'
-                    : 'text-gray-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-emerald-600" />
-                  <span>Central de Atividades</span>
-                </div>
-                {location.pathname === '/central-atividades' && (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                )}
-              </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => navigate('/central-atividades')}
+                  className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                    location.pathname === '/central-atividades'
+                      ? 'bg-emerald-50 text-emerald-800 font-bold'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-emerald-600" />
+                    <span>Central de Atividades</span>
+                  </div>
+                  {location.pathname === '/central-atividades' && (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  )}
+                </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => navigate('/clientes')}
-                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
-                  location.pathname === '/clientes'
-                    ? 'bg-emerald-50 text-emerald-800 font-bold'
-                    : 'text-gray-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-emerald-600" />
-                  <span>Gestão de Clientes</span>
-                </div>
-                {location.pathname === '/clientes' && (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                )}
-              </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => navigate('/clientes')}
+                  className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                    location.pathname === '/clientes'
+                      ? 'bg-emerald-50 text-emerald-800 font-bold'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-emerald-600" />
+                    <span>Gestão de Clientes</span>
+                  </div>
+                  {location.pathname === '/clientes' && (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  )}
+                </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => navigate('/manutencoes')}
-                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
-                  location.pathname === '/manutencoes'
-                    ? 'bg-emerald-50 text-emerald-800 font-bold'
-                    : 'text-gray-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-purple-600" />
-                  <span>O&M / Manutenções</span>
-                </div>
-                {location.pathname === '/manutencoes' && (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                )}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem
+                  onClick={() => navigate('/manutencoes')}
+                  className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                    location.pathname === '/manutencoes'
+                      ? 'bg-emerald-50 text-emerald-800 font-bold'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-purple-600" />
+                    <span>O&M / Manutenções</span>
+                  </div>
+                  {location.pathname === '/manutencoes' && (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <span className="font-extrabold text-sm sm:text-base text-gray-900 truncate">
+              Serviços de Campo
+            </span>
+          )}
         </div>
 
         {/* Lado Direito: Assistente Delfos (ícone redondo pequeno) + Botão (+) Novo Negócio + Ícone do WhatsApp */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Botão do Assistente Inteligente Delfos no topo do mobile, ao lado do botão + */}
-          <AssistenteDelfosBotao size="sm" />
+          {/* Botão do Assistente Inteligente Delfos no topo do mobile (para Admin) */}
+          {isAdmin && <AssistenteDelfosBotao size="sm" />}
 
-          {!(
-            location.pathname === '/servicos-campo' ||
-            location.pathname === '/execucao-os' ||
-            location.pathname === '/minhas-os'
-          ) && (
-            <>
-              {/* Botão + para adicionar novo negócio (lead/deal) */}
-              <button
-                type="button"
-                onClick={handleNovoClick}
-                aria-label="Adicionar novo negócio"
-                title="Adicionar novo negócio / lead"
-                className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
-              >
-                <Plus className="w-5 h-5 stroke-[2.5]" />
-              </button>
+          {isAdmin &&
+            !(
+              location.pathname === '/servicos-campo' ||
+              location.pathname === '/execucao-os' ||
+              location.pathname === '/minhas-os'
+            ) && (
+              <>
+                {/* Botão + para adicionar novo negócio (lead/deal) */}
+                <button
+                  type="button"
+                  onClick={handleNovoClick}
+                  aria-label="Adicionar novo negócio"
+                  title="Adicionar novo negócio / lead"
+                  className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
+                >
+                  <Plus className="w-5 h-5 stroke-[2.5]" />
+                </button>
 
-              {/* Botão de atualizar no mobile posicionado à ESQUERDA do botão de WhatsApp */}
-              <button
-                type="button"
-                onClick={handleMobileRefresh}
-                disabled={isRefreshingMobile}
-                aria-label="Atualizar dados do sistema"
-                title="Atualizar dados"
-                className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 hover:border-emerald-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
-                />
-              </button>
+                {/* Botão de atualizar no mobile posicionado à ESQUERDA do botão de WhatsApp */}
+                <button
+                  type="button"
+                  onClick={handleMobileRefresh}
+                  disabled={isRefreshingMobile}
+                  aria-label="Atualizar dados do sistema"
+                  title="Atualizar dados"
+                  className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 hover:border-emerald-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+                  />
+                </button>
 
-              {/* Ícone do WhatsApp presente nas demais abas mobile */}
-              <button
-                type="button"
-                onClick={() => navigate('/central-atendimento')}
-                aria-label="Central de Atendimento WhatsApp"
-                title="Abrir Central WhatsApp"
-                className="relative w-9 h-9 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
-              >
-                <WhatsAppIcon className="w-5 h-5" />
-                {pendentesWhatsAppCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 flex items-center justify-center text-[10px] font-black rounded-full bg-red-600 text-white ring-2 ring-white shadow-xs">
-                    {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
-                  </span>
-                )}
-              </button>
-            </>
+                {/* Ícone do WhatsApp presente nas demais abas mobile */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/central-atendimento')}
+                  aria-label="Central de Atendimento WhatsApp"
+                  title="Abrir Central WhatsApp"
+                  className="relative w-9 h-9 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
+                >
+                  <WhatsAppIcon className="w-5 h-5" />
+                  {pendentesWhatsAppCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 flex items-center justify-center text-[10px] font-black rounded-full bg-red-600 text-white ring-2 ring-white shadow-xs">
+                      {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
+
+          {/* Botão de recarregar para o Instalador */}
+          {isInstalador && (
+            <button
+              type="button"
+              onClick={handleMobileRefresh}
+              disabled={isRefreshingMobile}
+              aria-label="Atualizar dados"
+              title="Atualizar dados"
+              className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+              />
+            </button>
           )}
         </div>
       </header>

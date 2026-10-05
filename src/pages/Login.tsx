@@ -30,8 +30,8 @@ export default function Login() {
         : undefined
   ) as string | undefined
 
-  const [email, setEmail] = useState('joao@delfosengenharia.com.br')
-  const [password, setPassword] = useState('Skip@Pass')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -62,7 +62,7 @@ export default function Login() {
   // Se já autenticado e o carregamento terminou, redireciona conforme o perfil
   if (isAuthenticated) {
     if (isInstalador) {
-      return <Navigate to="/execucao-os" replace />
+      return <Navigate to="/servicos-campo" replace />
     }
     if (fromLocation && fromLocation.startsWith('/')) {
       return <Navigate to={fromLocation} replace />
@@ -84,9 +84,9 @@ export default function Login() {
       setIsLoading(true)
       const profile = await login(cleanEmail, password)
 
-      // Redirecionamento por perfil
+      // Redirecionamento por perfil: instalador acessa exclusivamente Serviços de Campo
       if (profile?.role === 'instalador') {
-        navigate('/execucao-os', { replace: true })
+        navigate('/servicos-campo', { replace: true })
       } else if (fromLocation && fromLocation.startsWith('/')) {
         navigate(fromLocation, { replace: true })
       } else {
