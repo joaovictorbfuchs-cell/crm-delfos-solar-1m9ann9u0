@@ -710,274 +710,280 @@ export default function ExecucaoOS() {
     )
   }
 
-  return (
-    <div className="space-y-3 max-w-5xl mx-auto pb-10">
-      {/* Barra de Ações do Topo: Tabs de Navegação + Botão de Filtro (Funil) */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        {/* Tabs de Navegação: Pendentes vs Calendário vs Concluídas vs Relatório (Apenas Admin) */}
-        <div
-          className={`flex-1 min-w-[280px] grid gap-1.5 p-1 bg-gray-100/90 rounded-xl border border-gray-200 ${
-            isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
+  // Renderiza as abas de navegação (Pendentes, Calendário, Concluídas, Relatório)
+  const renderTabsNavegacao = () => (
+    <div
+      className={`grid gap-1 p-0.5 bg-gray-100/90 rounded-lg border border-gray-200 shrink-0 ${
+        isAdmin ? 'grid-cols-4' : 'grid-cols-3'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => setActiveTab('pendentes')}
+        className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          activeTab === 'pendentes'
+            ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+        <span>Pendentes</span>
+        <span
+          className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+            activeTab === 'pendentes' ? 'bg-amber-100 text-amber-800' : 'bg-gray-200 text-gray-700'
           }`}
         >
-          <button
-            type="button"
-            onClick={() => setActiveTab('pendentes')}
-            className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'pendentes'
-                ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            <span>Pendentes</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                activeTab === 'pendentes'
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-gray-200 text-gray-700'
-              }`}
-            >
-              {pendentesList.length}
-            </span>
-          </button>
+          {pendentesList.length}
+        </span>
+      </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('calendario')}
-            className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'calendario'
-                ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Calendário</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                activeTab === 'calendario'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-gray-200 text-gray-700'
-              }`}
-            >
-              {ordens.length}
-            </span>
-          </button>
+      <button
+        type="button"
+        onClick={() => setActiveTab('calendario')}
+        className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          activeTab === 'calendario'
+            ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Calendário</span>
+        <span
+          className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+            activeTab === 'calendario'
+              ? 'bg-emerald-100 text-emerald-800'
+              : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          {ordens.length}
+        </span>
+      </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('concluidas')}
-            className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'concluidas'
-                ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Concluídas</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                activeTab === 'concluidas'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-gray-200 text-gray-700'
-              }`}
-            >
-              {concluidasList.length}
-            </span>
-          </button>
+      <button
+        type="button"
+        onClick={() => setActiveTab('concluidas')}
+        className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          activeTab === 'concluidas'
+            ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Concluídas</span>
+        <span
+          className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+            activeTab === 'concluidas'
+              ? 'bg-emerald-100 text-emerald-800'
+              : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          {concluidasList.length}
+        </span>
+      </button>
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('relatorio')}
-              className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'relatorio'
-                  ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>Relatório</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === 'relatorio'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-gray-200 text-gray-700'
-                }`}
-              >
-                Mês
-              </span>
-            </button>
-          )}
-        </div>
-
-        {/* Botão Nova Atividade (manutenção) no mesmo estilo do botão da Central de Atividades */}
+      {isAdmin && (
         <button
           type="button"
-          onClick={() => setIsModalNovaAtividadeOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
-          title="Gerar nova atividade de manutenção para os serviços de campo"
+          onClick={() => setActiveTab('relatorio')}
+          className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            activeTab === 'relatorio'
+              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          <span>Nova Atividade</span>
-        </button>
-
-        {/* Botão com Ícone de Filtro (Funnel): abre Popover com todos os filtros */}
-        <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={`h-10 px-3 rounded-xl border font-semibold text-xs flex items-center gap-2 transition-all shrink-0 ${
-                activeFiltersCount > 0
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 shadow-2xs'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900 shadow-2xs'
-              }`}
-              title="Filtrar serviços de campo"
-              aria-label="Abrir filtros de serviços de campo"
-            >
-              <Filter
-                className={`w-4 h-4 ${activeFiltersCount > 0 ? 'text-emerald-700' : 'text-gray-500'}`}
-              />
-              <span className="hidden sm:inline">Filtros</span>
-              {activeFiltersCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-600 text-white min-w-[18px] text-center">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
-
-          <PopoverContent
-            align="end"
-            sideOffset={8}
-            className="w-[340px] sm:w-[380px] p-4 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 space-y-3.5"
+          <BarChart3 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span>Relatório</span>
+          <span
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+              activeTab === 'relatorio'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-gray-200 text-gray-700'
+            }`}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
-                  <Filter className="w-3.5 h-3.5" />
-                </span>
-                <h4 className="text-xs sm:text-sm font-bold text-gray-900">
-                  Filtros de Serviços de Campo
-                </h4>
-              </div>
-              {activeFiltersCount > 0 && (
+            Mês
+          </span>
+        </button>
+      )}
+    </div>
+  )
+
+  // Botões de Ações Primárias (Nova Atividade + Filtros Popover)
+  const renderAcoesPrimarias = () => (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <button
+        type="button"
+        onClick={() => setIsModalNovaAtividadeOpen(true)}
+        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer shrink-0 h-8"
+        title="Gerar nova atividade de manutenção para os serviços de campo"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        <span>Nova Atividade</span>
+      </button>
+
+      <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={`h-8 px-2.5 rounded-lg border font-semibold text-xs flex items-center gap-1.5 transition-all shrink-0 ${
+              activeFiltersCount > 0
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 shadow-2xs'
+                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900 shadow-2xs'
+            }`}
+            title="Filtrar serviços de campo"
+            aria-label="Abrir filtros de serviços de campo"
+          >
+            <Filter
+              className={`w-3.5 h-3.5 ${activeFiltersCount > 0 ? 'text-emerald-700' : 'text-gray-500'}`}
+            />
+            <span className="hidden sm:inline">Filtros</span>
+            {activeFiltersCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-600 text-white min-w-[16px] text-center">
+                {activeFiltersCount}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="w-[340px] sm:w-[380px] p-4 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 space-y-3.5"
+        >
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
+                <Filter className="w-3.5 h-3.5" />
+              </span>
+              <h4 className="text-xs sm:text-sm font-bold text-gray-900">
+                Filtros de Serviços de Campo
+              </h4>
+            </div>
+            {activeFiltersCount > 0 && (
+              <button
+                type="button"
+                onClick={handleLimparFiltros}
+                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
+                title="Limpar todos os filtros"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Limpar</span>
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder={
+                  isInstalador
+                    ? 'Buscar por cliente ou tipo de atividade...'
+                    : 'Nome do cliente, endereço...'
+                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
+              />
+              {searchTerm && (
                 <button
                   type="button"
-                  onClick={handleLimparFiltros}
-                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
-                  title="Limpar todos os filtros"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  title="Limpar busca"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Limpar</span>
+                  <X className="w-3 h-3" />
                 </button>
               )}
             </div>
+          </div>
 
-            {/* Campo 1: Busca Livre (cliente, tipo de atividade, endereço) */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder={
-                    isInstalador
-                      ? 'Buscar por cliente ou tipo de atividade...'
-                      : 'Nome do cliente, endereço...'
-                  }
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    title="Limpar busca"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Campo 2: Filtro por Prestador / Instalador (OCULTO para instalador) */}
-            {!isInstalador && (
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Prestador / Técnico
-                </label>
-                <select
-                  value={selectedPrestadorFilter}
-                  onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
-                  className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-                >
-                  <option value="todos">Todos os Prestadores</option>
-                  {prestadoresOpcoes.map((nome) => (
-                    <option key={nome} value={nome}>
-                      Prestador: {nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Campo 3: Filtro por Tipo de Serviço */}
+          {!isInstalador && (
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                Tipo de Serviço
+                Prestador / Técnico
               </label>
               <select
-                value={selectedTipoFilter}
-                onChange={(e) => setSelectedTipoFilter(e.target.value)}
+                value={selectedPrestadorFilter}
+                onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
                 className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
               >
-                <option value="todos">Todos os Serviços</option>
-                <option value="Limpeza">Limpeza</option>
-                <option value="Manutenção">Manutenção</option>
-                <option value="Instalação">Instalação</option>
-                <option value="Garantia">Garantia</option>
-                <option value="Configuração de Datalogger">Configuração de Datalogger</option>
+                <option value="todos">Todos os Prestadores</option>
+                {prestadoresOpcoes.map((nome) => (
+                  <option key={nome} value={nome}>
+                    Prestador: {nome}
+                  </option>
+                ))}
               </select>
             </div>
+          )}
 
-            {/* Campo 4: Filtro por Período */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                Período Agendado
-              </label>
-              <select
-                value={selectedPeriodoFilter}
-                onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-              >
-                <option value="todos">Qualquer Período</option>
-                <option value="hoje">Agendadas para Hoje</option>
-                <option value="semana">Nesta Semana</option>
-                <option value="mes">Neste Mês</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-[11px] font-bold text-gray-700 mb-1">
+              Tipo de Serviço
+            </label>
+            <select
+              value={selectedTipoFilter}
+              onChange={(e) => setSelectedTipoFilter(e.target.value)}
+              className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+            >
+              <option value="todos">Todos os Serviços</option>
+              <option value="Limpeza">Limpeza</option>
+              <option value="Manutenção">Manutenção</option>
+              <option value="Instalação">Instalação</option>
+              <option value="Garantia">Garantia</option>
+              <option value="Configuração de Datalogger">Configuração de Datalogger</option>
+            </select>
+          </div>
 
-            {/* Rodapé do Popover */}
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-[11px] text-gray-500">{filteredList.length} resultado(s)</span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setFiltrosPopoverOpen(false)}
-                className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
-              >
-                Concluir
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+          <div>
+            <label className="block text-[11px] font-bold text-gray-700 mb-1">
+              Período Agendado
+            </label>
+            <select
+              value={selectedPeriodoFilter}
+              onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
+              className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+            >
+              <option value="todos">Qualquer Período</option>
+              <option value="hoje">Agendadas para Hoje</option>
+              <option value="semana">Nesta Semana</option>
+              <option value="mes">Neste Mês</option>
+            </select>
+          </div>
 
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-[11px] text-gray-500">{filteredList.length} resultado(s)</span>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setFiltrosPopoverOpen(false)}
+              className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
+            >
+              Concluir
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+
+  return (
+    <div
+      className={`space-y-2.5 pb-8 ${
+        activeTab === 'calendario' ? 'w-full max-w-none' : 'max-w-5xl mx-auto'
+      }`}
+    >
+      {/* Barra de Ações Superior para abas normais (pendentes, concluidas, relatorio) */}
+      {activeTab !== 'calendario' && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {renderTabsNavegacao()}
+          {renderAcoesPrimarias()}
+        </div>
+      )}
       {/* Conteúdo da Aba Relatório (apenas Admin) */}
       {activeTab === 'relatorio' && isAdmin ? (
         isLoading ? (
@@ -1001,6 +1007,8 @@ export default function ExecucaoOS() {
             onOSUpdated={handleOSUpdated}
             isInstalador={isInstalador}
             instaladorNome={userProfile?.name}
+            leftControlsSlot={renderTabsNavegacao()}
+            rightActionsSlot={renderAcoesPrimarias()}
           />
         )
       ) : (

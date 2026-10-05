@@ -27,6 +27,8 @@ interface CalendarioExecucaoOSProps {
   onOSUpdated?: (updatedOS: OrdemServico) => void
   isInstalador?: boolean
   instaladorNome?: string
+  leftControlsSlot?: React.ReactNode
+  rightActionsSlot?: React.ReactNode
 }
 
 // Configurações de cores por tipo de serviço
@@ -188,6 +190,8 @@ export function CalendarioExecucaoOS({
   onOSUpdated,
   isInstalador,
   instaladorNome,
+  leftControlsSlot,
+  rightActionsSlot,
 }: CalendarioExecucaoOSProps) {
   const now = new Date()
   const { toast } = useToast()
@@ -741,85 +745,36 @@ export function CalendarioExecucaoOS({
   }, [selectedDayKey])
 
   return (
-    <div className="space-y-4">
-      {/* Barra Superior de Navegação do Calendário */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 shadow-2xs">
-            <CalendarIcon className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
-                {headerPeriodoTexto}
-              </h3>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                {totalNoPeriodoExibido}{' '}
-                {totalNoPeriodoExibido === 1 ? 'OS agendada' : 'OSs agendadas'}
+    <div className="space-y-2 w-full">
+      {/* Cabeçalho Compacto e Consolidado em Linha Única:
+          Esquerda: Abas de navegação (Pendentes, Calendário, Concluídas, Relatório)
+          Centro: Controles de período (Navegação < Hoje > + Rótulo + Seletor Mês/Semana/Dia)
+          Direita: Ações Primárias (Nova Atividade, Filtros) */}
+      <div className="bg-white rounded-xl px-2.5 py-1.5 border border-gray-200 shadow-2xs flex flex-wrap items-center justify-between gap-2">
+        {/* Bloco Esquerda: Abas de navegação injetadas ou título padrão se standalone */}
+        <div className="flex items-center gap-2 shrink-0">
+          {leftControlsSlot ? (
+            leftControlsSlot
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-lg bg-emerald-100 text-emerald-800">
+                <CalendarIcon className="w-4 h-4" />
               </span>
+              <span className="text-xs font-bold text-gray-900">Calendário de Atividades</span>
             </div>
-            <p className="text-xs text-gray-500">
-              {isInstalador
-                ? `Exibindo ordens atribuídas a ${instaladorNome || 'você'}`
-                : 'Visão de todas as ordens de serviço da equipe'}
-            </p>
-          </div>
+          )}
         </div>
 
-        {/* Controles: Seletor Mês / Semana / Dia + Botões de Navegação */}
-        <div className="flex flex-wrap items-center gap-2 justify-end">
-          {/* Seletor Segmentado: Mês | Semana | Dia */}
-          <div className="inline-flex items-center p-1 bg-gray-100/90 rounded-xl border border-gray-200 shadow-2xs text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setViewMode('mes')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                viewMode === 'mes'
-                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
-              }`}
-            >
-              <span>Mês</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setViewMode('semana')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                viewMode === 'semana'
-                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
-              }`}
-            >
-              <span>Semana</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode('dia')
-                if (!selectedDayKey) {
-                  setSelectedDayKey(getLocalDateKey(new Date()))
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                viewMode === 'dia'
-                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
-              }`}
-            >
-              <span>Dia</span>
-            </button>
-          </div>
-
-          {/* Botões de Navegação adaptados ao modo (Mês / Semana / Dia) */}
-          <div className="flex items-center gap-1.5">
+        {/* Bloco Central: Período, Navegação e Modo de Visualização */}
+        <div className="flex items-center gap-2 flex-wrap justify-center flex-1 min-w-[280px]">
+          {/* Navegação entre períodos: < Hoje > */}
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handlePrev}
-              className="h-8 px-2.5 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center gap-1"
+              className="h-7 w-7 p-0 rounded-md border-gray-200 hover:bg-gray-50 text-gray-700 shrink-0"
               title={
                 viewMode === 'mes'
                   ? 'Mês anterior'
@@ -828,14 +783,7 @@ export function CalendarioExecucaoOS({
                     : 'Dia anterior'
               }
             >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden xs:inline sm:inline">
-                {viewMode === 'mes'
-                  ? 'Mês anterior'
-                  : viewMode === 'semana'
-                    ? 'Semana anterior'
-                    : 'Dia anterior'}
-              </span>
+              <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
 
             <Button
@@ -843,16 +791,10 @@ export function CalendarioExecucaoOS({
               variant="outline"
               size="sm"
               onClick={handleCurrent}
-              className="h-8 px-3 rounded-lg border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-2xs"
-              title={
-                viewMode === 'mes'
-                  ? 'Voltar para o mês corrente'
-                  : viewMode === 'semana'
-                    ? 'Semana atual'
-                    : 'Hoje'
-              }
+              className="h-7 px-2 rounded-md border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-2xs shrink-0"
+              title="Ir para o período atual"
             >
-              {viewMode === 'mes' ? 'Mês atual' : viewMode === 'semana' ? 'Semana atual' : 'Hoje'}
+              Hoje
             </Button>
 
             <Button
@@ -860,7 +802,7 @@ export function CalendarioExecucaoOS({
               variant="outline"
               size="sm"
               onClick={handleNext}
-              className="h-8 px-2.5 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center gap-1"
+              className="h-7 w-7 p-0 rounded-md border-gray-200 hover:bg-gray-50 text-gray-700 shrink-0"
               title={
                 viewMode === 'mes'
                   ? 'Próximo mês'
@@ -869,39 +811,92 @@ export function CalendarioExecucaoOS({
                     : 'Próximo dia'
               }
             >
-              <span className="hidden xs:inline sm:inline">
-                {viewMode === 'mes'
-                  ? 'Próximo mês'
-                  : viewMode === 'semana'
-                    ? 'Próxima semana'
-                    : 'Próximo dia'}
-              </span>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </Button>
           </div>
+
+          {/* Rótulo do Período + Badge Compacta de Contagem */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs sm:text-sm font-bold text-gray-900 tracking-tight whitespace-nowrap">
+              {headerPeriodoTexto}
+            </span>
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap"
+              title={`${totalNoPeriodoExibido} ordem(ns) de serviço agendada(s) no período`}
+            >
+              {totalNoPeriodoExibido} OS
+            </span>
+          </div>
+
+          {/* Seletor de Modo: Mês | Semana | Dia */}
+          <div className="inline-flex items-center p-0.5 bg-gray-100/90 rounded-md border border-gray-200 shadow-2xs text-xs font-semibold shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('mes')}
+              className={`px-2 py-0.5 rounded text-[11px] transition-all cursor-pointer ${
+                viewMode === 'mes'
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Mês
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('semana')}
+              className={`px-2 py-0.5 rounded text-[11px] transition-all cursor-pointer ${
+                viewMode === 'semana'
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Semana
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('dia')
+                if (!selectedDayKey) {
+                  setSelectedDayKey(getLocalDateKey(new Date()))
+                }
+              }}
+              className={`px-2 py-0.5 rounded text-[11px] transition-all cursor-pointer ${
+                viewMode === 'dia'
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Dia
+            </button>
+          </div>
         </div>
+
+        {/* Bloco Direita: Ações Primárias (Nova Atividade + Filtros) */}
+        <div className="flex items-center gap-1.5 shrink-0 justify-end">{rightActionsSlot}</div>
       </div>
 
-      {/* Legenda de Cores por Tipo de Serviço */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200 shadow-2xs">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-          Legenda por Tipo de Serviço:
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+      {/* Legenda de Tipos de Serviço Compacta em Linha Única */}
+      <div className="bg-white rounded-xl px-2.5 py-1 border border-gray-200/90 shadow-2xs flex items-center justify-between gap-2 overflow-x-auto">
+        <div className="flex items-center gap-3 sm:gap-4 text-xs shrink-0 flex-nowrap">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
+            Legenda:
+          </span>
           {Object.entries(TIPO_SERVICO_CORES).map(([tipo, config]) => (
             <div
               key={tipo}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
-              style={{
-                borderColor: `${config.borderColor}50`,
-                backgroundColor: config.pillBg,
-                color: config.hex,
-              }}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-700 shrink-0"
             >
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: config.hex }} />
-              <span>{config.nome}</span>
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: config.hex }}
+              />
+              <span className="whitespace-nowrap">{config.nome}</span>
             </div>
           ))}
+        </div>
+
+        <div className="hidden md:flex items-center gap-1 text-[10px] text-gray-400 font-medium shrink-0 ml-auto pl-2 border-l border-gray-100">
+          <span>06:00 – 22:00</span>
         </div>
       </div>
 
@@ -1407,25 +1402,21 @@ export function CalendarioExecucaoOS({
           </div>
 
           {/* Dicas e Instruções Google Calendar */}
-          <div className="p-2.5 sm:p-3 border-t border-gray-200 bg-gray-50/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-3 text-[11px] text-gray-500">
-              <span className="inline-flex items-center gap-1">
-                <GripVertical className="w-3.5 h-3.5 text-gray-400" />
-                Arraste o card para reagendar horário ou dia
+          <div className="px-2.5 py-1.5 border-t border-gray-200 bg-gray-50/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 text-[11px] text-gray-500">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span
+                className="inline-flex items-center gap-1"
+                title="Arraste uma OS até o horário ou clique para selecionar o dia"
+              >
+                <GripVertical className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <span>Arraste uma OS até o horário ou clique para selecionar o dia</span>
               </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="font-bold text-emerald-700">⇅</span>
-                Puxe a borda inferior para ajustar tempo previsto
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="font-bold text-gray-700">✎</span>
-                Clique no card para abrir ficha e editar responsável/horário
+              <span className="hidden md:inline-flex items-center gap-1 text-gray-400">
+                • Puxe a borda para ajustar duração • Clique para abrir ficha
               </span>
             </div>
 
-            <div className="text-[11px] font-semibold text-emerald-800">
-              Grade horária ativa: 06:00 – 22:00
-            </div>
+            <div className="text-[10px] font-semibold text-emerald-800 shrink-0">06:00 – 22:00</div>
           </div>
         </div>
       )}
