@@ -97,16 +97,25 @@ export default function Comercial() {
     carregarNegocios()
   }, [carregarNegocios])
 
-  // Ouvinte para abrir modal de novo lead via header mobile (+)
+  // Ouvinte para abrir modal de novo lead via header mobile (+) e recargas silenciosas
   useEffect(() => {
     const handleOpenNovoLead = () => {
       setIsNovoLeadOpen(true)
     }
+    const handleRecarregarSilencioso = () => {
+      carregarNegocios(true)
+    }
+
     window.addEventListener('delfos:abrir-novo-lead', handleOpenNovoLead)
+    window.addEventListener('delfos:negocios-changed', handleRecarregarSilencioso)
+    window.addEventListener('delfos:recarregar-dados', handleRecarregarSilencioso)
+
     return () => {
       window.removeEventListener('delfos:abrir-novo-lead', handleOpenNovoLead)
+      window.removeEventListener('delfos:negocios-changed', handleRecarregarSilencioso)
+      window.removeEventListener('delfos:recarregar-dados', handleRecarregarSilencioso)
     }
-  }, [])
+  }, [carregarNegocios])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)

@@ -88,6 +88,12 @@ import {
   deleteUsina,
 } from '@/services/crmService'
 import {
+  fetchNegociosByClienteId,
+  updateNegocio,
+  normalizarTipoNegocioSchema,
+  normalizarTipoVendaSchema,
+} from '@/services/negociosService'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -860,6 +866,44 @@ export const FichaClienteDrawer: React.FC = () => {
     const patch: Partial<Cliente> = { [field]: value } as Partial<Cliente>
     // Telefone e WhatsApp são independentes (regra atualizada a pedido do usuário)
     await updateCliente(selectedCliente.id, patch)
+
+    // Se o campo alterado for tipo_venda, sincroniza aditivamente com os negócios vinculados
+    if (field === 'tipo_venda' && typeof value === 'string' && value.trim()) {
+      try {
+        const novosNegocios = await fetchNegociosByClienteId(selectedCliente.id)
+        const negociosAbertos = novosNegocios.filter(
+          (n) => n.status !== 'ganho' && n.status !== 'perdido',
+        )
+        const negociosAlvo = negociosAbertos.length > 0 ? negociosAbertos : novosNegocios
+
+        const tipoVendaNorm = normalizarTipoVendaSchema(value) || value
+        const tipoNegocioEquiv = normalizarTipoNegocioSchema(value)
+
+        await Promise.all(
+          negociosAlvo.map(async (neg) => {
+            const payload: Record<string, any> = { tipo_venda: tipoVendaNorm }
+            if (tipoNegocioEquiv) {
+              payload.tipo_negocio = tipoNegocioEquiv
+            }
+            return updateNegocio(neg.id, payload)
+          }),
+        )
+
+        // Incrementa chave para atualizar componentes internos da ficha (ex: CardNegociosCliente)
+        setNegociosKeyAtualizacao((k) => k + 1)
+      } catch (errSync) {
+        console.warn('[FichaClienteDrawer] Erro ao sincronizar tipo_venda com negócios:', errSync)
+      }
+
+      // Notifica o funil comercial / outros módulos para recarga silenciosa sem tela cheia
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('delfos:negocios-changed'))
+        window.dispatchEvent(new CustomEvent('delfos:recarregar-dados'))
+      }
+      if (refreshData) {
+        refreshData().catch(() => {})
+      }
+    }
   }
 
   const handleUpdateSistemaField = async (field: keyof Sistema, value: unknown) => {
