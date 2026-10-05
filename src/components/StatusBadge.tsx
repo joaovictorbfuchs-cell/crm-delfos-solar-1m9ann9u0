@@ -8,6 +8,8 @@ import {
   Clock,
   XCircle,
   CarFront,
+  Zap,
+  DollarSign,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -124,6 +126,21 @@ export const ProductBadge: React.FC<ProductBadgeProps> = ({
         >
           <CarFront className="w-3.5 h-3.5 text-teal-600 shrink-0" />
           <span className="truncate">Carregadores VE</span>
+        </span>
+      )
+    case 'Créditos de energia':
+    case 'Créditos de Energia':
+    case 'creditos_energia':
+    case 'Creditos de energia':
+      return (
+        <span
+          className={`inline-flex items-center gap-1 font-medium rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300 max-w-full ${sizeClasses} ${className}`}
+        >
+          <span className="relative inline-flex items-center justify-center w-3.5 h-3.5 shrink-0">
+            <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <DollarSign className="w-2.5 h-2.5 text-emerald-700 font-black absolute -bottom-0.5 -right-0.5 drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]" />
+          </span>
+          <span className="truncate">Créditos de energia</span>
         </span>
       )
     default:

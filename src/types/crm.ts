@@ -144,6 +144,7 @@ export type TipoVendaSelect =
   | 'O&M (Operação e Manutenção)'
   | 'Baterias'
   | 'Carregadores Veículos Elétricos'
+  | 'Créditos de energia'
 
 export type TipoNegocioSelect =
   | 'venda usina'
@@ -152,6 +153,8 @@ export type TipoNegocioSelect =
   | 'renovação'
   | 'serviço'
   | 'venda bateria'
+  | 'creditos_energia'
+  | 'Créditos de energia'
   | TipoVendaSelect
 
 export type EtapaFunilSelect =

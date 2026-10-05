@@ -82,6 +82,7 @@ export const OPCOES_ETAPA_FUNIL_SCHEMA = [
 
 export const OPCOES_TIPO_NEGOCIO_SCHEMA = [
   'venda usina',
+  'creditos_energia',
   'bateria',
   'expansão',
   'renovação',
@@ -96,6 +97,7 @@ export const OPCOES_TIPO_VENDA_SCHEMA = [
   'O&M (Operação e Manutenção)',
   'Baterias',
   'Carregadores Veículos Elétricos',
+  'Créditos de energia',
 ] as const
 
 /**
@@ -108,6 +110,14 @@ export function normalizarTipoNegocioSchema(valor?: string | null): string | und
 
   if (OPCOES_TIPO_NEGOCIO_SCHEMA.includes(v as any)) {
     return v
+  }
+  if (
+    v.includes('crédito') ||
+    v.includes('credito') ||
+    v.includes('compensacao') ||
+    v.includes('compensação')
+  ) {
+    return 'creditos_energia'
   }
   if (v.includes('usina') || v.includes('solar')) return 'venda usina'
   if (v.includes('renov') || v.includes('o&m') || v.includes('manuten')) return 'renovação'
@@ -135,6 +145,14 @@ export function normalizarTipoVendaSchema(valor?: string | null): string | undef
   if (matchExato) return matchExato
 
   const lower = v.toLowerCase()
+  if (
+    lower.includes('crédito') ||
+    lower.includes('credito') ||
+    lower.includes('compensacao') ||
+    lower.includes('compensação')
+  ) {
+    return 'Créditos de energia'
+  }
   if (lower.includes('o&m') || lower.includes('manuten') || lower.includes('renov')) {
     return 'O&M (Operação e Manutenção)'
   }

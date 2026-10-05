@@ -1,5 +1,6 @@
+import React from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { SunMedium, Wrench, BatteryCharging, CarFront } from 'lucide-react'
+import { SunMedium, Wrench, BatteryCharging, CarFront, Zap, DollarSign } from 'lucide-react'
 import type { TipoVendaSelect } from '@/types/crm'
 
 export const TIPOS_VENDA_OPTIONS: TipoVendaSelect[] = [
@@ -7,13 +8,35 @@ export const TIPOS_VENDA_OPTIONS: TipoVendaSelect[] = [
   'O&M (Operação e Manutenção)',
   'Baterias',
   'Carregadores Veículos Elétricos',
+  'Créditos de energia',
 ]
+
+/**
+ * Ícone composto Raio (Zap, text-amber-500) sobreposto com Cifrão (DollarSign, text-emerald-600)
+ * para representar a atividade 'Créditos de energia' solicitada pelo usuário.
+ */
+export const CreditosEnergiaIcon: React.FC<{ className?: string }> = ({
+  className = 'w-4 h-4',
+}) => {
+  return React.createElement(
+    'span',
+    {
+      className: `relative inline-flex items-center justify-center shrink-0 ${className}`,
+      'aria-label': 'Créditos de energia',
+    },
+    React.createElement(Zap, { className: 'w-full h-full text-amber-500 shrink-0' }),
+    React.createElement(DollarSign, {
+      className:
+        'w-[68%] h-[68%] text-emerald-600 font-black absolute -bottom-0.5 -right-0.5 drop-shadow-[0_1px_1px_rgba(255,255,255,0.95)] shrink-0',
+    }),
+  )
+}
 
 export interface TipoVendaConfig {
   label: TipoVendaSelect
   shortLabel: string
   descricao: string
-  icon: LucideIcon
+  icon: LucideIcon | React.ComponentType<{ className?: string }>
   // Cores Tailwind
   badgeClass: string
   iconClass: string
@@ -79,15 +102,38 @@ export const TIPOS_VENDA_CONFIG: Record<TipoVendaSelect, TipoVendaConfig> = {
     bgLightClass:
       'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200',
   },
+  'Créditos de energia': {
+    label: 'Créditos de energia',
+    shortLabel: 'Créditos',
+    descricao: 'Gestão, venda e compensação de créditos de energia',
+    icon: CreditosEnergiaIcon,
+    badgeClass:
+      'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700',
+    iconClass: 'text-emerald-600 dark:text-emerald-400',
+    cardBorderClass: 'hover:border-emerald-400 dark:hover:border-emerald-600',
+    cardAccentClass: 'bg-emerald-600',
+    dotClass: 'bg-emerald-600',
+    bgLightClass:
+      'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300',
+  },
 }
 
 /**
- * Normaliza qualquer variação de string cadastrada para uma das 4 opções estritas.
+ * Normaliza qualquer variação de string cadastrada para uma das opções estritas.
  * Se vazio ou não reconhecido, retorna 'Energia Solar' como padrão amigável.
  */
 export function normalizarTipoVenda(valor?: string | null): TipoVendaSelect {
   if (!valor) return 'Energia Solar'
   const v = valor.trim().toLowerCase()
+
+  if (
+    v.includes('crédito') ||
+    v.includes('credito') ||
+    v.includes('compensacao') ||
+    v.includes('compensação')
+  ) {
+    return 'Créditos de energia'
+  }
 
   if (
     v.includes('o&m') ||
@@ -127,7 +173,7 @@ export interface TipoVendaBadgeInfo {
   hasTipo: boolean
   label: string
   shortLabel: string
-  icon: LucideIcon
+  icon: LucideIcon | React.ComponentType<{ className?: string }>
   badgeClass: string
   iconClass: string
 }

@@ -31,6 +31,7 @@ interface ModalNovoNegocioFunilProps {
 
 const TIPOS_NEGOCIO_OPCOES: { value: TipoNegocioSelect; label: string; tipoVenda: string }[] = [
   { value: 'venda usina', label: 'Venda de Usina Fotovoltaica', tipoVenda: 'Energia Solar' },
+  { value: 'creditos_energia', label: 'Créditos de Energia', tipoVenda: 'Créditos de energia' },
   { value: 'bateria', label: 'Bateria Solar (Storage)', tipoVenda: 'Baterias' },
   { value: 'expansão', label: 'Expansão de Usina Existente', tipoVenda: 'Energia Solar' },
   {

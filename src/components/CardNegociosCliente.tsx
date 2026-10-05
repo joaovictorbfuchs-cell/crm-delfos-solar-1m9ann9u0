@@ -64,6 +64,12 @@ export const TIPOS_NEGOCIO_OPCOES: {
     tipoNegocioSchema: 'venda usina',
   },
   {
+    value: 'creditos_energia',
+    label: 'Créditos de Energia',
+    tipoVendaPadrao: 'Créditos de energia',
+    tipoNegocioSchema: 'creditos_energia',
+  },
+  {
     value: 'renovação',
     label: 'O&M (Operação e Manutenção) / Renovação',
     tipoVendaPadrao: 'O&M (Operação e Manutenção)',

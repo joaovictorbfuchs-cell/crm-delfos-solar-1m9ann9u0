@@ -127,12 +127,14 @@ const ETAPAS_FUNIL: { id: ClienteStatus; label: string }[] = [
 
 export type TipoNegocioOpcao =
   | 'energia solar'
+  | 'créditos de energia'
   | 'baterias'
   | 'Planos de O&M'
   | 'carregadores veiculares'
 
 const TIPOS_NEGOCIO_OPCOES: { id: TipoNegocioOpcao; label: string }[] = [
   { id: 'energia solar', label: 'Energia Solar' },
+  { id: 'créditos de energia', label: 'Créditos de energia' },
   { id: 'baterias', label: 'Baterias' },
   { id: 'Planos de O&M', label: 'O&M (Operação e Manutenção)' },
   { id: 'carregadores veiculares', label: 'Carregadores Veículos Elétricos' },
@@ -153,6 +155,14 @@ const MOTIVOS_PERDA_OPCOES: { id: string; label: string; cor: string }[] = [
 export function normalizarTipoNegocio(cliente: Cliente): TipoNegocioOpcao {
   const raw =
     `${cliente.tipo_venda || ''} ${cliente.tipo_negocio || ''} ${cliente.produto || ''}`.toLowerCase()
+  if (
+    raw.includes('crédito') ||
+    raw.includes('credito') ||
+    raw.includes('compensacao') ||
+    raw.includes('compensação')
+  ) {
+    return 'créditos de energia'
+  }
   if (
     raw.includes('carregador') ||
     raw.includes('veículo') ||
@@ -305,7 +315,18 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
             tipoNegocio = normalizarTipoNegocio(cli)
           } else if (n.tipo_venda || n.tipo_negocio) {
             const raw = `${n.tipo_venda || ''} ${n.tipo_negocio || ''}`.toLowerCase()
-            if (raw.includes('carregador') || raw.includes('veículo') || raw.includes('ev')) {
+            if (
+              raw.includes('crédito') ||
+              raw.includes('credito') ||
+              raw.includes('compensacao') ||
+              raw.includes('compensação')
+            ) {
+              tipoNegocio = 'créditos de energia'
+            } else if (
+              raw.includes('carregador') ||
+              raw.includes('veículo') ||
+              raw.includes('ev')
+            ) {
               tipoNegocio = 'carregadores veiculares'
             } else if (raw.includes('bateria') || raw.includes('storage')) {
               tipoNegocio = 'baterias'
@@ -961,7 +982,15 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
                   // Detalhes de visualização do Tipo de Negócio
                   const tipoNegocioBadge =
-                    tipoNegocioNorm === 'carregadores veiculares' ? (
+                    tipoNegocioNorm === 'créditos de energia' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                        <span className="relative inline-flex items-center justify-center w-3 h-3 shrink-0">
+                          <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                          <DollarSign className="w-2.5 h-2.5 text-emerald-700 font-black absolute -bottom-0.5 -right-0.5 drop-shadow-[0_1px_1px_rgba(255,255,255,0.95)]" />
+                        </span>
+                        <span>Créditos de energia</span>
+                      </span>
+                    ) : tipoNegocioNorm === 'carregadores veiculares' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
                         <CarFront className="w-3 h-3 text-slate-600" />
                         <span>Carregadores VE</span>

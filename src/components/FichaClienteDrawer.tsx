@@ -1192,6 +1192,7 @@ export const FichaClienteDrawer: React.FC = () => {
               type="select"
               options={[
                 { value: 'Energia Solar', label: 'Energia Solar' },
+                { value: 'Créditos de energia', label: 'Créditos de energia' },
                 { value: 'O&M (Operação e Manutenção)', label: 'O&M (Operação e Manutenção)' },
                 { value: 'Baterias', label: 'Baterias' },
                 {
