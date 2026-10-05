@@ -51,7 +51,8 @@ const ETAPAS_FUNIL_OPCOES: { value: EtapaFunilSelect; label: string; defaultProb
   { value: 'qualificado', label: '2 - Levantamento / Qualificado', defaultProb: 25 },
   { value: 'proposta enviada', label: '3 - Proposta Enviada', defaultProb: 50 },
   { value: 'negociação', label: '4 - Negociação', defaultProb: 75 },
-  { value: 'contrato assinado', label: '5 - Contrato Assinado (Ganho)', defaultProb: 100 },
+  { value: 'contato_futuro', label: '5 - Contato Futuro', defaultProb: 10 },
+  { value: 'contrato assinado', label: '6 - Contrato Assinado (Ganho)', defaultProb: 100 },
 ]
 
 export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({

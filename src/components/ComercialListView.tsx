@@ -71,7 +71,7 @@ const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
   Levantamento: 'qualificado',
   Orçamento: 'proposta enviada',
   Negociação: 'negociação',
-  'Contato Futuro': 'novo lead',
+  'Contato Futuro': 'contato_futuro',
   Fechado: 'contrato assinado',
 }
 
@@ -80,6 +80,7 @@ const ETAPA_NEGOCIO_TO_STATUS: Record<string, ClienteStatus> = {
   qualificado: 'Levantamento',
   'proposta enviada': 'Orçamento',
   negociação: 'Negociação',
+  contato_futuro: 'Contato Futuro',
   'contrato assinado': 'Fechado',
 }
 

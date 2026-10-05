@@ -76,6 +76,7 @@ export const OPCOES_ETAPA_FUNIL_SCHEMA = [
   'qualificado',
   'proposta enviada',
   'negociação',
+  'contato_futuro',
   'contrato assinado',
 ] as const
 
@@ -160,6 +161,8 @@ export function normalizarEtapaFunilSchema(valor?: string | null): string | unde
   if (OPCOES_ETAPA_FUNIL_SCHEMA.includes(v as any)) {
     return v
   }
+  if (v.includes('futuro') || v.includes('contato_futuro') || v === 'contato futuro')
+    return 'contato_futuro'
   if (v.includes('lead')) return 'novo lead'
   if (v.includes('qualif') || v.includes('levantamento')) return 'qualificado'
   if (v.includes('proposta')) return 'proposta enviada'
@@ -471,6 +474,7 @@ export const ETAPAS_FUNIL_EM_ANDAMENTO: readonly EtapaFunilSelect[] = [
   'qualificado',
   'proposta enviada',
   'negociação',
+  'contato_futuro',
   'contrato assinado',
 ] as const
 

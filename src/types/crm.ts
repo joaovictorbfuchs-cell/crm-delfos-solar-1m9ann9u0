@@ -159,6 +159,7 @@ export type EtapaFunilSelect =
   | 'qualificado'
   | 'proposta enviada'
   | 'negociação'
+  | 'contato_futuro'
   | 'contrato assinado'
 
 export type NegocioStatus = 'em andamento' | 'ganho' | 'perdido'

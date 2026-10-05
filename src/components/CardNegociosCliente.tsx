@@ -47,6 +47,7 @@ export const ETAPAS_FUNIL_OPCOES: {
   { value: 'qualificado', label: 'Qualificado', defaultProb: 25 },
   { value: 'proposta enviada', label: 'Proposta Enviada', defaultProb: 50 },
   { value: 'negociação', label: 'Negociação', defaultProb: 75 },
+  { value: 'contato_futuro', label: 'Contato Futuro', defaultProb: 10 },
   { value: 'contrato assinado', label: 'Contrato Assinado', defaultProb: 100 },
 ]
 
