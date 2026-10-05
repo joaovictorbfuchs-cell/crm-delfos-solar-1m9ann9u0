@@ -1176,7 +1176,10 @@ export default function ExecucaoOS() {
                       <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-2">
                         <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         <span className="text-[11px] sm:text-xs">
-                          Data: <strong>{formatDateTime(os.data_agendada)}</strong>
+                          Data:{' '}
+                          <strong>
+                            {os?.data_agendada ? formatDateTime(os.data_agendada) : 'Não agendada'}
+                          </strong>
                         </span>
                       </div>
 

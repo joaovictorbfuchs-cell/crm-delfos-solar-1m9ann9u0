@@ -696,18 +696,25 @@ export function CalendarioExecucaoOS({
                             className="p-1 sm:p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer"
                             title={`${horario} • ${clienteNome} (${tipoServico}) - Clique para abrir a ficha de execução`}
                           >
-                            {/* Horário + Tipo (com cor) */}
+                            {/* Horário + Tipo (com cor) + Badge Atividade se aplicável */}
                             <div className="flex items-center justify-between gap-1 leading-none mb-0.5">
                               <span className="text-[10px] sm:text-[11px] font-bold text-gray-900 flex items-center gap-0.5 shrink-0">
                                 <Clock className="w-2.5 h-2.5 text-gray-500" />
                                 {horario}
                               </span>
-                              <span
-                                className="text-[9px] font-extrabold uppercase truncate tracking-wider"
-                                style={{ color: tipoConfig.hex }}
-                              >
-                                {tipoServico}
-                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {os.origem === 'atividades' && (
+                                  <span className="text-[8px] font-bold px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                    Atividade
+                                  </span>
+                                )}
+                                <span
+                                  className="text-[9px] font-extrabold uppercase truncate tracking-wider"
+                                  style={{ color: tipoConfig.hex }}
+                                >
+                                  {tipoServico}
+                                </span>
+                              </div>
                             </div>
 
                             {/* Nome do Cliente */}
@@ -896,18 +903,25 @@ export function CalendarioExecucaoOS({
                                   className="p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer"
                                   title={`${horario} • ${clienteNome} (${tipoServico}) - Clique para abrir a ficha de execução`}
                                 >
-                                  {/* Horário + Tipo (com cor) */}
+                                  {/* Horário + Tipo (com cor) + Badge Atividade se aplicável */}
                                   <div className="flex items-center justify-between gap-1 leading-none mb-1">
                                     <span className="text-[10px] sm:text-[11px] font-bold text-gray-900 flex items-center gap-0.5 shrink-0">
                                       <Clock className="w-2.5 h-2.5 text-gray-500" />
                                       {horario}
                                     </span>
-                                    <span
-                                      className="text-[9px] font-extrabold uppercase truncate tracking-wider"
-                                      style={{ color: tipoConfig.hex }}
-                                    >
-                                      {tipoServico}
-                                    </span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {os.origem === 'atividades' && (
+                                        <span className="text-[8px] font-bold px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                          Atividade
+                                        </span>
+                                      )}
+                                      <span
+                                        className="text-[9px] font-extrabold uppercase truncate tracking-wider"
+                                        style={{ color: tipoConfig.hex }}
+                                      >
+                                        {tipoServico}
+                                      </span>
+                                    </div>
                                   </div>
 
                                   {/* Nome do Cliente */}
@@ -1050,16 +1064,23 @@ export function CalendarioExecucaoOS({
                     <div>
                       {/* Topo do card do dia */}
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span
-                          className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border"
-                          style={{
-                            borderColor: `${tipoConfig.borderColor}50`,
-                            backgroundColor: tipoConfig.pillBg,
-                            color: tipoConfig.hex,
-                          }}
-                        >
-                          {tipoServico}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border"
+                            style={{
+                              borderColor: `${tipoConfig.borderColor}50`,
+                              backgroundColor: tipoConfig.pillBg,
+                              color: tipoConfig.hex,
+                            }}
+                          >
+                            {tipoServico}
+                          </span>
+                          {os.origem === 'atividades' && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              Atividade
+                            </span>
+                          )}
+                        </div>
 
                         <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
                           <Clock className="w-3.5 h-3.5 text-gray-500" />
@@ -1190,16 +1211,23 @@ export function CalendarioExecucaoOS({
                     <div>
                       {/* Topo do card do dia */}
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span
-                          className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border"
-                          style={{
-                            borderColor: `${tipoConfig.borderColor}50`,
-                            backgroundColor: tipoConfig.pillBg,
-                            color: tipoConfig.hex,
-                          }}
-                        >
-                          {tipoServico}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border"
+                            style={{
+                              borderColor: `${tipoConfig.borderColor}50`,
+                              backgroundColor: tipoConfig.pillBg,
+                              color: tipoConfig.hex,
+                            }}
+                          >
+                            {tipoServico}
+                          </span>
+                          {os.origem === 'atividades' && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              Atividade
+                            </span>
+                          )}
+                        </div>
 
                         <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
                           <Clock className="w-3.5 h-3.5 text-gray-500" />

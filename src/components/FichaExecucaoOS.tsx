@@ -221,32 +221,32 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // 2. Instruções / Procedimentos da OS
   const [instrucoesTexto, setInstrucoesTexto] = useState<string>(() => {
-    if (os.instrucoes && os.instrucoes.trim().length > 0) {
+    if (os?.instrucoes && os.instrucoes.trim().length > 0) {
       return os.instrucoes
     }
-    const matchingTemplate = (templates || []).find((t) => t?.tipo_servico === os.tipo_servico)
+    const matchingTemplate = (templates || []).find((t) => t?.tipo_servico === os?.tipo_servico)
     return matchingTemplate?.instrucoes || ''
   })
 
   // Status de execução em andamento (local ou salvo)
   const [osEmAndamento, setOsEmAndamento] = useState<boolean>(() => {
-    const checklistFeitos = (os.checklist || []).some((c) => c.concluido)
+    const checklistFeitos = (os?.checklist || []).some((c) => c?.concluido)
     return Boolean(
       checklistFeitos ||
-      (os.detalhes_execucao && os.detalhes_execucao.includes('[INÍCIO DO ATENDIMENTO]')),
+      (os?.detalhes_execucao && os.detalhes_execucao.includes('[INÍCIO DO ATENDIMENTO]')),
     )
   })
 
   // 3. Checklist
   const [checklist, setChecklist] = useState<OSChecklistItem[]>(() => {
-    if (os.checklist && os.checklist.length > 0) {
+    if (os?.checklist && os.checklist.length > 0) {
       return os.checklist
     }
-    return getDefaultChecklist(os.tipo_servico)
+    return getDefaultChecklist(os?.tipo_servico || 'Manutenção')
   })
 
   // 4. Fotos: fotos já salvas (nomes em PB) + novas fotos capturadas na sessão
-  const [fotosSalvas, setFotosSalvas] = useState<string[]>(os.fotos || [])
+  const [fotosSalvas, setFotosSalvas] = useState<string[]>(os?.fotos || [])
   const [novasFotos, setNovasFotos] = useState<{ file: File; previewUrl: string }[]>([])
 
   // 5. Detalhes da execução

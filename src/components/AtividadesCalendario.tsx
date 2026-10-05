@@ -109,6 +109,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   onOpenCliente,
   onAddAtividadeDia,
   onAtividadeUpdated,
+  onCardClickCustom,
 }) => {
   const { toast } = useToast()
 
