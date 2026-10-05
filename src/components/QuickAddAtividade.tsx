@@ -17,9 +17,10 @@ import {
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import {
-  SecaoCustosDeslocamentoAtividade,
-  type CustosDeslocamentoValues,
-} from './SecaoCustosDeslocamentoAtividade'
+  calcularCustosAtividade,
+  getConfiguracaoDeslocamento,
+  estimarDistanciaDelfosCliente,
+} from '@/lib/calculoDeslocamentoAtividades'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
@@ -84,7 +85,6 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
 
   // Montar lista de tipos customizados convertidos em TipoAtividadeDef
   const customDefs = useMemo(() => {
@@ -101,9 +101,6 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   // Troca de categoria (Etapa 1)
   const handleSelectCategoria = (catId: AtividadeCategoriaId) => {
     setSelectedCategoria(catId)
-    if (catId !== 'manutencao') {
-      setCustosValores(null)
-    }
     // Seleciona automaticamente o primeiro tipo da nova categoria
     const firstOfCat =
       ATIVIDADES_PADRAO.find((t) => t.categoria === catId) ||
@@ -247,6 +244,68 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
               ? 'anexo_g'
               : 'contato_ligacao'
 
+        // Defaults de custos/deslocamento para manter integridade downstream se for manutenção
+        let defaultsManutencao: {
+          valor_servico?: number
+          valor_por_placa?: number
+          qtd_modulos?: number
+          cobrar_deslocamento?: boolean
+          distancia_km?: number
+          valor_km?: number
+          custo_deslocamento?: number
+          custo_placas?: number
+          custo_total?: number
+        } = {}
+
+        if (selectedCategoria === 'manutencao') {
+          const usinaSel = usinas.find((u) => u.id === selectedUsinaId)
+          const modulos =
+            Number(usinaSel?.qtd_modulos) ||
+            usinas.reduce((acc, u) => acc + (Number(u.qtd_modulos) || 0), 0) ||
+            undefined
+          const valorServicoBase =
+            tipoConfig.valor_base !== undefined && tipoConfig.valor_base > 0
+              ? tipoConfig.valor_base
+              : 250
+          const valorPlaca =
+            tipoConfig.valor_por_placa !== undefined && tipoConfig.valor_por_placa > 0
+              ? tipoConfig.valor_por_placa
+              : undefined
+
+          const configDesloc = getConfiguracaoDeslocamento()
+          const enderecoUsina = usinaSel?.endereco || ''
+          const cidadeUsina = usinaSel?.cidade || usinas[0]?.cidade || ''
+          const estimativa = estimarDistanciaDelfosCliente(
+            enderecoUsina || cidadeUsina,
+            cidadeUsina,
+            usinaSel?.coordenadas,
+          )
+          const distanciaKm = estimativa.distanciaKm || 15
+          const valorKm = configDesloc.valorKmPadrao || 1.2
+
+          const calc = calcularCustosAtividade({
+            valorServico: valorServicoBase,
+            valorPorPlaca: valorPlaca,
+            qtdModulos: modulos,
+            cobrarDeslocamento: true,
+            distanciaKm,
+            valorKm,
+            cobrarIdaEVolta: true,
+          })
+
+          defaultsManutencao = {
+            valor_servico: valorServicoBase,
+            valor_por_placa: valorPlaca,
+            qtd_modulos: modulos,
+            cobrar_deslocamento: true,
+            distancia_km: distanciaKm,
+            valor_km: valorKm,
+            custo_deslocamento: calc.custoDeslocamento,
+            custo_placas: calc.custoPlacas,
+            custo_total: calc.custoTotal,
+          }
+        }
+
         await addAtividade({
           cliente_id: clienteId,
           tipo: tipoDb as import('@/types/crm').AtividadeTipo,
@@ -258,20 +317,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           responsavel_nome: responsavelNome,
           status: 'pendente',
           usina_id: selectedUsinaId || undefined,
-          // Custos e deslocamento (apenas quando aplicável à categoria manutenção)
-          valor_servico:
-            selectedCategoria === 'manutencao' ? custosValores?.valorServico : undefined,
-          valor_por_placa:
-            selectedCategoria === 'manutencao' ? custosValores?.valorPorPlaca : undefined,
-          qtd_modulos: selectedCategoria === 'manutencao' ? custosValores?.qtdModulos : undefined,
-          cobrar_deslocamento:
-            selectedCategoria === 'manutencao' ? custosValores?.cobrarDeslocamento : undefined,
-          distancia_km: selectedCategoria === 'manutencao' ? custosValores?.distanciaKm : undefined,
-          valor_km: selectedCategoria === 'manutencao' ? custosValores?.valorKm : undefined,
-          custo_deslocamento:
-            selectedCategoria === 'manutencao' ? custosValores?.custoDeslocamento : undefined,
-          custo_placas: selectedCategoria === 'manutencao' ? custosValores?.custoPlacas : undefined,
-          custo_total: selectedCategoria === 'manutencao' ? custosValores?.custoTotal : undefined,
+          ...defaultsManutencao,
         })
         setDescricao('')
       }
@@ -586,19 +632,6 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                   ))}
                 </select>
               </div>
-            )}
-
-            {/* Seção de Custos e Deslocamento para Atividades (apenas em manutenções e fora de administrativo/comercial) */}
-            {selectedCategoria === 'manutencao' && (
-              <SecaoCustosDeslocamentoAtividade
-                usinaSelecionada={usinas.find((u) => u.id === selectedUsinaId)}
-                usinasDoCliente={usinas}
-                valorBaseSugerido={currentTipoConfig.valor_base}
-                valorPorPlacaSugerido={currentTipoConfig.valor_por_placa}
-                categoria={selectedCategoria}
-                onChange={setCustosValores}
-                modoCompacto={true}
-              />
             )}
 
             {/* Descrição Detalhada - Opcional */}

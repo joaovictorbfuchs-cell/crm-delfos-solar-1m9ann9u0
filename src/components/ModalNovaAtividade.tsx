@@ -23,9 +23,10 @@ import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { fetchUsinasByClienteId } from '@/services/crmService'
 import { formatarDataParaDDMMAAAA, sincronizarFilhasNovas } from '@/services/autoLeituraService'
 import {
-  SecaoCustosDeslocamentoAtividade,
-  type CustosDeslocamentoValues,
-} from './SecaoCustosDeslocamentoAtividade'
+  calcularCustosAtividade,
+  getConfiguracaoDeslocamento,
+  estimarDistanciaDelfosCliente,
+} from '@/lib/calculoDeslocamentoAtividades'
 import {
   CATEGORIAS_ATIVIDADES,
   ATIVIDADES_PADRAO,
@@ -123,9 +124,6 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [formSuccess, setFormSuccess] = useState(false)
   const [isModalSolicitarContasOpen, setIsModalSolicitarContasOpen] = useState(false)
   const [isModalAnaliseFaturaOpen, setIsModalAnaliseFaturaOpen] = useState(false)
-
-  // Valores de custo e deslocamento
-  const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
   const [responsavelAvisoBloqueio, setResponsavelAvisoBloqueio] = useState<string | null>(null)
 
   // Usuários válidos cadastrados no projeto (apenas com id real de PocketBase)
@@ -389,6 +387,68 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       const responsavelIdLimpo =
         responsavelId && responsavelId.trim() ? responsavelId.trim() : undefined
 
+      // Defaults de custos/deslocamento para manter integridade downstream se for manutenção
+      let defaultsManutencao: {
+        valor_servico?: number
+        valor_por_placa?: number
+        qtd_modulos?: number
+        cobrar_deslocamento?: boolean
+        distancia_km?: number
+        valor_km?: number
+        custo_deslocamento?: number
+        custo_placas?: number
+        custo_total?: number
+      } = {}
+
+      if (selectedCategoria === 'manutencao') {
+        const usinaSel = usinasDoCliente.find((u) => u.id === selectedUsinaId)
+        const clienteSel = clientes.find((c) => c.id === clienteIdLimpo)
+        const modulos =
+          Number(usinaSel?.qtd_modulos) ||
+          usinasDoCliente.reduce((acc, u) => acc + (Number(u.qtd_modulos) || 0), 0) ||
+          undefined
+        const valorServicoBase =
+          conf.valor_base !== undefined && conf.valor_base > 0 ? conf.valor_base : 250
+        const valorPlaca =
+          conf.valor_por_placa !== undefined && conf.valor_por_placa > 0
+            ? conf.valor_por_placa
+            : undefined
+
+        const configDesloc = getConfiguracaoDeslocamento()
+        const enderecoClienteOuUsina = clienteSel?.endereco || usinaSel?.endereco || ''
+        const cidadeClienteOuUsina =
+          clienteSel?.cidade || usinaSel?.cidade || usinasDoCliente[0]?.cidade || ''
+        const estimativa = estimarDistanciaDelfosCliente(
+          enderecoClienteOuUsina || cidadeClienteOuUsina,
+          cidadeClienteOuUsina,
+          usinaSel?.coordenadas,
+        )
+        const distanciaKm = estimativa.distanciaKm || 15
+        const valorKm = configDesloc.valorKmPadrao || 1.2
+
+        const calc = calcularCustosAtividade({
+          valorServico: valorServicoBase,
+          valorPorPlaca: valorPlaca,
+          qtdModulos: modulos,
+          cobrarDeslocamento: true,
+          distanciaKm,
+          valorKm,
+          cobrarIdaEVolta: true,
+        })
+
+        defaultsManutencao = {
+          valor_servico: valorServicoBase,
+          valor_por_placa: valorPlaca,
+          qtd_modulos: modulos,
+          cobrar_deslocamento: true,
+          distancia_km: distanciaKm,
+          valor_km: valorKm,
+          custo_deslocamento: calc.custoDeslocamento,
+          custo_placas: calc.custoPlacas,
+          custo_total: calc.custoTotal,
+        }
+      }
+
       const atividadePrincipalPayload: any = {
         cliente_id: clienteIdLimpo,
         tipo: selectedTipo,
@@ -401,16 +461,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         autor: user?.name || 'João Delfos',
         usina_id: usinaIdLimpa,
         numero_uc: (numeroUcAutoLeitura && numeroUcAutoLeitura.trim()) || undefined,
-        // Campos de custo e deslocamento
-        valor_servico: custosValores?.valorServico ?? undefined,
-        valor_por_placa: custosValores?.valorPorPlaca ?? undefined,
-        qtd_modulos: custosValores?.qtdModulos ?? undefined,
-        cobrar_deslocamento: custosValores?.cobrarDeslocamento ?? undefined,
-        distancia_km: custosValores?.distanciaKm ?? undefined,
-        valor_km: custosValores?.valorKm ?? undefined,
-        custo_deslocamento: custosValores?.custoDeslocamento ?? undefined,
-        custo_placas: custosValores?.custoPlacas ?? undefined,
-        custo_total: custosValores?.custoTotal ?? undefined,
+        ...defaultsManutencao,
       }
 
       if (selectedTipo === 'auto_leitura_rge') {
@@ -732,20 +783,6 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
             />
           </div>
-
-          {/* Seção de Custos e Deslocamento apenas para Atividades de Manutenção (O&M e Limpeza) */}
-          {clienteId && selectedCategoria === 'manutencao' && (
-            <SecaoCustosDeslocamentoAtividade
-              enderecoCliente={clientes.find((c) => c.id === clienteId)?.endereco}
-              cidadeCliente={clientes.find((c) => c.id === clienteId)?.cidade}
-              usinaSelecionada={usinasDoCliente.find((u) => u.id === selectedUsinaId)}
-              usinasDoCliente={usinasDoCliente}
-              valorBaseSugerido={configAtual.valor_base}
-              valorPorPlacaSugerido={configAtual.valor_por_placa}
-              categoria={selectedCategoria}
-              onChange={setCustosValores}
-            />
-          )}
 
           {/* Descrição Detalhada (OPCIONAL) */}
           <div className="space-y-1">
