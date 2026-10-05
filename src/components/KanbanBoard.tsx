@@ -772,14 +772,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           </button>
                         )}
                       </div>
-                      {card.titulo && card.titulo !== card.nomeCliente && (
-                        <div
-                          className="text-[11px] text-slate-600 break-words font-medium mt-0.5"
-                          title={`Negócio: ${card.titulo}`}
-                        >
-                          {card.titulo}
-                        </div>
-                      )}
                       <div className="mt-1 flex items-center gap-1.5 min-w-0 flex-wrap">
                         {(() => {
                           const badgeInfo = getTipoVendaBadgeInfo(card.tipoVenda)
@@ -898,14 +890,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           </span>
                         )}
                       </div>
-                      {card.titulo && card.titulo !== card.nomeCliente && (
-                        <span
-                          className="text-[11px] text-slate-600 break-words font-medium mt-0.5"
-                          title={`Negócio: ${card.titulo}`}
-                        >
-                          {card.titulo}
-                        </span>
-                      )}
                     </div>
 
                     <div
