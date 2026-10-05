@@ -152,12 +152,21 @@ export default function Comercial() {
     }
 
     // Filtro por Estado (abertos, ganhos, perdidos)
-    if (filtroEstado === 'abertos') {
-      lista = lista.filter((n) => n.status !== 'ganho' && n.status !== 'perdido')
-    } else if (filtroEstado === 'ganhos') {
-      lista = lista.filter((n) => n.status === 'ganho')
-    } else if (filtroEstado === 'perdidos') {
-      lista = lista.filter((n) => n.status === 'perdido')
+    // No modo Kanban, todas as 6 colunas (incluindo Fechado e Perdido) são exibidas no funil
+    if (viewMode === 'kanban') {
+      if (filtroEstado === 'ganhos') {
+        lista = lista.filter((n) => n.status === 'ganho')
+      } else if (filtroEstado === 'perdidos') {
+        lista = lista.filter((n) => n.status === 'perdido')
+      }
+    } else {
+      if (filtroEstado === 'abertos') {
+        lista = lista.filter((n) => n.status !== 'ganho' && n.status !== 'perdido')
+      } else if (filtroEstado === 'ganhos') {
+        lista = lista.filter((n) => n.status === 'ganho')
+      } else if (filtroEstado === 'perdidos') {
+        lista = lista.filter((n) => n.status === 'perdido')
+      }
     }
 
     // Ordenação
@@ -187,12 +196,20 @@ export default function Comercial() {
     }
 
     // Filtro por Estado
-    if (filtroEstado === 'abertos') {
-      lista = lista.filter((c) => c.status !== 'Fechado' && c.status !== 'Perdido')
-    } else if (filtroEstado === 'ganhos') {
-      lista = lista.filter((c) => c.status === 'Fechado')
-    } else if (filtroEstado === 'perdidos') {
-      lista = lista.filter((c) => c.status === 'Perdido')
+    if (viewMode === 'kanban') {
+      if (filtroEstado === 'ganhos') {
+        lista = lista.filter((c) => c.status === 'Fechado')
+      } else if (filtroEstado === 'perdidos') {
+        lista = lista.filter((c) => c.status === 'Perdido')
+      }
+    } else {
+      if (filtroEstado === 'abertos') {
+        lista = lista.filter((c) => c.status !== 'Fechado' && c.status !== 'Perdido')
+      } else if (filtroEstado === 'ganhos') {
+        lista = lista.filter((c) => c.status === 'Fechado')
+      } else if (filtroEstado === 'perdidos') {
+        lista = lista.filter((c) => c.status === 'Perdido')
+      }
     }
 
     // Ordenação
@@ -304,7 +321,11 @@ export default function Comercial() {
         )}
 
       {/* Action Bar & Container Estilo Pipedrive */}
-      <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-5 shadow-xs space-y-4">
+      <div
+        className={`bg-white rounded-xl border border-gray-200/80 shadow-xs space-y-4 ${
+          viewMode === 'kanban' ? 'p-2 sm:p-3 -mx-2 sm:-mx-4 lg:-mx-6' : 'p-3 sm:p-5'
+        }`}
+      >
         {/* Barra de Ações Superior Pipedrive */}
         <ComercialActionBar
           viewMode={viewMode}

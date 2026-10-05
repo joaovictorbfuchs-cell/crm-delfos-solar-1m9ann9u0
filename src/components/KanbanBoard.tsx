@@ -117,7 +117,7 @@ export interface KanbanColumnDef {
 export const KANBAN_COLUMNS: KanbanColumnDef[] = [
   {
     id: 'Novo Lead',
-    title: '1 - Novo Lead',
+    title: '1 - Lead',
     colorClass: 'text-slate-700',
     borderTopClass: 'border-t-slate-500',
     icon: FUNIL_ETAPAS_CONFIG['Novo Lead'].icon,
@@ -125,7 +125,7 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
   },
   {
     id: 'Levantamento',
-    title: '2 - Levantamento',
+    title: '2 - Orçamento Enviado',
     colorClass: 'text-sky-700',
     borderTopClass: 'border-t-sky-500',
     icon: FUNIL_ETAPAS_CONFIG['Levantamento'].icon,
@@ -133,7 +133,7 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
   },
   {
     id: 'Orçamento',
-    title: '3 - Proposta Enviada',
+    title: '3 - Proposta',
     colorClass: 'text-indigo-700',
     borderTopClass: 'border-t-indigo-500',
     icon: FUNIL_ETAPAS_CONFIG['Orçamento'].icon,
@@ -148,12 +148,20 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
     iconColorClass: FUNIL_ETAPAS_CONFIG['Negociação'].iconColorClass,
   },
   {
-    id: 'Contato Futuro',
-    title: '5 - Contato Futuro',
-    colorClass: 'text-gray-700',
-    borderTopClass: 'border-t-gray-400',
-    icon: FUNIL_ETAPAS_CONFIG['Contato Futuro'].icon,
-    iconColorClass: FUNIL_ETAPAS_CONFIG['Contato Futuro'].iconColorClass,
+    id: 'Fechado',
+    title: '5 - Fechado',
+    colorClass: 'text-emerald-700',
+    borderTopClass: 'border-t-emerald-500',
+    icon: CheckCircle2,
+    iconColorClass: 'text-emerald-600',
+  },
+  {
+    id: 'Perdido',
+    title: '6 - Perdido',
+    colorClass: 'text-rose-700',
+    borderTopClass: 'border-t-rose-500',
+    icon: XCircle,
+    iconColorClass: 'text-rose-600',
   },
 ]
 
@@ -234,7 +242,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       return negociosProp
         .filter((n) => {
           if (!n || !n.id) return false
-          if (n.status === 'ganho' || n.status === 'perdido') return false
           const cli = n.expand?.cliente_id
           if (cli && (cli.arquivado || cli.transferido_pos_vendas)) return false
           return true
@@ -242,7 +249,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         .map((n) => {
           const cli = n.expand?.cliente_id
           const etapa = n.etapa_funil || 'novo lead'
-          const baseStatus = ETAPA_NEGOCIO_TO_STATUS[etapa] || 'Novo Lead'
+          let baseStatus: ClienteStatus = ETAPA_NEGOCIO_TO_STATUS[etapa] || 'Novo Lead'
+          if (n.status === 'ganho') {
+            baseStatus = 'Fechado'
+          } else if (n.status === 'perdido') {
+            baseStatus = 'Perdido'
+          }
           const statusKanban = optimisticStatusMap[n.id] ?? baseStatus
           const nomeCliente = (cli?.nome || cli?.razao_social || 'Cliente vinculado').trim()
           const rawTitulo = (n.titulo || '').trim() || nomeCliente
@@ -287,14 +299,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
 
     return (Array.isArray(clientesProp) ? clientesProp : [])
-      .filter(
-        (c) =>
-          Boolean(c) &&
-          c.status !== 'Fechado' &&
-          (c.status as string) !== 'Perdido' &&
-          !c.arquivado &&
-          !c.transferido_pos_vendas,
-      )
+      .filter((c) => Boolean(c) && !c.arquivado && !c.transferido_pos_vendas)
       .map((c) => ({
         id: String(c.id || ''),
         clienteId: String(c.id || ''),
@@ -431,10 +436,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     try {
       if (targetCard.negocioId) {
         // Grava no PocketBase em segundo plano sem disparar loading de tela cheia
-        const novaEtapa = STATUS_TO_ETAPA_NEGOCIO[targetStatus] || 'novo lead'
-        await updateNegocio(targetCard.negocioId, {
-          etapa_funil: novaEtapa,
-        })
+        if (targetStatus === 'Fechado') {
+          await updateNegocio(targetCard.negocioId, {
+            status: 'ganho',
+            etapa_funil: 'contrato assinado',
+            data_fechamento: new Date().toISOString(),
+          })
+        } else if (targetStatus === 'Perdido') {
+          await updateNegocio(targetCard.negocioId, {
+            status: 'perdido',
+          })
+        } else {
+          const novaEtapa = STATUS_TO_ETAPA_NEGOCIO[targetStatus] || 'novo lead'
+          await updateNegocio(targetCard.negocioId, {
+            status: 'em andamento',
+            etapa_funil: novaEtapa,
+          })
+        }
         toast({
           title: 'Etapa atualizada',
           description: `"${targetCard.titulo}" movido para ${targetStatus}.`,
@@ -637,7 +655,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onDragOver={(e) => handleDragOver(e, col.id)}
         onDragLeave={(e) => handleDragLeave(e, col.id)}
         onDrop={(e) => handleDrop(e, col.id)}
-        className={`min-w-0 w-full rounded-xl p-3 border-t-[5px] ${
+        className={`min-w-0 w-full rounded-xl px-2 py-2.5 sm:px-2.5 sm:py-3 border-t-[5px] ${
           col.borderTopClass
         } shadow-xs flex flex-col transition-all duration-150 ${
           isOver
@@ -725,17 +743,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                     onClick={() => handleCardClick(card)}
-                    className={`bg-white rounded-xl p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 flex items-center justify-between gap-2.5 ${
+                    className={`bg-white rounded-xl p-2.5 sm:p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden w-full min-w-0 flex items-center justify-between gap-2 ${
                       isDraggingThis
                         ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
                         : 'border-slate-200/90 shadow-2xs hover:shadow-xs active:bg-gray-50'
                     }`}
                   >
                     {/* Título principal: Nome do cliente (em destaque); Subtítulo: título do negócio */}
-                    <div className="flex-1 min-w-0 pr-1">
-                      <div className="flex items-center gap-1">
+                    <div className="flex-1 min-w-0 pr-0.5">
+                      <div className="flex items-start gap-1">
                         <div
-                          className="font-bold text-sm text-slate-900 truncate leading-snug flex-1"
+                          className="font-bold text-xs text-slate-900 leading-snug flex-1 break-words"
                           title={card.nomeCliente || card.titulo}
                         >
                           {card.nomeCliente || card.titulo}
@@ -837,7 +855,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onClick={() => handleCardClick(card)}
-                  className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
+                  className={`bg-white rounded-lg p-2.5 sm:p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden w-full min-w-0 ${
                     isReaberto ? 'border-l-4 border-l-amber-500' : ''
                   } ${
                     isDraggingThis
@@ -848,11 +866,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   }`}
                 >
                   {/* Linha 1: Título principal = Nome do cliente + Badge Cliente Ativo + Lápis Editar + Menu ⋮ */}
-                  <div className="flex items-start justify-between gap-1.5 min-w-0">
+                  <div className="flex items-start justify-between gap-1 min-w-0">
                     <div className="flex flex-col flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="flex items-start gap-1 min-w-0">
                         <div
-                          className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
+                          className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors min-w-0 leading-snug break-words flex-1"
                           title={card.nomeCliente || card.titulo}
                         >
                           {card.nomeCliente || card.titulo}
@@ -1223,9 +1241,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         <MobileKanbanViewport stages={mobileStages} isDraggingCard={isTouchDragging} />
       </div>
 
-      {/* 2. VISUALIZAÇÃO DESKTOP / TABLET (inalterada: hidden md:block) */}
-      <div className="hidden md:block w-full overflow-x-auto">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start min-w-[720px]">
+      {/* 2. VISUALIZAÇÃO DESKTOP / TABLET: 6 colunas distribuídas por toda a largura */}
+      <div className="hidden md:block w-full">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
           {KANBAN_COLUMNS.map((col) => renderColumnContent(col, false))}
         </div>
       </div>
