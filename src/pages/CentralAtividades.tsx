@@ -716,6 +716,7 @@ export default function CentralAtividadesPage() {
           onToggleStatus={handleToggleStatusCalendario}
           onOpenCliente={openFichaCliente}
           onAddAtividadeDia={() => setModalNovaAtividadeOpen(true)}
+          onAtividadeUpdated={() => fetchData(true)}
         />
       ) : (
         <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-xs overflow-hidden">

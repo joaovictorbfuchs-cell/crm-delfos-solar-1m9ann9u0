@@ -1204,8 +1204,8 @@ export default function ExecucaoOS() {
                             onClick={(e) => {
                               e.stopPropagation()
                               setOsParaAtribuir(os)
-                              setSelectedInstaladorId(os.responsavel_usuario_id || '')
-                              setSelectedProfissionalId(os.profissional_id || '')
+                              setSelectedInstaladorId(os?.responsavel_usuario_id || '')
+                              setSelectedProfissionalId(os?.profissional_id || '')
                             }}
                             className="h-8 px-2.5 inline-flex items-center justify-center text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors shrink-0"
                           >

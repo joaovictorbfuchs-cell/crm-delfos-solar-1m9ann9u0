@@ -188,19 +188,19 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Se o item tem origem em 'atividades', estado dedicado para data/horário e responsável da atividade
   const isOrigemAtividades = os.origem === 'atividades'
   const [atividadeDataHora, setAtividadeDataHora] = useState<string>(() => {
-    if (!os.data_agendada) return ''
-    const raw = os.data_agendada
+    const raw = os?.data_agendada
+    if (!raw) return ''
     if (raw.length >= 16) {
       return raw.replace(' ', 'T').slice(0, 16)
     }
     return raw
   })
   const [atividadeResponsavelId, setAtividadeResponsavelId] = useState<string>(
-    os.responsavel_usuario_id || '',
+    os?.responsavel_usuario_id || '',
   )
   const [isSalvandoAtividade, setIsSalvandoAtividade] = useState(false)
 
-  const cliente: Cliente | undefined = os.expand?.cliente_id
+  const cliente: Cliente | undefined = os?.expand?.cliente_id
   const [usinaVinculada, setUsinaVinculada] = useState<UsinaCliente | null>(() => {
     return (os.expand?.usina_id as UsinaCliente) || null
   })
@@ -356,7 +356,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       onOSUpdated(updated)
       toast({
         title: 'Ordem de Serviço Reaberta! 🔄',
-        description: `OS #${os.id.slice(-6).toUpperCase()} retornou ao status Pendente.`,
+        description: `OS #${(os?.id || '').slice(-6).toUpperCase()} retornou ao status Pendente.`,
       })
     } catch (err) {
       console.error('Erro ao reabrir OS:', err)
@@ -533,7 +533,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       onOSUpdated(updated)
       toast({
         title: 'Atendimento Iniciado! ⏱️',
-        description: `OS #${os.id.slice(-6).toUpperCase()} marcada como em andamento às ${horaInicio}.`,
+        description: `OS #${(os?.id || '').slice(-6).toUpperCase()} marcada como em andamento às ${horaInicio}.`,
       })
     } catch (err) {
       console.error(err)
@@ -964,12 +964,12 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           {/* Linha 1: Tag OS + Data Agendada */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#4ade80] bg-white/10 px-2 py-0.5 rounded">
-              OS #{os.id.slice(-6).toUpperCase()} • {os.tipo_servico}
+              OS #{(os?.id || '').slice(-6).toUpperCase()} • {os?.tipo_servico || 'Serviço'}
             </span>
             <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-black/30 px-2 py-0.5 rounded">
               <Clock className="w-3 h-3 text-[#4ade80]" />
               <span>
-                Agendada: <strong>{formatDateTime(os.data_agendada)}</strong>
+                Agendada: <strong>{formatDateTime(os?.data_agendada)}</strong>
               </span>
             </div>
           </div>
@@ -1290,13 +1290,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 <div className="sm:col-span-2">
                   <input
                     type="date"
-                    value={atividadeDataHora ? atividadeDataHora.slice(0, 10) : ''}
+                    value={(() => {
+                      const base = atividadeDataHora || os?.data_agendada || ''
+                      return base && base.length >= 10 ? base.slice(0, 10) : ''
+                    })()}
                     onChange={(e) => {
                       const novaData = e.target.value
-                      const horaAtual =
-                        atividadeDataHora && atividadeDataHora.length >= 16
-                          ? atividadeDataHora.slice(11, 16)
-                          : '08:00'
+                      const base = atividadeDataHora || os?.data_agendada || ''
+                      const horaAtual = base && base.length >= 16 ? base.slice(11, 16) : '08:00'
                       if (novaData) {
                         setAtividadeDataHora(`${novaData}T${horaAtual}`)
                       }
@@ -1306,21 +1307,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <select
-                    value={
-                      atividadeDataHora && atividadeDataHora.length >= 13
-                        ? atividadeDataHora.slice(11, 13)
-                        : '08'
-                    }
+                    value={(() => {
+                      const base = atividadeDataHora || os?.data_agendada || ''
+                      return base && base.length >= 13 ? base.slice(11, 13) : '08'
+                    })()}
                     onChange={(e) => {
                       const novaHora = e.target.value.padStart(2, '0')
+                      const base = atividadeDataHora || os?.data_agendada || ''
                       const dataBase =
-                        atividadeDataHora && atividadeDataHora.length >= 10
-                          ? atividadeDataHora.slice(0, 10)
+                        base && base.length >= 10
+                          ? base.slice(0, 10)
                           : new Date().toISOString().slice(0, 10)
-                      const minutosAtuais =
-                        atividadeDataHora && atividadeDataHora.length >= 16
-                          ? atividadeDataHora.slice(14, 16)
-                          : '00'
+                      const minutosAtuais = base && base.length >= 16 ? base.slice(14, 16) : '00'
                       setAtividadeDataHora(`${dataBase}T${novaHora}:${minutosAtuais}`)
                     }}
                     className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
@@ -1333,26 +1331,24 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                     ))}
                   </select>
                   <select
-                    value={
-                      atividadeDataHora && atividadeDataHora.length >= 16
-                        ? (() => {
-                            const rawMin = parseInt(atividadeDataHora.slice(14, 16), 10) || 0
-                            const roundedMin = Math.round(rawMin / 5) * 5
-                            const boundedMin = roundedMin >= 60 ? 55 : roundedMin
-                            return String(boundedMin).padStart(2, '0')
-                          })()
-                        : '00'
-                    }
+                    value={(() => {
+                      const base = atividadeDataHora || os?.data_agendada || ''
+                      if (base && base.length >= 16) {
+                        const rawMin = parseInt(base.slice(14, 16), 10) || 0
+                        const roundedMin = Math.round(rawMin / 5) * 5
+                        const boundedMin = roundedMin >= 60 ? 55 : roundedMin
+                        return String(boundedMin).padStart(2, '0')
+                      }
+                      return '00'
+                    })()}
                     onChange={(e) => {
                       const novosMinutos = e.target.value
+                      const base = atividadeDataHora || os?.data_agendada || ''
                       const dataBase =
-                        atividadeDataHora && atividadeDataHora.length >= 10
-                          ? atividadeDataHora.slice(0, 10)
+                        base && base.length >= 10
+                          ? base.slice(0, 10)
                           : new Date().toISOString().slice(0, 10)
-                      const horaAtual =
-                        atividadeDataHora && atividadeDataHora.length >= 13
-                          ? atividadeDataHora.slice(11, 13)
-                          : '08'
+                      const horaAtual = base && base.length >= 13 ? base.slice(11, 13) : '08'
                       setAtividadeDataHora(`${dataBase}T${horaAtual}:${novosMinutos}`)
                     }}
                     className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
@@ -1798,7 +1794,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         isOpen={modalWhatsAppClienteAberto}
         onClose={() => setModalWhatsAppClienteAberto(false)}
         titulo="Enviar mensagem WhatsApp ao Cliente"
-        subtitulo={`Comunicação referente à OS #${os.id.slice(-6).toUpperCase()} (${os.tipo_servico}).`}
+        subtitulo={`Comunicação referente à OS #${(os?.id || '').slice(-6).toUpperCase()} (${os?.tipo_servico || 'Serviço'}).`}
         destinatarioNome={cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
         telefoneInicial={telefoneAutoritativoCliente}
         mensagemInicial={mensagemInicialCliente}
