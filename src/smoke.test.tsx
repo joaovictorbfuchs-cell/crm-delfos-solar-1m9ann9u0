@@ -181,6 +181,44 @@ describe('Login e App Smoke Tests', () => {
     expect(textContent).not.toContain('Ocorreu um problema ao carregar a página inicial do CRM')
     expect(textContent).not.toContain('Ops! Algo deu errado')
     expect(textContent).not.toContain('Erro inesperado na aplicação')
+    // Verifica que a visualização inicial do calendário e da aba estão presentes
+    expect(textContent).toContain('Calendário')
+  })
+
+  it('montagem REAL no DOM na rota "/servicos-campo" com perfil admin abre direto na aba Calendário e visão semana', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-admin-servicos', {
+      id: 'usr-admin-os',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Gestor Delfos',
+      email: 'gestao@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    window.history.pushState({}, 'Serviços de Campo', '/servicos-campo')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+
+    expect(container).not.toBeNull()
+    const textContent = container?.textContent || ''
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar Serviços de Campo')
+    expect(textContent).toContain('Calendário')
+    expect(textContent).toContain('Pendentes')
+    expect(textContent).toContain('Concluídas')
   })
 
   it('CardNegociosCliente renderiza os negócios com Briefcase e totais monetários', () => {

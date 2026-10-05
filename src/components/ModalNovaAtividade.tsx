@@ -1127,3 +1127,5 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     </div>
   )
 }
+
+export default ModalNovaAtividade

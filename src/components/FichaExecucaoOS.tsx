@@ -1868,3 +1868,5 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     </div>
   )
 }
+
+export default FichaExecucaoOS

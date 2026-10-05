@@ -399,3 +399,5 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
     </>
   )
 }
+
+export default BotaoEnviarOSWhatsApp

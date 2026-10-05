@@ -831,3 +831,5 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
     </div>
   )
 }
+
+export default RelatorioOSPrestador

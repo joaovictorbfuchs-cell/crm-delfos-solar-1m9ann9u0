@@ -1291,3 +1291,5 @@ export function CalendarioExecucaoOS({
     </div>
   )
 }
+
+export default CalendarioExecucaoOS
