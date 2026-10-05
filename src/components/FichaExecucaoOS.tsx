@@ -230,7 +230,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Status de execução em andamento (local ou salvo)
   const [osEmAndamento, setOsEmAndamento] = useState<boolean>(() => {
-    const checklistFeitos = (os?.checklist || []).some((c) => c?.concluido)
+    const checklistFeitos = (os?.checklist ?? []).some((c) => Boolean(c?.concluido))
     return Boolean(
       checklistFeitos ||
       (os?.detalhes_execucao && os.detalhes_execucao.includes('[INÍCIO DO ATENDIMENTO]')),
@@ -239,7 +239,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // 3. Checklist
   const [checklist, setChecklist] = useState<OSChecklistItem[]>(() => {
-    if (os?.checklist && os.checklist.length > 0) {
+    if (os?.checklist && Array.isArray(os.checklist) && os.checklist.length > 0) {
       return os.checklist
     }
     return getDefaultChecklist(os?.tipo_servico || 'Manutenção')
@@ -929,9 +929,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
-  // Indicador de progresso do checklist
-  const totalItens = checklist.length
-  const concluidosCount = checklist.filter((c) => c.concluido).length
+  // Indicador de progresso do checklist defensivo contra ErrorBoundary
+  const safeChecklist = os?.checklist ?? checklist ?? []
+  const totalItens = (checklist ?? []).length
+  const concluidosCount = (checklist ?? []).filter((c) => Boolean(c?.concluido)).length
   const progressoPct = totalItens > 0 ? Math.round((concluidosCount / totalItens) * 100) : 0
 
   return (

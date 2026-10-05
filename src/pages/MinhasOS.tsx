@@ -347,6 +347,7 @@ export default function MinhasOS() {
           <CalendarioExecucaoOS
             ordens={ordens}
             onSelectOS={(os) => setSelectedOS(os)}
+            onOSUpdated={handleOSUpdated}
             isInstalador={true}
             instaladorNome={currentUserName}
           />

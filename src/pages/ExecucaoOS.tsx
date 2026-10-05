@@ -998,6 +998,7 @@ export default function ExecucaoOS() {
           <CalendarioExecucaoOS
             ordens={ordens}
             onSelectOS={(os) => setSelectedOS(os)}
+            onOSUpdated={handleOSUpdated}
             isInstalador={isInstalador}
             instaladorNome={userProfile?.name}
           />
