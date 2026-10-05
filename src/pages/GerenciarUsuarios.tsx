@@ -357,7 +357,7 @@ export default function GerenciarUsuarios() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Top Banner */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#E5E7EB] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#E5E7EB] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[0rem]">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#166534] flex items-center justify-center shrink-0">
             <Users className="w-6 h-6" />
@@ -366,9 +366,6 @@ export default function GerenciarUsuarios() {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
               Gerenciar Usuários & Perfis
             </h2>
-            <p className="text-xs sm:text-sm text-gray-500">
-              Controle de acesso por papel: Administradores e Instaladores de campo
-            </p>
           </div>
         </div>
 
@@ -381,28 +378,16 @@ export default function GerenciarUsuarios() {
             <UserPlus className="w-4 h-4" />
             <span>Adicionar Novo Usuário</span>
           </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={carregarUsuarios}
-            disabled={isLoading}
-            className="h-11 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
-            title="Atualizar lista"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs">
+      <div className="grid-cols-2 sm:grid-cols-4 gap-3 shadow-[0px_0px_6px_0px_#808080] pt-[0px] inline-grid">
+        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs mt-[0px] pt-[0px]">
           <span className="text-xs font-semibold text-gray-500 block uppercase">
             Total Usuários
           </span>
           <span className="text-2xl font-black text-gray-900 mt-1 block">{counts.total}</span>
-          <span className="text-[11px] text-gray-400 mt-0.5 block">{counts.ativos} ativos</span>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-emerald-200 shadow-2xs bg-emerald-50/30">
@@ -411,7 +396,6 @@ export default function GerenciarUsuarios() {
             Administradores
           </span>
           <span className="text-2xl font-black text-emerald-900 mt-1 block">{counts.admins}</span>
-          <span className="text-[11px] text-emerald-600 mt-0.5 block">Acesso completo ao CRM</span>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-blue-200 shadow-2xs bg-blue-50/30">
@@ -422,9 +406,6 @@ export default function GerenciarUsuarios() {
           <span className="text-2xl font-black text-blue-900 mt-1 block">
             {counts.instaladores}
           </span>
-          <span className="text-[11px] text-blue-600 mt-0.5 block">
-            Acesso apenas à Execução OS
-          </span>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs">
@@ -433,7 +414,6 @@ export default function GerenciarUsuarios() {
             Desativados
           </span>
           <span className="text-2xl font-black text-rose-700 mt-1 block">{counts.inativos}</span>
-          <span className="text-[11px] text-gray-400 mt-0.5 block">Login bloqueado</span>
         </div>
       </div>
 
