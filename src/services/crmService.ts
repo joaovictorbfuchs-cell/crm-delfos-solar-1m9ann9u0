@@ -3201,6 +3201,9 @@ export async function updateTipoAtividadeCustom(
 
   const payload: Record<string, any> = { ...data }
   delete payload.documento_modelo
+  if (data.checklist !== undefined) {
+    payload.checklist = data.checklist
+  }
 
   const record = await pb
     .collection('tipos_atividades_custom')

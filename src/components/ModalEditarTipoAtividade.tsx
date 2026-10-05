@@ -11,7 +11,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CATEGORIAS_ATIVIDADES, type TipoAtividadeDef } from '@/constants/atividadesTipos'
+import {
+  CATEGORIAS_ATIVIDADES,
+  ATIVIDADES_PADRAO,
+  type TipoAtividadeDef,
+} from '@/constants/atividadesTipos'
 import { toast } from 'sonner'
 import { useClientes } from '@/contexts/ClientesContext'
 import type {
@@ -106,6 +110,244 @@ export const CORES_PALETA = [
   { hex: '#475569', nome: 'Cinza Ardósia' },
 ]
 
+/**
+ * Retorna os itens de checklist padrão de referência para uma atividade padrão do sistema
+ * caso ela ainda não tenha sido customizada ou salva no banco com checklist próprio.
+ */
+export function obterChecklistPadraoPorAtividade(
+  titulo?: string,
+  id?: string,
+): TipoAtividadeChecklistItem[] {
+  const t = (titulo || '').toLowerCase()
+  const i = (id || '').toLowerCase()
+
+  // 1. Limpeza e Manutenção (lavagem de placas solares)
+  // Atenção: nunca usar termos genéricos como "placas" ou "manutenção" sozinhos aqui,
+  // pois atinge atividades como "manutenção corretiva", "vistoria pós granizo", etc.
+  if (
+    t.includes('limpeza') ||
+    t.includes('lavagem') ||
+    i.includes('limpeza') ||
+    i.includes('lavagem')
+  ) {
+    return [
+      {
+        id: 'chk_limp_1',
+        texto: 'Chegou no local da usina e realizou análise de segurança',
+        concluido: false,
+      },
+      {
+        id: 'chk_limp_2',
+        texto: 'Verificou estado físico das placas, trincas e grau de sujidade',
+        concluido: false,
+      },
+      {
+        id: 'chk_limp_3',
+        texto: 'Limpou módulos com água desmineralizada e escova macia anti-risco',
+        concluido: false,
+      },
+      {
+        id: 'chk_limp_4',
+        texto: 'Verificou integridade dos conectores MC4 e fixadores da estrutura',
+        concluido: false,
+      },
+      {
+        id: 'chk_limp_5',
+        texto: 'Verificou status e conexões do inversor/stringbox',
+        concluido: false,
+      },
+      {
+        id: 'chk_limp_6',
+        texto: 'Testou geração instantânea e sincronismo com a rede',
+        concluido: false,
+      },
+    ]
+  }
+
+  // 2. Instalação
+  if (t.includes('instalação') || t.includes('instalacao') || i.includes('instalacao')) {
+    return [
+      {
+        id: 'chk_inst_1',
+        texto: 'Conferiu lista de materiais, equipamentos e projeto executivo',
+        concluido: false,
+      },
+      {
+        id: 'chk_inst_2',
+        texto: 'Fixou suportes e perfis na estrutura do telhado com vedação adequada',
+        concluido: false,
+      },
+      {
+        id: 'chk_inst_3',
+        texto: 'Instalou módulos com alinhamento e torque correto',
+        concluido: false,
+      },
+      {
+        id: 'chk_inst_4',
+        texto: 'Conectou inversor, stringbox, proteções CC/CA e aterramento',
+        concluido: false,
+      },
+      {
+        id: 'chk_inst_5',
+        texto: 'Testou parâmetros elétricos (Voc, Isc), comissionamento e funcionamento',
+        concluido: false,
+      },
+    ]
+  }
+
+  // 3. Manutenção Preventiva / Revisão
+  if (t.includes('preventiva') || t.includes('revisão') || t.includes('revisao')) {
+    return [
+      {
+        id: 'chk_prev_1',
+        texto: 'Inspeção visual geral da usina, telhado e cabeamento solar',
+        concluido: false,
+      },
+      {
+        id: 'chk_prev_2',
+        texto: 'Inspeção termográfica em módulos, conexões e quadros elétricos',
+        concluido: false,
+      },
+      {
+        id: 'chk_prev_3',
+        texto: 'Reaperto de bornes e parafusos com chave dinamométrica / torquímetro',
+        concluido: false,
+      },
+      {
+        id: 'chk_prev_4',
+        texto: 'Limpeza de filtros e dissipadores do inversor',
+        concluido: false,
+      },
+      {
+        id: 'chk_prev_5',
+        texto: 'Medição de resistência de isolamento e continuidade do aterramento',
+        concluido: false,
+      },
+    ]
+  }
+
+  // 4. Manutenção Corretiva
+  if (t.includes('corretiva')) {
+    return [
+      {
+        id: 'chk_corr_1',
+        texto: 'Desligar lados CC e CA e aguardar descarga capacitiva de segurança',
+        concluido: false,
+      },
+      {
+        id: 'chk_corr_2',
+        texto: 'Aferir ausência de tensão com multímetro categoria CAT III/IV',
+        concluido: false,
+      },
+      {
+        id: 'chk_corr_3',
+        texto: 'Diagnosticar falha e registrar códigos de erro/alarmes do equipamento',
+        concluido: false,
+      },
+      {
+        id: 'chk_corr_4',
+        texto: 'Realizar substituição ou reparo dos componentes avariados',
+        concluido: false,
+      },
+      {
+        id: 'chk_corr_5',
+        texto: 'Religar sistema e validar retorno pleno da operação',
+        concluido: false,
+      },
+    ]
+  }
+
+  // 5. Configuração Datalogger
+  if (t.includes('datalogger') || i.includes('datalogger')) {
+    return [
+      {
+        id: 'chk_data_1',
+        texto: 'Conectou datalogger na porta de comunicação do inversor',
+        concluido: false,
+      },
+      {
+        id: 'chk_data_2',
+        texto: 'Acessou rede local do datalogger via celular / app de setup',
+        concluido: false,
+      },
+      {
+        id: 'chk_data_3',
+        texto: 'Configurou credenciais da rede Wi-Fi 2.4GHz do cliente',
+        concluido: false,
+      },
+      {
+        id: 'chk_data_4',
+        texto: 'Registrou planta e serial no portal de monitoramento',
+        concluido: false,
+      },
+      {
+        id: 'chk_data_5',
+        texto: 'Validou fluxo de dados e geração visível no app',
+        concluido: false,
+      },
+    ]
+  }
+
+  // 6. Garantia de Equipamento
+  if (t.includes('garantia') || i.includes('garantia')) {
+    return [
+      {
+        id: 'chk_gar_1',
+        texto: 'Fotografou plaqueta do equipamento e número de série (SN)',
+        concluido: false,
+      },
+      {
+        id: 'chk_gar_2',
+        texto: 'Registrou códigos de falhas e alarmes ativos no display/app',
+        concluido: false,
+      },
+      {
+        id: 'chk_gar_3',
+        texto: 'Aferiu tensão Voc e corrente Isc de entrada CC',
+        concluido: false,
+      },
+      {
+        id: 'chk_gar_4',
+        texto: 'Aferiu tensão e frequência de saída CA da rede',
+        concluido: false,
+      },
+      {
+        id: 'chk_gar_5',
+        texto: 'Preencheu laudo técnico fotográfico para abertura de RMA',
+        concluido: false,
+      },
+    ]
+  }
+
+  // 7. Auto Leitura RGE
+  if (t.includes('auto leitura') || t.includes('leitura') || i.includes('leitura')) {
+    return [
+      {
+        id: 'chk_leit_1',
+        texto: 'Conferir código do medidor bidirecional da distribuidora',
+        concluido: false,
+      },
+      {
+        id: 'chk_leit_2',
+        texto: 'Registrar leitura de consumo ativo (código 03)',
+        concluido: false,
+      },
+      {
+        id: 'chk_leit_3',
+        texto: 'Registrar leitura de energia injetada excedente (código 103)',
+        concluido: false,
+      },
+      {
+        id: 'chk_leit_4',
+        texto: 'Fotografar display do medidor com data e hora nítidas',
+        concluido: false,
+      },
+    ]
+  }
+
+  return []
+}
+
 export interface AtividadeParaEdicao {
   // Se for um item de tipos_atividades_custom existente
   customItem?: TipoAtividadeCustomItem
@@ -130,8 +372,15 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   tipoItem,
   onSuccess,
 }) => {
+  const {
+    updateTipoAtividadeCustom,
+    addTipoAtividadeCustom,
+    refreshTiposAtividadesCustom,
+    tiposAtividadesCustom,
+  } = useClientes()
+
   // Unifica suporte a tipoItem ou atividadeParaEditar/padraoParaEditar
-  const atividadeParaEditar =
+  let atividadeParaEditar =
     atividadeParaEditarProp ||
     (tipoItem && 'id' in tipoItem && !('tituloPadrao' in tipoItem)
       ? (tipoItem as TipoAtividadeCustomItem)
@@ -139,8 +388,30 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   const padraoParaEditar =
     padraoParaEditarProp ||
     (tipoItem && 'tituloPadrao' in tipoItem ? (tipoItem as TipoAtividadeDef) : null)
-  const { updateTipoAtividadeCustom, addTipoAtividadeCustom, refreshTiposAtividadesCustom } =
-    useClientes()
+
+  // Se recebemos padraoParaEditar sem atividadeParaEditar, tentamos localizar registro existente em tiposAtividadesCustom
+  if (!atividadeParaEditar && padraoParaEditar && tiposAtividadesCustom) {
+    const nomePadraoLower = (padraoParaEditar.tituloPadrao || '').trim().toLowerCase()
+    const match = tiposAtividadesCustom.find((t) => {
+      const nomeCustomLower = (t.nome || '').trim().toLowerCase()
+      if (t.categoria !== padraoParaEditar.categoria) return false
+      if (nomeCustomLower === nomePadraoLower) return true
+      if (
+        ((nomePadraoLower.includes('limpeza') || nomePadraoLower.includes('lavagem')) &&
+          (nomeCustomLower.includes('limpeza') || nomeCustomLower.includes('lavagem'))) ||
+        (nomePadraoLower.includes('datalogger') && nomeCustomLower.includes('datalogger'))
+      ) {
+        return true
+      }
+      return false
+    })
+    if (match) {
+      atividadeParaEditar = match
+    }
+  }
+
+  // Prevenir que um registro customizado herdasse checklist de limpeza indevidamente
+  // se o customItem não tiver nada a ver com limpeza
 
   const [nome, setNome] = useState('')
   const [categoria, setCategoria] = useState<AtividadeCategoriaId>('comercial')
@@ -211,17 +482,47 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setSelectedFileName(atividadeParaEditar.documento_modelo || '')
       setAtivo(atividadeParaEditar.ativo !== false)
 
-      // Carregar checklist existente
-      if (Array.isArray(atividadeParaEditar.checklist)) {
+      // Carregar checklist existente ou fallback para padrão de referência se for atividade padrão
+      if (
+        Array.isArray(atividadeParaEditar.checklist) &&
+        atividadeParaEditar.checklist.length > 0
+      ) {
         setChecklistItems(
           atividadeParaEditar.checklist.map((c, i) => ({
             id: c.id || `chk_${Date.now()}_${i}`,
-            texto: c.texto || '',
+            texto: (c as any).texto || (c as any).item || '',
             concluido: Boolean(c.concluido),
           })),
         )
       } else {
-        setChecklistItems([])
+        // Se não houver checklist salvo no banco (array vazio ou null/undefined):
+        // Só carrega o checklist padrão de referência se a atividade for explicitamente padrão (is_padrao)
+        // E NÃO for uma atividade personalizada (atividades personalizadas cadastradas pelo usuário, mesmo contendo palavras-chave,
+        // NÃO devem herdar checklist de outra atividade a menos que o usuário cadastre).
+        // Além disso, se o usuário já limpou o checklist da atividade e ela salvou [] explicitamente no banco, respeitar vazio se não for padrão do sistema.
+        const ehPadrao =
+          atividadeParaEditar.is_padrao === true ||
+          Boolean(padraoParaEditar) ||
+          ATIVIDADES_PADRAO.some(
+            (ap) =>
+              ap.tituloPadrao.trim().toLowerCase() ===
+                (atividadeParaEditar?.nome || '').trim().toLowerCase() ||
+              (ap.categoria === (atividadeParaEditar?.categoria || padraoParaEditar?.categoria) &&
+                ((atividadeParaEditar?.nome || '').toLowerCase().includes('limpeza') ||
+                  (atividadeParaEditar?.nome || '').toLowerCase().includes('lavagem')) &&
+                (ap.tituloPadrao.toLowerCase().includes('limpeza') ||
+                  ap.tituloPadrao.toLowerCase().includes('lavagem'))),
+          )
+
+        if (ehPadrao) {
+          const checksPadrao = obterChecklistPadraoPorAtividade(
+            atividadeParaEditar.nome || padraoParaEditar?.tituloPadrao || '',
+            atividadeParaEditar.id || padraoParaEditar?.id || '',
+          )
+          setChecklistItems(checksPadrao)
+        } else {
+          setChecklistItems([])
+        }
       }
       setNovoItemChecklist('')
 
@@ -282,7 +583,13 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setTipoExecucao('equipe_interna')
       setOrientacoesTecnicas('')
       setLinksUteis('')
-      setChecklistItems([])
+
+      // Carregar checklist padrão se a atividade padrão tiver um checklist padrão de referência
+      const checksPadrao = obterChecklistPadraoPorAtividade(
+        padraoParaEditar.tituloPadrao,
+        padraoParaEditar.id,
+      )
+      setChecklistItems(checksPadrao)
       setNovoItemChecklist('')
       setListaLinksUteis([])
       setNovoLinkTitulo('')
@@ -310,7 +617,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setSelectedFileName('')
       setAtivo(true)
     }
-  }, [open, atividadeParaEditar, padraoParaEditar])
+  }, [open, atividadeParaEditar, padraoParaEditar, tiposAtividadesCustom])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -714,16 +1021,26 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                     key={item.id || idx}
                     className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-amber-200/80 text-xs shadow-2xs"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
                         {idx + 1}
                       </span>
-                      <span className="text-gray-800 font-medium truncate">{item.texto}</span>
+                      <Input
+                        value={item.texto}
+                        onChange={(e) => {
+                          const novoTexto = e.target.value
+                          setChecklistItems((prev) =>
+                            prev.map((it, i) => (i === idx ? { ...it, texto: novoTexto } : it)),
+                          )
+                        }}
+                        className="h-7 text-xs bg-transparent border-transparent hover:border-input focus:border-input focus:bg-white transition-colors text-gray-800 font-medium px-1.5"
+                        placeholder="Descrição do check..."
+                      />
                     </div>
                     <button
                       type="button"
                       onClick={() => setChecklistItems((prev) => prev.filter((_, i) => i !== idx))}
-                      className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0"
+                      className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer"
                       title="Remover item do checklist"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

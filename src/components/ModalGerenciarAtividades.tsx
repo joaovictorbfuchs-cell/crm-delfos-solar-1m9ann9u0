@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { ModalEditarTipoAtividade } from '@/components/ModalEditarTipoAtividade'
 import type { TipoAtividadeDef } from '@/constants/atividadesTipos'
-import type { TipoAtividadeCustomItem } from '@/types/crm'
+import type { TipoAtividadeCustomItem, TipoAtividadeChecklistItem } from '@/types/crm'
 
 interface ModalGerenciarAtividadesProps {
   open: boolean
@@ -47,6 +47,10 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
   const [novoNome, setNovoNome] = useState('')
   const [novaCategoria, setNovaCategoria] = useState<AtividadeCategoriaId>('comercial')
   const [novaDescricao, setNovaDescricao] = useState('')
+  const [novoValorBase, setNovoValorBase] = useState('')
+  const [novoValorPorPlaca, setNovoValorPorPlaca] = useState('')
+  const [novoChecklistItems, setNovoChecklistItems] = useState<TipoAtividadeChecklistItem[]>([])
+  const [novoChecklistInput, setNovoChecklistInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -55,27 +59,56 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
   const [isEditarOpen, setIsEditarOpen] = useState(false)
   const [customParaEditar, setCustomParaEditar] = useState<TipoAtividadeCustomItem | null>(null)
   const [padraoParaEditar, setPadraoParaEditar] = useState<TipoAtividadeDef | null>(null)
+  const [edicaoChave, setEdicaoChave] = useState<string>('')
+
+  // Ao abrir o modal ou mudar de aba/categoria, garante que o formulário de cadastro comece limpo
+  useEffect(() => {
+    if (open) {
+      setNovoChecklistItems([])
+      setNovoChecklistInput('')
+      setNovoNome('')
+      setNovaDescricao('')
+      setNovoValorBase('')
+      setNovoValorPorPlaca('')
+      setFormError(null)
+    }
+  }, [open, activeCategoryTab])
 
   const handleAbrirEdicaoCustom = (custom: TipoAtividadeCustomItem) => {
     setCustomParaEditar(custom)
     setPadraoParaEditar(null)
+    setEdicaoChave(`custom_${custom.id}_${Date.now()}`)
     setIsEditarOpen(true)
   }
 
   const handleAbrirEdicaoPadrao = (tipoPadrao: TipoAtividadeDef) => {
     // Verificar se já existe um registro correspondente em tiposAtividadesCustom com mesmo nome/categoria
-    const existenteNoBanco = tiposAtividadesCustom.find(
-      (t) =>
-        t.nome.toLowerCase() === tipoPadrao.tituloPadrao.toLowerCase() &&
-        t.categoria === tipoPadrao.categoria,
-    )
+    const nomePadraoLower = tipoPadrao.tituloPadrao.trim().toLowerCase()
+    const existenteNoBanco = tiposAtividadesCustom.find((t) => {
+      const nomeCustomLower = (t.nome || '').trim().toLowerCase()
+      if (t.categoria !== tipoPadrao.categoria) return false
+      if (nomeCustomLower === nomePadraoLower) return true
+      // Correspondência flexível para "Limpeza e Manutenção" vs variações cadastradas
+      if (
+        ((nomePadraoLower.includes('limpeza') || nomePadraoLower.includes('lavagem')) &&
+          (nomeCustomLower.includes('limpeza') || nomeCustomLower.includes('lavagem'))) ||
+        (nomePadraoLower.includes('datalogger') && nomeCustomLower.includes('datalogger'))
+      ) {
+        return true
+      }
+      return false
+    })
 
     if (existenteNoBanco) {
+      // Passamos AMBOS: o registro customizado do banco para obter ID e checklist salvo,
+      // e o padraoParaEditar para que o editor saiba que se trata de uma atividade padrão do sistema
       setCustomParaEditar(existenteNoBanco)
-      setPadraoParaEditar(null)
+      setPadraoParaEditar(tipoPadrao)
+      setEdicaoChave(`custom_padrao_${existenteNoBanco.id}_${Date.now()}`)
     } else {
       setCustomParaEditar(null)
       setPadraoParaEditar(tipoPadrao)
+      setEdicaoChave(`padrao_${tipoPadrao.id}_${Date.now()}`)
     }
     setIsEditarOpen(true)
   }
@@ -90,15 +123,27 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
     setFormError(null)
     setIsSubmitting(true)
     try {
+      const numValorBase = novoValorBase.trim() ? parseFloat(novoValorBase.replace(',', '.')) : 0
+      const numValorPorPlaca = novoValorPorPlaca.trim()
+        ? parseFloat(novoValorPorPlaca.replace(',', '.'))
+        : 0
+
       await addTipoAtividadeCustom({
         nome: novoNome.trim(),
         categoria: novaCategoria,
         descricao: novaDescricao.trim() || undefined,
+        valor_base: !isNaN(numValorBase) && numValorBase > 0 ? numValorBase : 0,
+        valor_por_placa: !isNaN(numValorPorPlaca) && numValorPorPlaca > 0 ? numValorPorPlaca : 0,
+        checklist: novoChecklistItems,
       })
       // Limpa o formulário e posiciona a aba ativa na categoria criada
       setActiveCategoryTab(novaCategoria)
       setNovoNome('')
       setNovaDescricao('')
+      setNovoValorBase('')
+      setNovoValorPorPlaca('')
+      setNovoChecklistItems([])
+      setNovoChecklistInput('')
     } catch (err: unknown) {
       console.error('Erro ao cadastrar novo tipo de atividade:', err)
       setFormError(
@@ -185,7 +230,11 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                   <select
                     id="categoria-tipo"
                     value={novaCategoria}
-                    onChange={(e) => setNovaCategoria(e.target.value as AtividadeCategoriaId)}
+                    onChange={(e) => {
+                      const nova = e.target.value as AtividadeCategoriaId
+                      setNovaCategoria(nova)
+                      setActiveCategoryTab(nova)
+                    }}
                     className="w-full text-xs h-9 rounded-md border border-input bg-white px-3 py-1 text-gray-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
                   >
                     {CATEGORIAS_ATIVIDADES.map((cat) => (
@@ -194,6 +243,38 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="sm:col-span-6 space-y-1">
+                  <Label htmlFor="valor-base-tipo" className="text-xs font-medium text-gray-700">
+                    Preço Base Sugerido (R$)
+                  </Label>
+                  <Input
+                    id="valor-base-tipo"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Ex: 250,00"
+                    value={novoValorBase}
+                    onChange={(e) => setNovoValorBase(e.target.value)}
+                    className="text-xs bg-white"
+                  />
+                </div>
+
+                <div className="sm:col-span-6 space-y-1">
+                  <Label htmlFor="valor-placa-tipo" className="text-xs font-medium text-gray-700">
+                    Valor por Placa (R$, opcional)
+                  </Label>
+                  <Input
+                    id="valor-placa-tipo"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Ex: 12,50"
+                    value={novoValorPorPlaca}
+                    onChange={(e) => setNovoValorPorPlaca(e.target.value)}
+                    className="text-xs bg-white"
+                  />
                 </div>
 
                 <div className="sm:col-span-12 space-y-1">
@@ -207,6 +288,93 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                     onChange={(e) => setNovaDescricao(e.target.value)}
                     className="text-xs bg-white"
                   />
+                </div>
+
+                {/* Checklist inicial para novo tipo de atividade */}
+                <div className="sm:col-span-12 space-y-2 pt-1 border-t border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-gray-700">
+                      Checklist da Atividade ({novoChecklistItems.length} itens)
+                    </Label>
+                    <span className="text-[10px] text-gray-400">
+                      Inicie com checklist vazio ou adicione os checks necessários
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Adicionar item ao checklist (ex: Verificar aperto de bornes)..."
+                      value={novoChecklistInput}
+                      onChange={(e) => setNovoChecklistInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (novoChecklistInput.trim()) {
+                            setNovoChecklistItems((prev) => [
+                              ...prev,
+                              {
+                                id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                                texto: novoChecklistInput.trim(),
+                                concluido: false,
+                              },
+                            ])
+                            setNovoChecklistInput('')
+                          }
+                        }
+                      }}
+                      className="text-xs bg-white"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        if (novoChecklistInput.trim()) {
+                          setNovoChecklistItems((prev) => [
+                            ...prev,
+                            {
+                              id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                              texto: novoChecklistInput.trim(),
+                              concluido: false,
+                            },
+                          ])
+                          setNovoChecklistInput('')
+                        }
+                      }}
+                      disabled={!novoChecklistInput.trim()}
+                      className="h-8 px-3 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shrink-0 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Adicionar Check
+                    </Button>
+                  </div>
+
+                  {novoChecklistItems.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {novoChecklistItems.map((chk, idx) => (
+                        <div
+                          key={chk.id || idx}
+                          className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-slate-200 text-xs shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <span className="text-gray-800 font-medium truncate">{chk.texto}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNovoChecklistItems((prev) => prev.filter((_, i) => i !== idx))
+                            }
+                            className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer"
+                            title="Remover check"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -483,8 +651,15 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
 
       {/* Modal de Edição de Atividades (Padrão ou Personalizadas) */}
       <ModalEditarTipoAtividade
+        key={edicaoChave || 'editor_tipo_atividade'}
         open={isEditarOpen}
-        onOpenChange={setIsEditarOpen}
+        onOpenChange={(openState) => {
+          setIsEditarOpen(openState)
+          if (!openState) {
+            setCustomParaEditar(null)
+            setPadraoParaEditar(null)
+          }
+        }}
         atividadeParaEditar={customParaEditar}
         padraoParaEditar={padraoParaEditar}
         onSuccess={onSuccess}
