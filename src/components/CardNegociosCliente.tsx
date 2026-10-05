@@ -859,7 +859,7 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
   const [dataPrevisao, setDataPrevisao] = useState<string>('')
   const [condicaoPagamento, setCondicaoPagamento] = useState<string>('')
   const { user } = useAuth()
-  const { usuarios } = useClientes()
+  const { usuarios, refreshData } = useClientes()
   const [consultorResponsavel, setConsultorResponsavel] = useState<string>(user?.id || '')
   const [reabertura, setReabertura] = useState<boolean>(false)
   const [motivoReabertura, setMotivoReabertura] = useState<string>('')
@@ -913,6 +913,10 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
         motivo_reabertura:
           reabertura && motivoReabertura.trim() ? motivoReabertura.trim() : undefined,
       })
+
+      if (refreshData) {
+        await refreshData()
+      }
 
       toast.success('Novo negócio criado com sucesso!')
       onCreated()

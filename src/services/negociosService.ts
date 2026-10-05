@@ -305,9 +305,72 @@ export async function createNegocio(data: CreateNegocioInput): Promise<Negocio> 
   // Se consultor_responsavel estiver vazio, faz expand apenas de cliente_id para evitar 400
   const expandQuery = consultor ? 'cliente_id,consultor_responsavel' : 'cliente_id'
 
-  return await pb.collection('negocios').create<Negocio>(payload, {
+  const createdNegocio = await pb.collection('negocios').create<Negocio>(payload, {
     expand: expandQuery,
   })
+
+  // Reativação automática do cliente vinculado (se estiver transferido para Pós-Vendas ou arquivado):
+  // Garante que o novo negócio apareça imediatamente no Funil Comercial (/comercial) em qualquer
+  // fluxo de criação (split button do funil, ficha do cliente, modal de lead ou api).
+  try {
+    await reativarClienteAoCriarNegocio(data.cliente_id.trim())
+  } catch (reativarErr) {
+    console.warn(
+      `[negociosService] Aviso ao tentar reativar cliente ${data.cliente_id} vinculado ao novo negócio:`,
+      reativarErr,
+    )
+  }
+
+  return createdNegocio
+}
+
+/**
+ * Reativa automaticamente um cliente se ele estiver transferido para Pós-Vendas ou arquivado,
+ * ou com status fora do funil ('Fechado' / 'Perdido').
+ *
+ * Operação 100% aditiva e transparente:
+ * - Limpa a marcação transferido_pos_vendas (false)
+ * - Limpa arquivado (false)
+ * - Define o status do cliente como 'Novo Lead' caso estivesse 'Fechado', 'Perdido' ou vazio.
+ * - Não lança exceção bloqueante se o cliente já estiver ativo no funil.
+ */
+export async function reativarClienteAoCriarNegocio(clienteId: string): Promise<boolean> {
+  if (!clienteId || typeof clienteId !== 'string') return false
+
+  try {
+    const cliente = await pb.collection('clientes').getOne<any>(clienteId, {
+      requestKey: null,
+    })
+
+    const precisaReativar =
+      Boolean(cliente?.transferido_pos_vendas) ||
+      Boolean(cliente?.arquivado) ||
+      cliente?.status === 'Fechado' ||
+      cliente?.status === 'Perdido'
+
+    if (!precisaReativar) {
+      return false
+    }
+
+    const payloadAtualizacao: Record<string, any> = {
+      transferido_pos_vendas: false,
+      arquivado: false,
+    }
+
+    // Se o cliente estava Fechado, Perdido ou sem status, restaura o status padrão de entrada no funil comercial
+    if (!cliente.status || cliente.status === 'Fechado' || cliente.status === 'Perdido') {
+      payloadAtualizacao.status = 'Novo Lead'
+    }
+
+    await pb.collection('clientes').update(clienteId, payloadAtualizacao, {
+      requestKey: null,
+    })
+
+    return true
+  } catch (err) {
+    console.warn(`[negociosService] Falha ao verificar/reativar cliente ${clienteId}:`, err)
+    return false
+  }
 }
 
 /**

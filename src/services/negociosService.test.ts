@@ -174,6 +174,63 @@ describe('createNegocio sanitização de payload', () => {
     expect(payload.valor).toBe(50000)
     expect(payload.probabilidade).toBe(75)
   })
+
+  it('reativa cliente automaticamente se transferido_pos_vendas, arquivado ou Fechado/Perdido ao criar negócio', async () => {
+    const { createNegocio, reativarClienteAoCriarNegocio } = await import('./negociosService')
+
+    const mockClienteInativo = {
+      id: 'cli-inativo',
+      nome: 'Rafael Teste',
+      status: 'Fechado',
+      transferido_pos_vendas: true,
+      arquivado: true,
+    }
+
+    const updateClienteMock = vi.fn().mockResolvedValue({
+      ...mockClienteInativo,
+      status: 'Novo Lead',
+      transferido_pos_vendas: false,
+      arquivado: false,
+    })
+
+    const getOneClienteMock = vi.fn().mockResolvedValue(mockClienteInativo)
+
+    const createNegocioMock = vi.fn().mockImplementation((payload) => {
+      return Promise.resolve({ id: 'neg-new-1', ...payload })
+    })
+
+    vi.spyOn(pb, 'collection').mockImplementation((col: string) => {
+      if (col === 'clientes') {
+        return {
+          getOne: getOneClienteMock,
+          update: updateClienteMock,
+        } as any
+      }
+      if (col === 'negocios') {
+        return {
+          create: createNegocioMock,
+        } as any
+      }
+      return {} as any
+    })
+
+    const result = await createNegocio({
+      cliente_id: 'cli-inativo',
+      titulo: 'Negócio - Rafael Teste',
+    })
+
+    expect(result.id).toBe('neg-new-1')
+    expect(getOneClienteMock).toHaveBeenCalledWith('cli-inativo', { requestKey: null })
+    expect(updateClienteMock).toHaveBeenCalledWith(
+      'cli-inativo',
+      {
+        transferido_pos_vendas: false,
+        arquivado: false,
+        status: 'Novo Lead',
+      },
+      { requestKey: null },
+    )
+  })
 })
 
 describe('executarVarreduraELimpezaNegocios', () => {

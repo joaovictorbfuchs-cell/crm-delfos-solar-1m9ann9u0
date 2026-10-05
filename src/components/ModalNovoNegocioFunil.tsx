@@ -268,8 +268,8 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
         description: `O negócio "${tituloFinal}" foi adicionado ao funil comercial.`,
       })
 
+      if (refreshData) await refreshData()
       if (onCreated) onCreated()
-      if (refreshData) refreshData()
       onOpenChange(false)
       resetForm()
     } catch (err: unknown) {

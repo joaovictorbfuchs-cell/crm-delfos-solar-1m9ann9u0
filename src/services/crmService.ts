@@ -4112,6 +4112,7 @@ export {
   ETAPAS_FUNIL_EM_ANDAMENTO,
   isNegocioDentroDoFunil,
   filtrarNegociosDentroDoFunil,
+  reativarClienteAoCriarNegocio,
 } from './negociosService'
 
 export const DEFAULT_SOLARVIEW_CONFIG = {
