@@ -3538,16 +3538,6 @@ export const FichaClienteDrawer: React.FC = () => {
             </div>
 
             {/* Card 6: Dica Pipedrive */}
-            <div className="bg-emerald-50/70 rounded-xl p-3 border border-emerald-200/80 text-xs text-emerald-900 space-y-1">
-              <div className="font-bold flex items-center gap-1 text-[11px]">
-                <Sparkles className="w-3 h-3 text-emerald-600" />
-                Histórico Pipedrive
-              </div>
-              <p className="text-[11px] text-emerald-800/90 leading-relaxed">
-                Todas as anotações, ligações, reuniões e mudanças de estágio estão unificadas em
-                ordem cronológica na timeline à esquerda.
-              </p>
-            </div>
 
             {/* Zona de Perigo / Excluir Cliente (Discreto para evitar cliques acidentais) */}
             <div className="pt-2 border-t border-gray-200/70">
