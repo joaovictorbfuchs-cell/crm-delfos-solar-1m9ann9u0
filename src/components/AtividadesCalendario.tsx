@@ -31,6 +31,7 @@ export interface AtividadesCalendarioProps {
   onOpenCliente: (clienteId: string) => void
   onAddAtividadeDia?: (date: Date) => void
   onAtividadeUpdated?: (updated: Atividade) => void
+  onCardClickCustom?: (atividade: Atividade) => void
 }
 
 export type CalendarViewMode = 'semana' | 'dia' | 'mes'
@@ -438,8 +439,8 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
 
     const horaFormatada = String(targetHora).padStart(2, '0')
     const minutoFormatado = String(minutos).padStart(2, '0')
-    // Monta datetime ISO no formato local (ou UTC compatível do PocketBase)
-    const novaDataIso = `${targetDateKey}T${horaFormatada}:${minutoFormatado}:00.000Z`
+    // Monta datetime no formato padrão PocketBase (YYYY-MM-DD HH:mm:00) com espaço, sem "T"
+    const novaDataIso = `${targetDateKey} ${horaFormatada}:${minutoFormatado}:00`
 
     // Atualização otimista
     setOverrides((prev) => ({
@@ -578,9 +579,13 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
     }
   }, [resizing, atividadesMescladas, toast, onAtividadeUpdated])
 
-  // Abertura do modal de edição da atividade
+  // Abertura do modal de edição da atividade ou callback customizado (ex: Serviços de Campo)
   const handleCardClick = (e: React.MouseEvent, atv: Atividade) => {
     e.stopPropagation()
+    if (onCardClickCustom) {
+      onCardClickCustom(atv)
+      return
+    }
     setModalAtividade(atv)
     setModalEditarOpen(true)
   }
@@ -844,7 +849,14 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               }}
                               title={`${atv.titulo || conf.tituloPadrao} (Clique para editar / arraste para a grade)`}
                             >
-                              <span className="truncate">{atv.titulo || conf.tituloPadrao}</span>
+                              <div className="flex items-center gap-1 truncate">
+                                {(atv as any).origem === 'atividades' && (
+                                  <span className="text-[8px] font-bold px-1 py-0.1 rounded bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                                    Atividade
+                                  </span>
+                                )}
+                                <span className="truncate">{atv.titulo || conf.tituloPadrao}</span>
+                              </div>
                               <span className="text-[9px] text-gray-400 shrink-0">Dia todo</span>
                             </div>
                           )
@@ -1090,9 +1102,17 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                                 </span>
                               </div>
                             )}
-                          </div>
 
-                          {/* Alça inferior de redimensionamento (resize handle) */}
+                            {/* Badge Atividade quando registro vier da coleção atividades em contextos mistos */}
+                            {(atv as any).origem === 'atividades' && (
+                              <div className="mt-0.5">
+                                <span className="text-[9px] font-semibold tracking-wide px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                  Atividade
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          {/* Alça inferior de redimensionamento (resize handle) */}{' '}
                           <div
                             onMouseDown={(e) => handleResizeStart(e, atv)}
                             className="w-full h-2 cursor-ns-resize flex items-center justify-center hover:bg-emerald-100 rounded-b transition-colors -mb-1 -mx-1"
@@ -1242,6 +1262,11 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             title={`${atv.titulo || conf.tituloPadrao} - ${atv.responsavel_nome || ''}`}
                           >
                             <Icon className="w-2.5 h-2.5 shrink-0" />
+                            {(atv as any).origem === 'atividades' && (
+                              <span className="text-[8px] font-bold px-0.5 rounded bg-blue-100/90 text-blue-800 shrink-0">
+                                Atv
+                              </span>
+                            )}
                             <span className="truncate">{atv.titulo || conf.tituloPadrao}</span>
                           </div>
                         )
@@ -1328,13 +1353,20 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               <Icon className="w-3.5 h-3.5" />
                             </div>
                             <div className="min-w-0">
-                              <h5
-                                className={`text-xs font-bold truncate group-hover:text-emerald-700 transition-colors ${
-                                  isConcluida ? 'text-gray-500 line-through' : 'text-gray-900'
-                                }`}
-                              >
-                                {atv.titulo || conf.tituloPadrao}
-                              </h5>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h5
+                                  className={`text-xs font-bold truncate group-hover:text-emerald-700 transition-colors ${
+                                    isConcluida ? 'text-gray-500 line-through' : 'text-gray-900'
+                                  }`}
+                                >
+                                  {atv.titulo || conf.tituloPadrao}
+                                </h5>
+                                {(atv as any).origem === 'atividades' && (
+                                  <span className="text-[9px] font-semibold tracking-wide px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                    Atividade
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
                                   <Clock className="w-2.5 h-2.5 text-gray-400" />

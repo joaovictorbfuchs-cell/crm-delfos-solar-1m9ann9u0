@@ -421,9 +421,9 @@ export default function MinhasOS() {
                   .filter(Boolean)
                   .join(' • ')
 
-                const checklistTotal = os.checklist?.length || 0
-                const checklistFeitos = os.checklist?.filter((c) => c.concluido).length || 0
-                const fotosQtd = os.fotos?.length || 0
+                const checklistTotal = (os?.checklist ?? []).length
+                const checklistFeitos = (os?.checklist ?? []).filter((c) => c?.concluido).length
+                const fotosQtd = (os?.fotos ?? []).length
                 const emAndamento =
                   checklistFeitos > 0 ||
                   (os.detalhes_execucao && os.detalhes_execucao.includes('[INÍCIO DO ATENDIMENTO]'))
@@ -560,7 +560,7 @@ export default function MinhasOS() {
               <AlertDialogDescription>
                 Deseja realmente excluir a{' '}
                 <strong className="text-gray-900 font-semibold">
-                  Ordem de Serviço #{osParaExcluir?.id.slice(0, 8)} —{' '}
+                  Ordem de Serviço #{(osParaExcluir?.id || '').slice(0, 8)} —{' '}
                   {osParaExcluir?.expand?.cliente_id?.nome ||
                     osParaExcluir?.expand?.cliente_id?.razao_social ||
                     osParaExcluir?.endereco ||

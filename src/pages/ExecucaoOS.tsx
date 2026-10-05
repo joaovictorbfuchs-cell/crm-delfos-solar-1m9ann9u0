@@ -87,9 +87,10 @@ export default function ExecucaoOS() {
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null)
 
   // Aba / Filtro na Lista: 'pendentes', 'calendario', 'concluidas' ou 'relatorio' (apenas admin)
+  // Padrão do usuário: abrir DIRETO na aba Calendário na visualização semanal
   const [activeTab, setActiveTab] = useState<
     'pendentes' | 'concluidas' | 'calendario' | 'relatorio'
-  >('pendentes')
+  >('calendario')
 
   // Filtros de busca, tipo, prestador e período
   const [searchTerm, setSearchTerm] = useState('')
@@ -420,25 +421,26 @@ export default function ExecucaoOS() {
       if (!os) return false
 
       // Filtro por tipo de serviço
-      if (selectedTipoFilter !== 'todos' && os.tipo_servico !== selectedTipoFilter) {
+      if (selectedTipoFilter !== 'todos' && (os?.tipo_servico || '') !== selectedTipoFilter) {
         return false
       }
 
       // Filtro por prestador (ignorado para instalador, pois a visão já é filtrada/atribuída a ele)
       if (!isInstalador && selectedPrestadorFilter !== 'todos') {
-        const prestadorOS = (os.atribuida_a || '').toLowerCase()
+        const prestadorOS = (os?.atribuida_a || '').toLowerCase()
         const target = (selectedPrestadorFilter || '').toLowerCase()
         if (
           !prestadorOS.includes(target) &&
-          os.responsavel_usuario_id !== selectedPrestadorFilter
+          os?.responsavel_usuario_id !== selectedPrestadorFilter
         ) {
           return false
         }
       }
 
       // Filtro por período agendado
-      if (selectedPeriodoFilter !== 'todos' && os.data_agendada) {
+      if (selectedPeriodoFilter !== 'todos' && os?.data_agendada) {
         const dataOS = new Date(os.data_agendada).getTime()
+        if (isNaN(dataOS)) return false
         if (selectedPeriodoFilter === 'hoje') {
           if (dataOS < inicioHoje || dataOS > fimHoje) return false
         } else if (selectedPeriodoFilter === 'semana') {
@@ -452,14 +454,14 @@ export default function ExecucaoOS() {
       if (searchTerm.trim()) {
         const query = searchTerm.trim().toLowerCase()
         const clienteNome = (
-          os.expand?.cliente_id?.nome ||
-          os.expand?.cliente_id?.razao_social ||
-          os.endereco ||
+          os?.expand?.cliente_id?.nome ||
+          os?.expand?.cliente_id?.razao_social ||
+          os?.endereco ||
           ''
         ).toLowerCase()
-        const endereco = (os.endereco || '').toLowerCase()
-        const atribuida = (os.atribuida_a || '').toLowerCase()
-        const tipo = (os.tipo_servico || '').toLowerCase()
+        const endereco = (os?.endereco || '').toLowerCase()
+        const atribuida = (os?.atribuida_a || '').toLowerCase()
+        const tipo = (os?.tipo_servico || '').toLowerCase()
 
         return (
           clienteNome.includes(query) ||
@@ -549,10 +551,10 @@ export default function ExecucaoOS() {
       } else {
         await deleteOrdemServico(osParaExcluir.id)
       }
-      setOrdens((prev) => prev.filter((o) => o.id !== osParaExcluir.id))
+      setOrdens((prev) => prev.filter((o) => o?.id !== osParaExcluir.id))
       toast({
         title: 'Serviço de campo excluído com sucesso',
-        description: `#${osParaExcluir.id.slice(0, 8)} foi removido(a).`,
+        description: `#${(osParaExcluir.id || '').slice(0, 8)} foi removido(a).`,
       })
       setOsParaExcluir(null)
     } catch (err) {
@@ -1086,9 +1088,9 @@ export default function ExecucaoOS() {
                   .filter(Boolean)
                   .join(' • ')
 
-                const checklistTotal = os.checklist?.length || 0
-                const checklistFeitos = os.checklist?.filter((c) => c.concluido).length || 0
-                const fotosQtd = os.fotos?.length || 0
+                const checklistTotal = (os?.checklist ?? []).length
+                const checklistFeitos = (os?.checklist ?? []).filter((c) => c?.concluido).length
+                const fotosQtd = (os?.fotos ?? []).length
 
                 return (
                   <div
@@ -1401,7 +1403,7 @@ export default function ExecucaoOS() {
               <AlertDialogDescription>
                 Deseja realmente excluir a{' '}
                 <strong className="text-gray-900 font-semibold">
-                  Ordem de Serviço #{osParaExcluir?.id.slice(0, 8)} —{' '}
+                  Ordem de Serviço #{(osParaExcluir?.id || '').slice(0, 8)} —{' '}
                   {osParaExcluir?.expand?.cliente_id?.nome ||
                     osParaExcluir?.expand?.cliente_id?.razao_social ||
                     osParaExcluir?.endereco ||

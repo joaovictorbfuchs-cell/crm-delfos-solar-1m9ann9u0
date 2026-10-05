@@ -150,7 +150,7 @@ export function CalendarioExecucaoOS({
   instaladorNome,
 }: CalendarioExecucaoOSProps) {
   const now = new Date()
-  const [viewMode, setViewMode] = useState<CalendarioOSViewMode>('mes')
+  const [viewMode, setViewMode] = useState<CalendarioOSViewMode>('semana')
   const [currentDate, setCurrentDate] = useState<Date>(
     new Date(now.getFullYear(), now.getMonth(), 1),
   )
@@ -1027,8 +1027,8 @@ export function CalendarioExecucaoOS({
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const checklistTotal = os.checklist?.length || 0
-                const checklistFeitos = os.checklist?.filter((c) => c.concluido).length || 0
+                const checklistTotal = (os?.checklist ?? []).length
+                const checklistFeitos = (os?.checklist ?? []).filter((c) => c?.concluido).length
 
                 return (
                   <div
@@ -1167,8 +1167,8 @@ export function CalendarioExecucaoOS({
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const checklistTotal = os.checklist?.length || 0
-                const checklistFeitos = os.checklist?.filter((c) => c.concluido).length || 0
+                const checklistTotal = (os?.checklist ?? []).length
+                const checklistFeitos = (os?.checklist ?? []).filter((c) => c?.concluido).length
 
                 return (
                   <div
