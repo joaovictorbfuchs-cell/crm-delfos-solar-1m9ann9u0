@@ -655,7 +655,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onDragOver={(e) => handleDragOver(e, col.id)}
         onDragLeave={(e) => handleDragLeave(e, col.id)}
         onDrop={(e) => handleDrop(e, col.id)}
-        className={`min-w-0 w-full rounded-xl px-2 py-2.5 sm:px-2.5 sm:py-3 border-t-[5px] ${
+        className={`min-w-0 w-full rounded-xl p-1.5 sm:p-2 border-t-[5px] ${
           col.borderTopClass
         } shadow-xs flex flex-col transition-all duration-150 ${
           isOver
@@ -699,7 +699,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
         {/* Cards List / Drop Zone */}
         <div
-          className={`space-y-2.5 flex-1 ${isMobile ? 'min-h-[260px]' : 'min-h-[320px]'} flex flex-col min-w-0`}
+          className={`space-y-2 flex-1 ${isMobile ? 'min-h-[260px]' : 'min-h-[320px]'} flex flex-col min-w-0 w-full`}
         >
           {colCards.length === 0 ? (
             <div
@@ -743,7 +743,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                     onClick={() => handleCardClick(card)}
-                    className={`bg-white rounded-xl p-2.5 sm:p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden w-full min-w-0 flex items-center justify-between gap-2 ${
+                    className={`bg-white rounded-xl p-2 sm:p-2.5 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden w-full min-w-0 flex items-center justify-between gap-2 ${
                       isDraggingThis
                         ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
                         : 'border-slate-200/90 shadow-2xs hover:shadow-xs active:bg-gray-50'
@@ -753,7 +753,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <div className="flex-1 min-w-0 pr-0.5">
                       <div className="flex items-start gap-1">
                         <div
-                          className="font-bold text-xs text-slate-900 leading-snug flex-1 break-words"
+                          className="font-bold text-[11px] text-slate-900 leading-snug flex-1 break-words whitespace-normal"
                           title={card.nomeCliente || card.titulo}
                         >
                           {card.nomeCliente || card.titulo}
@@ -774,7 +774,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </div>
                       {card.titulo && card.titulo !== card.nomeCliente && (
                         <div
-                          className="text-xs text-slate-600 truncate font-medium mt-0.5"
+                          className="text-[11px] text-slate-600 break-words font-medium mt-0.5"
                           title={`Negócio: ${card.titulo}`}
                         >
                           {card.titulo}
@@ -855,7 +855,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onClick={() => handleCardClick(card)}
-                  className={`bg-white rounded-lg p-2.5 sm:p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden w-full min-w-0 ${
+                  className={`bg-white rounded-lg p-2 sm:p-2.5 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden w-full min-w-0 ${
                     isReaberto ? 'border-l-4 border-l-amber-500' : ''
                   } ${
                     isDraggingThis
@@ -870,7 +870,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex items-start gap-1 min-w-0">
                         <div
-                          className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors min-w-0 leading-snug break-words flex-1"
+                          className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors min-w-0 leading-snug break-words whitespace-normal flex-1"
                           title={card.nomeCliente || card.titulo}
                         >
                           {card.nomeCliente || card.titulo}
@@ -900,7 +900,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </div>
                       {card.titulo && card.titulo !== card.nomeCliente && (
                         <span
-                          className="text-xs text-slate-600 truncate font-medium mt-0.5"
+                          className="text-[11px] text-slate-600 break-words font-medium mt-0.5"
                           title={`Negócio: ${card.titulo}`}
                         >
                           {card.titulo}
@@ -1243,7 +1243,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
       {/* 2. VISUALIZAÇÃO DESKTOP / TABLET: 6 colunas distribuídas por toda a largura */}
       <div className="hidden md:block w-full">
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-1.5 sm:gap-2 lg:gap-2.5 items-start w-full">
           {KANBAN_COLUMNS.map((col) => renderColumnContent(col, false))}
         </div>
       </div>

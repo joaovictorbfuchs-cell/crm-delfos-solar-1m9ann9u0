@@ -322,8 +322,10 @@ export default function Comercial() {
 
       {/* Action Bar & Container Estilo Pipedrive */}
       <div
-        className={`bg-white rounded-xl border border-gray-200/80 shadow-xs space-y-4 ${
-          viewMode === 'kanban' ? 'p-2 sm:p-3 -mx-2 sm:-mx-4 lg:-mx-6' : 'p-3 sm:p-5'
+        className={`bg-white rounded-xl border border-gray-200/80 shadow-xs space-y-4 w-full ${
+          viewMode === 'kanban'
+            ? 'p-2 sm:p-2.5 -mx-3 sm:-mx-6 lg:-mx-8 w-[calc(100%+1.5rem)] sm:w-[calc(100%+3rem)] lg:w-[calc(100%+4rem)] rounded-none sm:rounded-xl border-x-0 sm:border-x'
+            : 'p-3 sm:p-5'
         }`}
       >
         {/* Barra de Ações Superior Pipedrive */}
