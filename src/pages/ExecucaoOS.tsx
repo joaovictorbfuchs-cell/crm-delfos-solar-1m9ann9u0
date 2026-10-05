@@ -94,15 +94,15 @@ export default function ExecucaoOS() {
   const [selectedPrestadorFilter, setSelectedPrestadorFilter] = useState<string>('todos')
   const [selectedPeriodoFilter, setSelectedPeriodoFilter] = useState<string>('todos')
 
-  // Contagem de filtros ativos para badge no botão de filtro
+  // Contagem de filtros ativos para badge no botão de filtro (prestador oculto para instalador)
   const activeFiltersCount = useMemo(() => {
     let count = 0
     if (searchTerm.trim()) count++
     if (selectedTipoFilter !== 'todos') count++
-    if (selectedPrestadorFilter !== 'todos') count++
+    if (!isInstalador && selectedPrestadorFilter !== 'todos') count++
     if (selectedPeriodoFilter !== 'todos') count++
     return count
-  }, [searchTerm, selectedTipoFilter, selectedPrestadorFilter, selectedPeriodoFilter])
+  }, [searchTerm, selectedTipoFilter, selectedPrestadorFilter, selectedPeriodoFilter, isInstalador])
 
   const handleLimparFiltros = () => {
     setSearchTerm('')
@@ -235,13 +235,14 @@ export default function ExecucaoOS() {
         const ordensCombinadas = [...osReais, ...atividadesDeduplicadas]
 
         // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável
+        const safeUserName = (userProfile?.name || '').trim().toLowerCase()
         const ordensFinais =
           responsavelFiltro && !isAdmin
             ? ordensCombinadas.filter(
                 (o) =>
                   o.responsavel_usuario_id === responsavelFiltro ||
-                  (userProfile?.name &&
-                    o.atribuida_a?.toLowerCase().includes(userProfile.name.toLowerCase())),
+                  (safeUserName.length > 0 &&
+                    (o.atribuida_a || '').toLowerCase().includes(safeUserName)),
               )
             : ordensCombinadas
 
@@ -386,14 +387,14 @@ export default function ExecucaoOS() {
   // Lista de todos os nomes de prestadores para o dropdown
   const prestadoresOpcoes = useMemo(() => {
     const set = new Set<string>()
-    ordens.forEach((os) => {
-      if (os.atribuida_a) set.add(os.atribuida_a)
+    ;(ordens || []).forEach((os) => {
+      if (os?.atribuida_a) set.add(os.atribuida_a)
     })
-    instaladores.forEach((i) => {
-      if (i.name) set.add(i.name)
+    ;(instaladores || []).forEach((i) => {
+      if (i?.name) set.add(i.name)
     })
-    profissionais.forEach((p) => {
-      if (p.nome) set.add(p.nome)
+    ;(profissionais || []).forEach((p) => {
+      if (p?.nome) set.add(p.nome)
     })
     return Array.from(set).sort()
   }, [ordens, instaladores, profissionais])
@@ -420,10 +421,10 @@ export default function ExecucaoOS() {
         return false
       }
 
-      // Filtro por prestador
-      if (selectedPrestadorFilter !== 'todos') {
+      // Filtro por prestador (ignorado para instalador, pois a visão já é filtrada/atribuída a ele)
+      if (!isInstalador && selectedPrestadorFilter !== 'todos') {
         const prestadorOS = (os.atribuida_a || '').toLowerCase()
-        const target = selectedPrestadorFilter.toLowerCase()
+        const target = (selectedPrestadorFilter || '').toLowerCase()
         if (
           !prestadorOS.includes(target) &&
           os.responsavel_usuario_id !== selectedPrestadorFilter
@@ -432,7 +433,7 @@ export default function ExecucaoOS() {
         }
       }
 
-      // Filtro por período
+      // Filtro por período agendado
       if (selectedPeriodoFilter !== 'todos' && os.data_agendada) {
         const dataOS = new Date(os.data_agendada).getTime()
         if (selectedPeriodoFilter === 'hoje') {
@@ -444,9 +445,9 @@ export default function ExecucaoOS() {
         }
       }
 
-      // Busca por nome do cliente, endereço ou técnico
+      // Busca por nome do cliente, endereço, técnico ou tipo de atividade
       if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase()
+        const query = searchTerm.trim().toLowerCase()
         const clienteNome = (
           os.expand?.cliente_id?.nome ||
           os.expand?.cliente_id?.razao_social ||
@@ -472,6 +473,7 @@ export default function ExecucaoOS() {
     selectedPrestadorFilter,
     selectedPeriodoFilter,
     searchTerm,
+    isInstalador,
   ])
 
   // Ação de admin para visualizar o PDF do relatório (se não existir, gera na hora e salva no PocketBase)
@@ -858,14 +860,18 @@ export default function ExecucaoOS() {
               )}
             </div>
 
-            {/* Campo 1: Busca Livre (cliente, endereço, técnico) */}
+            {/* Campo 1: Busca Livre (cliente, tipo de atividade, endereço) */}
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                 <Input
                   type="text"
-                  placeholder="Nome do cliente, endereço..."
+                  placeholder={
+                    isInstalador
+                      ? 'Buscar por cliente ou tipo de atividade...'
+                      : 'Nome do cliente, endereço...'
+                  }
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
@@ -883,24 +889,26 @@ export default function ExecucaoOS() {
               </div>
             </div>
 
-            {/* Campo 2: Filtro por Prestador / Instalador */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                Prestador / Técnico
-              </label>
-              <select
-                value={selectedPrestadorFilter}
-                onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-              >
-                <option value="todos">Todos os Prestadores</option>
-                {prestadoresOpcoes.map((nome) => (
-                  <option key={nome} value={nome}>
-                    Prestador: {nome}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Campo 2: Filtro por Prestador / Instalador (OCULTO para instalador) */}
+            {!isInstalador && (
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Prestador / Técnico
+                </label>
+                <select
+                  value={selectedPrestadorFilter}
+                  onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
+                  className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+                >
+                  <option value="todos">Todos os Prestadores</option>
+                  {prestadoresOpcoes.map((nome) => (
+                    <option key={nome} value={nome}>
+                      Prestador: {nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Campo 3: Filtro por Tipo de Serviço */}
             <div>
@@ -993,7 +1001,7 @@ export default function ExecucaoOS() {
                     Busca: "{searchTerm}"
                   </span>
                 )}
-                {selectedPrestadorFilter !== 'todos' && (
+                {!isInstalador && selectedPrestadorFilter !== 'todos' && (
                   <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-[11px] font-medium text-emerald-800">
                     Prestador: {selectedPrestadorFilter}
                   </span>
@@ -1450,8 +1458,9 @@ export default function ExecucaoOS() {
                     const inst = instaladores.find((i) => i.id === id)
                     if (inst) {
                       // Tentar encontrar profissional com mesmo nome
+                      const safeInstName = (inst.name || '').trim().toLowerCase()
                       const matchProf = profissionais.find(
-                        (p) => p.nome.toLowerCase() === inst.name.toLowerCase(),
+                        (p) => (p.nome || '').trim().toLowerCase() === safeInstName,
                       )
                       if (matchProf) setSelectedProfissionalId(matchProf.id)
                     }

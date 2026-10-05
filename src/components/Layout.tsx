@@ -433,6 +433,20 @@ export default function Layout() {
               <span className="hidden xl:inline text-[11px]">Atualizar</span>
             </button>
 
+            {/* Botão Sair para Instalador (Desktop: imediatamente à direita de Atualizar) */}
+            {isInstalador && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                aria-label="Sair da conta"
+                title="Sair"
+                className="p-1.5 sm:px-2.5 sm:py-1.5 inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 text-red-600" />
+                <span>Sair</span>
+              </button>
+            )}
+
             {/* Botões do Topo para Admin (WhatsApp, Templates, Notificações) */}
             {isAdmin && (
               <>
@@ -490,8 +504,13 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Content Body: no mobile, header fixo tem h-14 (3.5rem / 56px); no desktop, header tem h-16 (top-0 sticky) e respiro compacto de ~12-14px */}
-        <main className="flex-1 px-3 sm:px-6 lg:px-8 pt-3 pb-6 overflow-y-auto max-lg:pt-[4.5rem] max-lg:pb-20">
+        {/* Content Body: no mobile, header fixo tem h-14 (3.5rem / 56px); no desktop, header tem h-16 (top-0 sticky) e respiro compacto de ~12-14px.
+            Para instalador, a barra inferior mobile foi removida, logo usa max-lg:pb-6 em vez de max-lg:pb-20 */}
+        <main
+          className={`flex-1 px-3 sm:px-6 lg:px-8 pt-3 pb-6 overflow-y-auto max-lg:pt-[4.5rem] ${
+            isInstalador ? 'max-lg:pb-6' : 'max-lg:pb-20'
+          }`}
+        >
           <Outlet />
         </main>
       </div>

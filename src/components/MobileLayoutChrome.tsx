@@ -546,96 +546,111 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
               </>
             )}
 
-          {/* Botão de recarregar para o Instalador */}
+          {/* Ações do topo para Instalador: Atualizar e Sair */}
           {isInstalador && (
-            <button
-              type="button"
-              onClick={handleMobileRefresh}
-              disabled={isRefreshingMobile}
-              aria-label="Atualizar dados"
-              title="Atualizar dados"
-              className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
-              />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleMobileRefresh}
+                disabled={isRefreshingMobile}
+                aria-label="Atualizar dados"
+                title="Atualizar dados"
+                className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={onLogout}
+                aria-label="Sair da conta"
+                title="Sair"
+                className="h-9 px-2.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 border border-red-200 text-red-600 hover:text-red-700 flex items-center gap-1 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5 text-red-600" />
+                <span>Sair</span>
+              </button>
+            </>
           )}
         </div>
       </header>
 
       {/* ============================================================== */}
       {/* 2. BOTTOM BAR SIMPLIFICADA (APENAS MOBILE: lg:hidden)          */}
-      {/* 5 abas: Comercial, Atividades, Clientes, Serviços de campo, Mais */}
+      {/* Oculta para Instalador (apenas 1 tela de operação);            */}
+      {/* Admin mantém as 5 abas normais: Comercial, Ativ, Cli, OS, Mais */}
       {/* ============================================================== */}
-      <nav
-        aria-label="Navegação inferior mobile"
-        className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200/90 z-30 px-1 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] select-none flex items-center justify-around"
-      >
-        {bottomBarTabs.map((tab) => {
-          const IconComponent = tab.icon
-          const isActive = tab.isActive
+      {!isInstalador && (
+        <nav
+          aria-label="Navegação inferior mobile"
+          className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200/90 z-30 px-1 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] select-none flex items-center justify-around"
+        >
+          {bottomBarTabs.map((tab) => {
+            const IconComponent = tab.icon
+            const isActive = tab.isActive
 
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => navigate(tab.path)}
-              aria-label={tab.label}
-              className={`flex-1 flex flex-col items-center justify-center py-1 px-1 h-full transition-all active:scale-95 cursor-pointer relative ${
-                isActive ? 'text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => navigate(tab.path)}
+                aria-label={tab.label}
+                className={`flex-1 flex flex-col items-center justify-center py-1 px-1 h-full transition-all active:scale-95 cursor-pointer relative ${
+                  isActive ? 'text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {/* Indicador superior fino de aba ativa */}
+                {isActive && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-emerald-600 rounded-b-full" />
+                )}
+                <div
+                  className={`p-1 rounded-xl transition-colors ${
+                    isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500'
+                  }`}
+                >
+                  <IconComponent className="w-5 h-5" />
+                </div>
+                <span
+                  className={`text-[10px] tracking-tight leading-tight truncate max-w-full mt-0.5 ${
+                    isActive ? 'font-bold text-emerald-700' : 'font-medium text-gray-500'
+                  }`}
+                >
+                  {tab.label}
+                </span>
+              </button>
+            )
+          })}
+
+          {/* 5ª aba: Mais (ou Menu) - abre drawer com navegações restantes */}
+          <button
+            type="button"
+            onClick={() => setMenuMaisOpen(true)}
+            aria-label="Mais opções e navegação completa"
+            className={`flex-1 flex flex-col items-center justify-center py-1 px-1 h-full transition-all active:scale-95 cursor-pointer relative ${
+              menuMaisOpen ? 'text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {menuMaisOpen && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-emerald-600 rounded-b-full" />
+            )}
+            <div
+              className={`p-1 rounded-xl transition-colors ${
+                menuMaisOpen ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500'
               }`}
             >
-              {/* Indicador superior fino de aba ativa */}
-              {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-emerald-600 rounded-b-full" />
-              )}
-              <div
-                className={`p-1 rounded-xl transition-colors ${
-                  isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500'
-                }`}
-              >
-                <IconComponent className="w-5 h-5" />
-              </div>
-              <span
-                className={`text-[10px] tracking-tight leading-tight truncate max-w-full mt-0.5 ${
-                  isActive ? 'font-bold text-emerald-700' : 'font-medium text-gray-500'
-                }`}
-              >
-                {tab.label}
-              </span>
-            </button>
-          )
-        })}
-
-        {/* 5ª aba: Mais (ou Menu) - abre drawer com navegações restantes */}
-        <button
-          type="button"
-          onClick={() => setMenuMaisOpen(true)}
-          aria-label="Mais opções e navegação completa"
-          className={`flex-1 flex flex-col items-center justify-center py-1 px-1 h-full transition-all active:scale-95 cursor-pointer relative ${
-            menuMaisOpen ? 'text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          {menuMaisOpen && (
-            <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-emerald-600 rounded-b-full" />
-          )}
-          <div
-            className={`p-1 rounded-xl transition-colors ${
-              menuMaisOpen ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500'
-            }`}
-          >
-            <MenuIcon className="w-5 h-5" />
-          </div>
-          <span
-            className={`text-[10px] tracking-tight leading-tight truncate max-w-full mt-0.5 ${
-              menuMaisOpen ? 'font-bold text-emerald-700' : 'font-medium text-gray-500'
-            }`}
-          >
-            Mais
-          </span>
-        </button>
-      </nav>
+              <MenuIcon className="w-5 h-5" />
+            </div>
+            <span
+              className={`text-[10px] tracking-tight leading-tight truncate max-w-full mt-0.5 ${
+                menuMaisOpen ? 'font-bold text-emerald-700' : 'font-medium text-gray-500'
+              }`}
+            >
+              Mais
+            </span>
+          </button>
+        </nav>
+      )}
 
       {/* ============================================================== */}
       {/* 3. DRAWER DO MENU "MAIS" COM TODAS AS NAVEGAÇÕES PRESERVADAS   */}

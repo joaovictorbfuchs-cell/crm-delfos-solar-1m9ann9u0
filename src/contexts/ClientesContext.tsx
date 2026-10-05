@@ -695,17 +695,29 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // ETAPA 1 (Prioridade Alta): Dados vitais para visualização imediata do CRM
       // (clientes, atividades, orcamentos_solar, usuarios, sistemas, manutencoes, profissionais, projetos, contratos_om)
+      // Envelopado defensivamente por coleção para que perfis com restrição de acesso
+      // (ex.: instalador sem permissão a orcamentos_solar, contratos_om ou projetos)
+      // não derrubem a inicialização nem gerem falso positivo de sessão expirada.
+      const safeFetch = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await fn()
+        } catch (fetchErr) {
+          console.warn('Carga defensiva suprimiu erro em entidade do CRM:', fetchErr)
+          return fallback
+        }
+      }
+
       const [cRes, aRes, orcRes, uRes, sRes, mRes, pRes, projRes, contRes] =
         await Promise.allSettled([
-          fetchClientes(),
-          fetchAtividades(),
-          fetchOrcamentosSolar(),
-          fetchUsuarios(),
-          fetchSistemas(),
-          fetchManutencoes(),
-          fetchProfissionais(),
-          fetchProjetos(),
-          fetchContratosOM(),
+          safeFetch(fetchClientes, [] as Cliente[]),
+          safeFetch(fetchAtividades, [] as Atividade[]),
+          safeFetch(fetchOrcamentosSolar, [] as OrcamentoSolar[]),
+          safeFetch(fetchUsuarios, [] as SistemaUsuario[]),
+          safeFetch(fetchSistemas, [] as Sistema[]),
+          safeFetch(fetchManutencoes, [] as Manutencao[]),
+          safeFetch(fetchProfissionais, [] as Profissional[]),
+          safeFetch(fetchProjetos, [] as Projeto[]),
+          safeFetch(fetchContratosOM, [] as ContratoOM[]),
         ])
 
       // Verificar se houve erro de sessão/autenticação nas requisições principais

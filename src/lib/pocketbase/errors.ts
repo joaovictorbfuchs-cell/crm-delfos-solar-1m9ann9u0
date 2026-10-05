@@ -25,5 +25,46 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+/**
+ * Identifica se um erro de requisição é de sessão inválida/expirada ou autorização (401/403).
+ * Suporta instâncias de ClientResponseError do PocketBase, erros com status/statusCode numérico
+ * ou mensagens que indiquem expiração de token / unauthorized.
+ */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const msg = (error.message || '').toLowerCase()
+    return (
+      msg.includes('token is expired') ||
+      msg.includes('invalid token') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden')
+    )
+  }
+
+  if (typeof error === 'object') {
+    const errObj = error as { status?: unknown; statusCode?: unknown; message?: unknown }
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('invalid token') ||
+        msg.includes('unauthorized') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('sessao expirada')
+      ) {
+        return true
+      }
+    }
+  }
+
+  return false
 }

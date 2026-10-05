@@ -146,6 +146,43 @@ describe('Login e App Smoke Tests', () => {
     expect(html).not.toContain('Ocorreu um problema ao carregar a página')
   })
 
+  it('montagem REAL no DOM na rota "/servicos-campo" com perfil instalador NÃO cai no ErrorBoundary', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-instalador', {
+      id: 'usr-inst-1',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Instalador Delfos',
+      email: 'delfos.usinas@gmail.com',
+      role: 'instalador',
+      ativo: true,
+    })
+
+    window.history.pushState({}, 'Serviços de Campo', '/servicos-campo')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+
+    // Verifica que não foi registrado erro no sessionStorage nem exibida tela de erro
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+
+    expect(container).not.toBeNull()
+    const textContent = container?.textContent || ''
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar Serviços de Campo')
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar a página inicial do CRM')
+    expect(textContent).not.toContain('Ops! Algo deu errado')
+    expect(textContent).not.toContain('Erro inesperado na aplicação')
+  })
+
   it('CardNegociosCliente renderiza os negócios com Briefcase e totais monetários', () => {
     const html = renderToStaticMarkup(
       React.createElement(CardNegociosCliente, {
