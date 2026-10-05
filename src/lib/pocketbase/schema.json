@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-05T13:28:18.239Z",
+  "generatedAt": "2026-10-05T13:57:38.345Z",
   "collections": [
     {
       "name": "users",
@@ -4902,6 +4902,12 @@
         {
           "name": "documentos_usina",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_atualizados",
+          "type": "bool",
           "required": false,
           "system": false
         }

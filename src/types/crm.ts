@@ -466,6 +466,9 @@ export interface UsinaCliente extends RecordModel {
   // Lista dinâmica de documentos anexados (aditivo)
   documentos_usina?: DocumentoUsinaItem[]
 
+  // Verificação e atualização cadastral dos dados da usina (aditivo)
+  dados_atualizados?: boolean
+
   created: string
   updated: string
   expand?: {
