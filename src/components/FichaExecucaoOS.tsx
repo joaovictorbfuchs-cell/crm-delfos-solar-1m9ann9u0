@@ -48,8 +48,12 @@ import {
   FileCode2,
   Wifi,
   Navigation,
+  Save,
+  Loader2,
 } from 'lucide-react'
 import { formatDateTime } from '@/lib/formatters'
+import { updateAtividade } from '@/services/crmService'
+import { isAuthSessionError } from '@/lib/pocketbase/errors'
 
 import { useAuth } from '@/contexts/AuthContext'
 import type { SistemaUsuario } from '@/types/crm'
@@ -180,6 +184,21 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Estado para admin reatribuir instalador direto na ficha
   const [responsavelId, setResponsavelId] = useState<string>(os.responsavel_usuario_id || '')
+
+  // Se o item tem origem em 'atividades', estado dedicado para data/horário e responsável da atividade
+  const isOrigemAtividades = os.origem === 'atividades'
+  const [atividadeDataHora, setAtividadeDataHora] = useState<string>(() => {
+    if (!os.data_agendada) return ''
+    const raw = os.data_agendada
+    if (raw.length >= 16) {
+      return raw.replace(' ', 'T').slice(0, 16)
+    }
+    return raw
+  })
+  const [atividadeResponsavelId, setAtividadeResponsavelId] = useState<string>(
+    os.responsavel_usuario_id || '',
+  )
+  const [isSalvandoAtividade, setIsSalvandoAtividade] = useState(false)
 
   const cliente: Cliente | undefined = os.expand?.cliente_id
   const [usinaVinculada, setUsinaVinculada] = useState<UsinaCliente | null>(() => {
@@ -783,6 +802,56 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return []
   }, [equipamentosUsina, usinaVinculada, cliente])
 
+  // Salvar alterações de horário e responsável diretamente pela tela da atividade
+  const handleSalvarAlteracoesAtividade = async () => {
+    if (!isOrigemAtividades) return
+    setIsSalvandoAtividade(true)
+    try {
+      const respObj = instaladores.find((i) => i.id === atividadeResponsavelId)
+      const dataFormatada = atividadeDataHora
+        ? atividadeDataHora.replace('T', ' ') + ':00'
+        : os.data_agendada
+
+      const payload: Record<string, any> = {
+        data: dataFormatada,
+        responsavel_id: atividadeResponsavelId || null,
+        responsavel_nome: respObj?.name || '',
+      }
+
+      const atualizado = await updateAtividade(os.id, payload)
+
+      const osAtualizada: OrdemServico = {
+        ...os,
+        data_agendada: atualizado.data || dataFormatada,
+        responsavel_usuario_id: atualizado.responsavel_id || atividadeResponsavelId || undefined,
+        atribuida_a: atualizado.responsavel_nome || respObj?.name || os.atribuida_a,
+      }
+
+      onOSUpdated(osAtualizada)
+      toast({
+        title: 'Atividade atualizada com sucesso',
+        description: 'Horário e responsável foram salvos com sucesso.',
+      })
+    } catch (err) {
+      console.error('Erro ao salvar alterações da atividade de manutenção:', err)
+      if (isAuthSessionError(err)) {
+        toast({
+          variant: 'destructive',
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou. Faça login novamente.',
+        })
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao salvar atividade',
+          description: 'Não foi possível salvar as alterações da atividade.',
+        })
+      }
+    } finally {
+      setIsSalvandoAtividade(false)
+    }
+  }
+
   // Finalizar OS com geração automática de Relatório em PDF
   const handleFinalizarOS = async () => {
     setIsSubmitting(true)
@@ -1194,6 +1263,163 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </div>
         </div>
       </div>
+
+      {/* PAINEL DE ALTERAÇÃO DIRETA DE HORÁRIO E RESPONSÁVEL (QUANDO ORIGEM É ATIVIDADES DE MANUTENÇÃO) */}
+      {isOrigemAtividades && (
+        <div className="bg-emerald-50/70 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2.5 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-xs sm:text-sm font-bold text-emerald-950">
+                Horário e Responsável da Atividade de Manutenção
+              </h3>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300/80">
+              Edição Rápida de Campo
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {/* Campo de Horário / Data Agendada com seletor de 5 em 5 minutos */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Horário / Data Agendada:</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2">
+                  <input
+                    type="date"
+                    value={atividadeDataHora ? atividadeDataHora.slice(0, 10) : ''}
+                    onChange={(e) => {
+                      const novaData = e.target.value
+                      const horaAtual =
+                        atividadeDataHora && atividadeDataHora.length >= 16
+                          ? atividadeDataHora.slice(11, 16)
+                          : '08:00'
+                      if (novaData) {
+                        setAtividadeDataHora(`${novaData}T${horaAtual}`)
+                      }
+                    }}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <select
+                    value={
+                      atividadeDataHora && atividadeDataHora.length >= 13
+                        ? atividadeDataHora.slice(11, 13)
+                        : '08'
+                    }
+                    onChange={(e) => {
+                      const novaHora = e.target.value.padStart(2, '0')
+                      const dataBase =
+                        atividadeDataHora && atividadeDataHora.length >= 10
+                          ? atividadeDataHora.slice(0, 10)
+                          : new Date().toISOString().slice(0, 10)
+                      const minutosAtuais =
+                        atividadeDataHora && atividadeDataHora.length >= 16
+                          ? atividadeDataHora.slice(14, 16)
+                          : '00'
+                      setAtividadeDataHora(`${dataBase}T${novaHora}:${minutosAtuais}`)
+                    }}
+                    className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                    title="Hora"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map((h) => (
+                      <option key={h} value={h}>
+                        {h}h
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={
+                      atividadeDataHora && atividadeDataHora.length >= 16
+                        ? (() => {
+                            const rawMin = parseInt(atividadeDataHora.slice(14, 16), 10) || 0
+                            const roundedMin = Math.round(rawMin / 5) * 5
+                            const boundedMin = roundedMin >= 60 ? 55 : roundedMin
+                            return String(boundedMin).padStart(2, '0')
+                          })()
+                        : '00'
+                    }
+                    onChange={(e) => {
+                      const novosMinutos = e.target.value
+                      const dataBase =
+                        atividadeDataHora && atividadeDataHora.length >= 10
+                          ? atividadeDataHora.slice(0, 10)
+                          : new Date().toISOString().slice(0, 10)
+                      const horaAtual =
+                        atividadeDataHora && atividadeDataHora.length >= 13
+                          ? atividadeDataHora.slice(11, 13)
+                          : '08'
+                      setAtividadeDataHora(`${dataBase}T${horaAtual}:${novosMinutos}`)
+                    }}
+                    className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                    title="Minutos (intervalos de 5 em 5 minutos: 00, 05, 10, ...)"
+                  >
+                    {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(
+                      (m) => (
+                        <option key={m} value={m}>
+                          {m}m
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Campo de Responsável */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Responsável da Atividade:</span>
+              </label>
+              <select
+                value={atividadeResponsavelId}
+                onChange={(e) => {
+                  setAtividadeResponsavelId(e.target.value)
+                  setResponsavelId(e.target.value)
+                }}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+              >
+                <option value="">-- Não atribuído --</option>
+                {instaladores.map((inst) => (
+                  <option key={inst.id} value={inst.id}>
+                    {inst.name} {inst.email ? `(${inst.email})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+            <p className="text-[11px] text-emerald-900/80">
+              As alterações são gravadas diretamente no registro desta atividade na Central e nos
+              Serviços de Campo.
+            </p>
+            <button
+              type="button"
+              onClick={handleSalvarAlteracoesAtividade}
+              disabled={isSalvandoAtividade}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer ml-auto"
+            >
+              {isSalvandoAtividade ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Salvar Alterações</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* DOCUMENTOS DA USINA (Consulta em Campo: Laudos, Projetos, Medições, Comprovantes e Fotos) */}
       {(os.usina_id || usinaVinculada?.id) && (

@@ -26,7 +26,9 @@ import {
   X,
   RotateCcw,
   Navigation,
+  Plus,
 } from 'lucide-react'
+import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -69,6 +71,7 @@ export default function ExecucaoOS() {
   const [selectedInstaladorId, setSelectedInstaladorId] = useState<string>('')
   const [selectedProfissionalId, setSelectedProfissionalId] = useState<string>('')
   const [isSavingAtribuicao, setIsSavingAtribuicao] = useState(false)
+  const [isModalNovaAtividadeOpen, setIsModalNovaAtividadeOpen] = useState(false)
 
   // Modal para admin enviar relatório de OS via WhatsApp
   const [osParaWhatsApp, setOsParaWhatsApp] = useState<OrdemServico | null>(null)
@@ -806,6 +809,17 @@ export default function ExecucaoOS() {
           )}
         </div>
 
+        {/* Botão Nova Atividade (manutenção) no mesmo estilo do botão da Central de Atividades */}
+        <button
+          type="button"
+          onClick={() => setIsModalNovaAtividadeOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+          title="Gerar nova atividade de manutenção para os serviços de campo"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Nova Atividade</span>
+        </button>
+
         {/* Botão com Ícone de Filtro (Funnel): abre Popover com todos os filtros */}
         <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
           <PopoverTrigger asChild>
@@ -1521,6 +1535,16 @@ export default function ExecucaoOS() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Modal de Criação de Nova Atividade (Apenas Manutenção nos Serviços de Campo) */}
+      {isModalNovaAtividadeOpen && (
+        <ModalNovaAtividade
+          isOpen={isModalNovaAtividadeOpen}
+          onClose={() => setIsModalNovaAtividadeOpen(false)}
+          onAtividadeCriada={() => carregarDados()}
+          apenasManutencao
+        />
       )}
     </div>
   )

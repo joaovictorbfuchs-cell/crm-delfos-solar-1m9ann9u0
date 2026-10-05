@@ -65,6 +65,8 @@ interface ModalNovaAtividadeProps {
   initialClienteId?: string | null
   initialUsinaId?: string | null
   usinas?: UsinaCliente[]
+  apenasManutencao?: boolean
+  onAtividadeCriada?: () => void
 }
 
 export interface ProgramarLeituraAnoLinha {
@@ -94,12 +96,20 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   initialClienteId,
   initialUsinaId,
   usinas: usinasProp,
+  apenasManutencao = false,
+  onAtividadeCriada,
 }) => {
   const { clientes, usuarios, addAtividade, tiposAtividadesCustom } = useClientes()
   const { user } = useAuth()
 
-  const [selectedCategoria, setSelectedCategoria] = useState<AtividadeCategoriaId>('comercial')
-  const [selectedTipo, setSelectedTipo] = useState<AtividadeTipo>(initialTipo || 'contato_ligacao')
+  const [selectedCategoria, setSelectedCategoria] = useState<AtividadeCategoriaId>(() => {
+    if (apenasManutencao) return 'manutencao'
+    return 'comercial'
+  })
+  const [selectedTipo, setSelectedTipo] = useState<AtividadeTipo>(() => {
+    if (apenasManutencao) return initialTipo || 'visita_tecnica'
+    return initialTipo || 'contato_ligacao'
+  })
   const [titulo, setTitulo] = useState('')
   const [clienteId, setClienteId] = useState(initialClienteId || '')
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>(usinasProp || [])
@@ -134,11 +144,19 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   // Quando abre ou muda o initialTipo, preenche automaticamente o título
   useEffect(() => {
     if (isOpen) {
-      const tipoParaUsar = initialTipo || 'contato_ligacao'
+      const tipoParaUsar = apenasManutencao
+        ? initialTipo || 'visita_tecnica'
+        : initialTipo || 'contato_ligacao'
       setSelectedTipo(tipoParaUsar)
-      const conf = getTipoAtividadeConfig(tipoParaUsar)
-      setSelectedCategoria(conf.categoria || 'comercial')
-      setTitulo(conf.tituloPadrao)
+      if (apenasManutencao) {
+        setSelectedCategoria('manutencao')
+        const conf = getTipoAtividadeConfig(tipoParaUsar)
+        setTitulo(conf.tituloPadrao)
+      } else {
+        const conf = getTipoAtividadeConfig(tipoParaUsar)
+        setSelectedCategoria(conf.categoria || 'comercial')
+        setTitulo(conf.tituloPadrao)
+      }
       if (initialClienteId) {
         setClienteId(initialClienteId)
       } else {
@@ -489,6 +507,13 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       }
 
       setFormSuccess(true)
+      if (onAtividadeCriada) {
+        try {
+          onAtividadeCriada()
+        } catch (callbackErr) {
+          console.warn('Erro no callback onAtividadeCriada:', callbackErr)
+        }
+      }
       setTimeout(() => {
         setFormSuccess(false)
         onClose()
@@ -592,15 +617,19 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               <div className="grid grid-cols-3 gap-1.5">
                 {CATEGORIAS_ATIVIDADES.map((cat) => {
                   const isCatSelected = selectedCategoria === cat.id
+                  const isDesabilitada = apenasManutencao && cat.id !== 'manutencao'
                   return (
                     <button
                       key={cat.id}
                       type="button"
-                      onClick={() => handleCategoriaChange(cat.id)}
+                      disabled={isDesabilitada}
+                      onClick={() => !isDesabilitada && handleCategoriaChange(cat.id)}
                       className={`px-2 py-1.5 rounded-lg text-xs font-semibold truncate transition-all border ${
                         isCatSelected
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                          : isDesabilitada
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-40 cursor-not-allowed'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
                       {cat.id === 'comercial'
@@ -775,13 +804,89 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               <Clock className="w-3.5 h-3.5 text-gray-400" />
               Data e Horário Previsto <span className="text-red-500">*</span>
             </label>
-            <input
-              type="datetime-local"
-              value={dataHora}
-              onChange={(e) => setDataHora(e.target.value)}
-              required
-              className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
-            />
+            {selectedCategoria === 'manutencao' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2">
+                  <input
+                    type="date"
+                    value={dataHora ? dataHora.slice(0, 10) : ''}
+                    onChange={(e) => {
+                      const novaData = e.target.value
+                      const horaAtual =
+                        dataHora && dataHora.length >= 16 ? dataHora.slice(11, 16) : '08:00'
+                      if (novaData) {
+                        setDataHora(`${novaData}T${horaAtual}`)
+                      }
+                    }}
+                    required
+                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <select
+                    value={dataHora && dataHora.length >= 13 ? dataHora.slice(11, 13) : '08'}
+                    onChange={(e) => {
+                      const novaHora = e.target.value.padStart(2, '0')
+                      const dataBase =
+                        dataHora && dataHora.length >= 10
+                          ? dataHora.slice(0, 10)
+                          : new Date().toISOString().slice(0, 10)
+                      const minutosAtuais =
+                        dataHora && dataHora.length >= 16 ? dataHora.slice(14, 16) : '00'
+                      setDataHora(`${dataBase}T${novaHora}:${minutosAtuais}`)
+                    }}
+                    className="w-full text-xs px-2 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono"
+                    title="Hora"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map((h) => (
+                      <option key={h} value={h}>
+                        {h}h
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={
+                      dataHora && dataHora.length >= 16
+                        ? (() => {
+                            const rawMin = parseInt(dataHora.slice(14, 16), 10) || 0
+                            const roundedMin = Math.round(rawMin / 5) * 5
+                            const boundedMin = roundedMin >= 60 ? 55 : roundedMin
+                            return String(boundedMin).padStart(2, '0')
+                          })()
+                        : '00'
+                    }
+                    onChange={(e) => {
+                      const novosMinutos = e.target.value
+                      const dataBase =
+                        dataHora && dataHora.length >= 10
+                          ? dataHora.slice(0, 10)
+                          : new Date().toISOString().slice(0, 10)
+                      const horaAtual =
+                        dataHora && dataHora.length >= 13 ? dataHora.slice(11, 13) : '08'
+                      setDataHora(`${dataBase}T${horaAtual}:${novosMinutos}`)
+                    }}
+                    className="w-full text-xs px-2 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono"
+                    title="Minuto (avaliação de 5 em 5 minutos)"
+                  >
+                    {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(
+                      (m) => (
+                        <option key={m} value={m}>
+                          {m}m
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <input
+                type="datetime-local"
+                value={dataHora}
+                onChange={(e) => setDataHora(e.target.value)}
+                required
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+              />
+            )}
           </div>
 
           {/* Descrição Detalhada (OPCIONAL) */}
