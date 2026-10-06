@@ -848,14 +848,17 @@ interface ModalNovoNegocioProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated: () => void
+  modoFichaCliente?: boolean
 }
 
+// test patch ModalNovoNegocio
 export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
   clienteId,
   clienteNome,
   open,
   onOpenChange,
   onCreated,
+  modoFichaCliente = true,
 }) => {
   const [tipo, setTipo] = useState<TipoNegocioSelect>('venda usina')
   const [etapa, setEtapa] = useState<EtapaFunilSelect>('novo lead')
@@ -872,7 +875,6 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
   const [motivoReabertura, setMotivoReabertura] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [erroInline, setErroInline] = useState<string | null>(null)
-
   // Limpa erro inline e pré-preenche consultor com usuário logado ao abrir
   useEffect(() => {
     if (open) {
@@ -882,45 +884,46 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       }
     }
   }, [open, user?.id])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!clienteId) return
     setIsSubmitting(true)
     setErroInline(null)
-
     try {
       const nomeLimpo = removerPrefixoMensagemManual(clienteNome)
       const tipoConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipo)
       const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema || 'venda usina') as TipoNegocioSelect
       const tipoVendaFinal = tipoConfig?.tipoVendaPadrao || 'Energia Solar'
-
-      const numEstimado = valorEstimado ? Number(valorEstimado) : 0
-      const numFinal = valorFinal ? Number(valorFinal) : 0
+      const etapaFinalNegocio: EtapaFunilSelect = modoFichaCliente ? 'novo lead' : etapa
+      const numEstimado = modoFichaCliente ? 0 : valorEstimado ? Number(valorEstimado) : 0
+      const numFinal = modoFichaCliente ? 0 : valorFinal ? Number(valorFinal) : 0
       const numValor = numFinal > 0 ? numFinal : numEstimado
-
+      const probFinal = modoFichaCliente ? 10 : probabilidade ? Number(probabilidade) : 10
+      const dataPrevisaoFinal = modoFichaCliente ? undefined : dataPrevisao ? dataPrevisao : undefined
+      const condicaoPagamentoFinal = modoFichaCliente ? undefined : condicaoPagamento.trim() || undefined
+      const reaberturaFinal = modoFichaCliente ? false : reabertura
+      const motivoReaberturaFinal =
+        modoFichaCliente || !reabertura ? undefined : motivoReabertura.trim() || undefined
       await createNegocio({
         cliente_id: clienteId,
         titulo: `Negócio - ${nomeLimpo}`,
         tipo_negocio: tipoNegocioFinal,
         tipo_venda: tipoVendaFinal,
-        etapa_funil: etapa,
+        etapa_funil: etapaFinalNegocio,
         status,
         valor_estimado: numEstimado,
         valor_final: numFinal,
         valor: numValor,
-        probabilidade: probabilidade ? Number(probabilidade) : 10,
-        data_previsao_fechamento: dataPrevisao ? dataPrevisao : undefined,
-        condicao_pagamento: condicaoPagamento.trim() || undefined,
+        probabilidade: probFinal,
+        data_previsao_fechamento: dataPrevisaoFinal,
+        condicao_pagamento: condicaoPagamentoFinal,
         consultor_responsavel:
           consultorResponsavel && consultorResponsavel.trim()
             ? consultorResponsavel.trim()
             : undefined,
-        reabertura,
-        motivo_reabertura:
-          reabertura && motivoReabertura.trim() ? motivoReabertura.trim() : undefined,
+        reabertura: reaberturaFinal,
+        motivo_reabertura: motivoReaberturaFinal,
       })
-
       if (refreshData) {
         await refreshData()
       }
@@ -928,7 +931,6 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       toast.success('Novo negócio criado com sucesso!')
       onCreated()
       onOpenChange(false)
-
       // Resetar form
       setTipo('venda usina')
       setEtapa('novo lead')
@@ -944,22 +946,20 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       setErroInline(null)
     } catch (err: any) {
       console.error('Erro ao criar negócio:', err)
-
       // Extrai mensagens detalhadas de campo se presentes no erro do PocketBase
       let detalhesCampos = ''
       const dataErrors = err?.response?.data
       if (dataErrors && typeof dataErrors === 'object') {
         const msgs = Object.entries(dataErrors)
-          .map(([campo, det]: [string, any]) => {
-            const msg = det?.message || (typeof det === 'string' ? det : '')
-            return msg ? `${campo}: ${msg}` : ''
-          })
-          .filter(Boolean)
+        .map(([campo, det]: [string, any]) => {
+          const msg = det?.message || (typeof det === 'string' ? det : '')
+          return msg ? `${campo}: ${msg}` : ''
+        })
+        .filter(Boolean)
         if (msgs.length > 0) {
           detalhesCampos = ` (${msgs.join('; ')})`
         }
       }
-
       const msgErro = `Não foi possível salvar o negócio. Verifique os dados e tente novamente.${detalhesCampos}`
       setErroInline(msgErro)
       toast.error(msgErro)
@@ -995,136 +995,174 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
-              <select
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as TipoNegocioSelect)}
-                className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              >
-                {TIPOS_NEGOCIO_OPCOES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Etapa Inicial</Label>
-              <select
-                value={etapa}
-                onChange={(e) => {
-                  const opt = ETAPAS_FUNIL_OPCOES.find((x) => x.value === e.target.value)
-                  setEtapa(e.target.value as EtapaFunilSelect)
-                  if (opt) setProbabilidade(String(opt.defaultProb))
-                }}
-                className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              >
-                {ETAPAS_FUNIL_OPCOES.map((ef) => (
-                  <option key={ef.value} value={ef.value}>
-                    {ef.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Valor Estimado (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={valorEstimado}
-                onChange={(e) => setValorEstimado(e.target.value)}
-                placeholder="Ex: 85000"
-                className="text-xs h-9"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Probabilidade (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={probabilidade}
-                onChange={(e) => setProbabilidade(e.target.value)}
-                placeholder="Ex: 50"
-                className="text-xs h-9"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Data Previsão Fechamento</Label>
-              <Input
-                type="date"
-                value={dataPrevisao}
-                onChange={(e) => setDataPrevisao(e.target.value)}
-                className="text-xs h-9"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Condição de Pagamento</Label>
-              <Input
-                type="text"
-                value={condicaoPagamento}
-                onChange={(e) => setCondicaoPagamento(e.target.value)}
-                placeholder="Ex: Financiamento 60x"
-                className="text-xs h-9"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs font-bold text-slate-700">Responsável pelo Negócio</Label>
-            <select
-              value={consultorResponsavel}
-              onChange={(e) => setConsultorResponsavel(e.target.value)}
-              className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-            >
-              <option value="">Sem responsável definido</option>
-              {usuarios.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} {u.role ? `(${u.role})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={reabertura}
-                onChange={(e) => setReabertura(e.target.checked)}
-                className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-              />
-              <span className="text-xs font-bold text-slate-800">
-                Marcar como Reabertura / Expansão Futura
-              </span>
-            </label>
-
-            {reabertura && (
-              <div className="space-y-1 pt-1">
-                <Label className="text-[11px] font-semibold text-slate-600">
-                  Motivo da Reabertura
-                </Label>
-                <Textarea
-                  value={motivoReabertura}
-                  onChange={(e) => setMotivoReabertura(e.target.value)}
-                  placeholder="Ex: Ampliação para atender nova demanda de carga..."
-                  rows={2}
-                  className="text-xs bg-white"
-                />
+          {modoFichaCliente ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
+                <select
+                  value={tipo}
+                  onChange={(e) => setTipo(e.target.value as TipoNegocioSelect)}
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  {TIPOS_NEGOCIO_OPCOES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
-          </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Consultor Responsável</Label>
+                <select
+                  value={consultorResponsavel}
+                  onChange={(e) => setConsultorResponsavel(e.target.value)}
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="">Sem responsável definido</option>
+                  {usuarios.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
+                  <select
+                    value={tipo}
+                    onChange={(e) => setTipo(e.target.value as TipoNegocioSelect)}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  >
+                    {TIPOS_NEGOCIO_OPCOES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Etapa Inicial</Label>
+                  <select
+                    value={etapa}
+                    onChange={(e) => {
+                      // probe 56
+                      const opt = ETAPAS_FUNIL_OPCOES.find((x) => x.value === e.target.value)
+                      setEtapa(e.target.value as EtapaFunilSelect)
+                      if (opt) setProbabilidade(String(opt.defaultProb))
+                    }}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  >
+                    {ETAPAS_FUNIL_OPCOES.map((ef) => (
+                      <option key={ef.value} value={ef.value}>
+                        {ef.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Valor Estimado (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={valorEstimado}
+                    onChange={(e) => setValorEstimado(e.target.value)}
+                    placeholder="Ex: 85000"
+                    className="text-xs h-9"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Probabilidade (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={probabilidade}
+                    onChange={(e) => setProbabilidade(e.target.value)}
+                    placeholder="Ex: 50"
+                    className="text-xs h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Data Previsão Fechamento</Label>
+                  <Input
+                    type="date"
+                    value={dataPrevisao}
+                    onChange={(e) => setDataPrevisao(e.target.value)}
+                    className="text-xs h-9"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Condição de Pagamento</Label>
+                  <Input
+                    type="text"
+                    value={condicaoPagamento}
+                    onChange={(e) => setCondicaoPagamento(e.target.value)}
+                    placeholder="Ex: Financiamento 60x"
+                    className="text-xs h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Responsável pelo Negócio</Label>
+                <select
+                  value={consultorResponsavel}
+                  onChange={(e) => setConsultorResponsavel(e.target.value)}
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="">Sem responsável definido</option>
+                  {usuarios.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} {u.role ? `(${u.role})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reabertura}
+                    onChange={(e) => setReabertura(e.target.checked)}
+                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs font-bold text-slate-800">
+                    Marcar como Reabertura / Expansão Futura
+                  </span>
+                </label>
+
+                {reabertura && (
+                  <div className="space-y-1 pt-1">
+                    <Label className="text-[11px] font-semibold text-slate-600">
+                      Motivo da Reabertura
+                    </Label>
+                    <Textarea
+                      value={motivoReabertura}
+                      onChange={(e) => setMotivoReabertura(e.target.value)}
+                      placeholder="Ex: Ampliação para atender nova demanda de carga..."
+                      rows={2}
+                      className="text-xs bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <DialogFooter className="border-t border-slate-100 pt-3">
             <Button

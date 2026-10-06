@@ -63,6 +63,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
   clienteIdPredefinido,
   etapaInicial = 'novo lead',
   onCreated,
+  modoFichaCliente = false,
 }) => {
   const { clientes, addCliente, usuarios, refreshData } = useClientes()
   const { user } = useAuth()
@@ -237,9 +238,29 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
       : 'Comercial'
     const tituloFinal = removerPrefixoMensagemManual(titulo.trim() || `Negócio - ${fallbackNome}`)
 
-    const numEstimado = valorEstimado ? Number(valorEstimado) : 0
-    const numFinal = valorFinal ? Number(valorFinal) : 0
+    // Se criado a partir da ficha do cliente (modoFichaCliente):
+    // 1. Etapa do funil SEMPRE nasce como '1 - Novo Lead' ('novo lead')
+    // 2. Valor Estimado, Valor Final = 0 (nulos/zerados até orçamento)
+    // 3. Probabilidade = padrão (10% de Novo Lead)
+    // 4. Previsão de Fechamento = undefined
+    // 5. Condição de Pagamento = undefined
+    // 6. Recorrência Mensal = false
+    // 7. Reabertura / Expansão Futura = false
+    const etapaFinalNegocio: EtapaFunilSelect = modoFichaCliente ? 'novo lead' : etapa
+    const numEstimado = modoFichaCliente ? 0 : valorEstimado ? Number(valorEstimado) : 0
+    const numFinal = modoFichaCliente ? 0 : valorFinal ? Number(valorFinal) : 0
     const numValor = numFinal > 0 ? numFinal : numEstimado
+    const probFinal = modoFichaCliente ? 10 : probabilidade ? Number(probabilidade) : 10
+    const dataPrevisaoFinal = modoFichaCliente
+      ? undefined
+      : dataPrevisao
+        ? `${dataPrevisao} 12:00:00.000Z`
+        : undefined
+    const condicaoPagamentoFinal = modoFichaCliente ? undefined : condicaoPagamento.trim() || undefined
+    const recorrenciaFinal = modoFichaCliente ? false : recorrenciaMensal
+    const reaberturaFinal = modoFichaCliente ? false : reabertura
+    const motivoReaberturaFinal =
+      modoFichaCliente || !reabertura ? undefined : motivoReabertura.trim() || undefined
 
     setIsSubmitting(true)
     try {
@@ -251,18 +272,18 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
         valor_estimado: numEstimado,
         valor_final: numFinal,
         valor: numValor,
-        etapa_funil: etapa,
+        etapa_funil: etapaFinalNegocio,
         status,
-        probabilidade: probabilidade ? Number(probabilidade) : 10,
-        data_previsao_fechamento: dataPrevisao ? `${dataPrevisao} 12:00:00.000Z` : undefined,
-        condicao_pagamento: condicaoPagamento.trim() || undefined,
+        probabilidade: probFinal,
+        data_previsao_fechamento: dataPrevisaoFinal,
+        condicao_pagamento: condicaoPagamentoFinal,
         consultor_responsavel:
           consultorResponsavel && consultorResponsavel.trim()
             ? consultorResponsavel.trim()
             : undefined,
-        reabertura,
-        motivo_reabertura: reabertura ? motivoReabertura.trim() : undefined,
-        recorrencia_mensal: recorrenciaMensal,
+        reabertura: reaberturaFinal,
+        motivo_reabertura: motivoReaberturaFinal,
+        recorrencia_mensal: recorrenciaFinal,
       })
 
       toast({
@@ -472,169 +493,212 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
-                <select
-                  value={tipoNegocio}
-                  onChange={(e) => setTipoNegocio(e.target.value as TipoNegocioSelect)}
-                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                >
-                  {TIPOS_NEGOCIO_OPCOES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label} ({t.tipoVenda})
-                    </option>
-                  ))}
-                </select>
+            {modoFichaCliente ? (
+              /* Modo criação a partir da Ficha do Cliente:
+                 Exclui: Etapa do Funil (nasce sempre '1 - Novo Lead'), Valor Estimado,
+                 Valor Final, Probabilidade, Previsão de Fechamento, Condição de Pagamento,
+                 Recorrência Mensal e Reabertura / Expansão Futura.
+                 Permanecem: Tipo de Negócio e Consultor Responsável.
+              */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
+                  <select
+                    value={tipoNegocio}
+                    onChange={(e) => setTipoNegocio(e.target.value as TipoNegocioSelect)}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    {TIPOS_NEGOCIO_OPCOES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label} ({t.tipoVenda})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Consultor Responsável</Label>
+                  <select
+                    value={consultorResponsavel}
+                    onChange={(e) => setConsultorResponsavel(e.target.value)}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="">Selecione o responsável...</option>
+                    {usuarios.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} {u.role ? `(${u.role})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
+                    <select
+                      value={tipoNegocio}
+                      onChange={(e) => setTipoNegocio(e.target.value as TipoNegocioSelect)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      {TIPOS_NEGOCIO_OPCOES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label} ({t.tipoVenda})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Etapa do Funil *</Label>
-                <select
-                  value={etapa}
-                  onChange={(e) => {
-                    const novaEtapa = e.target.value as EtapaFunilSelect
-                    setEtapa(novaEtapa)
-                    const opt = ETAPAS_FUNIL_OPCOES.find((x) => x.value === novaEtapa)
-                    if (opt) setProbabilidade(String(opt.defaultProb))
-                  }}
-                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                >
-                  {ETAPAS_FUNIL_OPCOES.map((ef) => (
-                    <option key={ef.value} value={ef.value}>
-                      {ef.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Etapa do Funil *</Label>
+                    <select
+                      value={etapa}
+                      onChange={(e) => {
+                        const novaEtapa = e.target.value as EtapaFunilSelect
+                        setEtapa(novaEtapa)
+                        const opt = ETAPAS_FUNIL_OPCOES.find((x) => x.value === novaEtapa)
+                        if (opt) setProbabilidade(String(opt.defaultProb))
+                      }}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      {ETAPAS_FUNIL_OPCOES.map((ef) => (
+                        <option key={ef.value} value={ef.value}>
+                          {ef.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Valor Estimado (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={valorEstimado}
-                  onChange={(e) => setValorEstimado(e.target.value)}
-                  placeholder="Ex: 45000"
-                  className="text-xs h-9"
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Valor Estimado (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={valorEstimado}
+                      onChange={(e) => setValorEstimado(e.target.value)}
+                      placeholder="Ex: 45000"
+                      className="text-xs h-9"
+                    />
+                  </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Valor Final (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={valorFinal}
-                  onChange={(e) => setValorFinal(e.target.value)}
-                  placeholder="Ex: 42000"
-                  className="text-xs h-9"
-                />
-              </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Valor Final (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={valorFinal}
+                      onChange={(e) => setValorFinal(e.target.value)}
+                      placeholder="Ex: 42000"
+                      className="text-xs h-9"
+                    />
+                  </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Probabilidade (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={probabilidade}
-                  onChange={(e) => setProbabilidade(e.target.value)}
-                  placeholder="Ex: 25"
-                  className="text-xs h-9"
-                />
-              </div>
-            </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Probabilidade (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={probabilidade}
+                      onChange={(e) => setProbabilidade(e.target.value)}
+                      placeholder="Ex: 25"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Previsão de Fechamento</Label>
-                <Input
-                  type="date"
-                  value={dataPrevisao}
-                  onChange={(e) => setDataPrevisao(e.target.value)}
-                  className="text-xs h-9"
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Previsão de Fechamento</Label>
+                    <Input
+                      type="date"
+                      value={dataPrevisao}
+                      onChange={(e) => setDataPrevisao(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                  </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Consultor Responsável</Label>
-                <select
-                  value={consultorResponsavel}
-                  onChange={(e) => setConsultorResponsavel(e.target.value)}
-                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                >
-                  <option value="">Selecione o responsável...</option>
-                  {usuarios.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} {u.role ? `(${u.role})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Consultor Responsável</Label>
+                    <select
+                      value={consultorResponsavel}
+                      onChange={(e) => setConsultorResponsavel(e.target.value)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="">Selecione o responsável...</option>
+                      {usuarios.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} {u.role ? `(${u.role})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Condição de Pagamento</Label>
-              <Input
-                type="text"
-                value={condicaoPagamento}
-                onChange={(e) => setCondicaoPagamento(e.target.value)}
-                placeholder="Ex: Financiamento Santander 60x, Entrada 20% + 3x..."
-                className="text-xs h-9"
-              />
-            </div>
-
-            {/* Recorrência e Reabertura */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={recorrenciaMensal}
-                    onChange={(e) => setRecorrenciaMensal(e.target.checked)}
-                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Condição de Pagamento</Label>
+                  <Input
+                    type="text"
+                    value={condicaoPagamento}
+                    onChange={(e) => setCondicaoPagamento(e.target.value)}
+                    placeholder="Ex: Financiamento Santander 60x, Entrada 20% + 3x..."
+                    className="text-xs h-9"
                   />
-                  <span className="text-xs font-bold text-slate-800">Recorrência Mensal</span>
-                </label>
-                <p className="text-[10px] text-slate-500 pl-6">
-                  Ideal para contratos recorrentes como Planos de O&M.
-                </p>
-              </div>
+                </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={reabertura}
-                    onChange={(e) => setReabertura(e.target.checked)}
-                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span className="text-xs font-bold text-slate-800">
-                    Reabertura / Expansão Futura
-                  </span>
-                </label>
-                <p className="text-[10px] text-slate-500 pl-6">
-                  Marca esta oportunidade como expansão de cliente existente.
-                </p>
-              </div>
-            </div>
+                {/* Recorrência e Reabertura */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={recorrenciaMensal}
+                        onChange={(e) => setRecorrenciaMensal(e.target.checked)}
+                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="text-xs font-bold text-slate-800">Recorrência Mensal</span>
+                    </label>
+                    <p className="text-[10px] text-slate-500 pl-6">
+                      Ideal para contratos recorrentes como Planos de O&M.
+                    </p>
+                  </div>
 
-            {reabertura && (
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-600">
-                  Motivo da Reabertura / Expansão
-                </Label>
-                <Textarea
-                  value={motivoReabertura}
-                  onChange={(e) => setMotivoReabertura(e.target.value)}
-                  placeholder="Ex: Cliente solicitou aumento de potência para atender nova carga..."
-                  rows={2}
-                  className="text-xs bg-white"
-                />
-              </div>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={reabertura}
+                        onChange={(e) => setReabertura(e.target.checked)}
+                        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="text-xs font-bold text-slate-800">
+                        Reabertura / Expansão Futura
+                      </span>
+                    </label>
+                    <p className="text-[10px] text-slate-500 pl-6">
+                      Marca esta oportunidade como expansão de cliente existente.
+                    </p>
+                  </div>
+                </div>
+
+                {reabertura && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold text-slate-600">
+                      Motivo da Reabertura / Expansão
+                    </Label>
+                    <Textarea
+                      value={motivoReabertura}
+                      onChange={(e) => setMotivoReabertura(e.target.value)}
+                      placeholder="Ex: Cliente solicitou aumento de potência para atender nova carga..."
+                      rows={2}
+                      className="text-xs bg-white"
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
 
