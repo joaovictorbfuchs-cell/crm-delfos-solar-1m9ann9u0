@@ -214,6 +214,14 @@ export default function ExecucaoOS() {
             tipo_servico: tipoServico,
             endereco,
             data_agendada: atv.data || atv.created,
+            horario_inicio:
+              atv.horario_inicio ||
+              (atv.data && atv.data.length >= 16
+                ? atv.data.replace(' ', 'T').slice(11, 16)
+                : undefined),
+            horario_fim: atv.horario_fim || undefined,
+            duracao_minutos:
+              typeof atv.duracao_minutos === 'number' ? atv.duracao_minutos : undefined,
             status,
             atribuida_a: atribuidaA,
             responsavel_usuario_id: atv.responsavel_id || undefined,

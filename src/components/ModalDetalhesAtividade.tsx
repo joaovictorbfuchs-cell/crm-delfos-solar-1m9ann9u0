@@ -29,6 +29,14 @@ import { ModalEnviarLembreteAutoLeituraWhatsApp } from './ModalEnviarLembreteAut
 import { ModalRegistrarDadosLeitura } from './ModalRegistrarDadosLeitura'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+import {
+  somarMinutos,
+  calcularDiferencaMinutos,
+  formatarDuracao,
+  HORAS_24,
+  MINUTOS_PASSO_5,
+  DURACOES_PREVISTAS_SUGESTOES,
+} from '@/lib/horarios'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
 import {
   buscarAtividadesFilhasAutoLeitura,
@@ -73,6 +81,10 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [tipo, setTipo] = useState<AtividadeTipo>('contato_ligacao')
   const [clienteId, setClienteId] = useState('')
   const [dataHora, setDataHora] = useState('')
+  // Campos de início, fim e duração prevista para atividades de manutenção
+  const [horarioInicio, setHorarioInicio] = useState<string>('08:00')
+  const [horarioFim, setHorarioFim] = useState<string>('09:00')
+  const [duracaoMinutos, setDuracaoMinutos] = useState<number>(60)
   const [responsavelId, setResponsavelId] = useState('')
   const [responsavelAvisoBloqueio, setResponsavelAvisoBloqueio] = useState<string | null>(null)
   const [descricao, setDescricao] = useState('')
@@ -137,7 +149,22 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       const tipoAtv = atividade.tipo || 'contato_ligacao'
       setTipo(tipoAtv)
       setClienteId(atividade.cliente_id || '')
-      setDataHora(toDateTimeLocalValue(atividade.data || atividade.created))
+      const dtLocal = toDateTimeLocalValue(atividade.data || atividade.created)
+      setDataHora(dtLocal)
+
+      // Inicializa horários de manutenção
+      const horaPadrao = dtLocal && dtLocal.length >= 16 ? dtLocal.slice(11, 16) : '08:00'
+      const inicioAtual = atividade.horario_inicio || horaPadrao
+      const durAtual =
+        typeof atividade.duracao_minutos === 'number' && atividade.duracao_minutos > 0
+          ? atividade.duracao_minutos
+          : 60
+      const fimAtual = atividade.horario_fim || somarMinutos(inicioAtual, durAtual)
+
+      setHorarioInicio(inicioAtual)
+      setHorarioFim(fimAtual)
+      setDuracaoMinutos(durAtual)
+
       setResponsavelId(atividade.responsavel_id || '')
       setDescricao(atividade.descricao || '')
       setStatus((atividade.status as 'pendente' | 'concluida') || 'pendente')
@@ -174,6 +201,32 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
 
   const configAtual = getTipoAtividadeConfig(tipo)
   const IconAtual = configAtual.icon
+
+  // Lógica bidirecional de Horário Início, Fim e Duração para Manutenção
+  const handleHorarioInicioChange = (novoInicio: string) => {
+    setHorarioInicio(novoInicio)
+    const dataBase =
+      dataHora && dataHora.length >= 10
+        ? dataHora.slice(0, 10)
+        : new Date().toISOString().slice(0, 10)
+    setDataHora(`${dataBase}T${novoInicio}`)
+    const duracaoAtual = duracaoMinutos > 0 ? duracaoMinutos : 60
+    const novoFim = somarMinutos(novoInicio, duracaoAtual)
+    setHorarioFim(novoFim)
+  }
+
+  const handleHorarioFimChange = (novoFim: string) => {
+    setHorarioFim(novoFim)
+    const novaDuracao = calcularDiferencaMinutos(horarioInicio, novoFim)
+    setDuracaoMinutos(novaDuracao)
+  }
+
+  const handleDuracaoChange = (novaDuracao: number) => {
+    const duracaoSegura = isNaN(novaDuracao) || novaDuracao < 0 ? 0 : novaDuracao
+    setDuracaoMinutos(duracaoSegura)
+    const novoFim = somarMinutos(horarioInicio, duracaoSegura)
+    setHorarioFim(novoFim)
+  }
 
   // Trata a alteração do tipo de atividade
   const handleTipoChange = (novoTipo: AtividadeTipo) => {
@@ -291,12 +344,20 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       const responsavelNome = selectedUser?.name || atividade.responsavel_nome || 'Responsável'
 
       const isoDate = dataHora ? new Date(dataHora).toISOString() : new Date().toISOString()
+      const isManutencao = configAtual.categoria === 'manutencao'
 
       const payload: Record<string, unknown> = {
         titulo: titulo.trim(),
         tipo,
         cliente_id: clienteId,
         data: isoDate,
+        ...(isManutencao
+          ? {
+              horario_inicio: horarioInicio,
+              horario_fim: horarioFim,
+              duracao_minutos: duracaoMinutos,
+            }
+          : {}),
         responsavel_id: responsavelId,
         responsavel_nome: responsavelNome,
         descricao: descricao.trim(),
@@ -571,84 +632,279 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
           </div>
 
           {/* 4. Grid de Data/Hora e Responsável */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* Data e Horário */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                Data e Horário Previsto <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                value={dataHora}
-                onChange={(e) => {
-                  setDataHora(e.target.value)
-                  if (errors.dataHora) setErrors((prev) => ({ ...prev, dataHora: undefined }))
-                }}
-                required
-                className={`w-full text-xs px-3 py-2.5 rounded-xl border bg-white text-gray-900 transition-all focus:outline-none ${
-                  errors.dataHora
-                    ? 'border-red-300 ring-2 ring-red-200 bg-red-50/20'
-                    : 'border-gray-200 focus:ring-2 focus:ring-emerald-500'
-                }`}
-              />
-              {errors.dataHora && (
-                <p className="text-[11px] text-red-600 mt-0.5">{errors.dataHora}</p>
-              )}
-            </div>
+          <div className="space-y-3">
+            {configAtual.categoria === 'manutencao' ? (
+              <div className="space-y-2.5 p-3 rounded-xl border border-sky-200 bg-sky-50/40">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Data da Manutenção */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-gray-700 block">
+                      Data da Atividade <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={dataHora ? dataHora.slice(0, 10) : ''}
+                      onChange={(e) => {
+                        const novaData = e.target.value
+                        const horaAtual = horarioInicio || '08:00'
+                        if (novaData) {
+                          setDataHora(`${novaData}T${horaAtual}`)
+                          if (errors.dataHora)
+                            setErrors((prev) => ({ ...prev, dataHora: undefined }))
+                        }
+                      }}
+                      required
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+                    />
+                  </div>
 
-            {/* Usuário Responsável */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-emerald-600" />
-                Usuário Responsável <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={responsavelId}
-                onChange={(e) => {
-                  const targetUser = usuariosValidosCadastrados.find((u) => u.id === e.target.value)
-                  const isPerfilTecnico =
-                    targetUser?.role === 'instalador' || (targetUser?.role as string) === 'tecnico'
-                  if (isPerfilTecnico && configAtual.categoria !== 'manutencao') {
-                    setResponsavelAvisoBloqueio(
-                      'Este perfil (instalador/técnico) só pode receber atividades do tipo manutenção.',
-                    )
-                    return
-                  }
-                  setResponsavelAvisoBloqueio(null)
-                  setResponsavelId(e.target.value)
-                  if (errors.responsavel) setErrors((prev) => ({ ...prev, responsavel: undefined }))
-                }}
-                required
-                className={`w-full text-xs px-3 py-2.5 rounded-xl border bg-white text-gray-900 transition-all focus:outline-none ${
-                  errors.responsavel
-                    ? 'border-red-300 ring-2 ring-red-200 bg-red-50/20'
-                    : 'border-gray-200 focus:ring-2 focus:ring-emerald-500'
-                }`}
-              >
-                <option value="">Selecione o responsável...</option>
-                {usuariosValidosCadastrados.map((u) => {
-                  const isPerfilTecnico =
-                    u.role === 'instalador' || (u.role as string) === 'tecnico'
-                  const bloqueado = isPerfilTecnico && configAtual.categoria !== 'manutencao'
-                  return (
-                    <option key={u.id} value={u.id} disabled={bloqueado}>
-                      {u.name} {u.role ? `[${u.role}]` : ''}{' '}
-                      {bloqueado ? '— (somente manutenção)' : ''}
-                    </option>
-                  )
-                })}
-              </select>
-              {responsavelAvisoBloqueio && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span>{responsavelAvisoBloqueio}</span>
+                  {/* Usuário Responsável */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-gray-700 block">
+                      Usuário Responsável <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={responsavelId}
+                      onChange={(e) => {
+                        const targetUser = usuariosValidosCadastrados.find(
+                          (u) => u.id === e.target.value,
+                        )
+                        const isPerfilTecnico =
+                          targetUser?.role === 'instalador' ||
+                          (targetUser?.role as string) === 'tecnico'
+                        if (isPerfilTecnico && configAtual.categoria !== 'manutencao') {
+                          setResponsavelAvisoBloqueio(
+                            'Este perfil (instalador/técnico) só pode receber atividades do tipo manutenção.',
+                          )
+                          return
+                        }
+                        setResponsavelAvisoBloqueio(null)
+                        setResponsavelId(e.target.value)
+                        if (errors.responsavel)
+                          setErrors((prev) => ({ ...prev, responsavel: undefined }))
+                      }}
+                      required
+                      className="w-full text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+                    >
+                      <option value="">Selecione o responsável...</option>
+                      {usuariosValidosCadastrados.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} {u.role ? `[${u.role}]` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Linha com Horário Início, Horário Fim e Duração Prevista */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-sky-100">
+                  {/* Horário de Início */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                      <span>Horário de Início</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-1">
+                      <select
+                        value={horarioInicio.split(':')[0] || '08'}
+                        onChange={(e) => {
+                          const h = e.target.value.padStart(2, '0')
+                          const m = horarioInicio.split(':')[1] || '00'
+                          handleHorarioInicioChange(`${h}:${m}`)
+                        }}
+                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                      >
+                        {HORAS_24.map((h) => (
+                          <option key={`edit-ini-h-${h}`} value={h}>
+                            {h}h
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={(() => {
+                          const mRaw = parseInt(horarioInicio.split(':')[1] || '0', 10) || 0
+                          const mRound = Math.round(mRaw / 5) * 5
+                          const mBound = mRound >= 60 ? 55 : mRound
+                          return String(mBound).padStart(2, '0')
+                        })()}
+                        onChange={(e) => {
+                          const h = horarioInicio.split(':')[0] || '08'
+                          const m = e.target.value
+                          handleHorarioInicioChange(`${h}:${m}`)
+                        }}
+                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                      >
+                        {MINUTOS_PASSO_5.map((m) => (
+                          <option key={`edit-ini-m-${m}`} value={m}>
+                            {m}m
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Horário de Fim */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                      <span>Horário de Fim</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-1">
+                      <select
+                        value={horarioFim.split(':')[0] || '09'}
+                        onChange={(e) => {
+                          const h = e.target.value.padStart(2, '0')
+                          const m = horarioFim.split(':')[1] || '00'
+                          handleHorarioFimChange(`${h}:${m}`)
+                        }}
+                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                      >
+                        {HORAS_24.map((h) => (
+                          <option key={`edit-fim-h-${h}`} value={h}>
+                            {h}h
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={(() => {
+                          const mRaw = parseInt(horarioFim.split(':')[1] || '0', 10) || 0
+                          const mRound = Math.round(mRaw / 5) * 5
+                          const mBound = mRound >= 60 ? 55 : mRound
+                          return String(mBound).padStart(2, '0')
+                        })()}
+                        onChange={(e) => {
+                          const h = horarioFim.split(':')[0] || '09'
+                          const m = e.target.value
+                          handleHorarioFimChange(`${h}:${m}`)
+                        }}
+                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                      >
+                        {MINUTOS_PASSO_5.map((m) => (
+                          <option key={`edit-fim-m-${m}`} value={m}>
+                            {m}m
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Duração Prevista (Editável) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-gray-700">
+                        Duração Prevista
+                      </label>
+                      <span className="text-[10px] font-extrabold text-sky-800 bg-sky-100 px-1.5 py-0.2 rounded border border-sky-200">
+                        {formatarDuracao(duracaoMinutos)}
+                      </span>
+                    </div>
+                    <select
+                      value={duracaoMinutos}
+                      onChange={(e) => handleDuracaoChange(parseInt(e.target.value, 10))}
+                      className="w-full text-xs px-2 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+                    >
+                      {DURACOES_PREVISTAS_SUGESTOES.map((d) => (
+                        <option key={`edit-dur-${d.minutos}`} value={d.minutos}>
+                          {d.label}
+                        </option>
+                      ))}
+                      {!DURACOES_PREVISTAS_SUGESTOES.some((d) => d.minutos === duracaoMinutos) && (
+                        <option value={duracaoMinutos}>
+                          {formatarDuracao(duracaoMinutos)} (personalizado)
+                        </option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-sky-900/80">
+                  Previsão padrão: 1 hora. Alterar o fim recalcula a duração, e alterar a duração
+                  recalcula o fim.
                 </p>
-              )}
-              {errors.responsavel && (
-                <p className="text-[11px] text-red-600 mt-0.5">{errors.responsavel}</p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                    Data e Horário Previsto <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={dataHora}
+                    onChange={(e) => {
+                      setDataHora(e.target.value)
+                      if (errors.dataHora) setErrors((prev) => ({ ...prev, dataHora: undefined }))
+                    }}
+                    required
+                    className={`w-full text-xs px-3 py-2.5 rounded-xl border bg-white text-gray-900 transition-all focus:outline-none ${
+                      errors.dataHora
+                        ? 'border-red-300 ring-2 ring-red-200 bg-red-50/20'
+                        : 'border-gray-200 focus:ring-2 focus:ring-emerald-500'
+                    }`}
+                  />
+                  {errors.dataHora && (
+                    <p className="text-[11px] text-red-600 mt-0.5">{errors.dataHora}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-emerald-600" />
+                    Usuário Responsável <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={responsavelId}
+                    onChange={(e) => {
+                      const targetUser = usuariosValidosCadastrados.find(
+                        (u) => u.id === e.target.value,
+                      )
+                      const isPerfilTecnico =
+                        targetUser?.role === 'instalador' ||
+                        (targetUser?.role as string) === 'tecnico'
+                      if (isPerfilTecnico && configAtual.categoria !== 'manutencao') {
+                        setResponsavelAvisoBloqueio(
+                          'Este perfil (instalador/técnico) só pode receber atividades do tipo manutenção.',
+                        )
+                        return
+                      }
+                      setResponsavelAvisoBloqueio(null)
+                      setResponsavelId(e.target.value)
+                      if (errors.responsavel)
+                        setErrors((prev) => ({ ...prev, responsavel: undefined }))
+                    }}
+                    required
+                    className={`w-full text-xs px-3 py-2.5 rounded-xl border bg-white text-gray-900 transition-all focus:outline-none ${
+                      errors.responsavel
+                        ? 'border-red-300 ring-2 ring-red-200 bg-red-50/20'
+                        : 'border-gray-200 focus:ring-2 focus:ring-emerald-500'
+                    }`}
+                  >
+                    <option value="">Selecione o responsável...</option>
+                    {usuariosValidosCadastrados.map((u) => {
+                      const isPerfilTecnico =
+                        u.role === 'instalador' || (u.role as string) === 'tecnico'
+                      const bloqueado = isPerfilTecnico && configAtual.categoria !== 'manutencao'
+                      return (
+                        <option key={u.id} value={u.id} disabled={bloqueado}>
+                          {u.name} {u.role ? `[${u.role}]` : ''}{' '}
+                          {bloqueado ? '— (somente manutenção)' : ''}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              </div>
+            )}
+            {responsavelAvisoBloqueio && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>{responsavelAvisoBloqueio}</span>
+              </p>
+            )}
+            {errors.responsavel && (
+              <p className="text-[11px] text-red-600 mt-0.5">{errors.responsavel}</p>
+            )}
           </div>
 
           {/* 5. Status da Atividade (Pendente / Concluída) com alternador visual */}

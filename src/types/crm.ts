@@ -966,6 +966,9 @@ export interface Atividade extends RecordModel {
   titulo?: string
   descricao?: string
   data: string
+  horario_inicio?: string
+  horario_fim?: string
+  duracao_minutos?: number
   autor?: string
   status?: AtividadeStatus
   responsavel_id?: string
@@ -1323,6 +1326,9 @@ export interface OrdemServico extends RecordModel {
   tipo_servico: OSTipoServico
   endereco?: string
   data_agendada: string
+  horario_inicio?: string
+  horario_fim?: string
+  duracao_minutos?: number
   status: OSStatus
   atribuida_a?: string
   responsavel_usuario_id?: string

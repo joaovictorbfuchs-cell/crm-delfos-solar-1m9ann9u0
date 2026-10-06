@@ -307,4 +307,27 @@ describe('Login e App Smoke Tests', () => {
     expect(html).toContain('Negócios Vinculados')
     expect(html).toContain('Arthur')
   })
+
+  it('validação de cálculo de horário de início/fim e duração prevista para atividades de manutenção', async () => {
+    const { somarMinutos, calcularDiferencaMinutos, formatarDuracao } =
+      await import('@/lib/horarios')
+
+    // Previsão padrão de 1 hora (+60 min)
+    const inicioPadrao = '08:00'
+    const fimCalculado = somarMinutos(inicioPadrao, 60)
+    expect(fimCalculado).toBe('09:00')
+    expect(calcularDiferencaMinutos(inicioPadrao, fimCalculado)).toBe(60)
+    expect(formatarDuracao(60)).toBe('1h')
+
+    // Alteração de fim -> recalcula duração
+    const novoFim = '10:30'
+    const novaDuracao = calcularDiferencaMinutos(inicioPadrao, novoFim)
+    expect(novaDuracao).toBe(150)
+    expect(formatarDuracao(novaDuracao)).toBe('2h 30min')
+
+    // Alteração de duração -> recalcula fim
+    const duracaoInformada = 90
+    const fimRecalculado = somarMinutos(inicioPadrao, duracaoInformada)
+    expect(fimRecalculado).toBe('09:30')
+  })
 })

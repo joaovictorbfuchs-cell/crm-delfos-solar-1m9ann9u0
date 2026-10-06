@@ -54,6 +54,14 @@ import {
 import { formatDateTime } from '@/lib/formatters'
 import { updateAtividade } from '@/services/crmService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
+import {
+  somarMinutos,
+  calcularDiferencaMinutos,
+  formatarDuracao,
+  HORAS_24,
+  MINUTOS_PASSO_5,
+  DURACOES_PREVISTAS_SUGESTOES,
+} from '@/lib/horarios'
 
 import { useAuth } from '@/contexts/AuthContext'
 import type { SistemaUsuario } from '@/types/crm'
@@ -195,6 +203,34 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
     return raw
   })
+
+  // Campos de início, fim e duração prevista para edição rápida de manutenção
+  const [horarioInicio, setHorarioInicio] = useState<string>(() => {
+    if (os?.horario_inicio) return os.horario_inicio
+    const raw = os?.data_agendada
+    if (raw && raw.length >= 16) {
+      return raw.replace(' ', 'T').slice(11, 16)
+    }
+    return '08:00'
+  })
+  const [duracaoMinutos, setDuracaoMinutos] = useState<number>(() => {
+    if (typeof os?.duracao_minutos === 'number' && os.duracao_minutos > 0) {
+      return os.duracao_minutos
+    }
+    return 60
+  })
+  const [horarioFim, setHorarioFim] = useState<string>(() => {
+    if (os?.horario_fim) return os.horario_fim
+    const ini =
+      os?.horario_inicio ||
+      (os?.data_agendada && os.data_agendada.length >= 16
+        ? os.data_agendada.replace(' ', 'T').slice(11, 16)
+        : '08:00')
+    const dur =
+      typeof os?.duracao_minutos === 'number' && os.duracao_minutos > 0 ? os.duracao_minutos : 60
+    return somarMinutos(ini, dur)
+  })
+
   const [atividadeResponsavelId, setAtividadeResponsavelId] = useState<string>(
     os?.responsavel_usuario_id || '',
   )
@@ -802,6 +838,33 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return []
   }, [equipamentosUsina, usinaVinculada, cliente])
 
+  // Lógica bidirecional de Horário Início, Fim e Duração na edição rápida de manutenção
+  const handleHorarioInicioChange = (novoInicio: string) => {
+    setHorarioInicio(novoInicio)
+    const base = atividadeDataHora || os?.data_agendada || ''
+    const dataBase =
+      base && base.length >= 10
+        ? base.slice(0, 10).replace(' ', 'T')
+        : new Date().toISOString().slice(0, 10)
+    setAtividadeDataHora(`${dataBase}T${novoInicio}`)
+    const duracaoAtual = duracaoMinutos > 0 ? duracaoMinutos : 60
+    const novoFim = somarMinutos(novoInicio, duracaoAtual)
+    setHorarioFim(novoFim)
+  }
+
+  const handleHorarioFimChange = (novoFim: string) => {
+    setHorarioFim(novoFim)
+    const novaDuracao = calcularDiferencaMinutos(horarioInicio, novoFim)
+    setDuracaoMinutos(novaDuracao)
+  }
+
+  const handleDuracaoChange = (novaDuracao: number) => {
+    const duracaoSegura = isNaN(novaDuracao) || novaDuracao < 0 ? 0 : novaDuracao
+    setDuracaoMinutos(duracaoSegura)
+    const novoFim = somarMinutos(horarioInicio, duracaoSegura)
+    setHorarioFim(novoFim)
+  }
+
   // Salvar alterações de horário e responsável diretamente pela tela da atividade
   const handleSalvarAlteracoesAtividade = async () => {
     if (!isOrigemAtividades) return
@@ -814,6 +877,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
       const payload: Record<string, any> = {
         data: dataFormatada,
+        horario_inicio: horarioInicio,
+        horario_fim: horarioFim,
+        duracao_minutos: duracaoMinutos,
         responsavel_id: atividadeResponsavelId || null,
         responsavel_nome: respObj?.name || '',
       }
@@ -823,6 +889,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const osAtualizada: OrdemServico = {
         ...os,
         data_agendada: atualizado.data || dataFormatada,
+        horario_inicio: atualizado.horario_inicio || horarioInicio,
+        horario_fim: atualizado.horario_fim || horarioFim,
+        duracao_minutos: atualizado.duracao_minutos || duracaoMinutos,
         responsavel_usuario_id: atualizado.responsavel_id || atividadeResponsavelId || undefined,
         atribuida_a: atualizado.responsavel_nome || respObj?.name || os.atribuida_a,
       }
@@ -1267,12 +1336,12 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
       {/* PAINEL DE ALTERAÇÃO DIRETA DE HORÁRIO E RESPONSÁVEL (QUANDO ORIGEM É ATIVIDADES DE MANUTENÇÃO) */}
       {isOrigemAtividades && (
-        <div className="bg-emerald-50/70 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+        <div className="bg-emerald-50/70 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
           <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2.5 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-emerald-700" />
               <h3 className="text-xs sm:text-sm font-bold text-emerald-950">
-                Horário e Responsável da Atividade de Manutenção
+                Horário, Duração e Responsável da Atividade de Manutenção
               </h3>
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300/80">
@@ -1281,90 +1350,27 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            {/* Campo de Horário / Data Agendada com seletor de 5 em 5 minutos */}
+            {/* Data Agendada */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Horário / Data Agendada:</span>
+                <span>Data Agendada:</span>
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div className="sm:col-span-2">
-                  <input
-                    type="date"
-                    value={(() => {
-                      const base = atividadeDataHora || os?.data_agendada || ''
-                      return base && base.length >= 10 ? base.slice(0, 10) : ''
-                    })()}
-                    onChange={(e) => {
-                      const novaData = e.target.value
-                      const base = atividadeDataHora || os?.data_agendada || ''
-                      const horaAtual = base && base.length >= 16 ? base.slice(11, 16) : '08:00'
-                      if (novaData) {
-                        setAtividadeDataHora(`${novaData}T${horaAtual}`)
-                      }
-                    }}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <select
-                    value={(() => {
-                      const base = atividadeDataHora || os?.data_agendada || ''
-                      return base && base.length >= 13 ? base.slice(11, 13) : '08'
-                    })()}
-                    onChange={(e) => {
-                      const novaHora = e.target.value.padStart(2, '0')
-                      const base = atividadeDataHora || os?.data_agendada || ''
-                      const dataBase =
-                        base && base.length >= 10
-                          ? base.slice(0, 10)
-                          : new Date().toISOString().slice(0, 10)
-                      const minutosAtuais = base && base.length >= 16 ? base.slice(14, 16) : '00'
-                      setAtividadeDataHora(`${dataBase}T${novaHora}:${minutosAtuais}`)
-                    }}
-                    className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                    title="Hora"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map((h) => (
-                      <option key={h} value={h}>
-                        {h}h
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={(() => {
-                      const base = atividadeDataHora || os?.data_agendada || ''
-                      if (base && base.length >= 16) {
-                        const rawMin = parseInt(base.slice(14, 16), 10) || 0
-                        const roundedMin = Math.round(rawMin / 5) * 5
-                        const boundedMin = roundedMin >= 60 ? 55 : roundedMin
-                        return String(boundedMin).padStart(2, '0')
-                      }
-                      return '00'
-                    })()}
-                    onChange={(e) => {
-                      const novosMinutos = e.target.value
-                      const base = atividadeDataHora || os?.data_agendada || ''
-                      const dataBase =
-                        base && base.length >= 10
-                          ? base.slice(0, 10)
-                          : new Date().toISOString().slice(0, 10)
-                      const horaAtual = base && base.length >= 13 ? base.slice(11, 13) : '08'
-                      setAtividadeDataHora(`${dataBase}T${horaAtual}:${novosMinutos}`)
-                    }}
-                    className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                    title="Minutos (intervalos de 5 em 5 minutos: 00, 05, 10, ...)"
-                  >
-                    {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(
-                      (m) => (
-                        <option key={m} value={m}>
-                          {m}m
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
-              </div>
+              <input
+                type="date"
+                value={(() => {
+                  const base = atividadeDataHora || os?.data_agendada || ''
+                  return base && base.length >= 10 ? base.slice(0, 10) : ''
+                })()}
+                onChange={(e) => {
+                  const novaData = e.target.value
+                  const horaAtual = horarioInicio || '08:00'
+                  if (novaData) {
+                    setAtividadeDataHora(`${novaData}T${horaAtual}`)
+                  }
+                }}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+              />
             </div>
 
             {/* Campo de Responsável */}
@@ -1391,10 +1397,129 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             </div>
           </div>
 
+          {/* Grid com Horário de Início, Horário de Fim e Duração Prevista (Editáveis com passos de 5 em 5) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-emerald-200/60 text-xs">
+            {/* Horário de Início */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-emerald-950 flex items-center gap-1">
+                <span>Horário de Início</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  value={horarioInicio.split(':')[0] || '08'}
+                  onChange={(e) => {
+                    const h = e.target.value.padStart(2, '0')
+                    const m = horarioInicio.split(':')[1] || '00'
+                    handleHorarioInicioChange(`${h}:${m}`)
+                  }}
+                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                >
+                  {HORAS_24.map((h) => (
+                    <option key={`ficha-ini-h-${h}`} value={h}>
+                      {h}h
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={(() => {
+                    const mRaw = parseInt(horarioInicio.split(':')[1] || '0', 10) || 0
+                    const mRound = Math.round(mRaw / 5) * 5
+                    const mBound = mRound >= 60 ? 55 : mRound
+                    return String(mBound).padStart(2, '0')
+                  })()}
+                  onChange={(e) => {
+                    const h = horarioInicio.split(':')[0] || '08'
+                    const m = e.target.value
+                    handleHorarioInicioChange(`${h}:${m}`)
+                  }}
+                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                >
+                  {MINUTOS_PASSO_5.map((m) => (
+                    <option key={`ficha-ini-m-${m}`} value={m}>
+                      {m}m
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Horário de Fim */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-emerald-950 flex items-center gap-1">
+                <span>Horário de Fim</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  value={horarioFim.split(':')[0] || '09'}
+                  onChange={(e) => {
+                    const h = e.target.value.padStart(2, '0')
+                    const m = horarioFim.split(':')[1] || '00'
+                    handleHorarioFimChange(`${h}:${m}`)
+                  }}
+                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                >
+                  {HORAS_24.map((h) => (
+                    <option key={`ficha-fim-h-${h}`} value={h}>
+                      {h}h
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={(() => {
+                    const mRaw = parseInt(horarioFim.split(':')[1] || '0', 10) || 0
+                    const mRound = Math.round(mRaw / 5) * 5
+                    const mBound = mRound >= 60 ? 55 : mRound
+                    return String(mBound).padStart(2, '0')
+                  })()}
+                  onChange={(e) => {
+                    const h = horarioFim.split(':')[0] || '09'
+                    const m = e.target.value
+                    handleHorarioFimChange(`${h}:${m}`)
+                  }}
+                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                >
+                  {MINUTOS_PASSO_5.map((m) => (
+                    <option key={`ficha-fim-m-${m}`} value={m}>
+                      {m}m
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Duração Prevista (Editável) */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-emerald-950">Duração Prevista</label>
+                <span className="text-[10px] font-extrabold text-emerald-900 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
+                  {formatarDuracao(duracaoMinutos)}
+                </span>
+              </div>
+              <select
+                value={duracaoMinutos}
+                onChange={(e) => handleDuracaoChange(parseInt(e.target.value, 10))}
+                className="w-full text-xs px-2 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+              >
+                {DURACOES_PREVISTAS_SUGESTOES.map((d) => (
+                  <option key={`ficha-dur-${d.minutos}`} value={d.minutos}>
+                    {d.label}
+                  </option>
+                ))}
+                {!DURACOES_PREVISTAS_SUGESTOES.some((d) => d.minutos === duracaoMinutos) && (
+                  <option value={duracaoMinutos}>
+                    {formatarDuracao(duracaoMinutos)} (personalizado)
+                  </option>
+                )}
+              </select>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
             <p className="text-[11px] text-emerald-900/80">
-              As alterações são gravadas diretamente no registro desta atividade na Central e nos
-              Serviços de Campo.
+              Previsão padrão: 1 hora. Alterar o fim recalcula a duração, e alterar a duração
+              recalcula o fim.
             </p>
             <button
               type="button"
