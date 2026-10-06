@@ -1405,4 +1405,102 @@ describe('Login e App Smoke Tests', () => {
     // Restaura spies
     vi.restoreAllMocks()
   })
+
+  it('montagem limpa de /servicos-campo sem ErrorBoundary e com toggles de Sábados e Domingos funcionando', async () => {
+    const { ClientesProvider } = await import('@/contexts/ClientesContext')
+    const { default: pbClient } = await import('@/lib/pocketbase/client')
+    localStorage.clear()
+    const mockOS = {
+      id: 'os-clean-test',
+      cliente_id: 'cli-clean-test',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente',
+      data_agendada: '2026-05-15 09:00:00',
+      horario_inicio: '09:00',
+      horario_fim: '10:00',
+      duracao_minutos: 60,
+      checklist: [{ id: 'chk-1', texto: 'Verificar inversor', concluido: false }],
+      expand: {
+        cliente_id: {
+          id: 'cli-clean-test',
+          nome: 'Cliente Limpo Solar',
+        },
+      },
+    }
+
+    vi.spyOn(pbClient.collection('ordens_servico'), 'getFullList').mockResolvedValue([
+      mockOS,
+    ] as any)
+    vi.spyOn(pbClient.collection('atividades'), 'getFullList').mockResolvedValue([] as any)
+
+    window.history.pushState({}, 'Serviços de Campo', '/servicos-campo')
+
+    let rendered: any = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(
+          AuthProvider,
+          null,
+          React.createElement(ClientesProvider, null, React.createElement(App)),
+        ),
+      )
+    })
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200))
+    })
+
+    const textContent = rendered.container?.textContent || ''
+    expect(textContent).not.toContain('Não foi possível carregar o módulo de Serviços de Campo')
+    expect(textContent).not.toContain('Não foi possível carregar o calendário de ordens de serviço')
+    expect(textContent).not.toContain('Ops! Algo deu errado')
+
+    // Verifica que os rótulos de Sábados e Domingos estão presentes no DOM
+    expect(textContent).toContain('Sábados')
+    expect(textContent).toContain('Domingos')
+
+    // Encontra os checkboxes compactos de sábado e domingo
+    const sabadosLabel = rendered.container.querySelector(
+      'label:has(input[type="checkbox"]), label',
+    )
+    expect(rendered.container.innerHTML).toContain('Sábados')
+    expect(rendered.container.innerHTML).toContain('Domingos')
+
+    // Testa alternância e persistência em localStorage
+    const sabadosCheckbox = rendered.container.querySelector(
+      'button[role="checkbox"][data-state], input[type="checkbox"]',
+    )
+    // LocalStorage inicial ou default
+    expect(localStorage.getItem('delfos_cal_show_sabados')).toBeFalsy()
+
+    // Encontra botões de checkbox do Radix
+    const checkboxes = rendered.container.querySelectorAll('button[role="checkbox"]')
+    if (checkboxes.length >= 2) {
+      const sabCheck = checkboxes[0] as HTMLButtonElement
+      const domCheck = checkboxes[1] as HTMLButtonElement
+
+      // Desmarca sábados
+      await act(async () => {
+        sabCheck.click()
+        await new Promise((r) => setTimeout(r, 50))
+      })
+      expect(localStorage.getItem('delfos_cal_show_sabados')).toBe('false')
+
+      // Desmarca domingos
+      await act(async () => {
+        domCheck.click()
+        await new Promise((r) => setTimeout(r, 50))
+      })
+      expect(localStorage.getItem('delfos_cal_show_domingos')).toBe('false')
+
+      // Marca sábados novamente
+      await act(async () => {
+        sabCheck.click()
+        await new Promise((r) => setTimeout(r, 50))
+      })
+      expect(localStorage.getItem('delfos_cal_show_sabados')).toBe('true')
+    }
+
+    vi.restoreAllMocks()
+  })
 })

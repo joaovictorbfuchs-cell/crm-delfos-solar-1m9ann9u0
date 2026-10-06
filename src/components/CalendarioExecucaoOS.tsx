@@ -16,6 +16,7 @@ import {
   GripVertical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatDateTime } from '@/lib/formatters'
 import { updateOrdemServico } from '@/services/crmService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
@@ -594,6 +595,45 @@ function CalendarioExecucaoOSContent({
     getLocalDateKey(new Date()),
   )
 
+  // Toggles de exibição de Sábados e Domingos com persistência em localStorage
+  const [showSabados, setShowSabados] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('delfos_cal_show_sabados')
+      if (stored !== null) return stored === 'true'
+    } catch {
+      /* intentionally ignored */
+    }
+    return true
+  })
+
+  const [showDomingos, setShowDomingos] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('delfos_cal_show_domingos')
+      if (stored !== null) return stored === 'true'
+    } catch {
+      /* intentionally ignored */
+    }
+    return true
+  })
+
+  const handleToggleSabados = useCallback((checked: boolean) => {
+    setShowSabados(checked)
+    try {
+      localStorage.setItem('delfos_cal_show_sabados', String(checked))
+    } catch {
+      /* intentionally ignored */
+    }
+  }, [])
+
+  const handleToggleDomingos = useCallback((checked: boolean) => {
+    setShowDomingos(checked)
+    try {
+      localStorage.setItem('delfos_cal_show_domingos', String(checked))
+    } catch {
+      /* intentionally ignored */
+    }
+  }, [])
+
   // Overrides locais para drag & drop e resize imediatos
   const [overrides, setOverrides] = useState<
     Record<
@@ -1119,7 +1159,7 @@ function CalendarioExecucaoOSContent({
   }, [ordensMescladas]) // Matriz de dias para o calendário (7 colunas, domingo a sábado)
   const todayKey = getLocalDateKey(new Date())
 
-  // Dias da semana corrente para visão semanal
+  // Dias da semana corrente para visão semanal (todos os 7 dias base)
   const weekDays = useMemo(() => {
     const days: {
       date: Date
@@ -1157,6 +1197,22 @@ function CalendarioExecucaoOSContent({
     return days
   }, [startOfWeek, currentMonth, todayKey])
 
+  // Colunas de dias visíveis na semana conforme toggles de Sábado e Domingo
+  const weekDaysVisiveis = useMemo(() => {
+    return (weekDays || []).filter((dia) => {
+      if (!dia || !dia.date) return false
+      try {
+        const dayOfWeek =
+          dia.date instanceof Date && !isNaN(dia.date.getTime()) ? dia.date.getDay() : 0
+        if (dayOfWeek === 6 && !showSabados) return false
+        if (dayOfWeek === 0 && !showDomingos) return false
+        return true
+      } catch (_) {
+        return true
+      }
+    })
+  }, [weekDays, showSabados, showDomingos])
+
   // Contagem de OS no período exibido (mês / semana / dia)
   const totalNoPeriodoExibido = useMemo(() => {
     if (viewMode === 'mes') {
@@ -1170,7 +1226,8 @@ function CalendarioExecucaoOSContent({
       return count
     } else if (viewMode === 'semana') {
       let count = 0
-      for (const d of weekDays) {
+      const targetDays = weekDaysVisiveis.length > 0 ? weekDaysVisiveis : weekDays
+      for (const d of targetDays) {
         count += (ordensPorDia.get(d.dateKey) || []).length
       }
       return count
@@ -1179,32 +1236,50 @@ function CalendarioExecucaoOSContent({
       if (!selectedDayKey) return 0
       return (ordensPorDia.get(selectedDayKey) || []).length
     }
-  }, [viewMode, currentYear, currentMonth, ordensPorDia, weekDays, selectedDayKey])
+  }, [
+    viewMode,
+    currentYear,
+    currentMonth,
+    ordensPorDia,
+    weekDays,
+    weekDaysVisiveis,
+    selectedDayKey,
+  ])
 
-  // Rótulo textual do período para o header
+  // Rótulo textual do período para o header (blindado com weekDays[weekDays.length - 1] e guarda de array vazio)
   const headerPeriodoTexto = useMemo(() => {
     if (viewMode === 'mes') {
       return `${MESES[currentMonth] || ''} ${currentYear}`
     } else if (viewMode === 'semana') {
-      const first = weekDays[0]?.date
-      const last = weekDays[6]?.date
+      const targetDays = weekDaysVisiveis.length > 0 ? weekDaysVisiveis : weekDays
+      if (!targetDays || targetDays.length === 0) return ''
+      const first = targetDays[0]?.date
+      const last = targetDays[targetDays.length - 1]?.date
       if (!first || !last) return ''
-      if (first.getMonth() === last.getMonth()) {
-        return `${first.getDate()}–${last.getDate()} de ${MESES[first.getMonth()] || ''} de ${first.getFullYear()}`
+      try {
+        if (first.getMonth() === last.getMonth()) {
+          return `${first.getDate()}–${last.getDate()} de ${MESES[first.getMonth()] || ''} de ${first.getFullYear()}`
+        }
+        if (first.getFullYear() === last.getFullYear()) {
+          return `${first.getDate()} de ${MESES[first.getMonth()] || ''} – ${last.getDate()} de ${MESES[last.getMonth()] || ''} de ${first.getFullYear()}`
+        }
+        return `${first.getDate()}/${first.getMonth() + 1}/${first.getFullYear()} – ${last.getDate()}/${last.getMonth() + 1}/${last.getFullYear()}`
+      } catch (_) {
+        return ''
       }
-      if (first.getFullYear() === last.getFullYear()) {
-        return `${first.getDate()} de ${MESES[first.getMonth()] || ''} – ${last.getDate()} de ${MESES[last.getMonth()] || ''} de ${first.getFullYear()}`
-      }
-      return `${first.getDate()}/${first.getMonth() + 1}/${first.getFullYear()} – ${last.getDate()}/${last.getMonth() + 1}/${last.getFullYear()}`
     } else {
       // Visão Dia
-      const d = selectedDayDate
-      const dia = d.getDate()
-      const mes = MESES[d.getMonth()] || ''
-      const ano = d.getFullYear()
-      return `${dia} de ${mes} de ${ano}`
+      try {
+        const d = selectedDayDate || new Date()
+        const dia = d.getDate()
+        const mes = MESES[d.getMonth()] || ''
+        const ano = d.getFullYear()
+        return `${dia} de ${mes} de ${ano}`
+      } catch (_) {
+        return ''
+      }
     }
-  }, [viewMode, currentMonth, currentYear, weekDays, selectedDayDate])
+  }, [viewMode, currentMonth, currentYear, weekDays, weekDaysVisiveis, selectedDayDate])
 
   const calendarDays = useMemo(() => {
     const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay() // 0 = Domingo
@@ -1409,6 +1484,30 @@ function CalendarioExecucaoOSContent({
               Dia
             </button>
           </div>
+
+          {/* Toggles de Sábados e Domingos (compactos para mobile e desktop) */}
+          <div className="flex items-center gap-2 text-xs font-medium text-gray-700 select-none pl-1">
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
+              <Checkbox
+                checked={showSabados}
+                onCheckedChange={(checked) => handleToggleSabados(Boolean(checked))}
+                className="h-3.5 w-3.5 border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+              />
+              <span className="text-[11px] font-semibold text-gray-700 whitespace-nowrap">
+                Sábados
+              </span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
+              <Checkbox
+                checked={showDomingos}
+                onCheckedChange={(checked) => handleToggleDomingos(Boolean(checked))}
+                className="h-3.5 w-3.5 border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+              />
+              <span className="text-[11px] font-semibold text-gray-700 whitespace-nowrap">
+                Domingos
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Bloco Direita: Ações Primárias (Nova Atividade + Filtros) */}
@@ -1611,13 +1710,19 @@ function CalendarioExecucaoOSContent({
       {viewMode === 'semana' && (
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs overflow-hidden select-none flex flex-col">
           {/* Seção "Dia Todo / Sem Horário Definido" no topo */}
-          <div className="border-b border-gray-200 bg-gray-50/70 p-2 sm:p-2.5">
+          <div className="border-b border-gray-200 bg-gray-50/70 p-2 sm:p-2.5 overflow-x-auto touch-pan-x">
             <div className="flex items-start gap-2">
-              <div className="w-14 sm:w-16 shrink-0 text-[10px] font-bold text-gray-500 uppercase tracking-wider pt-1.5 text-right pr-2">
+              <div className="w-14 sm:w-16 shrink-0 text-[10px] font-bold text-gray-500 uppercase tracking-wider pt-1.5 text-right pr-2 sticky left-0 z-20 bg-gray-50/90">
                 Dia todo
               </div>
-              <div className="flex-1 grid grid-cols-7 gap-2 min-w-[700px] overflow-x-auto">
-                {weekDays.map((dia) => {
+              <div
+                className="flex-1 grid gap-2"
+                style={{
+                  gridTemplateColumns: `repeat(${weekDaysVisiveis.length || 1}, minmax(120px, 1fr))`,
+                  minWidth: `${(weekDaysVisiveis.length || 1) * 120}px`,
+                }}
+              >
+                {weekDaysVisiveis.map((dia) => {
                   const dayOrdens = ordensPorDia.get(dia.dateKey) || []
                   const { diaInteiro } = separarOrdensDoDia(dayOrdens)
 
@@ -1677,256 +1782,273 @@ function CalendarioExecucaoOSContent({
             </div>
           </div>
 
-          {/* Cabeçalho das Colunas de Dias da Semana */}
-          <div className="flex border-b border-gray-200 bg-[#FAFBFB] sticky top-0 z-10">
-            {/* Coluna da régua de horas (espaçador) */}
-            <div className="w-14 sm:w-16 shrink-0 border-r border-gray-200 p-2 text-[10px] font-bold text-gray-400 text-right uppercase tracking-wider">
-              GMT-3
-            </div>
-
-            {/* Colunas dos 7 dias */}
-            <div className="flex-1 grid grid-cols-7 divide-x divide-gray-200 min-w-[700px]">
-              {weekDays.map((dia) => (
-                <div
-                  key={`header-${dia.dateKey}`}
-                  onClick={() => setSelectedDayKey(dia.dateKey)}
-                  className={`p-2 sm:p-2.5 flex items-center justify-between transition-colors cursor-pointer ${
-                    dia.isToday
-                      ? 'bg-emerald-50/80 text-emerald-950 font-bold'
-                      : selectedDayKey === dia.dateKey
-                        ? 'bg-gray-100/70 text-gray-900 font-bold'
-                        : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <div className="flex items-baseline gap-1.5">
-                    <span
-                      className={`text-xs uppercase font-extrabold tracking-wider ${
-                        dia.isToday ? 'text-emerald-700' : 'text-gray-500'
-                      }`}
-                    >
-                      {dia.diaSemanaCurto}
-                    </span>
-                    <span
-                      className={`text-sm sm:text-base font-extrabold ${
-                        dia.isToday
-                          ? 'w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center -ml-0.5'
-                          : 'text-gray-900'
-                      }`}
-                    >
-                      {dia.dayNumber}
-                    </span>
-                  </div>
-
-                  <span className="text-[10px] text-gray-400 font-medium hidden sm:inline">
-                    {(MESES[dia.date.getMonth()] || '').slice(0, 3)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Grade Horária estilo Google Calendar (06:00 às 22:00) */}
+          {/* Contêiner com scroll bidirecional suave no mobile (touch-pan-x touch-pan-y, max-h-[640px]) */}
           <div
             ref={timeGridRef}
-            className="flex overflow-y-auto max-h-[640px] bg-white relative divide-x divide-gray-200"
+            className="overflow-auto max-h-[640px] bg-white relative touch-pan-x touch-pan-y"
           >
-            {/* Régua de Horas (lado esquerdo) */}
-            <div className="w-14 sm:w-16 shrink-0 bg-[#FAFBFB] select-none">
-              {Array.from({ length: TOTAL_HORAS }, (_, idx) => {
-                const hora = HORA_INICIAL + idx
-                return (
+            {/* Cabeçalho das Colunas de Dias da Semana (sticky top-0 z-20 com sombra suave) */}
+            <div className="flex border-b border-gray-200 bg-[#FAFBFB] sticky top-0 z-20 shadow-2xs">
+              {/* Célula de canto (GMT-3): sticky left-0 top-0 z-30 bg-[#FAFBFB] */}
+              <div className="w-14 sm:w-16 shrink-0 border-r border-gray-200 p-2 text-[10px] font-bold text-gray-400 text-right uppercase tracking-wider sticky left-0 top-0 z-30 bg-[#FAFBFB] shadow-xs">
+                GMT-3
+              </div>
+
+              {/* Colunas dos dias visíveis */}
+              <div
+                className="flex-1 grid divide-x divide-gray-200"
+                style={{
+                  gridTemplateColumns: `repeat(${weekDaysVisiveis.length || 1}, minmax(120px, 1fr))`,
+                  minWidth: `${(weekDaysVisiveis.length || 1) * 120}px`,
+                }}
+              >
+                {weekDaysVisiveis.map((dia) => (
                   <div
-                    key={`time-label-${hora}`}
-                    className="border-b border-gray-100 text-[11px] font-semibold text-gray-500 pr-2 text-right relative"
-                    style={{ height: `${ALTURA_HORA_PX}px` }}
+                    key={`header-${dia.dateKey}`}
+                    onClick={() => setSelectedDayKey(dia.dateKey)}
+                    className={`p-2 sm:p-2.5 flex items-center justify-between transition-colors cursor-pointer ${
+                      dia.isToday
+                        ? 'bg-emerald-50/80 text-emerald-950 font-bold'
+                        : selectedDayKey === dia.dateKey
+                          ? 'bg-gray-100/70 text-gray-900 font-bold'
+                          : 'hover:bg-gray-50 text-gray-700'
+                    }`}
                   >
-                    <span className="-top-2.5 relative block">
-                      {String(hora).padStart(2, '0')}:00
+                    <div className="flex items-baseline gap-1.5">
+                      <span
+                        className={`text-xs uppercase font-extrabold tracking-wider ${
+                          dia.isToday ? 'text-emerald-700' : 'text-gray-500'
+                        }`}
+                      >
+                        {dia.diaSemanaCurto}
+                      </span>
+                      <span
+                        className={`text-sm sm:text-base font-extrabold ${
+                          dia.isToday
+                            ? 'w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center -ml-0.5'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {dia.dayNumber}
+                      </span>
+                    </div>
+
+                    <span className="text-[10px] text-gray-400 font-medium hidden sm:inline">
+                      {dia.date instanceof Date && !isNaN(dia.date.getTime())
+                        ? (MESES[dia.date.getMonth()] || '').slice(0, 3)
+                        : ''}
                     </span>
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
 
-            {/* Colunas de cada dia na grade horária (7 colunas) */}
-            <div className="flex-1 grid grid-cols-7 divide-x divide-gray-200 min-w-[700px] relative">
-              {weekDays.map((dia) => {
-                const dayOrdens = ordensPorDia.get(dia.dateKey) || []
-                const { comHorario } = separarOrdensDoDia(dayOrdens)
+            {/* Linhas da Grade Horária (06:00 às 22:00) */}
+            <div className="flex divide-x divide-gray-200 relative">
+              {/* Régua de Horas (lado esquerdo): sticky left-0 z-20 bg-[#FAFBFB] border-r border-gray-200 sombra leve */}
+              <div className="w-14 sm:w-16 shrink-0 bg-[#FAFBFB] select-none sticky left-0 z-20 border-r border-gray-200 shadow-xs">
+                {Array.from({ length: TOTAL_HORAS }, (_, idx) => {
+                  const hora = HORA_INICIAL + idx
+                  return (
+                    <div
+                      key={`time-label-${hora}`}
+                      className="border-b border-gray-100 text-[11px] font-semibold text-gray-500 pr-2 text-right relative"
+                      style={{ height: `${ALTURA_HORA_PX}px` }}
+                    >
+                      <span className="-top-2.5 relative block">
+                        {String(hora).padStart(2, '0')}:00
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
 
-                return (
-                  <div
-                    key={`col-${dia.dateKey}`}
-                    className={`relative ${dia.isToday ? 'bg-emerald-50/10' : 'bg-white'}`}
-                    style={{ height: `${TOTAL_HORAS * ALTURA_HORA_PX}px` }}
-                  >
-                    {/* Linhas de grade horária (slots receptores de Drop) */}
-                    {Array.from({ length: TOTAL_HORAS }, (_, idx) => {
-                      const hora = HORA_INICIAL + idx
-                      const isHovered =
-                        dragOverSlot?.dateKey === dia.dateKey && dragOverSlot?.hora === hora
+              {/* Colunas de cada dia na grade horária (com gridTemplateColumns dinâmico) */}
+              <div
+                className="flex-1 grid divide-x divide-gray-200 relative"
+                style={{
+                  gridTemplateColumns: `repeat(${weekDaysVisiveis.length || 1}, minmax(120px, 1fr))`,
+                  minWidth: `${(weekDaysVisiveis.length || 1) * 120}px`,
+                }}
+              >
+                {weekDaysVisiveis.map((dia) => {
+                  const dayOrdens = ordensPorDia.get(dia.dateKey) || []
+                  const { comHorario } = separarOrdensDoDia(dayOrdens)
 
-                      return (
-                        <div
-                          key={`slot-${dia.dateKey}-${hora}`}
-                          onDragOver={(e) => handleDragOverSlot(e, dia.dateKey, hora)}
-                          onDrop={(e) => handleDropOnSlot(e, dia.dateKey, hora)}
-                          onClick={() => setSelectedDayKey(dia.dateKey)}
-                          className={`border-b border-gray-100 transition-colors cursor-pointer group/slot relative ${
-                            isHovered
-                              ? 'bg-emerald-100/70 border-emerald-400 ring-2 ring-emerald-400/40'
-                              : 'hover:bg-gray-50/80'
-                          }`}
-                          style={{ height: `${ALTURA_HORA_PX}px` }}
-                          title={`Arraste uma OS até as ${hora}:00h ou clique para selecionar o dia`}
-                        >
-                          {/* Linha pontilhada de meia hora para visualização precisa */}
-                          <div className="absolute top-1/2 left-0 right-0 border-b border-dashed border-gray-100/80 pointer-events-none" />
-                        </div>
-                      )
-                    })}
+                  return (
+                    <div
+                      key={`col-${dia.dateKey}`}
+                      className={`relative ${dia.isToday ? 'bg-emerald-50/10' : 'bg-white'}`}
+                      style={{ height: `${TOTAL_HORAS * ALTURA_HORA_PX}px` }}
+                    >
+                      {/* Linhas de grade horária (slots receptores de Drop) */}
+                      {Array.from({ length: TOTAL_HORAS }, (_, idx) => {
+                        const hora = HORA_INICIAL + idx
+                        const isHovered =
+                          dragOverSlot?.dateKey === dia.dateKey && dragOverSlot?.hora === hora
 
-                    {/* Cards de OS Posicionados na Grade */}
-                    {comHorario.map((item) => {
-                      const rawOs = item.os
-                      const os = {
-                        ...rawOs,
-                        checklist: normalizeChecklist(rawOs?.checklist),
-                      }
-                      const tipoServico = os.tipo_servico || 'Manutenção'
-                      const tipoConfig = getTipoServicoConfig(tipoServico)
-                      const isConcluida = os.status === 'concluida'
-                      const isDragging = draggingOSId === os.id
-                      const isBeingResized = resizing?.osId === os.id
-                      const horaInicioStr =
-                        (os.horario_inicio && /^\d{1,2}:\d{2}/.test(safeStr(os.horario_inicio))
-                          ? safeStr(os.horario_inicio).slice(0, 5)
-                          : '') || extractHorario(os.data_agendada)
-
-                      // Calcula hora de término prevista
-                      const minutosInicio =
-                        (Number(item.hora) || 0) * 60 + (Number(item.minuto) || 0)
-                      const minutosFim =
-                        minutosInicio + (Number(item.duracaoMinutos) || DURACAO_PADRAO_MINUTOS)
-                      const horaFimCalc = Math.floor(minutosFim / 60)
-                      const minutoFimCalc = minutosFim % 60
-                      const horaFimCalculada = `${String(horaFimCalc).padStart(2, '0')}:${String(minutoFimCalc).padStart(2, '0')}`
-                      const horaFimStr =
-                        (os.horario_fim &&
-                        /^\d{1,2}:\d{2}/.test(safeStr(os.horario_fim)) &&
-                        !isBeingResized
-                          ? safeStr(os.horario_fim).slice(0, 5)
-                          : '') || horaFimCalculada
-
-                      const duracaoEfetiva =
-                        isBeingResized && resizing ? resizing.currentDuracao : item.duracaoMinutos
-                      const cardHeight = Math.max(28, (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2)
-
-                      const clienteNome =
-                        os.expand?.cliente_id?.nome ||
-                        os.expand?.cliente_id?.razao_social ||
-                        'Cliente Solar'
-
-                      return (
-                        <div
-                          key={`card-${os.id}`}
-                          draggable={!isBeingResized}
-                          onDragStart={(e) => handleDragStart(e, os.id)}
-                          onDragEnd={handleDragEnd}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onSelectOS(os)
-                          }}
-                          className={`absolute left-1 right-1 rounded-xl p-1.5 pb-2 border shadow-2xs transition-all flex flex-col justify-between overflow-hidden cursor-pointer group ${
-                            isDragging ? 'opacity-40 scale-95 ring-2 ring-emerald-500' : ''
-                          } ${
-                            isConcluida
-                              ? 'bg-gray-50 text-gray-500 border-gray-300 opacity-80'
-                              : 'bg-white hover:border-gray-400 hover:shadow-md'
-                          }`}
-                          style={{
-                            top: `${item.top}px`,
-                            height: `${cardHeight}px`,
-                            borderLeftWidth: '4px',
-                            borderLeftColor: isConcluida ? '#9CA3AF' : tipoConfig.hex,
-                            backgroundColor: isConcluida ? '#F9FAFB' : tipoConfig.pillBg,
-                            zIndex: isDragging || isBeingResized ? 30 : 10,
-                          }}
-                          title={`${clienteNome} (${tipoServico}) • ${horaInicioStr} - ${horaFimStr}\nClique para abrir ficha de execução\nArraste para mover horário/dia\nPuxe a borda inferior para ajustar duração`}
-                        >
-                          {/* Conteúdo do Card */}
-                          <div className="min-w-0 flex-1 overflow-hidden pb-1">
-                            {/* Topo: Horário + Tipo */}
-                            <div className="flex items-center justify-between gap-1 mb-0.5">
-                              <span className="text-[10px] font-bold text-gray-700 font-mono flex items-center gap-0.5 shrink-0">
-                                <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                {horaInicioStr} - {horaFimStr}
-                              </span>
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                <span
-                                  className="text-[8px] font-extrabold uppercase tracking-wider truncate"
-                                  style={{ color: tipoConfig.hex }}
-                                >
-                                  {tipoServico}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Nome do Cliente */}
-                            <div
-                              className={`text-[11px] font-bold leading-tight truncate ${
-                                isConcluida
-                                  ? 'text-gray-400 line-through'
-                                  : 'text-gray-900 group-hover:text-emerald-800'
-                              }`}
-                            >
-                              {clienteNome}
-                            </div>
-
-                            {/* Responsável / Duração (se couber na altura) */}
-                            {cardHeight >= 48 && (
-                              <div className="flex items-center justify-between text-[10px] text-gray-500 mt-0.5 truncate gap-1">
-                                <span className="truncate flex items-center gap-0.5">
-                                  <User className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                                  <span className="truncate">
-                                    {os.atribuida_a || 'Não atribuído'}
-                                  </span>
-                                </span>
-                                <span className="text-[9px] text-gray-400 shrink-0">
-                                  {item.duracaoMinutos}m
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Alça inferior de redimensionamento (bem fininha, padrão para cards de 1h, 30min e longos) */}
+                        return (
                           <div
-                            data-testid={`resize-handle-${os.id}`}
-                            onMouseDown={(e) => {
-                              e.stopPropagation()
-                              handleResizeStart(e, os)
-                            }}
-                            onPointerDown={(e) => {
-                              e.stopPropagation()
-                              handleResizeStart(e, os)
-                            }}
-                            onClick={(e) => {
-                              // Evita que o clique na alça abra a ficha de execução da OS
-                              e.stopPropagation()
-                            }}
-                            style={{ touchAction: 'none', userSelect: 'none' }}
-                            className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
-                            title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
+                            key={`slot-${dia.dateKey}-${hora}`}
+                            onDragOver={(e) => handleDragOverSlot(e, dia.dateKey, hora)}
+                            onDrop={(e) => handleDropOnSlot(e, dia.dateKey, hora)}
+                            onClick={() => setSelectedDayKey(dia.dateKey)}
+                            className={`border-b border-gray-100 transition-colors cursor-pointer group/slot relative ${
+                              isHovered
+                                ? 'bg-emerald-100/70 border-emerald-400 ring-2 ring-emerald-400/40'
+                                : 'hover:bg-gray-50/80'
+                            }`}
+                            style={{ height: `${ALTURA_HORA_PX}px` }}
+                            title={`Arraste uma OS até as ${hora}:00h ou clique para selecionar o dia`}
                           >
-                            <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 group-hover:h-[3px] transition-all pointer-events-none shadow-2xs" />
+                            {/* Linha pontilhada de meia hora para visualização precisa */}
+                            <div className="absolute top-1/2 left-0 right-0 border-b border-dashed border-gray-100/80 pointer-events-none" />
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
+                        )
+                      })}
+
+                      {/* Cards de OS Posicionados na Grade */}
+                      {comHorario.map((item) => {
+                        const rawOs = item.os
+                        const os = {
+                          ...rawOs,
+                          checklist: normalizeChecklist(rawOs?.checklist),
+                        }
+                        const tipoServico = os.tipo_servico || 'Manutenção'
+                        const tipoConfig = getTipoServicoConfig(tipoServico)
+                        const isConcluida = os.status === 'concluida'
+                        const isDragging = draggingOSId === os.id
+                        const isBeingResized = resizing?.osId === os.id
+                        const horaInicioStr =
+                          (os.horario_inicio && /^\d{1,2}:\d{2}/.test(safeStr(os.horario_inicio))
+                            ? safeStr(os.horario_inicio).slice(0, 5)
+                            : '') || extractHorario(os.data_agendada)
+
+                        // Calcula hora de término prevista
+                        const minutosInicio =
+                          (Number(item.hora) || 0) * 60 + (Number(item.minuto) || 0)
+                        const minutosFim =
+                          minutosInicio + (Number(item.duracaoMinutos) || DURACAO_PADRAO_MINUTOS)
+                        const horaFimCalc = Math.floor(minutosFim / 60)
+                        const minutoFimCalc = minutosFim % 60
+                        const horaFimCalculada = `${String(horaFimCalc).padStart(2, '0')}:${String(minutoFimCalc).padStart(2, '0')}`
+                        const horaFimStr =
+                          (os.horario_fim &&
+                          /^\d{1,2}:\d{2}/.test(safeStr(os.horario_fim)) &&
+                          !isBeingResized
+                            ? safeStr(os.horario_fim).slice(0, 5)
+                            : '') || horaFimCalculada
+
+                        const duracaoEfetiva =
+                          isBeingResized && resizing ? resizing.currentDuracao : item.duracaoMinutos
+                        const cardHeight = Math.max(28, (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2)
+
+                        const clienteNome =
+                          os.expand?.cliente_id?.nome ||
+                          os.expand?.cliente_id?.razao_social ||
+                          'Cliente Solar'
+
+                        return (
+                          <div
+                            key={`card-${os.id}`}
+                            draggable={!isBeingResized}
+                            onDragStart={(e) => handleDragStart(e, os.id)}
+                            onDragEnd={handleDragEnd}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onSelectOS(os)
+                            }}
+                            className={`absolute left-1 right-1 rounded-xl p-1.5 pb-2 border shadow-2xs transition-all flex flex-col justify-between overflow-hidden cursor-pointer group ${
+                              isDragging ? 'opacity-40 scale-95 ring-2 ring-emerald-500' : ''
+                            } ${
+                              isConcluida
+                                ? 'bg-gray-50 text-gray-500 border-gray-300 opacity-80'
+                                : 'bg-white hover:border-gray-400 hover:shadow-md'
+                            }`}
+                            style={{
+                              top: `${item.top}px`,
+                              height: `${cardHeight}px`,
+                              borderLeftWidth: '4px',
+                              borderLeftColor: isConcluida ? '#9CA3AF' : tipoConfig.hex,
+                              backgroundColor: isConcluida ? '#F9FAFB' : tipoConfig.pillBg,
+                              zIndex: isDragging || isBeingResized ? 30 : 10,
+                            }}
+                            title={`${clienteNome} (${tipoServico}) • ${horaInicioStr} - ${horaFimStr}\nClique para abrir ficha de execução\nArraste para mover horário/dia\nPuxe a borda inferior para ajustar duração`}
+                          >
+                            {/* Conteúdo do Card */}
+                            <div className="min-w-0 flex-1 overflow-hidden pb-1">
+                              {/* Topo: Horário + Tipo */}
+                              <div className="flex items-center justify-between gap-1 mb-0.5">
+                                <span className="text-[10px] font-bold text-gray-700 font-mono flex items-center gap-0.5 shrink-0">
+                                  <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                  {horaInicioStr} - {horaFimStr}
+                                </span>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span
+                                    className="text-[8px] font-extrabold uppercase tracking-wider truncate"
+                                    style={{ color: tipoConfig.hex }}
+                                  >
+                                    {tipoServico}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Nome do Cliente */}
+                              <div
+                                className={`text-[11px] font-bold leading-tight truncate ${
+                                  isConcluida
+                                    ? 'text-gray-400 line-through'
+                                    : 'text-gray-900 group-hover:text-emerald-800'
+                                }`}
+                              >
+                                {clienteNome}
+                              </div>
+
+                              {/* Responsável / Duração (se couber na altura) */}
+                              {cardHeight >= 48 && (
+                                <div className="flex items-center justify-between text-[10px] text-gray-500 mt-0.5 truncate gap-1">
+                                  <span className="truncate flex items-center gap-0.5">
+                                    <User className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                    <span className="truncate">
+                                      {os.atribuida_a || 'Não atribuído'}
+                                    </span>
+                                  </span>
+                                  <span className="text-[9px] text-gray-400 shrink-0">
+                                    {item.duracaoMinutos}m
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Alça inferior de redimensionamento (bem fininha, padrão para cards de 1h, 30min e longos) */}
+                            <div
+                              data-testid={`resize-handle-${os.id}`}
+                              onMouseDown={(e) => {
+                                e.stopPropagation()
+                                handleResizeStart(e, os)
+                              }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation()
+                                handleResizeStart(e, os)
+                              }}
+                              onClick={(e) => {
+                                // Evita que o clique na alça abra a ficha de execução da OS
+                                e.stopPropagation()
+                              }}
+                              style={{ touchAction: 'none', userSelect: 'none' }}
+                              className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
+                              title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
+                            >
+                              <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 group-hover:h-[3px] transition-all pointer-events-none shadow-2xs" />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
