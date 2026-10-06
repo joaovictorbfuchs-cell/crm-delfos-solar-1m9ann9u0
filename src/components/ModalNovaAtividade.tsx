@@ -409,12 +409,17 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       return
     }
 
+    const isAutoLeitura = selectedTipo === 'auto_leitura_rge'
+
     // Validação estrita: Auto Leitura RGE exige pelo menos 1 data de leitura informada
-    if (selectedTipo === 'auto_leitura_rge') {
+    if (isAutoLeitura) {
       if (datasLeituraAutoLeitura.length === 0) {
         setFormError('Informe pelo menos uma data de leitura para a Auto Leitura RGE.')
         return
       }
+    } else if (!dataHora) {
+      setFormError('Data e horário são obrigatórios.')
+      return
     }
 
     try {
@@ -607,6 +612,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     }
   }
 
+  const isAutoLeitura = selectedTipo === 'auto_leitura_rge'
   const configAtual = getTipoAtividadeConfig(selectedTipo, customDefs)
   const IconAtual = configAtual.icon
 
@@ -880,174 +886,178 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           )}
 
           {/* Data e Hora */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              <span>Data e Horário Previsto</span> <span className="text-red-500">*</span>
-            </label>
-            {selectedCategoria === 'manutencao' ? (
-              <div className="space-y-2.5 p-3 rounded-xl border border-sky-200 bg-sky-50/40">
-                {/* Data base da manutenção */}
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                    Data da Atividade
-                  </label>
-                  <input
-                    type="date"
-                    value={dataHora ? dataHora.slice(0, 10) : ''}
-                    onChange={(e) => {
-                      const novaData = e.target.value
-                      const horaAtual = horarioInicio || '08:00'
-                      if (novaData) {
-                        setDataHora(`${novaData}T${horaAtual}`)
-                      }
-                    }}
-                    required
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-                  />
-                </div>
-
-                {/* Grid com Horário de Início, Horário de Fim e Duração Prevista */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 border-t border-sky-100">
-                  {/* Horário de Início */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
-                      <span>Horário de Início</span>
-                      <span className="text-red-500">*</span>
+          {!isAutoLeitura && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-gray-400" />
+                <span>Data e Horário Previsto</span> <span className="text-red-500">*</span>
+              </label>
+              {selectedCategoria === 'manutencao' ? (
+                <div className="space-y-2.5 p-3 rounded-xl border border-sky-200 bg-sky-50/40">
+                  {/* Data base da manutenção */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                      Data da Atividade
                     </label>
-                    <div className="grid grid-cols-2 gap-1">
-                      <select
-                        value={horarioInicio.split(':')[0] || '08'}
-                        onChange={(e) => {
-                          const h = e.target.value.padStart(2, '0')
-                          const m = horarioInicio.split(':')[1] || '00'
-                          handleHorarioInicioChange(`${h}:${m}`)
-                        }}
-                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                        title="Hora de Início"
-                      >
-                        {HORAS_24.map((h) => (
-                          <option key={`ini-h-${h}`} value={h}>
-                            {h}h
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={(() => {
-                          const mRaw = parseInt(horarioInicio.split(':')[1] || '0', 10) || 0
-                          const mRound = Math.round(mRaw / 5) * 5
-                          const mBound = mRound >= 60 ? 55 : mRound
-                          return String(mBound).padStart(2, '0')
-                        })()}
-                        onChange={(e) => {
-                          const h = horarioInicio.split(':')[0] || '08'
-                          const m = e.target.value
-                          handleHorarioInicioChange(`${h}:${m}`)
-                        }}
-                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                        title="Minutos de Início (5 em 5 min)"
-                      >
-                        {MINUTOS_PASSO_5.map((m) => (
-                          <option key={`ini-m-${m}`} value={m}>
-                            {m}m
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <input
+                      type="date"
+                      value={dataHora ? dataHora.slice(0, 10) : ''}
+                      onChange={(e) => {
+                        const novaData = e.target.value
+                        const horaAtual = horarioInicio || '08:00'
+                        if (novaData) {
+                          setDataHora(`${novaData}T${horaAtual}`)
+                        }
+                      }}
+                      required
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+                    />
                   </div>
 
-                  {/* Horário de Fim */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
-                      <span>Horário de Fim</span>
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-1">
-                      <select
-                        value={horarioFim.split(':')[0] || '09'}
-                        onChange={(e) => {
-                          const h = e.target.value.padStart(2, '0')
-                          const m = horarioFim.split(':')[1] || '00'
-                          handleHorarioFimChange(`${h}:${m}`)
-                        }}
-                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                        title="Hora de Fim"
-                      >
-                        {HORAS_24.map((h) => (
-                          <option key={`fim-h-${h}`} value={h}>
-                            {h}h
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={(() => {
-                          const mRaw = parseInt(horarioFim.split(':')[1] || '0', 10) || 0
-                          const mRound = Math.round(mRaw / 5) * 5
-                          const mBound = mRound >= 60 ? 55 : mRound
-                          return String(mBound).padStart(2, '0')
-                        })()}
-                        onChange={(e) => {
-                          const h = horarioFim.split(':')[0] || '09'
-                          const m = e.target.value
-                          handleHorarioFimChange(`${h}:${m}`)
-                        }}
-                        className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                        title="Minutos de Fim (5 em 5 min)"
-                      >
-                        {MINUTOS_PASSO_5.map((m) => (
-                          <option key={`fim-m-${m}`} value={m}>
-                            {m}m
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Duração Prevista (Editável) */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-gray-700">
-                        Duração Prevista
+                  {/* Grid com Horário de Início, Horário de Fim e Duração Prevista */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 border-t border-sky-100">
+                    {/* Horário de Início */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                        <span>Horário de Início</span>
+                        <span className="text-red-500">*</span>
                       </label>
-                      <span className="text-[10px] font-extrabold text-sky-800 bg-sky-100 px-1.5 py-0.2 rounded border border-sky-200">
-                        {formatarDuracao(duracaoMinutos)}
-                      </span>
+                      <div className="grid grid-cols-2 gap-1">
+                        <select
+                          value={horarioInicio.split(':')[0] || '08'}
+                          onChange={(e) => {
+                            const h = e.target.value.padStart(2, '0')
+                            const m = horarioInicio.split(':')[1] || '00'
+                            handleHorarioInicioChange(`${h}:${m}`)
+                          }}
+                          className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                          title="Hora de Início"
+                        >
+                          {HORAS_24.map((h) => (
+                            <option key={`ini-h-${h}`} value={h}>
+                              {h}h
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={(() => {
+                            const mRaw = parseInt(horarioInicio.split(':')[1] || '0', 10) || 0
+                            const mRound = Math.round(mRaw / 5) * 5
+                            const mBound = mRound >= 60 ? 55 : mRound
+                            return String(mBound).padStart(2, '0')
+                          })()}
+                          onChange={(e) => {
+                            const h = horarioInicio.split(':')[0] || '08'
+                            const m = e.target.value
+                            handleHorarioInicioChange(`${h}:${m}`)
+                          }}
+                          className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                          title="Minutos de Início (5 em 5 min)"
+                        >
+                          {MINUTOS_PASSO_5.map((m) => (
+                            <option key={`ini-m-${m}`} value={m}>
+                              {m}m
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <select
-                      value={duracaoMinutos}
-                      onChange={(e) => handleDuracaoChange(parseInt(e.target.value, 10))}
-                      className="w-full text-xs px-2 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-                      title="Duração Prevista (editável)"
-                    >
-                      {DURACOES_PREVISTAS_SUGESTOES.map((d) => (
-                        <option key={`dur-${d.minutos}`} value={d.minutos}>
-                          {d.label}
-                        </option>
-                      ))}
-                      {!DURACOES_PREVISTAS_SUGESTOES.some((d) => d.minutos === duracaoMinutos) && (
-                        <option value={duracaoMinutos}>
-                          {formatarDuracao(duracaoMinutos)} (personalizado)
-                        </option>
-                      )}
-                    </select>
-                  </div>
-                </div>
 
-                <p className="text-[10px] text-sky-900/80">
-                  Previsão padrão inicial: 1 hora (+1h do início). Alterar o fim recalcula a
-                  duração, e alterar a duração recalcula o fim.
-                </p>
-              </div>
-            ) : (
-              <input
-                type="datetime-local"
-                value={dataHora}
-                onChange={(e) => setDataHora(e.target.value)}
-                required
-                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
-              />
-            )}
-          </div>
+                    {/* Horário de Fim */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                        <span>Horário de Fim</span>
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-1">
+                        <select
+                          value={horarioFim.split(':')[0] || '09'}
+                          onChange={(e) => {
+                            const h = e.target.value.padStart(2, '0')
+                            const m = horarioFim.split(':')[1] || '00'
+                            handleHorarioFimChange(`${h}:${m}`)
+                          }}
+                          className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                          title="Hora de Fim"
+                        >
+                          {HORAS_24.map((h) => (
+                            <option key={`fim-h-${h}`} value={h}>
+                              {h}h
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={(() => {
+                            const mRaw = parseInt(horarioFim.split(':')[1] || '0', 10) || 0
+                            const mRound = Math.round(mRaw / 5) * 5
+                            const mBound = mRound >= 60 ? 55 : mRound
+                            return String(mBound).padStart(2, '0')
+                          })()}
+                          onChange={(e) => {
+                            const h = horarioFim.split(':')[0] || '09'
+                            const m = e.target.value
+                            handleHorarioFimChange(`${h}:${m}`)
+                          }}
+                          className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
+                          title="Minutos de Fim (5 em 5 min)"
+                        >
+                          {MINUTOS_PASSO_5.map((m) => (
+                            <option key={`fim-m-${m}`} value={m}>
+                              {m}m
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Duração Prevista (Editável) */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-gray-700">
+                          Duração Prevista
+                        </label>
+                        <span className="text-[10px] font-extrabold text-sky-800 bg-sky-100 px-1.5 py-0.2 rounded border border-sky-200">
+                          {formatarDuracao(duracaoMinutos)}
+                        </span>
+                      </div>
+                      <select
+                        value={duracaoMinutos}
+                        onChange={(e) => handleDuracaoChange(parseInt(e.target.value, 10))}
+                        className="w-full text-xs px-2 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+                        title="Duração Prevista (editável)"
+                      >
+                        {DURACOES_PREVISTAS_SUGESTOES.map((d) => (
+                          <option key={`dur-${d.minutos}`} value={d.minutos}>
+                            {d.label}
+                          </option>
+                        ))}
+                        {!DURACOES_PREVISTAS_SUGESTOES.some(
+                          (d) => d.minutos === duracaoMinutos,
+                        ) && (
+                          <option value={duracaoMinutos}>
+                            {formatarDuracao(duracaoMinutos)} (personalizado)
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-sky-900/80">
+                    Previsão padrão inicial: 1 hora (+1h do início). Alterar o fim recalcula a
+                    duração, e alterar a duração recalcula o fim.
+                  </p>
+                </div>
+              ) : (
+                <input
+                  type="datetime-local"
+                  value={dataHora}
+                  onChange={(e) => setDataHora(e.target.value)}
+                  required
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+                />
+              )}
+            </div>
+          )}
 
           {/* Descrição Detalhada (OPCIONAL) */}
           <div className="space-y-1">

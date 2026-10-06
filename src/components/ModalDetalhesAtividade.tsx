@@ -296,6 +296,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     setDatasLeituraAutoLeitura((prev) => prev.filter((d) => d !== dataParaRemover))
   }
 
+  const isAutoLeitura = tipo === 'auto_leitura_rge' || atividade?.tipo === 'auto_leitura_rge'
+
   // Validação dos campos obrigatórios
   const validate = () => {
     const newErrors: {
@@ -311,7 +313,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     if (!clienteId) {
       newErrors.cliente = 'Selecione um cliente vinculado.'
     }
-    if (!dataHora) {
+    if (!isAutoLeitura && !dataHora) {
       newErrors.dataHora = 'Informe a data e horário da atividade.'
     }
     if (!responsavelId) {
@@ -319,7 +321,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     }
 
     // Auto Leitura RGE precisa de pelo menos 1 data de leitura
-    if (tipo === 'auto_leitura_rge' && datasLeituraAutoLeitura.length === 0) {
+    if (isAutoLeitura && datasLeituraAutoLeitura.length === 0) {
       setFormError('Informe pelo menos uma data de leitura para a Auto Leitura RGE.')
       return false
     }
@@ -824,31 +826,33 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                    Data e Horário Previsto <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={dataHora}
-                    onChange={(e) => {
-                      setDataHora(e.target.value)
-                      if (errors.dataHora) setErrors((prev) => ({ ...prev, dataHora: undefined }))
-                    }}
-                    required
-                    className={`w-full text-xs px-3 py-2.5 rounded-xl border bg-white text-gray-900 transition-all focus:outline-none ${
-                      errors.dataHora
-                        ? 'border-red-300 ring-2 ring-red-200 bg-red-50/20'
-                        : 'border-gray-200 focus:ring-2 focus:ring-emerald-500'
-                    }`}
-                  />
-                  {errors.dataHora && (
-                    <p className="text-[11px] text-red-600 mt-0.5">{errors.dataHora}</p>
-                  )}
-                </div>
+                {!isAutoLeitura && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                      Data e Horário Previsto <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={dataHora}
+                      onChange={(e) => {
+                        setDataHora(e.target.value)
+                        if (errors.dataHora) setErrors((prev) => ({ ...prev, dataHora: undefined }))
+                      }}
+                      required
+                      className={`w-full text-xs px-3 py-2.5 rounded-xl border bg-white text-gray-900 transition-all focus:outline-none ${
+                        errors.dataHora
+                          ? 'border-red-300 ring-2 ring-red-200 bg-red-50/20'
+                          : 'border-gray-200 focus:ring-2 focus:ring-emerald-500'
+                      }`}
+                    />
+                    {errors.dataHora && (
+                      <p className="text-[11px] text-red-600 mt-0.5">{errors.dataHora}</p>
+                    )}
+                  </div>
+                )}
 
-                <div className="space-y-1">
+                <div className={`space-y-1 ${isAutoLeitura ? 'sm:col-span-2' : ''}`}>
                   <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
                     <User className="w-3.5 h-3.5 text-emerald-600" />
                     Usuário Responsável <span className="text-red-500">*</span>

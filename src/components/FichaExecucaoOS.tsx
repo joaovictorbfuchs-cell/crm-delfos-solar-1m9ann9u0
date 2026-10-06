@@ -195,6 +195,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Se o item tem origem em 'atividades', estado dedicado para data/horário e responsável da atividade
   const isOrigemAtividades = os.origem === 'atividades'
+  const isAutoLeituraOS =
+    os?.tipo_servico === 'auto_leitura_rge' ||
+    os?.tipo_servico === 'Auto Leitura – RGE' ||
+    os?.tipo_servico === 'Auto Leitura - RGE' ||
+    (os as any)?.tipo === 'auto_leitura_rge'
   const [atividadeDataHora, setAtividadeDataHora] = useState<string>(() => {
     const raw = os?.data_agendada
     if (!raw) return ''
@@ -1380,30 +1385,32 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             {/* Data Agendada */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Data Agendada:</span>
-              </label>
-              <input
-                type="date"
-                value={(() => {
-                  const base = atividadeDataHora || os?.data_agendada || ''
-                  return base && base.length >= 10 ? base.slice(0, 10) : ''
-                })()}
-                onChange={(e) => {
-                  const novaData = e.target.value
-                  const horaAtual = horarioInicio || '08:00'
-                  if (novaData) {
-                    setAtividadeDataHora(`${novaData}T${horaAtual}`)
-                  }
-                }}
-                className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-              />
-            </div>
+            {!isAutoLeituraOS && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Data Agendada:</span>
+                </label>
+                <input
+                  type="date"
+                  value={(() => {
+                    const base = atividadeDataHora || os?.data_agendada || ''
+                    return base && base.length >= 10 ? base.slice(0, 10) : ''
+                  })()}
+                  onChange={(e) => {
+                    const novaData = e.target.value
+                    const horaAtual = horarioInicio || '08:00'
+                    if (novaData) {
+                      setAtividadeDataHora(`${novaData}T${horaAtual}`)
+                    }
+                  }}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+                />
+              </div>
+            )}
 
             {/* Campo de Responsável */}
-            <div className="space-y-1.5">
+            <div className={`space-y-1.5 ${isAutoLeituraOS ? 'sm:col-span-2' : ''}`}>
               <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Responsável da Atividade:</span>

@@ -1634,4 +1634,100 @@ describe('Login e App Smoke Tests', () => {
     // O registro de log sem data explícita NÃO deve aparecer no calendário mesmo tendo created de hoje
     expect(html).not.toContain('Cliente Log Historico')
   })
+
+  it('Auto Leitura RGE oculta campo genérico de Data e Horário Previsto e dispensa sua obrigatoriedade nos modais e ficha', async () => {
+    const { ModalNovaAtividade } = await import('@/components/ModalNovaAtividade')
+    const { ModalDetalhesAtividade } = await import('@/components/ModalDetalhesAtividade')
+    const { FichaExecucaoOS } = await import('@/components/FichaExecucaoOS')
+
+    // 1. ModalNovaAtividade: tipo auto_leitura_rge oculta "Data e Horário Previsto"
+    const htmlModalNovaAutoLeitura = renderToStaticMarkup(
+      React.createElement(ModalNovaAtividade, {
+        isOpen: true,
+        onClose: () => {},
+        initialTipo: 'auto_leitura_rge',
+        initialClienteId: 'cli-teste-1',
+      }),
+    )
+    expect(htmlModalNovaAutoLeitura).not.toContain('Data e Horário Previsto')
+    expect(htmlModalNovaAutoLeitura).toContain('Datas de Leitura Programadas')
+
+    // 2. ModalNovaAtividade: tipo comum (ex: manutencao_preventiva) exibe "Data e Horário Previsto"
+    const htmlModalNovaPreventiva = renderToStaticMarkup(
+      React.createElement(ModalNovaAtividade, {
+        isOpen: true,
+        onClose: () => {},
+        initialTipo: 'manutencao_preventiva',
+        initialClienteId: 'cli-teste-1',
+      }),
+    )
+    expect(htmlModalNovaPreventiva).toContain('Data e Horário Previsto')
+
+    // 3. ModalDetalhesAtividade: tipo auto_leitura_rge oculta "Data e Horário Previsto"
+    const htmlDetalhesAutoLeitura = renderToStaticMarkup(
+      React.createElement(ModalDetalhesAtividade, {
+        isOpen: true,
+        onClose: () => {},
+        atividade: {
+          id: 'atv-auto-1',
+          titulo: 'Auto Leitura – RGE - Cliente Teste',
+          tipo: 'auto_leitura_rge',
+          cliente_id: 'cli-teste-1',
+          datas_leitura: ['2027-01-15', '2027-02-15'],
+        } as any,
+      }),
+    )
+    expect(htmlDetalhesAutoLeitura).not.toContain('Data e Horário Previsto')
+    expect(htmlDetalhesAutoLeitura).toContain('Datas de Leitura Programadas')
+
+    // 4. ModalDetalhesAtividade: tipo comum exibe "Data e Horário Previsto"
+    const htmlDetalhesComum = renderToStaticMarkup(
+      React.createElement(ModalDetalhesAtividade, {
+        isOpen: true,
+        onClose: () => {},
+        atividade: {
+          id: 'atv-comum-1',
+          titulo: 'Reunião com Cliente',
+          tipo: 'reuniao',
+          cliente_id: 'cli-teste-1',
+        } as any,
+      }),
+    )
+    expect(htmlDetalhesComum).toContain('Data e Horário Previsto')
+
+    // 5. FichaExecucaoOS: tipo auto_leitura_rge oculta bloco de "Data Agendada:"
+    const htmlFichaAutoLeitura = renderToStaticMarkup(
+      React.createElement(FichaExecucaoOS, {
+        os: {
+          id: 'os-auto-1',
+          origem: 'atividades',
+          tipo_servico: 'auto_leitura_rge',
+          status: 'pendente',
+          data_agendada: '2027-01-15 10:00:00',
+        } as any,
+        onBack: () => {},
+        onOSUpdated: () => {},
+        onOSFinalizada: () => {},
+      }),
+    )
+    expect(htmlFichaAutoLeitura).not.toContain('Data Agendada:')
+    expect(htmlFichaAutoLeitura).toContain('Responsável da Atividade:')
+
+    // 6. FichaExecucaoOS: tipo comum de manutenção exibe "Data Agendada:"
+    const htmlFichaPreventiva = renderToStaticMarkup(
+      React.createElement(FichaExecucaoOS, {
+        os: {
+          id: 'os-prev-1',
+          origem: 'atividades',
+          tipo_servico: 'Manutenção Preventiva',
+          status: 'pendente',
+          data_agendada: '2027-01-15 10:00:00',
+        } as any,
+        onBack: () => {},
+        onOSUpdated: () => {},
+        onOSFinalizada: () => {},
+      }),
+    )
+    expect(htmlFichaPreventiva).toContain('Data Agendada:')
+  })
 })
