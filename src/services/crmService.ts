@@ -3557,7 +3557,8 @@ async function updateAtividadeComoOrdemServico(
       switch (atvRecord.tipo) {
         case 'limpeza_manutencao':
           tipoServicoResolvido = 'Limpeza dos Módulos'
-          break        case 'instalacao':
+          break
+        case 'instalacao':
           tipoServicoResolvido = 'Instalação'
           break
         case 'visita_tecnica':
