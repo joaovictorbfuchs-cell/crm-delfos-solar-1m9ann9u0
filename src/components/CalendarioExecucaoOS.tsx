@@ -209,12 +209,12 @@ export const TIPO_SERVICO_CORES: Record<OSTipoServico | string, TipoServicoCorCo
     pillBg: 'rgba(2, 132, 199, 0.14)',
   },
   'Limpeza e Manutenção': {
-    nome: 'Limpeza e Manutenção',
+    nome: 'Limpeza dos Módulos',
     borderClass: 'border-l-sky-500',
     borderColor: '#0284C7',
     bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
     bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
-    textClass: 'text-sky-800',
+    textClass: 'text-sky-900',
     hex: '#0284C7',
     pillBg: 'rgba(2, 132, 199, 0.14)',
   },
@@ -259,12 +259,12 @@ export const TIPO_SERVICO_CORES: Record<OSTipoServico | string, TipoServicoCorCo
     pillBg: 'rgba(220, 38, 38, 0.14)',
   },
   limpeza_manutencao: {
-    nome: 'Limpeza e Manutenção',
+    nome: 'Limpeza dos Módulos',
     borderClass: 'border-l-sky-500',
     borderColor: '#0284C7',
     bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
     bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
-    textClass: 'text-sky-800',
+    textClass: 'text-sky-900',
     hex: '#0284C7',
     pillBg: 'rgba(2, 132, 199, 0.14)',
   },
@@ -348,7 +348,7 @@ export function getTipoServicoConfig(tipoNome?: unknown): TipoServicoCorConfig {
     lower === 'limpeza e manutenção' ||
     lower === 'limpeza & manutenção'
   ) {
-    return TIPO_SERVICO_CORES['Limpeza e Manutenção']
+    return TIPO_SERVICO_CORES['Limpeza dos Módulos'] || TIPO_SERVICO_CORES['Limpeza']
   }
   if (lower === 'limpeza' || lower === 'limpeza dos módulos' || lower === 'limpeza dos modulos') {
     return TIPO_SERVICO_CORES['Limpeza dos Módulos'] || TIPO_SERVICO_CORES['Limpeza']

@@ -375,7 +375,7 @@ export const Atividades: React.FC = () => {
                   <option value="follow_up">Follow-up</option>
                   <option value="instalacao">Instalação</option>
                   <option value="proposta">Proposta</option>
-                  <option value="limpeza_manutencao">Limpeza e Manutenção</option>
+                  <option value="limpeza">Limpeza dos Módulos</option>
                   <option value="auto_leitura_rge">Auto Leitura - RGE</option>
                   <option value="ligar_indicacao">Solicitar indicação</option>
                   <option value="configuracao_datalogger">Configuração Datalogger</option>

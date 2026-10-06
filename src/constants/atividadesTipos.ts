@@ -257,21 +257,7 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     isPadrao: true,
     valor_base: 350,
   },
-  {
-    id: 'limpeza_manutencao',
-    categoria: 'manutencao',
-    tituloPadrao: 'Limpeza e Manutenção',
-    descricaoAjuda: 'Serviço integrado de lavagem dos módulos e manutenção preventiva',
-    corHex: '#0284C7',
-    badgeClass: 'bg-sky-50 text-sky-800 border-sky-200',
-    iconBg: 'bg-sky-100 text-sky-800 border-sky-200',
-    iconText: 'text-sky-600',
-    borderClass: 'border-sky-400',
-    icon: Droplets,
-    isPadrao: true,
-    valor_base: 250,
-    valor_por_placa: 12.5,
-  },
+
   {
     id: 'configuracao_datalogger',
     categoria: 'manutencao',
@@ -531,6 +517,25 @@ export function getTipoAtividadeConfig(
       return ATIVIDADES_PADRAO[0] // Entrar em contato
     case 'reuniao':
       return ATIVIDADES_PADRAO[1] // Reunião Presencial
+    case 'limpeza_manutencao':
+      // Blindagem para histórico antigo: mapeia para Limpeza dos Módulos
+      return (
+        ATIVIDADES_PADRAO.find((t) => t.id === 'limpeza') || {
+          id: 'limpeza',
+          categoria: 'manutencao',
+          tituloPadrao: 'Limpeza dos Módulos',
+          descricaoAjuda: 'Lavagem técnica dos painéis solares para ganho de geração',
+          corHex: '#0284C7',
+          badgeClass: 'bg-sky-50 text-sky-800 border-sky-200',
+          iconBg: 'bg-sky-100 text-sky-800 border-sky-200',
+          iconText: 'text-sky-600',
+          borderClass: 'border-sky-400',
+          icon: Droplets,
+          isPadrao: true,
+          valor_base: 250,
+          valor_por_placa: 12.5,
+        }
+      )
     case 'anotacao':
       return {
         id: 'anotacao',

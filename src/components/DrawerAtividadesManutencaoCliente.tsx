@@ -250,7 +250,7 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
 
       const criada = await addAtividade({
         cliente_id: cliente.id,
-        tipo: 'limpeza_manutencao',
+        tipo: 'limpeza',
         titulo: novoTipoNome.trim(),
         descricao: novaDescricao.trim(),
         data: new Date(novaDataPrevista).toISOString(),

@@ -84,7 +84,7 @@ export type AtividadeTipo =
   | 'limpeza'
   | 'manutencao_preventiva'
   | 'manutencao_corretiva'
-  | 'limpeza_manutencao'
+  | 'limpeza_manutencao' // Mantido para compatibilidade de tipos históricos
   | 'configuracao_datalogger'
   | 'garantia_equipamento'
   // 3. Atividades Administrativas / RGE / Pós-Venda:
@@ -1302,7 +1302,7 @@ export type OSTipoServico =
   | 'Manutenção'
   | 'Manutenção Preventiva'
   | 'Manutenção Corretiva'
-  | 'Limpeza e Manutenção'
+  | 'Limpeza e Manutenção' // Mantido para compatibilidade de tipos legados
   | 'Instalação'
   | 'Garantia'
   | 'Garantia de Equipamento'

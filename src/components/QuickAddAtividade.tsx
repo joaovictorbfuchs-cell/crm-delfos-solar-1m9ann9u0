@@ -217,7 +217,6 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           'limpeza',
           'manutencao_preventiva',
           'manutencao_corretiva',
-          'limpeza_manutencao',
           'auto_leitura_rge',
           'ligar_indicacao',
           'configuracao_datalogger',

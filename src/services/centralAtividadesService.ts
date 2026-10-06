@@ -734,7 +734,7 @@ function formatarTipoAtividade(tipo: string): string {
     limpeza: 'Limpeza dos Módulos',
     manutencao_preventiva: 'Manutenção Preventiva',
     manutencao_corretiva: 'Manutenção Corretiva',
-    limpeza_manutencao: 'Limpeza & Manutenção',
+    limpeza_manutencao: 'Limpeza dos Módulos',
     auto_leitura_rge: 'Auto Leitura RGE',
     lembrete_auto_leitura: 'Lembrete Auto Leitura',
     solicitar_contas_rge: 'Solicitar Contas RGE',

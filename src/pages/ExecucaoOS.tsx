@@ -125,7 +125,7 @@ export default function ExecucaoOS() {
       case 'manutencao_corretiva':
         return 'Manutenção Corretiva'
       case 'limpeza_manutencao':
-        return 'Limpeza e Manutenção'
+        return 'Limpeza dos Módulos'
       case 'instalacao':
         return 'Instalação'
       case 'visita_tecnica':
@@ -220,8 +220,8 @@ export default function ExecucaoOS() {
               rawTitulo ||
               'Serviço Customizado'
           } else if (atv.tipo === 'limpeza_manutencao') {
-            // Mantido como tipo PRÓPRIO unificado ("Limpeza e Manutenção")
-            tipoServico = rawTitulo || 'Limpeza e Manutenção'
+            // Histórico legado unificado para Limpeza dos Módulos
+            tipoServico = rawTitulo || 'Limpeza dos Módulos'
           } else if (atv.tipo === 'limpeza') {
             tipoServico = rawTitulo || 'Limpeza dos Módulos'
           } else if (atv.tipo === 'manutencao_preventiva') {

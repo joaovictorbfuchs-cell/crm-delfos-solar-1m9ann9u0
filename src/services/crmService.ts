@@ -3556,9 +3556,8 @@ async function updateAtividadeComoOrdemServico(
     } else {
       switch (atvRecord.tipo) {
         case 'limpeza_manutencao':
-          tipoServicoResolvido = 'Manutenção'
-          break
-        case 'instalacao':
+          tipoServicoResolvido = 'Limpeza dos Módulos'
+          break        case 'instalacao':
           tipoServicoResolvido = 'Instalação'
           break
         case 'visita_tecnica':
@@ -3782,7 +3781,7 @@ export async function finalizarOrdemServico(
             ? 'configuracao_datalogger'
             : dadosFinalizacao.tipo_servico === 'Garantia'
               ? 'garantia_equipamento'
-              : 'limpeza_manutencao'
+              : 'limpeza'
 
       await createAtividade({
         cliente_id: dadosFinalizacao.cliente_id,
