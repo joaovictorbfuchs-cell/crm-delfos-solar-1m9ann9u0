@@ -39,28 +39,204 @@ interface CalendarioExecucaoOSProps {
 // - Instalação: AZUL
 // - Garantia: LARANJA
 // - Configuração de datalogger: ROXO
-export const TIPO_SERVICO_CORES: Record<
-  OSTipoServico | string,
+export interface TipoServicoCorConfig {
+  nome: string
+  borderClass: string
+  borderColor: string
+  bgLightClass: string
+  bgBadgeClass: string
+  textClass: string
+  hex: string
+  pillBg: string
+}
+
+// Paleta de cores para tipos customizados atribuídas deterministicamente por hash
+const PALETA_CUSTOM_HASH: TipoServicoCorConfig[] = [
   {
-    nome: string
-    borderClass: string
-    borderColor: string
-    bgLightClass: string
-    bgBadgeClass: string
-    textClass: string
-    hex: string
-    pillBg: string
+    nome: 'Customizado',
+    borderClass: 'border-l-emerald-600',
+    borderColor: '#059669',
+    bgLightClass: 'bg-emerald-50/70 hover:bg-emerald-100/80',
+    bgBadgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    textClass: 'text-emerald-800',
+    hex: '#059669',
+    pillBg: 'rgba(5, 150, 105, 0.14)',
+  },
+  {
+    nome: 'Customizado',
+    borderClass: 'border-l-indigo-500',
+    borderColor: '#6366F1',
+    bgLightClass: 'bg-indigo-50/70 hover:bg-indigo-100/80',
+    bgBadgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    textClass: 'text-indigo-800',
+    hex: '#6366F1',
+    pillBg: 'rgba(99, 102, 241, 0.14)',
+  },
+  {
+    nome: 'Customizado',
+    borderClass: 'border-l-rose-500',
+    borderColor: '#F43F5E',
+    bgLightClass: 'bg-rose-50/70 hover:bg-rose-100/80',
+    bgBadgeClass: 'bg-rose-100 text-rose-800 border-rose-300',
+    textClass: 'text-rose-800',
+    hex: '#F43F5E',
+    pillBg: 'rgba(244, 63, 94, 0.14)',
+  },
+  {
+    nome: 'Customizado',
+    borderClass: 'border-l-teal-500',
+    borderColor: '#14B8A6',
+    bgLightClass: 'bg-teal-50/70 hover:bg-teal-100/80',
+    bgBadgeClass: 'bg-teal-100 text-teal-800 border-teal-300',
+    textClass: 'text-teal-800',
+    hex: '#14B8A6',
+    pillBg: 'rgba(20, 184, 166, 0.14)',
+  },
+  {
+    nome: 'Customizado',
+    borderClass: 'border-l-violet-600',
+    borderColor: '#7C3AED',
+    bgLightClass: 'bg-violet-50/70 hover:bg-violet-100/80',
+    bgBadgeClass: 'bg-violet-100 text-violet-800 border-violet-300',
+    textClass: 'text-violet-800',
+    hex: '#7C3AED',
+    pillBg: 'rgba(124, 58, 237, 0.14)',
+  },
+  {
+    nome: 'Customizado',
+    borderClass: 'border-l-yellow-600',
+    borderColor: '#CA8A04',
+    bgLightClass: 'bg-yellow-50/70 hover:bg-yellow-100/80',
+    bgBadgeClass: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    textClass: 'text-yellow-800',
+    hex: '#CA8A04',
+    pillBg: 'rgba(202, 138, 4, 0.14)',
+  },
+]
+
+function getHashColorConfig(nome: string): TipoServicoCorConfig {
+  let hash = 0
+  for (let i = 0; i < nome.length; i++) {
+    hash = (hash << 5) - hash + nome.charCodeAt(i)
+    hash |= 0
   }
-> = {
+  const idx = Math.abs(hash) % PALETA_CUSTOM_HASH.length
+  const base = PALETA_CUSTOM_HASH[idx]
+  return {
+    ...base,
+    nome,
+  }
+}
+
+// Paleta completa de cores por tipo de atividade:
+// Aditivo: preserva as chaves clássicas e adiciona diferenciação por tipo de manutenção
+// - Manutenção Preventiva: ÂMBAR / AMARELO OURO (#F59E0B)
+// - Manutenção Corretiva: VERMELHO / CARMIM (#E11D48 / #DC2626)
+// - Visita Técnica: AZUL ROYAL (#2563EB)
+// - Garantia de Equipamento: ROXO / VIOLETA (#9333EA)
+// - Configuração de Datalogger: CIANO / AZUL CELESTE (#06B6D4)
+// - Instalação: VERDE ESMERALDA (#10B981)
+// - Limpeza: SKY / AZUL CLARO (#0284C7)
+export const TIPO_SERVICO_CORES: Record<OSTipoServico | string, TipoServicoCorConfig> = {
+  'Manutenção Preventiva': {
+    nome: 'Manutenção Preventiva',
+    borderClass: 'border-l-amber-500',
+    borderColor: '#F59E0B',
+    bgLightClass: 'bg-amber-50/70 hover:bg-amber-100/80',
+    bgBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+    textClass: 'text-amber-800',
+    hex: '#F59E0B',
+    pillBg: 'rgba(245, 158, 11, 0.14)',
+  },
+  'Manutenção Corretiva': {
+    nome: 'Manutenção Corretiva',
+    borderClass: 'border-l-rose-600',
+    borderColor: '#E11D48',
+    bgLightClass: 'bg-rose-50/70 hover:bg-rose-100/80',
+    bgBadgeClass: 'bg-rose-100 text-rose-800 border-rose-300',
+    textClass: 'text-rose-800',
+    hex: '#E11D48',
+    pillBg: 'rgba(225, 29, 72, 0.14)',
+  },
+  'Visita Técnica': {
+    nome: 'Visita Técnica',
+    borderClass: 'border-l-blue-600',
+    borderColor: '#2563EB',
+    bgLightClass: 'bg-blue-50/70 hover:bg-blue-100/80',
+    bgBadgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
+    textClass: 'text-blue-800',
+    hex: '#2563EB',
+    pillBg: 'rgba(37, 99, 235, 0.14)',
+  },
+  'Garantia de Equipamento': {
+    nome: 'Garantia de Equipamento',
+    borderClass: 'border-l-purple-600',
+    borderColor: '#9333EA',
+    bgLightClass: 'bg-purple-50/70 hover:bg-purple-100/80',
+    bgBadgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+    textClass: 'text-purple-800',
+    hex: '#9333EA',
+    pillBg: 'rgba(147, 51, 234, 0.14)',
+  },
+  'Configuração Datalogger': {
+    nome: 'Configuração Datalogger',
+    borderClass: 'border-l-cyan-600',
+    borderColor: '#06B6D4',
+    bgLightClass: 'bg-cyan-50/70 hover:bg-cyan-100/80',
+    bgBadgeClass: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+    textClass: 'text-cyan-800',
+    hex: '#06B6D4',
+    pillBg: 'rgba(6, 182, 212, 0.14)',
+  },
+  'Configuração de Datalogger': {
+    nome: 'Configuração Datalogger',
+    borderClass: 'border-l-cyan-600',
+    borderColor: '#06B6D4',
+    bgLightClass: 'bg-cyan-50/70 hover:bg-cyan-100/80',
+    bgBadgeClass: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+    textClass: 'text-cyan-800',
+    hex: '#06B6D4',
+    pillBg: 'rgba(6, 182, 212, 0.14)',
+  },
   Limpeza: {
     nome: 'Limpeza',
-    borderClass: 'border-l-emerald-500',
+    borderClass: 'border-l-sky-500',
+    borderColor: '#0284C7',
+    bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
+    bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+    textClass: 'text-sky-800',
+    hex: '#0284C7',
+    pillBg: 'rgba(2, 132, 199, 0.14)',
+  },
+  'Limpeza e Manutenção': {
+    nome: 'Limpeza e Manutenção',
+    borderClass: 'border-l-sky-500',
+    borderColor: '#0284C7',
+    bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
+    bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+    textClass: 'text-sky-800',
+    hex: '#0284C7',
+    pillBg: 'rgba(2, 132, 199, 0.14)',
+  },
+  Instalação: {
+    nome: 'Instalação',
+    borderClass: 'border-l-emerald-600',
     borderColor: '#10B981',
     bgLightClass: 'bg-emerald-50/70 hover:bg-emerald-100/80',
     bgBadgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
     textClass: 'text-emerald-800',
     hex: '#10B981',
-    pillBg: 'rgba(16, 185, 129, 0.12)',
+    pillBg: 'rgba(16, 185, 129, 0.14)',
+  },
+  Garantia: {
+    nome: 'Garantia',
+    borderClass: 'border-l-purple-600',
+    borderColor: '#9333EA',
+    bgLightClass: 'bg-purple-50/70 hover:bg-purple-100/80',
+    bgBadgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+    textClass: 'text-purple-800',
+    hex: '#9333EA',
+    pillBg: 'rgba(147, 51, 234, 0.14)',
   },
   Manutenção: {
     nome: 'Manutenção',
@@ -72,68 +248,76 @@ export const TIPO_SERVICO_CORES: Record<
     hex: '#F59E0B',
     pillBg: 'rgba(245, 158, 11, 0.14)',
   },
-  Instalação: {
-    nome: 'Instalação',
-    borderClass: 'border-l-blue-500',
-    borderColor: '#3B82F6',
-    bgLightClass: 'bg-blue-50/70 hover:bg-blue-100/80',
-    bgBadgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
-    textClass: 'text-blue-800',
-    hex: '#3B82F6',
-    pillBg: 'rgba(59, 130, 246, 0.12)',
-  },
-  Garantia: {
-    nome: 'Garantia',
-    borderClass: 'border-l-orange-500',
-    borderColor: '#F97316',
-    bgLightClass: 'bg-orange-50/70 hover:bg-orange-100/80',
-    bgBadgeClass: 'bg-orange-100 text-orange-800 border-orange-300',
-    textClass: 'text-orange-800',
-    hex: '#F97316',
-    pillBg: 'rgba(249, 115, 22, 0.14)',
-  },
-  'Configuração de Datalogger': {
-    nome: 'Configuração de Datalogger',
-    borderClass: 'border-l-purple-500',
-    borderColor: '#A855F7',
-    bgLightClass: 'bg-purple-50/70 hover:bg-purple-100/80',
-    bgBadgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
-    textClass: 'text-purple-800',
-    hex: '#A855F7',
-    pillBg: 'rgba(168, 85, 247, 0.14)',
-  },
 }
 
 /**
- * Resolve a estilização visual (cor/badge/borda) para qualquer tipo de serviço ou título customizado
+ * Resolve a estilização visual (cor/badge/borda) para qualquer tipo de serviço ou título customizado.
+ * Diferencia tipos específicos de manutenção (Preventiva = âmbar, Corretiva = vermelho/rosa,
+ * Visita Técnica = azul, Garantia = roxo, Datalogger = ciano, e tipos customizados via hash).
  */
-export function getTipoServicoConfig(tipoNome?: string) {
-  if (!tipoNome) return TIPO_SERVICO_CORES['Manutenção']
+export function getTipoServicoConfig(tipoNome?: string): TipoServicoCorConfig {
+  if (!tipoNome) return TIPO_SERVICO_CORES['Manutenção Preventiva']
   if (TIPO_SERVICO_CORES[tipoNome]) {
     return TIPO_SERVICO_CORES[tipoNome]
   }
-  const lower = tipoNome.toLowerCase()
+
+  const lower = tipoNome.toLowerCase().trim()
+
+  // 1. Manutenção Corretiva (vermelho/rosa carmim)
+  if (lower.includes('corretiv') || lower.includes('reparo') || lower.includes('conserto')) {
+    return TIPO_SERVICO_CORES['Manutenção Corretiva']
+  }
+
+  // 2. Visita Técnica (azul royal)
+  if (lower.includes('visita') || lower.includes('vistoria') || lower.includes('inspe')) {
+    return TIPO_SERVICO_CORES['Visita Técnica']
+  }
+
+  // 3. Garantia de Equipamento (roxo)
+  if (lower.includes('garantia') || lower.includes('rma') || lower.includes('laudo')) {
+    return TIPO_SERVICO_CORES['Garantia de Equipamento']
+  }
+
+  // 4. Configuração Datalogger (ciano)
   if (
-    lower.includes('manuten') ||
-    lower.includes('revis') ||
-    lower.includes('corretiv') ||
-    lower.includes('preventiv')
+    lower.includes('datalogger') ||
+    lower.includes('antena') ||
+    lower.includes('roteador') ||
+    lower.includes('wi-fi') ||
+    lower.includes('wifi') ||
+    lower.includes('telemetria')
   ) {
-    return TIPO_SERVICO_CORES['Manutenção']
+    return TIPO_SERVICO_CORES['Configuração Datalogger']
   }
-  if (lower.includes('instal')) {
-    return TIPO_SERVICO_CORES['Instalação']
-  }
-  if (lower.includes('garantia') || lower.includes('laudo')) {
-    return TIPO_SERVICO_CORES['Garantia']
-  }
-  if (lower.includes('datalogger') || lower.includes('configur') || lower.includes('antena')) {
-    return TIPO_SERVICO_CORES['Configuração de Datalogger']
-  }
+
+  // 5. Limpeza (sky)
   if (lower.includes('limp') || lower.includes('lavag')) {
     return TIPO_SERVICO_CORES['Limpeza']
   }
-  return TIPO_SERVICO_CORES['Manutenção']
+
+  // 6. Instalação (verde esmeralda)
+  if (lower.includes('instal') || lower.includes('montagem')) {
+    return TIPO_SERVICO_CORES['Instalação']
+  }
+
+  // 7. Manutenção Preventiva / Revisão (âmbar)
+  if (
+    lower.includes('preventiv') ||
+    lower.includes('revis') ||
+    lower.includes('reaperto') ||
+    lower === 'manutenção' ||
+    lower === 'manutencao'
+  ) {
+    return TIPO_SERVICO_CORES['Manutenção Preventiva']
+  }
+
+  // 8. Se contém "manuten" genérico
+  if (lower.includes('manuten')) {
+    return TIPO_SERVICO_CORES['Manutenção Preventiva']
+  }
+
+  // 9. Tipos customizados de tipos_atividades_custom atribuídos por hash determinístico
+  return getHashColorConfig(tipoNome)
 }
 
 const MESES = [
@@ -467,48 +651,84 @@ export function CalendarioExecucaoOS({
 
   // ==========================================================
   // RESIZE: Ajustar duração puxando a borda inferior (snap 30min)
+  // Suporta MouseEvent e PointerEvent, touch em dispositivos móveis
+  // e captura de ponteiro para não perder o arraste rápido.
   // ==========================================================
-  const handleResizeStart = (e: React.MouseEvent, os: OrdemServico) => {
+  const resizingRef = useRef<{
+    osId: string
+    startY: number
+    startDuracao: number
+    currentDuracao: number
+  } | null>(null)
+
+  const handleResizeStart = (e: React.MouseEvent | React.PointerEvent, os: OrdemServico) => {
     e.stopPropagation()
     e.preventDefault()
+
+    // Se o elemento suportar pointer capture, captura para rastreamento confiável
+    try {
+      const target = e.currentTarget as HTMLElement
+      if ('setPointerCapture' in target && 'pointerId' in e) {
+        target.setPointerCapture((e as React.PointerEvent).pointerId)
+      }
+    } catch {
+      /* ignore fallback */
+    }
+
     const duracaoAtual = getDuracaoMinutosOS(os)
-    setResizing({
+    const initial = {
       osId: os.id,
       startY: e.clientY,
       startDuracao: duracaoAtual,
       currentDuracao: duracaoAtual,
-    })
+    }
+    resizingRef.current = initial
+    setResizing(initial)
   }
 
   useEffect(() => {
     if (!resizing) return
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaY = e.clientY - resizing.startY
+    const handlePointerMove = (e: MouseEvent | PointerEvent) => {
+      const current = resizingRef.current || resizing
+      if (!current) return
+
+      const deltaY = e.clientY - current.startY
       // Cada ALTURA_HORA_PX equivale a 60 minutos
       const deltaMinutos = (deltaY / ALTURA_HORA_PX) * 60
-      const novaDuracaoCalculada = resizing.startDuracao + deltaMinutos
+      const novaDuracaoCalculada = current.startDuracao + deltaMinutos
 
       // Snap de 30 em 30 minutos (mínimo 30min, máximo 480min)
       const duracaoBlocos30 = Math.round(novaDuracaoCalculada / 30) * 30
       const duracaoFinal = Math.min(480, Math.max(30, duracaoBlocos30))
 
-      setResizing((prev) => (prev ? { ...prev, currentDuracao: duracaoFinal } : null))
+      resizingRef.current = {
+        ...current,
+        currentDuracao: duracaoFinal,
+      }
+      setResizing({
+        ...current,
+        currentDuracao: duracaoFinal,
+      })
 
       // Atualiza visualmente em tempo real
       setOverrides((prev) => ({
         ...prev,
-        [resizing.osId]: {
-          ...prev[resizing.osId],
+        [current.osId]: {
+          ...prev[current.osId],
           duracao_minutos: duracaoFinal,
         },
       }))
     }
 
-    const handleMouseUp = async () => {
-      const targetOSId = resizing.osId
-      const duracaoFinal = resizing.currentDuracao
+    const handlePointerUp = async (e?: MouseEvent | PointerEvent) => {
+      const current = resizingRef.current || resizing
+      resizingRef.current = null
       setResizing(null)
+      if (!current) return
+
+      const targetOSId = current.osId
+      const duracaoFinal = current.currentDuracao
 
       const os = ordensMescladas.find((o) => o?.id === targetOSId)
       if (!os) return
@@ -560,11 +780,15 @@ export function CalendarioExecucaoOS({
       }
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('mousemove', handlePointerMove)
+    window.addEventListener('mouseup', handlePointerUp)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('mousemove', handlePointerMove)
+      window.removeEventListener('mouseup', handlePointerUp)
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
     }
   }, [resizing, ordensMescladas, toast, onOSUpdated])
 
@@ -960,18 +1184,35 @@ export function CalendarioExecucaoOS({
           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
             Legenda:
           </span>
-          {Object.entries(TIPO_SERVICO_CORES).map(([tipo, config]) => (
-            <div
-              key={tipo}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-700 shrink-0"
-            >
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: config.hex }}
-              />
-              <span className="whitespace-nowrap">{config.nome}</span>
-            </div>
-          ))}
+          {(() => {
+            // Deduplica itens da legenda para mostrar uma vez cada rótulo canônico
+            const exibidos = new Set<string>()
+            const itensLegenda = [
+              TIPO_SERVICO_CORES['Manutenção Preventiva'],
+              TIPO_SERVICO_CORES['Manutenção Corretiva'],
+              TIPO_SERVICO_CORES['Visita Técnica'],
+              TIPO_SERVICO_CORES['Garantia de Equipamento'],
+              TIPO_SERVICO_CORES['Configuração Datalogger'],
+              TIPO_SERVICO_CORES['Instalação'],
+              TIPO_SERVICO_CORES['Limpeza'],
+            ]
+            return itensLegenda.map((config) => {
+              if (exibidos.has(config.nome)) return null
+              exibidos.add(config.nome)
+              return (
+                <div
+                  key={config.nome}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-700 shrink-0"
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: config.hex }}
+                  />
+                  <span className="whitespace-nowrap">{config.nome}</span>
+                </div>
+              )
+            })
+          })()}
         </div>
 
         <div className="hidden md:flex items-center gap-1 text-[10px] text-gray-400 font-medium shrink-0 ml-auto pl-2 border-l border-gray-100">
@@ -1447,11 +1688,18 @@ export function CalendarioExecucaoOS({
 
                           {/* Alça inferior de redimensionamento (resize handle de 30 em 30 min) */}
                           <div
+                            data-testid={`resize-handle-${os.id}`}
                             onMouseDown={(e) => handleResizeStart(e, os)}
-                            className="w-full h-2.5 cursor-ns-resize flex items-center justify-center hover:bg-emerald-200/60 rounded-b transition-colors -mb-1 -mx-1"
+                            onPointerDown={(e) => handleResizeStart(e, os)}
+                            onClick={(e) => {
+                              // Evita que o clique na alça abra a ficha de execução da OS
+                              e.stopPropagation()
+                            }}
+                            style={{ touchAction: 'none' }}
+                            className="w-full h-3 cursor-ns-resize flex items-center justify-center hover:bg-emerald-300/80 active:bg-emerald-400 rounded-b transition-colors -mb-1 -mx-1 py-0.5 select-none z-20 shrink-0"
                             title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
                           >
-                            <div className="w-8 h-1 rounded-full bg-gray-300 group-hover:bg-emerald-600 transition-colors" />
+                            <div className="w-8 h-1.5 rounded-full bg-gray-400 group-hover:bg-emerald-600 transition-colors pointer-events-none" />
                           </div>
                         </div>
                       )

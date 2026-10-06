@@ -366,4 +366,130 @@ describe('Login e App Smoke Tests', () => {
     const fimRecalculado = somarMinutos(inicioPadrao, duracaoInformada)
     expect(fimRecalculado).toBe('09:30')
   })
+
+  it('cores distintas por tipo de atividade de manutenção e tipos customizados via getTipoServicoConfig', async () => {
+    const { getTipoServicoConfig } = await import('@/components/CalendarioExecucaoOS')
+
+    const prev = getTipoServicoConfig('Manutenção Preventiva')
+    const corr = getTipoServicoConfig('Manutenção Corretiva')
+    const visita = getTipoServicoConfig('Visita Técnica')
+    const garantia = getTipoServicoConfig('Garantia de Equipamento')
+    const datalogger = getTipoServicoConfig('Configuração Datalogger')
+    const customTipo = getTipoServicoConfig('Auditoria Termográfica Especial')
+
+    // Todas as cores dos tipos solicitados devem ser distintas entre si
+    expect(prev.hex).toBe('#F59E0B') // Âmbar
+    expect(corr.hex).toBe('#E11D48') // Carmim / Vermelho
+    expect(visita.hex).toBe('#2563EB') // Azul royal
+    expect(garantia.hex).toBe('#9333EA') // Roxo
+    expect(datalogger.hex).toBe('#06B6D4') // Ciano
+
+    // Os hexadecimais não podem ser idênticos
+    const coresPrincipais = [prev.hex, corr.hex, visita.hex, garantia.hex, datalogger.hex]
+    const unicas = new Set(coresPrincipais)
+    expect(unicas.size).toBe(5)
+
+    // Tipo customizado recebe objeto de estilo válido
+    expect(customTipo.borderColor).toBeDefined()
+    expect(customTipo.hex).toBeDefined()
+    expect(customTipo.bgBadgeClass).toBeDefined()
+  })
+
+  it('alça de resize responde a eventos de mouse/pointer e atualiza duração com snap de 30min', async () => {
+    const crmService = await import('@/services/crmService')
+    const spyUpdateOS = vi.spyOn(crmService, 'updateOrdemServico').mockResolvedValue({
+      id: 'os-resize-teste',
+      tempo_previsto_minutos: 120,
+      duracao_minutos: 120,
+      horario_inicio: '10:00',
+      horario_fim: '12:00',
+    } as any)
+
+    const now = new Date()
+    const ano = now.getFullYear()
+    const mes = String(now.getMonth() + 1).padStart(2, '0')
+    const dia = String(now.getDate()).padStart(2, '0')
+    const dataHoje = `${ano}-${mes}-${dia} 10:00:00.000Z`
+
+    const fakeOS = {
+      id: 'os-resize-teste',
+      collectionId: 'ordens_servico',
+      collectionName: 'ordens_servico',
+      cliente_id: 'cli-resize',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: dataHoje,
+      horario_inicio: '10:00',
+      horario_fim: '11:00',
+      tempo_previsto_minutos: 60,
+      duracao_minutos: 60,
+      expand: {
+        cliente_id: {
+          id: 'cli-resize',
+          nome: 'Cliente Para Teste de Resize',
+        },
+      },
+    }
+
+    let rendered: ReturnType<typeof render> | null = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [fakeOS as any],
+          onSelectOS: vi.fn(),
+        }),
+      )
+    })
+
+    const handle = rendered!.container.querySelector(
+      '[data-testid="resize-handle-os-resize-teste"]',
+    ) as HTMLElement
+    expect(handle).not.toBeNull()
+
+    // Simula arrastar a alça para baixo: ALTURA_HORA_PX = 64px = 60 min.
+    // Descer 64px equivale a +60 min (60 + 60 = 120min).
+    await act(async () => {
+      handle.dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          cancelable: true,
+          clientY: 200,
+        }),
+      )
+    })
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MouseEvent('mousemove', {
+          bubbles: true,
+          cancelable: true,
+          clientY: 264, // +64px -> +60 minutos
+        }),
+      )
+    })
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MouseEvent('mouseup', {
+          bubbles: true,
+          cancelable: true,
+          clientY: 264,
+        }),
+      )
+    })
+
+    // Deve ter chamado a persistência com duracao = 120 e horario_fim = '12:00'
+    expect(spyUpdateOS).toHaveBeenCalledWith(
+      'os-resize-teste',
+      expect.objectContaining({
+        duracao_minutos: 120,
+        tempo_previsto_minutos: 120,
+        horario_inicio: '10:00',
+        horario_fim: '12:00',
+      }),
+    )
+
+    spyUpdateOS.mockRestore()
+  })
 })
