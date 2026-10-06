@@ -96,6 +96,26 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
   const [comercialTipoVenda, setComercialTipoVenda] = useState('todos')
   const [clientesStatus, setClientesStatus] = useState('todos')
   const [projetosProfissional, setProjetosProfissional] = useState('todos')
+  const [servicosCampoActiveFiltersCount, setServicosCampoActiveFiltersCount] = useState(0)
+
+  const isServicosCampoRoute =
+    location.pathname === '/servicos-campo' ||
+    location.pathname === '/execucao-os' ||
+    location.pathname === '/minhas-os'
+
+  // Listener para sincronizar a contagem de filtros ativos de Serviços de Campo
+  React.useEffect(() => {
+    const handleSyncFiltros = (e: Event) => {
+      const custom = e as CustomEvent<{ count?: number }>
+      if (typeof custom.detail?.count === 'number') {
+        setServicosCampoActiveFiltersCount(custom.detail.count)
+      }
+    }
+    window.addEventListener('delfos:sync-filtros-servicos-campo', handleSyncFiltros)
+    return () => {
+      window.removeEventListener('delfos:sync-filtros-servicos-campo', handleSyncFiltros)
+    }
+  }, [])
 
   // Identificação do título central do funil / aba atual
   const currentFunil = React.useMemo(() => {
@@ -354,9 +374,13 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       {/* 1. HEADER MOBILE SIMPLIFICADO (APENAS MOBILE: lg:hidden)       */}
       {/* ============================================================== */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200/90 z-30 px-3 flex items-center justify-between shadow-2xs select-none">
-        {/* Lado Esquerdo: Ícone de Filtro (ou Logo para instalador) */}
+        {/* Lado Esquerdo: Ícone de Filtro (ou Logo para instalador quando não em serviços de campo) */}
         <div className="flex items-center">
-          {!isInstalador ? (
+          {isServicosCampoRoute ? (
+            <div className="pl-1">
+              <DelfosLogo height={28} />
+            </div>
+          ) : !isInstalador ? (
             <button
               type="button"
               onClick={() => setFiltrosOpen(true)}
@@ -491,86 +515,131 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
           )}
         </div>
 
-        {/* Lado Direito: Assistente Delfos (ícone redondo pequeno) + Botão (+) Novo Negócio + Ícone do WhatsApp */}
+        {/* Lado Direito: Assistente Delfos (ícone redondo pequeno) + Botões específicos por tela + WhatsApp */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Botão do Assistente Inteligente Delfos no topo do mobile (para Admin) */}
-          {isAdmin && <AssistenteDelfosBotao size="sm" />}
-
-          {isAdmin &&
-            !(
-              location.pathname === '/servicos-campo' ||
-              location.pathname === '/execucao-os' ||
-              location.pathname === '/minhas-os'
-            ) && (
-              <>
-                {/* Botão + para adicionar novo negócio (lead/deal) */}
-                <button
-                  type="button"
-                  onClick={handleNovoClick}
-                  aria-label="Adicionar novo negócio"
-                  title="Adicionar novo negócio / lead"
-                  className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
-                >
-                  <Plus className="w-5 h-5 stroke-[2.5]" />
-                </button>
-
-                {/* Botão de atualizar no mobile posicionado à ESQUERDA do botão de WhatsApp */}
-                <button
-                  type="button"
-                  onClick={handleMobileRefresh}
-                  disabled={isRefreshingMobile}
-                  aria-label="Atualizar dados do sistema"
-                  title="Atualizar dados"
-                  className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 hover:border-emerald-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
-                  />
-                </button>
-
-                {/* Ícone do WhatsApp presente nas demais abas mobile */}
-                <button
-                  type="button"
-                  onClick={() => navigate('/central-atendimento')}
-                  aria-label="Central de Atendimento WhatsApp"
-                  title="Abrir Central WhatsApp"
-                  className="relative w-9 h-9 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
-                >
-                  <WhatsAppIcon className="w-5 h-5" />
-                  {pendentesWhatsAppCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 flex items-center justify-center text-[10px] font-black rounded-full bg-red-600 text-white ring-2 ring-white shadow-xs">
-                      {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
-                    </span>
-                  )}
-                </button>
-              </>
-            )}
-
-          {/* Ações do topo para Instalador: Atualizar e Sair */}
-          {isInstalador && (
+          {/* Ações Mobile dedicadas para Serviços de Campo: Nova Atividade + Filtro ao lado do título */}
+          {isServicosCampoRoute ? (
             <>
+              {isAdmin && <AssistenteDelfosBotao size="sm" />}
+
+              {/* Botão Nova Atividade compacto verde #16A34A com ícone Plus */}
               <button
                 type="button"
-                onClick={handleMobileRefresh}
-                disabled={isRefreshingMobile}
-                aria-label="Atualizar dados"
-                title="Atualizar dados"
-                className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('delfos:abrir-nova-atividade-os'))
+                }}
+                aria-label="Nova Atividade"
+                title="Nova Atividade"
+                className="h-8 px-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] active:scale-95 text-white flex items-center gap-1 text-xs font-bold shadow-xs transition-all cursor-pointer"
               >
-                <RefreshCw
-                  className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span className="text-[11px] font-bold">Nova Atividade</span>
+              </button>
+
+              {/* Botão Filtros compacto com ícone Filter e badge de filtros ativos */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('delfos:abrir-filtros-servicos-campo'))
+                }}
+                aria-label="Abrir filtros de Serviços de Campo"
+                title="Filtros"
+                className={`relative h-8 px-2 rounded-lg border flex items-center gap-1 text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-95 ${
+                  servicosCampoActiveFiltersCount > 0
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <Filter
+                  className={`w-3.5 h-3.5 ${
+                    servicosCampoActiveFiltersCount > 0 ? 'text-emerald-700' : 'text-gray-500'
+                  }`}
                 />
+                <span className="text-[11px]">Filtro</span>
+                {servicosCampoActiveFiltersCount > 0 && (
+                  <span className="px-1 py-0.2 rounded-full text-[9px] font-black bg-emerald-600 text-white min-w-[14px] text-center leading-none">
+                    {servicosCampoActiveFiltersCount}
+                  </span>
+                )}
               </button>
-              <button
-                type="button"
-                onClick={onLogout}
-                aria-label="Sair da conta"
-                title="Sair"
-                className="h-9 px-2.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 border border-red-200 text-red-600 hover:text-red-700 flex items-center gap-1 text-xs font-bold shadow-2xs transition-all cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5 text-red-600" />
-                <span>Sair</span>
-              </button>
+            </>
+          ) : (
+            <>
+              {/* Botão do Assistente Inteligente Delfos no topo do mobile (para Admin) */}
+              {isAdmin && <AssistenteDelfosBotao size="sm" />}
+
+              {isAdmin && (
+                <>
+                  {/* Botão + para adicionar novo negócio (lead/deal) */}
+                  <button
+                    type="button"
+                    onClick={handleNovoClick}
+                    aria-label="Adicionar novo negócio"
+                    title="Adicionar novo negócio / lead"
+                    className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
+                  >
+                    <Plus className="w-5 h-5 stroke-[2.5]" />
+                  </button>
+
+                  {/* Botão de atualizar no mobile posicionado à ESQUERDA do botão de WhatsApp */}
+                  <button
+                    type="button"
+                    onClick={handleMobileRefresh}
+                    disabled={isRefreshingMobile}
+                    aria-label="Atualizar dados do sistema"
+                    title="Atualizar dados"
+                    className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 hover:border-emerald-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+
+                  {/* Ícone do WhatsApp presente nas demais abas mobile */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/central-atendimento')}
+                    aria-label="Central de Atendimento WhatsApp"
+                    title="Abrir Central WhatsApp"
+                    className="relative w-9 h-9 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
+                  >
+                    <WhatsAppIcon className="w-5 h-5" />
+                    {pendentesWhatsAppCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 flex items-center justify-center text-[10px] font-black rounded-full bg-red-600 text-white ring-2 ring-white shadow-xs">
+                        {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
+                      </span>
+                    )}
+                  </button>
+                </>
+              )}
+
+              {/* Ações do topo para Instalador nas demais telas (se houver): Atualizar e Sair */}
+              {isInstalador && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleMobileRefresh}
+                    disabled={isRefreshingMobile}
+                    aria-label="Atualizar dados"
+                    title="Atualizar dados"
+                    className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    aria-label="Sair da conta"
+                    title="Sair"
+                    className="h-9 px-2.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 border border-red-200 text-red-600 hover:text-red-700 flex items-center gap-1 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-red-600" />
+                    <span>Sair</span>
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>

@@ -116,6 +116,34 @@ function ExecucaoOSContent() {
     setSelectedPeriodoFilter('todos')
   }
 
+  // Notificar o header mobile sobre o número de filtros ativos em Serviços de Campo
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('delfos:sync-filtros-servicos-campo', {
+        detail: { count: activeFiltersCount },
+      }),
+    )
+  }, [activeFiltersCount])
+
+  // Listeners dos eventos mobile disparados pelo header: Nova Atividade e Filtros
+  useEffect(() => {
+    const handleAbrirNovaAtividade = () => {
+      setIsModalNovaAtividadeOpen(true)
+    }
+
+    const handleAbrirFiltros = () => {
+      setFiltrosPopoverOpen((prev) => !prev)
+    }
+
+    window.addEventListener('delfos:abrir-nova-atividade-os', handleAbrirNovaAtividade)
+    window.addEventListener('delfos:abrir-filtros-servicos-campo', handleAbrirFiltros)
+
+    return () => {
+      window.removeEventListener('delfos:abrir-nova-atividade-os', handleAbrirNovaAtividade)
+      window.removeEventListener('delfos:abrir-filtros-servicos-campo', handleAbrirFiltros)
+    }
+  }, [])
+
   // Mapeamento de tipo de atividade de campo para tipo_servico suportado pela tela
   const mapTipoAtividadeParaTipoServico = (tipo?: string): string => {
     switch (tipo) {
@@ -828,14 +856,16 @@ function ExecucaoOSContent() {
       <button
         type="button"
         onClick={() => setActiveTab('pendentes')}
-        className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+        className={`h-7 px-2 sm:px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
           activeTab === 'pendentes'
             ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
             : 'text-gray-600 hover:text-gray-900'
         }`}
+        title="Pendentes"
+        aria-label="Pendentes"
       >
         <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-        <span>Pendentes</span>
+        <span className="hidden sm:inline">Pendentes</span>
         <span
           className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
             activeTab === 'pendentes' ? 'bg-amber-100 text-amber-800' : 'bg-gray-200 text-gray-700'
@@ -848,14 +878,16 @@ function ExecucaoOSContent() {
       <button
         type="button"
         onClick={() => setActiveTab('calendario')}
-        className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+        className={`h-7 px-2 sm:px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
           activeTab === 'calendario'
             ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
             : 'text-gray-600 hover:text-gray-900'
         }`}
+        title="Calendário"
+        aria-label="Calendário"
       >
         <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Calendário</span>
+        <span className="hidden sm:inline">Calendário</span>
         <span
           className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
             activeTab === 'calendario'
@@ -870,14 +902,16 @@ function ExecucaoOSContent() {
       <button
         type="button"
         onClick={() => setActiveTab('concluidas')}
-        className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+        className={`h-7 px-2 sm:px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
           activeTab === 'concluidas'
             ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
             : 'text-gray-600 hover:text-gray-900'
         }`}
+        title="Concluídas"
+        aria-label="Concluídas"
       >
         <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Concluídas</span>
+        <span className="hidden sm:inline">Concluídas</span>
         <span
           className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
             activeTab === 'concluidas'
@@ -893,14 +927,16 @@ function ExecucaoOSContent() {
         <button
           type="button"
           onClick={() => setActiveTab('relatorio')}
-          className={`h-7 px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`h-7 px-2 sm:px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
             activeTab === 'relatorio'
               ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
               : 'text-gray-600 hover:text-gray-900'
           }`}
+          title="Relatório"
+          aria-label="Relatório"
         >
           <BarChart3 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span>Relatório</span>
+          <span className="hidden sm:inline">Relatório</span>
           <span
             className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
               activeTab === 'relatorio'

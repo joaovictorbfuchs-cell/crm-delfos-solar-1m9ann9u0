@@ -1430,8 +1430,34 @@ function CalendarioExecucaoOSContent({
             </Button>
           </div>
 
-          {/* Rótulo do Período + Badge Compacta de Contagem */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* Toggles de Sábados e Domingos (no mobile ficam aqui, ao lado dos botões < Hoje > com apenas S e D) */}
+          <div className="flex sm:hidden items-center gap-1.5 text-xs font-medium text-gray-700 select-none pl-0.5">
+            <label
+              className="flex items-center gap-1 cursor-pointer hover:text-gray-900 px-1 py-0.5 rounded bg-gray-50 border border-gray-200/80"
+              title="Exibir Sábados na semana"
+            >
+              <Checkbox
+                checked={showSabados}
+                onCheckedChange={(checked) => handleToggleSabados(Boolean(checked))}
+                className="h-3.5 w-3.5 border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+              />
+              <span className="text-[11px] font-bold text-gray-800">S</span>
+            </label>
+            <label
+              className="flex items-center gap-1 cursor-pointer hover:text-gray-900 px-1 py-0.5 rounded bg-gray-50 border border-gray-200/80"
+              title="Exibir Domingos na semana"
+            >
+              <Checkbox
+                checked={showDomingos}
+                onCheckedChange={(checked) => handleToggleDomingos(Boolean(checked))}
+                className="h-3.5 w-3.5 border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+              />
+              <span className="text-[11px] font-bold text-gray-800">D</span>
+            </label>
+          </div>
+
+          {/* Rótulo do Período + Badge Compacta de Contagem (Apenas Desktop: hidden sm:flex) */}
+          <div className="hidden sm:flex items-center gap-1.5 shrink-0">
             <span className="text-xs sm:text-sm font-bold text-gray-900 tracking-tight whitespace-nowrap">
               {headerPeriodoTexto}
             </span>
@@ -1443,8 +1469,8 @@ function CalendarioExecucaoOSContent({
             </span>
           </div>
 
-          {/* Seletor de Modo: Mês | Semana | Dia */}
-          <div className="inline-flex items-center p-0.5 bg-gray-100/90 rounded-md border border-gray-200 shadow-2xs text-xs font-semibold shrink-0">
+          {/* Seletor de Modo: Mês | Semana | Dia (Apenas Desktop: hidden sm:inline-flex; mobile fixa padrão Semana) */}
+          <div className="hidden sm:inline-flex items-center p-0.5 bg-gray-100/90 rounded-md border border-gray-200 shadow-2xs text-xs font-semibold shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('mes')}
@@ -1485,8 +1511,8 @@ function CalendarioExecucaoOSContent({
             </button>
           </div>
 
-          {/* Toggles de Sábados e Domingos (compactos para mobile e desktop) */}
-          <div className="flex items-center gap-2 text-xs font-medium text-gray-700 select-none pl-1">
+          {/* Toggles de Sábados e Domingos (Desktop: hidden sm:flex com texto completo "Sábados" / "Domingos") */}
+          <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-gray-700 select-none pl-1">
             <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
               <Checkbox
                 checked={showSabados}

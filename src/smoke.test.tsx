@@ -222,6 +222,65 @@ describe('Login e App Smoke Tests', () => {
     expect(textContent).toContain('Concluídas')
   })
 
+  it('layout MOBILE em /servicos-campo exibe botões compactos Nova Atividade e Filtro no header, oculta Mês/Semana/Dia e labels das tabs têm hidden sm:inline', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-admin-mobile-servicos', {
+      id: 'usr-admin-mobile',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Gestor Delfos Mobile',
+      email: 'mobile@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    window.history.pushState({}, 'Serviços de Campo Mobile', '/servicos-campo')
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    expect(container).not.toBeNull()
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+
+    // 1. Header mobile deve conter o botão "Nova Atividade" e "Filtro"
+    const headerMobile = container?.querySelector('header.lg\\:hidden')
+    expect(headerMobile).not.toBeNull()
+    const headerText = headerMobile?.textContent || ''
+    expect(headerText).toContain('Nova Atividade')
+    expect(headerText).toContain('Filtro')
+
+    // 2. Toggles compactos mobile de sábado e domingo (S e D) presentes no DOM
+    const togglesMobile = container?.querySelector('.flex.sm\\:hidden')
+    expect(togglesMobile).not.toBeNull()
+    expect(togglesMobile?.textContent).toContain('S')
+    expect(togglesMobile?.textContent).toContain('D')
+
+    // 3. Seletor Mês/Semana/Dia possui classe hidden sm:inline-flex (oculto no mobile)
+    const seletorModo = container?.querySelector('.hidden.sm\\:inline-flex')
+    expect(seletorModo).not.toBeNull()
+
+    // 4. Labels das abas contêm a classe hidden sm:inline (ícones e badges visíveis, texto oculto em telas pequenas)
+    const spanTabPendentes = container?.querySelector(
+      'button[aria-label="Pendentes"] span.hidden.sm\\:inline',
+    )
+    const spanTabCalendario = container?.querySelector(
+      'button[aria-label="Calendário"] span.hidden.sm\\:inline',
+    )
+    const spanTabConcluidas = container?.querySelector(
+      'button[aria-label="Concluídas"] span.hidden.sm\\:inline',
+    )
+    expect(spanTabPendentes).not.toBeNull()
+    expect(spanTabCalendario).not.toBeNull()
+    expect(spanTabConcluidas).not.toBeNull()
+    expect(spanTabPendentes?.textContent).toBe('Pendentes')
+    expect(spanTabCalendario?.textContent).toBe('Calendário')
+    expect(spanTabConcluidas?.textContent).toBe('Concluídas')
+  })
+
   it('cards de atividade no CalendarioExecucaoOS NÃO exibem badge com texto "Atividade"', () => {
     const fakeOSAtividade = {
       id: 'os-atv-1',
