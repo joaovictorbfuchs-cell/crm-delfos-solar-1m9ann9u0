@@ -492,4 +492,70 @@ describe('Login e App Smoke Tests', () => {
 
     spyUpdateOS.mockRestore()
   })
+
+  it('renderiza o card na grade SEMANAL com a alça de resize no DOM, altura calculada proporcional e rótulo correto sem "Limpeza"', async () => {
+    const now = new Date()
+    const ano = now.getFullYear()
+    const mes = String(now.getMonth() + 1).padStart(2, '0')
+    const dia = String(now.getDate()).padStart(2, '0')
+    const dataHoje = `${ano}-${mes}-${dia} 08:00:00.000Z`
+
+    // Atividade com duração de 2 horas (120 minutos)
+    const atividade2Horas = {
+      id: 'atv-metal-mecanica',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-metal',
+      tipo_servico: 'Manutenção',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: dataHoje,
+      horario_inicio: '08:00',
+      horario_fim: '10:00',
+      duracao_minutos: 120,
+      tempo_previsto_minutos: 120,
+      expand: {
+        cliente_id: {
+          id: 'cli-metal',
+          nome: 'Metal Mecânica Solução Ltda.',
+        },
+      },
+    }
+
+    let rendered: ReturnType<typeof render> | null = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [atividade2Horas as any],
+          onSelectOS: vi.fn(),
+        }),
+      )
+    })
+
+    const container = rendered!.container
+
+    // 1. Verifica se a alça de resize existe fisicamente no DOM da grade semanal
+    const resizeHandle = container.querySelector(
+      '[data-testid="resize-handle-atv-metal-mecanica"]',
+    ) as HTMLElement
+    expect(resizeHandle).not.toBeNull()
+    expect(resizeHandle.getAttribute('class')).toContain('cursor-ns-resize')
+
+    // 2. Verifica se o card tem altura proporcional a 2 horas (56px * 2 - 2px = 110px)
+    const card = container.querySelector(
+      '#card-atv-metal-mecanica, [class*="group"]',
+    ) as HTMLElement
+    // Busca o elemento do card que engloba a alça
+    const cardElement = resizeHandle.closest('[style*="top"]') as HTMLElement
+    expect(cardElement).not.toBeNull()
+    expect(cardElement.style.height).toBe('110px') // 120min / 60 * 56px - 2px
+
+    // 3. Verifica exibição de 08:00 - 10:00
+    expect(cardElement.textContent).toContain('08:00 - 10:00')
+
+    // 4. Verifica que NÃO exibe "LIMPEZA" e sim "MANUTENÇÃO"
+    expect(cardElement.textContent).not.toContain('LIMPEZA')
+    expect(cardElement.textContent).toContain('MANUTENÇÃO')
+    expect(cardElement.textContent).toContain('Metal Mecânica Solução Ltda.')
+  })
 })

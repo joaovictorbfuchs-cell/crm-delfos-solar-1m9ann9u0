@@ -119,7 +119,8 @@ export default function ExecucaoOS() {
   const mapTipoAtividadeParaTipoServico = (tipo?: string): OSTipoServico => {
     switch (tipo) {
       case 'limpeza_manutencao':
-        return 'Limpeza'
+        // A atividade da categoria campo é primariamente Manutenção (não Limpeza avulsa)
+        return 'Manutenção'
       case 'instalacao':
         return 'Instalação'
       case 'visita_tecnica':
@@ -203,12 +204,37 @@ export default function ExecucaoOS() {
           const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
 
           // Preserva o título/tipo real da atividade de manutenção (ex: "Manutenção Preventiva", "Manutenção Corretiva")
-          // Fallback para o tipo mapeado se não houver título
-          const tipoServico =
-            atv.titulo && atv.titulo.trim().length > 0
-              ? atv.titulo.trim()
-              : mapTipoAtividadeParaTipoServico(atv.tipo)
+          // Se o título for genérico "Limpeza e Manutenção", verifica se a descrição ou subtipo tem o tipo real
+          // e mapeia para "Manutenção" ou para o tipo canônico para não rotular erroneamente apenas como "Limpeza"
+          let rawTitulo = (atv.titulo || '').trim()
+          let tipoServico: string = rawTitulo || mapTipoAtividadeParaTipoServico(atv.tipo)
+
+          // Se veio "Limpeza e Manutenção" (nome antigo gerado por templates ou tela de tipos),
+          // normaliza com inteligência: se houver menção explícita no título/descrição de corretiva/preventiva/visita,
+          // usa o rótulo mais específico; se for genérico "Limpeza e Manutenção", exibe "Manutenção" no calendário
+          if (rawTitulo === 'Limpeza e Manutenção') {
+            const desc = (atv.descricao || '').toLowerCase()
+            if (desc.includes('corretiva')) {
+              tipoServico = 'Manutenção Corretiva'
+            } else if (desc.includes('preventiva')) {
+              tipoServico = 'Manutenção Preventiva'
+            } else if (
+              desc.includes('lavagem') &&
+              !desc.includes('reaperto') &&
+              !desc.includes('preventiva')
+            ) {
+              tipoServico = 'Limpeza'
+            } else {
+              // Atividade mista de manutenção de campo -> prevalece "Manutenção"
+              tipoServico = 'Manutenção'
+            }
+          }
           const status = mapStatusAtividadeParaOSStatus(atv.status)
+
+          const duracaoNum =
+            typeof atv.duracao_minutos === 'number' && atv.duracao_minutos > 0
+              ? atv.duracao_minutos
+              : undefined
 
           return {
             id: atv.id,
@@ -225,8 +251,8 @@ export default function ExecucaoOS() {
                 ? atv.data.replace(' ', 'T').slice(11, 16)
                 : undefined),
             horario_fim: atv.horario_fim || undefined,
-            duracao_minutos:
-              typeof atv.duracao_minutos === 'number' ? atv.duracao_minutos : undefined,
+            duracao_minutos: duracaoNum,
+            tempo_previsto_minutos: duracaoNum,
             status,
             atribuida_a: atribuidaA,
             responsavel_usuario_id: atv.responsavel_id || undefined,

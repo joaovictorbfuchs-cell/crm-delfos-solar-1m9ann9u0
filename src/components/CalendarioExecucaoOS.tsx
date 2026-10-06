@@ -290,8 +290,13 @@ export function getTipoServicoConfig(tipoNome?: string): TipoServicoCorConfig {
     return TIPO_SERVICO_CORES['Configuração Datalogger']
   }
 
-  // 5. Limpeza (sky)
-  if (lower.includes('limp') || lower.includes('lavag')) {
+  // 5. Limpeza (apenas se for estritamente limpeza ou lavagem avulsa, NÃO mista de manutenção)
+  if (
+    (lower.includes('limp') || lower.includes('lavag')) &&
+    !lower.includes('manuten') &&
+    !lower.includes('reaperto') &&
+    !lower.includes('eletric')
+  ) {
     return TIPO_SERVICO_CORES['Limpeza']
   }
 
@@ -383,17 +388,35 @@ function getStartOfWeekDate(date: Date): Date {
   return d
 }
 
-// Extrai duração em minutos armazenada em metadados json existentes ou tempo_previsto_minutos
+// Extrai duração em minutos armazenada em duracao_minutos, tempo_previsto_minutos,
+// ou calculada a partir de horario_inicio e horario_fim
 function getDuracaoMinutosOS(os: OrdemServico): number {
   if (!os) return DURACAO_PADRAO_MINUTOS
-  if (typeof os.tempo_previsto_minutos === 'number' && os.tempo_previsto_minutos >= 15) {
-    return os.tempo_previsto_minutos
+  // 1. Campo explícito duracao_minutos (prioritário para atividades de manutenção)
+  if (typeof os.duracao_minutos === 'number' && os.duracao_minutos >= 15) {
+    return Math.min(480, Math.round(os.duracao_minutos))
   }
+  // 2. Campo tempo_previsto_minutos (usado em OSs de campo)
+  if (typeof os.tempo_previsto_minutos === 'number' && os.tempo_previsto_minutos >= 15) {
+    return Math.min(480, Math.round(os.tempo_previsto_minutos))
+  }
+  // 3. Derivado de horario_inicio e horario_fim quando presentes
+  if (os.horario_inicio && os.horario_fim) {
+    const minInicio = timeStringToMinutes(os.horario_inicio)
+    const minFim = timeStringToMinutes(os.horario_fim)
+    if (minFim > minInicio) {
+      const diff = minFim - minInicio
+      if (diff >= 15 && diff <= 480) {
+        return diff
+      }
+    }
+  }
+  // 4. Metadados json em detalhes_execucao / instrucoes_seguranca
   try {
     const dados = (os.instrucoes_seguranca || os.detalhes_execucao) as any
     if (dados && typeof dados === 'object' && typeof dados.duracao_minutos === 'number') {
       const d = Math.round(dados.duracao_minutos)
-      if (d >= 15 && d <= 720) return d
+      if (d >= 15 && d <= 480) return d
     }
   } catch {
     /* fallback */
@@ -608,12 +631,13 @@ export function CalendarioExecucaoOS({
     try {
       const payload: Partial<OrdemServico> = {
         data_agendada: novaDataIso,
+        horario_inicio: horarioInicioStr,
+        horario_fim: horarioFimStr,
+        duracao_minutos: duracaoAtual,
+        tempo_previsto_minutos: duracaoAtual,
       }
       if (os.origem === 'atividades') {
         payload.origem = 'atividades'
-        payload.horario_inicio = horarioInicioStr
-        payload.horario_fim = horarioFimStr
-        payload.duracao_minutos = duracaoAtual
       }
 
       const updated = await updateOrdemServico(osId, payload)
@@ -663,7 +687,9 @@ export function CalendarioExecucaoOS({
 
   const handleResizeStart = (e: React.MouseEvent | React.PointerEvent, os: OrdemServico) => {
     e.stopPropagation()
-    e.preventDefault()
+    if (typeof (e as any).preventDefault === 'function') {
+      e.preventDefault()
+    }
 
     // Se o elemento suportar pointer capture, captura para rastreamento confiável
     try {
@@ -805,29 +831,47 @@ export function CalendarioExecucaoOS({
     }> = []
 
     for (const os of ordensDoDia) {
-      if (!os || !os.data_agendada || os.data_agendada.length < 13) {
-        diaInteiro.push(os)
-        continue
-      }
+      if (!os) continue
 
       let hora = NaN
       let minuto = 0
 
-      try {
-        const horaPart = os.data_agendada.slice(11, 13)
-        hora = parseInt(horaPart, 10)
-        if (os.data_agendada.length >= 16) {
-          minuto = parseInt(os.data_agendada.slice(14, 16), 10) || 0
+      // Se tiver horario_inicio explícito ("08:00" ou "08:00:00"), usa diretamente
+      if (os.horario_inicio && typeof os.horario_inicio === 'string') {
+        const parts = os.horario_inicio.split(':')
+        if (parts.length >= 2) {
+          const h = parseInt(parts[0], 10)
+          const m = parseInt(parts[1], 10)
+          if (!isNaN(h) && !isNaN(m)) {
+            hora = h
+            minuto = m
+          }
         }
-      } catch {
-        hora = NaN
       }
 
+      // Fallback para data_agendada
       if (isNaN(hora)) {
-        const d = new Date(os.data_agendada)
-        if (!isNaN(d.getTime())) {
-          hora = d.getHours()
-          minuto = d.getMinutes()
+        if (!os.data_agendada || os.data_agendada.length < 13) {
+          diaInteiro.push(os)
+          continue
+        }
+
+        try {
+          const horaPart = os.data_agendada.slice(11, 13)
+          hora = parseInt(horaPart, 10)
+          if (os.data_agendada.length >= 16) {
+            minuto = parseInt(os.data_agendada.slice(14, 16), 10) || 0
+          }
+        } catch {
+          hora = NaN
+        }
+
+        if (isNaN(hora)) {
+          const d = new Date(os.data_agendada)
+          if (!isNaN(d.getTime())) {
+            hora = d.getHours()
+            minuto = d.getMinutes()
+          }
         }
       }
 
@@ -1599,14 +1643,21 @@ export function CalendarioExecucaoOS({
                       const isConcluida = os.status === 'concluida'
                       const isDragging = draggingOSId === os.id
                       const isBeingResized = resizing?.osId === os.id
-                      const horaInicioStr = extractHorario(os.data_agendada)
+                      const horaInicioStr =
+                        (os.horario_inicio && /^\d{1,2}:\d{2}/.test(os.horario_inicio)
+                          ? os.horario_inicio.slice(0, 5)
+                          : '') || extractHorario(os.data_agendada)
 
                       // Calcula hora de término prevista
                       const minutosInicio = item.hora * 60 + item.minuto
                       const minutosFim = minutosInicio + item.duracaoMinutos
-                      const horaFim = Math.floor(minutosFim / 60)
-                      const minutoFim = minutosFim % 60
-                      const horaFimStr = `${String(horaFim).padStart(2, '0')}:${String(minutoFim).padStart(2, '0')}`
+                      const horaFimCalc = Math.floor(minutosFim / 60)
+                      const minutoFimCalc = minutosFim % 60
+                      const horaFimCalculada = `${String(horaFimCalc).padStart(2, '0')}:${String(minutoFimCalc).padStart(2, '0')}`
+                      const horaFimStr =
+                        (os.horario_fim && /^\d{1,2}:\d{2}/.test(os.horario_fim) && !isBeingResized
+                          ? os.horario_fim.slice(0, 5)
+                          : '') || horaFimCalculada
 
                       const clienteNome =
                         os.expand?.cliente_id?.nome ||
@@ -1689,17 +1740,23 @@ export function CalendarioExecucaoOS({
                           {/* Alça inferior de redimensionamento (resize handle de 30 em 30 min) */}
                           <div
                             data-testid={`resize-handle-${os.id}`}
-                            onMouseDown={(e) => handleResizeStart(e, os)}
-                            onPointerDown={(e) => handleResizeStart(e, os)}
+                            onMouseDown={(e) => {
+                              e.stopPropagation()
+                              handleResizeStart(e, os)
+                            }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation()
+                              handleResizeStart(e, os)
+                            }}
                             onClick={(e) => {
                               // Evita que o clique na alça abra a ficha de execução da OS
                               e.stopPropagation()
                             }}
-                            style={{ touchAction: 'none' }}
-                            className="w-full h-3 cursor-ns-resize flex items-center justify-center hover:bg-emerald-300/80 active:bg-emerald-400 rounded-b transition-colors -mb-1 -mx-1 py-0.5 select-none z-20 shrink-0"
+                            style={{ touchAction: 'none', userSelect: 'none' }}
+                            className="w-full h-4 cursor-ns-resize flex items-center justify-center bg-gray-200/50 hover:bg-emerald-400/90 active:bg-emerald-500 rounded-b transition-colors -mb-1 -mx-1 py-1 select-none z-30 shrink-0"
                             title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
                           >
-                            <div className="w-8 h-1.5 rounded-full bg-gray-400 group-hover:bg-emerald-600 transition-colors pointer-events-none" />
+                            <div className="w-10 h-1.5 rounded-full bg-gray-500/80 group-hover:bg-emerald-800 transition-colors pointer-events-none shadow-2xs" />
                           </div>
                         </div>
                       )

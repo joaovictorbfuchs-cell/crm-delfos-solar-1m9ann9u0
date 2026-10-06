@@ -6,7 +6,8 @@
 /** Converte string "HH:mm" em total de minutos a partir das 00:00 */
 export function timeStringToMinutes(timeStr: string): number {
   if (!timeStr || typeof timeStr !== 'string') return 0
-  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})$/)
+  // Tolerante: aceita "HH:mm", "H:mm", "HH:mm:ss", "HH:mm:ss.sss"
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/)
   if (!match) return 0
   const hours = parseInt(match[1], 10)
   const minutes = parseInt(match[2], 10)

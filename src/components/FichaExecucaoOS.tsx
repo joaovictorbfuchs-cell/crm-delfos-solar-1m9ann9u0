@@ -895,7 +895,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     try {
       const respObj = instaladores.find((i) => i.id === atividadeResponsavelId)
       const dataFormatada = atividadeDataHora
-        ? atividadeDataHora.replace('T', ' ') + ':00'
+        ? atividadeDataHora.replace('T', ' ') + (atividadeDataHora.length === 16 ? ':00' : '')
         : os.data_agendada
 
       const payload: Record<string, any> = {
@@ -909,12 +909,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
       const atualizado = await updateAtividade(os.id, payload)
 
+      const duracaoFinal =
+        typeof atualizado.duracao_minutos === 'number' && atualizado.duracao_minutos > 0
+          ? atualizado.duracao_minutos
+          : duracaoMinutos
+
       const osAtualizada: OrdemServico = {
         ...os,
         data_agendada: atualizado.data || dataFormatada,
         horario_inicio: atualizado.horario_inicio || horarioInicio,
         horario_fim: atualizado.horario_fim || horarioFim,
-        duracao_minutos: atualizado.duracao_minutos || duracaoMinutos,
+        duracao_minutos: duracaoFinal,
+        tempo_previsto_minutos: duracaoFinal,
         responsavel_usuario_id: atualizado.responsavel_id || atividadeResponsavelId || undefined,
         atribuida_a: atualizado.responsavel_nome || respObj?.name || os.atribuida_a,
       }
