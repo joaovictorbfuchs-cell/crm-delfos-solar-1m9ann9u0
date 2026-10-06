@@ -211,23 +211,64 @@ function ExecucaoOSContent() {
 
         const [osList, atividadesList, instList, profList] = await Promise.all(promises)
 
-        // Mapear cada atividade para o formato OrdemServico com origem 'atividades'
-        const atividadesMapeadas: OrdemServico[] = (
+        // Filtragem estrutural das atividades para serviços de campo / calendário:
+        // Só devem entrar atividades que precisam ser lembradas ou executadas futuramente (manutenção agendada).
+        // Registros de sistema, histórico sem agendamento e atividades não-manutenção são excluídos.
+        const atividadesValidasParaCampo = (
           Array.isArray(atividadesList) ? atividadesList : []
-        ).map((atv: any) => {
-          if (!atv || typeof atv !== 'object') {
-            return {
-              id: 'temp-' + Math.random().toString(36).slice(2, 7),
-              collectionId: 'atividades',
-              collectionName: 'atividades',
-              tipo_servico: 'Manutenção',
-              status: 'pendente',
-              created: new Date().toISOString(),
-              updated: new Date().toISOString(),
-              origem: 'atividades',
-            } as OrdemServico
+        ).filter((atv: any) => {
+          if (!atv || typeof atv !== 'object') return false
+
+          // (a) Excluir atividades sem data/agendamento explícito: registro sem atv.data é histórico/log, não agendamento futuro
+          const dataBruta = typeof atv.data === 'string' ? atv.data.trim() : ''
+          if (!dataBruta) {
+            return false
           }
 
+          // (b) Para tipo='custom', excluir quando a categoria do tipo customizado existir e for diferente de 'manutencao'
+          if (atv.tipo === 'custom') {
+            const categoriaCustom = String(atv.expand?.tipo_custom_id?.categoria || '')
+              .trim()
+              .toLowerCase()
+            if (categoriaCustom && categoriaCustom !== 'manutencao') {
+              return false
+            }
+          }
+
+          // (c) Reforço estrutural por campo subtipo/tipo_unificado/tipo: excluir mudanças de etapa e mesclagens
+          const subtipoNorm = String(atv.subtipo || '')
+            .trim()
+            .toLowerCase()
+          const tipoUnificadoNorm = String(atv.tipo_unificado || '')
+            .trim()
+            .toLowerCase()
+          const tipoNorm = String(atv.tipo || '')
+            .trim()
+            .toLowerCase()
+
+          if (
+            subtipoNorm === 'mudança de etapa' ||
+            subtipoNorm === 'mudanca de etapa' ||
+            subtipoNorm === 'mudanca_estagio' ||
+            subtipoNorm === 'mudança de estágio' ||
+            subtipoNorm === 'mesclagem de clientes' ||
+            subtipoNorm === 'mesclagem' ||
+            tipoUnificadoNorm === 'mudança de etapa' ||
+            tipoUnificadoNorm === 'mudanca de etapa' ||
+            tipoUnificadoNorm === 'mudanca_estagio' ||
+            tipoUnificadoNorm === 'mudança de estágio' ||
+            tipoUnificadoNorm === 'mesclagem de clientes' ||
+            tipoUnificadoNorm === 'mesclagem' ||
+            tipoNorm === 'mudanca_estagio'
+          ) {
+            return false
+          }
+
+          return true
+        })
+
+        // Mapear cada atividade filtrada para o formato OrdemServico com origem 'atividades'
+        const atividadesMapeadas: OrdemServico[] = atividadesValidasParaCampo.map((atv: any) => {
           const cli = atv.expand?.cliente_id
           const usina = atv.expand?.usina_id
           const resp = atv.expand?.responsavel_id
@@ -309,7 +350,7 @@ function ExecucaoOSContent() {
             usina_id: atv.usina_id || undefined,
             tipo_servico: tipoServico,
             endereco,
-            data_agendada: atv.data || atv.created,
+            data_agendada: atvDataStr,
             horario_inicio: horarioInicioSeguro,
             horario_fim: typeof atv.horario_fim === 'string' ? atv.horario_fim : undefined,
             duracao_minutos: duracaoNum,

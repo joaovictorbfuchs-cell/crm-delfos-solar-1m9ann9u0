@@ -1121,12 +1121,14 @@ function CalendarioExecucaoOSContent({
   }, [])
 
   // Agrupar ordens por chave de data (YYYY-MM-DD)
+  // Somente ordens/atividades com data_agendada explícita devem ser exibidas no calendário.
+  // Registros sem data são históricos/logs e não devem cair no calendário na data de criação.
   const ordensPorDia = useMemo(() => {
     const map = new Map<string, OrdemServico[]>()
     for (const os of ordensMescladas || []) {
       if (!os) continue
       try {
-        const dataStr = safeStr(os.data_agendada || os.created).trim()
+        const dataStr = safeStr(os.data_agendada).trim()
         if (!dataStr) continue
         const d = new Date(dataStr)
         if (isNaN(d.getTime())) continue
@@ -1143,8 +1145,8 @@ function CalendarioExecucaoOSContent({
     for (const [, list] of map.entries()) {
       list.sort((a, b) => {
         try {
-          const strA = safeStr(a?.data_agendada || a?.created)
-          const strB = safeStr(b?.data_agendada || b?.created)
+          const strA = safeStr(a?.data_agendada)
+          const strB = safeStr(b?.data_agendada)
           const dateA = strA ? new Date(strA) : null
           const dateB = strB ? new Date(strB) : null
           const timeA = dateA && !isNaN(dateA.getTime()) ? dateA.getTime() : 0

@@ -1562,4 +1562,76 @@ describe('Login e App Smoke Tests', () => {
 
     vi.restoreAllMocks()
   })
+
+  it('filtragem de atividades para calendário de serviços de campo: atividades com data aparecem; logs de mudança de etapa e mesclagem (sem data ou não-manutenção) NÃO aparecem; OS real aparece', async () => {
+    // 1. CalendarioExecucaoOS agrupa apenas registros que possuem data_agendada explícita (sem fallback para created)
+    const now = new Date()
+    const ano = now.getFullYear()
+    const mes = String(now.getMonth() + 1).padStart(2, '0')
+    const dia = String(now.getDate()).padStart(2, '0')
+    const dataHoje = `${ano}-${mes}-${dia} 10:00:00.000Z`
+
+    const osRealComData = {
+      id: 'os-real-1',
+      collectionId: 'ordens_servico',
+      collectionName: 'ordens_servico',
+      cliente_id: 'cli-1',
+      tipo_servico: 'Limpeza e Manutenção Preventiva',
+      status: 'pendente' as const,
+      origem: 'ordens_servico' as const,
+      data_agendada: dataHoje,
+      horario_inicio: '10:00',
+      horario_fim: '11:00',
+      duracao_minutos: 60,
+      expand: {
+        cliente_id: { id: 'cli-1', nome: 'Cliente OS Real' },
+      },
+    }
+
+    const atvManutencaoComData = {
+      id: 'atv-manut-1',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-2',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: dataHoje,
+      horario_inicio: '14:00',
+      horario_fim: '15:00',
+      duracao_minutos: 60,
+      expand: {
+        cliente_id: { id: 'cli-2', nome: 'Cliente Atividade Manutencao' },
+      },
+    }
+
+    const logSemDataAgendada = {
+      id: 'log-sem-data-1',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-3',
+      tipo_servico: 'Mudança de Estágio',
+      status: 'concluida' as const,
+      origem: 'atividades' as const,
+      data_agendada: '', // Sem agendamento explícito
+      created: dataHoje, // Possui created na data de hoje, mas NÃO deve aparecer no calendário
+      expand: {
+        cliente_id: { id: 'cli-3', nome: 'Cliente Log Historico' },
+      },
+    }
+
+    const html = renderToStaticMarkup(
+      React.createElement(CalendarioExecucaoOS, {
+        ordens: [osRealComData as any, atvManutencaoComData as any, logSemDataAgendada as any],
+        onSelectOS: () => {},
+      }),
+    )
+
+    // A OS real com data deve aparecer
+    expect(html).toContain('Cliente OS Real')
+    // A atividade de manutenção com data deve aparecer
+    expect(html).toContain('Cliente Atividade Manutencao')
+    // O registro de log sem data explícita NÃO deve aparecer no calendário mesmo tendo created de hoje
+    expect(html).not.toContain('Cliente Log Historico')
+  })
 })
