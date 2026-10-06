@@ -1,48 +1,51 @@
-export interface PocketBaseError {
-  status?: number
-  message?: string
-  data?: Record<string, unknown>
+import { ClientResponseError } from 'pocketbase'
+
+export type FieldErrors = Record<string, string>
+
+export function extractFieldErrors(error: unknown): FieldErrors {
+  if (!(error instanceof ClientResponseError)) return {}
+  const data = error.response?.data
+  if (!data || typeof data !== 'object') return {}
+  const errors: FieldErrors = {}
+  for (const [field, detail] of Object.entries(data)) {
+    if (
+      detail &&
+      typeof detail === 'object' &&
+      'message' in detail &&
+      typeof (detail as { message: unknown }).message === 'string'
+    ) {
+      errors[field] = (detail as { message: string }).message
+    }
+  }
+  return errors
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+  }
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  const err = error as any
-  if (err.status === 401 || err.status === 403) return true
-  const msg = String(err.message || '').toLowerCase()
-  return (
-    msg.includes('token') ||
-    msg.includes('authenticate') ||
-    msg.includes('authentication') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden')
-  )
-}
-
-export function isAuthError(error: unknown): boolean {
-  return isAuthSessionError(error)
-}
-
-export function getErrorMessage(error: unknown, fallback = 'Ocorreu um erro inesperado'): string {
-  if (!error) return fallback
-  if (typeof error === 'string') return error
-  const err = error as any
-  if (err.message && typeof err.message === 'string') return err.message
-  return fallback
-}
-
-export function extractFieldErrors(error: unknown): Record<string, string> {
-  const result: Record<string, string> = {}
-  if (!error) return result
-  const err = error as any
-  const data = err?.data?.data || err?.data
-  if (data && typeof data === 'object') {
-    for (const [key, val] of Object.entries(data)) {
-      if (typeof val === 'string') {
-        result[key] = val
-      } else if (val && typeof val === 'object' && 'message' in (val as any)) {
-        result[key] = String((val as any).message)
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('invalid token') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
       }
     }
   }
-  return result
+  return false
 }

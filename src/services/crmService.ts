@@ -4090,9 +4090,12 @@ export async function sincronizarUsinaComCliente(
 export async function createUsina(
   data: Partial<import('@/types/crm').UsinaCliente> & { cliente_id: string; nome: string },
 ): Promise<import('@/types/crm').UsinaCliente> {
-  const created = await pb.collection('usinas').create<import('@/types/crm').UsinaCliente>(data, {
-    expand: 'contrato_id',
-  })
+  const payloadSanitizado = sanitizarPayloadUsina(data as Record<string, unknown>)
+  const created = await pb
+    .collection('usinas')
+    .create<import('@/types/crm').UsinaCliente>(payloadSanitizado as any, {
+      expand: 'contrato_id',
+    })
 
   // Sincronização automática usina -> ficha do cliente (aditivo)
   if (created.cliente_id) {
@@ -4118,13 +4121,252 @@ export async function createUsina(
   return created
 }
 
+/**
+ * Conjunto de campos reconhecidos pela coleção 'usinas' no PocketBase
+ * para evitar rejeição (400 Bad Request) por envio de propriedades desconhecidas ou espúrias.
+ */
+export const CAMPOS_VALIDOS_USINAS = new Set<string>([
+  'cliente_id',
+  'nome',
+  'endereco',
+  'potencia_kwp',
+  'qtd_modulos',
+  'inversores_info',
+  'tipo_estrutura',
+  'contrato_id',
+  'geracao_estimada_kwh',
+  'data_instalacao',
+  'numero_medidor',
+  'status',
+  'observacoes',
+  'tipo_usina',
+  'concessionaria',
+  'numero_uc',
+  'padrao_entrada',
+  'tipo_atendimento',
+  'numero_fases',
+  'secao_cabos',
+  'amperagem_disjuntor',
+  'tipo_caixa_medicao',
+  'latitude',
+  'longitude',
+  'tarifa',
+  'classe_consumo',
+  'geracao_media_mensal_kwh',
+  'monitoramento_app_nome',
+  'monitoramento_login',
+  'monitoramento_senha',
+  'monitoramento_datalogger_url',
+  'solarview_login',
+  'solarview_senha',
+  'solarview_link_ios',
+  'solarview_link_android',
+  'solarview_link_texto',
+  'fabricante_inversores',
+  'modelo_inversores',
+  'potencia_pico_inversores_kwp',
+  'fabricante_modulos',
+  'modelo_modulos',
+  'potencia_pico_modulos_kwp',
+  'quantidade_placas',
+  'marca_placas',
+  'tipo_telhado',
+  'grupo_subgrupo',
+  'tensao_nominal',
+  'consumo_medio',
+  'cidade',
+  'estado',
+  'cep',
+  'bairro',
+  'numero',
+  'complemento',
+  'titular_nome',
+  'titular_cpf',
+  'titular_telefone',
+  'titular_email',
+  'tipo_fornecimento',
+  'consumo_kwh_mes',
+  'consumo_anual_kwh',
+  'consumo_medio_diario_kwh',
+  'datasheet_inversor_url',
+  'datasheet_modulo_url',
+  'documentos_usina',
+  'dados_atualizados',
+  'portal_login',
+  'portal_senha',
+])
+
+const CAMPOS_NUMERICOS_USINAS = new Set<string>([
+  'potencia_kwp',
+  'qtd_modulos',
+  'geracao_estimada_kwh',
+  'latitude',
+  'longitude',
+  'tarifa',
+  'geracao_media_mensal_kwh',
+  'potencia_pico_inversores_kwp',
+  'potencia_pico_modulos_kwp',
+  'quantidade_placas',
+  'consumo_medio',
+  'consumo_kwh_mes',
+  'consumo_anual_kwh',
+  'consumo_medio_diario_kwh',
+])
+
+const CAMPOS_DATE_USINAS = new Set<string>(['data_instalacao'])
+
+const CAMPOS_SELECT_USINAS: Record<string, string[]> = {
+  tipo_estrutura: ['solo', 'telhado'],
+  status: ['ativo', 'inativo'],
+  tipo_usina: ['residencial', 'comercial', 'industrial', 'rural', 'investidor'],
+  tipo_atendimento: ['aéreo', 'subterrâneo'],
+  numero_fases: ['monofásico', 'bifásico', 'trifásico'],
+  tipo_telhado: ['ceramico', 'metalico', 'laje', 'fibrocimento'],
+}
+
+/**
+ * Sanitiza defensivamente o payload para criação ou atualização na coleção `usinas`.
+ * - Descarta chaves inexistentes no schema do PocketBase ou metadados de sistema (id, expand, created, updated, etc).
+ * - Remove chaves com valor `undefined`.
+ * - Para campos numéricos: converte strings numéricas, descarta NaN, e converte string vazia para null.
+ * - Para campos de data: converte string vazia para null e valida strings no formato aceito pelo PocketBase.
+ * - Para selects restritos: descarta ou anula valores que não pertençam à lista de opções válidas do schema.
+ * - Para relations vazias (ex: contrato_id = ''): envia null para desvincular sem gerar 400.
+ * - Para booleanos: garante booleano estrito.
+ */
+export function sanitizarPayloadUsina(raw: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(raw)) {
+    // Ignorar metadados do PocketBase e chaves inexistentes no schema
+    if (!CAMPOS_VALIDOS_USINAS.has(key)) {
+      continue
+    }
+
+    // Ignorar valores undefined
+    if (value === undefined) {
+      continue
+    }
+
+    // Tratamento de campos numéricos
+    if (CAMPOS_NUMERICOS_USINAS.has(key)) {
+      if (value === null || value === '') {
+        sanitized[key] = null
+        continue
+      }
+      const num = Number(value)
+      if (isNaN(num)) {
+        // Se não for um número válido, não enviar para não quebrar a validação
+        continue
+      }
+      sanitized[key] = num
+      continue
+    }
+
+    // Tratamento de campos date
+    if (CAMPOS_DATE_USINAS.has(key)) {
+      if (value === null || value === '') {
+        sanitized[key] = null
+        continue
+      }
+      if (typeof value === 'string') {
+        const trimmed = value.trim()
+        if (!trimmed) {
+          sanitized[key] = null
+          continue
+        }
+        sanitized[key] = trimmed
+        continue
+      }
+    }
+
+    // Tratamento de campos relation (contrato_id)
+    if (key === 'contrato_id') {
+      if (value === null || value === '') {
+        sanitized[key] = null
+        continue
+      }
+      sanitized[key] = String(value).trim()
+      continue
+    }
+
+    // Tratamento de campos select com enumeração restrita no banco
+    if (key in CAMPOS_SELECT_USINAS) {
+      if (value === null || value === '') {
+        sanitized[key] = ''
+        continue
+      }
+      const strVal = String(value).trim().toLowerCase()
+      const allowed = CAMPOS_SELECT_USINAS[key]
+      if (allowed.includes(strVal)) {
+        sanitized[key] = strVal
+      } else {
+        // Opção inválida não permitida pelo schema do PocketBase -> omitir ou limpar
+        // Para evitar 400 no PATCH caso a IA extraia valor livre (ex: "bifasico" sem acento)
+        const matchNormalized = allowed.find(
+          (opt) =>
+            opt
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase() ===
+            strVal
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase(),
+        )
+        if (matchNormalized) {
+          sanitized[key] = matchNormalized
+        } else {
+          // Não envia opção incompatível que causaria 400
+          continue
+        }
+      }
+      continue
+    }
+
+    // Tratamento de booleanos
+    if (key === 'dados_atualizados') {
+      if (value === null || value === undefined) {
+        continue
+      }
+      sanitized[key] = Boolean(value)
+      continue
+    }
+
+    // Tratamento de campos JSON (documentos_usina)
+    if (key === 'documentos_usina') {
+      if (value === null) {
+        sanitized[key] = []
+        continue
+      }
+      if (Array.isArray(value)) {
+        sanitized[key] = value
+        continue
+      }
+      continue
+    }
+
+    // Demais campos de texto
+    if (typeof value === 'string') {
+      sanitized[key] = value
+      continue
+    }
+
+    sanitized[key] = value
+  }
+
+  return sanitized
+}
+
 export async function updateUsina(
   id: string,
   data: Partial<import('@/types/crm').UsinaCliente>,
 ): Promise<import('@/types/crm').UsinaCliente> {
+  const payloadSanitizado = sanitizarPayloadUsina(data as Record<string, unknown>)
+
   const updated = await pb
     .collection('usinas')
-    .update<import('@/types/crm').UsinaCliente>(id, data, {
+    .update<import('@/types/crm').UsinaCliente>(id, payloadSanitizado, {
       expand: 'contrato_id',
     })
 

@@ -4,6 +4,8 @@ import {
   reatribuirTodosVinculosCliente,
   mesclarMultiplosClientes,
   NOMES_COLECOES_CRM,
+  sanitizarPayloadUsina,
+  updateUsina,
 } from './crmService'
 
 // Mock do cliente PocketBase
@@ -140,5 +142,87 @@ describe('mesclarMultiplosClientes - otimizações e integridade de dados', () =
     expect(mockPbDelete).toHaveBeenCalledWith('cli-sec-1')
     expect(mockPbDelete).toHaveBeenCalledWith('cli-sec-2')
     expect(mockPbDelete).not.toHaveBeenCalledWith('cli-mestre')
+  })
+
+  it('sanitizarPayloadUsina descarta campos desconhecidos, converte string vazia para null em números/datas e protege selects', () => {
+    const raw = {
+      id: 'a0o9ix29w4smfhl', // campo do sistema -> descartar
+      expand: { cliente_id: {} }, // metadado de expand -> descartar
+      created: '2026-09-14', // autodate -> descartar
+      campo_inexistente_inventado: 'valor', // campo fora do schema -> descartar
+      campo_indesejado: 123, // descartar
+      potencia_kwp: '15.5', // converter para número
+      qtd_modulos: '', // string vazia em número -> null
+      geracao_estimada_kwh: 'abc', // NaN -> descartar
+      tarifa: '0.95', // converter para número
+      data_instalacao: '', // string vazia em date -> null
+      contrato_id: '', // relation vazia -> null
+      tipo_estrutura: 'telhado', // select válido -> preservar
+      tipo_atendimento: 'aéreo', // select válido -> preservar
+      numero_fases: 'bifasico', // sem acento -> normalizar para 'bifásico'
+      tipo_usina: 'invalido_alienigena', // select inexistente -> descartar
+      nome: 'Usina Teste Sanitizacao', // texto -> preservar
+      cidade: 'Erechim', // texto -> preservar
+      portal_login: 'login123', // campo recente -> preservar
+      portal_senha: 'senha-secreta', // campo recente -> preservar
+      undefinedField: undefined, // undefined -> descartar
+    }
+
+    const sanitized = sanitizarPayloadUsina(raw)
+
+    // Chaves descartadas
+    expect(sanitized.id).toBeUndefined()
+    expect(sanitized.expand).toBeUndefined()
+    expect(sanitized.created).toBeUndefined()
+    expect(sanitized.campo_inexistente_inventado).toBeUndefined()
+    expect(sanitized.campo_indesejado).toBeUndefined()
+    expect(sanitized.undefinedField).toBeUndefined()
+    expect(sanitized.geracao_estimada_kwh).toBeUndefined()
+    expect(sanitized.tipo_usina).toBeUndefined()
+
+    // Chaves tratadas
+    expect(sanitized.potencia_kwp).toBe(15.5)
+    expect(sanitized.qtd_modulos).toBeNull()
+    expect(sanitized.tarifa).toBe(0.95)
+    expect(sanitized.data_instalacao).toBeNull()
+    expect(sanitized.contrato_id).toBeNull()
+    expect(sanitized.tipo_estrutura).toBe('telhado')
+    expect(sanitized.tipo_atendimento).toBe('aéreo')
+    expect(sanitized.numero_fases).toBe('bifásico')
+    expect(sanitized.nome).toBe('Usina Teste Sanitizacao')
+    expect(sanitized.cidade).toBe('Erechim')
+    expect(sanitized.portal_login).toBe('login123')
+    expect(sanitized.portal_senha).toBe('senha-secreta')
+  })
+
+  it('updateUsina sanitiza o payload antes de invocar o PATCH no PocketBase', async () => {
+    mockPbUpdate.mockClear()
+    mockPbGetFullList.mockResolvedValue([])
+
+    await updateUsina('usina-teste-id', {
+      id: 'usina-teste-id' as any,
+      nome: 'Usina Atualizada',
+      potencia_kwp: 12.5,
+      qtd_modulos: '' as any, // string vazia vinda de input de formulário
+      data_instalacao: '',
+      campo_fantasma: 'teste' as any,
+      portal_login: 'portal_user',
+      portal_senha: 'portal_password',
+    } as any)
+
+    expect(mockPbUpdate).toHaveBeenCalledTimes(1)
+    const [calledId, calledPayload, calledOpts] = mockPbUpdate.mock.calls[0]
+    expect(calledId).toBe('usina-teste-id')
+    expect(calledOpts).toEqual({ expand: 'contrato_id' })
+    expect(calledPayload).toEqual({
+      nome: 'Usina Atualizada',
+      potencia_kwp: 12.5,
+      qtd_modulos: null,
+      data_instalacao: null,
+      portal_login: 'portal_user',
+      portal_senha: 'portal_password',
+    })
+    expect(calledPayload.id).toBeUndefined()
+    expect(calledPayload.campo_fantasma).toBeUndefined()
   })
 })
