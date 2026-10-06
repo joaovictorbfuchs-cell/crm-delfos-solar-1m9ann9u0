@@ -1295,4 +1295,114 @@ describe('Login e App Smoke Tests', () => {
     expect(text).toContain('Senha:')
     expect(text).toContain('Copiar do cliente')
   })
+
+  it('Kanban renderiza exatamente as 5 colunas esperadas, sem "Fechado" e sem "Perdido" como colunas', async () => {
+    const { KANBAN_COLUMNS } = await import('@/components/KanbanBoard')
+    expect(KANBAN_COLUMNS).toHaveLength(5)
+
+    const ids = KANBAN_COLUMNS.map((c) => c.id)
+    const titles = KANBAN_COLUMNS.map((c) => c.title)
+
+    // Exatamente as 5 colunas esperadas
+    expect(ids).toEqual(['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação', 'Contato Futuro'])
+
+    expect(titles).toEqual([
+      '1 - Lead',
+      '2 - Orçamento Enviado',
+      '3 - Proposta',
+      '4 - Negociação',
+      '5 - Contato Futuro',
+    ])
+
+    // "Fechado" e "Perdido" NÃO devem ser colunas no Kanban
+    expect(ids).not.toContain('Fechado')
+    expect(ids).not.toContain('Perdido')
+    expect(titles).not.toContain('Fechado')
+    expect(titles).not.toContain('Perdido')
+  })
+
+  it('montagem REAL no DOM na rota "/servicos-campo" renderiza sem ErrorBoundary mesmo com registro de OS/atividade com datas nulas e checklist como string JSON', async () => {
+    const { ClientesProvider } = await import('@/contexts/ClientesContext')
+    const { AuthProvider } = await import('@/contexts/AuthContext')
+
+    // Mock do PocketBase retornando registros com datas nulas e checklist como string JSON
+    const mockOS = {
+      id: 'os-com-checklist-string',
+      collectionId: 'ordens_servico',
+      collectionName: 'ordens_servico',
+      cliente_id: 'cli-dummy',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente',
+      data_agendada: null,
+      horario_inicio: null,
+      horario_fim: null,
+      duracao_minutos: null,
+      checklist: JSON.stringify([
+        { id: 'item-1', descricao: 'Inspecionar inversores', concluido: false },
+        { id: 'item-2', descricao: 'Limpar conexões', concluido: true },
+      ]),
+      created: '2026-03-30 10:00:00.000Z',
+      updated: '2026-03-30 10:00:00.000Z',
+      expand: {
+        cliente_id: { id: 'cli-dummy', nome: 'Cliente Teste Dados Nulos' },
+      },
+    }
+
+    const mockAtividade = {
+      id: 'atv-com-datas-nulas',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-dummy',
+      tipo: 'manutencao_preventiva',
+      status: 'pendente',
+      titulo: 'Atividade sem data agendada',
+      data: null,
+      horario_inicio: null,
+      horario_fim: null,
+      duracao_minutos: null,
+      checklist: JSON.stringify([
+        { id: 'chk-1', descricao: 'Verificar painéis', concluido: false },
+      ]),
+      created: '2026-03-30 10:00:00.000Z',
+      updated: '2026-03-30 10:00:00.000Z',
+      expand: {
+        cliente_id: { id: 'cli-dummy', nome: 'Cliente Atividade Nula' },
+      },
+    }
+
+    // Configura mock no PocketBase para ordens_servico e atividades
+    const originalGetFullList = pb.collection('ordens_servico').getFullList
+    const originalAtividadesGetFullList = pb.collection('atividades').getFullList
+
+    vi.spyOn(pb.collection('ordens_servico'), 'getFullList').mockResolvedValue([mockOS] as any)
+    vi.spyOn(pb.collection('atividades'), 'getFullList').mockResolvedValue([mockAtividade] as any)
+
+    window.history.pushState({}, 'Serviços de Campo', '/servicos-campo')
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(
+        React.createElement(
+          AuthProvider,
+          null,
+          React.createElement(ClientesProvider, null, React.createElement(App)),
+        ),
+      )
+      container = res.container
+    })
+
+    // Aguarda montagem assíncrona
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 150))
+    })
+
+    const textContent = container?.textContent || ''
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar Serviços de Campo')
+    expect(textContent).not.toContain('Não foi possível carregar o módulo de Serviços de Campo')
+    expect(textContent).not.toContain('Ops! Algo deu errado')
+    expect(textContent).toContain('Calendário')
+
+    // Restaura spies
+    vi.restoreAllMocks()
+  })
 })

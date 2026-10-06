@@ -360,7 +360,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
 
           <div className="px-3 text-center min-w-[150px]">
             <span className="text-sm font-bold text-gray-900 capitalize block">
-              {MESES[mesAtual]} {anoAtual}
+              {MESES[mesAtual] || ''} {anoAtual}
             </span>
             {isMesAtual && (
               <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">
@@ -413,7 +413,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
             {totaisGerais.totalOS === 1
               ? '1 ordem finalizada'
               : `${totaisGerais.totalOS} ordens finalizadas`}{' '}
-            em {MESES[mesAtual]}
+            em {MESES[mesAtual] || ''}
           </p>
         </div>
 
@@ -497,7 +497,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
           <div className="flex items-center gap-2 mb-3">
             <Wrench className="w-4 h-4 text-emerald-600" />
             <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-              Distribuição por Tipo de Serviço em {MESES[mesAtual]}
+              Distribuição por Tipo de Serviço em {MESES[mesAtual] || ''}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -528,7 +528,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
             <FileText className="w-7 h-7" />
           </div>
           <h4 className="text-base font-bold text-gray-900 mb-1">
-            Nenhuma OS concluída em {MESES[mesAtual]} de {anoAtual}
+            Nenhuma OS concluída em {MESES[mesAtual] || ''} de {anoAtual}
           </h4>
           <p className="text-xs text-gray-500 max-w-md mb-4">
             Não há registros de ordens de serviço finalizadas neste mês. Navegue pelos meses

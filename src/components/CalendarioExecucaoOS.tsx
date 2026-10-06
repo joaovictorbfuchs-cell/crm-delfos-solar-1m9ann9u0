@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { OrdemServico, OSTipoServico } from '@/types/crm'
+import { OrdemServico, OSTipoServico, OSChecklistItem } from '@/types/crm'
 import {
   ChevronLeft,
   ChevronRight,
@@ -1138,16 +1138,17 @@ function CalendarioExecucaoOSContent({
       days.push({
         date: d,
         dayNumber: d.getDate(),
-        diaSemanaCurto: DIAS_SEMANA_NOMES[i],
-        diaSemanaCompleto: [
-          'Domingo',
-          'Segunda-feira',
-          'Terça-feira',
-          'Quarta-feira',
-          'Quinta-feira',
-          'Sexta-feira',
-          'Sábado',
-        ][i],
+        diaSemanaCurto: DIAS_SEMANA_NOMES[i] || '',
+        diaSemanaCompleto:
+          [
+            'Domingo',
+            'Segunda-feira',
+            'Terça-feira',
+            'Quarta-feira',
+            'Quinta-feira',
+            'Sexta-feira',
+            'Sábado',
+          ][i] || '',
         isCurrentMonth: d.getMonth() === currentMonth,
         isToday: dateKey === todayKey,
         dateKey,
@@ -1183,23 +1184,23 @@ function CalendarioExecucaoOSContent({
   // Rótulo textual do período para o header
   const headerPeriodoTexto = useMemo(() => {
     if (viewMode === 'mes') {
-      return `${MESES[currentMonth]} ${currentYear}`
+      return `${MESES[currentMonth] || ''} ${currentYear}`
     } else if (viewMode === 'semana') {
       const first = weekDays[0]?.date
       const last = weekDays[6]?.date
       if (!first || !last) return ''
       if (first.getMonth() === last.getMonth()) {
-        return `${first.getDate()}–${last.getDate()} de ${MESES[first.getMonth()]} de ${first.getFullYear()}`
+        return `${first.getDate()}–${last.getDate()} de ${MESES[first.getMonth()] || ''} de ${first.getFullYear()}`
       }
       if (first.getFullYear() === last.getFullYear()) {
-        return `${first.getDate()} de ${MESES[first.getMonth()]} – ${last.getDate()} de ${MESES[last.getMonth()]} de ${first.getFullYear()}`
+        return `${first.getDate()} de ${MESES[first.getMonth()] || ''} – ${last.getDate()} de ${MESES[last.getMonth()] || ''} de ${first.getFullYear()}`
       }
       return `${first.getDate()}/${first.getMonth() + 1}/${first.getFullYear()} – ${last.getDate()}/${last.getMonth() + 1}/${last.getFullYear()}`
     } else {
       // Visão Dia
       const d = selectedDayDate
       const dia = d.getDate()
-      const mes = MESES[d.getMonth()]
+      const mes = MESES[d.getMonth()] || ''
       const ano = d.getFullYear()
       return `${dia} de ${mes} de ${ano}`
     }

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { OrdemServico, OSTipoServico } from '@/types/crm'
+import { OrdemServico, OSTipoServico, OSChecklistItem } from '@/types/crm'
 import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
-import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
+import { CalendarioExecucaoOS, normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
 import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { formatDateTime } from '@/lib/formatters'
@@ -57,7 +58,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
-export default function ExecucaoOS() {
+function ExecucaoOSContent() {
   const { toast } = useToast()
   const { userProfile, isAdmin, isInstalador } = useAuth()
 
@@ -186,6 +187,19 @@ export default function ExecucaoOS() {
         const atividadesMapeadas: OrdemServico[] = (
           Array.isArray(atividadesList) ? atividadesList : []
         ).map((atv: any) => {
+          if (!atv || typeof atv !== 'object') {
+            return {
+              id: 'temp-' + Math.random().toString(36).slice(2, 7),
+              collectionId: 'atividades',
+              collectionName: 'atividades',
+              tipo_servico: 'Manutenção',
+              status: 'pendente',
+              created: new Date().toISOString(),
+              updated: new Date().toISOString(),
+              origem: 'atividades',
+            } as OrdemServico
+          }
+
           const cli = atv.expand?.cliente_id
           const usina = atv.expand?.usina_id
           const resp = atv.expand?.responsavel_id
@@ -236,12 +250,31 @@ export default function ExecucaoOS() {
           const status = mapStatusAtividadeParaOSStatus(atv.status)
 
           const duracaoNum =
-            typeof atv.duracao_minutos === 'number' && atv.duracao_minutos > 0
+            typeof atv.duracao_minutos === 'number' &&
+            !isNaN(atv.duracao_minutos) &&
+            atv.duracao_minutos > 0
               ? atv.duracao_minutos
               : undefined
 
+          // Normaliza checklist de forma tolerante (seja array ou string JSON)
+          const checklistNorm = normalizeChecklist(atv.checklist)
+
+          // Extração segura de horário de início a partir de string ou data
+          const atvDataStr = typeof atv.data === 'string' ? atv.data.trim() : ''
+          let horarioInicioSeguro: string | undefined =
+            typeof atv.horario_inicio === 'string' && atv.horario_inicio.trim()
+              ? atv.horario_inicio.trim()
+              : undefined
+
+          if (!horarioInicioSeguro && atvDataStr.length >= 16) {
+            const horaMin = atvDataStr.replace(' ', 'T').slice(11, 16)
+            if (/^\d{2}:\d{2}$/.test(horaMin)) {
+              horarioInicioSeguro = horaMin
+            }
+          }
+
           return {
-            id: atv.id,
+            id: atv.id || 'atv-' + Math.random().toString(36).slice(2, 7),
             collectionId: atv.collectionId || 'atividades',
             collectionName: atv.collectionName || 'atividades',
             cliente_id: atv.cliente_id,
@@ -249,14 +282,11 @@ export default function ExecucaoOS() {
             tipo_servico: tipoServico,
             endereco,
             data_agendada: atv.data || atv.created,
-            horario_inicio:
-              atv.horario_inicio ||
-              (atv.data && atv.data.length >= 16
-                ? atv.data.replace(' ', 'T').slice(11, 16)
-                : undefined),
-            horario_fim: atv.horario_fim || undefined,
+            horario_inicio: horarioInicioSeguro,
+            horario_fim: typeof atv.horario_fim === 'string' ? atv.horario_fim : undefined,
             duracao_minutos: duracaoNum,
             tempo_previsto_minutos: duracaoNum,
+            checklist: checklistNorm,
             status,
             atribuida_a: atribuidaA,
             responsavel_usuario_id: atv.responsavel_id || undefined,
@@ -275,10 +305,16 @@ export default function ExecucaoOS() {
           } as OrdemServico
         })
 
-        // Coexistência e deduplicação: OSs reais têm precedência se houver mesmo id
-        const osReais = Array.isArray(osList) ? osList : []
-        const osIdSet = new Set(osReais.map((o) => o.id))
-        const atividadesDeduplicadas = atividadesMapeadas.filter((a) => !osIdSet.has(a.id))
+        // Normalizar checklist das OSs reais para garantir que seja sempre array válido
+        const osReais = (Array.isArray(osList) ? osList : []).map((osItem) => {
+          if (!osItem || typeof osItem !== 'object') return osItem
+          return {
+            ...osItem,
+            checklist: normalizeChecklist(osItem.checklist),
+          }
+        })
+        const osIdSet = new Set(osReais.map((o) => o?.id).filter(Boolean))
+        const atividadesDeduplicadas = atividadesMapeadas.filter((a) => a?.id && !osIdSet.has(a.id))
         const ordensCombinadas = [...osReais, ...atividadesDeduplicadas]
 
         // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável (com blindagem a nulo)
@@ -459,17 +495,22 @@ export default function ExecucaoOS() {
 
   const filteredList = useMemo(() => {
     const agora = new Date()
-    const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime()
+    const agoraYear = !isNaN(agora.getFullYear()) ? agora.getFullYear() : 2026
+    const agoraMonth = !isNaN(agora.getMonth()) ? agora.getMonth() : 0
+    const agoraDate = !isNaN(agora.getDate()) ? agora.getDate() : 1
+
+    const inicioHoje = new Date(agoraYear, agoraMonth, agoraDate).getTime()
     const fimHoje = inicioHoje + 24 * 60 * 60 * 1000 - 1
 
-    const inicioSemana = new Date(agora)
-    inicioSemana.setDate(agora.getDate() - agora.getDay())
+    const inicioSemana = new Date(agoraYear, agoraMonth, agoraDate)
+    const dayOfWeek = inicioSemana.getDay()
+    inicioSemana.setDate(inicioSemana.getDate() - (isNaN(dayOfWeek) ? 0 : dayOfWeek))
     inicioSemana.setHours(0, 0, 0, 0)
     const fimSemana = new Date(inicioSemana)
     fimSemana.setDate(inicioSemana.getDate() + 7)
 
-    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).getTime()
-    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59).getTime()
+    const inicioMes = new Date(agoraYear, agoraMonth, 1).getTime()
+    const fimMes = new Date(agoraYear, agoraMonth + 1, 0, 23, 59, 59).getTime()
 
     return (listToDisplay || []).filter((os) => {
       if (!os) return false
@@ -494,11 +535,14 @@ export default function ExecucaoOS() {
           }
         }
 
-        // Filtro por período agendado
+        // Filtro por período agendado com validação robusta
         if (selectedPeriodoFilter !== 'todos') {
-          const dataStr = String(os?.data_agendada || '').trim()
+          const rawData = os?.data_agendada
+          if (!rawData) return false
+          const dataStr = String(rawData).trim()
           if (!dataStr) return false
-          const dataOS = new Date(dataStr).getTime()
+          const d = new Date(dataStr)
+          const dataOS = d.getTime()
           if (isNaN(dataOS)) return false
           if (selectedPeriodoFilter === 'hoje') {
             if (dataOS < inicioHoje || dataOS > fimHoje) return false
@@ -616,23 +660,23 @@ export default function ExecucaoOS() {
         await deleteOrdemServico(osParaExcluir.id)
       }
       setOrdens((prev) => prev.filter((o) => o?.id !== osParaExcluir.id))
+      const safeId = typeof osParaExcluir.id === 'string' ? osParaExcluir.id.slice(0, 8) : ''
       toast({
-        title: 'Serviço de campo excluído com sucesso',
-        description: `#${(osParaExcluir.id || '').slice(0, 8)} foi removido(a).`,
+        title: 'OS Removida',
+        description: `#${safeId} foi removido(a).`,
       })
       setOsParaExcluir(null)
     } catch (err) {
-      console.error('Erro ao excluir ordem de serviço:', err)
+      console.error('Erro ao excluir OS:', err)
       toast({
         variant: 'destructive',
-        title: 'Erro ao excluir ordem de serviço',
-        description: 'Tente novamente.',
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o registro.',
       })
     } finally {
       setIsDeletingOS(false)
     }
   }
-
   // Salvar atribuição / reatribuição de instalador pela lista
   const handleSalvarAtribuicao = async () => {
     if (!osParaAtribuir) return
@@ -1161,9 +1205,10 @@ export default function ExecucaoOS() {
                   .filter(Boolean)
                   .join(' • ')
 
-                const checklistTotal = (os?.checklist ?? []).length
-                const checklistFeitos = (os?.checklist ?? []).filter((c) => c?.concluido).length
-                const fotosQtd = (os?.fotos ?? []).length
+                const listChecklist = normalizeChecklist(os?.checklist)
+                const checklistTotal = listChecklist.length
+                const checklistFeitos = listChecklist.filter((c) => c?.concluido).length
+                const fotosQtd = Array.isArray(os?.fotos) ? os.fotos.length : 0
 
                 return (
                   <div
@@ -1474,7 +1519,8 @@ export default function ExecucaoOS() {
               <AlertDialogDescription>
                 Deseja realmente excluir a{' '}
                 <strong className="text-gray-900 font-semibold">
-                  Ordem de Serviço #{(osParaExcluir?.id || '').slice(0, 8)} —{' '}
+                  Ordem de Serviço #
+                  {typeof osParaExcluir?.id === 'string' ? osParaExcluir.id.slice(0, 8) : ''} —{' '}
                   {osParaExcluir?.expand?.cliente_id?.nome ||
                     osParaExcluir?.expand?.cliente_id?.razao_social ||
                     osParaExcluir?.endereco ||
@@ -1627,5 +1673,13 @@ export default function ExecucaoOS() {
         />
       )}
     </div>
+  )
+}
+
+export default function ExecucaoOS() {
+  return (
+    <ErrorBoundary errorMessage="Não foi possível carregar o módulo de Serviços de Campo." compact>
+      <ExecucaoOSContent />
+    </ErrorBoundary>
   )
 }
