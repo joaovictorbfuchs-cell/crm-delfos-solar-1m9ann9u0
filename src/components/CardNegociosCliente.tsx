@@ -358,6 +358,8 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
         open={modalNovoOpen}
         onOpenChange={setModalNovoOpen}
         onCreated={handleSalvarSucesso}
+        modoFichaCliente={true}
+        isCriacaoViaFicha={true}
       />
     </div>
   )
@@ -849,6 +851,7 @@ interface ModalNovoNegocioProps {
   onOpenChange: (open: boolean) => void
   onCreated: () => void
   modoFichaCliente?: boolean
+  isCriacaoViaFicha?: boolean
 }
 
 // test patch ModalNovoNegocio
@@ -859,7 +862,9 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
   onOpenChange,
   onCreated,
   modoFichaCliente = true,
+  isCriacaoViaFicha = true,
 }) => {
+  const isModoFicha = modoFichaCliente || isCriacaoViaFicha
   const [tipo, setTipo] = useState<TipoNegocioSelect>('venda usina')
   const [etapa, setEtapa] = useState<EtapaFunilSelect>('novo lead')
   const [status, setStatus] = useState<NegocioStatus>('em andamento')
@@ -894,16 +899,16 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       const tipoConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipo)
       const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema || 'venda usina') as TipoNegocioSelect
       const tipoVendaFinal = tipoConfig?.tipoVendaPadrao || 'Energia Solar'
-      const etapaFinalNegocio: EtapaFunilSelect = modoFichaCliente ? 'novo lead' : etapa
-      const numEstimado = modoFichaCliente ? 0 : valorEstimado ? Number(valorEstimado) : 0
-      const numFinal = modoFichaCliente ? 0 : valorFinal ? Number(valorFinal) : 0
+      const etapaFinalNegocio: EtapaFunilSelect = isModoFicha ? 'novo lead' : etapa
+      const numEstimado = isModoFicha ? 0 : valorEstimado ? Number(valorEstimado) : 0
+      const numFinal = isModoFicha ? 0 : valorFinal ? Number(valorFinal) : 0
       const numValor = numFinal > 0 ? numFinal : numEstimado
-      const probFinal = modoFichaCliente ? 10 : probabilidade ? Number(probabilidade) : 10
-      const dataPrevisaoFinal = modoFichaCliente ? undefined : dataPrevisao ? dataPrevisao : undefined
-      const condicaoPagamentoFinal = modoFichaCliente ? undefined : condicaoPagamento.trim() || undefined
-      const reaberturaFinal = modoFichaCliente ? false : reabertura
+      const probFinal = isModoFicha ? 10 : probabilidade ? Number(probabilidade) : 10
+      const dataPrevisaoFinal = isModoFicha ? undefined : dataPrevisao ? dataPrevisao : undefined
+      const condicaoPagamentoFinal = isModoFicha ? undefined : condicaoPagamento.trim() || undefined
+      const reaberturaFinal = isModoFicha ? false : reabertura
       const motivoReaberturaFinal =
-        modoFichaCliente || !reabertura ? undefined : motivoReabertura.trim() || undefined
+        isModoFicha || !reabertura ? undefined : motivoReabertura.trim() || undefined
       await createNegocio({
         cliente_id: clienteId,
         titulo: `Negócio - ${nomeLimpo}`,
@@ -951,11 +956,11 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       const dataErrors = err?.response?.data
       if (dataErrors && typeof dataErrors === 'object') {
         const msgs = Object.entries(dataErrors)
-        .map(([campo, det]: [string, any]) => {
-          const msg = det?.message || (typeof det === 'string' ? det : '')
-          return msg ? `${campo}: ${msg}` : ''
-        })
-        .filter(Boolean)
+          .map(([campo, det]: [string, any]) => {
+            const msg = det?.message || (typeof det === 'string' ? det : '')
+            return msg ? `${campo}: ${msg}` : ''
+          })
+          .filter(Boolean)
         if (msgs.length > 0) {
           detalhesCampos = ` (${msgs.join('; ')})`
         }
@@ -995,7 +1000,7 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {modoFichaCliente ? (
+          {isModoFicha ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
@@ -1096,7 +1101,9 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-700">Data Previsão Fechamento</Label>
+                  <Label className="text-xs font-bold text-slate-700">
+                    Data Previsão Fechamento
+                  </Label>
                   <Input
                     type="date"
                     value={dataPrevisao}

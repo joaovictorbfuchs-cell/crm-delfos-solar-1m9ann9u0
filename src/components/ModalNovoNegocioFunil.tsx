@@ -27,6 +27,8 @@ interface ModalNovoNegocioFunilProps {
   clienteIdPredefinido?: string
   etapaInicial?: EtapaFunilSelect
   onCreated?: () => void
+  modoFichaCliente?: boolean
+  isCriacaoViaFicha?: boolean
 }
 
 const TIPOS_NEGOCIO_OPCOES: { value: TipoNegocioSelect; label: string; tipoVenda: string }[] = [
@@ -64,7 +66,9 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
   etapaInicial = 'novo lead',
   onCreated,
   modoFichaCliente = false,
+  isCriacaoViaFicha = false,
 }) => {
+  const isModoFicha = modoFichaCliente || isCriacaoViaFicha
   const { clientes, addCliente, usuarios, refreshData } = useClientes()
   const { user } = useAuth()
 
@@ -238,7 +242,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
       : 'Comercial'
     const tituloFinal = removerPrefixoMensagemManual(titulo.trim() || `Negócio - ${fallbackNome}`)
 
-    // Se criado a partir da ficha do cliente (modoFichaCliente):
+    // Se criado a partir da ficha do cliente (isModoFicha):
     // 1. Etapa do funil SEMPRE nasce como '1 - Novo Lead' ('novo lead')
     // 2. Valor Estimado, Valor Final = 0 (nulos/zerados até orçamento)
     // 3. Probabilidade = padrão (10% de Novo Lead)
@@ -246,21 +250,22 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
     // 5. Condição de Pagamento = undefined
     // 6. Recorrência Mensal = false
     // 7. Reabertura / Expansão Futura = false
-    const etapaFinalNegocio: EtapaFunilSelect = modoFichaCliente ? 'novo lead' : etapa
-    const numEstimado = modoFichaCliente ? 0 : valorEstimado ? Number(valorEstimado) : 0
-    const numFinal = modoFichaCliente ? 0 : valorFinal ? Number(valorFinal) : 0
+    const etapaFinalNegocio: EtapaFunilSelect = isModoFicha ? 'novo lead' : etapa
+    const numEstimado = isModoFicha ? 0 : valorEstimado ? Number(valorEstimado) : 0
+    const numFinal = isModoFicha ? 0 : valorFinal ? Number(valorFinal) : 0
     const numValor = numFinal > 0 ? numFinal : numEstimado
-    const probFinal = modoFichaCliente ? 10 : probabilidade ? Number(probabilidade) : 10
-    const dataPrevisaoFinal = modoFichaCliente
+    const probFinal = isModoFicha ? 10 : probabilidade ? Number(probabilidade) : 10
+    const dataPrevisaoFinal = isModoFicha
       ? undefined
       : dataPrevisao
         ? `${dataPrevisao} 12:00:00.000Z`
         : undefined
-    const condicaoPagamentoFinal = modoFichaCliente ? undefined : condicaoPagamento.trim() || undefined
-    const recorrenciaFinal = modoFichaCliente ? false : recorrenciaMensal
-    const reaberturaFinal = modoFichaCliente ? false : reabertura
+    const condicaoPagamentoFinal = isModoFicha ? undefined : condicaoPagamento.trim() || undefined
+    const recorrenciaFinal = isModoFicha ? false : recorrenciaMensal
+    const reaberturaFinal = isModoFicha ? false : reabertura
     const motivoReaberturaFinal =
-      modoFichaCliente || !reabertura ? undefined : motivoReabertura.trim() || undefined
+      isModoFicha || !reabertura ? undefined : motivoReabertura.trim() || undefined
+    const finalEtapa = isModoFicha ? 'novo lead' : etapaFinalNegocio
 
     setIsSubmitting(true)
     try {
@@ -272,7 +277,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
         valor_estimado: numEstimado,
         valor_final: numFinal,
         valor: numValor,
-        etapa_funil: etapaFinalNegocio,
+        etapa_funil: finalEtapa,
         status,
         probabilidade: probFinal,
         data_previsao_fechamento: dataPrevisaoFinal,
@@ -493,7 +498,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
               </span>
             </div>
 
-            {modoFichaCliente ? (
+            {isModoFicha ? (
               /* Modo criação a partir da Ficha do Cliente:
                  Exclui: Etapa do Funil (nasce sempre '1 - Novo Lead'), Valor Estimado,
                  Valor Final, Probabilidade, Previsão de Fechamento, Condição de Pagamento,
@@ -612,7 +617,9 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Previsão de Fechamento</Label>
+                    <Label className="text-xs font-bold text-slate-700">
+                      Previsão de Fechamento
+                    </Label>
                     <Input
                       type="date"
                       value={dataPrevisao}
@@ -622,7 +629,9 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Consultor Responsável</Label>
+                    <Label className="text-xs font-bold text-slate-700">
+                      Consultor Responsável
+                    </Label>
                     <select
                       value={consultorResponsavel}
                       onChange={(e) => setConsultorResponsavel(e.target.value)}

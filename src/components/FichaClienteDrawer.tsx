@@ -3690,6 +3690,7 @@ export const FichaClienteDrawer: React.FC = () => {
           clientePredefinido={selectedCliente}
           clienteIdPredefinido={selectedCliente.id}
           modoFichaCliente={true}
+          isCriacaoViaFicha={true}
           onCreated={() => {
             setNegociosKeyAtualizacao((k) => k + 1)
             if (refreshData) refreshData()
