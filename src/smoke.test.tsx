@@ -863,6 +863,102 @@ describe('Login e App Smoke Tests', () => {
     expect(errorsModule.isAuthSessionError({ status: 200 })).toBe(false)
   })
 
+  it('drag/resize de atividade limpeza_manutencao mantém tipo estável ("Limpeza e Manutenção") sem mudar para "Manutenção Preventiva" e sem cair no ErrorBoundary', async () => {
+    const { updateOrdemServico } = await import('@/services/crmService')
+    const { getTipoServicoConfig } = await import('@/components/CalendarioExecucaoOS')
+
+    // 1. Blindagem de getTipoServicoConfig contra undefined / tipos não mapeados / nulos
+    const configInvalido = getTipoServicoConfig(undefined)
+    expect(configInvalido).toBeDefined()
+    expect(configInvalido.hex).toBeDefined()
+    expect(configInvalido.pillBg).toBeDefined()
+    expect(configInvalido.borderColor).toBeDefined()
+    expect(configInvalido.nome).toBeDefined()
+
+    const configLimpezaManut = getTipoServicoConfig('Limpeza e Manutenção')
+    expect(configLimpezaManut).toBeDefined()
+    expect(configLimpezaManut.hex).toBeDefined()
+    expect(configLimpezaManut.nome).toContain('Limpeza')
+
+    // 2. Mock do PocketBase para atividade com descrição contendo termos de manutenção
+    // (ex: "preventiva" e "corretiva" no texto livre, o que antes ativava a heurística de texto)
+    const atvMockRecord = {
+      id: 'atv-limpeza-drag-test',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-test-limpeza',
+      titulo: 'Limpeza e Manutenção',
+      tipo: 'limpeza_manutencao',
+      descricao: 'Visita preventiva semestral e revisão corretiva se necessário',
+      status: 'pendente',
+      data: '2026-10-10 09:00:00.000Z',
+      horario_inicio: '09:00',
+      horario_fim: '10:30',
+      duracao_minutos: 90,
+      expand: {
+        cliente_id: {
+          id: 'cli-test-limpeza',
+          nome: 'Granja Esperança Solar',
+        },
+      },
+    }
+
+    const { pb } = await import('@/lib/pocketbase/client')
+    const originalCollection = pb.collection.bind(pb)
+    const spyCollection = vi.spyOn(pb, 'collection').mockImplementation((colName: string) => {
+      if (colName === 'atividades') {
+        return {
+          update: vi.fn().mockResolvedValue(atvMockRecord),
+          getOne: vi.fn().mockResolvedValue(atvMockRecord),
+        } as any
+      }
+      return originalCollection(colName)
+    })
+
+    // 3. Simula drag/drop ou resize chamando updateOrdemServico sem tipo_servico no payload
+    // A resolução estrita pelo campo canônico tipo ('limpeza_manutencao') NÃO deve cair em 'Manutenção Preventiva'
+    const osAtualizadaSemTipoPayload = await updateOrdemServico('atv-limpeza-drag-test', {
+      origem: 'atividades',
+      data_agendada: '2026-10-10 10:00:00',
+      horario_inicio: '10:00',
+      horario_fim: '11:30',
+      duracao_minutos: 90,
+    })
+
+    expect(osAtualizadaSemTipoPayload.tipo_servico).not.toBe('Manutenção Preventiva')
+    expect(osAtualizadaSemTipoPayload.tipo_servico).toBe('Limpeza e Manutenção')
+
+    // 4. Simula drag/drop ou resize com tipo_servico preservado no payload (conforme correção 2)
+    const osAtualizadaComTipoPayload = await updateOrdemServico('atv-limpeza-drag-test', {
+      origem: 'atividades',
+      tipo_servico: 'Limpeza e Manutenção',
+      data_agendada: '2026-10-10 14:00:00',
+      horario_inicio: '14:00',
+      horario_fim: '15:30',
+      duracao_minutos: 90,
+    })
+
+    expect(osAtualizadaComTipoPayload.tipo_servico).toBe('Limpeza e Manutenção')
+
+    // 5. Renderização no DOM com CalendarioExecucaoOS sem disparar ErrorBoundary
+    let renderedCal: ReturnType<typeof render> | null = null
+    await act(async () => {
+      renderedCal = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [osAtualizadaComTipoPayload],
+          onSelectOS: vi.fn(),
+        }),
+      )
+    })
+
+    const containerCal = renderedCal!.container
+    expect(containerCal.textContent).toContain('Granja Esperança Solar')
+    expect(containerCal.textContent).toContain('Limpeza e Manutenção')
+    expect(containerCal.textContent).not.toContain('Manutenção Preventiva')
+
+    spyCollection.mockRestore()
+  })
+
   it('deduplicação do catálogo: custom com mesmo nome normalizado prevalece sobre o nativo em getTiposPorCategoria', async () => {
     const { getTiposPorCategoria, buildCustomTipoDef } = await import('@/constants/atividadesTipos')
 
