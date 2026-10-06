@@ -10,7 +10,7 @@ export interface InlineEditFieldProps {
   label?: string
   value: string | number | undefined | null
   displayValue?: React.ReactNode
-  type?: 'text' | 'number' | 'date' | 'select'
+  type?: 'text' | 'number' | 'date' | 'select' | 'email' | 'password'
   options?: SelectOption[]
   placeholder?: string
   unit?: string

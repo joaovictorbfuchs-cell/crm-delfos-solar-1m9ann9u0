@@ -996,4 +996,183 @@ describe('Login e App Smoke Tests', () => {
     // Garante que a barra de legenda "Legenda:" não existe no calendário
     expect(textContent).not.toContain('Legenda:')
   })
+
+  it('montagem REAL no DOM em /servicos-campo com registros malformados (nulos, ausentes, prestadorOS nulo) NÃO derruba a rota nem cai no ErrorBoundary', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-admin-malformados', {
+      id: 'usr-admin-malformados',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Admin Tolerância Nulos',
+      email: 'admin.malformados@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    const originalGetFullListAtv = pb.collection('atividades').getFullList
+    const originalGetFullListOS = pb.collection('ordens_servico').getFullList
+
+    // Simula registros de atividades e OSs com campos nulos/undefined/incompletos
+    pb.collection('atividades').getFullList = vi.fn().mockResolvedValue([
+      {
+        id: 'atv-null-1',
+        collectionId: 'atividades',
+        titulo: null,
+        tipo: null,
+        tipo_custom_id: null,
+        status: null,
+        data: null,
+        horario_inicio: null,
+        horario_fim: null,
+        duracao_minutos: null,
+        responsavel_nome: null,
+        atribuida_a: null,
+        expand: null,
+      },
+      {
+        id: 'atv-null-2',
+        collectionId: 'atividades',
+        titulo: undefined,
+        tipo: 'custom',
+        tipo_custom_id: undefined,
+        data: 'data-invalida-xyz',
+        horario_inicio: 'invalido',
+        horario_fim: '99:99',
+        duracao_minutos: 'invalido' as any,
+        responsavel_nome: undefined,
+      },
+      {
+        id: 'atv-null-3',
+        collectionId: 'atividades',
+        titulo: 'Atividade sem prestador e sem horario',
+        tipo: 'manutencao_preventiva',
+        data: '2026-05-10',
+        horario_inicio: '',
+        horario_fim: '',
+      },
+    ]) as any
+
+    pb.collection('ordens_servico').getFullList = vi.fn().mockResolvedValue([
+      {
+        id: 'os-null-1',
+        collectionId: 'ordens_servico',
+        cliente_id: null,
+        data_agendada: null,
+        horario_inicio: null,
+        horario_fim: null,
+        duracao_minutos: null,
+        atribuida_a: null,
+        tipo_servico: null,
+        status: 'pendente',
+      },
+      {
+        id: 'os-null-2',
+        collectionId: 'ordens_servico',
+        cliente_id: 'cli-teste',
+        data_agendada: '2026-05-10 14:00:00',
+        horario_inicio: '14:00',
+        horario_fim: '15:00',
+        duracao_minutos: 60,
+        atribuida_a: undefined,
+        tipo_servico: 'Limpeza dos Módulos',
+        status: 'pendente',
+      },
+    ]) as any
+
+    window.history.pushState({}, 'Serviços de Campo', '/servicos-campo')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+    pb.collection('atividades').getFullList = originalGetFullListAtv
+    pb.collection('ordens_servico').getFullList = originalGetFullListOS
+
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+    expect(container).not.toBeNull()
+
+    const textContent = container?.textContent || ''
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar Serviços de Campo')
+    expect(textContent).not.toContain('Ops! Algo deu errado')
+    // O calendário deve estar presente e renderizado
+    expect(textContent).toContain('Calendário')
+  })
+
+  it('Ficha do cliente / SecaoUsinasCliente: renderiza o card unificado com Concessionária acima, Titular abaixo e Portal da Concessionária com Login e Senha', async () => {
+    const { SecaoUsinasCliente } = await import('@/components/SecaoUsinasCliente')
+    const clienteMock: any = {
+      id: 'cli-test-card-unificado',
+      nome: 'Mauro Antônio Serraglio',
+      cpf: '670.405.350-68',
+      telefone: '54991766675',
+      email: 'serragliomauro@gmail.com',
+      cidade: 'Erechim',
+    }
+
+    const usinasMock: any[] = [
+      {
+        id: 'usina-1',
+        cliente_id: 'cli-test-card-unificado',
+        nome: 'Usina Mauro Serraglio',
+        numero_uc: '3081543981',
+        concessionaria: 'CPFL',
+        classe_consumo: 'Rural',
+        tarifa: 0.95,
+        tipo_fornecimento: 'trifásico',
+        titular_nome: 'Mauro Antônio Serraglio',
+        titular_cpf: '670.405.350-68',
+        titular_telefone: '54991766675',
+        titular_email: 'serragliomauro@gmail.com',
+        portal_login: 'portal.mauro@cpfl.com.br',
+        portal_senha: 'senha-secreta-123',
+      },
+    ]
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(
+        React.createElement(SecaoUsinasCliente, {
+          clienteId: clienteMock.id,
+          clienteNome: clienteMock.nome,
+          cliente: clienteMock,
+          usinas: usinasMock,
+          contratos: [],
+          isAdmin: true,
+          onUpdateUsina: vi.fn().mockResolvedValue(undefined),
+        } as any),
+      )
+      container = res.container
+    })
+
+    expect(container).not.toBeNull()
+
+    // Clica no card da usina para abrir a gaveta de detalhes
+    const cardUsina = container?.querySelector('button, [role="button"]') || container
+    const usinaTitulo = Array.from(container?.querySelectorAll('*') || []).find(
+      (el) =>
+        el.textContent?.includes('Usina Mauro Serraglio') || el.textContent?.includes('3081543981'),
+    )
+
+    if (usinaTitulo) {
+      await act(async () => {
+        ;(usinaTitulo as HTMLElement).click()
+      })
+    }
+
+    const text = document.body.textContent || ''
+    // Garante presença das três seções unificadas no mesmo card
+    expect(text).toContain('Concessionária de Energia')
+    expect(text).toContain('Titular / Responsável')
+    expect(text).toContain('Portal Concessionária')
+    expect(text).toContain('Login:')
+    expect(text).toContain('Senha:')
+    expect(text).toContain('Copiar do cliente')
+  })
 })

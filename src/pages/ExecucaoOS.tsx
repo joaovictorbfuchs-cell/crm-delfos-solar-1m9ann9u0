@@ -281,15 +281,20 @@ export default function ExecucaoOS() {
         const atividadesDeduplicadas = atividadesMapeadas.filter((a) => !osIdSet.has(a.id))
         const ordensCombinadas = [...osReais, ...atividadesDeduplicadas]
 
-        // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável
-        const safeUserName = (userProfile?.name || '').trim().toLowerCase()
+        // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável (com blindagem a nulo)
+        const safeUserName = String(userProfile?.name || '')
+          .trim()
+          .toLowerCase()
         const ordensFinais =
           responsavelFiltro && !isAdmin
             ? ordensCombinadas.filter(
                 (o) =>
-                  o.responsavel_usuario_id === responsavelFiltro ||
-                  (safeUserName.length > 0 &&
-                    (o.atribuida_a || '').toLowerCase().includes(safeUserName)),
+                  o &&
+                  (o.responsavel_usuario_id === responsavelFiltro ||
+                    (safeUserName.length > 0 &&
+                      String(o.atribuida_a || '')
+                        .toLowerCase()
+                        .includes(safeUserName))),
               )
             : ordensCombinadas
 
@@ -438,13 +443,16 @@ export default function ExecucaoOS() {
   const prestadoresOpcoes = useMemo(() => {
     const set = new Set<string>()
     ;(ordens || []).forEach((os) => {
-      if (os?.atribuida_a) set.add(os.atribuida_a)
+      const nome = String(os?.atribuida_a || '').trim()
+      if (nome) set.add(nome)
     })
     ;(instaladores || []).forEach((i) => {
-      if (i?.name) set.add(i.name)
+      const nome = String(i?.name || '').trim()
+      if (nome) set.add(nome)
     })
     ;(profissionais || []).forEach((p) => {
-      if (p?.nome) set.add(p.nome)
+      const nome = String(p?.nome || '').trim()
+      if (nome) set.add(nome)
     })
     return Array.from(set).sort()
   }, [ordens, instaladores, profissionais])
@@ -466,57 +474,67 @@ export default function ExecucaoOS() {
     return (listToDisplay || []).filter((os) => {
       if (!os) return false
 
-      // Filtro por tipo de serviço
-      if (selectedTipoFilter !== 'todos' && (os?.tipo_servico || '') !== selectedTipoFilter) {
-        return false
-      }
-
-      // Filtro por prestador (ignorado para instalador, pois a visão já é filtrada/atribuída a ele)
-      if (!isInstalador && selectedPrestadorFilter !== 'todos') {
-        const prestadorOS = (os?.atribuida_a || '').toLowerCase()
-        const target = (selectedPrestadorFilter || '').toLowerCase()
+      try {
+        // Filtro por tipo de serviço
         if (
-          !prestadorOS.includes(target) &&
-          os?.responsavel_usuario_id !== selectedPrestadorFilter
+          selectedTipoFilter !== 'todos' &&
+          String(os?.tipo_servico || '') !== selectedTipoFilter
         ) {
           return false
         }
-      }
 
-      // Filtro por período agendado
-      if (selectedPeriodoFilter !== 'todos' && os?.data_agendada) {
-        const dataOS = new Date(os.data_agendada).getTime()
-        if (isNaN(dataOS)) return false
-        if (selectedPeriodoFilter === 'hoje') {
-          if (dataOS < inicioHoje || dataOS > fimHoje) return false
-        } else if (selectedPeriodoFilter === 'semana') {
-          if (dataOS < inicioSemana.getTime() || dataOS > fimSemana.getTime()) return false
-        } else if (selectedPeriodoFilter === 'mes') {
-          if (dataOS < inicioMes || dataOS > fimMes) return false
+        // Filtro por prestador (ignorado para instalador, pois a visão já é filtrada/atribuída a ele)
+        if (!isInstalador && selectedPrestadorFilter !== 'todos') {
+          const prestadorOS = String(os?.atribuida_a || '').toLowerCase()
+          const target = String(selectedPrestadorFilter || '').toLowerCase()
+          const matchesPrestador = prestadorOS.includes(target)
+          const matchesResponsavelId = os?.responsavel_usuario_id === selectedPrestadorFilter
+          if (!matchesPrestador && !matchesResponsavelId) {
+            return false
+          }
         }
-      }
 
-      // Busca por nome do cliente, endereço, técnico ou tipo de atividade
-      if (searchTerm.trim()) {
-        const query = searchTerm.trim().toLowerCase()
-        const clienteNome = (
-          os?.expand?.cliente_id?.nome ||
-          os?.expand?.cliente_id?.razao_social ||
-          os?.endereco ||
-          ''
-        ).toLowerCase()
-        const endereco = (os?.endereco || '').toLowerCase()
-        const atribuida = (os?.atribuida_a || '').toLowerCase()
-        const tipo = (os?.tipo_servico || '').toLowerCase()
+        // Filtro por período agendado
+        if (selectedPeriodoFilter !== 'todos') {
+          const dataStr = String(os?.data_agendada || '').trim()
+          if (!dataStr) return false
+          const dataOS = new Date(dataStr).getTime()
+          if (isNaN(dataOS)) return false
+          if (selectedPeriodoFilter === 'hoje') {
+            if (dataOS < inicioHoje || dataOS > fimHoje) return false
+          } else if (selectedPeriodoFilter === 'semana') {
+            if (dataOS < inicioSemana.getTime() || dataOS > fimSemana.getTime()) return false
+          } else if (selectedPeriodoFilter === 'mes') {
+            if (dataOS < inicioMes || dataOS > fimMes) return false
+          }
+        }
 
-        return (
-          clienteNome.includes(query) ||
-          endereco.includes(query) ||
-          atribuida.includes(query) ||
-          tipo.includes(query)
-        )
+        // Busca por nome do cliente, endereço, técnico ou tipo de atividade
+        const safeSearch = String(searchTerm || '').trim()
+        if (safeSearch) {
+          const query = safeSearch.toLowerCase()
+          const clienteNome = String(
+            os?.expand?.cliente_id?.nome ||
+              os?.expand?.cliente_id?.razao_social ||
+              os?.endereco ||
+              '',
+          ).toLowerCase()
+          const endereco = String(os?.endereco || '').toLowerCase()
+          const atribuida = String(os?.atribuida_a || '').toLowerCase()
+          const tipo = String(os?.tipo_servico || '').toLowerCase()
+
+          return (
+            clienteNome.includes(query) ||
+            endereco.includes(query) ||
+            atribuida.includes(query) ||
+            tipo.includes(query)
+          )
+        }
+        return true
+      } catch (err) {
+        console.warn('Erro ao filtrar item de OS:', err)
+        return true
       }
-      return true
     })
   }, [
     listToDisplay,
@@ -1527,11 +1545,18 @@ export default function ExecucaoOS() {
                     const inst = instaladores.find((i) => i.id === id)
                     if (inst) {
                       // Tentar encontrar profissional com mesmo nome
-                      const safeInstName = (inst.name || '').trim().toLowerCase()
-                      const matchProf = profissionais.find(
-                        (p) => (p.nome || '').trim().toLowerCase() === safeInstName,
+                      const safeInstName = String(inst?.name || '')
+                        .trim()
+                        .toLowerCase()
+                      const profExistente = profissionais.find(
+                        (p) =>
+                          String(p?.nome || '')
+                            .trim()
+                            .toLowerCase() === safeInstName,
                       )
-                      if (matchProf) setSelectedProfissionalId(matchProf.id)
+                      if (profExistente) {
+                        setSelectedProfissionalId(profExistente.id)
+                      }
                     }
                   }}
                   className="w-full h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-hidden focus:border-emerald-600"

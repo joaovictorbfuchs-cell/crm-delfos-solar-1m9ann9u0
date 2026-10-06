@@ -441,6 +441,10 @@ export interface UsinaCliente extends RecordModel {
   titular_telefone?: string
   titular_email?: string
 
+  // Portal da Concessionária (aditivo)
+  portal_login?: string
+  portal_senha?: string
+
   // Concessionária e Fornecimento adicionais
   tipo_fornecimento?: string
 

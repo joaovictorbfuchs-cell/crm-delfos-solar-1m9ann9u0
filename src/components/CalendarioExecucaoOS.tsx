@@ -396,26 +396,58 @@ const MESES = [
 
 const DIAS_SEMANA_NOMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-// Formata chave YYYY-MM-DD
-function getLocalDateKey(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+// Helper utilitário defensivo para conversão em string segura
+function safeStr(val: unknown): string {
+  if (val === null || val === undefined) return ''
+  return String(val)
 }
 
-// Extrai horário HH:mm da string de data UTC/ISO com defesa rigorosa
-function extractHorario(dateString?: string): string {
-  if (!dateString || typeof dateString !== 'string') return '--:--'
+// Formata chave YYYY-MM-DD com tolerância total a parâmetros nulos ou inválidos
+function getLocalDateKey(date?: unknown): string {
   try {
+    if (!date) {
+      const now = new Date()
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    }
+    const d = date instanceof Date ? date : new Date(String(date))
+    if (isNaN(d.getTime())) {
+      const now = new Date()
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    }
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const dia = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${dia}`
+  } catch (_) {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }
+}
+
+// Extrai horário HH:mm da string de data UTC/ISO com defesa rigorosa contra null/undefined/legado
+function extractHorario(dateString?: unknown): string {
+  if (!dateString) return '--:--'
+  try {
+    const str = safeStr(dateString).trim()
+    if (!str) return '--:--'
+
     // Se vier no formato "YYYY-MM-DD HH:mm..." com espaço ou T
-    if (dateString.length >= 16) {
-      const horaMin = dateString.slice(11, 16)
+    if (str.length >= 16) {
+      const horaMin = str.slice(11, 16)
       if (/^\d{2}:\d{2}$/.test(horaMin)) {
         return horaMin
       }
     }
-    const d = new Date(dateString)
+
+    // Se vier direto como "HH:mm" ou "HH:mm:ss"
+    if (/^\d{1,2}:\d{2}/.test(str)) {
+      const match = str.match(/^(\d{1,2}):(\d{2})/)
+      if (match) {
+        return `${match[1].padStart(2, '0')}:${match[2]}`
+      }
+    }
+
+    const d = new Date(str)
     if (isNaN(d.getTime())) return '--:--'
     const hours = String(d.getHours()).padStart(2, '0')
     const minutes = String(d.getMinutes()).padStart(2, '0')
@@ -433,50 +465,57 @@ const TOTAL_HORAS = HORA_FINAL - HORA_INICIAL
 const ALTURA_HORA_PX = 56 // 56px por hora para boa legibilidade
 const DURACAO_PADRAO_MINUTOS = 60 // 1h padrão se não definido
 
-// Helper para obter o domingo inicial de uma semana
-function getStartOfWeekDate(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay() // 0 = Domingo
-  d.setDate(d.getDate() - day)
-  d.setHours(0, 0, 0, 0)
-  return d
+// Helper para obter o domingo inicial de uma semana com tolerância
+function getStartOfWeekDate(date?: unknown): Date {
+  try {
+    const d = date instanceof Date && !isNaN(date.getTime()) ? new Date(date) : new Date()
+    const day = d.getDay() // 0 = Domingo
+    d.setDate(d.getDate() - day)
+    d.setHours(0, 0, 0, 0)
+    return d
+  } catch (_) {
+    const now = new Date()
+    now.setDate(now.getDate() - now.getDay())
+    now.setHours(0, 0, 0, 0)
+    return now
+  }
 }
 
 // Extrai duração em minutos armazenada em duracao_minutos, tempo_previsto_minutos,
-// ou calculada a partir de horario_inicio e horario_fim
-function getDuracaoMinutosOS(os: OrdemServico): number {
-  if (!os) return DURACAO_PADRAO_MINUTOS
+// ou calculada a partir de horario_inicio e horario_fim - tolerante a null/legado
+function getDuracaoMinutosOS(os?: Partial<OrdemServico> | null): number {
+  if (!os || typeof os !== 'object') return DURACAO_PADRAO_MINUTOS
 
-  // 1. Derivado de horario_inicio e horario_fim quando presentes e válidos:
-  // A diferença calculada tem precedência sobre duracao_minutos desatualizado
-  // para garantir consistência visual perfeita com os horários exibidos.
-  if (os.horario_inicio && os.horario_fim) {
-    const minInicio = timeStringToMinutes(os.horario_inicio)
-    const minFim = timeStringToMinutes(os.horario_fim)
-    if (minFim > minInicio) {
-      const diff = minFim - minInicio
-      if (diff >= 15 && diff <= 480) {
-        return diff
+  try {
+    // 1. Derivado de horario_inicio e horario_fim quando presentes e válidos:
+    if (os.horario_inicio && os.horario_fim) {
+      const minInicio = timeStringToMinutes(safeStr(os.horario_inicio))
+      const minFim = timeStringToMinutes(safeStr(os.horario_fim))
+      if (minFim > minInicio) {
+        const diff = minFim - minInicio
+        if (diff >= 15 && diff <= 480) {
+          return diff
+        }
       }
     }
-  }
 
-  // 2. Campo explícito duracao_minutos (prioritário para atividades de manutenção)
-  if (typeof os.duracao_minutos === 'number' && os.duracao_minutos >= 15) {
-    return Math.min(480, Math.round(os.duracao_minutos))
-  }
+    // 2. Campo explícito duracao_minutos (prioritário para atividades de manutenção)
+    const duracaoNum = Number(os.duracao_minutos)
+    if (!isNaN(duracaoNum) && duracaoNum >= 15) {
+      return Math.min(480, Math.round(duracaoNum))
+    }
 
-  // 3. Campo tempo_previsto_minutos (usado em OSs de campo)
-  if (typeof os.tempo_previsto_minutos === 'number' && os.tempo_previsto_minutos >= 15) {
-    return Math.min(480, Math.round(os.tempo_previsto_minutos))
-  }
+    // 3. Campo tempo_previsto_minutos (usado em OSs de campo)
+    const tempoNum = Number(os.tempo_previsto_minutos)
+    if (!isNaN(tempoNum) && tempoNum >= 15) {
+      return Math.min(480, Math.round(tempoNum))
+    }
 
-  // 4. Metadados json em detalhes_execucao / instrucoes_seguranca
-  try {
+    // 4. Metadados json em detalhes_execucao / instrucoes_seguranca
     const dados = (os.instrucoes_seguranca || os.detalhes_execucao) as any
-    if (dados && typeof dados === 'object' && typeof dados.duracao_minutos === 'number') {
-      const d = Math.round(dados.duracao_minutos)
-      if (d >= 15 && d <= 480) return d
+    if (dados && typeof dados === 'object') {
+      const d = Number(dados.duracao_minutos)
+      if (!isNaN(d) && d >= 15 && d <= 480) return Math.round(d)
     }
   } catch {
     /* fallback */
@@ -890,69 +929,76 @@ export function CalendarioExecucaoOS({
       duracaoMinutos: number
     }> = []
 
-    for (const os of ordensDoDia) {
+    for (const os of ordensDoDia || []) {
       if (!os) continue
 
-      let hora = NaN
-      let minuto = 0
+      try {
+        let hora = NaN
+        let minuto = 0
 
-      // Se tiver horario_inicio explícito ("08:00" ou "08:00:00"), usa diretamente
-      if (os.horario_inicio && typeof os.horario_inicio === 'string') {
-        const parts = os.horario_inicio.split(':')
-        if (parts.length >= 2) {
-          const h = parseInt(parts[0], 10)
-          const m = parseInt(parts[1], 10)
-          if (!isNaN(h) && !isNaN(m)) {
-            hora = h
-            minuto = m
+        // Se tiver horario_inicio explícito ("08:00" ou "08:00:00"), usa diretamente
+        if (os.horario_inicio) {
+          const strInicio = safeStr(os.horario_inicio).trim()
+          const parts = strInicio.split(':')
+          if (parts.length >= 2) {
+            const h = parseInt(parts[0], 10)
+            const m = parseInt(parts[1], 10)
+            if (!isNaN(h) && !isNaN(m)) {
+              hora = h
+              minuto = m
+            }
           }
         }
-      }
 
-      // Fallback para data_agendada
-      if (isNaN(hora)) {
-        if (!os.data_agendada || os.data_agendada.length < 13) {
+        // Fallback para data_agendada
+        if (isNaN(hora)) {
+          const dataStr = safeStr(os.data_agendada).trim()
+          if (!dataStr || dataStr.length < 13) {
+            diaInteiro.push(os)
+            continue
+          }
+
+          try {
+            const horaPart = dataStr.slice(11, 13)
+            hora = parseInt(horaPart, 10)
+            if (dataStr.length >= 16) {
+              minuto = parseInt(dataStr.slice(14, 16), 10) || 0
+            }
+          } catch {
+            hora = NaN
+          }
+
+          if (isNaN(hora)) {
+            const d = new Date(dataStr)
+            if (!isNaN(d.getTime())) {
+              hora = d.getHours()
+              minuto = d.getMinutes()
+            }
+          }
+        }
+
+        // Se estiver fora do intervalo 06:00 - 22:00, aloca em dia inteiro
+        if (isNaN(hora) || hora < HORA_INICIAL || hora >= HORA_FINAL) {
           diaInteiro.push(os)
           continue
         }
 
-        try {
-          const horaPart = os.data_agendada.slice(11, 13)
-          hora = parseInt(horaPart, 10)
-          if (os.data_agendada.length >= 16) {
-            minuto = parseInt(os.data_agendada.slice(14, 16), 10) || 0
-          }
-        } catch {
-          hora = NaN
-        }
+        const duracaoMinutos = getDuracaoMinutosOS(os)
+        const top = (hora - HORA_INICIAL) * ALTURA_HORA_PX + (minuto / 60) * ALTURA_HORA_PX
+        const height = Math.max(28, (duracaoMinutos / 60) * ALTURA_HORA_PX - 2)
 
-        if (isNaN(hora)) {
-          const d = new Date(os.data_agendada)
-          if (!isNaN(d.getTime())) {
-            hora = d.getHours()
-            minuto = d.getMinutes()
-          }
-        }
-      }
-
-      // Se estiver fora do intervalo 06:00 - 22:00, aloca em dia inteiro
-      if (isNaN(hora) || hora < HORA_INICIAL || hora >= HORA_FINAL) {
+        comHorario.push({
+          os,
+          hora,
+          minuto,
+          top,
+          height,
+          duracaoMinutos,
+        })
+      } catch (err) {
+        console.warn('Erro ao processar horário da OS no calendário:', err)
         diaInteiro.push(os)
-        continue
       }
-
-      const duracaoMinutos = getDuracaoMinutosOS(os)
-      const top = (hora - HORA_INICIAL) * ALTURA_HORA_PX + (minuto / 60) * ALTURA_HORA_PX
-      const height = Math.max(28, (duracaoMinutos / 60) * ALTURA_HORA_PX - 2)
-
-      comHorario.push({
-        os,
-        hora,
-        minuto,
-        top,
-        height,
-        duracaoMinutos,
-      })
     }
 
     comHorario.sort((a, b) => a.top - b.top)
@@ -964,9 +1010,11 @@ export function CalendarioExecucaoOS({
   const ordensPorDia = useMemo(() => {
     const map = new Map<string, OrdemServico[]>()
     for (const os of ordensMescladas || []) {
-      if (!os || !os.data_agendada) continue
+      if (!os) continue
       try {
-        const d = new Date(os.data_agendada)
+        const dataStr = safeStr(os.data_agendada || os.created).trim()
+        if (!dataStr) continue
+        const d = new Date(dataStr)
         if (isNaN(d.getTime())) continue
         const key = getLocalDateKey(d)
         if (!map.has(key)) {
@@ -980,11 +1028,17 @@ export function CalendarioExecucaoOS({
     // Ordenar as OS de cada dia por horário com defesa isNaN
     for (const [, list] of map.entries()) {
       list.sort((a, b) => {
-        const dateA = a?.data_agendada ? new Date(a.data_agendada) : null
-        const dateB = b?.data_agendada ? new Date(b.data_agendada) : null
-        const timeA = dateA && !isNaN(dateA.getTime()) ? dateA.getTime() : 0
-        const timeB = dateB && !isNaN(dateB.getTime()) ? dateB.getTime() : 0
-        return timeA - timeB
+        try {
+          const strA = safeStr(a?.data_agendada || a?.created)
+          const strB = safeStr(b?.data_agendada || b?.created)
+          const dateA = strA ? new Date(strA) : null
+          const dateB = strB ? new Date(strB) : null
+          const timeA = dateA && !isNaN(dateA.getTime()) ? dateA.getTime() : 0
+          const timeB = dateB && !isNaN(dateB.getTime()) ? dateB.getTime() : 0
+          return timeA - timeB
+        } catch (_) {
+          return 0
+        }
       })
     }
     return map
@@ -1142,16 +1196,17 @@ export function CalendarioExecucaoOS({
   }, [selectedDayKey, ordensPorDia])
 
   const diaSelecionadoFormatado = useMemo(() => {
-    if (!selectedDayKey || typeof selectedDayKey !== 'string') return ''
-    const parts = selectedDayKey.split('-')
-    if (parts.length !== 3) return selectedDayKey
+    if (!selectedDayKey) return ''
+    const str = safeStr(selectedDayKey).trim()
+    const parts = str.split('-')
+    if (parts.length !== 3) return str
     const dia = parseInt(parts[2], 10)
     const mes = parseInt(parts[1], 10) - 1
     const ano = parseInt(parts[0], 10)
     if (isNaN(ano) || isNaN(mes) || isNaN(dia) || mes < 0 || mes > 11) {
-      return selectedDayKey
+      return str
     }
-    return `${dia} de ${MESES[mes]} de ${ano}`
+    return `${dia} de ${MESES[mes] || ''} de ${ano}`
   }, [selectedDayKey])
 
   return (
@@ -1665,19 +1720,23 @@ export function CalendarioExecucaoOS({
                       const isDragging = draggingOSId === os.id
                       const isBeingResized = resizing?.osId === os.id
                       const horaInicioStr =
-                        (os.horario_inicio && /^\d{1,2}:\d{2}/.test(os.horario_inicio)
-                          ? os.horario_inicio.slice(0, 5)
+                        (os.horario_inicio && /^\d{1,2}:\d{2}/.test(safeStr(os.horario_inicio))
+                          ? safeStr(os.horario_inicio).slice(0, 5)
                           : '') || extractHorario(os.data_agendada)
 
                       // Calcula hora de término prevista
-                      const minutosInicio = item.hora * 60 + item.minuto
-                      const minutosFim = minutosInicio + item.duracaoMinutos
+                      const minutosInicio =
+                        (Number(item.hora) || 0) * 60 + (Number(item.minuto) || 0)
+                      const minutosFim =
+                        minutosInicio + (Number(item.duracaoMinutos) || DURACAO_PADRAO_MINUTOS)
                       const horaFimCalc = Math.floor(minutosFim / 60)
                       const minutoFimCalc = minutosFim % 60
                       const horaFimCalculada = `${String(horaFimCalc).padStart(2, '0')}:${String(minutoFimCalc).padStart(2, '0')}`
                       const horaFimStr =
-                        (os.horario_fim && /^\d{1,2}:\d{2}/.test(os.horario_fim) && !isBeingResized
-                          ? os.horario_fim.slice(0, 5)
+                        (os.horario_fim &&
+                        /^\d{1,2}:\d{2}/.test(safeStr(os.horario_fim)) &&
+                        !isBeingResized
+                          ? safeStr(os.horario_fim).slice(0, 5)
                           : '') || horaFimCalculada
 
                       const duracaoEfetiva =
