@@ -10,7 +10,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { CATEGORIAS_ATIVIDADES, ATIVIDADES_PADRAO } from '@/constants/atividadesTipos'
+import {
+  CATEGORIAS_ATIVIDADES,
+  ATIVIDADES_PADRAO,
+  normalizarNomeTipo,
+  type TipoAtividadeDef,
+} from '@/constants/atividadesTipos'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { AtividadeCategoriaId } from '@/types/crm'
 import {
@@ -27,7 +32,6 @@ import {
   FileSpreadsheet,
 } from 'lucide-react'
 import { ModalEditarTipoAtividade } from '@/components/ModalEditarTipoAtividade'
-import type { TipoAtividadeDef } from '@/constants/atividadesTipos'
 import type { TipoAtividadeCustomItem, TipoAtividadeChecklistItem } from '@/types/crm'
 
 interface ModalGerenciarAtividadesProps {
@@ -83,16 +87,16 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
 
   const handleAbrirEdicaoPadrao = (tipoPadrao: TipoAtividadeDef) => {
     // Verificar se já existe um registro correspondente em tiposAtividadesCustom com mesmo nome/categoria
-    const nomePadraoLower = tipoPadrao.tituloPadrao.trim().toLowerCase()
+    const nomePadraoNorm = normalizarNomeTipo(tipoPadrao.tituloPadrao)
     const existenteNoBanco = tiposAtividadesCustom.find((t) => {
-      const nomeCustomLower = (t.nome || '').trim().toLowerCase()
+      const nomeCustomNorm = normalizarNomeTipo(t.nome)
       if (t.categoria !== tipoPadrao.categoria) return false
-      if (nomeCustomLower === nomePadraoLower) return true
+      if (nomeCustomNorm === nomePadraoNorm) return true
       // Correspondência flexível para "Limpeza e Manutenção" vs variações cadastradas
       if (
-        ((nomePadraoLower.includes('limpeza') || nomePadraoLower.includes('lavagem')) &&
-          (nomeCustomLower.includes('limpeza') || nomeCustomLower.includes('lavagem'))) ||
-        (nomePadraoLower.includes('datalogger') && nomeCustomLower.includes('datalogger'))
+        ((nomePadraoNorm.includes('limpeza') || nomePadraoNorm.includes('lavagem')) &&
+          (nomeCustomNorm.includes('limpeza') || nomeCustomNorm.includes('lavagem'))) ||
+        (nomePadraoNorm.includes('datalogger') && nomeCustomNorm.includes('datalogger'))
       ) {
         return true
       }
@@ -128,14 +132,27 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
         ? parseFloat(novoValorPorPlaca.replace(',', '.'))
         : 0
 
-      await addTipoAtividadeCustom({
+      const payload = {
         nome: novoNome.trim(),
         categoria: novaCategoria,
         descricao: novaDescricao.trim() || undefined,
         valor_base: !isNaN(numValorBase) && numValorBase > 0 ? numValorBase : 0,
         valor_por_placa: !isNaN(numValorPorPlaca) && numValorPorPlaca > 0 ? numValorPorPlaca : 0,
         checklist: novoChecklistItems,
-      })
+      }
+
+      // Se já existir registro com mesmo nome normalizado, atualiza (PATCH) em vez de duplicar
+      const nomeNorm = normalizarNomeTipo(novoNome)
+      const existente = (tiposAtividadesCustom || []).find(
+        (t) => normalizarNomeTipo(t.nome) === nomeNorm,
+      )
+
+      if (existente?.id) {
+        const { updateTipoAtividadeCustom } = await import('@/services/crmService')
+        await updateTipoAtividadeCustom(existente.id, payload)
+      } else {
+        await addTipoAtividadeCustom(payload)
+      }
       // Limpa o formulário e posiciona a aba ativa na categoria criada
       setActiveCategoryTab(novaCategoria)
       setNovoNome('')

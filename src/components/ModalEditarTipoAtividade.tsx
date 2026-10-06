@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   CATEGORIAS_ATIVIDADES,
   ATIVIDADES_PADRAO,
+  normalizarNomeTipo,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import { toast } from 'sonner'
@@ -391,15 +392,15 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
 
   // Se recebemos padraoParaEditar sem atividadeParaEditar, tentamos localizar registro existente em tiposAtividadesCustom
   if (!atividadeParaEditar && padraoParaEditar && tiposAtividadesCustom) {
-    const nomePadraoLower = (padraoParaEditar.tituloPadrao || '').trim().toLowerCase()
+    const nomePadraoNorm = normalizarNomeTipo(padraoParaEditar.tituloPadrao)
     const match = tiposAtividadesCustom.find((t) => {
-      const nomeCustomLower = (t.nome || '').trim().toLowerCase()
+      const nomeCustomNorm = normalizarNomeTipo(t.nome)
       if (t.categoria !== padraoParaEditar.categoria) return false
-      if (nomeCustomLower === nomePadraoLower) return true
+      if (nomeCustomNorm === nomePadraoNorm) return true
       if (
-        ((nomePadraoLower.includes('limpeza') || nomePadraoLower.includes('lavagem')) &&
-          (nomeCustomLower.includes('limpeza') || nomeCustomLower.includes('lavagem'))) ||
-        (nomePadraoLower.includes('datalogger') && nomeCustomLower.includes('datalogger'))
+        ((nomePadraoNorm.includes('limpeza') || nomePadraoNorm.includes('lavagem')) &&
+          (nomeCustomNorm.includes('limpeza') || nomeCustomNorm.includes('lavagem'))) ||
+        (nomePadraoNorm.includes('datalogger') && nomeCustomNorm.includes('datalogger'))
       ) {
         return true
       }
@@ -677,12 +678,28 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
         payload.documento_modelo = selectedFile
       }
 
-      if (atividadeParaEditar?.id) {
-        // Registro existente em tipos_atividades_custom (padrão ou personalizada)
-        await updateTipoAtividadeCustom(atividadeParaEditar.id, payload)
+      // Localizar se já existe registro em tipos_atividades_custom para reaproveitar (evitando duplicatas POST)
+      const nomeNormalizado = normalizarNomeTipo(nome)
+      const idParaEditar =
+        atividadeParaEditar?.id ||
+        (tiposAtividadesCustom || []).find((t) => {
+          const tNorm = normalizarNomeTipo(t.nome)
+          if (tNorm === nomeNormalizado) return true
+          if (
+            padraoParaEditar &&
+            t.categoria === categoria &&
+            normalizarNomeTipo(padraoParaEditar.tituloPadrao) === tNorm
+          ) {
+            return true
+          }
+          return false
+        })?.id
+
+      if (idParaEditar) {
+        // Registro já existente em tipos_atividades_custom -> PATCH (updateTipoAtividadeCustom)
+        await updateTipoAtividadeCustom(idParaEditar, payload)
       } else {
-        // Se estiver editando uma atividade padrão fixa do código que ainda não tinha registro em tipos_atividades_custom,
-        // criamos como is_padrao: true para que ela passe a ser gerenciada no backend
+        // Só cria quando não houver nenhum registro correspondente no banco
         await addTipoAtividadeCustom({
           ...payload,
           is_padrao: isPadraoOriginal,

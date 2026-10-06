@@ -862,4 +862,102 @@ describe('Login e App Smoke Tests', () => {
     expect(errorsModule.isAuthSessionError({ message: 'Token is expired' })).toBe(true)
     expect(errorsModule.isAuthSessionError({ status: 200 })).toBe(false)
   })
+
+  it('deduplicação do catálogo: custom com mesmo nome normalizado prevalece sobre o nativo em getTiposPorCategoria', async () => {
+    const { getTiposPorCategoria, buildCustomTipoDef } = await import('@/constants/atividadesTipos')
+
+    // Cria um custom com mesmo nome de um nativo de manutenção ("Manutenção Preventiva")
+    const customPreventiva = buildCustomTipoDef({
+      id: 'custom-prev-001',
+      nome: 'Manutenção Preventiva',
+      categoria: 'manutencao',
+      cor: '#990000',
+      descricao: 'Preventiva personalizada da empresa',
+      is_padrao: true,
+      valor_base: 350,
+    })
+
+    const lista = getTiposPorCategoria('manutencao', [customPreventiva])
+    const preventivas = lista.filter(
+      (t) => t.tituloPadrao.trim().toLowerCase() === 'manutenção preventiva',
+    )
+
+    // Deve conter EXATAMENTE 1 item (o custom)
+    expect(preventivas.length).toBe(1)
+    expect(preventivas[0].id).toBe('custom_custom-prev-001')
+    expect(preventivas[0].valor_base).toBe(350)
+    expect(preventivas[0].corHex).toBe('#990000')
+  })
+
+  it('montagem REAL no DOM em /servicos-campo com dados antigos de horários ("08:00", "08:00:00", null) NÃO cai no ErrorBoundary', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-admin-tolerancia', {
+      id: 'usr-admin-tol',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Gestor Tolerante',
+      email: 'gestor.tol@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    // Mock das coleções com registros de horários variados / legados
+    const originalGetFullList = pb.collection('atividades').getFullList
+    pb.collection('atividades').getFullList = vi.fn().mockResolvedValue([
+      {
+        id: 'atv-legado-1',
+        collectionId: 'atividades',
+        titulo: 'Manutenção Preventiva',
+        tipo: 'manutencao_preventiva',
+        status: 'pendente',
+        data: '2026-04-15 08:00:00',
+        horario_inicio: '08:00',
+        horario_fim: '09:00',
+        duracao_minutos: 60,
+      },
+      {
+        id: 'atv-legado-2',
+        collectionId: 'atividades',
+        titulo: 'Limpeza dos Módulos',
+        tipo: 'limpeza',
+        status: 'pendente',
+        data: '2026-04-15 10:00:00',
+        horario_inicio: '10:00:00',
+        horario_fim: null,
+        duracao_minutos: null,
+      },
+      {
+        id: 'atv-legado-3',
+        collectionId: 'atividades',
+        titulo: 'Configuração Datalogger',
+        tipo: 'configuracao_datalogger',
+        status: 'concluida',
+        data: null,
+        horario_inicio: null,
+        horario_fim: undefined,
+      },
+    ]) as any
+
+    window.history.pushState({}, 'Serviços de Campo', '/servicos-campo')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+    pb.collection('atividades').getFullList = originalGetFullList
+
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+    expect(container).not.toBeNull()
+    expect(container?.textContent).not.toContain(
+      'Ocorreu um problema ao carregar Serviços de Campo',
+    )
+    expect(container?.textContent).not.toContain('Ops! Algo deu errado')
+  })
 })

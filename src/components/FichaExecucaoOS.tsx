@@ -1436,10 +1436,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
-                  value={horarioInicio.split(':')[0] || '08'}
+                  value={(horarioInicio || '08:00').split(':')[0] || '08'}
                   onChange={(e) => {
                     const h = e.target.value.padStart(2, '0')
-                    const m = horarioInicio.split(':')[1] || '00'
+                    const m = (horarioInicio || '08:00').split(':')[1] || '00'
                     handleHorarioInicioChange(`${h}:${m}`)
                   }}
                   className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
@@ -1452,13 +1452,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 </select>
                 <select
                   value={(() => {
-                    const mRaw = parseInt(horarioInicio.split(':')[1] || '0', 10) || 0
+                    const mRaw = parseInt((horarioInicio || '08:00').split(':')[1] || '0', 10) || 0
                     const mRound = Math.round(mRaw / 5) * 5
                     const mBound = mRound >= 60 ? 55 : mRound
                     return String(mBound).padStart(2, '0')
                   })()}
                   onChange={(e) => {
-                    const h = horarioInicio.split(':')[0] || '08'
+                    const h = (horarioInicio || '08:00').split(':')[0] || '08'
                     const m = e.target.value
                     handleHorarioInicioChange(`${h}:${m}`)
                   }}
@@ -1481,10 +1481,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
-                  value={horarioFim.split(':')[0] || '09'}
+                  value={(horarioFim || '09:00').split(':')[0] || '09'}
                   onChange={(e) => {
                     const h = e.target.value.padStart(2, '0')
-                    const m = horarioFim.split(':')[1] || '00'
+                    const m = (horarioFim || '09:00').split(':')[1] || '00'
                     handleHorarioFimChange(`${h}:${m}`)
                   }}
                   className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
@@ -1497,13 +1497,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 </select>
                 <select
                   value={(() => {
-                    const mRaw = parseInt(horarioFim.split(':')[1] || '0', 10) || 0
+                    const mRaw = parseInt((horarioFim || '09:00').split(':')[1] || '0', 10) || 0
                     const mRound = Math.round(mRaw / 5) * 5
                     const mBound = mRound >= 60 ? 55 : mRound
                     return String(mBound).padStart(2, '0')
                   })()}
                   onChange={(e) => {
-                    const h = horarioFim.split(':')[0] || '09'
+                    const h = (horarioFim || '09:00').split(':')[0] || '09'
                     const m = e.target.value
                     handleHorarioFimChange(`${h}:${m}`)
                   }}

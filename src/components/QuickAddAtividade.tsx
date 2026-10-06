@@ -14,6 +14,7 @@ import {
   ATIVIDADES_PADRAO,
   buildCustomTipoDef,
   getTipoAtividadeConfig,
+  deduplicarTiposAtividades,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import {
@@ -95,7 +96,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const tiposDaCategoria = useMemo(() => {
     const padroes = ATIVIDADES_PADRAO.filter((t) => t.categoria === selectedCategoria)
     const customs = customDefs.filter((t) => t.categoria === selectedCategoria)
-    return [...padroes, ...customs]
+    return deduplicarTiposAtividades(padroes, customs)
   }, [selectedCategoria, customDefs])
 
   // Troca de categoria (Etapa 1)

@@ -32,6 +32,7 @@ import {
   ATIVIDADES_PADRAO,
   getTipoAtividadeConfig,
   buildCustomTipoDef,
+  deduplicarTiposAtividades,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import {
@@ -266,7 +267,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const tiposDaCategoria = React.useMemo(() => {
     const padroes = ATIVIDADES_PADRAO.filter((t) => t.categoria === selectedCategoria)
     const customs = customDefs.filter((t) => t.categoria === selectedCategoria)
-    return [...padroes, ...customs]
+    return deduplicarTiposAtividades(padroes, customs)
   }, [selectedCategoria, customDefs])
 
   if (!isOpen) return null

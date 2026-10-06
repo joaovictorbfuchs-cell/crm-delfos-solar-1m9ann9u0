@@ -427,14 +427,48 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
 // Mantemos o alias ATIVIDADES_12_TIPOS para garantir retrocompatibilidade com consumidores existentes
 export const ATIVIDADES_12_TIPOS = ATIVIDADES_PADRAO
 
-// Retorna tipos padrão agrupados por categoria
+/** Normaliza string removendo acentos, pontuações, espaços excedentes e convertendo para lowercase */
+export function normalizarNomeTipo(nome?: string): string {
+  if (!nome || typeof nome !== 'string') return ''
+  return nome
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+/**
+ * Deduplica uma lista mista de tipos de atividades (nativos + customizados).
+ * Regra do CRM Delfos Solar: quando um tipo custom tiver nome normalizado igual a um nativo,
+ * mostrar APENAS o custom (que carrega os valores, cor e checklist do usuário).
+ * O nativo correspondente sai da lista.
+ */
+export function deduplicarTiposAtividades(
+  padroes: TipoAtividadeDef[],
+  customs: TipoAtividadeDef[],
+): TipoAtividadeDef[] {
+  const customNormalizedNames = new Set(
+    customs.map((c) => normalizarNomeTipo(c.tituloPadrao)).filter(Boolean),
+  )
+
+  // Filtra nativos cujo nome coincida com um custom
+  const padroesFiltrados = padroes.filter((p) => {
+    const norm = normalizarNomeTipo(p.tituloPadrao)
+    return !customNormalizedNames.has(norm)
+  })
+
+  return [...customs, ...padroesFiltrados]
+}
+
+// Retorna tipos padrão agrupados por categoria com deduplicação (custom prevalece sobre nativo)
 export function getTiposPorCategoria(
   categoriaId: AtividadeCategoriaId,
   tiposCustom: TipoAtividadeDef[] = [],
 ): TipoAtividadeDef[] {
   const padroes = ATIVIDADES_PADRAO.filter((t) => t.categoria === categoriaId)
   const custom = tiposCustom.filter((t) => t.categoria === categoriaId)
-  return [...padroes, ...custom]
+  return deduplicarTiposAtividades(padroes, custom)
 }
 
 // Mapeamento dinâmico de ícones por chave para tipos personalizados e editados
