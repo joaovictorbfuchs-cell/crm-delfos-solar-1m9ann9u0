@@ -325,12 +325,17 @@ const FALLBACK_TIPO_CONFIG: TipoServicoCorConfig = {
 export function getTipoServicoConfig(tipoNome?: unknown): TipoServicoCorConfig {
   const safeStr = String(tipoNome || '').trim()
   if (!safeStr) {
-    return TIPO_SERVICO_CORES['Manutenção Preventiva'] || FALLBACK_TIPO_CONFIG
+    return {
+      ...(TIPO_SERVICO_CORES['Manutenção Preventiva'] || FALLBACK_TIPO_CONFIG),
+    }
   }
 
   // Mapa exato por chave
   if (TIPO_SERVICO_CORES[safeStr]) {
-    return TIPO_SERVICO_CORES[safeStr]
+    const matched = TIPO_SERVICO_CORES[safeStr]
+    if (matched && matched.hex && matched.borderColor) {
+      return matched
+    }
   }
 
   // Tipos canônicos exatos (case-insensitive)
@@ -395,8 +400,19 @@ export function getTipoServicoConfig(tipoNome?: unknown): TipoServicoCorConfig {
   }
 
   // Tipos customizados de tipos_atividades_custom ou identificador não mapeado
-  const hashConfig = getHashColorConfig(safeStr)
-  return hashConfig || FALLBACK_TIPO_CONFIG
+  try {
+    const hashConfig = getHashColorConfig(safeStr)
+    if (hashConfig && hashConfig.hex && hashConfig.borderColor) {
+      return hashConfig
+    }
+  } catch (_) {
+    // fallback seguro abaixo
+  }
+
+  return {
+    ...FALLBACK_TIPO_CONFIG,
+    nome: safeStr || FALLBACK_TIPO_CONFIG.nome,
+  }
 }
 
 const MESES = [
@@ -725,15 +741,24 @@ export function CalendarioExecucaoOS({
       }
     }
 
+    const safeTargetDateKey =
+      typeof targetDateKey === 'string' && targetDateKey.trim()
+        ? targetDateKey.trim()
+        : getLocalDateKey(new Date())
+
     const horaFormatada = String(targetHora).padStart(2, '0')
     const minutoFormatado = String(minutos).padStart(2, '0')
     const horarioInicioStr = `${horaFormatada}:${minutoFormatado}`
     // Padrão PocketBase (YYYY-MM-DD HH:mm:00)
-    const novaDataIso = `${targetDateKey} ${horaFormatada}:${minutoFormatado}:00`
+    const novaDataIso = `${safeTargetDateKey} ${horaFormatada}:${minutoFormatado}:00`
 
     // Duração atual da atividade (mantida durante o drag)
     const duracaoAtual = getDuracaoMinutosOS(os)
     const horarioFimStr = somarMinutos(horarioInicioStr, duracaoAtual)
+
+    // Tipo canônico estritamente preservado para evitar "pisca-tipo"
+    const tipoServicoCanonico = os.tipo_servico || 'Manutenção'
+    const checklistCanonico = Array.isArray(os.checklist) ? os.checklist : []
 
     // Atualização otimista preservando tipo_servico e checklist
     setOverrides((prev) => ({
@@ -754,8 +779,8 @@ export function CalendarioExecucaoOS({
         horario_fim: horarioFimStr,
         duracao_minutos: duracaoAtual,
         tempo_previsto_minutos: duracaoAtual,
-        tipo_servico: os.tipo_servico,
-        checklist: os.checklist || [],
+        tipo_servico: tipoServicoCanonico,
+        checklist: checklistCanonico,
       }
       if (os.origem === 'atividades') {
         payload.origem = 'atividades'
@@ -763,9 +788,9 @@ export function CalendarioExecucaoOS({
 
       const updated = await updateOrdemServico(osId, payload)
       const dataFormatada =
-        typeof targetDateKey === 'string' && targetDateKey.includes('-')
-          ? targetDateKey.split('-').reverse().join('/')
-          : targetDateKey || ''
+        typeof safeTargetDateKey === 'string' && safeTargetDateKey.includes('-')
+          ? safeTargetDateKey.split('-').reverse().join('/')
+          : safeTargetDateKey || ''
       toast({
         title: 'Horário reagendado com sucesso! 📅',
         description: `Agendado para ${dataFormatada} às ${horaFormatada}:${minutoFormatado}h (${duracaoAtual}min).`,
@@ -893,13 +918,16 @@ export function CalendarioExecucaoOS({
       const novoHorarioFim = somarMinutos(horarioInicioAtual, duracaoFinal)
 
       try {
+        const tipoServicoCanonico = os.tipo_servico || 'Manutenção'
+        const checklistCanonico = Array.isArray(os.checklist) ? os.checklist : []
+
         const payload: Partial<OrdemServico> = {
           tempo_previsto_minutos: duracaoFinal,
           duracao_minutos: duracaoFinal,
           horario_inicio: horarioInicioAtual,
           horario_fim: novoHorarioFim,
-          tipo_servico: os.tipo_servico,
-          checklist: os.checklist || [],
+          tipo_servico: tipoServicoCanonico,
+          checklist: checklistCanonico,
         }
         if (os.origem === 'atividades') {
           payload.origem = 'atividades'

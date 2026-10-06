@@ -917,6 +917,7 @@ describe('Login e App Smoke Tests', () => {
 
     // 3. Simula drag/drop ou resize chamando updateOrdemServico sem tipo_servico no payload
     // A resolução estrita pelo campo canônico tipo ('limpeza_manutencao') NÃO deve cair em 'Manutenção Preventiva'
+    // mesmo que a descrição contenha termos como 'preventiva' ou 'corretiva' ou que o título seja vazio/divergente
     const osAtualizadaSemTipoPayload = await updateOrdemServico('atv-limpeza-drag-test', {
       origem: 'atividades',
       data_agendada: '2026-10-10 10:00:00',
@@ -939,6 +940,29 @@ describe('Login e App Smoke Tests', () => {
     })
 
     expect(osAtualizadaComTipoPayload.tipo_servico).toBe('Limpeza e Manutenção')
+
+    // 4b. Teste estrito: atividade cujo título livre diz algo genérico mas o tipo canônico é 'limpeza_manutencao'
+    // Garante que a remoção da heurística de título resolve para 'Limpeza e Manutenção' canônico
+    const atvMockTituloDivergente = {
+      ...atvMockRecord,
+      id: 'atv-divergente-test',
+      titulo: 'Atendimento urgente em campo - painel sujo',
+      tipo: 'limpeza_manutencao',
+    }
+    spyCollection.mockImplementation((colName: string) => {
+      if (colName === 'atividades') {
+        return {
+          update: vi.fn().mockResolvedValue(atvMockTituloDivergente),
+          getOne: vi.fn().mockResolvedValue(atvMockTituloDivergente),
+        } as any
+      }
+      return originalCollection(colName)
+    })
+    const osDivergente = await updateOrdemServico('atv-divergente-test', {
+      origem: 'atividades',
+      data_agendada: '2026-10-10 16:00:00',
+    })
+    expect(osDivergente.tipo_servico).toBe('Limpeza e Manutenção')
 
     // 5. Renderização no DOM com CalendarioExecucaoOS sem disparar ErrorBoundary
     let renderedCal: ReturnType<typeof render> | null = null

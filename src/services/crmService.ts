@@ -3534,36 +3534,33 @@ async function updateAtividadeComoOrdemServico(
 
   // Resolução canônica de tipo_servico:
   // 1. Prioridade máxima: data.tipo_servico vindo explicitamente no payload da mutação
-  // 2. Se ausente, resolução canônica direta a partir de atvRecord.tipo / tipo_custom_id / subtipo / titulo
-  // (regra permanente desde v0.0.936: tipo vem só do campo canônico, heurísticas de descrição/texto livre proibidas)
+  // 2. Se ausente, resolução canônica direta a partir EXCLUSIVAMENTE dos campos canônicos:
+  //    atvRecord.tipo / atvRecord.tipo_custom_id / atvRecord.expand?.tipo_custom_id?.nome
+  // (regra permanente desde v0.0.936: tipo vem só do campo canônico; heurísticas de título, texto ou descrição proibidas)
   let tipoServicoResolvido: string = data.tipo_servico || ''
   if (!tipoServicoResolvido) {
-    const rawTitulo = (atvRecord.titulo || '').trim()
     if (atvRecord.tipo === 'custom') {
       tipoServicoResolvido =
         atvRecord.expand?.tipo_custom_id?.nome ||
         atvRecord.subtipo ||
         atvRecord.tipo_unificado ||
-        rawTitulo ||
         'Serviço Customizado'
     } else if (atvRecord.tipo === 'limpeza_manutencao') {
-      tipoServicoResolvido = rawTitulo || 'Limpeza e Manutenção'
+      tipoServicoResolvido = 'Limpeza e Manutenção'
     } else if (atvRecord.tipo === 'limpeza') {
-      tipoServicoResolvido = rawTitulo || 'Limpeza dos Módulos'
+      tipoServicoResolvido = 'Limpeza dos Módulos'
     } else if (atvRecord.tipo === 'manutencao_preventiva') {
-      tipoServicoResolvido = rawTitulo || 'Manutenção Preventiva'
+      tipoServicoResolvido = 'Manutenção Preventiva'
     } else if (atvRecord.tipo === 'manutencao_corretiva') {
-      tipoServicoResolvido = rawTitulo || 'Manutenção Corretiva'
+      tipoServicoResolvido = 'Manutenção Corretiva'
     } else if (atvRecord.tipo === 'instalacao') {
       tipoServicoResolvido = 'Instalação'
     } else if (atvRecord.tipo === 'visita_tecnica') {
-      tipoServicoResolvido = rawTitulo || 'Visita Técnica'
+      tipoServicoResolvido = 'Visita Técnica'
     } else if (atvRecord.tipo === 'garantia_equipamento') {
-      tipoServicoResolvido = rawTitulo || 'Garantia de Equipamento'
+      tipoServicoResolvido = 'Garantia de Equipamento'
     } else if (atvRecord.tipo === 'configuracao_datalogger') {
-      tipoServicoResolvido = rawTitulo || 'Configuração Datalogger'
-    } else if (rawTitulo) {
-      tipoServicoResolvido = rawTitulo
+      tipoServicoResolvido = 'Configuração Datalogger'
     } else {
       tipoServicoResolvido = 'Manutenção'
     }
