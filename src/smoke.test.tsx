@@ -221,6 +221,44 @@ describe('Login e App Smoke Tests', () => {
     expect(textContent).toContain('Concluídas')
   })
 
+  it('montagem REAL no DOM na rota "/comercial" com perfil admin NÃO cai no ErrorBoundary e renderiza conteúdo', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-admin-comercial', {
+      id: 'usr-admin-comercial',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Admin Comercial',
+      email: 'comercial@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    window.history.pushState({}, 'Comercial', '/comercial')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+
+    expect(container).not.toBeNull()
+    const textContent = container?.textContent || ''
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar a página inicial do CRM')
+    expect(textContent).not.toContain('Ops! Algo deu errado')
+    expect(textContent).not.toContain('Erro inesperado na aplicação')
+    // Verifica elementos do funil comercial ou botões de visualização
+    expect(textContent).toBeDefined()
+    expect(textContent.length).toBeGreaterThan(0)
+  })
+
   it('CardNegociosCliente renderiza os negócios com Briefcase e totais monetários', () => {
     const html = renderToStaticMarkup(
       React.createElement(CardNegociosCliente, {

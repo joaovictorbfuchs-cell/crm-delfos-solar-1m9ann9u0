@@ -29,18 +29,26 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  if (error && typeof error === 'object') {
-    const obj = error as Record<string, unknown>
-    if (obj.status === 401 || obj.status === 403) return true
-    if (obj.statusCode === 401 || obj.statusCode === 403) return true
-    if (
-      typeof obj.message === 'string' &&
-      /token.*expired|unauthorized|forbidden/i.test(obj.message)
-    ) {
-      return true
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('invalid token') ||
+        msg.includes('authentication required') ||
+        msg.includes('unauthorized') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('the request requires valid user authorization')
+      ) {
+        return true
+      }
+    }
+    if (errObj.originalError && typeof errObj.originalError === 'object') {
+      return isAuthSessionError(errObj.originalError)
     }
   }
   return false
