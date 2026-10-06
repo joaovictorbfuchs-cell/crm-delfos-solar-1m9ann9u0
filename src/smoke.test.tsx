@@ -731,4 +731,111 @@ describe('Login e App Smoke Tests', () => {
     expect(cardDes.textContent).toContain('08:00 - 11:00')
     expect(cardDes.textContent).toContain('180m')
   })
+
+  it('alça de resize bem fininha está sempre presente por padrão em cards de 1h (60min) e cards curtos de 30min', async () => {
+    const now = new Date()
+    const ano = now.getFullYear()
+    const mes = String(now.getMonth() + 1).padStart(2, '0')
+    const dia = String(now.getDate()).padStart(2, '0')
+
+    const os1Hora = {
+      id: 'os-1hora-padrao',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-1h',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: `${ano}-${mes}-${dia} 09:00:00.000Z`,
+      horario_inicio: '09:00',
+      horario_fim: '10:00',
+      duracao_minutos: 60,
+      tempo_previsto_minutos: 60,
+      expand: {
+        cliente_id: {
+          id: 'cli-1h',
+          nome: 'Cliente 1 Hora',
+        },
+      },
+    }
+
+    const os30Min = {
+      id: 'os-30min-curta',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-30m',
+      tipo_servico: 'Visita Técnica',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: `${ano}-${mes}-${dia} 11:00:00.000Z`,
+      horario_inicio: '11:00',
+      horario_fim: '11:30',
+      duracao_minutos: 30,
+      tempo_previsto_minutos: 30,
+      expand: {
+        cliente_id: {
+          id: 'cli-30m',
+          nome: 'Cliente 30 Minutos',
+        },
+      },
+    }
+
+    let rendered: ReturnType<typeof render> | null = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [os1Hora as any, os30Min as any],
+          onSelectOS: vi.fn(),
+        }),
+      )
+    })
+
+    const container = rendered!.container
+
+    // 1. Alça do card de 1 hora (60min)
+    const handle1h = container.querySelector(
+      '[data-testid="resize-handle-os-1hora-padrao"]',
+    ) as HTMLElement
+    expect(handle1h).not.toBeNull()
+    expect(handle1h.className).toContain('cursor-ns-resize')
+    expect(handle1h.className).toContain('absolute')
+    expect(handle1h.className).toContain('bottom-0')
+
+    const card1h = handle1h.closest('[style*="top"]') as HTMLElement
+    expect(card1h).not.toBeNull()
+    // Altura de 1h: (60 / 60) * 56 - 2 = 54px
+    expect(card1h.style.height).toBe('54px')
+    expect(card1h.textContent).toContain('09:00 - 10:00')
+    expect(card1h.textContent).toContain('Cliente 1 Hora')
+
+    // 2. Alça do card de 30 minutos (mínimo de altura)
+    const handle30m = container.querySelector(
+      '[data-testid="resize-handle-os-30min-curta"]',
+    ) as HTMLElement
+    expect(handle30m).not.toBeNull()
+    expect(handle30m.className).toContain('cursor-ns-resize')
+    expect(handle30m.className).toContain('absolute')
+    expect(handle30m.className).toContain('bottom-0')
+
+    const card30m = handle30m.closest('[style*="top"]') as HTMLElement
+    expect(card30m).not.toBeNull()
+    // Altura de 30min: max(28, (30 / 60) * 56 - 2 = 26) -> 28px
+    expect(card30m.style.height).toBe('28px')
+    expect(card30m.textContent).toContain('11:00 - 11:30')
+    expect(card30m.textContent).toContain('Cliente 30 Minutos')
+  })
+
+  it('salvaguardas de integridade do PocketBase: pb exportado duplamente e isAuthSessionError presente', async () => {
+    const clientModule = await import('@/lib/pocketbase/client')
+    expect(clientModule.default).toBeDefined()
+    expect(clientModule.pb).toBeDefined()
+    expect(clientModule.default).toBe(clientModule.pb)
+
+    const errorsModule = await import('@/lib/pocketbase/errors')
+    expect(typeof errorsModule.isAuthSessionError).toBe('function')
+    expect(errorsModule.isAuthSessionError({ status: 401 })).toBe(true)
+    expect(errorsModule.isAuthSessionError({ status: 403 })).toBe(true)
+    expect(errorsModule.isAuthSessionError({ message: 'Token is expired' })).toBe(true)
+    expect(errorsModule.isAuthSessionError({ status: 200 })).toBe(false)
+  })
 })

@@ -476,7 +476,7 @@ export function CalendarioExecucaoOS({
 
   // Data base para visão Dia (se tiver selectedDayKey, converte; senão hoje)
   const selectedDayDate = useMemo(() => {
-    if (!selectedDayKey) return new Date()
+    if (!selectedDayKey || typeof selectedDayKey !== 'string') return new Date()
     const parts = selectedDayKey.split('-').map(Number)
     if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
       const d = new Date(parts[0], parts[1] - 1, parts[2])
@@ -1088,12 +1088,15 @@ export function CalendarioExecucaoOS({
   }, [selectedDayKey, ordensPorDia])
 
   const diaSelecionadoFormatado = useMemo(() => {
-    if (!selectedDayKey) return ''
+    if (!selectedDayKey || typeof selectedDayKey !== 'string') return ''
     const parts = selectedDayKey.split('-')
     if (parts.length !== 3) return selectedDayKey
     const dia = parseInt(parts[2], 10)
     const mes = parseInt(parts[1], 10) - 1
     const ano = parseInt(parts[0], 10)
+    if (isNaN(ano) || isNaN(mes) || isNaN(dia) || mes < 0 || mes > 11) {
+      return selectedDayKey
+    }
     return `${dia} de ${MESES[mes]} de ${ano}`
   }, [selectedDayKey])
 
@@ -1684,7 +1687,7 @@ export function CalendarioExecucaoOS({
                             e.stopPropagation()
                             onSelectOS(os)
                           }}
-                          className={`absolute left-1 right-1 rounded-xl p-1.5 border shadow-2xs transition-all flex flex-col justify-between overflow-hidden cursor-pointer group ${
+                          className={`absolute left-1 right-1 rounded-xl p-1.5 pb-2 border shadow-2xs transition-all flex flex-col justify-between overflow-hidden cursor-pointer group ${
                             isDragging ? 'opacity-40 scale-95 ring-2 ring-emerald-500' : ''
                           } ${
                             isConcluida
@@ -1702,7 +1705,7 @@ export function CalendarioExecucaoOS({
                           title={`${clienteNome} (${tipoServico}) • ${horaInicioStr} - ${horaFimStr}\nClique para abrir ficha de execução\nArraste para mover horário/dia\nPuxe a borda inferior para ajustar duração`}
                         >
                           {/* Conteúdo do Card */}
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 overflow-hidden pb-1">
                             {/* Topo: Horário + Tipo */}
                             <div className="flex items-center justify-between gap-1 mb-0.5">
                               <span className="text-[10px] font-bold text-gray-700 font-mono flex items-center gap-0.5 shrink-0">
@@ -1732,7 +1735,7 @@ export function CalendarioExecucaoOS({
                             </div>
 
                             {/* Responsável / Duração (se couber na altura) */}
-                            {item.height >= 48 && (
+                            {cardHeight >= 48 && (
                               <div className="flex items-center justify-between text-[10px] text-gray-500 mt-0.5 truncate gap-1">
                                 <span className="truncate flex items-center gap-0.5">
                                   <User className="w-2.5 h-2.5 text-gray-400 shrink-0" />
@@ -1747,7 +1750,7 @@ export function CalendarioExecucaoOS({
                             )}
                           </div>
 
-                          {/* Alça inferior de redimensionamento (resize handle de 30 em 30 min) */}
+                          {/* Alça inferior de redimensionamento (bem fininha, padrão para cards de 1h, 30min e longos) */}
                           <div
                             data-testid={`resize-handle-${os.id}`}
                             onMouseDown={(e) => {
@@ -1763,10 +1766,10 @@ export function CalendarioExecucaoOS({
                               e.stopPropagation()
                             }}
                             style={{ touchAction: 'none', userSelect: 'none' }}
-                            className="w-full h-4 cursor-ns-resize flex items-center justify-center bg-gray-200/50 hover:bg-emerald-400/90 active:bg-emerald-500 rounded-b transition-colors -mb-1 -mx-1 py-1 select-none z-30 shrink-0"
+                            className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
                             title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
                           >
-                            <div className="w-10 h-1.5 rounded-full bg-gray-500/80 group-hover:bg-emerald-800 transition-colors pointer-events-none shadow-2xs" />
+                            <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 group-hover:h-[3px] transition-all pointer-events-none shadow-2xs" />
                           </div>
                         </div>
                       )

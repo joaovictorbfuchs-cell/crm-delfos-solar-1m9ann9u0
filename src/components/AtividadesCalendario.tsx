@@ -1099,13 +1099,14 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               </div>
                             )}
                           </div>
-                          {/* Alça inferior de redimensionamento (resize handle) */}{' '}
+                          {/* Alça inferior de redimensionamento (resize handle bem fininha) */}
                           <div
+                            data-testid={`resize-handle-atv-${atv.id}`}
                             onMouseDown={(e) => handleResizeStart(e, atv)}
-                            className="w-full h-2 cursor-ns-resize flex items-center justify-center hover:bg-emerald-100 rounded-b transition-colors -mb-1 -mx-1"
+                            className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
                             title="Arraste para aumentar ou reduzir o tempo previsto"
                           >
-                            <div className="w-6 h-1 rounded-full bg-gray-300 group-hover:bg-emerald-500 transition-colors" />
+                            <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 transition-all pointer-events-none shadow-2xs" />
                           </div>
                         </div>
                       )
