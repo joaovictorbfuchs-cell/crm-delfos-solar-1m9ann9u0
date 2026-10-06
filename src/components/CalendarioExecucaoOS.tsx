@@ -305,21 +305,27 @@ export const TIPO_SERVICO_CORES: Record<OSTipoServico | string, TipoServicoCorCo
  * Diferencia tipos específicos de manutenção (Preventiva = âmbar, Corretiva = vermelho/rosa,
  * Visita Técnica = azul, Garantia = roxo, Datalogger = ciano, e tipos customizados via hash).
  */
+const FALLBACK_TIPO_CONFIG: TipoServicoCorConfig = {
+  nome: 'Manutenção',
+  borderClass: 'border-l-amber-500',
+  borderColor: '#F59E0B',
+  bgLightClass: 'bg-amber-50/70 hover:bg-amber-100/80',
+  bgBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+  textClass: 'text-amber-800',
+  hex: '#F59E0B',
+  pillBg: 'rgba(245, 158, 11, 0.14)',
+}
+
+/**
+ * Resolve a estilização visual (cor/badge/borda) para qualquer tipo de serviço ou título customizado.
+ * Diferencia tipos específicos de manutenção (Preventiva = âmbar, Corretiva = vermelho/rosa,
+ * Visita Técnica = azul, Garantia = roxo, Datalogger = ciano, e tipos customizados via hash).
+ * BLINDADO: sempre retorna um objeto válido com (hex, pillBg, borderColor, badgeBg, nome) — nunca undefined.
+ */
 export function getTipoServicoConfig(tipoNome?: unknown): TipoServicoCorConfig {
   const safeStr = String(tipoNome || '').trim()
   if (!safeStr) {
-    return (
-      TIPO_SERVICO_CORES['Manutenção Preventiva'] || {
-        nome: 'Manutenção',
-        borderClass: 'border-l-amber-500',
-        borderColor: '#F59E0B',
-        bgLightClass: 'bg-amber-50/70 hover:bg-amber-100/80',
-        bgBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
-        textClass: 'text-amber-800',
-        hex: '#F59E0B',
-        pillBg: 'rgba(245, 158, 11, 0.14)',
-      }
-    )
+    return TIPO_SERVICO_CORES['Manutenção Preventiva'] || FALLBACK_TIPO_CONFIG
   }
 
   // Mapa exato por chave
@@ -334,34 +340,47 @@ export function getTipoServicoConfig(tipoNome?: unknown): TipoServicoCorConfig {
     lower === 'manutenção corretiva' ||
     lower === 'manutencao corretiva'
   ) {
-    return TIPO_SERVICO_CORES['Manutenção Corretiva']
+    return TIPO_SERVICO_CORES['Manutenção Corretiva'] || FALLBACK_TIPO_CONFIG
   }
   if (
     lower === 'manutencao_preventiva' ||
     lower === 'manutenção preventiva' ||
     lower === 'manutencao preventiva'
   ) {
-    return TIPO_SERVICO_CORES['Manutenção Preventiva']
+    return TIPO_SERVICO_CORES['Manutenção Preventiva'] || FALLBACK_TIPO_CONFIG
   }
   if (
     lower === 'limpeza_manutencao' ||
     lower === 'limpeza e manutenção' ||
     lower === 'limpeza & manutenção'
   ) {
-    return TIPO_SERVICO_CORES['Limpeza dos Módulos'] || TIPO_SERVICO_CORES['Limpeza']
+    return (
+      TIPO_SERVICO_CORES['Limpeza e Manutenção'] ||
+      TIPO_SERVICO_CORES['Limpeza dos Módulos'] ||
+      TIPO_SERVICO_CORES['Limpeza'] ||
+      FALLBACK_TIPO_CONFIG
+    )
   }
   if (lower === 'limpeza' || lower === 'limpeza dos módulos' || lower === 'limpeza dos modulos') {
-    return TIPO_SERVICO_CORES['Limpeza dos Módulos'] || TIPO_SERVICO_CORES['Limpeza']
+    return (
+      TIPO_SERVICO_CORES['Limpeza dos Módulos'] ||
+      TIPO_SERVICO_CORES['Limpeza'] ||
+      FALLBACK_TIPO_CONFIG
+    )
   }
   if (lower === 'instalacao' || lower === 'instalação') {
-    return TIPO_SERVICO_CORES['Instalação']
+    return TIPO_SERVICO_CORES['Instalação'] || FALLBACK_TIPO_CONFIG
   }
   if (
     lower === 'garantia_equipamento' ||
     lower === 'garantia' ||
     lower === 'garantia de equipamento'
   ) {
-    return TIPO_SERVICO_CORES['Garantia de Equipamento'] || TIPO_SERVICO_CORES['Garantia']
+    return (
+      TIPO_SERVICO_CORES['Garantia de Equipamento'] ||
+      TIPO_SERVICO_CORES['Garantia'] ||
+      FALLBACK_TIPO_CONFIG
+    )
   }
   if (
     lower === 'configuracao_datalogger' ||
@@ -369,14 +388,15 @@ export function getTipoServicoConfig(tipoNome?: unknown): TipoServicoCorConfig {
     lower === 'configuração de datalogger' ||
     lower === 'configuracao de datalogger'
   ) {
-    return TIPO_SERVICO_CORES['Configuração Datalogger']
+    return TIPO_SERVICO_CORES['Configuração Datalogger'] || FALLBACK_TIPO_CONFIG
   }
   if (lower === 'visita_tecnica' || lower === 'visita técnica') {
-    return TIPO_SERVICO_CORES['Visita Técnica']
+    return TIPO_SERVICO_CORES['Visita Técnica'] || FALLBACK_TIPO_CONFIG
   }
 
   // Tipos customizados de tipos_atividades_custom ou identificador não mapeado
-  return getHashColorConfig(safeStr)
+  const hashConfig = getHashColorConfig(safeStr)
+  return hashConfig || FALLBACK_TIPO_CONFIG
 }
 
 const MESES = [
@@ -715,7 +735,7 @@ export function CalendarioExecucaoOS({
     const duracaoAtual = getDuracaoMinutosOS(os)
     const horarioFimStr = somarMinutos(horarioInicioStr, duracaoAtual)
 
-    // Atualização otimista
+    // Atualização otimista preservando tipo_servico e checklist
     setOverrides((prev) => ({
       ...prev,
       [osId]: {
@@ -734,15 +754,21 @@ export function CalendarioExecucaoOS({
         horario_fim: horarioFimStr,
         duracao_minutos: duracaoAtual,
         tempo_previsto_minutos: duracaoAtual,
+        tipo_servico: os.tipo_servico,
+        checklist: os.checklist || [],
       }
       if (os.origem === 'atividades') {
         payload.origem = 'atividades'
       }
 
       const updated = await updateOrdemServico(osId, payload)
+      const dataFormatada =
+        typeof targetDateKey === 'string' && targetDateKey.includes('-')
+          ? targetDateKey.split('-').reverse().join('/')
+          : targetDateKey || ''
       toast({
         title: 'Horário reagendado com sucesso! 📅',
-        description: `Agendado para ${targetDateKey.split('-').reverse().join('/')} às ${horaFormatada}:${minutoFormatado}h (${duracaoAtual}min).`,
+        description: `Agendado para ${dataFormatada} às ${horaFormatada}:${minutoFormatado}h (${duracaoAtual}min).`,
       })
       if (onOSUpdated) {
         onOSUpdated(updated)
@@ -872,6 +898,8 @@ export function CalendarioExecucaoOS({
           duracao_minutos: duracaoFinal,
           horario_inicio: horarioInicioAtual,
           horario_fim: novoHorarioFim,
+          tipo_servico: os.tipo_servico,
+          checklist: os.checklist || [],
         }
         if (os.origem === 'atividades') {
           payload.origem = 'atividades'
@@ -1713,7 +1741,11 @@ export function CalendarioExecucaoOS({
 
                     {/* Cards de OS Posicionados na Grade */}
                     {comHorario.map((item) => {
-                      const os = item.os
+                      const rawOs = item.os
+                      const os = {
+                        ...rawOs,
+                        checklist: rawOs?.checklist || [],
+                      }
                       const tipoServico = os.tipo_servico || 'Manutenção'
                       const tipoConfig = getTipoServicoConfig(tipoServico)
                       const isConcluida = os.status === 'concluida'

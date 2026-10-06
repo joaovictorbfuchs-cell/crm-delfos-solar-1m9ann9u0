@@ -3532,53 +3532,41 @@ async function updateAtividadeComoOrdemServico(
         ? 'cancelada'
         : 'pendente'
 
-  // Normalização do tipo_servico para não sobrescrever o tipo real com "Limpeza"
+  // Resolução canônica de tipo_servico:
+  // 1. Prioridade máxima: data.tipo_servico vindo explicitamente no payload da mutação
+  // 2. Se ausente, resolução canônica direta a partir de atvRecord.tipo / tipo_custom_id / subtipo / titulo
+  // (regra permanente desde v0.0.936: tipo vem só do campo canônico, heurísticas de descrição/texto livre proibidas)
   let tipoServicoResolvido: string = data.tipo_servico || ''
   if (!tipoServicoResolvido) {
     const rawTitulo = (atvRecord.titulo || '').trim()
-    if (rawTitulo === 'Limpeza e Manutenção') {
-      const desc = (atvRecord.descricao || '').toLowerCase()
-      if (desc.includes('corretiva')) {
-        tipoServicoResolvido = 'Manutenção Corretiva'
-      } else if (desc.includes('preventiva')) {
-        tipoServicoResolvido = 'Manutenção Preventiva'
-      } else if (
-        desc.includes('lavagem') &&
-        !desc.includes('reaperto') &&
-        !desc.includes('preventiva')
-      ) {
-        tipoServicoResolvido = 'Limpeza'
-      } else {
-        tipoServicoResolvido = 'Manutenção'
-      }
+    if (atvRecord.tipo === 'custom') {
+      tipoServicoResolvido =
+        atvRecord.expand?.tipo_custom_id?.nome ||
+        atvRecord.subtipo ||
+        atvRecord.tipo_unificado ||
+        rawTitulo ||
+        'Serviço Customizado'
+    } else if (atvRecord.tipo === 'limpeza_manutencao') {
+      tipoServicoResolvido = rawTitulo || 'Limpeza e Manutenção'
+    } else if (atvRecord.tipo === 'limpeza') {
+      tipoServicoResolvido = rawTitulo || 'Limpeza dos Módulos'
+    } else if (atvRecord.tipo === 'manutencao_preventiva') {
+      tipoServicoResolvido = rawTitulo || 'Manutenção Preventiva'
+    } else if (atvRecord.tipo === 'manutencao_corretiva') {
+      tipoServicoResolvido = rawTitulo || 'Manutenção Corretiva'
+    } else if (atvRecord.tipo === 'instalacao') {
+      tipoServicoResolvido = 'Instalação'
+    } else if (atvRecord.tipo === 'visita_tecnica') {
+      tipoServicoResolvido = rawTitulo || 'Visita Técnica'
+    } else if (atvRecord.tipo === 'garantia_equipamento') {
+      tipoServicoResolvido = rawTitulo || 'Garantia de Equipamento'
+    } else if (atvRecord.tipo === 'configuracao_datalogger') {
+      tipoServicoResolvido = rawTitulo || 'Configuração Datalogger'
     } else if (rawTitulo) {
       tipoServicoResolvido = rawTitulo
     } else {
-      switch (atvRecord.tipo) {
-        case 'limpeza_manutencao':
-          tipoServicoResolvido = 'Limpeza dos Módulos'
-          break
-        case 'instalacao':
-          tipoServicoResolvido = 'Instalação'
-          break
-        case 'visita_tecnica':
-          tipoServicoResolvido = 'Manutenção'
-          break
-        case 'garantia_equipamento':
-          tipoServicoResolvido = 'Garantia'
-          break
-        case 'configuracao_datalogger':
-          tipoServicoResolvido = 'Configuração de Datalogger'
-          break
-        default:
-          tipoServicoResolvido = 'Manutenção'
-      }
+      tipoServicoResolvido = 'Manutenção'
     }
-  }
-
-  // Previne que "Limpeza e Manutenção" reverta para visual azul de Limpeza no refetch
-  if (tipoServicoResolvido === 'Limpeza e Manutenção') {
-    tipoServicoResolvido = 'Manutenção'
   }
 
   return {
