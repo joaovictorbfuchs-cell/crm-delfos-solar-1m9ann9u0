@@ -21,6 +21,7 @@ import { updateOrdemServico } from '@/services/crmService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { somarMinutos, minutesToTimeString, timeStringToMinutes } from '@/lib/horarios'
 import { useToast } from '@/hooks/use-toast'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 interface CalendarioExecucaoOSProps {
   ordens: OrdemServico[]
@@ -438,6 +439,23 @@ function safeStr(val: unknown): string {
   return String(val)
 }
 
+// Normaliza checklist vindo de PocketBase (seja array, string JSON ou indefinido)
+export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return []
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) return parsed
+    } catch (_) {
+      return []
+    }
+  }
+  return []
+}
+
 // Formata chave YYYY-MM-DD com tolerância total a parâmetros nulos ou inválidos
 function getLocalDateKey(date?: unknown): string {
   try {
@@ -559,7 +577,7 @@ function getDuracaoMinutosOS(os?: Partial<OrdemServico> | null): number {
   return DURACAO_PADRAO_MINUTOS
 }
 
-export function CalendarioExecucaoOS({
+function CalendarioExecucaoOSContent({
   ordens,
   onSelectOS,
   onOSUpdated,
@@ -758,7 +776,7 @@ export function CalendarioExecucaoOS({
 
     // Tipo canônico estritamente preservado para evitar "pisca-tipo"
     const tipoServicoCanonico = os.tipo_servico || 'Manutenção'
-    const checklistCanonico = Array.isArray(os.checklist) ? os.checklist : []
+    const checklistCanonico = normalizeChecklist(os.checklist)
 
     // Atualização otimista preservando tipo_servico e checklist
     setOverrides((prev) => ({
@@ -919,7 +937,7 @@ export function CalendarioExecucaoOS({
 
       try {
         const tipoServicoCanonico = os.tipo_servico || 'Manutenção'
-        const checklistCanonico = Array.isArray(os.checklist) ? os.checklist : []
+        const checklistCanonico = normalizeChecklist(os.checklist)
 
         const payload: Partial<OrdemServico> = {
           tempo_previsto_minutos: duracaoFinal,
@@ -1699,7 +1717,7 @@ export function CalendarioExecucaoOS({
                   </div>
 
                   <span className="text-[10px] text-gray-400 font-medium hidden sm:inline">
-                    {MESES[dia.date.getMonth()].slice(0, 3)}
+                    {(MESES[dia.date.getMonth()] || '').slice(0, 3)}
                   </span>
                 </div>
               ))}
@@ -1772,7 +1790,7 @@ export function CalendarioExecucaoOS({
                       const rawOs = item.os
                       const os = {
                         ...rawOs,
-                        checklist: rawOs?.checklist || [],
+                        checklist: normalizeChecklist(rawOs?.checklist),
                       }
                       const tipoServico = os.tipo_servico || 'Manutenção'
                       const tipoConfig = getTipoServicoConfig(tipoServico)
@@ -1990,8 +2008,9 @@ export function CalendarioExecucaoOS({
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const checklistTotal = (os?.checklist ?? []).length
-                const checklistFeitos = (os?.checklist ?? []).filter((c) => c?.concluido).length
+                const listChecklist = normalizeChecklist(os?.checklist)
+                const checklistTotal = listChecklist.length
+                const checklistFeitos = listChecklist.filter((c) => c?.concluido).length
 
                 return (
                   <div
@@ -2131,8 +2150,9 @@ export function CalendarioExecucaoOS({
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const checklistTotal = (os?.checklist ?? []).length
-                const checklistFeitos = (os?.checklist ?? []).filter((c) => c?.concluido).length
+                const listChecklist = normalizeChecklist(os?.checklist)
+                const checklistTotal = listChecklist.length
+                const checklistFeitos = listChecklist.filter((c) => c?.concluido).length
 
                 return (
                   <div
@@ -2227,6 +2247,17 @@ export function CalendarioExecucaoOS({
         </div>
       )}
     </div>
+  )
+}
+
+export function CalendarioExecucaoOS(props: CalendarioExecucaoOSProps) {
+  return (
+    <ErrorBoundary
+      errorMessage="Não foi possível carregar o calendário de ordens de serviço."
+      compact
+    >
+      <CalendarioExecucaoOSContent {...props} />
+    </ErrorBoundary>
   )
 }
 

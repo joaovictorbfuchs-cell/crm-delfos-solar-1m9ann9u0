@@ -60,8 +60,8 @@ export const FUNIL_ETAPAS_CONFIG: Record<string, FunilEtapaConfig> = {
     badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   },
   'Contato Futuro': {
-    label: '6 - Contato Futuro',
-    shortLabel: 'Contato Futuro',
+    label: '5 - Contato Futuro',
+    shortLabel: 'Futuro',
     icon: Clock,
     iconColorClass: 'text-gray-400',
     badgeClass: 'bg-gray-100 text-gray-700 border-gray-200',

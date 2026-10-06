@@ -148,20 +148,12 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
     iconColorClass: FUNIL_ETAPAS_CONFIG['Negociação'].iconColorClass,
   },
   {
-    id: 'Fechado',
-    title: '5 - Fechado',
-    colorClass: 'text-emerald-700',
-    borderTopClass: 'border-t-emerald-500',
-    icon: CheckCircle2,
-    iconColorClass: 'text-emerald-600',
-  },
-  {
-    id: 'Perdido',
-    title: '6 - Perdido',
-    colorClass: 'text-rose-700',
-    borderTopClass: 'border-t-rose-500',
-    icon: XCircle,
-    iconColorClass: 'text-rose-600',
+    id: 'Contato Futuro',
+    title: '5 - Contato Futuro',
+    colorClass: 'text-gray-700',
+    borderTopClass: 'border-t-gray-400',
+    icon: FUNIL_ETAPAS_CONFIG['Contato Futuro'].icon,
+    iconColorClass: FUNIL_ETAPAS_CONFIG['Contato Futuro'].iconColorClass,
   },
 ]
 
@@ -1225,9 +1217,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         <MobileKanbanViewport stages={mobileStages} isDraggingCard={isTouchDragging} />
       </div>
 
-      {/* 2. VISUALIZAÇÃO DESKTOP / TABLET: 6 colunas distribuídas por toda a largura */}
+      {/* 2. VISUALIZAÇÃO DESKTOP / TABLET: 5 colunas distribuídas por toda a largura */}
       <div className="hidden md:block w-full">
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-1.5 sm:gap-2 lg:gap-2.5 items-start w-full">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-1.5 sm:gap-2 lg:gap-2.5 items-start w-full">
           {KANBAN_COLUMNS.map((col) => renderColumnContent(col, false))}
         </div>
       </div>
