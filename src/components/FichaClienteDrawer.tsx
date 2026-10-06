@@ -69,7 +69,6 @@ import { ModalNovaAtividade } from './ModalNovaAtividade'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
 
-import { X as IconX } from 'lucide-react'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
 import { SecaoContatosAdicionais } from './SecaoContatosAdicionais'
 import {
@@ -1250,23 +1249,6 @@ export const FichaClienteDrawer: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2">
-            {/* Botões de Decisão Comercial (desktop) */}
-            {['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação', 'Contato Futuro'].includes(
-              selectedCliente.status,
-            ) &&
-              !selectedCliente.transferido_pos_vendas &&
-              !selectedCliente.status_pos_vendas && (
-                <button
-                  type="button"
-                  onClick={() => setModalPerdidoOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
-                  title="Marcar oportunidade como Perdido (registrar motivo)"
-                >
-                  <IconX className="w-3.5 h-3.5 shrink-0 text-rose-700" />
-                  <span>Marcar como Perdido</span>
-                </button>
-              )}
-
             {/* Ação Novo Negócio no Top Header da Ficha (aditiva, abre modal com cliente pré-preenchido) */}
             <button
               type="button"
