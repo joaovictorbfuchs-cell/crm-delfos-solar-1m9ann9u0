@@ -851,11 +851,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               title={`${atv.titulo || conf.tituloPadrao} (Clique para editar / arraste para a grade)`}
                             >
                               <div className="flex items-center gap-1 truncate">
-                                {(atv as any).origem === 'atividades' && (
-                                  <span className="text-[8px] font-bold px-1 py-0.1 rounded bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
-                                    Atividade
-                                  </span>
-                                )}
                                 <span className="truncate">{atv.titulo || conf.tituloPadrao}</span>
                               </div>
                               <span className="text-[9px] text-gray-400 shrink-0">Dia todo</span>
@@ -1103,15 +1098,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                                 </span>
                               </div>
                             )}
-
-                            {/* Badge Atividade quando registro vier da coleção atividades em contextos mistos */}
-                            {(atv as any).origem === 'atividades' && (
-                              <div className="mt-0.5">
-                                <span className="text-[9px] font-semibold tracking-wide px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                  Atividade
-                                </span>
-                              </div>
-                            )}
                           </div>
                           {/* Alça inferior de redimensionamento (resize handle) */}{' '}
                           <div
@@ -1263,11 +1249,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             title={`${atv.titulo || conf.tituloPadrao} - ${atv.responsavel_nome || ''}`}
                           >
                             <Icon className="w-2.5 h-2.5 shrink-0" />
-                            {(atv as any).origem === 'atividades' && (
-                              <span className="text-[8px] font-bold px-0.5 rounded bg-blue-100/90 text-blue-800 shrink-0">
-                                Atv
-                              </span>
-                            )}
                             <span className="truncate">{atv.titulo || conf.tituloPadrao}</span>
                           </div>
                         )
@@ -1362,11 +1343,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                                 >
                                   {atv.titulo || conf.tituloPadrao}
                                 </h5>
-                                {(atv as any).origem === 'atividades' && (
-                                  <span className="text-[9px] font-semibold tracking-wide px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                    Atividade
-                                  </span>
-                                )}
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="text-[10px] text-gray-500 flex items-center gap-0.5">

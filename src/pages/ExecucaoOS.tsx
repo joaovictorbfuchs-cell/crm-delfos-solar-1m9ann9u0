@@ -1119,17 +1119,12 @@ export default function ExecucaoOS() {
                     }`}
                   >
                     <div>
-                      {/* Topo do Card: Tipo do Serviço, Origem, Status e Ação de Exclusão (Admin) */}
+                      {/* Topo do Card: Tipo do Serviço, Status e Ação de Exclusão (Admin) */}
                       <div className="flex items-center justify-between gap-1.5 mb-1.5">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                             {os.tipo_servico}
                           </span>
-                          {os.origem === 'atividades' && (
-                            <span className="text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80">
-                              Atividade
-                            </span>
-                          )}
                         </div>
 
                         <div className="flex items-center gap-1 ml-auto">

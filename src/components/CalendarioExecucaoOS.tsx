@@ -1020,18 +1020,13 @@ export function CalendarioExecucaoOS({
                             className="p-1 sm:p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer"
                             title={`${horario} • ${clienteNome} (${tipoServico}) - Clique para abrir a ficha de execução`}
                           >
-                            {/* Horário + Tipo (com cor) + Badge Atividade se aplicável */}
+                            {/* Horário + Tipo (com cor) */}
                             <div className="flex items-center justify-between gap-1 leading-none mb-0.5">
                               <span className="text-[10px] sm:text-[11px] font-bold text-gray-900 flex items-center gap-0.5 shrink-0">
                                 <Clock className="w-2.5 h-2.5 text-gray-500" />
                                 {horario}
                               </span>
                               <div className="flex items-center gap-1 shrink-0">
-                                {os.origem === 'atividades' && (
-                                  <span className="text-[8px] font-bold px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                    Atividade
-                                  </span>
-                                )}
                                 <span
                                   className="text-[9px] font-extrabold uppercase truncate tracking-wider"
                                   style={{ color: tipoConfig.hex }}
@@ -1155,11 +1150,6 @@ export function CalendarioExecucaoOS({
                               title={`${clienteNome} (${tipoServico}) - Clique para ver ficha / arraste para grade`}
                             >
                               <div className="flex items-center gap-1 truncate">
-                                {os.origem === 'atividades' && (
-                                  <span className="text-[8px] font-bold px-1 py-0.1 rounded bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
-                                    Atividade
-                                  </span>
-                                )}
                                 <span className="truncate">{clienteNome}</span>
                               </div>
                               <span className="text-[9px] text-gray-400 shrink-0">Dia todo</span>
@@ -1335,7 +1325,7 @@ export function CalendarioExecucaoOS({
                         >
                           {/* Conteúdo do Card */}
                           <div className="min-w-0 flex-1">
-                            {/* Topo: Horário + Badge Atividade + Tipo */}
+                            {/* Topo: Horário + Tipo */}
                             <div className="flex items-center justify-between gap-1 mb-0.5">
                               <span className="text-[10px] font-bold text-gray-700 font-mono flex items-center gap-0.5 shrink-0">
                                 <Clock className="w-2.5 h-2.5 text-gray-400" />
@@ -1343,11 +1333,6 @@ export function CalendarioExecucaoOS({
                               </span>
 
                               <div className="flex items-center gap-1 shrink-0">
-                                {os.origem === 'atividades' && (
-                                  <span className="text-[8px] font-bold px-1 py-0.1 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                    Atividade
-                                  </span>
-                                )}
                                 <span
                                   className="text-[8px] font-extrabold uppercase tracking-wider truncate"
                                   style={{ color: tipoConfig.hex }}
@@ -1515,11 +1500,6 @@ export function CalendarioExecucaoOS({
                           >
                             {tipoServico}
                           </span>
-                          {os.origem === 'atividades' && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              Atividade
-                            </span>
-                          )}
                         </div>
 
                         <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
@@ -1662,11 +1642,6 @@ export function CalendarioExecucaoOS({
                           >
                             {tipoServico}
                           </span>
-                          {os.origem === 'atividades' && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              Atividade
-                            </span>
-                          )}
                         </div>
 
                         <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">

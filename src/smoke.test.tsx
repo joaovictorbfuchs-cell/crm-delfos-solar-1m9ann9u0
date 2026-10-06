@@ -8,6 +8,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { MemoryRouter } from 'react-router-dom'
 import { CardNegociosCliente } from './components/CardNegociosCliente'
+import { CalendarioExecucaoOS } from './components/CalendarioExecucaoOS'
 import pb from './lib/pocketbase/client'
 
 describe('Login e App Smoke Tests', () => {
@@ -219,6 +220,43 @@ describe('Login e App Smoke Tests', () => {
     expect(textContent).toContain('Calendário')
     expect(textContent).toContain('Pendentes')
     expect(textContent).toContain('Concluídas')
+  })
+
+  it('cards de atividade no CalendarioExecucaoOS NÃO exibem badge com texto "Atividade"', () => {
+    const fakeOSAtividade = {
+      id: 'os-atv-1',
+      collectionId: 'ordens_servico',
+      collectionName: 'ordens_servico',
+      created: '2026-04-10T08:00:00.000Z',
+      updated: '2026-04-10T08:00:00.000Z',
+      cliente_id: 'cli-1',
+      tipo_servico: 'Limpeza e Manutenção Preventiva',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: '2026-04-10 09:00:00.000Z',
+      duracao_minutos: 60,
+      endereco: 'Rua das Flores, 100',
+      expand: {
+        cliente_id: {
+          id: 'cli-1',
+          nome: 'Cliente Usina Teste',
+        },
+      },
+    }
+
+    const html = renderToStaticMarkup(
+      React.createElement(CalendarioExecucaoOS, {
+        ordens: [fakeOSAtividade as any],
+        onSelectOS: () => {},
+      }),
+    )
+
+    expect(html).toContain('Cliente Usina Teste')
+    // Não deve conter o badge "Atividade" nos cards
+    expect(html).not.toMatch(
+      /<span[^>]*class="[^"]*text-\[8px\][^"]*"[^>]*>\s*Atividade\s*<\/span>/,
+    )
+    expect(html).not.toContain('>Atividade<')
   })
 
   it('montagem REAL no DOM na rota "/comercial" com perfil admin NÃO cai no ErrorBoundary e renderiza conteúdo', async () => {
