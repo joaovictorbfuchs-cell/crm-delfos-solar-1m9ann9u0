@@ -769,7 +769,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
               <div
                 key={usina.id}
                 onClick={() => handleOpenFichaUsina(usina)}
-                className="group relative rounded-2xl border border-slate-200 bg-white hover:border-[#0F2038]/40 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden p-4 space-y-3"
+                className="group relative border-slate-200 hover:border-[#0F2038]/40 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden p-4 space-y-3 bg-[#ebf3e9] border-[3.1px] rounded-[6px]"
               >
                 {/* Linha superior: Título da usina, badges e botão ver ficha */}
                 <div className="flex items-start justify-between gap-3">
