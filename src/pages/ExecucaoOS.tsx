@@ -202,7 +202,12 @@ export default function ExecucaoOS() {
           const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
           const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
 
-          const tipoServico = mapTipoAtividadeParaTipoServico(atv.tipo)
+          // Preserva o título/tipo real da atividade de manutenção (ex: "Manutenção Preventiva", "Manutenção Corretiva")
+          // Fallback para o tipo mapeado se não houver título
+          const tipoServico =
+            atv.titulo && atv.titulo.trim().length > 0
+              ? atv.titulo.trim()
+              : mapTipoAtividadeParaTipoServico(atv.tipo)
           const status = mapStatusAtividadeParaOSStatus(atv.status)
 
           return {

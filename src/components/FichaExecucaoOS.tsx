@@ -349,9 +349,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }, [os.usina_id, os.expand?.usina_id, os.cliente_id])
 
-  // Procedimentos do catálogo de atividades
+  // Procedimentos e checklist do catálogo de atividades
   useEffect(() => {
-    // Buscar procedimentos técnicos padrão no Catálogo de Atividades (tipos_atividades_custom)
+    // Buscar procedimentos técnicos padrão e checklist customizado no Catálogo de Atividades (tipos_atividades_custom)
     setLoadingCatalogo(true)
     import('@/services/crmService')
       .then(({ fetchTiposAtividadesCustom }) => fetchTiposAtividadesCustom())
@@ -360,6 +360,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         const match = (tipos || []).find((t) => {
           const n = (t.nome || '').toLowerCase()
           return (
+            n === tipoNome ||
             n.includes(tipoNome) ||
             tipoNome.includes(n) ||
             (tipoNome === 'limpeza' && n.includes('lavagem')) ||
@@ -368,6 +369,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               (n.includes('datalogger') || n.includes('configuração')))
           )
         })
+
         if (match?.orientacoes_tecnicas) {
           setOrientacoesCatalogo(match.orientacoes_tecnicas)
           // Se as instruções da OS estiverem vazias, preenche com as orientações do catálogo
@@ -375,10 +377,31 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             prev && prev.trim() ? prev : match.orientacoes_tecnicas || '',
           )
         }
+
+        // Se a OS tem origem em 'atividades' e não veio com checklist salvo no próprio registro,
+        // carregar o checklist configurado para o tipo exato da atividade em tipos_atividades_custom
+        if (
+          os.origem === 'atividades' &&
+          (!os.checklist || !Array.isArray(os.checklist) || os.checklist.length === 0)
+        ) {
+          if (match?.checklist && Array.isArray(match.checklist) && match.checklist.length > 0) {
+            const mappedChecklist: OSChecklistItem[] = match.checklist.map(
+              (item: any, idx: number) => ({
+                id: item.id || `chk_${idx + 1}`,
+                item: item.texto || item.item || `Item ${idx + 1}`,
+                concluido: Boolean(item.concluido),
+              }),
+            )
+            setChecklist(mappedChecklist)
+          } else {
+            // Se o tipo customizado de atividade não definiu checklist JSON, usa o checklist do tipo real (ex: Manutenção)
+            setChecklist(getDefaultChecklist((os.tipo_servico as any) || 'Manutenção'))
+          }
+        }
       })
       .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
       .finally(() => setLoadingCatalogo(false))
-  }, [os.cliente_id, os.tipo_servico])
+  }, [os.cliente_id, os.tipo_servico, os.origem, os.checklist])
 
   // Reabrir Ordem de Serviço (apenas Admin)
   const handleReabrirOS = async () => {

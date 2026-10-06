@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/formatters'
 import { updateOrdemServico } from '@/services/crmService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
+import { somarMinutos, minutesToTimeString, timeStringToMinutes } from '@/lib/horarios'
 import { useToast } from '@/hooks/use-toast'
 
 interface CalendarioExecucaoOSProps {
@@ -101,6 +102,38 @@ export const TIPO_SERVICO_CORES: Record<
     hex: '#A855F7',
     pillBg: 'rgba(168, 85, 247, 0.14)',
   },
+}
+
+/**
+ * Resolve a estilização visual (cor/badge/borda) para qualquer tipo de serviço ou título customizado
+ */
+export function getTipoServicoConfig(tipoNome?: string) {
+  if (!tipoNome) return TIPO_SERVICO_CORES['Manutenção']
+  if (TIPO_SERVICO_CORES[tipoNome]) {
+    return TIPO_SERVICO_CORES[tipoNome]
+  }
+  const lower = tipoNome.toLowerCase()
+  if (
+    lower.includes('manuten') ||
+    lower.includes('revis') ||
+    lower.includes('corretiv') ||
+    lower.includes('preventiv')
+  ) {
+    return TIPO_SERVICO_CORES['Manutenção']
+  }
+  if (lower.includes('instal')) {
+    return TIPO_SERVICO_CORES['Instalação']
+  }
+  if (lower.includes('garantia') || lower.includes('laudo')) {
+    return TIPO_SERVICO_CORES['Garantia']
+  }
+  if (lower.includes('datalogger') || lower.includes('configur') || lower.includes('antena')) {
+    return TIPO_SERVICO_CORES['Configuração de Datalogger']
+  }
+  if (lower.includes('limp') || lower.includes('lavag')) {
+    return TIPO_SERVICO_CORES['Limpeza']
+  }
+  return TIPO_SERVICO_CORES['Manutenção']
 }
 
 const MESES = [
@@ -203,7 +236,15 @@ export function CalendarioExecucaoOS({
 
   // Overrides locais para drag & drop e resize imediatos
   const [overrides, setOverrides] = useState<
-    Record<string, { data_agendada?: string; duracao_minutos?: number }>
+    Record<
+      string,
+      {
+        data_agendada?: string
+        duracao_minutos?: number
+        horario_inicio?: string
+        horario_fim?: string
+      }
+    >
   >({})
 
   // Estado de Drag & Drop
@@ -297,6 +338,9 @@ export function CalendarioExecucaoOS({
       return {
         ...os,
         data_agendada: ov.data_agendada ?? os.data_agendada,
+        duracao_minutos: ov.duracao_minutos ?? os.duracao_minutos,
+        horario_inicio: ov.horario_inicio ?? os.horario_inicio,
+        horario_fim: ov.horario_fim ?? os.horario_fim,
         tempo_previsto_minutos: ov.duracao_minutos ?? os.tempo_previsto_minutos,
       }
     })
@@ -338,22 +382,43 @@ export function CalendarioExecucaoOS({
     const os = ordensMescladas.find((o) => o?.id === osId)
     if (!os) return
 
-    // Preserva minutos originais arredondados para múltiplos de 5
-    let minutos = 0
-    if (os.data_agendada && os.data_agendada.length >= 16) {
-      const rawMin = parseInt(os.data_agendada.slice(14, 16), 10) || 0
-      minutos = Math.min(55, Math.max(0, Math.round(rawMin / 5) * 5))
+    // Detecta se a posição do mouse dentro do slot indica primeira metade (0-29px) ou segunda metade (>=28px)
+    const targetElement = e.currentTarget as HTMLElement
+    const rect = targetElement.getBoundingClientRect()
+    const relativeY = e.clientY - rect.top
+    const isSecondHalf = relativeY >= ALTURA_HORA_PX / 2
+
+    // Snap de 30 em 30 minutos para atividades de manutenção (00 ou 30)
+    let minutos = isSecondHalf ? 30 : 0
+
+    // Se for OS real (não-atividade), preserva minutos originais arredondados para múltiplos de 5 caso não seja snap
+    if (os.origem !== 'atividades') {
+      if (os.data_agendada && os.data_agendada.length >= 16) {
+        const rawMin = parseInt(os.data_agendada.slice(14, 16), 10) || 0
+        minutos = Math.min(55, Math.max(0, Math.round(rawMin / 5) * 5))
+      }
     }
 
     const horaFormatada = String(targetHora).padStart(2, '0')
     const minutoFormatado = String(minutos).padStart(2, '0')
+    const horarioInicioStr = `${horaFormatada}:${minutoFormatado}`
     // Padrão PocketBase (YYYY-MM-DD HH:mm:00)
     const novaDataIso = `${targetDateKey} ${horaFormatada}:${minutoFormatado}:00`
+
+    // Duração atual da atividade (mantida durante o drag)
+    const duracaoAtual = getDuracaoMinutosOS(os)
+    const horarioFimStr = somarMinutos(horarioInicioStr, duracaoAtual)
 
     // Atualização otimista
     setOverrides((prev) => ({
       ...prev,
-      [osId]: { ...prev[osId], data_agendada: novaDataIso },
+      [osId]: {
+        ...prev[osId],
+        data_agendada: novaDataIso,
+        horario_inicio: horarioInicioStr,
+        horario_fim: horarioFimStr,
+        duracao_minutos: duracaoAtual,
+      },
     }))
 
     try {
@@ -362,12 +427,15 @@ export function CalendarioExecucaoOS({
       }
       if (os.origem === 'atividades') {
         payload.origem = 'atividades'
+        payload.horario_inicio = horarioInicioStr
+        payload.horario_fim = horarioFimStr
+        payload.duracao_minutos = duracaoAtual
       }
 
       const updated = await updateOrdemServico(osId, payload)
       toast({
         title: 'Horário reagendado com sucesso! 📅',
-        description: `Agendado para ${targetDateKey.split('-').reverse().join('/')} às ${horaFormatada}:${minutoFormatado}h.`,
+        description: `Agendado para ${targetDateKey.split('-').reverse().join('/')} às ${horaFormatada}:${minutoFormatado}h (${duracaoAtual}min).`,
       })
       if (onOSUpdated) {
         onOSUpdated(updated)
@@ -398,7 +466,7 @@ export function CalendarioExecucaoOS({
   }
 
   // ==========================================================
-  // RESIZE: Ajustar duração puxando a borda inferior
+  // RESIZE: Ajustar duração puxando a borda inferior (snap 30min)
   // ==========================================================
   const handleResizeStart = (e: React.MouseEvent, os: OrdemServico) => {
     e.stopPropagation()
@@ -419,11 +487,11 @@ export function CalendarioExecucaoOS({
       const deltaY = e.clientY - resizing.startY
       // Cada ALTURA_HORA_PX equivale a 60 minutos
       const deltaMinutos = (deltaY / ALTURA_HORA_PX) * 60
-      // Ajusta em blocos de 15 minutos
       const novaDuracaoCalculada = resizing.startDuracao + deltaMinutos
-      const duracaoBlocos15 = Math.round(novaDuracaoCalculada / 15) * 15
-      // Limites: mínimo 15 min, máximo 480 min (8h)
-      const duracaoFinal = Math.min(480, Math.max(15, duracaoBlocos15))
+
+      // Snap de 30 em 30 minutos (mínimo 30min, máximo 480min)
+      const duracaoBlocos30 = Math.round(novaDuracaoCalculada / 30) * 30
+      const duracaoFinal = Math.min(480, Math.max(30, duracaoBlocos30))
 
       setResizing((prev) => (prev ? { ...prev, currentDuracao: duracaoFinal } : null))
 
@@ -445,9 +513,20 @@ export function CalendarioExecucaoOS({
       const os = ordensMescladas.find((o) => o?.id === targetOSId)
       if (!os) return
 
+      // Recalcula horário de início e fim da atividade com base na data_agendada e na nova duração
+      const horarioInicioAtual =
+        os.horario_inicio ||
+        (os.data_agendada && os.data_agendada.length >= 16
+          ? os.data_agendada.replace(' ', 'T').slice(11, 16)
+          : '08:00')
+      const novoHorarioFim = somarMinutos(horarioInicioAtual, duracaoFinal)
+
       try {
         const payload: Partial<OrdemServico> = {
           tempo_previsto_minutos: duracaoFinal,
+          duracao_minutos: duracaoFinal,
+          horario_inicio: horarioInicioAtual,
+          horario_fim: novoHorarioFim,
         }
         if (os.origem === 'atividades') {
           payload.origem = 'atividades'
@@ -457,7 +536,7 @@ export function CalendarioExecucaoOS({
 
         toast({
           title: 'Duração atualizada! ⏱️',
-          description: `Tempo previsto ajustado para ${duracaoFinal} minutos.`,
+          description: `Tempo previsto ajustado para ${duracaoFinal} minutos (término às ${novoHorarioFim}).`,
         })
 
         if (onOSUpdated) {
@@ -989,8 +1068,7 @@ export function CalendarioExecucaoOS({
                       {dayOrdens.slice(0, 3).map((os) => {
                         if (!os) return null
                         const tipoServico = os.tipo_servico || 'Manutenção'
-                        const tipoConfig =
-                          TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
+                        const tipoConfig = getTipoServicoConfig(tipoServico)
                         const horario = extractHorario(os.data_agendada)
                         const clienteNome =
                           os.expand?.cliente_id?.nome ||
@@ -1125,8 +1203,7 @@ export function CalendarioExecucaoOS({
                       ) : (
                         diaInteiro.map((os) => {
                           const tipoServico = os.tipo_servico || 'Manutenção'
-                          const tipoConfig =
-                            TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
+                          const tipoConfig = getTipoServicoConfig(tipoServico)
                           const clienteNome =
                             os.expand?.cliente_id?.nome ||
                             os.expand?.cliente_id?.razao_social ||
@@ -1277,8 +1354,7 @@ export function CalendarioExecucaoOS({
                     {comHorario.map((item) => {
                       const os = item.os
                       const tipoServico = os.tipo_servico || 'Manutenção'
-                      const tipoConfig =
-                        TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
+                      const tipoConfig = getTipoServicoConfig(tipoServico)
                       const isConcluida = os.status === 'concluida'
                       const isDragging = draggingOSId === os.id
                       const isBeingResized = resizing?.osId === os.id
@@ -1369,13 +1445,13 @@ export function CalendarioExecucaoOS({
                             )}
                           </div>
 
-                          {/* Alça inferior de redimensionamento (resize handle de 15 em 15 min) */}
+                          {/* Alça inferior de redimensionamento (resize handle de 30 em 30 min) */}
                           <div
                             onMouseDown={(e) => handleResizeStart(e, os)}
-                            className="w-full h-2 cursor-ns-resize flex items-center justify-center hover:bg-emerald-200/50 rounded-b transition-colors -mb-1 -mx-1"
-                            title="Arraste para aumentar ou reduzir o tempo previsto (blocos de 15 min)"
+                            className="w-full h-2.5 cursor-ns-resize flex items-center justify-center hover:bg-emerald-200/60 rounded-b transition-colors -mb-1 -mx-1"
+                            title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
                           >
-                            <div className="w-6 h-1 rounded-full bg-gray-300 group-hover:bg-emerald-600 transition-colors" />
+                            <div className="w-8 h-1 rounded-full bg-gray-300 group-hover:bg-emerald-600 transition-colors" />
                           </div>
                         </div>
                       )
@@ -1459,8 +1535,7 @@ export function CalendarioExecucaoOS({
               {ordensDiaSelecionado.map((os) => {
                 if (!os) return null
                 const tipoServico = os.tipo_servico || 'Manutenção'
-                const tipoConfig =
-                  TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
+                const tipoConfig = getTipoServicoConfig(tipoServico)
                 const horario = extractHorario(os.data_agendada)
                 const clienteNome =
                   os.expand?.cliente_id?.nome ||
@@ -1601,8 +1676,7 @@ export function CalendarioExecucaoOS({
               {ordensDiaSelecionado.map((os) => {
                 if (!os) return null
                 const tipoServico = os.tipo_servico || 'Manutenção'
-                const tipoConfig =
-                  TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
+                const tipoConfig = getTipoServicoConfig(tipoServico)
                 const horario = extractHorario(os.data_agendada)
                 const clienteNome =
                   os.expand?.cliente_id?.nome ||

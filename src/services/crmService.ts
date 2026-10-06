@@ -3458,6 +3458,26 @@ async function updateAtividadeComoOrdemServico(
     payloadAtividade.responsavel_nome = data.atribuida_a || ''
   }
 
+  // Horários e Duração de manutenção
+  if (data.horario_inicio !== undefined) {
+    payloadAtividade.horario_inicio = data.horario_inicio || ''
+  }
+  if (data.horario_fim !== undefined) {
+    payloadAtividade.horario_fim = data.horario_fim || ''
+  }
+  if (data.duracao_minutos !== undefined || (data as any).tempo_previsto_minutos !== undefined) {
+    const dur =
+      typeof data.duracao_minutos === 'number'
+        ? data.duracao_minutos
+        : typeof (data as any).tempo_previsto_minutos === 'number'
+          ? (data as any).tempo_previsto_minutos
+          : 0
+    payloadAtividade.duracao_minutos = dur
+  }
+  if (data.data_agendada) {
+    payloadAtividade.data = data.data_agendada
+  }
+
   // Arquivo de cronograma ou medidor se vier arquivo
   const fileToUpload = relatorioPdfFile || (newPhotos && newPhotos[0])
   let atvRecord: any
@@ -3518,7 +3538,17 @@ async function updateAtividadeComoOrdemServico(
     collectionName: atvRecord.collectionName || 'atividades',
     cliente_id: atvRecord.cliente_id,
     usina_id: atvRecord.usina_id || undefined,
-    tipo_servico: data.tipo_servico || atvRecord.titulo || 'Manutenção',
+    tipo_servico: atvRecord.titulo || data.tipo_servico || 'Manutenção',
+    horario_inicio:
+      atvRecord.horario_inicio ||
+      (atvRecord.data && atvRecord.data.length >= 16
+        ? atvRecord.data.replace(' ', 'T').slice(11, 16)
+        : undefined),
+    horario_fim: atvRecord.horario_fim || undefined,
+    duracao_minutos:
+      typeof atvRecord.duracao_minutos === 'number'
+        ? atvRecord.duracao_minutos
+        : (data.duracao_minutos ?? (data as any).tempo_previsto_minutos ?? undefined),
     endereco,
     data_agendada: atvRecord.data || atvRecord.created,
     status: osStatus,
