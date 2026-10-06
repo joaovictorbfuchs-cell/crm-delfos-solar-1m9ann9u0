@@ -1285,48 +1285,6 @@ export function CalendarioExecucaoOS({
         <div className="flex items-center gap-1.5 shrink-0 justify-end">{rightActionsSlot}</div>
       </div>
 
-      {/* Legenda de Tipos de Serviço Compacta em Linha Única */}
-      <div className="bg-white rounded-xl px-2.5 py-1 border border-gray-200/90 shadow-2xs flex items-center justify-between gap-2 overflow-x-auto">
-        <div className="flex items-center gap-3 sm:gap-4 text-xs shrink-0 flex-nowrap">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
-            Legenda:
-          </span>
-          {(() => {
-            // Deduplica itens da legenda para mostrar uma vez cada rótulo canônico
-            const exibidos = new Set<string>()
-            const itensLegenda = [
-              TIPO_SERVICO_CORES['Manutenção Preventiva'],
-              TIPO_SERVICO_CORES['Manutenção Corretiva'],
-              TIPO_SERVICO_CORES['Visita Técnica'],
-              TIPO_SERVICO_CORES['Garantia de Equipamento'],
-              TIPO_SERVICO_CORES['Configuração Datalogger'],
-              TIPO_SERVICO_CORES['Instalação'],
-              TIPO_SERVICO_CORES['Limpeza'],
-            ]
-            return itensLegenda.map((config) => {
-              if (exibidos.has(config.nome)) return null
-              exibidos.add(config.nome)
-              return (
-                <div
-                  key={config.nome}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-700 shrink-0"
-                >
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: config.hex }}
-                  />
-                  <span className="whitespace-nowrap">{config.nome}</span>
-                </div>
-              )
-            })
-          })()}
-        </div>
-
-        <div className="hidden md:flex items-center gap-1 text-[10px] text-gray-400 font-medium shrink-0 ml-auto pl-2 border-l border-gray-100">
-          <span>06:00 – 22:00</span>
-        </div>
-      </div>
-
       {/* ========================================================== */}
       {/* VISÃO 1: MÊS (Grade com 7 colunas, domingo a sábado)        */}
       {/* ========================================================== */}

@@ -960,4 +960,40 @@ describe('Login e App Smoke Tests', () => {
     )
     expect(container?.textContent).not.toContain('Ops! Algo deu errado')
   })
+
+  it('calendário em /servicos-campo NÃO renderiza a barra de Legenda (removida a pedido do usuário)', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-admin-sem-legenda', {
+      id: 'usr-admin-sem-legenda',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Gestor Sem Legenda',
+      email: 'gestor.sem.legenda@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    window.history.pushState({}, 'Serviços de Campo', '/servicos-campo')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+    expect(container).not.toBeNull()
+
+    const textContent = container?.textContent || ''
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar Serviços de Campo')
+    expect(textContent).not.toContain('Ops! Algo deu errado')
+    // Garante que a barra de legenda "Legenda:" não existe no calendário
+    expect(textContent).not.toContain('Legenda:')
+  })
 })
