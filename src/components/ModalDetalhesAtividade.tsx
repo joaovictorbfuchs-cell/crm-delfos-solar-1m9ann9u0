@@ -22,13 +22,21 @@ import {
   Trash2,
   Layers,
   FileCheck,
+  Sun,
 } from 'lucide-react'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalEnviarLembreteAutoLeituraWhatsApp } from './ModalEnviarLembreteAutoLeituraWhatsApp'
 import { ModalRegistrarDadosLeitura } from './ModalRegistrarDadosLeitura'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
-import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+import {
+  ATIVIDADES_12_TIPOS,
+  getTipoAtividadeConfig,
+  isCategoriaManutencaoOuAdministrativa,
+  MSG_USINA_OBRIGATORIA,
+} from '@/constants/atividadesTipos'
+import { fetchUsinasByClienteId } from '@/services/crmService'
+import type { UsinaCliente } from '@/types/crm'
 import {
   somarMinutos,
   calcularDiferencaMinutos,
@@ -80,6 +88,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState<AtividadeTipo>('contato_ligacao')
   const [clienteId, setClienteId] = useState('')
+  const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>([])
+  const [selectedUsinaId, setSelectedUsinaId] = useState<string>('')
   const [dataHora, setDataHora] = useState('')
   // Campos de início, fim e duração prevista para atividades de manutenção
   const [horarioInicio, setHorarioInicio] = useState<string>('08:00')
@@ -149,6 +159,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       const tipoAtv = atividade.tipo || 'contato_ligacao'
       setTipo(tipoAtv)
       setClienteId(atividade.cliente_id || '')
+      setSelectedUsinaId(atividade.usina_id || '')
       const dtLocal = toDateTimeLocalValue(atividade.data || atividade.created)
       setDataHora(dtLocal)
 
@@ -196,6 +207,31 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setShowSuccessBadge(false)
     }
   }, [isOpen, atividade])
+
+  // Carrega usinas do cliente selecionado para permitir seleção e validação
+  useEffect(() => {
+    if (!isOpen || !clienteId) {
+      setUsinasDoCliente([])
+      return
+    }
+    let isMounted = true
+    fetchUsinasByClienteId(clienteId)
+      .then((lista) => {
+        if (!isMounted) return
+        setUsinasDoCliente(lista || [])
+        // Se ainda não tiver usina selecionada e a atividade tiver apenas 1 usina cadastrada
+        if (!selectedUsinaId && lista && lista.length === 1) {
+          setSelectedUsinaId(lista[0].id)
+        }
+      })
+      .catch((err) => {
+        console.warn('Erro ao buscar usinas do cliente no modal de detalhes:', err)
+        if (isMounted) setUsinasDoCliente([])
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [isOpen, clienteId, selectedUsinaId])
 
   if (!isOpen || !atividade) return null
 
@@ -320,6 +356,16 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       newErrors.responsavel = 'Selecione um usuário responsável.'
     }
 
+    // Validação de usina obrigatória para atividades de manutenção e administrativas
+    const precisaUsina = isCategoriaManutencaoOuAdministrativa(configAtual.categoria)
+    const usinaIdLimpaValidacao =
+      selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : ''
+
+    if (precisaUsina && !usinaIdLimpaValidacao) {
+      setFormError(MSG_USINA_OBRIGATORIA)
+      return false
+    }
+
     // Auto Leitura RGE precisa de pelo menos 1 data de leitura
     if (isAutoLeitura && datasLeituraAutoLeitura.length === 0) {
       setFormError('Informe pelo menos uma data de leitura para a Auto Leitura RGE.')
@@ -348,10 +394,13 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       const isoDate = dataHora ? new Date(dataHora).toISOString() : new Date().toISOString()
       const isManutencao = configAtual.categoria === 'manutencao'
 
+      const usinaIdLimpa = selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : null
+
       const payload: Record<string, unknown> = {
         titulo: titulo.trim(),
         tipo,
         cliente_id: clienteId,
+        usina_id: usinaIdLimpa,
         data: isoDate,
         ...(isManutencao
           ? {
@@ -404,7 +453,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
           {
             maeId: atividade.id,
             clienteId,
-            usinaId: atividade.usina_id,
+            usinaId: usinaIdLimpa || atividade.usina_id,
             numeroUc: numeroUc || atividade.numero_uc,
             datasLeitura: datasLeituraAutoLeitura,
             responsavelId,
@@ -631,6 +680,57 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               error={Boolean(errors.cliente)}
             />
             {errors.cliente && <p className="text-[11px] text-red-600 mt-0.5">{errors.cliente}</p>}
+          </div>
+
+          {/* Campo de Vínculo de Usina (obrigatória para manutenção e administrativa) */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                <span>Usina Vinculada</span>
+                {isCategoriaManutencaoOuAdministrativa(configAtual.categoria) ? (
+                  <span className="text-red-500">*</span>
+                ) : (
+                  <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                )}
+              </label>
+              {isCategoriaManutencaoOuAdministrativa(configAtual.categoria) && (
+                <span className="text-[10px] text-amber-700 font-medium">
+                  Obrigatória para{' '}
+                  {configAtual.categoria === 'manutencao' ? 'manutenção' : 'administrativa'}
+                </span>
+              )}
+            </div>
+
+            {usinasDoCliente.length === 0 ? (
+              <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-500 text-xs flex items-center justify-between">
+                <span>Nenhuma usina encontrada para este cliente.</span>
+                {isCategoriaManutencaoOuAdministrativa(configAtual.categoria) && (
+                  <span className="text-[11px] text-red-600 font-semibold">Usina obrigatória</span>
+                )}
+              </div>
+            ) : (
+              <select
+                value={selectedUsinaId}
+                onChange={(e) => {
+                  setSelectedUsinaId(e.target.value)
+                  if (formError === MSG_USINA_OBRIGATORIA) setFormError(null)
+                }}
+                required={isCategoriaManutencaoOuAdministrativa(configAtual.categoria)}
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+              >
+                <option value="">
+                  {isCategoriaManutencaoOuAdministrativa(configAtual.categoria)
+                    ? 'Selecione a usina (obrigatória)...'
+                    : 'Nenhuma usina vinculada (geral do cliente)'}
+                </option>
+                {usinasDoCliente.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* 4. Grid de Data/Hora e Responsável */}

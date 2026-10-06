@@ -64,6 +64,7 @@ import {
   EyeOff,
 } from 'lucide-react'
 import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
+import { BlocoAnotacoesUsina } from '@/components/BlocoAnotacoesUsina'
 import { SecaoDocumentosUsina } from '@/components/SecaoDocumentosUsina'
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
@@ -2118,6 +2119,13 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     encontrarDatasheetModuloUsina={encontrarDatasheetModuloUsina}
                     encontrarEquipamentoComDatasheet={encontrarEquipamentoComDatasheet}
                     onCloseModalUsina={() => setUsinaDetalhes(null)}
+                  />
+
+                  {/* Anotações da Usina (Histórico Operacional, Observações e Notas Técnicas) */}
+                  <BlocoAnotacoesUsina
+                    usina={usinaDetalhes}
+                    clienteId={clienteId}
+                    clienteNome={clienteNome}
                   />
 
                   {/* Documentos da Usina (Upload Múltiplo, Descrição por Documento, Lightbox & Download) */}

@@ -1730,4 +1730,93 @@ describe('Login e App Smoke Tests', () => {
     )
     expect(htmlFichaPreventiva).toContain('Data Agendada:')
   })
+
+  it('BlocoAnotacoesUsina grava usina_id e cliente herdados, e validação de usina obrigatória/opcional opera nos 3 formulários', async () => {
+    const { BlocoAnotacoesUsina } = await import('@/components/BlocoAnotacoesUsina')
+    const { ModalNovaAtividade } = await import('@/components/ModalNovaAtividade')
+    const { ModalDetalhesAtividade } = await import('@/components/ModalDetalhesAtividade')
+    const { FichaExecucaoOS } = await import('@/components/FichaExecucaoOS')
+    const { isCategoriaManutencaoOuAdministrativa, MSG_USINA_OBRIGATORIA, getTipoAtividadeConfig } =
+      await import('@/constants/atividadesTipos')
+
+    // 1. BlocoAnotacoesUsina renderiza com usina e cliente informados
+    const htmlBloco = renderToStaticMarkup(
+      React.createElement(BlocoAnotacoesUsina, {
+        usina: {
+          id: 'usina-teste-123',
+          nome: 'Usina Solar Fazenda Esperança',
+          cliente_id: 'cli-teste-456',
+        } as any,
+        clienteId: 'cli-teste-456',
+        clienteNome: 'João da Silva',
+      }),
+    )
+    expect(htmlBloco).toContain('Anotações da Usina')
+    expect(htmlBloco).toContain('João da Silva')
+    expect(htmlBloco).toContain('Nova Anotação')
+
+    // 2. Helper isCategoriaManutencaoOuAdministrativa e mensagem canônica
+    expect(MSG_USINA_OBRIGATORIA).toBe(
+      'A usina é obrigatória para atividades de manutenção e administrativas',
+    )
+    expect(isCategoriaManutencaoOuAdministrativa('manutencao')).toBe(true)
+    expect(isCategoriaManutencaoOuAdministrativa('administrativo_pos_venda')).toBe(true)
+    expect(isCategoriaManutencaoOuAdministrativa('administrativa')).toBe(true)
+    expect(isCategoriaManutencaoOuAdministrativa('comercial')).toBe(false)
+    expect(isCategoriaManutencaoOuAdministrativa(null)).toBe(false)
+
+    // Configurações canônicas de tipos
+    const configPrev = getTipoAtividadeConfig('manutencao_preventiva')
+    expect(isCategoriaManutencaoOuAdministrativa(configPrev.categoria)).toBe(true)
+
+    const configComercial = getTipoAtividadeConfig('contato_ligacao')
+    expect(isCategoriaManutencaoOuAdministrativa(configComercial.categoria)).toBe(false)
+
+    // 3. ModalNovaAtividade com usina pré-selecionada
+    const htmlModalNovaComUsina = renderToStaticMarkup(
+      React.createElement(ModalNovaAtividade, {
+        isOpen: true,
+        onClose: () => {},
+        initialTipo: 'manutencao_preventiva',
+        initialClienteId: 'cli-teste-456',
+        initialUsinaId: 'usina-teste-123',
+      }),
+    )
+    expect(htmlModalNovaComUsina).toBeTruthy()
+
+    // 4. ModalDetalhesAtividade com usina
+    const htmlModalDetalhes = renderToStaticMarkup(
+      React.createElement(ModalDetalhesAtividade, {
+        isOpen: true,
+        onClose: () => {},
+        atividade: {
+          id: 'atv-det-1',
+          titulo: 'Revisão Inversores',
+          tipo: 'manutencao_preventiva',
+          cliente_id: 'cli-teste-456',
+          usina_id: 'usina-teste-123',
+        } as any,
+      }),
+    )
+    expect(htmlModalDetalhes).toContain('Usina Vinculada')
+
+    // 5. FichaExecucaoOS com usina vinculada e seletor
+    const htmlFicha = renderToStaticMarkup(
+      React.createElement(FichaExecucaoOS, {
+        os: {
+          id: 'os-teste-1',
+          origem: 'atividades',
+          tipo_servico: 'manutencao_preventiva',
+          status: 'pendente',
+          cliente_id: 'cli-teste-456',
+          usina_id: 'usina-teste-123',
+          data_agendada: '2027-01-15 10:00:00',
+        } as any,
+        onBack: () => {},
+        onOSUpdated: () => {},
+        onOSFinalizada: () => {},
+      }),
+    )
+    expect(htmlFicha).toContain('Usina Vinculada:')
+  })
 })

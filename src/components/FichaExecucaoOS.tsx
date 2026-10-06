@@ -62,6 +62,13 @@ import {
   MINUTOS_PASSO_5,
   DURACOES_PREVISTAS_SUGESTOES,
 } from '@/lib/horarios'
+import {
+  isCategoriaManutencaoOuAdministrativa,
+  MSG_USINA_OBRIGATORIA,
+  getTipoAtividadeConfig,
+} from '@/constants/atividadesTipos'
+import { fetchUsinasByClienteId } from '@/services/crmService'
+import { Sun } from 'lucide-react'
 
 import { useAuth } from '@/contexts/AuthContext'
 import type { SistemaUsuario } from '@/types/crm'
@@ -242,6 +249,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [isSalvandoAtividade, setIsSalvandoAtividade] = useState(false)
 
   const cliente: Cliente | undefined = os?.expand?.cliente_id
+  const [selectedUsinaId, setSelectedUsinaId] = useState<string>(
+    os.usina_id || (os.expand?.usina_id as any)?.id || '',
+  )
+  const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>([])
   const [usinaVinculada, setUsinaVinculada] = useState<UsinaCliente | null>(() => {
     return (os.expand?.usina_id as UsinaCliente) || null
   })
@@ -297,10 +308,61 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Carrega lista de usinas do cliente para seleção/edição e validação de usina obrigatória
+  useEffect(() => {
+    let cancelado = false
+    if (!os.cliente_id) {
+      setUsinasDoCliente([])
+      return
+    }
+    fetchUsinasByClienteId(os.cliente_id)
+      .then((lista) => {
+        if (!cancelado) {
+          setUsinasDoCliente(lista || [])
+          if (!selectedUsinaId && lista && lista.length === 1) {
+            setSelectedUsinaId(lista[0].id)
+          }
+        }
+      })
+      .catch((err) => console.warn('Erro ao carregar usinas do cliente na Ficha de OS:', err))
+    return () => {
+      cancelado = true
+    }
+  }, [os.cliente_id, selectedUsinaId])
+
+  // Determina se este item é manutenção ou administrativo exigindo usina obrigatória
+  const isManutencaoOuAdmin = React.useMemo(() => {
+    // 1. Pela categoria direta se existir
+    const cat = (os as any)?.categoria || (os as any)?.categoria_id
+    if (isCategoriaManutencaoOuAdministrativa(cat)) return true
+
+    // 2. Se a origem for 'atividades', analisa pelo tipo_servico / tipo
+    const tipoIdent = (os as any)?.tipo || os?.tipo_servico || ''
+    const conf = getTipoAtividadeConfig(tipoIdent)
+    if (isCategoriaManutencaoOuAdministrativa(conf?.categoria)) return true
+
+    // 3. Checagem por tipo_servico nominal de OS comum
+    const ts = (os?.tipo_servico || '').toLowerCase()
+    if (
+      ts.includes('manuten') ||
+      ts.includes('limpeza') ||
+      ts.includes('preventiva') ||
+      ts.includes('corretiva') ||
+      ts.includes('garantia') ||
+      ts.includes('instala') ||
+      ts.includes('datalogger') ||
+      ts.includes('administrativ')
+    ) {
+      return true
+    }
+
+    return false
+  }, [os])
+
   // Carrega dados da usina vinculada, equipamentos e catálogo de configurações de monitoramento
   useEffect(() => {
     let cancelado = false
-    const usinaId = os.usina_id || (os.expand?.usina_id as any)?.id
+    const usinaId = selectedUsinaId || os.usina_id || (os.expand?.usina_id as any)?.id
 
     async function carregarDadosUsinaOuCliente() {
       setCarregandoUsina(true)
@@ -653,6 +715,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Salvar rascunho / alterações intermediárias
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const handleSalvarRascunho = async () => {
+    if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Usina obrigatória',
+        description: MSG_USINA_OBRIGATORIA,
+      })
+      return
+    }
+
     setIsSavingDraft(true)
     try {
       const filesToUpload = novasFotos.map((nf) => nf.file)
@@ -661,6 +732,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         instrucoes: instrucoesTexto,
         checklist,
         detalhes_execucao: detalhesExecucao,
+        usina_id: selectedUsinaId || undefined,
       }
       if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
         payload.responsavel_usuario_id = responsavelId
@@ -896,6 +968,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Salvar alterações de horário e responsável diretamente pela tela da atividade
   const handleSalvarAlteracoesAtividade = async () => {
     if (!isOrigemAtividades) return
+
+    if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Usina obrigatória',
+        description: MSG_USINA_OBRIGATORIA,
+      })
+      return
+    }
+
     setIsSalvandoAtividade(true)
     try {
       const respObj = instaladores.find((i) => i.id === atividadeResponsavelId)
@@ -908,6 +990,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         horario_inicio: horarioInicio,
         horario_fim: horarioFim,
         duracao_minutos: duracaoMinutos,
+        usina_id: selectedUsinaId || null,
         responsavel_id: atividadeResponsavelId || null,
         responsavel_nome: respObj?.name || '',
       }
@@ -957,6 +1040,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Finalizar OS com geração automática de Relatório em PDF
   const handleFinalizarOS = async () => {
+    if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
+      setShowConfirmModal(false)
+      toast({
+        variant: 'destructive',
+        title: 'Usina obrigatória',
+        description: MSG_USINA_OBRIGATORIA,
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const filesToUpload = novasFotos.map((nf) => nf.file)
@@ -1381,6 +1474,43 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300/80">
               Edição Rápida de Campo
             </span>
+          </div>
+
+          {/* Seletor de Usina na Edição da Atividade */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                <span>Usina Vinculada:</span>
+                {isManutencaoOuAdmin ? (
+                  <span className="text-red-500">*</span>
+                ) : (
+                  <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                )}
+              </label>
+              {isManutencaoOuAdmin && (
+                <span className="text-[10px] text-emerald-900 font-medium">
+                  Obrigatória para manutenção
+                </span>
+              )}
+            </div>
+
+            <select
+              value={selectedUsinaId}
+              onChange={(e) => setSelectedUsinaId(e.target.value)}
+              className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+            >
+              <option value="">
+                {isManutencaoOuAdmin
+                  ? '-- Selecione a Usina (obrigatória) --'
+                  : '-- Nenhuma usina vinculada --'}
+              </option>
+              {usinasDoCliente.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

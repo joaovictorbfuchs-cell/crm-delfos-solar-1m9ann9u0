@@ -20,25 +20,13 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const anyErr = err as Record<string, unknown>
-    if (anyErr.status === 401 || anyErr.status === 403) return true
-    if (anyErr.statusCode === 401 || anyErr.statusCode === 403) return true
-    if (typeof anyErr.message === 'string') {
-      const msg = anyErr.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('the request requires higher permissions') ||
-        msg.includes('user not found')
-      ) {
-        return true
-      }
-    }
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
   }
-  return false
+  const msg = error instanceof Error ? error.message : String(error)
+  return /token|auth|unauthorized|forbidden|session/i.test(msg)
 }
 
 export function getErrorMessage(error: unknown): string {

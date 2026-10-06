@@ -33,6 +33,8 @@ import {
   getTipoAtividadeConfig,
   buildCustomTipoDef,
   deduplicarTiposAtividades,
+  isCategoriaManutencaoOuAdministrativa,
+  MSG_USINA_OBRIGATORIA,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import {
@@ -410,6 +412,16 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     }
 
     const isAutoLeitura = selectedTipo === 'auto_leitura_rge'
+
+    // Validação de usina obrigatória para manutenção e administrativa
+    const precisaUsina = isCategoriaManutencaoOuAdministrativa(selectedCategoria)
+    const usinaIdLimpaValidacao =
+      selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : ''
+
+    if (precisaUsina && !usinaIdLimpaValidacao) {
+      setFormError(MSG_USINA_OBRIGATORIA)
+      return
+    }
 
     // Validação estrita: Auto Leitura RGE exige pelo menos 1 data de leitura informada
     if (isAutoLeitura) {
@@ -865,17 +877,37 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
           {usinasDoCliente.length >= 2 && (
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
-                <span>Vincular a usina</span>
-                <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+              <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                  <span>Vincular a usina</span>
+                  {isCategoriaManutencaoOuAdministrativa(selectedCategoria) ? (
+                    <span className="text-red-500">*</span>
+                  ) : (
+                    <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                  )}
+                </span>
+                {isCategoriaManutencaoOuAdministrativa(selectedCategoria) && (
+                  <span className="text-[10px] text-amber-700 font-medium">
+                    Obrigatória para{' '}
+                    {selectedCategoria === 'manutencao' ? 'manutenção' : 'administrativa'}
+                  </span>
+                )}
               </label>
               <select
                 value={selectedUsinaId}
-                onChange={(e) => setSelectedUsinaId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedUsinaId(e.target.value)
+                  if (formError === MSG_USINA_OBRIGATORIA) setFormError(null)
+                }}
+                required={isCategoriaManutencaoOuAdministrativa(selectedCategoria)}
                 className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
               >
-                <option value="">Nenhuma usina vinculada (geral do cliente)</option>
+                <option value="">
+                  {isCategoriaManutencaoOuAdministrativa(selectedCategoria)
+                    ? 'Selecione a usina (obrigatória)...'
+                    : 'Nenhuma usina vinculada (geral do cliente)'}
+                </option>
                 {usinasDoCliente.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
@@ -884,6 +916,19 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               </select>
             </div>
           )}
+
+          {/* Alerta se a categoria exigir usina mas o cliente não tiver nenhuma usina cadastrada */}
+          {isCategoriaManutencaoOuAdministrativa(selectedCategoria) &&
+            clienteId &&
+            usinasDoCliente.length === 0 && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  O cliente selecionado não possui usinas cadastradas. Cadastre ao menos uma usina
+                  no cliente para vincular a esta atividade.
+                </span>
+              </div>
+            )}
 
           {/* Data e Hora */}
           {!isAutoLeitura && (

@@ -535,6 +535,30 @@ export function buildCustomTipoDef(record: {
 }
 
 // Mapeamento e fallback para tipos legados e dinâmicos
+/**
+ * Mensagem canônica exigida no CRM para atividades que demandam vinculação de usina.
+ */
+export const MSG_USINA_OBRIGATORIA =
+  'A usina é obrigatória para atividades de manutenção e administrativas'
+
+/**
+ * Retorna true se a categoria informada corresponder a manutenção ou administrativa
+ * (aceita os aliases 'manutencao', 'administrativo_pos_venda' e 'administrativa').
+ */
+export function isCategoriaManutencaoOuAdministrativa(
+  categoria?: AtividadeCategoriaId | string | null,
+): boolean {
+  if (!categoria) return false
+  const c = String(categoria).trim().toLowerCase()
+  return (
+    c === 'manutencao' ||
+    c === 'manutenção' ||
+    c === 'administrativo_pos_venda' ||
+    c === 'administrativa' ||
+    c === 'administrativas'
+  )
+}
+
 export function getTipoAtividadeConfig(
   tipo: AtividadeTipo | string,
   tiposCustom: TipoAtividadeDef[] = [],
