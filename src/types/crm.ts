@@ -968,6 +968,7 @@ export interface Atividade extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
+  negocio_id?: string
   usina_id?: string
   tipo: AtividadeTipo
   titulo?: string
@@ -1035,6 +1036,7 @@ export interface Atividade extends RecordModel {
   updated: string
   expand?: {
     cliente_id?: Cliente
+    negocio_id?: Negocio
     usina_id?: UsinaCliente
     responsavel_id?: SistemaUsuario
     fornecedor_id?: Fornecedor

@@ -32,6 +32,7 @@ import { Sun } from 'lucide-react'
 interface QuickAddAtividadeProps {
   clienteId: string
   usinas?: UsinaCliente[]
+  initialNegocioId?: string | null
   onSuccess?: () => void
   onOpenGerenciar?: () => void
   onSelectTipoEspecial?: (tipoId: string) => void
@@ -41,6 +42,7 @@ interface QuickAddAtividadeProps {
 export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   clienteId,
   usinas = [],
+  initialNegocioId,
   onSuccess,
   onOpenGerenciar,
   onOpenModalCompleto,
@@ -68,6 +70,47 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const [selectedUsinaId, setSelectedUsinaId] = useState<string>(() => {
     return usinas.length === 1 ? usinas[0].id : ''
   })
+  const [negociosDoCliente, setNegociosDoCliente] = useState<import('@/types/crm').Negocio[]>([])
+  const [selectedNegocioId, setSelectedNegocioId] = useState<string>(initialNegocioId || '')
+
+  // Carregar ou sincronizar negócios do cliente com sugestão inteligente de negócio único em andamento
+  useEffect(() => {
+    let isMounted = true
+    if (!clienteId) {
+      setNegociosDoCliente([])
+      setSelectedNegocioId(initialNegocioId || '')
+      return
+    }
+
+    import('@/services/negociosService').then(({ fetchNegociosByClienteId }) => {
+      fetchNegociosByClienteId(clienteId)
+        .then((lista) => {
+          if (!isMounted) return
+          setNegociosDoCliente(lista || [])
+          if (initialNegocioId && lista.some((n) => n.id === initialNegocioId)) {
+            setSelectedNegocioId(initialNegocioId)
+            return
+          }
+          const emAndamento = (lista || []).filter(
+            (n) =>
+              n.status === 'em andamento' || (!n.status && n.etapa_funil !== 'contrato assinado'),
+          )
+          if (emAndamento.length === 1) {
+            setSelectedNegocioId(emAndamento[0].id)
+          } else if (!initialNegocioId) {
+            setSelectedNegocioId('')
+          }
+        })
+        .catch((err) => {
+          console.warn('Erro ao buscar negócios no QuickAddAtividade:', err)
+          if (isMounted) setNegociosDoCliente([])
+        })
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [clienteId, initialNegocioId])
 
   // Sincronizar se lista de usinas carregar posteriormente
   useEffect(() => {
@@ -196,6 +239,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           responsavel_id: responsavelId || user?.id,
           responsavel_nome: responsavelNome,
           status: 'concluida',
+          negocio_id: selectedNegocioId || undefined,
           usina_id: selectedUsinaId || undefined,
         })
         setDescricao('')
@@ -335,6 +379,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           responsavel_id: responsavelId || user?.id || undefined,
           responsavel_nome: responsavelNome,
           status: 'pendente',
+          negocio_id: selectedNegocioId || undefined,
           usina_id: selectedUsinaId || undefined,
           ...defaultsManutencao,
         })
@@ -556,6 +601,37 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       <form onSubmit={handleSubmit} className="space-y-3">
         {mode === 'anotacao' ? (
           <div className="space-y-2">
+            {negociosDoCliente.length > 0 && (
+              <div className="p-2 rounded-xl bg-amber-50/60 border border-amber-200/80 mb-2">
+                <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between mb-1">
+                  <span className="flex items-center gap-1">
+                    <Briefcase className="w-3 h-3 text-amber-600" />
+                    <span>Vincular anotação ao negócio</span>
+                    <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                  </span>
+                  {negociosDoCliente.filter((n) => n.status === 'em andamento').length === 1 &&
+                    selectedNegocioId && (
+                      <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                        Sugerido automaticamente
+                      </span>
+                    )}
+                </label>
+                <select
+                  value={selectedNegocioId}
+                  onChange={(e) => setSelectedNegocioId(e.target.value)}
+                  className="w-full text-xs px-2.5 py-1.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-white"
+                >
+                  <option value="">Nenhum negócio vinculado (geral do cliente)</option>
+                  {negociosDoCliente.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.titulo || 'Negócio'} • {n.tipo_venda || n.tipo_negocio || 'Comercial'} [
+                      {n.status || 'em andamento'}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <label className="text-[11px] font-semibold text-gray-700 block">
               Conteúdo da Anotação
             </label>
@@ -597,6 +673,38 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                   className="w-full text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-700 bg-white"
                 />
               </div>
+
+              {/* Seletor de Vínculo de Negócio Comercial (Opcional) */}
+              {negociosDoCliente.length > 0 && (
+                <div className="sm:col-span-12 p-2 rounded-xl bg-amber-50/60 border border-amber-200/80">
+                  <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between mb-1">
+                    <span className="flex items-center gap-1">
+                      <Briefcase className="w-3 h-3 text-amber-600" />
+                      <span>Negócio Vinculado</span>
+                      <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                    </span>
+                    {negociosDoCliente.filter((n) => n.status === 'em andamento').length === 1 &&
+                      selectedNegocioId && (
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                          Sugerido automaticamente
+                        </span>
+                      )}
+                  </label>
+                  <select
+                    value={selectedNegocioId}
+                    onChange={(e) => setSelectedNegocioId(e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-white"
+                  >
+                    <option value="">Nenhum negócio vinculado (geral do cliente)</option>
+                    {negociosDoCliente.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.titulo || 'Negócio'} • {n.tipo_venda || n.tipo_negocio || 'Comercial'} [
+                        {n.status || 'em andamento'}]
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Usuário Responsável (padrão: usuário logado) */}
               <div className="sm:col-span-3">

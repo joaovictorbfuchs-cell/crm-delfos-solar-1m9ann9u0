@@ -14,6 +14,7 @@ import {
   FileText,
   Sparkles,
   AlertTriangle,
+  Briefcase,
 } from 'lucide-react'
 import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
 import { ModalCriarAnaliseFatura } from '@/components/ModalCriarAnaliseFatura'
@@ -75,6 +76,7 @@ interface ModalNovaAtividadeProps {
   initialTipo?: AtividadeTipo | null
   initialClienteId?: string | null
   initialUsinaId?: string | null
+  initialNegocioId?: string | null
   usinas?: UsinaCliente[]
   apenasManutencao?: boolean
   onAtividadeCriada?: () => void
@@ -106,6 +108,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   initialTipo,
   initialClienteId,
   initialUsinaId,
+  initialNegocioId,
   usinas: usinasProp,
   apenasManutencao = false,
   onAtividadeCriada,
@@ -125,6 +128,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [clienteId, setClienteId] = useState(initialClienteId || '')
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>(usinasProp || [])
   const [selectedUsinaId, setSelectedUsinaId] = useState<string>(initialUsinaId || '')
+  const [negociosDoCliente, setNegociosDoCliente] = useState<import('@/types/crm').Negocio[]>([])
+  const [selectedNegocioId, setSelectedNegocioId] = useState<string>(initialNegocioId || '')
   const [responsavelId, setResponsavelId] = useState('')
   const [dataHora, setDataHora] = useState(() => {
     const now = new Date()
@@ -180,6 +185,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       if (initialUsinaId) {
         setSelectedUsinaId(initialUsinaId)
       }
+      if (initialNegocioId) {
+        setSelectedNegocioId(initialNegocioId)
+      }
 
       // Reset / inicialização dos horários de manutenção: início da dataHora atual ou 08:00, fim +1h, duração 60min
       const horaPadrao = dataHora && dataHora.length >= 16 ? dataHora.slice(11, 16) : '08:00'
@@ -205,7 +213,59 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setFormError(null)
       setFormSuccess(false)
     }
-  }, [isOpen, initialTipo, initialClienteId, initialUsinaId, clientes, usuarios, user])
+  }, [
+    isOpen,
+    initialTipo,
+    initialClienteId,
+    initialUsinaId,
+    initialNegocioId,
+    clientes,
+    usuarios,
+    user,
+  ])
+
+  // Carregar ou sincronizar negócios do cliente selecionado e aplicar sugestão automática inteligente
+  useEffect(() => {
+    if (!isOpen) return
+    let isMounted = true
+
+    if (!clienteId) {
+      setNegociosDoCliente([])
+      setSelectedNegocioId(initialNegocioId || '')
+      return
+    }
+
+    import('@/services/negociosService').then(({ fetchNegociosByClienteId }) => {
+      fetchNegociosByClienteId(clienteId)
+        .then((lista) => {
+          if (!isMounted) return
+          setNegociosDoCliente(lista || [])
+          // Se initialNegocioId foi fornecido e existe nesta lista, mantém
+          if (initialNegocioId && lista.some((n) => n.id === initialNegocioId)) {
+            setSelectedNegocioId(initialNegocioId)
+            return
+          }
+          // Regra do usuário: se cliente tem UM ÚNICO negócio em andamento (não fechado/ganho, não perdido), sugere pré-selecionado
+          const emAndamento = (lista || []).filter(
+            (n) =>
+              n.status === 'em andamento' || (!n.status && n.etapa_funil !== 'contrato assinado'),
+          )
+          if (emAndamento.length === 1) {
+            setSelectedNegocioId(emAndamento[0].id)
+          } else if (!initialNegocioId) {
+            setSelectedNegocioId('')
+          }
+        })
+        .catch((err) => {
+          console.warn('Erro ao buscar negócios do cliente no ModalNovaAtividade:', err)
+          if (isMounted) setNegociosDoCliente([])
+        })
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [isOpen, clienteId, initialNegocioId])
 
   // Carregar ou sincronizar usinas do cliente selecionado
   useEffect(() => {
@@ -468,6 +528,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       // Sanitização estrita de relations (omitir completamente quando vazias para não quebrar no PocketBase)
       const usinaIdLimpa =
         selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : undefined
+      const negocioIdLimpo =
+        selectedNegocioId && selectedNegocioId.trim() ? selectedNegocioId.trim() : undefined
       const responsavelIdLimpo =
         responsavelId && responsavelId.trim() ? responsavelId.trim() : undefined
 
@@ -576,6 +638,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         status: 'pendente',
         autor: user?.name || 'João Delfos',
         usina_id: usinaIdLimpa,
+        negocio_id: negocioIdLimpo,
         numero_uc: (numeroUcAutoLeitura && numeroUcAutoLeitura.trim()) || undefined,
         ...defaultsManutencao,
       }
@@ -864,6 +927,47 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               )}
             </div>
           </div>
+
+          {/* Seletor de Vínculo de Negócio Comercial (Opcional, com auto-sugestão quando único em andamento) */}
+          {negociosDoCliente.length > 0 && (
+            <div className="space-y-1 p-3 bg-amber-50/50 rounded-xl border border-amber-200/80">
+              <label className="text-xs font-semibold text-gray-800 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Negócio Vinculado</span>
+                  <span className="text-[10px] text-gray-500 font-normal">(opcional)</span>
+                </span>
+                {negociosDoCliente.filter((n) => n.status === 'em andamento').length === 1 &&
+                  selectedNegocioId && (
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                      Sugerido automaticamente (único em andamento)
+                    </span>
+                  )}
+              </label>
+              <select
+                value={selectedNegocioId}
+                onChange={(e) => setSelectedNegocioId(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-gray-900"
+              >
+                <option value="">Nenhum negócio vinculado (geral do cliente)</option>
+                {negociosDoCliente.map((neg) => {
+                  const valorFmt = neg.valor
+                    ? new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(neg.valor)
+                    : null
+                  return (
+                    <option key={neg.id} value={neg.id}>
+                      {neg.titulo || 'Negócio'} •{' '}
+                      {neg.tipo_venda || neg.tipo_negocio || 'Comercial'} [
+                      {neg.status || 'em andamento'}] {valorFmt ? `— ${valorFmt}` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          )}
 
           {/* Campo de Vínculo de Usina Inteligente */}
           {usinasDoCliente.length === 1 && (

@@ -37,6 +37,7 @@ import {
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { formatCurrency } from '@/lib/formatters'
 import { toast } from 'sonner'
+import { SecaoAtividadesNegocio } from '@/components/SecaoAtividadesNegocio'
 
 export const ETAPAS_FUNIL_OPCOES: {
   value: EtapaFunilSelect
@@ -528,7 +529,7 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="border-b border-slate-100 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -772,6 +773,9 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
               </div>
             )}
           </div>
+
+          {/* Seção Aditiva: Atividades e Anotações deste Negócio (Etapa 2) */}
+          <SecaoAtividadesNegocio negocio={negocio} clienteNome={clienteNome} />
         </div>
 
         <DialogFooter className="flex items-center justify-between border-t border-slate-100 pt-3">

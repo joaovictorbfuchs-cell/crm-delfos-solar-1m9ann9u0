@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T23:39:21.396Z",
+  "generatedAt": "2026-10-06T23:50:59.398Z",
   "collections": [
     {
       "name": "users",
@@ -1236,13 +1236,21 @@
           "required": false,
           "system": false,
           "collectionRef": "tipos_atividades_custom"
+        },
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "negocios"
         }
       ],
       "indexes": [
         "CREATE INDEX idx_atividades_cliente_id ON atividades (cliente_id)",
         "CREATE INDEX `idx_atividades_usina_id` ON `atividades` (usina_id)",
         "CREATE INDEX `idx_atividades_parent_id` ON `atividades` (parent_id)",
-        "CREATE INDEX `idx_atividades_chave_importacao` ON `atividades` (chave_importacao)"
+        "CREATE INDEX `idx_atividades_chave_importacao` ON `atividades` (chave_importacao)",
+        "CREATE INDEX `idx_atividades_negocio_id` ON `atividades` (negocio_id)"
       ]
     },
     {

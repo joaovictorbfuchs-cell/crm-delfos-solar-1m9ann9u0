@@ -183,7 +183,7 @@ export async function fetchAtividades(): Promise<Atividade[]> {
     () =>
       pb.collection('atividades').getFullList<Atividade>({
         sort: '-data',
-        expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
+        expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
         requestKey: null,
       }),
     2,
@@ -197,12 +197,27 @@ export async function fetchAtividadesByCliente(clienteId: string): Promise<Ativi
     const records = await pb.collection('atividades').getFullList<Atividade>({
       filter: `cliente_id='${clienteId}'`,
       sort: '-data,-created',
-      expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
+      expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
       requestKey: null,
     })
     return records
   } catch (err) {
     console.error('Erro ao buscar atividades do cliente:', err)
+    return []
+  }
+}
+
+export async function fetchAtividadesByNegocio(negocioId: string): Promise<Atividade[]> {
+  try {
+    const records = await pb.collection('atividades').getFullList<Atividade>({
+      filter: `negocio_id='${negocioId}'`,
+      sort: '-data,-created',
+      expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
+      requestKey: null,
+    })
+    return records
+  } catch (err) {
+    console.error(`Erro ao buscar atividades do negócio ${negocioId}:`, err)
     return []
   }
 }
@@ -334,14 +349,14 @@ export async function createAtividade(data: {
   }
 
   const record = await pb.collection('atividades').create<Atividade>(payload as any, {
-    expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
+    expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
   })
   return record
 }
 
 export async function updateAtividade(id: string, data: Partial<Atividade>): Promise<Atividade> {
   const record = await pb.collection('atividades').update<Atividade>(id, data, {
-    expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
+    expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
   })
   return record
 }
