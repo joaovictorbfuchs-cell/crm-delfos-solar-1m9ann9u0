@@ -81,6 +81,64 @@ export interface CentralAtividadesData {
  * 2. 'manutencao' -> Atividades de Manutenção
  * 3. 'administrativo_pos_venda' -> Atividades Administrativas
  */
+/**
+ * Helper com critério estrutural (por campos, nunca por texto de título) para determinar
+ * se um registro da coleção 'atividades' é válido para exibição na Central de Atividades.
+ *
+ * Regras:
+ * a) Excluir qualquer registro onde tipo, subtipo ou tipo_unificado seja 'mudanca_estagio'.
+ * b) Excluir tipo='anotacao' com autor='Sistema Delfos' e status='concluida' sem data agendada
+ *    (registros automáticos de mesclagem de clientes).
+ * c) Excluir tipo='anotacao' com autor OU responsavel_nome='IA Extrator Delfos' sem data
+ *    (dados importados por extração de documento).
+ * d) Excluir QUALQUER registro sem o campo atv.data preenchido — regra do usuário:
+ *    "somente as que têm prazo". Por isso, a extração de data NUNCA deve usar fallback
+ *    para atv.created: dataStr = atv.data apenas.
+ */
+export function isRegistroValidoCentral(atv: Atividade): boolean {
+  if (!atv) return false
+
+  // a) Excluir registros de mudança de etapa do funil
+  const tipoStr = (atv.tipo || '').toString().toLowerCase().trim()
+  const subtipoStr = (atv.subtipo || '').toString().toLowerCase().trim()
+  const tipoUnificadoStr = (atv.tipo_unificado || '').toString().toLowerCase().trim()
+  if (
+    tipoStr === 'mudanca_estagio' ||
+    subtipoStr === 'mudanca_estagio' ||
+    tipoUnificadoStr === 'mudanca_estagio'
+  ) {
+    return false
+  }
+
+  // d) Excluir QUALQUER registro sem o campo atv.data preenchido ("somente as que têm prazo")
+  const dataPreenchida = typeof atv.data === 'string' && atv.data.trim() !== ''
+  if (!dataPreenchida) {
+    return false
+  }
+
+  // b) Excluir mesclagem de clientes: anotacao + Sistema Delfos + concluída sem data agendada
+  const autorStr = (atv.autor || '').trim()
+  const statusStr = (atv.status || '').toString().toLowerCase().trim()
+  if (
+    tipoStr === 'anotacao' &&
+    autorStr === 'Sistema Delfos' &&
+    (statusStr === 'concluida' || statusStr === 'concluido')
+  ) {
+    return false
+  }
+
+  // c) Excluir importação/extração de documentos: anotacao + IA Extrator Delfos
+  const respStr = (atv.responsavel_nome || '').trim()
+  if (
+    tipoStr === 'anotacao' &&
+    (autorStr === 'IA Extrator Delfos' || respStr === 'IA Extrator Delfos')
+  ) {
+    return false
+  }
+
+  return true
+}
+
 export function determinarCategoriaAtividade(
   fonte: CentralAtividadeFonte,
   tipo?: string,
@@ -254,7 +312,12 @@ export async function carregarCentralAtividades(
   // Caso contrário, é uma atividade CRM nativa padrão.
   if (atividadesRes.status === 'fulfilled') {
     for (const atv of atividadesRes.value) {
-      const dataStr = atv.data || atv.created
+      // Filtrar registros automáticos de sistema e sem prazo para a Central de Atividades
+      if (!isRegistroValidoCentral(atv)) {
+        continue
+      }
+
+      const dataStr = atv.data
       const cliNome = getClienteNome(atv.cliente_id)
       const usinaNome = getUsinaNome(atv.usina_id, atv.cliente_id)
       const responsavel = atv.responsavel_nome || atv.autor || 'Não atribuído'
