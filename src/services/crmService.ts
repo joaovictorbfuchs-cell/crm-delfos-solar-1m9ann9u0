@@ -3532,13 +3532,62 @@ async function updateAtividadeComoOrdemServico(
         ? 'cancelada'
         : 'pendente'
 
+  // Normalização do tipo_servico para não sobrescrever o tipo real com "Limpeza"
+  let tipoServicoResolvido: string = data.tipo_servico || ''
+  if (!tipoServicoResolvido) {
+    const rawTitulo = (atvRecord.titulo || '').trim()
+    if (rawTitulo === 'Limpeza e Manutenção') {
+      const desc = (atvRecord.descricao || '').toLowerCase()
+      if (desc.includes('corretiva')) {
+        tipoServicoResolvido = 'Manutenção Corretiva'
+      } else if (desc.includes('preventiva')) {
+        tipoServicoResolvido = 'Manutenção Preventiva'
+      } else if (
+        desc.includes('lavagem') &&
+        !desc.includes('reaperto') &&
+        !desc.includes('preventiva')
+      ) {
+        tipoServicoResolvido = 'Limpeza'
+      } else {
+        tipoServicoResolvido = 'Manutenção'
+      }
+    } else if (rawTitulo) {
+      tipoServicoResolvido = rawTitulo
+    } else {
+      switch (atvRecord.tipo) {
+        case 'limpeza_manutencao':
+          tipoServicoResolvido = 'Manutenção'
+          break
+        case 'instalacao':
+          tipoServicoResolvido = 'Instalação'
+          break
+        case 'visita_tecnica':
+          tipoServicoResolvido = 'Manutenção'
+          break
+        case 'garantia_equipamento':
+          tipoServicoResolvido = 'Garantia'
+          break
+        case 'configuracao_datalogger':
+          tipoServicoResolvido = 'Configuração de Datalogger'
+          break
+        default:
+          tipoServicoResolvido = 'Manutenção'
+      }
+    }
+  }
+
+  // Previne que "Limpeza e Manutenção" reverta para visual azul de Limpeza no refetch
+  if (tipoServicoResolvido === 'Limpeza e Manutenção') {
+    tipoServicoResolvido = 'Manutenção'
+  }
+
   return {
     id: atvRecord.id,
     collectionId: atvRecord.collectionId || 'atividades',
     collectionName: atvRecord.collectionName || 'atividades',
     cliente_id: atvRecord.cliente_id,
     usina_id: atvRecord.usina_id || undefined,
-    tipo_servico: atvRecord.titulo || data.tipo_servico || 'Manutenção',
+    tipo_servico: tipoServicoResolvido || 'Manutenção',
     horario_inicio:
       atvRecord.horario_inicio ||
       (atvRecord.data && atvRecord.data.length >= 16

@@ -558,4 +558,177 @@ describe('Login e App Smoke Tests', () => {
     expect(cardElement.textContent).toContain('MANUTENÇÃO')
     expect(cardElement.textContent).toContain('Metal Mecânica Solução Ltda.')
   })
+
+  it('(a) rótulo do card permanece "MANUTENÇÃO" (não vira "LIMPEZA") após ciclo salvar→recarregar de um drag/resize de atividade com título "Limpeza e Manutenção"', async () => {
+    const { updateOrdemServico } = await import('@/services/crmService')
+    const { getTipoServicoConfig, TIPO_SERVICO_CORES } =
+      await import('@/components/CalendarioExecucaoOS')
+
+    // 1. TIPO_SERVICO_CORES['Limpeza e Manutenção'] deve ter estilização visual de Manutenção (âmbar #F59E0B)
+    expect(TIPO_SERVICO_CORES['Limpeza e Manutenção'].hex).toBe('#F59E0B')
+    expect(TIPO_SERVICO_CORES['Limpeza e Manutenção'].borderColor).toBe('#F59E0B')
+
+    // 2. getTipoServicoConfig('Limpeza e Manutenção') deve resolver para Manutenção (âmbar #F59E0B) e NÃO Limpeza azul
+    const configMista = getTipoServicoConfig('Limpeza e Manutenção')
+    expect(configMista.hex).toBe('#F59E0B')
+    expect(configMista.borderColor).toBe('#F59E0B')
+    expect(configMista.hex).not.toBe('#0284C7')
+
+    // 3. Simulação de ciclo updateOrdemServico para atividade com título "Limpeza e Manutenção"
+    // Mock do update do PocketBase na coleção atividades retornando o registro atualizado
+    const pbAtividadesMock = {
+      update: vi.fn().mockResolvedValue({
+        id: 'atv-limpeza-manut-1',
+        collectionId: 'atividades',
+        collectionName: 'atividades',
+        cliente_id: 'cli-metal-1',
+        titulo: 'Limpeza e Manutenção',
+        tipo: 'limpeza_manutencao',
+        descricao: 'Revisão periódica dos módulos e reaperto de conexões elétricas',
+        status: 'pendente',
+        data: '2026-10-06 08:00:00.000Z',
+        horario_inicio: '08:00',
+        horario_fim: '11:00',
+        duracao_minutos: 180,
+        expand: {
+          cliente_id: {
+            id: 'cli-metal-1',
+            nome: 'Metal Mecânica Solução Ltda.',
+          },
+        },
+      }),
+    }
+
+    const { pb } = await import('@/lib/pocketbase/client')
+    const originalCollection = pb.collection.bind(pb)
+    const spyCollection = vi.spyOn(pb, 'collection').mockImplementation((colName: string) => {
+      if (colName === 'atividades') {
+        return pbAtividadesMock as any
+      }
+      return originalCollection(colName)
+    })
+
+    // Executa update como se fosse drag/resize salvando no banco
+    const osRetornada = await updateOrdemServico('atv-limpeza-manut-1', {
+      origem: 'atividades',
+      tipo_servico: 'Manutenção',
+      horario_inicio: '08:00',
+      horario_fim: '11:00',
+      duracao_minutos: 180,
+    })
+
+    // O retorno normalizado não deve ser sobrescrito para visual de limpeza
+    expect(osRetornada.tipo_servico).toBe('Manutenção')
+    expect(osRetornada.tipo_servico).not.toBe('Limpeza')
+
+    // Renderiza o card no CalendarioExecucaoOS com a OS recarregada
+    let rendered: ReturnType<typeof render> | null = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [osRetornada],
+          onSelectOS: vi.fn(),
+        }),
+      )
+    })
+
+    const container = rendered!.container
+    const cardElement = container
+      .querySelector('[data-testid="resize-handle-atv-limpeza-manut-1"]')
+      ?.closest('[style*="top"]') as HTMLElement
+
+    expect(cardElement).not.toBeNull()
+    // O rótulo exibido DEVE conter "MANUTENÇÃO" e JAMAIS "LIMPEZA"
+    expect(cardElement.textContent).toContain('MANUTENÇÃO')
+    expect(cardElement.textContent).not.toContain('LIMPEZA')
+
+    spyCollection.mockRestore()
+  })
+
+  it('(b) após resize para 180 min, o card tem altura de 3 horas na grade e sincroniza com horario_inicio e horario_fim', async () => {
+    const now = new Date()
+    const ano = now.getFullYear()
+    const mes = String(now.getMonth() + 1).padStart(2, '0')
+    const dia = String(now.getDate()).padStart(2, '0')
+    const dataHoje = `${ano}-${mes}-${dia} 08:00:00.000Z`
+
+    // Cenário: OS com duracao_minutos desatualizado (ex: 120), porém horario_inicio '08:00' e horario_fim '11:00' (180 min)
+    // A precedência dos horários e/ou duração de 180m deve calcular a altura exata de 3h:
+    // (180 / 60) * 56px - 2px = 3 * 56 - 2 = 168 - 2 = 166px
+    const osRedimensionada = {
+      id: 'os-3horas-metal',
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: 'cli-metal-3h',
+      tipo_servico: 'Manutenção',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: dataHoje,
+      horario_inicio: '08:00',
+      horario_fim: '11:00',
+      duracao_minutos: 180,
+      tempo_previsto_minutos: 180,
+      expand: {
+        cliente_id: {
+          id: 'cli-metal-3h',
+          nome: 'Metal Mecânica Solução Ltda.',
+        },
+      },
+    }
+
+    let rendered: ReturnType<typeof render> | null = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [osRedimensionada as any],
+          onSelectOS: vi.fn(),
+        }),
+      )
+    })
+
+    const container = rendered!.container
+    const resizeHandle = container.querySelector(
+      '[data-testid="resize-handle-os-3horas-metal"]',
+    ) as HTMLElement
+    expect(resizeHandle).not.toBeNull()
+
+    const cardElement = resizeHandle.closest('[style*="top"]') as HTMLElement
+    expect(cardElement).not.toBeNull()
+
+    // Altura exata de 3 horas: (180 / 60) * 56 - 2 = 166px
+    expect(cardElement.style.height).toBe('166px')
+    expect(cardElement.textContent).toContain('08:00 - 11:00')
+    expect(cardElement.textContent).toContain('180m')
+    expect(cardElement.textContent).toContain('MANUTENÇÃO')
+    expect(cardElement.textContent).not.toContain('LIMPEZA')
+
+    // Testa também o caso de duracao_minutos dessincronizado no banco (120):
+    // Como horario_inicio="08:00" e horario_fim="11:00" tem 180 min de diferença,
+    // o card NÃO fica preso em 120min (110px) e renderiza 166px
+    const osDessincronizada = {
+      ...osRedimensionada,
+      id: 'os-dessinc-3h',
+      duracao_minutos: 120, // valor desatualizado residual
+      tempo_previsto_minutos: 120,
+    }
+
+    let renderedDes: ReturnType<typeof render> | null = null
+    await act(async () => {
+      renderedDes = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [osDessincronizada as any],
+          onSelectOS: vi.fn(),
+        }),
+      )
+    })
+
+    const handleDes = renderedDes!.container.querySelector(
+      '[data-testid="resize-handle-os-dessinc-3h"]',
+    ) as HTMLElement
+    expect(handleDes).not.toBeNull()
+    const cardDes = handleDes.closest('[style*="top"]') as HTMLElement
+    expect(cardDes.style.height).toBe('166px')
+    expect(cardDes.textContent).toContain('08:00 - 11:00')
+    expect(cardDes.textContent).toContain('180m')
+  })
 })

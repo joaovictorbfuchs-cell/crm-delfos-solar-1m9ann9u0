@@ -209,14 +209,14 @@ export const TIPO_SERVICO_CORES: Record<OSTipoServico | string, TipoServicoCorCo
     pillBg: 'rgba(2, 132, 199, 0.14)',
   },
   'Limpeza e Manutenção': {
-    nome: 'Limpeza e Manutenção',
-    borderClass: 'border-l-sky-500',
-    borderColor: '#0284C7',
-    bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
-    bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
-    textClass: 'text-sky-800',
-    hex: '#0284C7',
-    pillBg: 'rgba(2, 132, 199, 0.14)',
+    nome: 'Manutenção',
+    borderClass: 'border-l-amber-500',
+    borderColor: '#F59E0B',
+    bgLightClass: 'bg-amber-50/70 hover:bg-amber-100/80',
+    bgBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+    textClass: 'text-amber-800',
+    hex: '#F59E0B',
+    pillBg: 'rgba(245, 158, 11, 0.14)',
   },
   Instalação: {
     nome: 'Instalação',
@@ -290,10 +290,15 @@ export function getTipoServicoConfig(tipoNome?: string): TipoServicoCorConfig {
     return TIPO_SERVICO_CORES['Configuração Datalogger']
   }
 
+  // Se contém "manuten" (inclusive "Limpeza e Manutenção"), classificar como Manutenção (âmbar)
+  if (lower.includes('manuten')) {
+    if (lower.includes('corretiv')) return TIPO_SERVICO_CORES['Manutenção Corretiva']
+    return TIPO_SERVICO_CORES['Manutenção Preventiva']
+  }
+
   // 5. Limpeza (apenas se for estritamente limpeza ou lavagem avulsa, NÃO mista de manutenção)
   if (
     (lower.includes('limp') || lower.includes('lavag')) &&
-    !lower.includes('manuten') &&
     !lower.includes('reaperto') &&
     !lower.includes('eletric')
   ) {
@@ -313,11 +318,6 @@ export function getTipoServicoConfig(tipoNome?: string): TipoServicoCorConfig {
     lower === 'manutenção' ||
     lower === 'manutencao'
   ) {
-    return TIPO_SERVICO_CORES['Manutenção Preventiva']
-  }
-
-  // 8. Se contém "manuten" genérico
-  if (lower.includes('manuten')) {
     return TIPO_SERVICO_CORES['Manutenção Preventiva']
   }
 
@@ -392,15 +392,10 @@ function getStartOfWeekDate(date: Date): Date {
 // ou calculada a partir de horario_inicio e horario_fim
 function getDuracaoMinutosOS(os: OrdemServico): number {
   if (!os) return DURACAO_PADRAO_MINUTOS
-  // 1. Campo explícito duracao_minutos (prioritário para atividades de manutenção)
-  if (typeof os.duracao_minutos === 'number' && os.duracao_minutos >= 15) {
-    return Math.min(480, Math.round(os.duracao_minutos))
-  }
-  // 2. Campo tempo_previsto_minutos (usado em OSs de campo)
-  if (typeof os.tempo_previsto_minutos === 'number' && os.tempo_previsto_minutos >= 15) {
-    return Math.min(480, Math.round(os.tempo_previsto_minutos))
-  }
-  // 3. Derivado de horario_inicio e horario_fim quando presentes
+
+  // 1. Derivado de horario_inicio e horario_fim quando presentes e válidos:
+  // A diferença calculada tem precedência sobre duracao_minutos desatualizado
+  // para garantir consistência visual perfeita com os horários exibidos.
   if (os.horario_inicio && os.horario_fim) {
     const minInicio = timeStringToMinutes(os.horario_inicio)
     const minFim = timeStringToMinutes(os.horario_fim)
@@ -411,6 +406,17 @@ function getDuracaoMinutosOS(os: OrdemServico): number {
       }
     }
   }
+
+  // 2. Campo explícito duracao_minutos (prioritário para atividades de manutenção)
+  if (typeof os.duracao_minutos === 'number' && os.duracao_minutos >= 15) {
+    return Math.min(480, Math.round(os.duracao_minutos))
+  }
+
+  // 3. Campo tempo_previsto_minutos (usado em OSs de campo)
+  if (typeof os.tempo_previsto_minutos === 'number' && os.tempo_previsto_minutos >= 15) {
+    return Math.min(480, Math.round(os.tempo_previsto_minutos))
+  }
+
   // 4. Metadados json em detalhes_execucao / instrucoes_seguranca
   try {
     const dados = (os.instrucoes_seguranca || os.detalhes_execucao) as any
@@ -1659,6 +1665,10 @@ export function CalendarioExecucaoOS({
                           ? os.horario_fim.slice(0, 5)
                           : '') || horaFimCalculada
 
+                      const duracaoEfetiva =
+                        isBeingResized && resizing ? resizing.currentDuracao : item.duracaoMinutos
+                      const cardHeight = Math.max(28, (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2)
+
                       const clienteNome =
                         os.expand?.cliente_id?.nome ||
                         os.expand?.cliente_id?.razao_social ||
@@ -1683,7 +1693,7 @@ export function CalendarioExecucaoOS({
                           }`}
                           style={{
                             top: `${item.top}px`,
-                            height: `${item.height}px`,
+                            height: `${cardHeight}px`,
                             borderLeftWidth: '4px',
                             borderLeftColor: isConcluida ? '#9CA3AF' : tipoConfig.hex,
                             backgroundColor: isConcluida ? '#F9FAFB' : tipoConfig.pillBg,
