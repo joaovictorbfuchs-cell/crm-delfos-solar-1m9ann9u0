@@ -214,6 +214,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           'follow_up',
           'proposta',
           'instalacao',
+          'limpeza',
+          'manutencao_preventiva',
+          'manutencao_corretiva',
           'limpeza_manutencao',
           'auto_leitura_rge',
           'ligar_indicacao',
@@ -236,13 +239,22 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           'custom',
         ])
 
-        const tipoDb = tiposEnumValidos.has(subTipo)
-          ? subTipo
-          : selectedCategoria === 'manutencao'
-            ? 'limpeza_manutencao'
-            : selectedCategoria === 'administrativo_pos_venda'
-              ? 'anexo_g'
-              : 'contato_ligacao'
+        let tipoDb = subTipo
+        let tipoCustomId: string | undefined = undefined
+        let tipoUnificadoNome: string | undefined = undefined
+
+        if (subTipo.startsWith('custom_')) {
+          tipoDb = 'custom' as AtividadeTipo
+          tipoCustomId = subTipo.replace(/^custom_/, '')
+          tipoUnificadoNome = tipoConfig.tituloPadrao
+        } else if (!tiposEnumValidos.has(subTipo)) {
+          tipoDb =
+            selectedCategoria === 'manutencao'
+              ? 'manutencao_preventiva'
+              : selectedCategoria === 'administrativo_pos_venda'
+                ? 'anexo_g'
+                : 'contato_ligacao'
+        }
 
         // Defaults de custos/deslocamento para manter integridade downstream se for manutenção
         let defaultsManutencao: {
@@ -309,6 +321,13 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
         await addAtividade({
           cliente_id: clienteId,
           tipo: tipoDb as import('@/types/crm').AtividadeTipo,
+          ...(tipoCustomId
+            ? {
+                tipo_custom_id: tipoCustomId,
+                tipo_unificado: tipoUnificadoNome,
+                subtipo: tipoUnificadoNome,
+              }
+            : {}),
           titulo: finalTitulo,
           descricao: finalDescricao,
           data: dataHora ? new Date(dataHora).toISOString() : new Date().toISOString(),

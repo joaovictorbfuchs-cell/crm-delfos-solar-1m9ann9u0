@@ -209,14 +209,64 @@ export const TIPO_SERVICO_CORES: Record<OSTipoServico | string, TipoServicoCorCo
     pillBg: 'rgba(2, 132, 199, 0.14)',
   },
   'Limpeza e Manutenção': {
-    nome: 'Manutenção',
+    nome: 'Limpeza e Manutenção',
+    borderClass: 'border-l-sky-500',
+    borderColor: '#0284C7',
+    bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
+    bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+    textClass: 'text-sky-800',
+    hex: '#0284C7',
+    pillBg: 'rgba(2, 132, 199, 0.14)',
+  },
+  'Limpeza dos Módulos': {
+    nome: 'Limpeza dos Módulos',
+    borderClass: 'border-l-sky-500',
+    borderColor: '#0284C7',
+    bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
+    bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+    textClass: 'text-sky-800',
+    hex: '#0284C7',
+    pillBg: 'rgba(2, 132, 199, 0.14)',
+  },
+  limpeza: {
+    nome: 'Limpeza dos Módulos',
+    borderClass: 'border-l-sky-500',
+    borderColor: '#0284C7',
+    bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
+    bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+    textClass: 'text-sky-800',
+    hex: '#0284C7',
+    pillBg: 'rgba(2, 132, 199, 0.14)',
+  },
+  manutencao_preventiva: {
+    nome: 'Manutenção Preventiva',
     borderClass: 'border-l-amber-500',
-    borderColor: '#F59E0B',
+    borderColor: '#D97706',
     bgLightClass: 'bg-amber-50/70 hover:bg-amber-100/80',
     bgBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
     textClass: 'text-amber-800',
-    hex: '#F59E0B',
-    pillBg: 'rgba(245, 158, 11, 0.14)',
+    hex: '#D97706',
+    pillBg: 'rgba(217, 119, 6, 0.14)',
+  },
+  manutencao_corretiva: {
+    nome: 'Manutenção Corretiva',
+    borderClass: 'border-l-red-600',
+    borderColor: '#DC2626',
+    bgLightClass: 'bg-red-50/70 hover:bg-red-100/80',
+    bgBadgeClass: 'bg-red-100 text-red-800 border-red-300',
+    textClass: 'text-red-800',
+    hex: '#DC2626',
+    pillBg: 'rgba(220, 38, 38, 0.14)',
+  },
+  limpeza_manutencao: {
+    nome: 'Limpeza e Manutenção',
+    borderClass: 'border-l-sky-500',
+    borderColor: '#0284C7',
+    bgLightClass: 'bg-sky-50/70 hover:bg-sky-100/80',
+    bgBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+    textClass: 'text-sky-800',
+    hex: '#0284C7',
+    pillBg: 'rgba(2, 132, 199, 0.14)',
   },
   Instalação: {
     nome: 'Instalação',
@@ -255,74 +305,78 @@ export const TIPO_SERVICO_CORES: Record<OSTipoServico | string, TipoServicoCorCo
  * Diferencia tipos específicos de manutenção (Preventiva = âmbar, Corretiva = vermelho/rosa,
  * Visita Técnica = azul, Garantia = roxo, Datalogger = ciano, e tipos customizados via hash).
  */
-export function getTipoServicoConfig(tipoNome?: string): TipoServicoCorConfig {
-  if (!tipoNome) return TIPO_SERVICO_CORES['Manutenção Preventiva']
-  if (TIPO_SERVICO_CORES[tipoNome]) {
-    return TIPO_SERVICO_CORES[tipoNome]
+export function getTipoServicoConfig(tipoNome?: unknown): TipoServicoCorConfig {
+  const safeStr = String(tipoNome || '').trim()
+  if (!safeStr) {
+    return (
+      TIPO_SERVICO_CORES['Manutenção Preventiva'] || {
+        nome: 'Manutenção',
+        borderClass: 'border-l-amber-500',
+        borderColor: '#F59E0B',
+        bgLightClass: 'bg-amber-50/70 hover:bg-amber-100/80',
+        bgBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+        textClass: 'text-amber-800',
+        hex: '#F59E0B',
+        pillBg: 'rgba(245, 158, 11, 0.14)',
+      }
+    )
   }
 
-  const lower = tipoNome.toLowerCase().trim()
+  // Mapa exato por chave
+  if (TIPO_SERVICO_CORES[safeStr]) {
+    return TIPO_SERVICO_CORES[safeStr]
+  }
 
-  // 1. Manutenção Corretiva (vermelho/rosa carmim)
-  if (lower.includes('corretiv') || lower.includes('reparo') || lower.includes('conserto')) {
+  // Tipos canônicos exatos (case-insensitive)
+  const lower = safeStr.toLowerCase()
+  if (
+    lower === 'manutencao_corretiva' ||
+    lower === 'manutenção corretiva' ||
+    lower === 'manutencao corretiva'
+  ) {
     return TIPO_SERVICO_CORES['Manutenção Corretiva']
   }
-
-  // 2. Visita Técnica (azul royal)
-  if (lower.includes('visita') || lower.includes('vistoria') || lower.includes('inspe')) {
-    return TIPO_SERVICO_CORES['Visita Técnica']
-  }
-
-  // 3. Garantia de Equipamento (roxo)
-  if (lower.includes('garantia') || lower.includes('rma') || lower.includes('laudo')) {
-    return TIPO_SERVICO_CORES['Garantia de Equipamento']
-  }
-
-  // 4. Configuração Datalogger (ciano)
   if (
-    lower.includes('datalogger') ||
-    lower.includes('antena') ||
-    lower.includes('roteador') ||
-    lower.includes('wi-fi') ||
-    lower.includes('wifi') ||
-    lower.includes('telemetria')
+    lower === 'manutencao_preventiva' ||
+    lower === 'manutenção preventiva' ||
+    lower === 'manutencao preventiva'
+  ) {
+    return TIPO_SERVICO_CORES['Manutenção Preventiva']
+  }
+  if (
+    lower === 'limpeza_manutencao' ||
+    lower === 'limpeza e manutenção' ||
+    lower === 'limpeza & manutenção'
+  ) {
+    return TIPO_SERVICO_CORES['Limpeza e Manutenção']
+  }
+  if (lower === 'limpeza' || lower === 'limpeza dos módulos' || lower === 'limpeza dos modulos') {
+    return TIPO_SERVICO_CORES['Limpeza dos Módulos'] || TIPO_SERVICO_CORES['Limpeza']
+  }
+  if (lower === 'instalacao' || lower === 'instalação') {
+    return TIPO_SERVICO_CORES['Instalação']
+  }
+  if (
+    lower === 'garantia_equipamento' ||
+    lower === 'garantia' ||
+    lower === 'garantia de equipamento'
+  ) {
+    return TIPO_SERVICO_CORES['Garantia de Equipamento'] || TIPO_SERVICO_CORES['Garantia']
+  }
+  if (
+    lower === 'configuracao_datalogger' ||
+    lower === 'configuração datalogger' ||
+    lower === 'configuração de datalogger' ||
+    lower === 'configuracao de datalogger'
   ) {
     return TIPO_SERVICO_CORES['Configuração Datalogger']
   }
-
-  // Se contém "manuten" (inclusive "Limpeza e Manutenção"), classificar como Manutenção (âmbar)
-  if (lower.includes('manuten')) {
-    if (lower.includes('corretiv')) return TIPO_SERVICO_CORES['Manutenção Corretiva']
-    return TIPO_SERVICO_CORES['Manutenção Preventiva']
+  if (lower === 'visita_tecnica' || lower === 'visita técnica') {
+    return TIPO_SERVICO_CORES['Visita Técnica']
   }
 
-  // 5. Limpeza (apenas se for estritamente limpeza ou lavagem avulsa, NÃO mista de manutenção)
-  if (
-    (lower.includes('limp') || lower.includes('lavag')) &&
-    !lower.includes('reaperto') &&
-    !lower.includes('eletric')
-  ) {
-    return TIPO_SERVICO_CORES['Limpeza']
-  }
-
-  // 6. Instalação (verde esmeralda)
-  if (lower.includes('instal') || lower.includes('montagem')) {
-    return TIPO_SERVICO_CORES['Instalação']
-  }
-
-  // 7. Manutenção Preventiva / Revisão (âmbar)
-  if (
-    lower.includes('preventiv') ||
-    lower.includes('revis') ||
-    lower.includes('reaperto') ||
-    lower === 'manutenção' ||
-    lower === 'manutencao'
-  ) {
-    return TIPO_SERVICO_CORES['Manutenção Preventiva']
-  }
-
-  // 9. Tipos customizados de tipos_atividades_custom atribuídos por hash determinístico
-  return getHashColorConfig(tipoNome)
+  // Tipos customizados de tipos_atividades_custom ou identificador não mapeado
+  return getHashColorConfig(safeStr)
 }
 
 const MESES = [

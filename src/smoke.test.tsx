@@ -559,20 +559,19 @@ describe('Login e App Smoke Tests', () => {
     expect(cardElement.textContent).toContain('Metal Mecânica Solução Ltda.')
   })
 
-  it('(a) rótulo do card permanece "MANUTENÇÃO" (não vira "LIMPEZA") após ciclo salvar→recarregar de um drag/resize de atividade com título "Limpeza e Manutenção"', async () => {
+  it('(a) rótulo do card exibe tipo unificado próprio após ciclo salvar→recarregar de um drag/resize de atividade com tipo "limpeza_manutencao"', async () => {
     const { updateOrdemServico } = await import('@/services/crmService')
     const { getTipoServicoConfig, TIPO_SERVICO_CORES } =
       await import('@/components/CalendarioExecucaoOS')
 
-    // 1. TIPO_SERVICO_CORES['Limpeza e Manutenção'] deve ter estilização visual de Manutenção (âmbar #F59E0B)
-    expect(TIPO_SERVICO_CORES['Limpeza e Manutenção'].hex).toBe('#F59E0B')
-    expect(TIPO_SERVICO_CORES['Limpeza e Manutenção'].borderColor).toBe('#F59E0B')
+    // 1. TIPO_SERVICO_CORES['Limpeza e Manutenção'] e tipos canônicos
+    expect(TIPO_SERVICO_CORES['Limpeza e Manutenção'].nome).toBe('Limpeza e Manutenção')
+    expect(TIPO_SERVICO_CORES['Manutenção Corretiva'].hex).toBe('#DC2626')
+    expect(TIPO_SERVICO_CORES['Manutenção Preventiva'].hex).toBe('#D97706')
 
-    // 2. getTipoServicoConfig('Limpeza e Manutenção') deve resolver para Manutenção (âmbar #F59E0B) e NÃO Limpeza azul
-    const configMista = getTipoServicoConfig('Limpeza e Manutenção')
-    expect(configMista.hex).toBe('#F59E0B')
-    expect(configMista.borderColor).toBe('#F59E0B')
-    expect(configMista.hex).not.toBe('#0284C7')
+    // 2. getTipoServicoConfig('limpeza_manutencao') resolve para Limpeza e Manutenção
+    const configMista = getTipoServicoConfig('limpeza_manutencao')
+    expect(configMista.nome).toBe('Limpeza e Manutenção')
 
     // 3. Simulação de ciclo updateOrdemServico para atividade com título "Limpeza e Manutenção"
     // Mock do update do PocketBase na coleção atividades retornando o registro atualizado
@@ -611,15 +610,13 @@ describe('Login e App Smoke Tests', () => {
     // Executa update como se fosse drag/resize salvando no banco
     const osRetornada = await updateOrdemServico('atv-limpeza-manut-1', {
       origem: 'atividades',
-      tipo_servico: 'Manutenção',
+      tipo_servico: 'Limpeza e Manutenção',
       horario_inicio: '08:00',
       horario_fim: '11:00',
       duracao_minutos: 180,
     })
 
-    // O retorno normalizado não deve ser sobrescrito para visual de limpeza
-    expect(osRetornada.tipo_servico).toBe('Manutenção')
-    expect(osRetornada.tipo_servico).not.toBe('Limpeza')
+    expect(osRetornada.tipo_servico).toBe('Limpeza e Manutenção')
 
     // Renderiza o card no CalendarioExecucaoOS com a OS recarregada
     let rendered: ReturnType<typeof render> | null = null
@@ -638,9 +635,7 @@ describe('Login e App Smoke Tests', () => {
       ?.closest('[style*="top"]') as HTMLElement
 
     expect(cardElement).not.toBeNull()
-    // O rótulo exibido DEVE conter "MANUTENÇÃO" e JAMAIS "LIMPEZA"
-    expect(cardElement.textContent).toContain('MANUTENÇÃO')
-    expect(cardElement.textContent).not.toContain('LIMPEZA')
+    expect(cardElement.textContent).toContain('Limpeza e Manutenção')
 
     spyCollection.mockRestore()
   })
@@ -823,6 +818,35 @@ describe('Login e App Smoke Tests', () => {
     expect(card30m.style.height).toBe('28px')
     expect(card30m.textContent).toContain('11:00 - 11:30')
     expect(card30m.textContent).toContain('Cliente 30 Minutos')
+  })
+
+  it('classifica e formata corretamente novos tipos de manutenção: Limpeza, Manutenção Preventiva e Manutenção Corretiva', async () => {
+    const { getTipoServicoConfig } = await import('@/components/CalendarioExecucaoOS')
+
+    const configLimpeza = getTipoServicoConfig('limpeza')
+    expect(configLimpeza.hex).toBe('#0284C7')
+    expect(configLimpeza.nome).toContain('Limpeza')
+
+    const configPreventiva = getTipoServicoConfig('manutencao_preventiva')
+    expect(configPreventiva.hex).toBe('#D97706')
+    expect(configPreventiva.nome).toBe('Manutenção Preventiva')
+
+    const configCorretiva = getTipoServicoConfig('manutencao_corretiva')
+    expect(configCorretiva.hex).toBe('#DC2626')
+    expect(configCorretiva.nome).toBe('Manutenção Corretiva')
+
+    // Blindagem contra valores null/undefined/não-string
+    const configNull = getTipoServicoConfig(null as any)
+    expect(configNull).toBeDefined()
+    expect(configNull.hex).toBeDefined()
+
+    const configUndefined = getTipoServicoConfig(undefined)
+    expect(configUndefined).toBeDefined()
+    expect(configUndefined.hex).toBeDefined()
+
+    const configNumero = getTipoServicoConfig(12345 as any)
+    expect(configNumero).toBeDefined()
+    expect(configNumero.hex).toBeDefined()
   })
 
   it('salvaguardas de integridade do PocketBase: pb exportado duplamente e isAuthSessionError presente', async () => {

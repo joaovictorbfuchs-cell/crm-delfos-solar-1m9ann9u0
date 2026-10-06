@@ -116,19 +116,24 @@ export default function ExecucaoOS() {
   }
 
   // Mapeamento de tipo de atividade de campo para tipo_servico suportado pela tela
-  const mapTipoAtividadeParaTipoServico = (tipo?: string): OSTipoServico => {
+  const mapTipoAtividadeParaTipoServico = (tipo?: string): string => {
     switch (tipo) {
+      case 'limpeza':
+        return 'Limpeza dos Módulos'
+      case 'manutencao_preventiva':
+        return 'Manutenção Preventiva'
+      case 'manutencao_corretiva':
+        return 'Manutenção Corretiva'
       case 'limpeza_manutencao':
-        // A atividade da categoria campo é primariamente Manutenção (não Limpeza avulsa)
-        return 'Manutenção'
+        return 'Limpeza e Manutenção'
       case 'instalacao':
         return 'Instalação'
       case 'visita_tecnica':
-        return 'Manutenção'
+        return 'Visita Técnica'
       case 'garantia_equipamento':
-        return 'Garantia'
+        return 'Garantia de Equipamento'
       case 'configuracao_datalogger':
-        return 'Configuração de Datalogger'
+        return 'Configuração Datalogger'
       default:
         return 'Manutenção'
     }
@@ -159,16 +164,16 @@ export default function ExecucaoOS() {
         const { fetchProfissionais } = await import('@/services/crmService')
         const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
 
-        // Filtro OR para as atividades de manutenção/campo
+        // Filtro OR para as atividades de manutenção/campo (100% aditivo)
         const filterAtividades =
-          "(tipo='limpeza_manutencao' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger')"
+          "(tipo='limpeza_manutencao' || tipo='limpeza' || tipo='manutencao_preventiva' || tipo='manutencao_corretiva' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger' || tipo='custom')"
 
         const promises = [
           fetchOrdensServico(undefined, responsavelFiltro),
           pb.collection('atividades').getFullList({
             filter: filterAtividades,
             sort: '-data,-created',
-            expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+            expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id,tipo_custom_id',
             requestKey: null,
           }),
           isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
@@ -203,31 +208,30 @@ export default function ExecucaoOS() {
           const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
           const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
 
-          // Preserva o título/tipo real da atividade de manutenção (ex: "Manutenção Preventiva", "Manutenção Corretiva")
-          // Se o título for genérico "Limpeza e Manutenção", verifica se a descrição ou subtipo tem o tipo real
-          // e mapeia para "Manutenção" ou para o tipo canônico para não rotular erroneamente apenas como "Limpeza"
-          let rawTitulo = (atv.titulo || '').trim()
-          let tipoServico: string = rawTitulo || mapTipoAtividadeParaTipoServico(atv.tipo)
+          // O tipo passa a vir SEMPRE do campo tipo/tipo_custom_id/subtipo do registro com mapa exato por chave
+          const rawTitulo = (atv.titulo || '').trim()
+          let tipoServico: string
 
-          // Se veio "Limpeza e Manutenção" (nome antigo gerado por templates ou tela de tipos),
-          // normaliza com inteligência: se houver menção explícita no título/descrição de corretiva/preventiva/visita,
-          // usa o rótulo mais específico; se for genérico "Limpeza e Manutenção", exibe "Manutenção" no calendário
-          if (rawTitulo === 'Limpeza e Manutenção') {
-            const desc = (atv.descricao || '').toLowerCase()
-            if (desc.includes('corretiva')) {
-              tipoServico = 'Manutenção Corretiva'
-            } else if (desc.includes('preventiva')) {
-              tipoServico = 'Manutenção Preventiva'
-            } else if (
-              desc.includes('lavagem') &&
-              !desc.includes('reaperto') &&
-              !desc.includes('preventiva')
-            ) {
-              tipoServico = 'Limpeza'
-            } else {
-              // Atividade mista de manutenção de campo -> prevalece "Manutenção"
-              tipoServico = 'Manutenção'
-            }
+          if (atv.tipo === 'custom') {
+            tipoServico =
+              atv.expand?.tipo_custom_id?.nome ||
+              atv.subtipo ||
+              atv.tipo_unificado ||
+              rawTitulo ||
+              'Serviço Customizado'
+          } else if (atv.tipo === 'limpeza_manutencao') {
+            // Mantido como tipo PRÓPRIO unificado ("Limpeza e Manutenção")
+            tipoServico = rawTitulo || 'Limpeza e Manutenção'
+          } else if (atv.tipo === 'limpeza') {
+            tipoServico = rawTitulo || 'Limpeza dos Módulos'
+          } else if (atv.tipo === 'manutencao_preventiva') {
+            tipoServico = rawTitulo || 'Manutenção Preventiva'
+          } else if (atv.tipo === 'manutencao_corretiva') {
+            tipoServico = rawTitulo || 'Manutenção Corretiva'
+          } else if (atv.tipo) {
+            tipoServico = mapTipoAtividadeParaTipoServico(atv.tipo) || rawTitulo || 'Manutenção'
+          } else {
+            tipoServico = rawTitulo || 'Manutenção'
           }
           const status = mapStatusAtividadeParaOSStatus(atv.status)
 
@@ -294,7 +298,10 @@ export default function ExecucaoOS() {
         setProfissionais(Array.isArray(profList) ? profList : [])
       } catch (err) {
         console.error('Erro ao carregar dados de OS e atividades:', err)
-        if (!silent) {
+        const { isAuthSessionError } = await import('@/lib/pocketbase/errors')
+        if (isAuthSessionError(err)) {
+          console.warn('Sessão expirada ou não autenticada ao carregar serviços de campo')
+        } else if (!silent) {
           toast({
             variant: 'destructive',
             title: 'Erro ao carregar serviços de campo',

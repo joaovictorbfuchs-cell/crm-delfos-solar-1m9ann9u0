@@ -81,6 +81,9 @@ export type AtividadeTipo =
   | 'mensagem_enviada'
   // 2. Atividades de Manutenção:
   | 'instalacao'
+  | 'limpeza'
+  | 'manutencao_preventiva'
+  | 'manutencao_corretiva'
   | 'limpeza_manutencao'
   | 'configuracao_datalogger'
   | 'garantia_equipamento'
@@ -1018,6 +1021,7 @@ export interface Atividade extends RecordModel {
   dados_leitura_registrados?: string
   foto_medidor?: string
   // Campos de unificação CRM (Fase A e Piloto)
+  tipo_custom_id?: string
   tipo_unificado?: string
   subtipo?: string
   origem?: string
@@ -1294,10 +1298,17 @@ export interface ServicoAvulso extends RecordModel {
 
 export type OSTipoServico =
   | 'Limpeza'
+  | 'Limpeza dos Módulos'
   | 'Manutenção'
+  | 'Manutenção Preventiva'
+  | 'Manutenção Corretiva'
+  | 'Limpeza e Manutenção'
   | 'Instalação'
   | 'Garantia'
+  | 'Garantia de Equipamento'
   | 'Configuração de Datalogger'
+  | 'Visita Técnica'
+  | string
 
 export type OSStatus = 'pendente' | 'concluida' | 'cancelada'
 

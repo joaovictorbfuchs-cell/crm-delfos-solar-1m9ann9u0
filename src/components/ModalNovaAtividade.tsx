@@ -517,9 +517,32 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
       const isManutencao = selectedCategoria === 'manutencao'
 
+      // Se selectedTipo for custom ("custom_RECORDID"), persistir tipo='custom' e vincular tipo_custom_id / subtipo / tipo_unificado
+      let tipoParaSalvar = selectedTipo
+      let customRecordId: string | undefined = undefined
+      let tipoUnificadoNome: string | undefined = undefined
+      let subtipoNome: string | undefined = undefined
+
+      if (selectedTipo.startsWith('custom_')) {
+        tipoParaSalvar = 'custom' as import('@/types/crm').AtividadeTipo
+        customRecordId = selectedTipo.replace(/^custom_/, '')
+        const customObj = customDefs.find(
+          (c) => c.id === selectedTipo || c.customRecordId === customRecordId,
+        )
+        tipoUnificadoNome = customObj?.tituloPadrao || conf.tituloPadrao
+        subtipoNome = customObj?.tituloPadrao || conf.tituloPadrao
+      }
+
       const atividadePrincipalPayload: any = {
         cliente_id: clienteIdLimpo,
-        tipo: selectedTipo,
+        tipo: tipoParaSalvar,
+        ...(customRecordId
+          ? {
+              tipo_custom_id: customRecordId,
+              tipo_unificado: tipoUnificadoNome,
+              subtipo: subtipoNome,
+            }
+          : {}),
         titulo: finalTitulo,
         descricao: descricao.trim(), // Descrição NÃO é obrigatória
         data: dataFormatadaPocketBase,

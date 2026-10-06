@@ -103,6 +103,9 @@ export function determinarCategoriaAtividade(
   if (
     [
       'instalacao',
+      'limpeza',
+      'manutencao_preventiva',
+      'manutencao_corretiva',
       'limpeza_manutencao',
       'configuracao_datalogger',
       'garantia_equipamento',
@@ -728,6 +731,9 @@ function formatarTipoAtividade(tipo: string): string {
     follow_up: 'Follow-up Comercial',
     instalacao: 'Instalação Solar',
     proposta: 'Proposta Comercial',
+    limpeza: 'Limpeza dos Módulos',
+    manutencao_preventiva: 'Manutenção Preventiva',
+    manutencao_corretiva: 'Manutenção Corretiva',
     limpeza_manutencao: 'Limpeza & Manutenção',
     auto_leitura_rge: 'Auto Leitura RGE',
     lembrete_auto_leitura: 'Lembrete Auto Leitura',
