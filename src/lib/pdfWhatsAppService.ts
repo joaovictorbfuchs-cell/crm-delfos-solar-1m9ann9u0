@@ -171,10 +171,26 @@ export async function renderizarHTMLParaPdfBase64(
 
         // Remove barras e marcadores de tela do preview que não devem sair no PDF impresso
         doc
-          .querySelectorAll('.no-print-bar, .preview-page-break-marker')
+          .querySelectorAll('.no-print-bar, .preview-page-break-marker, .action-bar')
           .forEach((el) => el.remove())
 
-        const targetElement = doc.querySelector('.proposta-container') || doc.body
+        // Seletor canônico: suporta proposta técnica (.proposta-container) e procuração (.page-a4)
+        const targetElement = doc.querySelector('.proposta-container, .page-a4') || doc.body
+
+        // Para documentos com estrutura .page-a4 (ex: Procuração), normaliza estilos de tela
+        // para captura de alta fidelidade idêntica ao @media print (A4, sem margens externas cinzas ou sombras)
+        if (targetElement.classList.contains('page-a4')) {
+          const el = targetElement as HTMLElement
+          el.style.margin = '0'
+          el.style.boxShadow = 'none'
+          el.style.width = '100%'
+          el.style.minHeight = 'auto'
+          if (doc.body) {
+            doc.body.style.backgroundColor = '#ffffff'
+            doc.body.style.margin = '0'
+            doc.body.style.padding = '0'
+          }
+        }
 
         // Aguarda todas as imagens do documento terminarem de carregar para não renderizar imagens vazias/quebradas
         const images = Array.from(doc.images || [])

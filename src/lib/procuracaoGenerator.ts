@@ -666,24 +666,12 @@ export async function baixarProcuracaoPDF(dadosInput: Partial<DadosProcuracaoOM>
     }
   } catch (err) {
     console.warn(
-      'Falha ao renderizar PDF da procuração via html2pdf, acionando fallback binário:',
+      'Falha ao renderizar PDF da procuração via html2pdf, acionando fallback para impressão canônica:',
       err,
     )
   }
 
-  // Fallback: download via gerador binário nativo
-  try {
-    const bytes = gerarPDFBinarioProcuracao(dados)
-    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  } catch {
-    abrirProcuracaoImpressao(dados, true)
-  }
+  // Fallback: NUNCA usar o gerador binário legado (que produz PDF desconfigurado).
+  // Dispara diretamente a visualização/impressão canônica A4 com autoPrint=true.
+  abrirProcuracaoImpressao(dados, true)
 }

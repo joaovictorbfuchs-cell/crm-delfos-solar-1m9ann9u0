@@ -1945,7 +1945,7 @@ export const FichaClienteDrawer: React.FC = () => {
                                 )
                               })()}
 
-                              {/* Card 1: Procuração (aciona o mesmo fluxo/modal de Procuração do O&M / Projetos) */}
+                              {/* Card 1: Procuração (aciona o ModalGerarProcuracaoOM unificado com dados canônicos A4) */}
                               {(() => {
                                 const doc = getDocumentoCliente('procuracao')
                                 const isAssinado = doc?.status_assinatura === 'assinado'
@@ -1955,9 +1955,7 @@ export const FichaClienteDrawer: React.FC = () => {
                                 return (
                                   <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
                                     <div
-                                      onClick={() =>
-                                        handleAbrirDocumentoProjeto('procuracao', propostaAprovada)
-                                      }
+                                      onClick={() => handleDispararGerarProcuracao()}
                                       className="cursor-pointer space-y-1.5"
                                     >
                                       <div className="flex items-center justify-between w-full mb-1">

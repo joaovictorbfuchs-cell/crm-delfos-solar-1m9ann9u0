@@ -232,4 +232,50 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
 
     vi.restoreAllMocks()
   })
+
+  it('deve acionar abrirProcuracaoImpressao como fallback seguro quando a geração assíncrona falha', async () => {
+    // Simula falha do módulo pdfWhatsAppService (ex: erro de rede/CDN)
+    const originalHtml2pdf = (window as any).html2pdf
+    ;(window as any).html2pdf = vi.fn(() => {
+      throw new Error('Falha simulada de CDN/adblock')
+    })
+
+    const spyOpen = vi.spyOn(window, 'open').mockReturnValue({
+      addEventListener: vi.fn(),
+      print: vi.fn(),
+    } as any)
+
+    await baixarProcuracaoPDF(dadosMarceloBecker)
+
+    expect(spyOpen).toHaveBeenCalled()
+    spyOpen.mockRestore()
+    ;(window as any).html2pdf = originalHtml2pdf
+  })
+
+  it('deve selecionar .page-a4 e zerar estilos de tela ao renderizar procuração para PDF Base64', async () => {
+    let capturedElement: any = null
+    const mockOutputPdf = vi
+      .fn()
+      .mockResolvedValue('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
+    const mockWorker = {
+      set: vi.fn().mockReturnThis(),
+      from: vi.fn().mockImplementation((el: any) => {
+        capturedElement = el
+        return mockWorker
+      }),
+      outputPdf: mockOutputPdf,
+    }
+    ;(window as any).html2pdf = vi.fn(() => mockWorker)
+
+    const res = await gerarBase64Procuracao(dadosMarceloBecker)
+
+    expect(res.base64).toBe('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
+    expect(capturedElement).not.toBeNull()
+    // O elemento capturado deve ser a folha .page-a4 (não o body com fundo cinza)
+    expect(capturedElement?.classList?.contains('page-a4')).toBe(true)
+    // Os estilos de tela devem ter sido normalizados para margem zero e sem box-shadow
+    expect(capturedElement?.style?.margin).toBe('0px')
+    expect(capturedElement?.style?.boxShadow).toBe('none')
+    expect(capturedElement?.style?.width).toBe('100%')
+  })
 })
