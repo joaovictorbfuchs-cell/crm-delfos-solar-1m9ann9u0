@@ -46,6 +46,32 @@ export function formatDate(dateString: string | undefined | null): string {
   }
 }
 
+/**
+ * Formata data no formato curto brasileiro com ano em 2 dígitos (ex: "30/09/26").
+ */
+export function formatDateShort(dateString: string | undefined | null): string {
+  if (!dateString || typeof dateString !== 'string' || dateString.trim() === '') return '-'
+  try {
+    // Se for string no formato YYYY-MM-DD ou contiver T/espaço, parseia sem distorção de fuso horário
+    const trimmed = dateString.trim()
+    const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const yearShort = match[1].slice(-2)
+      const month = match[2]
+      const day = match[3]
+      return `${day}/${month}/${yearShort}`
+    }
+    const d = new Date(trimmed)
+    if (isNaN(d.getTime())) return '-'
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const yearShort = String(d.getFullYear()).slice(-2)
+    return `${day}/${month}/${yearShort}`
+  } catch {
+    return '-'
+  }
+}
+
 export function formatDateTime(dateString: string | undefined | null): string {
   if (!dateString || typeof dateString !== 'string' || dateString.trim() === '') return '-'
   try {

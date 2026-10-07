@@ -97,6 +97,17 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       expect(formatDate('2025-03-15T00:00:00Z')).toBe('15/03/2025')
     })
 
+    it('formatDateShort deve formatar ano com 2 dígitos (ex: "30/09/26")', async () => {
+      const { formatDateShort } = await import('./formatters')
+      expect(formatDateShort(null)).toBe('-')
+      expect(formatDateShort(undefined)).toBe('-')
+      expect(formatDateShort('')).toBe('-')
+      expect(formatDateShort('data-invalida')).toBe('-')
+      expect(formatDateShort('2026-09-30T00:00:00Z')).toBe('30/09/26')
+      expect(formatDateShort('2026-09-30')).toBe('30/09/26')
+      expect(formatDateShort('2025-03-15T00:00:00Z')).toBe('15/03/25')
+    })
+
     it('formatDateTime deve tratar null, undefined, vazio e datas inválidas retornando "-"', () => {
       expect(formatDateTime(null)).toBe('-')
       expect(formatDateTime(undefined)).toBe('-')

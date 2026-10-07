@@ -26,8 +26,9 @@ import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalOrcamentoSolar } from '@/components/ModalOrcamentoSolar'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { OrcamentoSolar, OrcamentoSolarStatus, Cliente } from '@/types/crm'
 
 export const Orcamentos: React.FC = () => {
@@ -419,43 +420,43 @@ export const Orcamentos: React.FC = () => {
     switch (status) {
       case 'Aprovado':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            Aprovado
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap shrink-0">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+            <span>Aprovado</span>
           </span>
         )
       case 'Enviado ao cliente':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-            <Send className="w-3 h-3 text-blue-600" />
-            Enviado ao cliente
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200 whitespace-nowrap shrink-0">
+            <Send className="w-3 h-3 text-blue-600 shrink-0" />
+            <span>Enviado ao cliente</span>
           </span>
         )
       case 'Em elaboração':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-            <Clock className="w-3 h-3 text-amber-600" />
-            Em elaboração
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap shrink-0">
+            <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+            <span>Em elaboração</span>
           </span>
         )
       case 'Rejeitado':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
-            <XCircle className="w-3 h-3 text-red-600" />
-            Rejeitado
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200 whitespace-nowrap shrink-0">
+            <XCircle className="w-3 h-3 text-red-600 shrink-0" />
+            <span>Rejeitado</span>
           </span>
         )
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-800">
-            {status}
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-800 whitespace-nowrap shrink-0">
+            <span>{status}</span>
           </span>
         )
     }
   }
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto">
+    <div className="space-y-5 w-full">
       {/* Header da Página */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -917,200 +918,217 @@ export const Orcamentos: React.FC = () => {
         </div>
       ) : (
         /* VISUALIZAÇÃO EM TABELA COM FOTO E CONSULTOR */
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden w-full">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Cliente & Cidade</th>
-                  <th className="py-3 px-3">Consultor</th>
-                  <th className="py-3 px-3">Potência (kWp)</th>
-                  <th className="py-3 px-3">Investimento</th>
-                  <th className="py-3 px-3">Geração Média</th>
-                  <th className="py-3 px-3">Payback</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3">Data</th>
-                  <th className="py-3 px-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {orcamentosFiltrados.map((orc) => {
-                  const cliente =
-                    orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
-                  const nomeCliente = cliente?.nome || 'Cliente não identificado'
+            <TooltipProvider delayDuration={150}>
+              <table className="w-full text-left text-xs">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Cliente & Cidade</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Consultor</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Potência</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Investimento</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Geração Média</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Payback</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Data</th>
+                    <th className="py-3 px-4 text-right whitespace-nowrap">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {orcamentosFiltrados.map((orc) => {
+                    const cliente =
+                      orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
+                    const nomeCliente = cliente?.nome || 'Cliente não identificado'
 
-                  return (
-                    <tr
-                      key={orc.id}
-                      onClick={() => handleEditarOrcamento(orc)}
-                      className="hover:bg-emerald-50/30 cursor-pointer transition-colors group"
-                    >
-                      {/* Cliente */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                            {nomeCliente}
+                    // Formatação de Potência em 1 linha só: "30,80 kWp · 56 placas (550W)"
+                    const kwpNum = Number(orc.potencia_kwp)
+                    const kwpStr =
+                      Number.isFinite(kwpNum) && kwpNum > 0
+                        ? `${kwpNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp`
+                        : ''
+                    const placasNum = Number(orc.numero_placas)
+                    const potenciaWpNum = Number(orc.potencia_placa_wp)
+                    const placasWpDetalhes = (() => {
+                      if (Number.isFinite(placasNum) && placasNum > 0) {
+                        const wpPart =
+                          Number.isFinite(potenciaWpNum) && potenciaWpNum > 0
+                            ? ` (${potenciaWpNum}W)`
+                            : ''
+                        return `${placasNum} placas${wpPart}`
+                      }
+                      if (Number.isFinite(potenciaWpNum) && potenciaWpNum > 0) {
+                        return `${potenciaWpNum}W`
+                      }
+                      return ''
+                    })()
+                    const potenciaLinhaUnica =
+                      [kwpStr, placasWpDetalhes].filter(Boolean).join(' · ') || '—'
+
+                    // Investimento
+                    const valInvestimento = Number(orc.valor_investimento)
+                    const custoKwp = Number(orc.custo_por_kwp)
+
+                    // Geração em no máximo 2 linhas:
+                    // Linha 1: "2.827 kWh/mês"
+                    // Linha 2 (menor/abaixo): "Eco: R$ 3.128,59/mês"
+                    const geracaoNum = Number(orc.geracao_mensal_kwh)
+                    const ecoNum = Number(orc.economia_1_mes)
+
+                    // Payback em uma linha: "20 meses"
+                    const paybackNum = Number(orc.payback_meses)
+
+                    return (
+                      <tr
+                        key={orc.id}
+                        onClick={() => handleEditarOrcamento(orc)}
+                        className="hover:bg-emerald-50/30 cursor-pointer transition-colors group"
+                      >
+                        {/* Cliente & Cidade (coluna de texto ganha largura livre restante) */}
+                        <td className="py-3 px-4 min-w-[200px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                              {nomeCliente}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                              Rev. {orc.numero_revisao || 1}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 flex-wrap">
+                            <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span>{cliente?.cidade || '—'}</span>
+                            <span className="text-gray-300">•</span>
+                            <span className="capitalize">
+                              {orc.tipo_cliente || cliente?.tipo_cliente || 'Residencial'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Consultor responsável */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <div className="font-semibold text-gray-800 text-[11px] flex items-center gap-1">
+                            <User className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span className="truncate max-w-[140px]">
+                              {orc.autor || 'João Victor'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Potência em uma linha só: "30,80 kWp · 56 placas (550W)", alinhado à direita */}
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <span className="font-bold text-gray-900 text-xs tabular-nums">
+                            {potenciaLinhaUnica}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
-                            Rev. {orc.numero_revisao || 1}
+                        </td>
+
+                        {/* Investimento, alinhado à direita */}
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <div className="font-black text-emerald-700 text-sm tabular-nums leading-tight">
+                            {Number.isFinite(valInvestimento) && valInvestimento > 0
+                              ? formatCurrency(valInvestimento)
+                              : '—'}
+                          </div>
+                          {Number.isFinite(custoKwp) && custoKwp > 0 && (
+                            <div className="text-[10px] text-gray-400 tabular-nums leading-tight mt-0.5">
+                              {formatCurrency(custoKwp)}/kWp
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Geração em no máximo 2 linhas: "2.827 kWh/mês" e "Eco: R$ 3.128,59/mês", alinhado à direita */}
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <div className="font-bold text-gray-800 text-xs tabular-nums leading-tight">
+                            {Number.isFinite(geracaoNum) && geracaoNum > 0
+                              ? `${geracaoNum.toLocaleString('pt-BR')} kWh/mês`
+                              : '—'}
+                          </div>
+                          {Number.isFinite(ecoNum) && ecoNum > 0 && (
+                            <div className="text-[10px] text-emerald-600 font-semibold tabular-nums leading-tight mt-0.5">
+                              Eco: {formatCurrency(ecoNum)}/mês
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Payback em uma linha: "20 meses", alinhado à direita */}
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <span className="font-semibold text-gray-800 text-xs tabular-nums">
+                            {Number.isFinite(paybackNum) && paybackNum > 0
+                              ? `${paybackNum} meses`
+                              : '—'}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
-                          <MapPin className="w-3 h-3 text-gray-400" />
-                          <span>{cliente?.cidade || '—'}</span>
-                          <span className="text-gray-300">•</span>
-                          <span className="capitalize">
-                            {orc.tipo_cliente || cliente?.tipo_cliente || 'Residencial'}
-                          </span>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Consultor responsável */}
-                      <td className="py-3 px-3">
-                        <div className="font-semibold text-gray-800 text-[11px] flex items-center gap-1">
-                          <User className="w-3 h-3 text-emerald-600 shrink-0" />
-                          <span className="truncate max-w-[120px]">
-                            {orc.autor || 'João Victor'}
-                          </span>
-                        </div>
-                      </td>
+                        {/* Status sem quebra de linha */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <div className="inline-flex justify-center">
+                            {renderStatusBadge(orc.status)}
+                          </div>
+                        </td>
 
-                      {/* Potência */}
-                      <td className="py-3 px-3">
-                        <div className="font-extrabold text-gray-900 text-sm">
-                          {(() => {
-                            const kwp = Number(orc.potencia_kwp)
-                            return Number.isFinite(kwp) && kwp > 0 ? `${kwp.toFixed(2)} kWp` : '—'
-                          })()}
-                        </div>
-                        <div className="text-[11px] text-gray-500">
-                          {(() => {
-                            const placas = Number(orc.numero_placas)
-                            const potenciaWp = Number(orc.potencia_placa_wp)
-                            const placasStr =
-                              Number.isFinite(placas) && placas > 0 ? `${placas} placas` : '—'
-                            const wpStr =
-                              Number.isFinite(potenciaWp) && potenciaWp > 0
-                                ? ` (${potenciaWp}W)`
-                                : ''
-                            return `${placasStr}${wpStr}`
-                          })()}
-                        </div>
-                      </td>
+                        {/* Data curta em 2 dígitos de ano (ex.: "30/09/26") */}
+                        <td className="py-3 px-3 text-center text-gray-500 text-[11px] whitespace-nowrap font-medium tabular-nums">
+                          {formatDateShort(orc.data_orcamento || orc.created)}
+                        </td>
 
-                      {/* Investimento */}
-                      <td className="py-3 px-3">
-                        <div className="font-black text-emerald-700 text-sm">
-                          {(() => {
-                            const val = Number(orc.valor_investimento)
-                            return Number.isFinite(val) && val > 0 ? formatCurrency(val) : '—'
-                          })()}
-                        </div>
-                        <div className="text-[10px] text-gray-400">
-                          {(() => {
-                            const custo = Number(orc.custo_por_kwp)
-                            return Number.isFinite(custo) && custo > 0
-                              ? `${formatCurrency(custo)}/kWp`
-                              : '—'
-                          })()}
-                        </div>
-                      </td>
-
-                      {/* Geração Média */}
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-gray-800">
-                          {(() => {
-                            const geracao = Number(orc.geracao_mensal_kwh)
-                            return Number.isFinite(geracao) && geracao > 0
-                              ? `${geracao.toLocaleString('pt-BR')} kWh/mês`
-                              : '—'
-                          })()}
-                        </div>
-                        <div className="text-[10px] text-emerald-600 font-semibold">
-                          {(() => {
-                            const eco = Number(orc.economia_1_mes)
-                            return Number.isFinite(eco) && eco > 0
-                              ? `Eco: ${formatCurrency(eco)}/mês`
-                              : ''
-                          })()}
-                        </div>
-                      </td>
-
-                      {/* Payback */}
-                      <td className="py-3 px-3">
-                        {(() => {
-                          const payback = Number(orc.payback_meses)
-                          if (!Number.isFinite(payback) || payback <= 0) {
-                            return <span className="font-semibold text-gray-800">—</span>
-                          }
-                          return (
-                            <span className="font-semibold text-gray-800">{payback} meses</span>
-                          )
-                        })()}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          {renderStatusBadge(orc.status)}
-                        </div>
-                      </td>
-
-                      {/* Data */}
-                      <td className="py-3 px-3 text-gray-500 text-[11px]">
-                        {formatDate(orc.data_orcamento || orc.created)}
-                      </td>
-
-                      {/* Ações */}
-                      <td className="py-3 px-4 text-right">
-                        <div
-                          className="flex items-center justify-end gap-1.5"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {/* Botão Enviar por WhatsApp */}
-                          <button
-                            onClick={(e) => handleAbrirWhatsApp(orc, cliente, e)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all text-xs font-bold shadow-2xs group"
-                            title="Enviar proposta por WhatsApp"
+                        {/* Ações */}
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div
+                            className="flex items-center justify-end gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600 group-hover:text-white transition-colors" />
-                            <span className="hidden sm:inline">WhatsApp</span>
-                          </button>
+                            {/* Botão WhatsApp compactado: ícone com tooltip no lugar do texto */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleAbrirWhatsApp(orc, cliente, e)}
+                                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all shadow-2xs group shrink-0"
+                                  aria-label="Enviar proposta por WhatsApp"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600 group-hover:text-white transition-colors" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <span>Enviar proposta por WhatsApp</span>
+                              </TooltipContent>
+                            </Tooltip>
 
-                          {/* Seletor Rápido de Status */}
-                          <select
-                            value={orc.status}
-                            onChange={(e) =>
-                              handleAlterarStatus(
-                                orc,
-                                e.target.value as OrcamentoSolarStatus,
-                                e as unknown as React.MouseEvent,
-                              )
-                            }
-                            className="text-[11px] font-semibold py-1 px-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:border-gray-300 focus:outline-none"
-                            title="Mudar status rapidamente"
-                          >
-                            <option value="Em elaboração">Em elaboração</option>
-                            <option value="Enviado ao cliente">Enviado</option>
-                            <option value="Aprovado">Aprovado</option>
-                            <option value="Rejeitado">Rejeitado</option>
-                          </select>
+                            {/* Seletor Rápido de Status */}
+                            <select
+                              value={orc.status}
+                              onChange={(e) =>
+                                handleAlterarStatus(
+                                  orc,
+                                  e.target.value as OrcamentoSolarStatus,
+                                  e as unknown as React.MouseEvent,
+                                )
+                              }
+                              className="text-[11px] font-semibold py-1 px-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:border-gray-300 focus:outline-none shrink-0"
+                              title="Mudar status rapidamente"
+                            >
+                              <option value="Em elaboração">Em elaboração</option>
+                              <option value="Enviado ao cliente">Enviado</option>
+                              <option value="Aprovado">Aprovado</option>
+                              <option value="Rejeitado">Rejeitado</option>
+                            </select>
 
-                          {/* Excluir */}
-                          <button
-                            onClick={(e) => handleExcluir(orc.id, e)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="Excluir orçamento"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                            {/* Excluir */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleExcluir(orc.id, e)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+                              title="Excluir orçamento"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </TooltipProvider>
           </div>
         </div>
       )}
