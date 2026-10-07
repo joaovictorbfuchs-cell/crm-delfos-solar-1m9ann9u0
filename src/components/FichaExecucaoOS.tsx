@@ -57,11 +57,44 @@ import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import {
   somarMinutos,
   calcularDiferencaMinutos,
-  formatarDuracao,
+  formatarDuracao as formatarDuracaoOriginal,
   HORAS_24,
   MINUTOS_PASSO_5,
   DURACOES_PREVISTAS_SUGESTOES,
 } from '@/lib/horarios'
+
+/**
+ * Utilitário seguro para horario: aceita qualquer tipo (número, objeto, nulo)
+ * e devolve sempre uma string não vazia garantida no formato "HH:mm".
+ */
+export function safeHorarioStr(val: unknown, fallback = '08:00'): string {
+  if (val === null || val === undefined) return fallback
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    return trimmed.length > 0 ? trimmed : fallback
+  }
+  if (typeof val === 'number' && !isNaN(val)) {
+    const h = Math.floor(val)
+    return `${String(h).padStart(2, '0')}:00`
+  }
+  try {
+    const str = String(val).trim()
+    return str.length > 0 ? str : fallback
+  } catch {
+    return fallback
+  }
+}
+
+/**
+ * Wrapper de formatação de duração com validação numérica explícita.
+ */
+export function formatarDuracao(duracaoMinutos?: unknown): string {
+  const num = Number(duracaoMinutos)
+  if (duracaoMinutos === null || duracaoMinutos === undefined || isNaN(num) || num <= 0) {
+    return '0min'
+  }
+  return formatarDuracaoOriginal(num)
+}
 import {
   isCategoriaManutencaoOuAdministrativa,
   MSG_USINA_OBRIGATORIA,
@@ -208,38 +241,68 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     os?.tipo_servico === 'Auto Leitura - RGE' ||
     (os as any)?.tipo === 'auto_leitura_rge'
   const [atividadeDataHora, setAtividadeDataHora] = useState<string>(() => {
-    const raw = os?.data_agendada
+    const raw: any = os?.data_agendada
     if (!raw) return ''
-    if (raw.length >= 16) {
-      return raw.replace(' ', 'T').slice(0, 16)
+    if (raw instanceof Date) {
+      if (isNaN(raw.getTime())) return ''
+      const y = raw.getFullYear()
+      const m = String(raw.getMonth() + 1).padStart(2, '0')
+      const d = String(raw.getDate()).padStart(2, '0')
+      const h = String(raw.getHours()).padStart(2, '0')
+      const min = String(raw.getMinutes()).padStart(2, '0')
+      return `${y}-${m}-${d}T${h}:${min}`
     }
-    return raw
+    const rawStr = String(raw).trim()
+    if (rawStr.length >= 16) {
+      return rawStr.replace(' ', 'T').slice(0, 16)
+    }
+    return rawStr
   })
 
   // Campos de início, fim e duração prevista para edição rápida de manutenção
   const [horarioInicio, setHorarioInicio] = useState<string>(() => {
-    if (os?.horario_inicio) return os.horario_inicio
-    const raw = os?.data_agendada
-    if (raw && raw.length >= 16) {
-      return raw.replace(' ', 'T').slice(11, 16)
+    if (os?.horario_inicio) return safeHorarioStr(os.horario_inicio, '08:00')
+    const raw: any = os?.data_agendada
+    if (raw) {
+      if (raw instanceof Date && !isNaN(raw.getTime())) {
+        const h = String(raw.getHours()).padStart(2, '0')
+        const min = String(raw.getMinutes()).padStart(2, '0')
+        return `${h}:${min}`
+      }
+      const rawStr = String(raw).trim()
+      if (rawStr.length >= 16) {
+        return rawStr.replace(' ', 'T').slice(11, 16)
+      }
     }
     return '08:00'
   })
   const [duracaoMinutos, setDuracaoMinutos] = useState<number>(() => {
-    if (typeof os?.duracao_minutos === 'number' && os.duracao_minutos > 0) {
-      return os.duracao_minutos
+    const num = Number(os?.duracao_minutos)
+    if (!isNaN(num) && num > 0) {
+      return Math.round(num)
     }
     return 60
   })
   const [horarioFim, setHorarioFim] = useState<string>(() => {
-    if (os?.horario_fim) return os.horario_fim
-    const ini =
-      os?.horario_inicio ||
-      (os?.data_agendada && os.data_agendada.length >= 16
-        ? os.data_agendada.replace(' ', 'T').slice(11, 16)
-        : '08:00')
-    const dur =
-      typeof os?.duracao_minutos === 'number' && os.duracao_minutos > 0 ? os.duracao_minutos : 60
+    if (os?.horario_fim) return safeHorarioStr(os.horario_fim, '09:00')
+    let ini = '08:00'
+    if (os?.horario_inicio) {
+      ini = safeHorarioStr(os.horario_inicio, '08:00')
+    } else if (os?.data_agendada) {
+      const rawData: any = os.data_agendada
+      if (rawData instanceof Date && !isNaN(rawData.getTime())) {
+        const h = String(rawData.getHours()).padStart(2, '0')
+        const min = String(rawData.getMinutes()).padStart(2, '0')
+        ini = `${h}:${min}`
+      } else {
+        const rawStr = String(rawData).trim()
+        if (rawStr.length >= 16) {
+          ini = rawStr.replace(' ', 'T').slice(11, 16)
+        }
+      }
+    }
+    const numDur = Number(os?.duracao_minutos)
+    const dur = !isNaN(numDur) && numDur > 0 ? Math.round(numDur) : 60
     return somarMinutos(ini, dur)
   })
 
@@ -1573,10 +1636,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
-                  value={(horarioInicio || '08:00').split(':')[0] || '08'}
+                  value={safeHorarioStr(horarioInicio, '08:00').split(':')[0] || '08'}
                   onChange={(e) => {
                     const h = e.target.value.padStart(2, '0')
-                    const m = (horarioInicio || '08:00').split(':')[1] || '00'
+                    const m = safeHorarioStr(horarioInicio, '08:00').split(':')[1] || '00'
                     handleHorarioInicioChange(`${h}:${m}`)
                   }}
                   className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
@@ -1589,13 +1652,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 </select>
                 <select
                   value={(() => {
-                    const mRaw = parseInt((horarioInicio || '08:00').split(':')[1] || '0', 10) || 0
+                    const mRaw =
+                      parseInt(safeHorarioStr(horarioInicio, '08:00').split(':')[1] || '0', 10) || 0
                     const mRound = Math.round(mRaw / 5) * 5
                     const mBound = mRound >= 60 ? 55 : mRound
                     return String(mBound).padStart(2, '0')
                   })()}
                   onChange={(e) => {
-                    const h = (horarioInicio || '08:00').split(':')[0] || '08'
+                    const h = safeHorarioStr(horarioInicio, '08:00').split(':')[0] || '08'
                     const m = e.target.value
                     handleHorarioInicioChange(`${h}:${m}`)
                   }}
@@ -1618,10 +1682,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
-                  value={(horarioFim || '09:00').split(':')[0] || '09'}
+                  value={safeHorarioStr(horarioFim, '09:00').split(':')[0] || '09'}
                   onChange={(e) => {
                     const h = e.target.value.padStart(2, '0')
-                    const m = (horarioFim || '09:00').split(':')[1] || '00'
+                    const m = safeHorarioStr(horarioFim, '09:00').split(':')[1] || '00'
                     handleHorarioFimChange(`${h}:${m}`)
                   }}
                   className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
@@ -1634,13 +1698,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 </select>
                 <select
                   value={(() => {
-                    const mRaw = parseInt((horarioFim || '09:00').split(':')[1] || '0', 10) || 0
+                    const mRaw =
+                      parseInt(safeHorarioStr(horarioFim, '09:00').split(':')[1] || '0', 10) || 0
                     const mRound = Math.round(mRaw / 5) * 5
                     const mBound = mRound >= 60 ? 55 : mRound
                     return String(mBound).padStart(2, '0')
                   })()}
                   onChange={(e) => {
-                    const h = (horarioFim || '09:00').split(':')[0] || '09'
+                    const h = safeHorarioStr(horarioFim, '09:00').split(':')[0] || '09'
                     const m = e.target.value
                     handleHorarioFimChange(`${h}:${m}`)
                   }}

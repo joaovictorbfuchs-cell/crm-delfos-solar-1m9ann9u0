@@ -96,19 +96,19 @@ export function gerarHTMLProcuracao(dadosInput: Partial<DadosProcuracaoOM>): str
   <style>
     @page {
       size: A4 portrait;
-      margin: 25mm 20mm 20mm 20mm;
+      margin: 25mm;
     }
     * {
       box-sizing: border-box;
     }
     body {
       margin: 0;
-      padding: 30px;
+      padding: 0;
       background-color: #f3f4f6;
       font-family: 'Times New Roman', Times, Georgia, serif;
       color: #000000;
-      line-height: 1.8;
-      font-size: 13pt;
+      line-height: 1.6;
+      font-size: 12pt;
       -webkit-font-smoothing: antialiased;
     }
     .page-a4 {
@@ -116,16 +116,17 @@ export function gerarHTMLProcuracao(dadosInput: Partial<DadosProcuracaoOM>): str
       width: 210mm;
       min-height: 297mm;
       margin: 0 auto 30px auto;
-      padding: 30mm 25mm;
+      padding: 25mm;
+      box-sizing: border-box;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
       position: relative;
     }
     .titulo {
       text-align: center;
-      font-size: 15pt;
+      font-size: 14pt;
       font-weight: bold;
-      letter-spacing: 0.5px;
-      margin-bottom: 35px;
+      letter-spacing: 0.05em;
+      margin-bottom: 2rem;
       text-transform: uppercase;
       color: #000000;
     }
@@ -133,7 +134,7 @@ export function gerarHTMLProcuracao(dadosInput: Partial<DadosProcuracaoOM>): str
       text-align: justify;
       text-justify: inter-word;
       margin-top: 0;
-      margin-bottom: 22px;
+      margin-bottom: 1.25rem;
       text-indent: 0;
       color: #000000;
     }
@@ -141,36 +142,34 @@ export function gerarHTMLProcuracao(dadosInput: Partial<DadosProcuracaoOM>): str
       font-weight: bold;
     }
     .data-local {
-      margin-top: 40px;
-      margin-bottom: 50px;
+      margin-top: 2.5rem;
+      margin-bottom: 3.5rem;
       text-align: left;
       color: #000000;
     }
     .assinatura-bloco {
-      margin-top: 60px;
-      text-align: center;
-      width: 380px;
       margin-left: auto;
-      margin-right: auto;
+      width: 320px;
+      text-align: center;
       color: #000000;
     }
     .linha-assinatura {
       border-top: 1px solid #000000;
-      margin-bottom: 10px;
+      margin-bottom: 0.5rem;
       width: 100%;
     }
     .rotulo-assinatura {
-      font-size: 12pt;
+      font-size: 11pt;
       font-weight: bold;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
     .nome-assinante {
-      font-size: 12pt;
+      font-size: 11pt;
       font-weight: bold;
       margin-bottom: 2px;
     }
     .cpf-assinante {
-      font-size: 12pt;
+      font-size: 11pt;
       font-weight: bold;
     }
     .action-bar {
@@ -417,38 +416,60 @@ export function gerarPDFBinarioProcuracao(dadosInput: Partial<DadosProcuracaoOM>
 
   const pageWidth = 595.28 // A4: 210mm
   const pageHeight = 841.89 // A4: 297mm
-  const marginX = 56.7 // 20mm de margem lateral (padrão de documento formal)
-  const contentWidth = pageWidth - marginX * 2 // ~481.88 pt
+  // Margem padrão de 25mm = 25 * 72 / 25.4 = ~70.87 pt
+  const marginX = 70.87
+  const marginY = 70.87
+  const contentWidth = pageWidth - marginX * 2 // ~453.54 pt
 
-  // O documento começa direto no topo (sem cabeçalho institucional prévio)
-  let currentY = pageHeight - 85
+  // O documento começa com margem superior de 25mm
+  let currentY = pageHeight - marginY - 14
 
   let stream = 'q\n'
 
   // 1. TÍTULO PRINCIPAL CENTRALIZADO: "PROCURAÇÃO PARTICULAR"
-  // Times-Bold, 15pt, centralizado no A4
+  // Times-Bold, 14pt, letter-spacing 0.05em, text-align center
   const tituloText = 'PROCURAÇÃO PARTICULAR'
-  // Largura estimada de "PROCURAÇÃO PARTICULAR" em Times-Bold 15pt é ~210pt
-  const tituloX = (pageWidth - 210) / 2
+  // Largura estimada de "PROCURAÇÃO PARTICULAR" em Times-Bold 14pt é ~195pt
+  const tituloX = (pageWidth - 195) / 2
   stream += '0 0 0 rg\n'
-  stream += 'BT\n/F2 15 Tf\n'
+  stream += 'BT\n/F2 14 Tf\n'
   stream += `${tituloX.toFixed(2)} ${currentY.toFixed(2)} Td\n`
   stream += `(${escapePdfWinAnsi(tituloText)}) Tj\n`
   stream += 'ET\n'
 
-  currentY -= 48
+  // margin-bottom: 2rem (~32pt)
+  currentY -= 36
 
-  // Helper para renderizar parágrafo com rótulo em negrito e corpo justificado/em bloco
-  const writeParagraph = (rotulo: string, corpo: string, maxChars = 76, lineSpacing = 18) => {
+  // Helper para renderizar parágrafo com rótulo em negrito e corpo justificado
+  // Utiliza espaçamento entre palavras (/Tw) para justificar linhas cheias (exceto última linha)
+  const writeParagraph = (rotulo: string, corpo: string, maxChars = 70, lineSpacing = 19.2) => {
     const fullText = `${rotulo} ${corpo}`
     const lines = splitTextIntoLines(fullText, maxChars)
 
     for (let i = 0; i < lines.length; i++) {
       const lineText = lines[i]
       const isFirstLine = i === 0
+      const isLastLine = i === lines.length - 1
+
+      // Para linhas intermediárias, calcula distribuição de espaço para efeito justificado fidedigno
+      let wordSpacing = 0
+      if (!isLastLine && lines.length > 1) {
+        const words = lineText.trim().split(/\s+/)
+        if (words.length > 1) {
+          // Largura aproximada do texto em Times 12pt (~5.6pt por caractere)
+          const estTextWidth = lineText.length * 5.6
+          const spaceToDistribute = contentWidth - estTextWidth
+          if (spaceToDistribute > 0 && spaceToDistribute < 80) {
+            wordSpacing = spaceToDistribute / (words.length - 1)
+          }
+        }
+      }
 
       stream += 'BT\n'
       stream += '0 0 0 rg\n'
+      if (wordSpacing > 0) {
+        stream += `${wordSpacing.toFixed(2)} Tw\n`
+      }
       stream += `${marginX.toFixed(2)} ${currentY.toFixed(2)} Td\n`
 
       // Se for a primeira linha e houver rótulo, renderiza o rótulo em negrito e o resto regular
@@ -470,74 +491,81 @@ export function gerarPDFBinarioProcuracao(dadosInput: Partial<DadosProcuracaoOM>
         stream += `(${escapePdfWinAnsi(lineText)}) Tj\n`
       }
 
+      if (wordSpacing > 0) {
+        stream += '0 Tw\n'
+      }
       stream += 'ET\n'
       currentY -= lineSpacing
     }
-    currentY -= 16 // Espaço entre seções
+    // margin-bottom: 1.25rem (~20pt)
+    currentY -= 20
   }
 
-  // 2. SEÇÃO OUTORGANTE (idêntica ao Word)
+  // 2. SEÇÃO OUTORGANTE (idêntica ao Word, corpo justificado)
   const textoOutorgante = `${dados.nome}, CPF nº ${dados.cpf}, domiciliado na ${dados.endereco}, ${dados.municipio}.`
-  writeParagraph('OUTORGANTE:', textoOutorgante, 74, 18)
+  writeParagraph('OUTORGANTE:', textoOutorgante, 68, 19.2)
 
-  // 3. SEÇÃO OUTORGADOS (idêntica ao Word)
+  // 3. SEÇÃO OUTORGADOS (idêntica ao Word, corpo justificado)
   const enderecoDelfos = DADOS_FIXOS_CONTRATADA_PROCURACAO.enderecoProfissional
   const textoOutorgados = `Daniel Rotava, brasileiro, inscrito no CPF sob nº. 047.838.700-80, RG sob nº 1131962548; João Victor Bagetti Fuchs, brasileiro, inscrito no CPF sob nº 811.562.780-15, RG sob nº 5073762014.; Todos com domicílio profissional na ${enderecoDelfos}`
-  writeParagraph('OUTORGADOS:', textoOutorgados, 74, 18)
+  writeParagraph('OUTORGADOS:', textoOutorgados, 68, 19.2)
 
-  // 4. SEÇÃO PODERES (idêntica ao Word)
+  // 4. SEÇÃO PODERES (idêntica ao Word, corpo justificado)
   const textoPoderes =
     'Pelo presente instrumento, a Outorgante acima qualificada nomeia e constitui seu bastante procurador a pessoa retro citada, outorgando-lhe os poderes específicos para praticar os atos consistentes nas alterações de titularidade, cadastro e alteração de unidades beneficiárias, protocolos em geral, com plenos poderes para assinar termos e documentos, dentre outros procedimentos correlatos requisitados perante a Concessionária de Energia RGE.'
-  writeParagraph('PODERES:', textoPoderes, 74, 18)
+  writeParagraph('PODERES:', textoPoderes, 68, 19.2)
 
-  currentY -= 16
+  // margin-top: 2.5rem (~40pt) antes de local e data
+  currentY -= 20
 
-  // 5. LOCAL E DATA (alinhamento à esquerda, como no modelo Word)
+  // 5. LOCAL E DATA: text-align left, margin-top 2.5rem, margin-bottom 3.5rem
   const localDataText = `Erechim/RS, ${dados.dataPorExtenso}.`
   stream += 'BT\n/F1 12 Tf\n0 0 0 rg\n'
   stream += `${marginX.toFixed(2)} ${currentY.toFixed(2)} Td\n`
   stream += `(${escapePdfWinAnsi(localDataText)}) Tj\n`
   stream += 'ET\n'
 
-  currentY -= 65
+  // margin-bottom: 3.5rem (~56pt)
+  currentY -= 56
 
-  // 6. BLOCO DE ASSINATURA DO OUTORGANTE (centralizado, idêntico ao Word)
-  const linhaAssinaturaW = 280
-  const linhaStartX = (pageWidth - linhaAssinaturaW) / 2
-  const linhaEndX = linhaStartX + linhaAssinaturaW
+  // 6. BLOCO DE ASSINATURA: width 320px (~240pt), margin-left auto (alinhado à direita),
+  // linha superior border-top 1px solid #000, texto centralizado no bloco
+  const blocoLarguraPt = 240 // 320px * 72 / 96 = 240pt
+  const blocoLeftPt = pageWidth - marginX - blocoLarguraPt // margin-left auto
+  const blocoRightPt = blocoLeftPt + blocoLarguraPt
+  const blocoCentroX = blocoLeftPt + blocoLarguraPt / 2
 
-  // Traço de assinatura
-  stream += '0 0 0 RG\n0.75 w\n'
-  stream += `${linhaStartX.toFixed(2)} ${currentY.toFixed(2)} m ${linhaEndX.toFixed(2)} ${currentY.toFixed(2)} l S\n`
-
-  currentY -= 16
-
-  // Rótulo "Assinatura do(a) Outorgante" (Times-Bold 11pt)
-  const rotuloAssinatura = 'Assinatura do(a) Outorgante'
-  // Largura aproximada de ~155pt
-  const rotuloX = (pageWidth - 155) / 2
-  stream += 'BT\n/F2 11 Tf\n0 0 0 rg\n'
-  stream += `${rotuloX.toFixed(2)} ${currentY.toFixed(2)} Td\n`
-  stream += `(${escapePdfWinAnsi(rotuloAssinatura)}) Tj\n`
-  stream += 'ET\n'
+  // Linha superior border-top 1px solid #000
+  stream += '0 0 0 RG\n1 w\n'
+  stream += `${blocoLeftPt.toFixed(2)} ${currentY.toFixed(2)} m ${blocoRightPt.toFixed(2)} ${currentY.toFixed(2)} l S\n`
 
   currentY -= 15
 
-  // Nome do Outorgante em negrito (Times-Bold 11pt)
+  // Rótulo "Assinatura do(a) Outorgante" (Times-Bold 11pt, centralizado no bloco)
+  const rotuloAssinatura = 'Assinatura do(a) Outorgante'
+  const rotuloAssinaturaX = blocoCentroX - 70
+  stream += 'BT\n/F2 11 Tf\n0 0 0 rg\n'
+  stream += `${rotuloAssinaturaX.toFixed(2)} ${currentY.toFixed(2)} Td\n`
+  stream += `(${escapePdfWinAnsi(rotuloAssinatura)}) Tj\n`
+  stream += 'ET\n'
+
+  currentY -= 14
+
+  // Nome do Outorgante / Empresa (Times-Bold 11pt, centralizado no bloco)
   const nomeOutorgante = dados.nome
-  const nomeWidthAprox = Math.min(300, nomeOutorgante.length * 6.2)
-  const nomeX = Math.max(marginX, (pageWidth - nomeWidthAprox) / 2)
+  const nomeWidthAprox = Math.min(blocoLarguraPt, nomeOutorgante.length * 5.8)
+  const nomeX = blocoCentroX - nomeWidthAprox / 2
   stream += 'BT\n/F2 11 Tf\n0 0 0 rg\n'
   stream += `${nomeX.toFixed(2)} ${currentY.toFixed(2)} Td\n`
   stream += `(${escapePdfWinAnsi(nomeOutorgante)}) Tj\n`
   stream += 'ET\n'
 
-  currentY -= 14
+  currentY -= 13
 
-  // CPF do Outorgante (Times-Bold 11pt)
+  // CPF/CNPJ abaixo (Times-Bold 11pt, centralizado no bloco)
   const cpfLinha = `CPF: ${dados.cpf}`
-  const cpfWidthAprox = cpfLinha.length * 6
-  const cpfX = (pageWidth - cpfWidthAprox) / 2
+  const cpfWidthAprox = cpfLinha.length * 5.5
+  const cpfX = blocoCentroX - cpfWidthAprox / 2
   stream += 'BT\n/F2 11 Tf\n0 0 0 rg\n'
   stream += `${cpfX.toFixed(2)} ${currentY.toFixed(2)} Td\n`
   stream += `(${escapePdfWinAnsi(cpfLinha)}) Tj\n`

@@ -565,32 +565,55 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
             {/* ===================================================================== */}
             {/* SIMULAÇÃO DA FOLHA A4 COM O TEXTO EXATO DO MODELO OFICIAL             */}
             {/* ===================================================================== */}
-            <div className="w-full flex justify-center py-2">
+            <div className="w-full flex justify-center py-2 overflow-x-auto">
               <div
-                className="w-full max-w-[760px] bg-white rounded-lg border border-gray-300 shadow-xl p-8 sm:p-14 text-gray-900 space-y-6 leading-relaxed select-text"
+                className="bg-white rounded-lg border border-gray-300 shadow-xl text-gray-900 select-text"
                 style={{
-                  fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
-                  fontSize: '15px',
-                  lineHeight: '1.8',
+                  width: '210mm',
+                  minHeight: '297mm',
+                  padding: '25mm',
+                  boxSizing: 'border-box',
+                  fontFamily: '"Times New Roman", Times, Georgia, serif',
+                  fontSize: '12pt',
+                  lineHeight: '1.6',
                 }}
               >
                 {/* Título Principal */}
                 <h1
-                  className="text-center font-bold tracking-wider uppercase mb-8"
-                  style={{ fontSize: '18px', letterSpacing: '1px' }}
+                  className="font-bold uppercase"
+                  style={{
+                    textAlign: 'center',
+                    fontSize: '14pt',
+                    letterSpacing: '0.05em',
+                    marginBottom: '2rem',
+                  }}
                 >
                   PROCURAÇÃO PARTICULAR
                 </h1>
 
                 {/* Parágrafo OUTORGANTE */}
-                <p className="text-justify">
+                <p
+                  style={{
+                    textAlign: 'justify',
+                    textJustify: 'inter-word',
+                    marginBottom: '1.25rem',
+                    marginTop: 0,
+                  }}
+                >
                   <strong>OUTORGANTE: {dadosConsolidados.nome},</strong> CPF nº{' '}
                   {dadosConsolidados.cpf}, domiciliado na {dadosConsolidados.endereco},{' '}
                   {dadosConsolidados.municipio}.
                 </p>
 
                 {/* Parágrafo OUTORGADOS */}
-                <p className="text-justify">
+                <p
+                  style={{
+                    textAlign: 'justify',
+                    textJustify: 'inter-word',
+                    marginBottom: '1.25rem',
+                    marginTop: 0,
+                  }}
+                >
                   <strong>OUTORGADOS</strong>: <strong>Daniel Rotava</strong>, brasileiro, inscrito
                   no CPF sob nº. <strong>047.838.700-80</strong>, RG sob nº 1131962548;{' '}
                   <strong>João Victor Bagetti Fuchs</strong>, brasileiro, inscrito no CPF sob nº{' '}
@@ -599,7 +622,14 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                 </p>
 
                 {/* Parágrafo PODERES */}
-                <p className="text-justify">
+                <p
+                  style={{
+                    textAlign: 'justify',
+                    textJustify: 'inter-word',
+                    marginBottom: '1.25rem',
+                    marginTop: 0,
+                  }}
+                >
                   <strong>PODERES:</strong> Pelo presente instrumento, a <strong>Outorgante</strong>{' '}
                   acima qualificada nomeia e constitui seu bastante procurador a pessoa retro
                   citada, outorgando-lhe os poderes específicos para praticar os atos consistentes
@@ -610,16 +640,39 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                 </p>
 
                 {/* Data e Local */}
-                <div className="pt-6 text-left">
+                <div
+                  style={{
+                    marginTop: '2.5rem',
+                    marginBottom: '3.5rem',
+                    textAlign: 'left',
+                  }}
+                >
                   Erechim/RS, {dadosConsolidados.dataPorExtenso}.
                 </div>
 
                 {/* Bloco de Assinatura */}
-                <div className="pt-12 text-center w-full max-w-[380px] mx-auto space-y-1">
-                  <div className="border-t border-gray-900 w-full mb-3" />
-                  <div className="font-bold text-sm">Assinatura do(a) Outorgante</div>
-                  <div className="font-bold text-sm">{dadosConsolidados.nome}</div>
-                  <div className="font-bold text-xs text-gray-800">
+                <div
+                  style={{
+                    marginLeft: 'auto',
+                    width: '320px',
+                    textAlign: 'center',
+                  }}
+                  className="space-y-1"
+                >
+                  <div
+                    style={{
+                      borderTop: '1px solid #000000',
+                      width: '100%',
+                      marginBottom: '0.5rem',
+                    }}
+                  />
+                  <div className="font-bold text-xs" style={{ fontSize: '11pt' }}>
+                    Assinatura do(a) Outorgante
+                  </div>
+                  <div className="font-bold text-xs" style={{ fontSize: '11pt' }}>
+                    {dadosConsolidados.nome}
+                  </div>
+                  <div className="font-bold text-xs" style={{ fontSize: '11pt' }}>
                     CPF: {dadosConsolidados.cpf}
                   </div>
                 </div>

@@ -446,6 +446,101 @@ export function safeStr(val: unknown): string {
   }
 }
 
+/**
+ * Sanitiza um objeto OrdemServico garantindo que checklist seja array normalizado,
+ * horario_inicio seja string segura, duracao_minutos seja número válido,
+ * evitando que tipos divergentes quebrem re-renders de FichaExecucaoOS ou do próprio calendário.
+ */
+export function sanitizeOS(os: any): OrdemServico {
+  if (!os || typeof os !== 'object') {
+    return os as OrdemServico
+  }
+
+  const checklistNormalizada = normalizeChecklist(os.checklist)
+
+  let horarioInicioStr = '08:00'
+  if (os.horario_inicio !== undefined && os.horario_inicio !== null) {
+    if (typeof os.horario_inicio === 'string' && os.horario_inicio.trim()) {
+      horarioInicioStr = os.horario_inicio.trim()
+    } else if (typeof os.horario_inicio === 'number' && !isNaN(os.horario_inicio)) {
+      horarioInicioStr = `${String(Math.floor(os.horario_inicio)).padStart(2, '0')}:00`
+    } else {
+      try {
+        const s = String(os.horario_inicio).trim()
+        horarioInicioStr = s || '08:00'
+      } catch {
+        horarioInicioStr = '08:00'
+      }
+    }
+  } else if (os.data_agendada) {
+    if (os.data_agendada instanceof Date && !isNaN(os.data_agendada.getTime())) {
+      const h = String(os.data_agendada.getHours()).padStart(2, '0')
+      const m = String(os.data_agendada.getMinutes()).padStart(2, '0')
+      horarioInicioStr = `${h}:${m}`
+    } else {
+      const s = String(os.data_agendada).trim()
+      if (s.length >= 16) {
+        horarioInicioStr = s.replace(' ', 'T').slice(11, 16)
+      }
+    }
+  }
+
+  let dataAgendadaStr = ''
+  if (os.data_agendada !== undefined && os.data_agendada !== null) {
+    if (os.data_agendada instanceof Date) {
+      if (!isNaN(os.data_agendada.getTime())) {
+        const y = os.data_agendada.getFullYear()
+        const m = String(os.data_agendada.getMonth() + 1).padStart(2, '0')
+        const d = String(os.data_agendada.getDate()).padStart(2, '0')
+        const h = String(os.data_agendada.getHours()).padStart(2, '0')
+        const min = String(os.data_agendada.getMinutes()).padStart(2, '0')
+        dataAgendadaStr = `${y}-${m}-${d} ${h}:${min}:00`
+      }
+    } else {
+      try {
+        dataAgendadaStr = String(os.data_agendada)
+      } catch {
+        dataAgendadaStr = ''
+      }
+    }
+  }
+
+  let duracaoNum = 60
+  if (os.duracao_minutos !== undefined && os.duracao_minutos !== null) {
+    const parsed = Number(os.duracao_minutos)
+    if (!isNaN(parsed) && parsed > 0) {
+      duracaoNum = Math.round(parsed)
+    }
+  } else if (os.tempo_previsto_minutos !== undefined && os.tempo_previsto_minutos !== null) {
+    const parsed = Number(os.tempo_previsto_minutos)
+    if (!isNaN(parsed) && parsed > 0) {
+      duracaoNum = Math.round(parsed)
+    }
+  }
+
+  let horarioFimStr = ''
+  if (os.horario_fim !== undefined && os.horario_fim !== null) {
+    try {
+      horarioFimStr = String(os.horario_fim).trim()
+    } catch {
+      horarioFimStr = ''
+    }
+  }
+  if (!horarioFimStr && horarioInicioStr) {
+    horarioFimStr = somarMinutos(horarioInicioStr, duracaoNum)
+  }
+
+  return {
+    ...os,
+    data_agendada: dataAgendadaStr,
+    horario_inicio: horarioInicioStr,
+    horario_fim: horarioFimStr,
+    duracao_minutos: duracaoNum,
+    tempo_previsto_minutos: duracaoNum,
+    checklist: checklistNormalizada,
+  }
+}
+
 // Normaliza checklist vindo de PocketBase (seja array, string JSON, objeto ou indefinido/nulo)
 export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
   if (!raw) return []
@@ -609,7 +704,7 @@ function getDuracaoMinutosOS(os?: Partial<OrdemServico> | null): number {
 
 function CalendarioExecucaoOSContent({
   ordens,
-  onSelectOS,
+  onSelectOS: onSelectOSRaw,
   onOSUpdated,
   isInstalador,
   instaladorNome,
@@ -619,6 +714,16 @@ function CalendarioExecucaoOSContent({
 }: CalendarioExecucaoOSProps) {
   const now = new Date()
   const { toast } = useToast()
+
+  // Wrapper sanitizado de onSelectOS para garantir que o objeto passado à Ficha de Execução
+  // não contenha tipos divergentes (data_agendada Date, horario_inicio numérico, checklist null)
+  const onSelectOS = useCallback(
+    (osItem: OrdemServico) => {
+      const sanitized = sanitizeOS(osItem)
+      onSelectOSRaw(sanitized)
+    },
+    [onSelectOSRaw],
+  )
   const [viewMode, setViewMode] = useState<CalendarioOSViewMode>('semana')
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(() =>
@@ -691,15 +796,23 @@ function CalendarioExecucaoOSContent({
 
   const timeGridRef = useRef<HTMLDivElement>(null)
 
-  // Data base para visão Dia (se tiver selectedDayKey, converte; senão hoje)
+  // Data base para visão Dia (se tiver selectedDayKey, converte; fallback para new Date() em qualquer falha de parse)
   const selectedDayDate = useMemo(() => {
-    if (!selectedDayKey || typeof selectedDayKey !== 'string') return new Date()
-    const parts = selectedDayKey.split('-').map(Number)
-    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-      const d = new Date(parts[0], parts[1] - 1, parts[2])
-      if (!isNaN(d.getTime())) return d
+    try {
+      if (!selectedDayKey) return new Date()
+      const str = String(selectedDayKey).trim()
+      if (!str) return new Date()
+      const parts = str.split('-').map(Number)
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+        const d = new Date(parts[0], parts[1] - 1, parts[2])
+        if (d instanceof Date && !isNaN(d.getTime())) return d
+      }
+      const direct = new Date(str)
+      if (direct instanceof Date && !isNaN(direct.getTime())) return direct
+      return new Date()
+    } catch {
+      return new Date()
     }
-    return new Date()
   }, [selectedDayKey])
 
   const currentYear = currentDate.getFullYear()
@@ -875,6 +988,9 @@ function CalendarioExecucaoOSContent({
       }
 
       const updated = await updateOrdemServico(osId, payload)
+      // Sanitiza resposta do update antes de setar estado / passar para callback
+      const sanitizedUpdated = sanitizeOS(updated)
+
       const dataFormatada =
         typeof safeTargetDateKey === 'string' && safeTargetDateKey.includes('-')
           ? safeTargetDateKey.split('-').reverse().join('/')
@@ -884,7 +1000,7 @@ function CalendarioExecucaoOSContent({
         description: `Agendado para ${dataFormatada} às ${horaFormatada}:${minutoFormatado}h (${duracaoAtual}min).`,
       })
       if (onOSUpdated) {
-        onOSUpdated(updated)
+        onOSUpdated(sanitizedUpdated)
       }
     } catch (err) {
       console.error('Erro ao reagendar ordem de serviço:', err)
@@ -1037,6 +1153,8 @@ function CalendarioExecucaoOSContent({
         }
 
         const updated = await updateOrdemServico(targetOSId, payload)
+        // Sanitiza resposta do update antes de propagar
+        const sanitizedUpdated = sanitizeOS(updated)
 
         toast({
           title: 'Duração atualizada! ⏱️',
@@ -1044,7 +1162,7 @@ function CalendarioExecucaoOSContent({
         })
 
         if (onOSUpdated) {
-          onOSUpdated(updated)
+          onOSUpdated(sanitizedUpdated)
         }
       } catch (err) {
         console.error('Erro ao salvar duração da ordem de serviço:', err)
@@ -1339,16 +1457,29 @@ function CalendarioExecucaoOSContent({
     selectedDayKey,
   ])
 
-  // Rótulo textual do período para o header (blindado com weekDays[weekDays.length - 1] e guarda de array vazio)
+  // Rótulo textual do período para o header (blindado com validação de instanceof Date e getTime() em first/last)
   const headerPeriodoTexto = useMemo(() => {
     if (viewMode === 'mes') {
       return `${MESES[currentMonth] || ''} ${currentYear}`
     } else if (viewMode === 'semana') {
       const targetDays = weekDaysVisiveis.length > 0 ? weekDaysVisiveis : weekDays
-      if (!targetDays || targetDays.length === 0) return ''
+      if (!targetDays || targetDays.length === 0) return 'Período'
       const first = targetDays[0]?.date
       const last = targetDays[targetDays.length - 1]?.date
-      if (!first || !last) return ''
+      const isFirstValid = first instanceof Date && !isNaN(first.getTime())
+      const isLastValid = last instanceof Date && !isNaN(last.getTime())
+
+      if (!isFirstValid && !isLastValid) {
+        return `${MESES[currentMonth] || ''} ${currentYear}`
+      }
+      if (isFirstValid && !isLastValid) {
+        return `${first.getDate()} de ${MESES[first.getMonth()] || ''} de ${first.getFullYear()}`
+      }
+      if (!isFirstValid && isLastValid) {
+        return `${last.getDate()} de ${MESES[last.getMonth()] || ''} de ${last.getFullYear()}`
+      }
+
+      // Ambos válidos
       try {
         if (first.getMonth() === last.getMonth()) {
           return `${first.getDate()}–${last.getDate()} de ${MESES[first.getMonth()] || ''} de ${first.getFullYear()}`
@@ -1358,18 +1489,21 @@ function CalendarioExecucaoOSContent({
         }
         return `${first.getDate()}/${first.getMonth() + 1}/${first.getFullYear()} – ${last.getDate()}/${last.getMonth() + 1}/${last.getFullYear()}`
       } catch (_) {
-        return ''
+        return `${MESES[currentMonth] || ''} ${currentYear}`
       }
     } else {
       // Visão Dia
       try {
-        const d = selectedDayDate || new Date()
+        const d =
+          selectedDayDate instanceof Date && !isNaN(selectedDayDate.getTime())
+            ? selectedDayDate
+            : new Date()
         const dia = d.getDate()
         const mes = MESES[d.getMonth()] || ''
         const ano = d.getFullYear()
         return `${dia} de ${mes} de ${ano}`
       } catch (_) {
-        return ''
+        return 'Hoje'
       }
     }
   }, [viewMode, currentMonth, currentYear, weekDays, weekDaysVisiveis, selectedDayDate])

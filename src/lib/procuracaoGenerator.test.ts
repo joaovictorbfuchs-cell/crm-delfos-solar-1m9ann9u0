@@ -65,6 +65,22 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     expect(html).toContain('Assinatura do(a) Outorgante')
   })
 
+  it('deve aplicar a formatação A4 especificada no HTML gerado (margem 25mm, Times 12pt, justificado, bloco 320px)', () => {
+    const html = gerarHTMLProcuracao(dadosMarceloBecker)
+
+    expect(html).toContain('size: A4 portrait; margin: 25mm;')
+    expect(html).toContain('width: 210mm')
+    expect(html).toContain('min-height: 297mm')
+    expect(html).toContain('padding: 25mm')
+    expect(html).toContain('box-sizing: border-box')
+    expect(html).toContain('font-size: 12pt')
+    expect(html).toContain('line-height: 1.6')
+    expect(html).toContain('text-align: justify')
+    expect(html).toContain('text-justify: inter-word')
+    expect(html).toContain('width: 320px')
+    expect(html).toContain('margin-left: auto')
+  })
+
   it('deve gerar PDF binário nativo A4 sem cabeçalho institucional Delfos e com caracteres especiais WinAnsi corretos', () => {
     const pdfBytes = gerarPDFBinarioProcuracao(dadosMarceloBecker)
     expect(pdfBytes).toBeInstanceOf(Uint8Array)
