@@ -530,10 +530,12 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                 }}
                 aria-label="Nova Atividade"
                 title="Nova Atividade"
-                className="h-8 px-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] active:scale-95 text-white flex items-center gap-1 text-xs font-bold shadow-xs transition-all cursor-pointer"
+                className="h-8 px-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] active:scale-95 text-white flex items-center gap-1 text-xs font-bold shadow-xs transition-all cursor-pointer pr-[2px] pl-[8px]"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span className="text-[11px] font-bold">Nova Atividade</span>
+                <span className="text-[11px] font-bold">
+                  <br />
+                </span>
               </button>
 
               {/* Botão Filtros compacto com apenas ícone Filter */}
