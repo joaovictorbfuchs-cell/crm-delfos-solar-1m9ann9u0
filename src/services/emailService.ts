@@ -1,8 +1,30 @@
 import pb from '@/lib/pocketbase/client'
-import type { EnviarEmailViaGmailParams, SendEmailPayload, SendEmailResponse } from '@/types/email'
+import type {
+  EnviarEmailViaGmailParams,
+  SendEmailPayload,
+  SendEmailResponse,
+  EnviarEmailParams,
+} from '@/types/email'
+import {
+  enviarEmail as enviarEmailCore,
+  converterArquivoParaBase64,
+  DEFAULT_EMAIL_FROM as DEFAULT_RESEND_FROM,
+  DEFAULT_EMAIL_DOMAIN,
+} from '@/lib/emailService'
 
-export const DEFAULT_EMAIL_FROM = 'Delfos Solar <delfos.usinas@gmail.com>'
+export const DEFAULT_EMAIL_FROM = 'Delfos Solar <nao-responda@delfosengenharia.com.br>'
 export const DEFAULT_GMAIL_SENDER = 'delfos.usinas@gmail.com'
+export const DEFAULT_RESEND_SENDER = DEFAULT_RESEND_FROM
+export { DEFAULT_EMAIL_DOMAIN, converterArquivoParaBase64 }
+
+/**
+ * Função unificada e reutilizável de envio de e-mails via Resend.
+ * Requisito: "Monte um recurso de envio reutilizável em qualquer tela do projeto, aceitando destinatário,
+ * assunto, corpo do e-mail em texto simples ou com formatação visual (HTML), e anexo de arquivo opcional".
+ */
+export async function enviarEmail(params: EnviarEmailParams): Promise<SendEmailResponse> {
+  return enviarEmailCore(params)
+}
 
 /**
  * Função backend "Enviar Email via Gmail"
@@ -213,10 +235,14 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
 }
 
 export const emailService = {
+  enviarEmail,
   sendEmail,
   enviarEmailViaGmail,
+  converterArquivoParaBase64,
   DEFAULT_EMAIL_FROM,
   DEFAULT_GMAIL_SENDER,
+  DEFAULT_RESEND_SENDER,
+  DEFAULT_EMAIL_DOMAIN,
 }
 
 export default emailService

@@ -28,7 +28,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
-import { emailService, enviarEmailViaGmail } from '@/services/emailService'
+import { enviarEmail, DEFAULT_EMAIL_FROM } from '@/lib/emailService'
 import {
   EMAIL_RGE_PADRAO,
   DELFOS_TELEFONE_PADRAO,
@@ -114,9 +114,11 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     atividadeExistente?.responsavel_cargo || 'Engenheiro Responsável',
   )
 
-  // 6. Destinatário do e-mail (editável, padrão atendimento da concessionária)
+  // 6. Destinatário do e-mail (editável, padrão joao@delfosengenharia.com.br / concessionária)
   const [emailDestinatario, setEmailDestinatario] = useState<string>(
-    atividadeExistente?.email_destinatario || emailDestinatarioInicial || EMAIL_RGE_PADRAO,
+    atividadeExistente?.email_destinatario ||
+      emailDestinatarioInicial ||
+      'joao@delfosengenharia.com.br',
   )
 
   // 7. Customização e Edição do Template de Mensagem (Assunto + Corpo com placeholders)
@@ -167,8 +169,9 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
       const emailSalvo = atividadeExistente?.email_destinatario || emailDestinatarioInicial
       if (emailSalvo) {
         setEmailDestinatario(emailSalvo)
-      } else if (!emailDestinatario) {
-        setEmailDestinatario(EMAIL_RGE_PADRAO)
+      } else if (!emailDestinatario || emailDestinatario === EMAIL_RGE_PADRAO) {
+        // Conforme requisito do usuário: aplicar envio na atividade solicitar contas RGE para joao@delfosengenharia.com.br
+        setEmailDestinatario('joao@delfosengenharia.com.br')
       }
 
       if (atividadeExistente?.numero_uc) setNumeroUc(atividadeExistente.numero_uc)
@@ -424,35 +427,32 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
         }
       }
 
-      // 2. Disparar e-mail via função "Enviar Email via Gmail" (Composio / delfos.usinas@gmail.com)
+      // 2. Disparar e-mail via recurso unificado reutilizável enviarEmail (Resend)
       let emailEnvioId = ''
       let envioSucesso = false
       let erroEnvioMsg = ''
-      let provedorUtilizado = 'Gmail (delfos.usinas@gmail.com)'
+      const provedorUtilizado = 'Resend'
 
       try {
-        const envioRes = await enviarEmailViaGmail({
+        const envioRes = await enviarEmail({
           destinatario: emailDestinatario.trim(),
           assunto: assuntoAtual,
-          corpo: corpoHtmlAtual,
+          corpoHtml: corpoHtmlAtual,
           anexos: anexosPayload.length > 0 ? anexosPayload : undefined,
         })
 
         if (envioRes.ok || envioRes.sucesso) {
           envioSucesso = true
           emailEnvioId = envioRes.id || envioRes.message_id || ''
-          if (envioRes.provedor === 'resend_fallback') {
-            provedorUtilizado = 'Resend (fallback)'
-          }
         } else {
-          erroEnvioMsg = envioRes.error || 'Falha ao enviar e-mail via Gmail.'
+          erroEnvioMsg = envioRes.error || 'Falha ao enviar e-mail via Resend.'
         }
       } catch (errEmail: unknown) {
-        console.error('Falha no envio do email via Gmail:', errEmail)
+        console.error('Falha no envio do email via Resend:', errEmail)
         erroEnvioMsg =
           errEmail instanceof Error
             ? errEmail.message
-            : 'Falha ao conectar com o serviço de email do Gmail.'
+            : 'Falha ao conectar com o serviço de email do Resend.'
       }
 
       // 3. Registrar a atividade no banco (continua em aberto, status "pendente")
@@ -492,7 +492,9 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
       const atividadeCriada = await addAtividade(novaAtividadePayload)
 
       if (envioSucesso) {
-        toast.success('E-mail enviado via Gmail (delfos.usinas@gmail.com) e atividade registrada!')
+        toast.success(
+          `E-mail enviado via Resend para ${emailDestinatario.trim()} e atividade registrada!`,
+        )
       } else {
         toast.warning(
           `Atividade registrada, mas o envio do e-mail reportou: ${erroEnvioMsg}. Verifique os detalhes na atividade.`,
@@ -665,16 +667,25 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
                 />
               </div>
 
-              {/* E-mail de destino da RGE */}
+              {/* E-mail de destino */}
               <div className="sm:col-span-4">
-                <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                  E-mail Concessionária (RGE) <span className="text-rose-500">*</span>
+                <label className="text-[11px] font-semibold text-gray-700 block mb-1 flex items-center justify-between">
+                  <span>
+                    Destinatário <span className="text-rose-500">*</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEmailDestinatario('joao@delfosengenharia.com.br')}
+                    className="text-[10px] text-sky-600 hover:text-sky-800 underline"
+                  >
+                    Usar João (Delfos)
+                  </button>
                 </label>
                 <input
                   type="email"
                   value={emailDestinatario}
                   onChange={(e) => setEmailDestinatario(e.target.value)}
-                  placeholder="atendimentocomercialrge@cpfl.com.br"
+                  placeholder="joao@delfosengenharia.com.br"
                   className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
                 />
               </div>
@@ -988,12 +999,11 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
                 <span className="text-gray-800 font-medium">{assuntoAtual}</span>
               </div>
               <div>
-                <strong className="text-gray-900">Remetente:</strong> Delfos Solar
-                &lt;delfos.usinas@gmail.com&gt;
+                <strong className="text-gray-900">Remetente:</strong> {DEFAULT_EMAIL_FROM}
               </div>
               <div>
                 <strong className="text-gray-900">Destinatário:</strong>{' '}
-                {emailDestinatario || EMAIL_RGE_PADRAO}
+                {emailDestinatario || 'joao@delfosengenharia.com.br'}
               </div>
             </div>
 
@@ -1023,9 +1033,9 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
               </div>
               <p>
                 O e-mail será enviado imediatamente para <strong>{emailDestinatario}</strong> com{' '}
-                {anexos.length} documento(s) em anexo via Gmail (remetente:
-                delfos.usinas@gmail.com). A atividade ficará registrada em aberto para
-                acompanhamento do retorno e prazo da concessionária.
+                {anexos.length} documento(s) em anexo via <strong>Resend</strong> (remetente:{' '}
+                {DEFAULT_EMAIL_FROM}). A atividade ficará registrada em aberto para acompanhamento
+                do retorno e prazo da concessionária.
               </p>
             </div>
           )}

@@ -1272,7 +1272,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                       <span>Envio de e-mail com pendência ou erro</span>
                     </div>
                     <p className="text-[11px] text-amber-800 leading-relaxed font-mono">
-                      {atividade.email_log_erro || 'Falha reportada durante o disparo via Gmail.'}
+                      {atividade.email_log_erro || 'Falha reportada durante o disparo via Resend.'}
                     </p>{' '}
                     {atividade.email_destinatario && (
                       <p className="text-[10px] text-rose-600">

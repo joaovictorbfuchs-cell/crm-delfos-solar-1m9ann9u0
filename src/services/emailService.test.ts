@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   sendEmail,
+  enviarEmail,
   enviarEmailViaGmail,
   DEFAULT_EMAIL_FROM,
   DEFAULT_GMAIL_SENDER,
@@ -36,11 +37,101 @@ describe('emailService', () => {
     })
   })
 
-  it('deve exportar o remetente padrão correto Delfos Solar e Gmail', () => {
-    expect(DEFAULT_EMAIL_FROM).toBe('Delfos Solar <delfos.usinas@gmail.com>')
+  it('deve exportar o remetente padrão correto Delfos Solar com domínio da empresa e Gmail', () => {
+    expect(DEFAULT_EMAIL_FROM).toBe('Delfos Solar <nao-responda@delfosengenharia.com.br>')
     expect(DEFAULT_GMAIL_SENDER).toBe('delfos.usinas@gmail.com')
-    expect(emailService.DEFAULT_EMAIL_FROM).toBe('Delfos Solar <delfos.usinas@gmail.com>')
+    expect(emailService.DEFAULT_EMAIL_FROM).toBe(
+      'Delfos Solar <nao-responda@delfosengenharia.com.br>',
+    )
     expect(emailService.DEFAULT_GMAIL_SENDER).toBe('delfos.usinas@gmail.com')
+  })
+
+  describe('enviarEmail (recurso reutilizável Resend)', () => {
+    it('deve validar parâmetros obrigatórios (destinatario, assunto, corpo)', async () => {
+      await expect(
+        enviarEmail({
+          destinatario: '',
+          assunto: 'Assunto',
+          corpoTexto: 'Corpo',
+        }),
+      ).rejects.toThrow('Destinatário do e-mail é obrigatório')
+
+      await expect(
+        enviarEmail({
+          destinatario: 'joao@delfosengenharia.com.br',
+          assunto: '   ',
+          corpoTexto: 'Corpo',
+        }),
+      ).rejects.toThrow('Assunto do e-mail é obrigatório')
+
+      await expect(
+        enviarEmail({
+          destinatario: 'joao@delfosengenharia.com.br',
+          assunto: 'Assunto',
+          corpoTexto: '   ',
+          corpoHtml: '',
+        }),
+      ).rejects.toThrow('Corpo da mensagem (texto simples ou HTML) é obrigatório')
+    })
+
+    it('deve chamar /backend/v1/email/send com os dados corretos e anexo em base64', async () => {
+      vi.mocked(pb.send).mockResolvedValueOnce({
+        ok: true,
+        sucesso: true,
+        id: 'msg_resend_123',
+        message: 'E-mail enviado com sucesso',
+      })
+
+      const res = await enviarEmail({
+        destinatario: 'joao@delfosengenharia.com.br',
+        assunto: 'Solicitação de Faturas RGE',
+        corpoHtml: '<p>Solicitação de faturas dos últimos 5 anos</p>',
+        anexo: {
+          filename: 'procuracao.pdf',
+          content: 'JVBERi0xLjQK...',
+        },
+      })
+
+      expect(pb.send).toHaveBeenCalledWith('/backend/v1/email/send', {
+        method: 'POST',
+        body: expect.objectContaining({
+          to: 'joao@delfosengenharia.com.br',
+          subject: 'Solicitação de Faturas RGE',
+          html: '<p>Solicitação de faturas dos últimos 5 anos</p>',
+          from: 'Delfos Solar <nao-responda@delfosengenharia.com.br>',
+          attachments: [
+            {
+              filename: 'procuracao.pdf',
+              content: 'JVBERi0xLjQK...',
+            },
+          ],
+        }),
+      })
+
+      expect(res.ok).toBe(true)
+      expect(res.id).toBe('msg_resend_123')
+      expect(res.provedor).toBe('resend')
+    })
+
+    it('converte texto simples com quebras em HTML se corpoHtml não for fornecido', async () => {
+      vi.mocked(pb.send).mockResolvedValueOnce({
+        ok: true,
+        id: 'msg_text_only',
+      })
+
+      await enviarEmail({
+        destinatario: 'joao@delfosengenharia.com.br',
+        assunto: 'Texto simples',
+        corpoTexto: 'Linha 1\nLinha 2',
+      })
+
+      expect(pb.send).toHaveBeenCalledWith('/backend/v1/email/send', {
+        method: 'POST',
+        body: expect.objectContaining({
+          html: expect.stringContaining('Linha 1'),
+        }),
+      })
+    })
   })
 
   describe('enviarEmailViaGmail', () => {

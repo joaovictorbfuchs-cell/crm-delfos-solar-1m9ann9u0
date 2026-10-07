@@ -923,6 +923,17 @@ describe('Login e App Smoke Tests', () => {
     expect(errorsModule.isAuthSessionError({ status: 200 })).toBe(false)
   })
 
+  it('emailService e lib/emailService exportam recurso unificado de envio Resend com remetente da empresa', async () => {
+    const libEmail = await import('@/lib/emailService')
+    const servEmail = await import('@/services/emailService')
+
+    expect(typeof libEmail.enviarEmail).toBe('function')
+    expect(typeof servEmail.enviarEmail).toBe('function')
+    expect(libEmail.DEFAULT_EMAIL_FROM).toContain('delfosengenharia.com.br')
+    expect(libEmail.DEFAULT_EMAIL_DOMAIN).toBe('delfosengenharia.com.br')
+    expect(servEmail.DEFAULT_EMAIL_FROM).toBe(libEmail.DEFAULT_EMAIL_FROM)
+  })
+
   it('drag/resize de atividade limpeza_manutencao mantém tipo estável ("Limpeza e Manutenção") sem mudar para "Manutenção Preventiva" e sem cair no ErrorBoundary', async () => {
     const { updateOrdemServico } = await import('@/services/crmService')
     const { getTipoServicoConfig } = await import('@/components/CalendarioExecucaoOS')

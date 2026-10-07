@@ -53,3 +53,23 @@ export interface EnviarEmailViaGmailParams {
     content: string
   }>
 }
+
+/**
+ * Parâmetros universais para o recurso reutilizável `enviarEmail`
+ */
+export interface EnviarEmailParams {
+  /** Destinatário único ou lista de destinatários */
+  destinatario: string | string[]
+  /** Assunto da mensagem */
+  assunto: string
+  /** Corpo do e-mail em texto simples (opcional se corpoHtml fornecido) */
+  corpoTexto?: string
+  /** Corpo do e-mail formatado em HTML (opcional se corpoTexto fornecido) */
+  corpoHtml?: string
+  /** Remetente customizado opcional (padrão: "Delfos Solar <nao-responda@delfosengenharia.com.br>") */
+  from?: string
+  /** Anexo único opcional { filename, content: base64 } */
+  anexo?: EmailAttachment
+  /** Lista opcional de múltiplos anexos { filename, content: base64 } */
+  anexos?: EmailAttachment[]
+}
