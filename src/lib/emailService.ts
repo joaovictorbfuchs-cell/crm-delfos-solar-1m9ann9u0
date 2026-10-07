@@ -10,7 +10,7 @@ import type {
  * Remetente oficial padrão da Delfos Solar utilizando o domínio da empresa verificado no Resend.
  * Configurável via Secret RESEND_EMAIL_FROM no backend ou passando `from` no envio.
  */
-export const DEFAULT_EMAIL_FROM = 'Delfos Solar <nao-responda@updates.delfos.eng.br>'
+export const DEFAULT_EMAIL_FROM = 'Delfos Solar <solar@updates.delfos.eng.br>'
 export const DEFAULT_EMAIL_DOMAIN = 'updates.delfos.eng.br'
 
 /**

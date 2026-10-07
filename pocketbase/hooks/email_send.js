@@ -9,7 +9,7 @@ try {
     const bootFrom = (
       $os.getenv('RESEND_EMAIL_FROM') ||
       $os.getenv('RESEND_FROM') ||
-      'Delfos Solar <nao-responda@updates.delfos.eng.br>'
+      'Delfos Solar <solar@updates.delfos.eng.br>'
     ).trim()
     const bootPayload = {
       from: bootFrom,
@@ -126,7 +126,7 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     }
 
     // Remetente da empresa configurável via Secret/variável de ambiente ou fallback padrão da empresa:
-    // Padrão solicitado: "Delfos Solar <nao-responda@updates.delfos.eng.br>"
+    // Padrão solicitado: "Delfos Solar <solar@updates.delfos.eng.br>"
     // Configurável via RESEND_EMAIL_FROM ou RESEND_FROM.
     const configuredFromSecret = (
       $os.getenv('RESEND_EMAIL_FROM') ||
@@ -137,8 +137,8 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     const empresaSender =
       configuredFromSecret ||
       (verifiedDomain
-        ? `Delfos Solar <nao-responda@${verifiedDomain}>`
-        : 'Delfos Solar <nao-responda@updates.delfos.eng.br>')
+        ? `Delfos Solar <solar@${verifiedDomain}>`
+        : 'Delfos Solar <solar@updates.delfos.eng.br>')
 
     // Se a conta Resend ainda estiver em teste e não tiver domínio verificado,
     // o Resend exige onboarding@resend.dev para remetente em teste.
@@ -146,7 +146,7 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     let defaultSender = empresaSender
     if (!verifiedDomain && !configuredFromSecret) {
       // Deixa como fallback seguro para teste caso o domínio ainda não esteja 100% no Resend
-      defaultSender = 'Delfos Solar <nao-responda@updates.delfos.eng.br>'
+      defaultSender = 'Delfos Solar <solar@updates.delfos.eng.br>'
     }
 
     const requestedFrom = (body.from || '').trim()

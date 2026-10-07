@@ -929,9 +929,9 @@ describe('Login e App Smoke Tests', () => {
 
     expect(typeof libEmail.enviarEmail).toBe('function')
     expect(typeof servEmail.enviarEmail).toBe('function')
-    expect(libEmail.DEFAULT_EMAIL_FROM).toContain('updates.delfos.eng.br')
+    expect(libEmail.DEFAULT_EMAIL_FROM).toBe('Delfos Solar <solar@updates.delfos.eng.br>')
     expect(libEmail.DEFAULT_EMAIL_DOMAIN).toBe('updates.delfos.eng.br')
-    expect(servEmail.DEFAULT_EMAIL_FROM).toBe(libEmail.DEFAULT_EMAIL_FROM)
+    expect(servEmail.DEFAULT_EMAIL_FROM).toBe('Delfos Solar <solar@updates.delfos.eng.br>')
   })
 
   it('drag/resize de atividade limpeza_manutencao mantém tipo estável ("Limpeza e Manutenção") sem mudar para "Manutenção Preventiva" e sem cair no ErrorBoundary', async () => {

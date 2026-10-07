@@ -66,7 +66,7 @@ export interface EnviarEmailParams {
   corpoTexto?: string
   /** Corpo do e-mail formatado em HTML (opcional se corpoTexto fornecido) */
   corpoHtml?: string
-  /** Remetente customizado opcional (padrão: "Delfos Solar <nao-responda@updates.delfos.eng.br>") */
+  /** Remetente customizado opcional (padrão: "Delfos Solar <solar@updates.delfos.eng.br>") */
   from?: string
   /** Anexo único opcional { filename, content: base64 } */
   anexo?: EmailAttachment

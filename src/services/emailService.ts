@@ -12,7 +12,7 @@ import {
   DEFAULT_EMAIL_DOMAIN,
 } from '@/lib/emailService'
 
-export const DEFAULT_EMAIL_FROM = 'Delfos Solar <nao-responda@updates.delfos.eng.br>'
+export const DEFAULT_EMAIL_FROM = 'Delfos Solar <solar@updates.delfos.eng.br>'
 export const DEFAULT_GMAIL_SENDER = 'delfos.usinas@gmail.com'
 export const DEFAULT_RESEND_SENDER = DEFAULT_RESEND_FROM
 export { DEFAULT_EMAIL_DOMAIN, converterArquivoParaBase64 }
