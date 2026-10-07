@@ -82,9 +82,35 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
     setErroForm(null)
 
     try {
+      // 1. Resolução confiável do cliente_id (prop clienteId -> usina.cliente_id -> usina.cliente -> fetch no backend)
+      let resolvedClienteId = (clienteAlvoId || '').trim()
+      if (!resolvedClienteId && usina?.id) {
+        try {
+          const usinaRecord = await pb.collection('usinas').getOne<UsinaCliente>(usina.id, {
+            requestKey: null,
+          })
+          if (usinaRecord?.cliente_id) {
+            resolvedClienteId = String(usinaRecord.cliente_id).trim()
+          }
+        } catch (fetchErr) {
+          console.warn(
+            '[BlocoAnotacoesUsina] Não foi possível buscar cliente_id via getOne da usina:',
+            fetchErr,
+          )
+        }
+      }
+
+      if (!resolvedClienteId) {
+        setErroForm(
+          'Não foi possível identificar o cliente vinculado a esta usina (cliente_id obrigatório).',
+        )
+        setSalvando(false)
+        return
+      }
+
       const autorNome = user?.name || user?.email || 'Usuário Delfos'
 
-      // data é campo obrigatório no PocketBase para atividades (formato YYYY-MM-DD HH:mm:ss.SSSZ ou ISO sem T)
+      // data é campo obrigatório no PocketBase para atividades (formato YYYY-MM-DD HH:mm:ss)
       let dataFormatada: string
       if (dataAnotacao && dataAnotacao.trim()) {
         const iso = new Date(dataAnotacao.trim() + 'T12:00:00Z').toISOString()
@@ -95,6 +121,7 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
       }
 
       const payload: Record<string, any> = {
+        cliente_id: resolvedClienteId,
         tipo: 'anotacao',
         titulo: 'Anotação da Usina',
         descricao: textoLimpo,
@@ -102,23 +129,39 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
         status: 'concluida',
         autor: autorNome,
         responsavel_nome: autorNome,
-        data: dataFormatada,
+        data:
+          dataFormatada ||
+          new Date()
+            .toISOString()
+            .replace('T', ' ')
+            .replace(/\.\d{3}Z?$/, ''),
       }
-
-      if (clienteAlvoId) {
-        payload.cliente_id = clienteAlvoId
-      }
-      delete payload.cliente
 
       if (user?.id) {
         payload.responsavel_id = user.id
       }
 
-      // Garantir campo data sempre preenchido (obrigatório na coleção atividades do PocketBase)
-      if (!payload.data) {
-        const isoAgora = new Date().toISOString()
-        payload.data = isoAgora.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
+      // Sanitização defensiva de relation fields (PocketBase rejeita string vazia/null em relation)
+      const relationFields = [
+        'cliente_id',
+        'usina_id',
+        'responsavel_id',
+        'fornecedor_id',
+        'parent_id',
+        'negocio_id',
+        'tipo_custom_id',
+      ]
+      for (const field of relationFields) {
+        if (field in payload) {
+          const val = payload[field]
+          if (typeof val === 'string' && !val.trim()) {
+            delete payload[field]
+          } else if (val === null || val === undefined) {
+            delete payload[field]
+          }
+        }
       }
+      delete (payload as any).cliente
 
       const criado = await pb.collection('atividades').create<Atividade>(payload)
 
@@ -132,21 +175,23 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
         description: `Registrada na ficha da usina ${usina.nome}.`,
       })
     } catch (err: any) {
-      console.error('Erro ao salvar anotação da usina:', err)
+      console.warn('Erro ao salvar anotação da usina:', err)
+      const fieldErrors =
+        err?.data?.data &&
+        Object.entries(err.data.data)
+          .map(([k, v]: [string, any]) => `${k}: ${v?.message || 'inválido'}`)
+          .filter(Boolean)
+          .join('; ')
       const msgErro =
+        fieldErrors ||
         err?.data?.message ||
-        (err?.data?.data &&
-          Object.values(err.data.data)
-            .map((v: any) => v?.message)
-            .filter(Boolean)
-            .join('; ')) ||
         err?.message ||
         'Falha ao salvar a anotação. Tente novamente.'
       setErroForm(msgErro)
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar',
-        description: 'Não foi possível registrar a anotação da usina.',
+        description: msgErro || 'Não foi possível registrar a anotação da usina.',
       })
     } finally {
       setSalvando(false)
