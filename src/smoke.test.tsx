@@ -1839,6 +1839,44 @@ describe('Login e App Smoke Tests', () => {
     expect((payloadEsperadoDataPreenchida as any).cliente).toBeUndefined()
   })
 
+  it('BlocoAnotacoesUsina valida defensivamente o limite de 200.000 caracteres na anotação', async () => {
+    const { BlocoAnotacoesUsina } = await import('@/components/BlocoAnotacoesUsina')
+    const { render, screen, fireEvent, waitFor } = await import('@testing-library/react')
+
+    const usinaMock = {
+      id: 'usina-limite-desc',
+      nome: 'Usina Granja Limite',
+      cliente_id: 'cli-limite-desc',
+    } as any
+
+    render(
+      React.createElement(BlocoAnotacoesUsina, {
+        usina: usinaMock,
+        clienteId: 'cli-limite-desc',
+      }),
+    )
+
+    // Abre o formulário
+    const btnNovo = screen.getByText('Nova Anotação')
+    fireEvent.click(btnNovo)
+
+    const textarea = screen.getByPlaceholderText(/Digite a anotação/i)
+    // Texto que excede 200.000 caracteres
+    const textoGigante = 'A'.repeat(200005)
+    fireEvent.change(textarea, { target: { value: textoGigante } })
+
+    const btnSalvar = screen.getByText('Salvar Anotação')
+    fireEvent.click(btnSalvar)
+
+    await waitFor(() => {
+      const msg = screen.getByText(
+        /A anotação excede o tamanho máximo permitido \(200\.000 caracteres\)/i,
+      )
+      expect(msg).toBeDefined()
+      expect(msg.textContent).toContain('Reduza o texto ou divida em duas anotações')
+    })
+  })
+
   it('CalendarioExecucaoOS é blindado contra valores NaN em horario_inicio, duracao_minutos e data malformada', () => {
     const fakeOSNaN = {
       id: 'os-nan-1',

@@ -78,6 +78,14 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
       return
     }
 
+    const MAX_CARACTERES_ANOTACAO = 200000
+    if (textoLimpo.length > MAX_CARACTERES_ANOTACAO) {
+      setErroForm(
+        `A anotação excede o tamanho máximo permitido (${MAX_CARACTERES_ANOTACAO.toLocaleString('pt-BR')} caracteres). Reduza o texto ou divida em duas anotações.`,
+      )
+      return
+    }
+
     setSalvando(true)
     setErroForm(null)
 
