@@ -436,21 +436,42 @@ const MESES = [
 const DIAS_SEMANA_NOMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 // Helper utilitário defensivo para conversão em string segura
-function safeStr(val: unknown): string {
+export function safeStr(val: unknown): string {
   if (val === null || val === undefined) return ''
-  return String(val)
+  if (typeof val === 'string') return val
+  try {
+    return String(val)
+  } catch {
+    return ''
+  }
 }
 
-// Normaliza checklist vindo de PocketBase (seja array, string JSON ou indefinido)
+// Normaliza checklist vindo de PocketBase (seja array, string JSON, objeto ou indefinido/nulo)
 export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
   if (!raw) return []
-  if (Array.isArray(raw)) return raw
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((item) => item !== null && item !== undefined && typeof item === 'object')
+      .map((item: any, idx: number) => ({
+        id: safeStr(item.id) || `chk_${idx + 1}`,
+        item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+        concluido: Boolean(item.concluido),
+      }))
+  }
   if (typeof raw === 'string') {
     const trimmed = raw.trim()
-    if (!trimmed) return []
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return []
     try {
       const parsed = JSON.parse(trimmed)
-      if (Array.isArray(parsed)) return parsed
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item) => item !== null && item !== undefined && typeof item === 'object')
+          .map((item: any, idx: number) => ({
+            id: safeStr(item.id) || `chk_${idx + 1}`,
+            item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+            concluido: Boolean(item.concluido),
+          }))
+      }
     } catch (_) {
       return []
     }
@@ -480,26 +501,33 @@ function getLocalDateKey(date?: unknown): string {
   }
 }
 
-// Extrai horário HH:mm da string de data UTC/ISO com defesa rigorosa contra null/undefined/legado
-function extractHorario(dateString?: unknown): string {
+// Extrai horário HH:mm da string de data UTC/ISO/Date com defesa rigorosa contra null/undefined/legado
+export function extractHorario(dateString?: unknown): string {
   if (!dateString) return '--:--'
   try {
+    if (dateString instanceof Date) {
+      if (isNaN(dateString.getTime())) return '--:--'
+      const hours = String(dateString.getHours()).padStart(2, '0')
+      const minutes = String(dateString.getMinutes()).padStart(2, '0')
+      return `${hours}:${minutes}`
+    }
+
     const str = safeStr(dateString).trim()
     if (!str) return '--:--'
-
-    // Se vier no formato "YYYY-MM-DD HH:mm..." com espaço ou T
-    if (str.length >= 16) {
-      const horaMin = str.slice(11, 16)
-      if (/^\d{2}:\d{2}$/.test(horaMin)) {
-        return horaMin
-      }
-    }
 
     // Se vier direto como "HH:mm" ou "HH:mm:ss"
     if (/^\d{1,2}:\d{2}/.test(str)) {
       const match = str.match(/^(\d{1,2}):(\d{2})/)
       if (match) {
         return `${match[1].padStart(2, '0')}:${match[2]}`
+      }
+    }
+
+    // Se vier no formato "YYYY-MM-DD HH:mm..." com espaço ou T
+    if (str.length >= 16) {
+      const horaMin = str.slice(11, 16)
+      if (/^\d{2}:\d{2}$/.test(horaMin)) {
+        return horaMin
       }
     }
 
@@ -1061,53 +1089,69 @@ function CalendarioExecucaoOSContent({
     }> = []
 
     for (const os of ordensDoDia || []) {
-      if (!os) continue
+      if (!os || typeof os !== 'object') continue
 
       try {
         let hora = NaN
         let minuto = 0
 
-        // Se tiver horario_inicio explícito ("08:00" ou "08:00:00"), usa diretamente
-        if (os.horario_inicio) {
+        // Se tiver horario_inicio explícito ("08:00" ou "08:00:00" ou numérico)
+        if (os.horario_inicio !== undefined && os.horario_inicio !== null) {
           const strInicio = safeStr(os.horario_inicio).trim()
-          const parts = strInicio.split(':')
-          if (parts.length >= 2) {
-            const h = Number(parts[0])
-            const m = Number(parts[1])
-            if (!isNaN(h) && isFinite(h) && !isNaN(m) && isFinite(m)) {
-              hora = Math.floor(h)
-              minuto = Math.floor(m)
+          if (strInicio) {
+            const parts = strInicio.split(':')
+            if (parts.length >= 2) {
+              const h = Number(parts[0])
+              const m = Number(parts[1])
+              if (!isNaN(h) && isFinite(h) && !isNaN(m) && isFinite(m)) {
+                hora = Math.floor(h)
+                minuto = Math.floor(m)
+              }
+            } else if (/^\d+$/.test(strInicio)) {
+              const h = Number(strInicio)
+              if (!isNaN(h) && isFinite(h) && h >= 0 && h <= 23) {
+                hora = Math.floor(h)
+                minuto = 0
+              }
             }
           }
         }
 
         // Fallback para data_agendada
         if (isNaN(hora)) {
-          const dataStr = safeStr(os.data_agendada).trim()
-          if (!dataStr || dataStr.length < 13) {
-            diaInteiro.push(os)
-            continue
-          }
-
-          try {
-            const horaPart = dataStr.slice(11, 13)
-            const hNum = Number(horaPart)
-            if (!isNaN(hNum) && isFinite(hNum)) {
-              hora = Math.floor(hNum)
-              if (dataStr.length >= 16) {
-                const mNum = Number(dataStr.slice(14, 16))
-                minuto = !isNaN(mNum) && isFinite(mNum) ? Math.floor(mNum) : 0
-              }
+          const rawData = (os as any).data_agendada
+          if (rawData && typeof rawData === 'object' && rawData instanceof Date) {
+            if (!isNaN(rawData.getTime())) {
+              hora = rawData.getHours()
+              minuto = rawData.getMinutes()
             }
-          } catch {
-            hora = NaN
-          }
+          } else {
+            const dataStr = safeStr(rawData).trim()
+            if (!dataStr || dataStr.length < 13) {
+              diaInteiro.push(os)
+              continue
+            }
 
-          if (isNaN(hora)) {
-            const d = new Date(dataStr)
-            if (!isNaN(d.getTime())) {
-              hora = d.getHours()
-              minuto = d.getMinutes()
+            try {
+              const horaPart = dataStr.slice(11, 13)
+              const hNum = Number(horaPart)
+              if (!isNaN(hNum) && isFinite(hNum)) {
+                hora = Math.floor(hNum)
+                if (dataStr.length >= 16) {
+                  const mNum = Number(dataStr.slice(14, 16))
+                  minuto = !isNaN(mNum) && isFinite(mNum) ? Math.floor(mNum) : 0
+                }
+              }
+            } catch {
+              hora = NaN
+            }
+
+            if (isNaN(hora)) {
+              const d = new Date(dataStr)
+              if (!isNaN(d.getTime())) {
+                hora = d.getHours()
+                minuto = d.getMinutes()
+              }
             }
           }
         }
@@ -1678,8 +1722,8 @@ function CalendarioExecucaoOSContent({
                     {/* Cards compactos com as OSs do Dia */}
                     <div className="flex-1 space-y-1 sm:space-y-1.5 overflow-hidden">
                       {dayOrdens.slice(0, 3).map((os) => {
-                        if (!os) return null
-                        const tipoServico = os.tipo_servico || 'Manutenção'
+                        if (!os || typeof os !== 'object') return null
+                        const tipoServico = safeStr(os.tipo_servico) || 'Manutenção'
                         const tipoConfig = getTipoServicoConfig(tipoServico)
                         const horario = extractHorario(os.data_agendada)
                         const clienteNome =
@@ -1689,7 +1733,7 @@ function CalendarioExecucaoOSContent({
 
                         return (
                           <div
-                            key={os.id}
+                            key={safeStr(os.id)}
                             onClick={(e) => {
                               e.stopPropagation()
                               onSelectOS(os)
@@ -1830,11 +1874,12 @@ function CalendarioExecucaoOSContent({
                               os.expand?.cliente_id?.razao_social ||
                               'Cliente Solar'
 
+                            if (!os || typeof os !== 'object') return null
                             return (
                               <div
-                                key={`allday-${os.id}`}
+                                key={`allday-${safeStr(os.id)}`}
                                 draggable
-                                onDragStart={(e) => handleDragStart(e, os.id)}
+                                onDragStart={(e) => handleDragStart(e, safeStr(os.id))}
                                 onDragEnd={handleDragEnd}
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -1990,16 +2035,18 @@ function CalendarioExecucaoOSContent({
 
                       {/* Cards de OS Posicionados na Grade */}
                       {comHorario.map((item) => {
+                        if (!item || !item.os || typeof item.os !== 'object') return null
                         const rawOs = item.os
                         const os = {
                           ...rawOs,
-                          checklist: normalizeChecklist(rawOs?.checklist),
+                          checklist: normalizeChecklist(rawOs.checklist),
                         }
-                        const tipoServico = os.tipo_servico || 'Manutenção'
+                        const osId = safeStr(os.id) || `os_pos_${item.hora}_${item.minuto}`
+                        const tipoServico = safeStr(os.tipo_servico) || 'Manutenção'
                         const tipoConfig = getTipoServicoConfig(tipoServico)
                         const isConcluida = os.status === 'concluida'
-                        const isDragging = draggingOSId === os.id
-                        const isBeingResized = resizing?.osId === os.id
+                        const isDragging = draggingOSId === osId
+                        const isBeingResized = resizing?.osId === osId
                         const horaInicioStr =
                           (os.horario_inicio && /^\d{1,2}:\d{2}/.test(safeStr(os.horario_inicio))
                             ? safeStr(os.horario_inicio).slice(0, 5)
@@ -2245,21 +2292,21 @@ function CalendarioExecucaoOSContent({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {ordensDiaSelecionado.map((os) => {
-                if (!os) return null
-                const tipoServico = os.tipo_servico || 'Manutenção'
+                if (!os || typeof os !== 'object') return null
+                const tipoServico = safeStr(os.tipo_servico) || 'Manutenção'
                 const tipoConfig = getTipoServicoConfig(tipoServico)
                 const horario = extractHorario(os.data_agendada)
                 const clienteNome =
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const listChecklist = normalizeChecklist(os?.checklist)
+                const listChecklist = normalizeChecklist(os.checklist)
                 const checklistTotal = listChecklist.length
                 const checklistFeitos = listChecklist.filter((c) => c?.concluido).length
 
                 return (
                   <div
-                    key={os.id}
+                    key={safeStr(os.id)}
                     onClick={() => onSelectOS(os)}
                     role="button"
                     tabIndex={0}
@@ -2387,21 +2434,21 @@ function CalendarioExecucaoOSContent({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {ordensDiaSelecionado.map((os) => {
-                if (!os) return null
-                const tipoServico = os.tipo_servico || 'Manutenção'
+                if (!os || typeof os !== 'object') return null
+                const tipoServico = safeStr(os.tipo_servico) || 'Manutenção'
                 const tipoConfig = getTipoServicoConfig(tipoServico)
                 const horario = extractHorario(os.data_agendada)
                 const clienteNome =
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const listChecklist = normalizeChecklist(os?.checklist)
+                const listChecklist = normalizeChecklist(os.checklist)
                 const checklistTotal = listChecklist.length
                 const checklistFeitos = listChecklist.filter((c) => c?.concluido).length
 
                 return (
                   <div
-                    key={os.id}
+                    key={safeStr(os.id)}
                     onClick={() => onSelectOS(os)}
                     role="button"
                     tabIndex={0}

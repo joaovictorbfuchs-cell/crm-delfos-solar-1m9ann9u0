@@ -1905,6 +1905,46 @@ describe('Login e App Smoke Tests', () => {
     expect(html).toContain('Rua dos Operários, 123')
     expect(html).toContain('Verificar inversor solar')
     expect(html).toContain('Concluir Atividade')
+    expect(html).toContain('Lista')
+    expect(html).toContain('Calendário')
+  })
+
+  it('VisaoInstaladorMobileOS tolera registros legados com Date, null, números e campos malformados sem TypeError', () => {
+    const fakeLegado = {
+      id: 'os-legado-data-date',
+      cliente_id: 'cli-legado-1',
+      responsavel_usuario_id: 'usr-inst-1',
+      tipo_servico: 'Limpeza dos Módulos',
+      status: 'pendente' as const,
+      data_agendada: new Date('2026-06-10T14:30:00Z') as any, // Objeto Date em vez de string
+      horario_inicio: null,
+      endereco: 'Fazenda Sol Nascente',
+      checklist: null, // Checklist null (comum em atividades reais de manutenção)
+    }
+
+    const fakeLegado2 = {
+      id: 'os-legado-sem-data',
+      cliente_id: 'cli-legado-2',
+      responsavel_usuario_id: 'usr-inst-1',
+      tipo_servico: 'Manutenção Corretiva',
+      status: 'concluida' as const,
+      data_agendada: null,
+      horario_inicio: 14 as any, // Número em vez de string
+      endereco: null,
+      checklist: 'string json malformada {[',
+    }
+
+    const html = renderToStaticMarkup(
+      React.createElement((VisaoInstaladorMobileOS as any)?.default || VisaoInstaladorMobileOS, {
+        ordens: [fakeLegado as any, fakeLegado2 as any],
+        userId: 'usr-inst-1',
+        userName: 'Instalador Delfos',
+        onOSUpdated: () => {},
+      }),
+    )
+
+    expect(html).toContain('Minhas Atividades de Hoje')
+    expect(html).toContain('Fazenda Sol Nascente')
   })
 
   it('prop mostrarLinhaDiaTodo em CalendarioExecucaoOS controla a exibição da linha "Dia todo"', () => {
