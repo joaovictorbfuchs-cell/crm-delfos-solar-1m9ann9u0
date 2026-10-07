@@ -505,11 +505,14 @@ export default function Layout() {
         </header>
 
         {/* Content Body: no mobile, header fixo tem h-14 (3.5rem / 56px); no desktop, header tem h-16 (top-0 sticky) e respiro compacto de ~12-14px.
+            Na tela de Serviços de Campo (/servicos-campo ou /execucao-os), o usuário solicitou subir os blocos bem próximo do título no mobile (max-lg:pt-[3.75rem]), aproximando o calendário do topo.
             Para instalador, a barra inferior mobile foi removida, logo usa max-lg:pb-6 em vez de max-lg:pb-20 */}
         <main
-          className={`flex-1 px-3 sm:px-6 lg:px-8 pt-3 pb-6 overflow-y-auto max-lg:pt-[4.5rem] ${
-            isInstalador ? 'max-lg:pb-6' : 'max-lg:pb-20'
-          }`}
+          className={`flex-1 px-3 sm:px-6 lg:px-8 pt-3 pb-6 overflow-y-auto ${
+            location.pathname === '/servicos-campo' || location.pathname === '/execucao-os'
+              ? 'max-lg:pt-[3.75rem]'
+              : 'max-lg:pt-[4.5rem]'
+          } ${isInstalador ? 'max-lg:pb-6' : 'max-lg:pb-20'}`}
         >
           <Outlet />
         </main>

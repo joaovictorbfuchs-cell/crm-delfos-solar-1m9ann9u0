@@ -7,6 +7,7 @@ import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
 import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useToast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/hooks/use-mobile'
 import pb from '@/lib/pocketbase/client'
 import { formatDateTime } from '@/lib/formatters'
 import {
@@ -60,6 +61,7 @@ import {
 
 function ExecucaoOSContent() {
   const { toast } = useToast()
+  const isMobile = useIsMobile()
   const { userProfile, isAdmin, isInstalador } = useAuth()
 
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
@@ -1162,7 +1164,7 @@ function ExecucaoOSContent() {
 
   return (
     <div
-      className={`space-y-2.5 pb-8 ${
+      className={`space-y-1 sm:space-y-2.5 pb-8 ${
         activeTab === 'calendario' ? 'w-full max-w-none' : 'max-w-5xl mx-auto'
       }`}
     >
@@ -1330,6 +1332,7 @@ function ExecucaoOSContent() {
               instaladorNome={userProfile?.name}
               leftControlsSlot={renderTabsNavegacao()}
               rightActionsSlot={null}
+              mostrarLinhaDiaTodo={!isMobile}
             />
           </ErrorBoundary>
         )

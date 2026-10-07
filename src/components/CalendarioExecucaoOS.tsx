@@ -32,6 +32,7 @@ interface CalendarioExecucaoOSProps {
   instaladorNome?: string
   leftControlsSlot?: React.ReactNode
   rightActionsSlot?: React.ReactNode
+  mostrarLinhaDiaTodo?: boolean
 }
 
 // Configurações de cores por tipo de serviço
@@ -586,6 +587,7 @@ function CalendarioExecucaoOSContent({
   instaladorNome,
   leftControlsSlot,
   rightActionsSlot,
+  mostrarLinhaDiaTodo = true,
 }: CalendarioExecucaoOSProps) {
   const now = new Date()
   const { toast } = useToast()
@@ -1743,78 +1745,82 @@ function CalendarioExecucaoOSContent({
       {/* ========================================================== */}
       {viewMode === 'semana' && (
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs overflow-hidden select-none flex flex-col">
-          {/* Seção "Dia Todo / Sem Horário Definido" no topo */}
-          <div className="border-b border-gray-200 bg-gray-50/70 p-2 sm:p-2.5 overflow-x-auto touch-pan-x">
-            <div className="flex items-start gap-2">
-              <div className="w-14 sm:w-16 shrink-0 text-[10px] font-bold text-gray-500 uppercase tracking-wider pt-1.5 text-right pr-2 sticky left-0 z-20 bg-gray-50/90">
-                Dia todo
-              </div>
-              <div
-                className="flex-1 grid gap-2"
-                style={{
-                  gridTemplateColumns: `repeat(${weekDaysVisiveis.length || 1}, minmax(120px, 1fr))`,
-                  minWidth: `${(weekDaysVisiveis.length || 1) * 120}px`,
-                }}
-              >
-                {weekDaysVisiveis.map((dia) => {
-                  const dayOrdens = ordensPorDia.get(dia.dateKey) || []
-                  const { diaInteiro } = separarOrdensDoDia(dayOrdens)
+          {/* Seção "Dia Todo / Sem Horário Definido" no topo (renderizada quando mostrarLinhaDiaTodo é true) */}
+          {mostrarLinhaDiaTodo && (
+            <div className="border-b border-gray-200 bg-gray-50/70 p-2 sm:p-2.5 overflow-x-auto touch-pan-x">
+              <div className="flex items-start gap-2">
+                <div className="w-14 sm:w-16 shrink-0 text-[10px] font-bold text-gray-500 uppercase tracking-wider pt-1.5 text-right pr-2 sticky left-0 z-20 bg-gray-50/90">
+                  Dia todo
+                </div>
+                <div
+                  className="flex-1 grid gap-2"
+                  style={{
+                    gridTemplateColumns: `repeat(${weekDaysVisiveis.length || 1}, minmax(120px, 1fr))`,
+                    minWidth: `${(weekDaysVisiveis.length || 1) * 120}px`,
+                  }}
+                >
+                  {weekDaysVisiveis.map((dia) => {
+                    const dayOrdens = ordensPorDia.get(dia.dateKey) || []
+                    const { diaInteiro } = separarOrdensDoDia(dayOrdens)
 
-                  return (
-                    <div
-                      key={`all-day-${dia.dateKey}`}
-                      onDragOver={(e) => handleDragOverSlot(e, dia.dateKey, HORA_INICIAL)}
-                      onDrop={(e) => handleDropOnSlot(e, dia.dateKey, HORA_INICIAL)}
-                      className={`min-h-[32px] p-1 rounded-lg border border-dashed transition-colors flex flex-col gap-1 ${
-                        dragOverSlot?.dateKey === dia.dateKey
-                          ? 'border-emerald-500 bg-emerald-50/60'
-                          : dia.isToday
-                            ? 'border-emerald-200 bg-emerald-50/20'
-                            : 'border-gray-200 bg-white/70'
-                      }`}
-                    >
-                      {diaInteiro.length === 0 ? (
-                        <span className="text-[10px] text-gray-300 text-center py-1 block">-</span>
-                      ) : (
-                        diaInteiro.map((os) => {
-                          const tipoServico = os.tipo_servico || 'Manutenção'
-                          const tipoConfig = getTipoServicoConfig(tipoServico)
-                          const clienteNome =
-                            os.expand?.cliente_id?.nome ||
-                            os.expand?.cliente_id?.razao_social ||
-                            'Cliente Solar'
+                    return (
+                      <div
+                        key={`all-day-${dia.dateKey}`}
+                        onDragOver={(e) => handleDragOverSlot(e, dia.dateKey, HORA_INICIAL)}
+                        onDrop={(e) => handleDropOnSlot(e, dia.dateKey, HORA_INICIAL)}
+                        className={`min-h-[32px] p-1 rounded-lg border border-dashed transition-colors flex flex-col gap-1 ${
+                          dragOverSlot?.dateKey === dia.dateKey
+                            ? 'border-emerald-500 bg-emerald-50/60'
+                            : dia.isToday
+                              ? 'border-emerald-200 bg-emerald-50/20'
+                              : 'border-gray-200 bg-white/70'
+                        }`}
+                      >
+                        {diaInteiro.length === 0 ? (
+                          <span className="text-[10px] text-gray-300 text-center py-1 block">
+                            -
+                          </span>
+                        ) : (
+                          diaInteiro.map((os) => {
+                            const tipoServico = os.tipo_servico || 'Manutenção'
+                            const tipoConfig = getTipoServicoConfig(tipoServico)
+                            const clienteNome =
+                              os.expand?.cliente_id?.nome ||
+                              os.expand?.cliente_id?.razao_social ||
+                              'Cliente Solar'
 
-                          return (
-                            <div
-                              key={`allday-${os.id}`}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, os.id)}
-                              onDragEnd={handleDragEnd}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onSelectOS(os)
-                              }}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold truncate border bg-white shadow-2xs hover:border-gray-400 cursor-pointer transition-all hover:shadow-xs flex items-center justify-between gap-1"
-                              style={{
-                                borderLeftWidth: '3px',
-                                borderLeftColor: tipoConfig.hex,
-                              }}
-                              title={`${clienteNome} (${tipoServico}) - Clique para ver ficha / arraste para grade`}
-                            >
-                              <div className="flex items-center gap-1 truncate">
-                                <span className="truncate">{clienteNome}</span>
+                            return (
+                              <div
+                                key={`allday-${os.id}`}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, os.id)}
+                                onDragEnd={handleDragEnd}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onSelectOS(os)
+                                }}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-semibold truncate border bg-white shadow-2xs hover:border-gray-400 cursor-pointer transition-all hover:shadow-xs flex items-center justify-between gap-1"
+                                style={{
+                                  borderLeftWidth: '3px',
+                                  borderLeftColor: tipoConfig.hex,
+                                }}
+                                title={`${clienteNome} (${tipoServico}) - Clique para ver ficha / arraste para grade`}
+                              >
+                                <div className="flex items-center gap-1 truncate">
+                                  <span className="truncate">{clienteNome}</span>
+                                </div>
+                                <span className="text-[9px] text-gray-400 shrink-0">Dia todo</span>
                               </div>
-                              <span className="text-[9px] text-gray-400 shrink-0">Dia todo</span>
-                            </div>
-                          )
-                        })
-                      )}
-                    </div>
-                  )
-                })}
+                            )
+                          })
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Contêiner com scroll bidirecional suave no mobile (touch-pan-x touch-pan-y, max-h-[640px]) */}
           <div

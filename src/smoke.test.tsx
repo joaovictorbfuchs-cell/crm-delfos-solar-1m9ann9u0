@@ -1819,4 +1819,41 @@ describe('Login e App Smoke Tests', () => {
     )
     expect(htmlFicha).toContain('Usina Vinculada:')
   })
+
+  it('prop mostrarLinhaDiaTodo em CalendarioExecucaoOS controla a exibição da linha "Dia todo"', () => {
+    const fakeOS = {
+      id: 'os-dia-todo-teste',
+      cliente_id: 'cli-dia-todo',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: '2026-05-15', // sem horário definido -> cai em diaInteiro
+      expand: {
+        cliente_id: {
+          id: 'cli-dia-todo',
+          nome: 'Cliente Dia Inteiro',
+        },
+      },
+    }
+
+    // Com mostrarLinhaDiaTodo={true} (ou padrão): seção "Dia todo" DEVE estar presente
+    const htmlComDiaTodo = renderToStaticMarkup(
+      React.createElement(CalendarioExecucaoOS, {
+        ordens: [fakeOS as any],
+        onSelectOS: () => {},
+        mostrarLinhaDiaTodo: true,
+      }),
+    )
+    expect(htmlComDiaTodo).toContain('Dia todo')
+
+    // Com mostrarLinhaDiaTodo={false} (mobile): seção "Dia todo" NÃO deve ser renderizada
+    const htmlSemDiaTodo = renderToStaticMarkup(
+      React.createElement(CalendarioExecucaoOS, {
+        ordens: [fakeOS as any],
+        onSelectOS: () => {},
+        mostrarLinhaDiaTodo: false,
+      }),
+    )
+    expect(htmlSemDiaTodo).not.toContain('Dia todo')
+  })
 })
