@@ -598,7 +598,21 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
           {formError && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{formError}</span>
+              <div className="space-y-1">
+                <span>{formError}</span>
+                {formError.includes('https://resend.com/domains') && (
+                  <div>
+                    <a
+                      href="https://resend.com/domains"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-semibold text-rose-900 underline hover:text-rose-950 mt-0.5"
+                    >
+                      Acessar painel do Resend (https://resend.com/domains)
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -268,7 +268,7 @@ describe('emailService', () => {
   it('deve tratar resposta ok: false lançando erro claro', async () => {
     vi.mocked(pb.send).mockResolvedValueOnce({
       ok: false,
-      error: 'Falha na API do Resend (403): domain not verified',
+      error: 'Falha na API do Resend (HTTP 500): Internal server error',
     })
 
     await expect(
@@ -277,16 +277,17 @@ describe('emailService', () => {
         subject: 'Assunto',
         html: '<p>Corpo</p>',
       }),
-    ).rejects.toThrow('domain not verified')
+    ).rejects.toThrow('Internal server error')
   })
 
-  it('deve extrair mensagem do backend em caso de erro HTTP/ClientResponseError', async () => {
+  it('deve extrair mensagem de domínio não verificado do Resend com instruções claras em português', async () => {
     const errorWithResponse = {
       status: 403,
       message: 'Something went wrong.',
       response: {
         data: {
-          error: 'Chave de API do Resend inválida ou sem permissão (HTTP 403): domain not verified',
+          error:
+            'The delfosengenharia.com.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
         },
       },
     }
@@ -298,6 +299,52 @@ describe('emailService', () => {
         subject: 'Assunto',
         html: '<p>Corpo</p>',
       }),
-    ).rejects.toThrow('domain not verified')
+    ).rejects.toThrow('O domínio do remetente ainda não está verificado no Resend')
+  })
+
+  it('enviarEmail distingue erro de domínio não verificado vs chave de API inválida', async () => {
+    // 1. Caso domínio não verificado (HTTP 403 do Resend)
+    vi.mocked(pb.send).mockRejectedValueOnce({
+      status: 403,
+      statusCode: 403,
+      message:
+        'The delfosengenharia.com.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
+      response: {
+        data: {
+          error:
+            'The delfosengenharia.com.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
+        },
+      },
+    })
+
+    await expect(
+      enviarEmail({
+        destinatario: 'joao@delfosengenharia.com.br',
+        assunto: 'Teste Domínio',
+        corpoTexto: 'Texto do teste',
+      }),
+    ).rejects.toThrow(
+      'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains',
+    )
+
+    // 2. Caso chave de API inválida (HTTP 401 ou 403 com texto de API key)
+    vi.mocked(pb.send).mockRejectedValueOnce({
+      status: 401,
+      statusCode: 401,
+      message: 'API key is invalid',
+      response: {
+        data: {
+          error: 'API key is invalid',
+        },
+      },
+    })
+
+    await expect(
+      enviarEmail({
+        destinatario: 'joao@delfosengenharia.com.br',
+        assunto: 'Teste Chave',
+        corpoTexto: 'Texto do teste',
+      }),
+    ).rejects.toThrow('Chave de API do Resend inválida ou sem permissão')
   })
 })

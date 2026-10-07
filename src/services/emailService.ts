@@ -185,7 +185,18 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
     })
 
     if (!response.ok) {
-      throw new Error(response.error || 'Falha ao enviar e-mail.')
+      const errorMsg = response.error || 'Falha ao enviar e-mail.'
+      const lower = errorMsg.toLowerCase()
+      if (
+        lower.includes('domain is not verified') ||
+        lower.includes('is not verified') ||
+        (lower.includes('domain') && lower.includes('resend.com/domains'))
+      ) {
+        throw new Error(
+          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, adicione o domínio delfosengenharia.com.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
+        )
+      }
+      throw new Error(errorMsg)
     }
 
     return response
@@ -195,18 +206,71 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
       const pbErr = err as {
         status?: number
         statusCode?: number
-        response?: { data?: Record<string, unknown>; message?: string; error?: string }
-        data?: { message?: string; error?: string }
+        response?: {
+          data?: Record<string, unknown> | string
+          message?: string
+          error?: string
+          resendError?: string
+        }
+        data?: { message?: string; error?: string; resendError?: string }
         message?: string
       }
 
+      const rawBackendData = pbErr.response?.data
+      const rawDataObj =
+        typeof rawBackendData === 'object' && rawBackendData !== null ? rawBackendData : null
+
       const backendMsg =
-        pbErr.response?.data?.error ||
-        pbErr.response?.data?.message ||
+        (rawDataObj?.error as string) ||
+        (rawDataObj?.message as string) ||
         pbErr.response?.error ||
+        pbErr.response?.message ||
         pbErr.data?.error ||
         pbErr.data?.message ||
-        (pbErr.response?.data && typeof pbErr.response.data === 'string' ? pbErr.response.data : '')
+        (typeof rawBackendData === 'string' ? rawBackendData : '') ||
+        ''
+
+      const originalDetail =
+        (rawDataObj?.resendError as string) ||
+        pbErr.data?.resendError ||
+        backendMsg ||
+        pbErr.message ||
+        ''
+
+      const combinedLower = `${backendMsg} ${originalDetail} ${pbErr.message || ''}`.toLowerCase()
+
+      // 1. Caso específico: Domínio do remetente não verificado no Resend
+      if (
+        combinedLower.includes('domain is not verified') ||
+        combinedLower.includes('is not verified') ||
+        (combinedLower.includes('domain') && combinedLower.includes('resend.com/domains'))
+      ) {
+        throw new Error(
+          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, adicione o domínio delfosengenharia.com.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
+        )
+      }
+
+      // 2. Caso específico: Modo teste do Resend
+      if (
+        combinedLower.includes('you can only send testing emails') ||
+        combinedLower.includes('testing emails to your own email address')
+      ) {
+        throw new Error(
+          'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio delfosengenharia.com.br em https://resend.com/domains.',
+        )
+      }
+
+      // 3. Caso específico: Chave de API inválida
+      if (
+        combinedLower.includes('invalid api key') ||
+        combinedLower.includes('restricted api key') ||
+        combinedLower.includes('missing api key') ||
+        pbErr.status === 401 ||
+        pbErr.statusCode === 401 ||
+        ((pbErr.status === 403 || pbErr.statusCode === 403) && combinedLower.includes('api key'))
+      ) {
+        throw new Error('Chave de API do Resend inválida ou sem permissão.')
+      }
 
       if (typeof backendMsg === 'string' && backendMsg.trim()) {
         throw new Error(backendMsg)

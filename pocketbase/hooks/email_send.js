@@ -280,17 +280,38 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     }
 
     let userFriendlyMsg = errorMessage
-    const isTestModeOrUnverifiedDomain =
-      res.statusCode === 403 &&
-      (errorMessage.includes('You can only send testing emails to your own email address') ||
-        errorMessage.includes('The gmail.com domain is not verified') ||
-        (errorMessage.includes('testing emails') && errorMessage.includes('resend.com/domains')))
+    const errorLower = errorMessage.toLowerCase()
 
-    if (isTestModeOrUnverifiedDomain) {
+    const isDomainNotVerified =
+      res.statusCode === 403 &&
+      (errorLower.includes('domain is not verified') ||
+        errorLower.includes('is not verified') ||
+        (errorLower.includes('domain') && errorLower.includes('verify')))
+
+    const isTestMode =
+      res.statusCode === 403 &&
+      (errorLower.includes('you can only send testing emails to your own email address') ||
+        (errorLower.includes('testing emails') && errorLower.includes('resend.com/domains')))
+
+    const isApiKeyInvalid =
+      res.statusCode === 401 ||
+      (res.statusCode === 403 &&
+        (errorLower.includes('api key') ||
+          errorLower.includes('invalid api key') ||
+          errorLower.includes('restricted api key') ||
+          errorLower.includes('missing api key') ||
+          errorLower.includes('unauthorized')))
+
+    if (isDomainNotVerified) {
       userFriendlyMsg =
-        'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique um domínio em https://resend.com/domains e use um remetente desse domínio.'
-    } else if (res.statusCode === 403 || res.statusCode === 401) {
-      userFriendlyMsg = `Chave de API do Resend inválida ou sem permissão (HTTP ${res.statusCode}): ${errorMessage}`
+        'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, adicione o domínio delfosengenharia.com.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.'
+    } else if (isTestMode) {
+      userFriendlyMsg =
+        'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio delfosengenharia.com.br em https://resend.com/domains.'
+    } else if (isApiKeyInvalid) {
+      userFriendlyMsg = 'Chave de API do Resend inválida ou sem permissão.'
+    } else if (res.statusCode === 403) {
+      userFriendlyMsg = `Permissão negada pelo Resend (HTTP 403): ${errorMessage}`
     } else if (res.statusCode === 422) {
       userFriendlyMsg = `Dados de e-mail rejeitados pelo Resend (HTTP 422): ${errorMessage}`
     } else {
@@ -300,9 +321,11 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     console.error('[EMAIL RESEND FALHA]', userFriendlyMsg)
 
     // Retornar 200 com ok: false para não causar ClientResponseError 403/422 genérico no cliente PocketBase
+    // Repassa o erro detalhado e mensagem original do Resend
     return e.json(200, {
       ok: false,
       error: userFriendlyMsg,
+      resendError: errorMessage,
       statusCode: res.statusCode,
     })
   } catch (err) {
