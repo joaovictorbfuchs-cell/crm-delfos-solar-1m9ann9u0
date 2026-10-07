@@ -595,7 +595,7 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                   no CPF sob nº. <strong>047.838.700-80</strong>, RG sob nº 1131962548;{' '}
                   <strong>João Victor Bagetti Fuchs</strong>, brasileiro, inscrito no CPF sob nº{' '}
                   <strong>811.562.780-15</strong>, RG sob nº 5073762014.; Todos com domicílio
-                  profissional na Rua Espírito Santo, 275, Bairro Fátima, Erechim/RS, CEP 99.709-296
+                  profissional na {DADOS_FIXOS_CONTRATADA_PROCURACAO.enderecoProfissional}
                 </p>
 
                 {/* Parágrafo PODERES */}

@@ -30,7 +30,7 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     expect(joao.rg).toBe('5073762014')
 
     expect(DADOS_FIXOS_CONTRATADA_PROCURACAO.enderecoProfissional).toBe(
-      'Rua Espírito Santo, 275, Bairro Fátima, Erechim/RS, CEP 99.709-296',
+      'Rua Espírito Santo, 275 Bairro Fátima, Erechim – RS, CEP 99.709-296',
     )
     expect(DADOS_FIXOS_CONTRATADA_PROCURACAO.concessionariaPadrao).toBe(
       'Concessionária de Energia RGE',
@@ -60,18 +60,44 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     expect(html).toContain('João Victor Bagetti Fuchs')
     expect(html).toContain('811.562.780-15')
     expect(html).toContain('5073762014')
-    expect(html).toContain('Rua Espírito Santo, 275, Bairro Fátima, Erechim/RS, CEP 99.709-296')
+    expect(html).toContain('Rua Espírito Santo, 275 Bairro Fátima, Erechim – RS, CEP 99.709-296')
     expect(html).toContain('Concessionária de Energia RGE')
     expect(html).toContain('Assinatura do(a) Outorgante')
   })
 
-  it('deve gerar PDF binário nativo A4 com assinatura e cabeçalho válidos', () => {
+  it('deve gerar PDF binário nativo A4 sem cabeçalho institucional Delfos e com caracteres especiais WinAnsi corretos', () => {
     const pdfBytes = gerarPDFBinarioProcuracao(dadosMarceloBecker)
     expect(pdfBytes).toBeInstanceOf(Uint8Array)
     expect(pdfBytes.length).toBeGreaterThan(500)
 
-    const pdfString = new TextDecoder().decode(pdfBytes.slice(0, 50))
+    // Decodifica como Latin1 para inspecionar os comandos do stream do PDF
+    let pdfString = ''
+    for (let i = 0; i < pdfBytes.length; i++) {
+      pdfString += String.fromCharCode(pdfBytes[i])
+    }
+
     expect(pdfString.startsWith('%PDF-1.4')).toBe(true)
+
+    // 1. NÃO deve conter o cabeçalho institucional prévio (regra do usuário)
+    expect(pdfString).not.toContain('DELFOS ENGENHARIA LTDA • CRM SOLAR')
+    expect(pdfString).not.toContain('DELFOS ENGENHARIA LTDA')
+
+    // 2. Deve conter o título "PROCURAÇÃO PARTICULAR" com acentuação WinAnsi
+    expect(pdfString).toContain('PROCURA\\307\\303O PARTICULAR')
+
+    // 3. Deve conter o símbolo "nº" codificado em WinAnsi (\272) em vez de corrompido ou omitido
+    expect(pdfString).toContain('CPF n\\272')
+
+    // 4. Deve conter "Concessionária" com acentuação WinAnsi (\341)
+    expect(pdfString).toContain('Concession\\341ria de Energia RGE')
+
+    // 5. Deve conter o travessão "–" em "Erechim – RS" (\226)
+    expect(pdfString).toContain('Erechim \\226 RS')
+
+    // 6. Deve conter a linha de assinatura do Outorgante
+    expect(pdfString).toContain('Assinatura do(a) Outorgante')
+    expect(pdfString).toContain('Marcelo Becker')
+    expect(pdfString).toContain('CPF: 412.589.630-18')
   })
 
   it('deve formatar o texto e parâmetros de envio de WhatsApp da procuração via Z-API (sem link wa.me)', () => {
