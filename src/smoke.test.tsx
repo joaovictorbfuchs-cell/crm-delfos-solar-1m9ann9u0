@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { MemoryRouter } from 'react-router-dom'
 import { CardNegociosCliente } from './components/CardNegociosCliente'
 import { CalendarioExecucaoOS } from './components/CalendarioExecucaoOS'
+import VisaoInstaladorMobileOS from './components/VisaoInstaladorMobileOS'
 import pb from './lib/pocketbase/client'
 
 describe('Login e App Smoke Tests', () => {
@@ -1818,6 +1819,92 @@ describe('Login e App Smoke Tests', () => {
       }),
     )
     expect(htmlFicha).toContain('Usina Vinculada:')
+  })
+
+  it('CalendarioExecucaoOS é blindado contra valores NaN em horario_inicio, duracao_minutos e data malformada', () => {
+    const fakeOSNaN = {
+      id: 'os-nan-1',
+      cliente_id: 'cli-nan',
+      tipo_servico: 'Limpeza dos Módulos',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: 'data_invalida_sem_formato',
+      horario_inicio: 'invalido:xx',
+      duracao_minutos: '60' as any, // string em vez de número
+      expand: {
+        cliente_id: {
+          id: 'cli-nan',
+          nome: 'Cliente Teste NaN',
+        },
+      },
+    }
+
+    const fakeOSDuracaoNegativa = {
+      id: 'os-nan-2',
+      cliente_id: 'cli-nan-2',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente' as const,
+      origem: 'atividades' as const,
+      data_agendada: '2026-06-10 10:00:00',
+      horario_inicio: '10:00',
+      duracao_minutos: -50,
+      expand: {
+        cliente_id: {
+          id: 'cli-nan-2',
+          nome: 'Cliente Duracao Negativa',
+        },
+      },
+    }
+
+    const html = renderToStaticMarkup(
+      React.createElement(CalendarioExecucaoOS, {
+        ordens: [fakeOSNaN as any, fakeOSDuracaoNegativa as any],
+        onSelectOS: () => {},
+      }),
+    )
+
+    expect(html).not.toContain('NaN')
+    expect(html).not.toContain('NaNpx')
+    expect(html).toContain('Cliente Teste NaN')
+  })
+
+  it('VisaoInstaladorMobileOS renderiza lista do dia do instalador, checklist e ações de status', () => {
+    const fakeOS = {
+      id: 'os-inst-mobile-1',
+      cliente_id: 'cli-inst-1',
+      responsavel_usuario_id: 'usr-inst-1',
+      tipo_servico: 'Manutenção Preventiva',
+      status: 'pendente' as const,
+      data_agendada: '2026-06-10 09:00:00',
+      horario_inicio: '09:00',
+      endereco: 'Rua dos Operários, 123',
+      checklist: [
+        { id: 'chk_1', item: 'Verificar inversor solar', concluido: false },
+        { id: 'chk_2', item: 'Aferir tensão das strings', concluido: true },
+      ],
+      expand: {
+        cliente_id: {
+          id: 'cli-inst-1',
+          nome: 'Usina Solar Aurora',
+        },
+      },
+    }
+
+    const html = renderToStaticMarkup(
+      React.createElement((VisaoInstaladorMobileOS as any)?.default || VisaoInstaladorMobileOS, {
+        ordens: [fakeOS as any],
+        userId: 'usr-inst-1',
+        userName: 'Instalador Delfos',
+        onOSUpdated: () => {},
+      }),
+    )
+
+    expect(html).toContain('Minhas Atividades de Hoje')
+    expect(html).toContain('Usina Solar Aurora')
+    expect(html).toContain('09:00')
+    expect(html).toContain('Rua dos Operários, 123')
+    expect(html).toContain('Verificar inversor solar')
+    expect(html).toContain('Concluir Atividade')
   })
 
   it('prop mostrarLinhaDiaTodo em CalendarioExecucaoOS controla a exibição da linha "Dia todo"', () => {

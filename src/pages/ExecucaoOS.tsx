@@ -3,6 +3,7 @@ import { OrdemServico, OSTipoServico, OSChecklistItem } from '@/types/crm'
 import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import { CalendarioExecucaoOS, normalizeChecklist } from '@/components/CalendarioExecucaoOS'
+import VisaoInstaladorMobileOS from '@/components/VisaoInstaladorMobileOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
 import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -1161,6 +1162,21 @@ function ExecucaoOSContent() {
       </Popover>
     </div>
   )
+
+  // Se for instalador no mobile, renderiza a tela dedicada para instaladores
+  // com lista de atividades do dia, conclusão e checklist dinâmico no celular
+  if (isMobile && isInstalador) {
+    return (
+      <VisaoInstaladorMobileOS
+        ordens={ordens}
+        userId={userProfile?.id}
+        userName={userProfile?.name}
+        onOSUpdated={handleOSUpdated}
+        onSelectOS={(os) => setSelectedOS(os)}
+        onRefresh={() => carregarDados()}
+      />
+    )
+  }
 
   return (
     <div

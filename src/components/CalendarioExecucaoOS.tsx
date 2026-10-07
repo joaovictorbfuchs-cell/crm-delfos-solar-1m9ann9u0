@@ -969,13 +969,28 @@ function CalendarioExecucaoOSContent({
       const os = ordensMescladas.find((o) => o?.id === targetOSId)
       if (!os) return
 
-      // Recalcula horário de início e fim da atividade com base na data_agendada e na nova duração
-      const horarioInicioAtual =
-        os.horario_inicio ||
-        (os.data_agendada && os.data_agendada.length >= 16
-          ? os.data_agendada.replace(' ', 'T').slice(11, 16)
-          : '08:00')
-      const novoHorarioFim = somarMinutos(horarioInicioAtual, duracaoFinal)
+      // Recalcula horário de início e fim da atividade com base na data_agendada e na nova duração com fallback seguro
+      let horarioInicioAtual = '08:00'
+      if (os.horario_inicio && typeof os.horario_inicio === 'string') {
+        const clean = os.horario_inicio.trim()
+        if (/^\d{1,2}:\d{2}/.test(clean)) {
+          horarioInicioAtual = clean.slice(0, 5)
+        }
+      } else if (
+        os.data_agendada &&
+        typeof os.data_agendada === 'string' &&
+        os.data_agendada.length >= 16
+      ) {
+        const candidate = os.data_agendada.replace(' ', 'T').slice(11, 16)
+        if (/^\d{2}:\d{2}$/.test(candidate)) {
+          horarioInicioAtual = candidate
+        }
+      }
+      const duracaoSegura =
+        !isNaN(duracaoFinal) && isFinite(duracaoFinal) && duracaoFinal > 0
+          ? duracaoFinal
+          : DURACAO_PADRAO_MINUTOS
+      const novoHorarioFim = somarMinutos(horarioInicioAtual, duracaoSegura)
 
       try {
         const tipoServicoCanonico = os.tipo_servico || 'Manutenção'
@@ -1057,11 +1072,11 @@ function CalendarioExecucaoOSContent({
           const strInicio = safeStr(os.horario_inicio).trim()
           const parts = strInicio.split(':')
           if (parts.length >= 2) {
-            const h = parseInt(parts[0], 10)
-            const m = parseInt(parts[1], 10)
-            if (!isNaN(h) && !isNaN(m)) {
-              hora = h
-              minuto = m
+            const h = Number(parts[0])
+            const m = Number(parts[1])
+            if (!isNaN(h) && isFinite(h) && !isNaN(m) && isFinite(m)) {
+              hora = Math.floor(h)
+              minuto = Math.floor(m)
             }
           }
         }
@@ -1076,9 +1091,13 @@ function CalendarioExecucaoOSContent({
 
           try {
             const horaPart = dataStr.slice(11, 13)
-            hora = parseInt(horaPart, 10)
-            if (dataStr.length >= 16) {
-              minuto = parseInt(dataStr.slice(14, 16), 10) || 0
+            const hNum = Number(horaPart)
+            if (!isNaN(hNum) && isFinite(hNum)) {
+              hora = Math.floor(hNum)
+              if (dataStr.length >= 16) {
+                const mNum = Number(dataStr.slice(14, 16))
+                minuto = !isNaN(mNum) && isFinite(mNum) ? Math.floor(mNum) : 0
+              }
             }
           } catch {
             hora = NaN
@@ -1093,20 +1112,36 @@ function CalendarioExecucaoOSContent({
           }
         }
 
-        // Se estiver fora do intervalo 06:00 - 22:00, aloca em dia inteiro
-        if (isNaN(hora) || hora < HORA_INICIAL || hora >= HORA_FINAL) {
+        // Sanitização de hora e minuto
+        if (isNaN(hora) || !isFinite(hora) || isNaN(minuto) || !isFinite(minuto)) {
           diaInteiro.push(os)
           continue
         }
 
-        const duracaoMinutos = getDuracaoMinutosOS(os)
-        const top = (hora - HORA_INICIAL) * ALTURA_HORA_PX + (minuto / 60) * ALTURA_HORA_PX
-        const height = Math.max(28, (duracaoMinutos / 60) * ALTURA_HORA_PX - 2)
+        // Se estiver fora do intervalo 06:00 - 22:00, aloca em dia inteiro
+        if (hora < HORA_INICIAL || hora >= HORA_FINAL) {
+          diaInteiro.push(os)
+          continue
+        }
+
+        const rawDuracao = Number(getDuracaoMinutosOS(os))
+        const duracaoMinutos =
+          !isNaN(rawDuracao) && isFinite(rawDuracao) && rawDuracao > 0
+            ? rawDuracao
+            : DURACAO_PADRAO_MINUTOS
+
+        const safeMinuto = Math.min(59, Math.max(0, minuto))
+        const rawTop = (hora - HORA_INICIAL) * ALTURA_HORA_PX + (safeMinuto / 60) * ALTURA_HORA_PX
+        const top = !isNaN(rawTop) && isFinite(rawTop) ? Math.max(0, Math.round(rawTop)) : 0
+
+        const rawHeight = (duracaoMinutos / 60) * ALTURA_HORA_PX - 2
+        const height =
+          !isNaN(rawHeight) && isFinite(rawHeight) ? Math.max(28, Math.round(rawHeight)) : 28
 
         comHorario.push({
           os,
           hora,
-          minuto,
+          minuto: safeMinuto,
           top,
           height,
           duracaoMinutos,
@@ -1117,7 +1152,13 @@ function CalendarioExecucaoOSContent({
       }
     }
 
-    comHorario.sort((a, b) => a.top - b.top)
+    comHorario.sort((a, b) => {
+      const topA = Number(a?.top)
+      const topB = Number(b?.top)
+      const safeA = !isNaN(topA) && isFinite(topA) ? topA : 0
+      const safeB = !isNaN(topB) && isFinite(topB) ? topB : 0
+      return safeA - safeB
+    })
 
     return { diaInteiro, comHorario }
   }, [])
@@ -2012,7 +2053,17 @@ function CalendarioExecucaoOSContent({
                           numDuracaoEfetiva > 0
                             ? numDuracaoEfetiva
                             : DURACAO_PADRAO_MINUTOS
-                        const cardHeight = Math.max(28, (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2)
+                        const rawHeightCalc = (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2
+                        const cardHeight =
+                          !isNaN(rawHeightCalc) && isFinite(rawHeightCalc)
+                            ? Math.max(28, Math.round(rawHeightCalc))
+                            : 28
+
+                        const rawCardTop = Number(item.top)
+                        const cardTop =
+                          !isNaN(rawCardTop) && isFinite(rawCardTop)
+                            ? Math.max(0, Math.round(rawCardTop))
+                            : 0
 
                         const clienteNome =
                           os.expand?.cliente_id?.nome ||
@@ -2037,7 +2088,7 @@ function CalendarioExecucaoOSContent({
                                 : 'bg-white hover:border-gray-400 hover:shadow-md'
                             }`}
                             style={{
-                              top: `${item.top}px`,
+                              top: `${cardTop}px`,
                               height: `${cardHeight}px`,
                               borderLeftWidth: '4px',
                               borderLeftColor: isConcluida ? '#9CA3AF' : tipoConfig.hex,
