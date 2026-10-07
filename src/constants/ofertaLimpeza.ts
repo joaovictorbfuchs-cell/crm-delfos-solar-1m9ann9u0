@@ -9,7 +9,7 @@ export const TARIFA_ENERGIA_PADRAO = 1.198
 export const PERCENTUAL_PERDA_SUJEIRA = 0.3
 export const VALOR_BASE_LIMPEZA_PADRAO = 350.0
 export const VALOR_LIMPEZA_MINIMO_ATE_30 = 300.0 // Menos de 30 placas = R$ 300,00
-export const VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS = 9.0 // 30 placas ou mais = R$ 9,00 por placa
+export const VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS = 8.0 // 30 placas ou mais = R$ 8,00 por placa (padrão)
 export const VALOR_KM_DESLOCAMENTO_LIMPEZA = 1.5 // R$ 1,50 por KM
 export const MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA = 2 // Ida e volta
 
@@ -63,14 +63,19 @@ export function extrairNumeroPlacas(
 /**
  * Calcula automaticamente o valor do serviço de limpeza conforme a regra de negócio:
  * - Menos de 30 placas (< 30): R$ 300,00
- * - 30 placas ou mais (>= 30): número de placas × R$ 9,00
+ * - 30 placas ou mais (>= 30): número de placas × valor por placa (padrão R$ 8,00 ou customizado)
  */
-export function calcularValorLimpezaPorPlacas(numeroPlacas: number): number {
+export function calcularValorLimpezaPorPlacas(
+  numeroPlacas: number,
+  valorPorPlaca: number = VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS,
+): number {
   const placas = Math.max(0, Math.round(Number(numeroPlacas) || 0))
   if (placas < 30) {
     return VALOR_LIMPEZA_MINIMO_ATE_30
   }
-  return placas * VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS
+  const precoPlaca =
+    Number(valorPorPlaca) > 0 ? Number(valorPorPlaca) : VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS
+  return Math.round(placas * precoPlaca * 100) / 100
 }
 
 /**

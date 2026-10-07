@@ -48,6 +48,7 @@ import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import {
   MENSAGEM_OFERTA_LIMPEZA_PADRAO,
   VALOR_BASE_LIMPEZA_PADRAO,
+  VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS,
   TARIFA_ENERGIA_PADRAO,
   VALOR_KM_DESLOCAMENTO_LIMPEZA,
   MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA,
@@ -59,6 +60,11 @@ import {
   calcularValorDeslocamentoLimpeza,
   resolverPlaceholdersOfertaLimpeza,
 } from '@/constants/ofertaLimpeza'
+import {
+  getValorLimpezaPorPlacaPadrao,
+  getValorLimpezaPorPlacaCacheSync,
+  setValorLimpezaPorPlacaPadrao,
+} from '@/services/configuracoesService'
 import { estimarDistanciaDelfosCliente } from '@/lib/calculoDeslocamentoAtividades'
 import type { Cliente, UsinaCliente, Sistema } from '@/types/crm'
 
@@ -118,6 +124,8 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
   // Estado da mensagem e do valor comercial
   const [templateTexto, setTemplateTexto] = useState(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
   const [valorServico, setValorServico] = useState<number>(VALOR_BASE_LIMPEZA_PADRAO)
+  const [valorPorPlaca, setValorPorPlaca] = useState<number>(getValorLimpezaPorPlacaCacheSync)
+  const [salvandoValorPadrao, setSalvandoValorPadrao] = useState(false)
 
   // Deslocamento (requisito 3)
   const [incluirDeslocamento, setIncluirDeslocamento] = useState(false)
@@ -300,10 +308,10 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     sistemas,
   ])
 
-  // Valor sugerido da limpeza baseada nas placas (requisito 2: <30 -> R$ 300; >=30 -> placas * 9)
+  // Valor sugerido da limpeza baseada nas placas (critério: <30 -> R$ 300; >=30 -> placas * valorPorPlaca)
   const valorSugeridoLimpeza = useMemo(() => {
-    return calcularValorLimpezaPorPlacas(numeroPlacasCalculado)
-  }, [numeroPlacasCalculado])
+    return calcularValorLimpezaPorPlacas(numeroPlacasCalculado, valorPorPlaca)
+  }, [numeroPlacasCalculado, valorPorPlaca])
 
   // Valor do deslocamento calculado (requisito 3: distanciaKm * 1.50 * 2)
   const valorDeslocamentoCalculado = useMemo(() => {
@@ -316,7 +324,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     return Math.round((valorServico + valorDeslocamentoCalculado) * 100) / 100
   }, [valorServico, valorDeslocamentoCalculado])
 
-  // Inicialização ao abrir o modal
+  // Carrega a configuração durável do valor por placa ao abrir o modal
   useEffect(() => {
     if (!open) {
       setProgressoEnvio(null)
@@ -330,6 +338,16 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     setTemplateTexto(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
     setAuthErrorCapturado(false)
     setProgressoEnvio(null)
+
+    // Sincroniza com o valor persistido no PocketBase ou cache
+    let ativo = true
+    getValorLimpezaPorPlacaPadrao().then((v) => {
+      if (ativo && v > 0) {
+        setValorPorPlaca(v)
+      }
+    })
+
+    const precoBasePlaca = getValorLimpezaPorPlacaCacheSync()
 
     if (modoIndividual && (clienteAtualIndividual || clienteContexto || initialClienteId)) {
       const cliId =
@@ -347,7 +365,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
             sistemaContexto || (sistemas.find((s) => s.cliente_id === cli.id) as any),
           )
         : 0
-      const valorBaseSugerido = calcularValorLimpezaPorPlacas(nPlacas)
+      const valorBaseSugerido = calcularValorLimpezaPorPlacas(nPlacas, precoBasePlaca)
       setValorServico(valorBaseSugerido)
 
       // Estima a distância padrão de deslocamento se o cliente tiver cidade/endereço
@@ -366,7 +384,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
             usinasContexto || [],
             sistemas.find((s) => s.cliente_id === cli.id) as any,
           )
-          setValorServico(calcularValorLimpezaPorPlacas(nPlacas))
+          setValorServico(calcularValorLimpezaPorPlacas(nPlacas, precoBasePlaca))
         } else {
           setValorServico(VALOR_BASE_LIMPEZA_PADRAO)
         }
@@ -378,6 +396,10 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         setValorServico(VALOR_BASE_LIMPEZA_PADRAO)
       }
       setIncluirDeslocamento(false)
+    }
+
+    return () => {
+      ativo = false
     }
   }, [
     open,
@@ -391,6 +413,27 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     sistemaContexto,
     clientesProcessados,
   ])
+
+  // Handler para alteração do valor por placa e persistência como novo padrão
+  const handleAlterarValorPorPlaca = async (novoValor: number) => {
+    const limpo = Math.max(0, novoValor)
+    setValorPorPlaca(limpo)
+    if (limpo > 0) {
+      // Recalcula o valor sugerido de limpeza em tempo real
+      const novoSugerido = calcularValorLimpezaPorPlacas(numeroPlacasCalculado, limpo)
+      setValorServico(novoSugerido)
+
+      // Salva de forma durável como novo padrão no PocketBase e localStorage
+      setSalvandoValorPadrao(true)
+      try {
+        await setValorLimpezaPorPlacaPadrao(limpo)
+      } catch (err) {
+        console.error('Erro ao salvar valor padrão por placa:', err)
+      } finally {
+        setSalvandoValorPadrao(false)
+      }
+    }
+  }
 
   // Cliente atualmente visualizado na prévia
   const clienteFocado = useMemo(() => {
@@ -894,13 +937,38 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                     </span>
                   </div>
 
-                  <div className="text-[11px] text-gray-600 space-y-1 bg-slate-50 p-2.5 rounded-md border border-slate-200">
-                    <div className="flex items-center justify-between font-medium">
+                  <div className="text-[11px] text-gray-600 space-y-2 bg-slate-50 p-2.5 rounded-md border border-slate-200">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label
+                        htmlFor="valor-por-placa-input"
+                        className="text-[11px] font-semibold text-gray-700 flex items-center gap-1"
+                      >
+                        <span>Cobrado por placa:</span>
+                        {salvandoValorPadrao && (
+                          <Loader2 className="w-2.5 h-2.5 animate-spin text-emerald-600" />
+                        )}
+                      </Label>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-400 font-medium">R$</span>
+                        <Input
+                          id="valor-por-placa-input"
+                          type="number"
+                          step="0.5"
+                          min="0.5"
+                          value={valorPorPlaca || ''}
+                          onChange={(e) =>
+                            handleAlterarValorPorPlaca(parseFloat(e.target.value) || 0)
+                          }
+                          className="h-7 w-20 text-right text-xs font-bold bg-white text-emerald-950 px-2"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between font-medium pt-1 border-t border-slate-200/70">
                       <span>Critério do cálculo comercial:</span>
                       <span className="font-bold text-gray-900">
                         {numeroPlacasCalculado < 30
                           ? 'Menos de 30 placas'
-                          : `${numeroPlacasCalculado} × R$ 9,00`}
+                          : `${numeroPlacasCalculado} × ${formatCurrency(valorPorPlaca)}`}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-emerald-800 font-bold">
@@ -1173,7 +1241,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                   title={`Restaurar valor sugerido (${formatCurrency(valorSugeridoLimpeza)})`}
                 >
                   <RefreshCw className="w-3 h-3 mr-1" />
-                  {formatCurrency(valorSugeridoLimpeza)}
+                  Restaurar sugerido ({formatCurrency(valorSugeridoLimpeza)})
                 </Button>
               </div>
 

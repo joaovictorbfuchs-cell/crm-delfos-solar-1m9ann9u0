@@ -64,16 +64,25 @@ describe('ofertaLimpeza constants and helpers', () => {
     expect(texto).toContain('7,1 kWp')
   })
 
-  it('calcula valor de limpeza por placas conforme regra (< 30 -> R$ 300; >= 30 -> placas * 9)', () => {
+  it('calcula valor de limpeza por placas conforme regra (< 30 -> R$ 300; >= 30 -> placas * 8 padrão)', () => {
     // 0 ou menos de 30 placas -> R$ 300,00
     expect(calcularValorLimpezaPorPlacas(0)).toBe(300)
     expect(calcularValorLimpezaPorPlacas(13)).toBe(300)
     expect(calcularValorLimpezaPorPlacas(29)).toBe(300)
 
-    // 30 placas ou mais -> placas * 9
-    expect(calcularValorLimpezaPorPlacas(30)).toBe(270)
-    expect(calcularValorLimpezaPorPlacas(40)).toBe(360)
-    expect(calcularValorLimpezaPorPlacas(100)).toBe(900)
+    // 30 placas ou mais -> placas * 8 (novo padrão de R$ 8,00)
+    expect(calcularValorLimpezaPorPlacas(30)).toBe(240)
+    expect(calcularValorLimpezaPorPlacas(40)).toBe(320)
+    expect(calcularValorLimpezaPorPlacas(100)).toBe(800)
+    expect(calcularValorLimpezaPorPlacas(200)).toBe(1600)
+  })
+
+  it('permite passar valor customizado por placa quando >= 30 placas', () => {
+    expect(calcularValorLimpezaPorPlacas(200, 9.0)).toBe(1800)
+    expect(calcularValorLimpezaPorPlacas(200, 10.0)).toBe(2000)
+    expect(calcularValorLimpezaPorPlacas(50, 7.5)).toBe(375)
+    // Menos de 30 placas continua no valor mínimo de R$ 300,00 independente do valor por placa
+    expect(calcularValorLimpezaPorPlacas(20, 10.0)).toBe(300)
   })
 
   it('calcula deslocamento conforme regra (km * 1.50 * 2)', () => {
