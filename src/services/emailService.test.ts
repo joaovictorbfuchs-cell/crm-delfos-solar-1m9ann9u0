@@ -38,10 +38,10 @@ describe('emailService', () => {
   })
 
   it('deve exportar o remetente padrão correto Delfos Solar com domínio da empresa e Gmail', () => {
-    expect(DEFAULT_EMAIL_FROM).toBe('Delfos Solar <nao-responda@delfosengenharia.com.br>')
+    expect(DEFAULT_EMAIL_FROM).toBe('Delfos Solar <nao-responda@updates.delfos.eng.br>')
     expect(DEFAULT_GMAIL_SENDER).toBe('delfos.usinas@gmail.com')
     expect(emailService.DEFAULT_EMAIL_FROM).toBe(
-      'Delfos Solar <nao-responda@delfosengenharia.com.br>',
+      'Delfos Solar <nao-responda@updates.delfos.eng.br>',
     )
     expect(emailService.DEFAULT_GMAIL_SENDER).toBe('delfos.usinas@gmail.com')
   })
@@ -98,7 +98,7 @@ describe('emailService', () => {
           to: 'joao@delfosengenharia.com.br',
           subject: 'Solicitação de Faturas RGE',
           html: '<p>Solicitação de faturas dos últimos 5 anos</p>',
-          from: 'Delfos Solar <nao-responda@delfosengenharia.com.br>',
+          from: 'Delfos Solar <nao-responda@updates.delfos.eng.br>',
           attachments: [
             {
               filename: 'procuracao.pdf',
@@ -287,7 +287,7 @@ describe('emailService', () => {
       response: {
         data: {
           error:
-            'The delfosengenharia.com.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
+            'The updates.delfos.eng.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
         },
       },
     }
@@ -308,11 +308,11 @@ describe('emailService', () => {
       status: 403,
       statusCode: 403,
       message:
-        'The delfosengenharia.com.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
+        'The updates.delfos.eng.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
       response: {
         data: {
           error:
-            'The delfosengenharia.com.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
+            'The updates.delfos.eng.br domain is not verified. Please, add and verify your domain on https://resend.com/domains',
         },
       },
     })

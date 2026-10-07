@@ -9,7 +9,7 @@ try {
     const bootFrom = (
       $os.getenv('RESEND_EMAIL_FROM') ||
       $os.getenv('RESEND_FROM') ||
-      'Delfos Solar <nao-responda@delfosengenharia.com.br>'
+      'Delfos Solar <nao-responda@updates.delfos.eng.br>'
     ).trim()
     const bootPayload = {
       from: bootFrom,
@@ -126,7 +126,7 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     }
 
     // Remetente da empresa configurável via Secret/variável de ambiente ou fallback padrão da empresa:
-    // Padrão solicitado: "Delfos Solar <nao-responda@delfosengenharia.com.br>"
+    // Padrão solicitado: "Delfos Solar <nao-responda@updates.delfos.eng.br>"
     // Configurável via RESEND_EMAIL_FROM ou RESEND_FROM.
     const configuredFromSecret = (
       $os.getenv('RESEND_EMAIL_FROM') ||
@@ -138,7 +138,7 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
       configuredFromSecret ||
       (verifiedDomain
         ? `Delfos Solar <nao-responda@${verifiedDomain}>`
-        : 'Delfos Solar <nao-responda@delfosengenharia.com.br>')
+        : 'Delfos Solar <nao-responda@updates.delfos.eng.br>')
 
     // Se a conta Resend ainda estiver em teste e não tiver domínio verificado,
     // o Resend exige onboarding@resend.dev para remetente em teste.
@@ -146,7 +146,7 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     let defaultSender = empresaSender
     if (!verifiedDomain && !configuredFromSecret) {
       // Deixa como fallback seguro para teste caso o domínio ainda não esteja 100% no Resend
-      defaultSender = 'Delfos Solar <nao-responda@delfosengenharia.com.br>'
+      defaultSender = 'Delfos Solar <nao-responda@updates.delfos.eng.br>'
     }
 
     const requestedFrom = (body.from || '').trim()
@@ -304,10 +304,10 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
 
     if (isDomainNotVerified) {
       userFriendlyMsg =
-        'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, adicione o domínio delfosengenharia.com.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.'
+        'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, verifique o domínio updates.delfos.eng.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.'
     } else if (isTestMode) {
       userFriendlyMsg =
-        'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio delfosengenharia.com.br em https://resend.com/domains.'
+        'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio updates.delfos.eng.br em https://resend.com/domains.'
     } else if (isApiKeyInvalid) {
       userFriendlyMsg = 'Chave de API do Resend inválida ou sem permissão.'
     } else if (res.statusCode === 403) {

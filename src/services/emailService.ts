@@ -12,7 +12,7 @@ import {
   DEFAULT_EMAIL_DOMAIN,
 } from '@/lib/emailService'
 
-export const DEFAULT_EMAIL_FROM = 'Delfos Solar <nao-responda@delfosengenharia.com.br>'
+export const DEFAULT_EMAIL_FROM = 'Delfos Solar <nao-responda@updates.delfos.eng.br>'
 export const DEFAULT_GMAIL_SENDER = 'delfos.usinas@gmail.com'
 export const DEFAULT_RESEND_SENDER = DEFAULT_RESEND_FROM
 export { DEFAULT_EMAIL_DOMAIN, converterArquivoParaBase64 }
@@ -193,7 +193,7 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
         (lower.includes('domain') && lower.includes('resend.com/domains'))
       ) {
         throw new Error(
-          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, adicione o domínio delfosengenharia.com.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
+          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, verifique o domínio updates.delfos.eng.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
         )
       }
       throw new Error(errorMsg)
@@ -246,7 +246,7 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
         (combinedLower.includes('domain') && combinedLower.includes('resend.com/domains'))
       ) {
         throw new Error(
-          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, adicione o domínio delfosengenharia.com.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
+          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, verifique o domínio updates.delfos.eng.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
         )
       }
 
@@ -256,7 +256,7 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
         combinedLower.includes('testing emails to your own email address')
       ) {
         throw new Error(
-          'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio delfosengenharia.com.br em https://resend.com/domains.',
+          'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio updates.delfos.eng.br em https://resend.com/domains.',
         )
       }
 

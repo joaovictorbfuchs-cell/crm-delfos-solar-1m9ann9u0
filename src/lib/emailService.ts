@@ -10,8 +10,8 @@ import type {
  * Remetente oficial padrão da Delfos Solar utilizando o domínio da empresa verificado no Resend.
  * Configurável via Secret RESEND_EMAIL_FROM no backend ou passando `from` no envio.
  */
-export const DEFAULT_EMAIL_FROM = 'Delfos Solar <nao-responda@delfosengenharia.com.br>'
-export const DEFAULT_EMAIL_DOMAIN = 'delfosengenharia.com.br'
+export const DEFAULT_EMAIL_FROM = 'Delfos Solar <nao-responda@updates.delfos.eng.br>'
+export const DEFAULT_EMAIL_DOMAIN = 'updates.delfos.eng.br'
 
 /**
  * Recurso reutilizável em qualquer tela do projeto para envio de e-mails via serviço Resend (backend Skip Cloud / pb_hooks).
@@ -142,7 +142,7 @@ export async function enviarEmail(params: EnviarEmailParams): Promise<SendEmailR
         (combinedLower.includes('domain') && combinedLower.includes('resend.com/domains'))
       ) {
         throw new Error(
-          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, adicione o domínio delfosengenharia.com.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
+          'O domínio do remetente ainda não está verificado no Resend. Acesse https://resend.com/domains, verifique o domínio updates.delfos.eng.br e configure os registros DNS (SPF/DKIM) indicados pelo Resend. Enquanto o domínio não estiver verificado, o envio pelo remetente da empresa não funcionará.',
         )
       }
 
@@ -152,7 +152,7 @@ export async function enviarEmail(params: EnviarEmailParams): Promise<SendEmailR
         combinedLower.includes('testing emails to your own email address')
       ) {
         throw new Error(
-          'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio delfosengenharia.com.br em https://resend.com/domains.',
+          'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique o domínio updates.delfos.eng.br em https://resend.com/domains.',
         )
       }
 
