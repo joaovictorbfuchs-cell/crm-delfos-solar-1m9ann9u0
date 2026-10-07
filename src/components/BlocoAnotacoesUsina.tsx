@@ -84,10 +84,13 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
     try {
       const autorNome = user?.name || user?.email || 'Usuário Delfos'
 
-      // Se informou data opcional, normaliza para ISO datetime; se vazia, não envia para atuar como histórico simples
-      let dataFormatada: string | undefined = undefined
+      // data é campo obrigatório no PocketBase para atividades (formato YYYY-MM-DD HH:mm:ss.SSSZ ou ISO sem T)
+      let dataFormatada: string
       if (dataAnotacao && dataAnotacao.trim()) {
         const iso = new Date(dataAnotacao.trim() + 'T12:00:00Z').toISOString()
+        dataFormatada = iso.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
+      } else {
+        const iso = new Date().toISOString()
         dataFormatada = iso.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
       }
 
@@ -99,20 +102,22 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
         status: 'concluida',
         autor: autorNome,
         responsavel_nome: autorNome,
+        data: dataFormatada,
       }
 
       if (clienteAlvoId) {
         payload.cliente_id = clienteAlvoId
-        // Também envia campo cliente se existir no schema
-        payload.cliente = clienteAlvoId
       }
+      delete payload.cliente
 
       if (user?.id) {
         payload.responsavel_id = user.id
       }
 
-      if (dataFormatada) {
-        payload.data = dataFormatada
+      // Garantir campo data sempre preenchido (obrigatório na coleção atividades do PocketBase)
+      if (!payload.data) {
+        const isoAgora = new Date().toISOString()
+        payload.data = isoAgora.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
       }
 
       const criado = await pb.collection('atividades').create<Atividade>(payload)
@@ -128,7 +133,16 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
       })
     } catch (err: any) {
       console.error('Erro ao salvar anotação da usina:', err)
-      setErroForm(err?.message || 'Falha ao salvar a anotação. Tente novamente.')
+      const msgErro =
+        err?.data?.message ||
+        (err?.data?.data &&
+          Object.values(err.data.data)
+            .map((v: any) => v?.message)
+            .filter(Boolean)
+            .join('; ')) ||
+        err?.message ||
+        'Falha ao salvar a anotação. Tente novamente.'
+      setErroForm(msgErro)
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar',

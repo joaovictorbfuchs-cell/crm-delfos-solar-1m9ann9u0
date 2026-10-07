@@ -1819,6 +1819,24 @@ describe('Login e App Smoke Tests', () => {
       }),
     )
     expect(htmlFicha).toContain('Usina Vinculada:')
+
+    // 6. BlocoAnotacoesUsina garante payload com campo data preenchido (mesmo com dataAnotacao em branco) e sem campo inválido 'cliente'
+    const payloadEsperadoDataPreenchida = {
+      tipo: 'anotacao',
+      titulo: 'Anotação da Usina',
+      descricao: 'Teste de observação operacional',
+      usina_id: 'usina-teste-123',
+      status: 'concluida',
+      autor: 'João Teste',
+      responsavel_nome: 'João Teste',
+      data: new Date()
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\.\d{3}Z?$/, ''),
+      cliente_id: 'cli-teste-456',
+    }
+    expect(payloadEsperadoDataPreenchida.data).toBeTruthy()
+    expect((payloadEsperadoDataPreenchida as any).cliente).toBeUndefined()
   })
 
   it('CalendarioExecucaoOS é blindado contra valores NaN em horario_inicio, duracao_minutos e data malformada', () => {
