@@ -1,9 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   normalizarDadosProcuracao,
   formatarDataExtenso,
   gerarHTMLProcuracao,
   gerarPDFBinarioProcuracao,
+  gerarBase64Procuracao,
+  baixarProcuracaoPDF,
+  abrirProcuracaoImpressao,
   DADOS_FIXOS_CONTRATADA_PROCURACAO,
 } from './procuracaoGenerator'
 
@@ -161,5 +164,72 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     const pdfBytes = gerarPDFBinarioProcuracao(normalizados)
     expect(pdfBytes).toBeInstanceOf(Uint8Array)
     expect(pdfBytes.length).toBeGreaterThan(500)
+  })
+
+  it('deve manter abrirProcuracaoImpressao e gerarHTMLProcuracao preservados para o botão Imprimir', () => {
+    const html = gerarHTMLProcuracao(dadosMarceloBecker)
+    expect(typeof html).toBe('string')
+    expect(html).toContain('PROCURAÇÃO PARTICULAR')
+    expect(html).toContain('OUTORGANTE: Marcelo Becker')
+
+    const spyOpen = vi.spyOn(window, 'open').mockReturnValue({
+      addEventListener: vi.fn(),
+      print: vi.fn(),
+    } as any)
+
+    abrirProcuracaoImpressao(dadosMarceloBecker, false)
+    expect(spyOpen).toHaveBeenCalled()
+    spyOpen.mockRestore()
+  })
+
+  it('deve gerar Base64 da procuração usando o HTML canônico A4 com renderizador oficial', async () => {
+    const mockOutputPdf = vi
+      .fn()
+      .mockResolvedValue('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
+    const mockWorker = {
+      set: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      outputPdf: mockOutputPdf,
+    }
+    ;(window as any).html2pdf = vi.fn(() => mockWorker)
+
+    const res = await gerarBase64Procuracao(dadosMarceloBecker)
+
+    expect(res.base64).toBe('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
+    expect(res.fileName).toBe('Procuracao_Delfos_Marcelo_Becker.pdf')
+    expect(res.fallbackText).toContain('Marcelo')
+    expect(res.fallbackText).toContain('procuração da Delfos Solar')
+    expect(mockWorker.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jsPDF: expect.objectContaining({ format: 'a4', orientation: 'portrait' }),
+      }),
+    )
+  })
+
+  it('deve realizar download direto do PDF oficial via baixarProcuracaoPDF a partir do gerador A4', async () => {
+    const mockOutputPdf = vi
+      .fn()
+      .mockResolvedValue('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
+    const mockWorker = {
+      set: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      outputPdf: mockOutputPdf,
+    }
+    ;(window as any).html2pdf = vi.fn(() => mockWorker)
+
+    const clickSpy = vi.fn()
+    const originalCreateElement = document.createElement.bind(document)
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = originalCreateElement(tagName)
+      if (tagName === 'a') {
+        el.click = clickSpy
+      }
+      return el
+    })
+
+    await baixarProcuracaoPDF(dadosMarceloBecker)
+    expect(clickSpy).toHaveBeenCalled()
+
+    vi.restoreAllMocks()
   })
 })

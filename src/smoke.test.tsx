@@ -2039,4 +2039,36 @@ describe('Login e App Smoke Tests', () => {
     )
     expect(htmlSemDiaTodo).not.toContain('Dia todo')
   })
+
+  it('ModalGerarProcuracaoOM: abre pré-visualização A4, exibe botões Imprimir, Baixar PDF e Enviar pelo WhatsApp com conferência', async () => {
+    const { ModalGerarProcuracaoOM } = await import('@/components/ModalGerarProcuracaoOM')
+    const clienteMock: any = {
+      id: 'cli-proc-test',
+      nome: 'José da Silva Santos',
+      cpf: '123.456.789-00',
+      telefone: '54999998888',
+      whatsapp: '54999998888',
+      endereco: 'Rua das Flores, 100',
+      cidade: 'Erechim',
+    }
+
+    let rendered: any = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(ModalGerarProcuracaoOM, {
+          open: true,
+          onOpenChange: () => {},
+          cliente: clienteMock,
+          modoVisualizacaoDireta: true,
+        }),
+      )
+    })
+
+    const text = rendered.container.textContent || ''
+    expect(text).toContain('PROCURAÇÃO PARTICULAR')
+    expect(text).toContain('José da Silva Santos')
+    expect(text).toContain('Imprimir')
+    expect(text).toContain('Baixar como PDF')
+    expect(text).toContain('Enviar pelo WhatsApp')
+  })
 })

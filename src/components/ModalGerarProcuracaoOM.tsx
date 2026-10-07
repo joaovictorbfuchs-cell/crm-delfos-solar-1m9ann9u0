@@ -25,6 +25,8 @@ import {
   ExternalLink,
   Info,
   Loader2,
+  X,
+  FileCheck,
 } from 'lucide-react'
 import type { Cliente, PropostaOM } from '@/types/crm'
 import {
@@ -34,10 +36,11 @@ import {
   normalizarDadosProcuracao,
   baixarProcuracaoPDF,
   abrirProcuracaoImpressao,
+  gerarBase64Procuracao,
 } from '@/lib/procuracaoGenerator'
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
-import { sendWhatsAppMensagem } from '@/services/crmService'
+import { sendWhatsAppDocumento, createAtividade } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
 import {
@@ -176,6 +179,12 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
   // Estado para garantir que a atividade é registrada uma única vez por emissão
   const [atividadeRegistrada, setAtividadeRegistrada] = useState(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
+
+  // Submodal de conferência e envio do WhatsApp
+  const [modalConferenciaWhatsAppOpen, setModalConferenciaWhatsAppOpen] = useState(false)
+  const [whatsappTelefoneEditado, setWhatsappTelefoneEditado] = useState('')
+  const [whatsappMensagemEditada, setWhatsappMensagemEditada] = useState('')
 
   const registrarAtividadeEmissao = (dados: DadosProcuracaoOM) => {
     if (!atividadeRegistrada) {
@@ -194,10 +203,11 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
     registrarAtividadeEmissao(dadosConsolidados)
   }
 
-  // 1. Baixar Documento (PDF binário direto)
-  const handleBaixarPDF = () => {
+  // 1. Baixar Documento (PDF A4 canônico com margens idênticas ao Imprimir)
+  const handleBaixarPDF = async () => {
+    setIsDownloadingPDF(true)
     try {
-      baixarProcuracaoPDF(dadosConsolidados)
+      await baixarProcuracaoPDF(dadosConsolidados)
       registrarAtividadeEmissao(dadosConsolidados)
       toast.success('Download do PDF da procuração iniciado com sucesso!')
     } catch (err) {
@@ -205,46 +215,86 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
       // Fallback abre tela de impressão nativa
       abrirProcuracaoImpressao(dadosConsolidados, true)
       registrarAtividadeEmissao(dadosConsolidados)
+    } finally {
+      setIsDownloadingPDF(false)
     }
   }
 
-  // 2. Enviar pelo WhatsApp diretamente via Z-API
-  const handleEnviarWhatsApp = async () => {
-    if (!temTelefoneValido) {
-      toast.error(MENSAGEM_ALERTA_SEM_NUMERO)
+  // 2. Abrir Modal de Conferência de WhatsApp ao clicar no botão "Enviar pelo WhatsApp"
+  const handleAbrirConferenciaWhatsApp = () => {
+    const primeiroNome = (dadosConsolidados.nome || 'Cliente').split(' ')[0]
+    const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo a procuração da Delfos Solar para conferência e assinatura, autorizando os trâmites junto à concessionária de energia. Por favor, assine no campo indicado e nos devolva a via preenchida. Ficamos à disposição!`
+
+    setWhatsappTelefoneEditado(formTelefone || '')
+    setWhatsappMensagemEditada(mensagemTexto)
+    setModalConferenciaWhatsAppOpen(true)
+  }
+
+  // 3. Confirmar e Enviar Documento via WhatsApp com PDF oficial gerado e mensagem como legenda
+  const handleConfirmarEnvioWhatsApp = async () => {
+    const telLimpo = (whatsappTelefoneEditado || '').replace(/\D/g, '')
+    if (telLimpo.length < 10) {
+      toast.error('Informe um número de telefone WhatsApp válido com DDD (mínimo 10 dígitos).')
       return
     }
 
-    // Baixa o PDF para o usuário já ter em mãos e anexar
-    try {
-      baixarProcuracaoPDF(dadosConsolidados)
-    } catch {
-      /* intentionally ignored */
+    const mensagemLimpa = whatsappMensagemEditada.trim()
+    if (!mensagemLimpa) {
+      toast.error('Por favor, informe a mensagem a ser enviada junto à procuração.')
+      return
     }
-
-    const primeiroNome = (dadosConsolidados.nome || 'Cliente').split(' ')[0]
-    const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo a procuração da Delfos Solar para conferência e assinatura, autorizando os trâmites junto à concessionária de energia. Por favor, assine no campo indicado e nos devolva a via preenchida. Ficamos à disposição!`
-    const mensagemComPrefixo = aplicarPrefixoMensagemManual(mensagemTexto)
 
     setIsSendingWhatsApp(true)
     try {
-      const res = await sendWhatsAppMensagem({
-        clienteId: cliente.id,
-        telefone: telefoneApenasDigitos,
-        mensagem: mensagemComPrefixo,
-        origem: 'modal_procuracao_om',
+      // 1. Gera o PDF oficial em Base64 Data URI pelo HTML canônico
+      const { base64, fileName } = await gerarBase64Procuracao(dadosConsolidados)
+      if (!base64) {
+        toast.error('Não foi possível gerar o PDF oficial da procuração para envio.')
+        setIsSendingWhatsApp(false)
+        return
+      }
+
+      const legendaComPrefixo = aplicarPrefixoMensagemManual(mensagemLimpa)
+
+      // 2. Envia documento de fato via endpoint oficial de documentos do WhatsApp
+      const res = await sendWhatsAppDocumento({
+        cliente_id: cliente.id,
+        telefone_destino: telLimpo,
+        tipo: 'documento',
+        legenda: legendaComPrefixo,
+        nome_arquivo:
+          fileName ||
+          `Procuracao_Delfos_${dadosConsolidados.nome.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+        base64: base64,
       })
 
-      if (res.ok && res.sent) {
-        toast.success('Mensagem enviada via WhatsApp com sucesso!')
+      if (res.sent || res.ok) {
+        toast.success('Procuração em PDF enviada com sucesso pelo WhatsApp!')
         registrarAtividadeEmissao(dadosConsolidados)
+
+        // Registrar atividade no histórico/timeline do cliente
+        try {
+          await createAtividade({
+            cliente_id: cliente.id,
+            tipo: 'gerar_procuracao',
+            titulo: 'Procuração Particular O&M Enviada via WhatsApp',
+            descricao: `Procuração em PDF enviada para ${dadosConsolidados.nome} no número ${formatWhatsAppPhone(telLimpo)} com documento anexo.`,
+            data: new Date().toISOString(),
+            status: 'concluida',
+            autor: 'CRM Delfos Solar',
+          })
+        } catch (atvErr) {
+          console.warn('Falha ao registrar atividade de envio no histórico:', atvErr)
+        }
+
+        setModalConferenciaWhatsAppOpen(false)
       } else {
         const errorMsg = getFriendlyWhatsAppErrorMessage(res)
-        toast.error(errorMsg)
+        toast.error(errorMsg || 'Falha ao enviar documento via WhatsApp.')
       }
     } catch (err: any) {
-      console.error('Erro ao disparar WhatsApp de procuração O&M:', err)
-      toast.error(err?.message || 'Falha na conexão ao enviar mensagem via WhatsApp.')
+      console.error('Erro ao disparar WhatsApp de procuração O&M com PDF anexo:', err)
+      toast.error(err?.message || 'Falha na conexão ao enviar documento via WhatsApp.')
     } finally {
       setIsSendingWhatsApp(false)
     }
@@ -511,42 +561,32 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                   <Printer className="w-4 h-4 text-gray-500" />
                   <span>Imprimir</span>
                 </Button>
-
                 {/* BOTÃO OBRIGATÓRIO 1: BAIXAR COMO PDF */}
                 <Button
                   type="button"
                   size="sm"
                   onClick={handleBaixarPDF}
+                  disabled={isDownloadingPDF}
                   className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02]"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Baixar como PDF</span>
+                  {isDownloadingPDF ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{isDownloadingPDF ? 'Baixando PDF...' : 'Baixar como PDF'}</span>
                 </Button>
-
-                {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP */}
+                {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP (abre modal de conferência) */}
                 <Button
                   type="button"
                   size="sm"
-                  onClick={handleEnviarWhatsApp}
-                  disabled={!temTelefoneValido || isSendingWhatsApp}
-                  className={`text-xs font-bold gap-1.5 shadow-xs transition-transform ${
-                    temTelefoneValido && !isSendingWhatsApp
-                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white hover:scale-[1.02]'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                  title={
-                    temTelefoneValido
-                      ? `Enviar direto via WhatsApp para ${dadosConsolidados.telefone || 'cliente'}`
-                      : 'Cliente sem telefone de contato cadastrado na ficha'
-                  }
+                  onClick={handleAbrirConferenciaWhatsApp}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02]"
+                  title="Conferir telefone, mensagem e enviar procuração em PDF anexa pelo WhatsApp"
                 >
-                  {isSendingWhatsApp ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  <span>{isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar pelo WhatsApp'}</span>
-                </Button>
+                  <Send className="w-4 h-4" />
+                  <span>Enviar pelo WhatsApp</span>
+                </Button>{' '}
               </div>
             </div>
 
@@ -683,8 +723,8 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
             <div className="p-3 bg-gray-100 rounded-xl text-[11px] text-gray-600 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-gray-500" />
-                Ao clicar em "Enviar pelo WhatsApp", o PDF é baixado e a mensagem é enviada
-                diretamente pela Z-API.
+                Ao clicar em "Enviar pelo WhatsApp", uma caixa de conferência se abre para você
+                checar o número, o texto e o PDF em anexo.
               </span>
               <button
                 type="button"
@@ -698,6 +738,136 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
           </div>
         )}
       </DialogContent>
+
+      {/* ========================================================================= */}
+      {/* MODAL DE CONFERÊNCIA ANTES DO DISPARO DO WHATSAPP COM PDF ANEXO           */}
+      {/* ========================================================================= */}
+      {modalConferenciaWhatsAppOpen && (
+        <Dialog open={modalConferenciaWhatsAppOpen} onOpenChange={setModalConferenciaWhatsAppOpen}>
+          <DialogContent className="max-w-lg p-0 gap-0 bg-white border border-gray-200 overflow-hidden shadow-2xl">
+            {/* Cabeçalho */}
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 via-white to-emerald-50/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center shadow-xs">
+                  <Send className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-bold text-gray-900 tracking-tight">
+                    Conferir e Enviar por WhatsApp
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-gray-500">
+                    Confira o número, a mensagem e o documento anexo antes de disparar
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
+
+            {/* Corpo do Modal */}
+            <div className="p-4 sm:p-5 space-y-4">
+              {/* Card do Anexo PDF */}
+              <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg shrink-0">
+                    <FileCheck className="w-4 h-4 text-emerald-700" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-gray-900 truncate">
+                      Procuracao_Delfos_
+                      {(dadosConsolidados.nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf
+                    </div>
+                    <div className="text-[11px] text-emerald-700 font-medium">
+                      PDF da Procuração (Formatação A4 Oficial Delfos)
+                    </div>
+                  </div>
+                </div>
+
+                <Badge className="bg-emerald-600 text-white font-bold text-[10px] shrink-0 uppercase tracking-wider">
+                  PDF em anexo
+                </Badge>
+              </div>
+
+              {/* Campo de Telefone Editável */}
+              <div>
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1 mb-1.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>
+                    Número de Telefone do WhatsApp <span className="text-rose-500">*</span>
+                  </span>
+                </Label>
+                <Input
+                  type="text"
+                  value={whatsappTelefoneEditado}
+                  onChange={(e) => setWhatsappTelefoneEditado(formatWhatsAppPhone(e.target.value))}
+                  placeholder="(54) 99712-8844"
+                  className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white font-mono"
+                />
+                {whatsappTelefoneEditado.replace(/\D/g, '').length < 10 && (
+                  <p className="text-[11px] text-amber-700 mt-1 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    Informe um número com DDD válido para envio.
+                  </p>
+                )}
+              </div>
+
+              {/* Campo de Mensagem Editável */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Mensagem de Texto (Legenda do Documento){' '}
+                    <span className="text-rose-500">*</span>
+                  </Label>
+                  <span className="text-[11px] text-gray-400">Editável</span>
+                </div>
+                <textarea
+                  rows={4}
+                  value={whatsappMensagemEditada}
+                  onChange={(e) => setWhatsappMensagemEditada(e.target.value)}
+                  placeholder="Digite a mensagem que acompanhará o documento PDF..."
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs leading-relaxed"
+                />
+              </div>
+            </div>
+
+            {/* Rodapé de Ações */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setModalConferenciaWhatsAppOpen(false)}
+                disabled={isSendingWhatsApp}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmarEnvioWhatsApp}
+                disabled={
+                  isSendingWhatsApp ||
+                  whatsappTelefoneEditado.replace(/\D/g, '').length < 10 ||
+                  !whatsappMensagemEditada.trim()
+                }
+                className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-2 shadow-xs transition-transform hover:scale-[1.01]"
+              >
+                {isSendingWhatsApp ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Enviando Documento com PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Confirmar e Enviar</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   )
 }

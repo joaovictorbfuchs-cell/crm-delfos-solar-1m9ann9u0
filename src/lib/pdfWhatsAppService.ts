@@ -23,6 +23,11 @@ import {
   type PropostaTecnicoComercialDados,
 } from '@/lib/propostaTecnicoComercialGenerator'
 import { gerarHTMLPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
+import {
+  gerarHTMLProcuracao,
+  normalizarDadosProcuracao,
+  type DadosProcuracaoOM,
+} from '@/lib/procuracaoGenerator'
 import { formatCurrency } from '@/lib/formatters'
 
 export const HTML2PDF_CDN_URL =
@@ -298,6 +303,40 @@ Responsável Técnico: João Victor Bagetti Fuchs (CREA RS151894).`
     return { base64, fallbackText, fileName }
   } catch (err) {
     console.error('Erro ao gerar PDF oficial solar para WhatsApp:', err)
+    return { base64: '', fallbackText, fileName }
+  }
+}
+
+/**
+ * Gera o PDF oficial da Procuração Particular como Data URI Base64 a partir do HTML canônico A4.
+ *
+ * Garante fidelidade 100% idêntica ao botão Imprimir:
+ * 1. Utiliza `gerarHTMLProcuracao(dadosInput)` (HTML canônico com estilo @page margin 25mm, corpo justificado,
+ *    título centralizado, assinatura alinhada à direita).
+ * 2. Renderiza via html2pdf.js com A4 portrait e compressão.
+ */
+export async function gerarBase64Procuracao(
+  dadosInput: Partial<DadosProcuracaoOM>,
+): Promise<{ base64: string; fallbackText: string; fileName: string }> {
+  const dados = normalizarDadosProcuracao(dadosInput)
+  const safeName = (dados.nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
+  const fileName = `Procuracao_Delfos_${safeName}.pdf`
+
+  const primeiroNome = (dados.nome || 'Cliente').split(' ')[0]
+  const fallbackText = `Olá ${primeiroNome}! Segue em anexo a procuração da Delfos Solar para conferência e assinatura, autorizando os trâmites junto à concessionária de energia. Por favor, assine no campo indicado e nos devolva a via preenchida. Ficamos à disposição!`
+
+  try {
+    const htmlOficial = gerarHTMLProcuracao(dados)
+    const base64 = await renderizarHTMLParaPdfBase64(htmlOficial, fileName, {
+      scale: 1.5,
+      imageQuality: 0.85,
+      compressJsPdf: true,
+      timeoutMs: 25000,
+    })
+
+    return { base64, fallbackText, fileName }
+  } catch (err) {
+    console.error('Erro ao gerar PDF oficial da procuração para WhatsApp:', err)
     return { base64: '', fallbackText, fileName }
   }
 }
