@@ -1121,8 +1121,8 @@ function CalendarioExecucaoOSContent({
   }, [])
 
   // Agrupar ordens por chave de data (YYYY-MM-DD)
-  // Somente ordens/atividades com data_agendada explícita devem ser exibidas no calendário.
-  // Registros sem data são históricos/logs e não devem cair no calendário na data de criação.
+  // Somente ordens/atividades com data_agendada explícita e válida devem ser exibidas no calendário.
+  // Registros sem data ou malformados não devem quebrar o grid nem cair em chaves corrompidas.
   const ordensPorDia = useMemo(() => {
     const map = new Map<string, OrdemServico[]>()
     for (const os of ordensMescladas || []) {
@@ -1131,8 +1131,10 @@ function CalendarioExecucaoOSContent({
         const dataStr = safeStr(os.data_agendada).trim()
         if (!dataStr) continue
         const d = new Date(dataStr)
-        if (isNaN(d.getTime())) continue
+        const timeVal = d.getTime()
+        if (isNaN(timeVal) || !isFinite(timeVal)) continue
         const key = getLocalDateKey(d)
+        if (!key || key.includes('NaN') || !/^\d{4}-\d{2}-\d{2}$/.test(key)) continue
         if (!map.has(key)) {
           map.set(key, [])
         }
@@ -1141,16 +1143,18 @@ function CalendarioExecucaoOSContent({
         // Ignora datas inválidas
       }
     }
-    // Ordenar as OS de cada dia por horário com defesa isNaN
+    // Ordenar as OS de cada dia por horário com defesa robusta a NaN/Infinity
     for (const [, list] of map.entries()) {
       list.sort((a, b) => {
         try {
-          const strA = safeStr(a?.data_agendada)
-          const strB = safeStr(b?.data_agendada)
+          const strA = safeStr(a?.data_agendada).trim()
+          const strB = safeStr(b?.data_agendada).trim()
           const dateA = strA ? new Date(strA) : null
           const dateB = strB ? new Date(strB) : null
-          const timeA = dateA && !isNaN(dateA.getTime()) ? dateA.getTime() : 0
-          const timeB = dateB && !isNaN(dateB.getTime()) ? dateB.getTime() : 0
+          const timeA =
+            dateA && !isNaN(dateA.getTime()) && isFinite(dateA.getTime()) ? dateA.getTime() : 0
+          const timeB =
+            dateB && !isNaN(dateB.getTime()) && isFinite(dateB.getTime()) ? dateB.getTime() : 0
           return timeA - timeB
         } catch (_) {
           return 0
@@ -1538,8 +1542,10 @@ function CalendarioExecucaoOSContent({
           </div>
         </div>
 
-        {/* Bloco Direita: Ações Primárias (Nova Atividade + Filtros) */}
-        <div className="flex items-center gap-1.5 shrink-0 justify-end">{rightActionsSlot}</div>
+        {/* Bloco Direita: Ações Primárias opcionais */}
+        {rightActionsSlot ? (
+          <div className="flex items-center gap-1.5 shrink-0 justify-end">{rightActionsSlot}</div>
+        ) : null}
       </div>
 
       {/* ========================================================== */}
@@ -1952,14 +1958,38 @@ function CalendarioExecucaoOSContent({
                             ? safeStr(os.horario_inicio).slice(0, 5)
                             : '') || extractHorario(os.data_agendada)
 
-                        // Calcula hora de término prevista
-                        const minutosInicio =
-                          (Number(item.hora) || 0) * 60 + (Number(item.minuto) || 0)
+                        // Calcula hora de término prevista com validação matemática segura contra NaN/Infinity
+                        const numHora = Number(item.hora)
+                        const safeHora =
+                          !isNaN(numHora) && isFinite(numHora) ? numHora : HORA_INICIAL
+                        const numMinuto = Number(item.minuto)
+                        const safeMinuto = !isNaN(numMinuto) && isFinite(numMinuto) ? numMinuto : 0
+                        const minutosInicio = safeHora * 60 + safeMinuto
+
+                        const numDuracaoItem = Number(item.duracaoMinutos)
+                        const safeDuracaoItem =
+                          !isNaN(numDuracaoItem) && isFinite(numDuracaoItem) && numDuracaoItem > 0
+                            ? numDuracaoItem
+                            : DURACAO_PADRAO_MINUTOS
+
+                        const rawMinutosFim = minutosInicio + safeDuracaoItem
                         const minutosFim =
-                          minutosInicio + (Number(item.duracaoMinutos) || DURACAO_PADRAO_MINUTOS)
+                          !isNaN(rawMinutosFim) && isFinite(rawMinutosFim)
+                            ? Math.min(24 * 60 - 1, Math.max(0, rawMinutosFim))
+                            : minutosInicio + DURACAO_PADRAO_MINUTOS
+
                         const horaFimCalc = Math.floor(minutosFim / 60)
-                        const minutoFimCalc = minutosFim % 60
-                        const horaFimCalculada = `${String(horaFimCalc).padStart(2, '0')}:${String(minutoFimCalc).padStart(2, '0')}`
+                        const minutoFimCalc = Math.floor(minutosFim % 60)
+                        const safeHoraFimValida =
+                          !isNaN(horaFimCalc) && isFinite(horaFimCalc)
+                            ? Math.min(23, Math.max(0, horaFimCalc))
+                            : 22
+                        const safeMinutoFimValido =
+                          !isNaN(minutoFimCalc) && isFinite(minutoFimCalc)
+                            ? Math.min(59, Math.max(0, minutoFimCalc))
+                            : 0
+                        const horaFimCalculada = `${String(safeHoraFimValida).padStart(2, '0')}:${String(safeMinutoFimValido).padStart(2, '0')}`
+
                         const horaFimStr =
                           (os.horario_fim &&
                           /^\d{1,2}:\d{2}/.test(safeStr(os.horario_fim)) &&
@@ -1967,8 +1997,15 @@ function CalendarioExecucaoOSContent({
                             ? safeStr(os.horario_fim).slice(0, 5)
                             : '') || horaFimCalculada
 
-                        const duracaoEfetiva =
+                        const rawDuracaoEfetiva =
                           isBeingResized && resizing ? resizing.currentDuracao : item.duracaoMinutos
+                        const numDuracaoEfetiva = Number(rawDuracaoEfetiva)
+                        const duracaoEfetiva =
+                          !isNaN(numDuracaoEfetiva) &&
+                          isFinite(numDuracaoEfetiva) &&
+                          numDuracaoEfetiva > 0
+                            ? numDuracaoEfetiva
+                            : DURACAO_PADRAO_MINUTOS
                         const cardHeight = Math.max(28, (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2)
 
                         const clienteNome =

@@ -227,7 +227,7 @@ function ExecucaoOSContent() {
 
           // (b) Para tipo='custom', excluir quando a categoria do tipo customizado existir e for diferente de 'manutencao'
           if (atv.tipo === 'custom') {
-            const categoriaCustom = String(atv.expand?.tipo_custom_id?.categoria || '')
+            const categoriaCustom = String(atv.expand?.tipo_custom_id?.categoria ?? '')
               .trim()
               .toLowerCase()
             if (categoriaCustom && categoriaCustom !== 'manutencao') {
@@ -318,11 +318,15 @@ function ExecucaoOSContent() {
           }
           const status = mapStatusAtividadeParaOSStatus(atv.status)
 
-          const duracaoNum =
-            typeof atv.duracao_minutos === 'number' &&
-            !isNaN(atv.duracao_minutos) &&
-            atv.duracao_minutos > 0
+          const parsedDuracao =
+            typeof atv.duracao_minutos === 'number'
               ? atv.duracao_minutos
+              : typeof atv.duracao_minutos === 'string' && atv.duracao_minutos.trim() !== ''
+                ? Number(atv.duracao_minutos)
+                : NaN
+          const duracaoNum =
+            !isNaN(parsedDuracao) && isFinite(parsedDuracao) && parsedDuracao > 0
+              ? Math.round(parsedDuracao)
               : undefined
 
           // Normaliza checklist de forma tolerante (seja array ou string JSON)
@@ -1163,11 +1167,139 @@ function ExecucaoOSContent() {
       }`}
     >
       {/* Barra de Ações Superior para abas normais (pendentes, concluidas, relatorio) */}
-      {activeTab !== 'calendario' && (
+      {activeTab !== 'calendario' ? (
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {renderTabsNavegacao()}
           {renderAcoesPrimarias()}
         </div>
+      ) : (
+        /* Na visão de calendário, mantém o Popover de Filtros montado no DOM para atender o evento mobile 'delfos:abrir-filtros-servicos-campo' */
+        <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
+          <PopoverTrigger asChild>
+            <span className="sr-only" aria-hidden="true" />
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            sideOffset={8}
+            className="w-[340px] sm:w-[380px] p-4 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 space-y-3.5"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
+                  <Filter className="w-3.5 h-3.5" />
+                </span>
+                <h4 className="text-xs sm:text-sm font-bold text-gray-900">
+                  Filtros de Serviços de Campo
+                </h4>
+              </div>
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleLimparFiltros}
+                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
+                  title="Limpar todos os filtros"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Limpar</span>
+                </button>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder={
+                    isInstalador
+                      ? 'Buscar por cliente ou tipo de atividade...'
+                      : 'Nome do cliente, endereço...'
+                  }
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    title="Limpar busca"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {!isInstalador && (
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Prestador / Técnico
+                </label>
+                <select
+                  value={selectedPrestadorFilter}
+                  onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
+                  className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+                >
+                  <option value="todos">Todos os Prestadores</option>
+                  {prestadoresOpcoes.map((nome) => (
+                    <option key={nome} value={nome}>
+                      Prestador: {nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                Tipo de Serviço
+              </label>
+              <select
+                value={selectedTipoFilter}
+                onChange={(e) => setSelectedTipoFilter(e.target.value)}
+                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Todos os Serviços</option>
+                <option value="Limpeza">Limpeza</option>
+                <option value="Manutenção">Manutenção</option>
+                <option value="Instalação">Instalação</option>
+                <option value="Garantia">Garantia</option>
+                <option value="Configuração de Datalogger">Configuração de Datalogger</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                Período Agendado
+              </label>
+              <select
+                value={selectedPeriodoFilter}
+                onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
+                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Qualquer Período</option>
+                <option value="hoje">Agendadas para Hoje</option>
+                <option value="semana">Nesta Semana</option>
+                <option value="mes">Neste Mês</option>
+              </select>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[11px] text-gray-500">{filteredList.length} resultado(s)</span>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setFiltrosPopoverOpen(false)}
+                className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
+              >
+                Concluir
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
       {/* Conteúdo da Aba Relatório (apenas Admin) */}
       {activeTab === 'relatorio' && isAdmin ? (
@@ -1186,15 +1318,20 @@ function ExecucaoOSContent() {
             <p className="text-sm font-semibold text-gray-700">Carregando calendário de OS...</p>
           </div>
         ) : (
-          <CalendarioExecucaoOS
-            ordens={ordens}
-            onSelectOS={(os) => setSelectedOS(os)}
-            onOSUpdated={handleOSUpdated}
-            isInstalador={isInstalador}
-            instaladorNome={userProfile?.name}
-            leftControlsSlot={renderTabsNavegacao()}
-            rightActionsSlot={renderAcoesPrimarias()}
-          />
+          <ErrorBoundary
+            errorMessage="Não foi possível exibir o calendário de serviços de campo. Recarregue a página ou selecione a visão em lista."
+            compact
+          >
+            <CalendarioExecucaoOS
+              ordens={ordens}
+              onSelectOS={(os) => setSelectedOS(os)}
+              onOSUpdated={handleOSUpdated}
+              isInstalador={isInstalador}
+              instaladorNome={userProfile?.name}
+              leftControlsSlot={renderTabsNavegacao()}
+              rightActionsSlot={null}
+            />
+          </ErrorBoundary>
         )
       ) : (
         <>

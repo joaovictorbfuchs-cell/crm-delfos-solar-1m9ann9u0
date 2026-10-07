@@ -536,7 +536,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                 <span className="text-[11px] font-bold">Nova Atividade</span>
               </button>
 
-              {/* Botão Filtros compacto com ícone Filter e badge de filtros ativos */}
+              {/* Botão Filtros compacto com apenas ícone Filter */}
               <button
                 type="button"
                 onClick={() => {
@@ -544,7 +544,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                 }}
                 aria-label="Abrir filtros de Serviços de Campo"
                 title="Filtros"
-                className={`relative h-8 px-2 rounded-lg border flex items-center gap-1 text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-95 ${
+                className={`relative h-8 w-8 rounded-lg border flex items-center justify-center text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-95 ${
                   servicosCampoActiveFiltersCount > 0
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                     : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
@@ -555,12 +555,6 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                     servicosCampoActiveFiltersCount > 0 ? 'text-emerald-700' : 'text-gray-500'
                   }`}
                 />
-                <span className="text-[11px]">Filtro</span>
-                {servicosCampoActiveFiltersCount > 0 && (
-                  <span className="px-1 py-0.2 rounded-full text-[9px] font-black bg-emerald-600 text-white min-w-[14px] text-center leading-none">
-                    {servicosCampoActiveFiltersCount}
-                  </span>
-                )}
               </button>
             </>
           ) : (
