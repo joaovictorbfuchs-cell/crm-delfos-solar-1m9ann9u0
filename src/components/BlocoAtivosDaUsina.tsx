@@ -41,6 +41,7 @@ import {
   fetchEquipamentosPorUsina,
   vincularEquipamentoUsina,
   desvincularEquipamentoUsina,
+  updateVinculoEquipamentoUsina,
 } from '@/services/usinaEquipamentosService'
 import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import type { ConfiguracaoMonitoramento } from '@/types/equipamentos'
@@ -439,6 +440,28 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
       id,
       nome: nomeEq,
     })
+  }
+
+  const [salvandoQtdVinculoId, setSalvandoQtdVinculoId] = useState<string | null>(null)
+
+  const handleUpdateQuantidadeVinculo = async (vinculoId: string, novaQtd: number) => {
+    const qtdFinal = Math.max(1, Math.round(novaQtd) || 1)
+    setSalvandoQtdVinculoId(vinculoId)
+    // Atualização otimista local imediata
+    setVinculos((prev) =>
+      prev.map((v) => (v.id === vinculoId ? { ...v, quantidade: qtdFinal } : v)),
+    )
+    try {
+      await updateVinculoEquipamentoUsina(vinculoId, { quantidade: qtdFinal }, usina?.id)
+      toast.success(`Quantidade atualizada para ${qtdFinal}. Totais recalculados!`)
+      await carregarDados()
+    } catch (err) {
+      console.error('Erro ao atualizar quantidade do módulo:', err)
+      toast.error('Erro ao salvar quantidade.')
+      await carregarDados()
+    } finally {
+      setSalvandoQtdVinculoId(null)
+    }
   }
 
   const handleRemoverAtivoIndividual = (id: string, nomeAtivo: string) => {
@@ -979,21 +1002,8 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
           </div>
         </div>
 
-        {/* Fabricante e Modelo dos Módulos com Datasheet (Deduplicação quando já vinculado ao catálogo) */}
-        {temEquipamentoCatalogoModulo ? (
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span className="text-slate-600 font-medium">Módulos Fotovoltaicos:</span>
-            </div>
-            <Badge
-              variant="outline"
-              className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] font-medium"
-            >
-              Equipamentos gerenciados nos cards de ativos abaixo com datasheet oficial.
-            </Badge>
-          </div>
-        ) : (
+        {/* Fabricante e Modelo dos Módulos com Datasheet (Deduplicação quando já vinculado ao catálogo: omitido para evitar redundância com os cards de ativos abaixo) */}
+        {!temEquipamentoCatalogoModulo && (
           <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
@@ -1415,11 +1425,74 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                       </span>
                     )}
 
-                    {item.quantidade && item.quantidade > 1 && (
+                    {/* Para Módulos: Controle numérico interativo de quantidade com +/- e onBlur/Enter */}
+                    {isModulo ? (
+                      <div
+                        className="inline-flex items-center gap-1 bg-amber-50/90 border border-amber-300 rounded-lg px-1.5 py-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="text-[10px] font-bold text-amber-900 shrink-0">Qtd:</span>
+                        <button
+                          type="button"
+                          disabled={salvandoQtdVinculoId === item.id || (item.quantidade || 1) <= 1}
+                          onClick={() =>
+                            handleUpdateQuantidadeVinculo(
+                              item.id,
+                              Math.max(1, (Number(item.quantidade) || 1) - 1),
+                            )
+                          }
+                          className="w-5 h-5 rounded flex items-center justify-center bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 disabled:opacity-40 cursor-pointer shadow-2xs transition-colors"
+                          title="Diminuir quantidade de módulos"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          defaultValue={item.quantidade || 1}
+                          key={`qtd-input-${item.id}-${item.quantidade}`}
+                          disabled={salvandoQtdVinculoId === item.id}
+                          className="w-14 text-center font-bold text-xs text-amber-950 bg-white border border-amber-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const val = parseInt((e.target as HTMLInputElement).value, 10)
+                              if (!isNaN(val) && val > 0 && val !== item.quantidade) {
+                                handleUpdateQuantidadeVinculo(item.id, val)
+                              }
+                              ;(e.target as HTMLInputElement).blur()
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const val = parseInt(e.target.value, 10)
+                            if (!isNaN(val) && val > 0 && val !== item.quantidade) {
+                              handleUpdateQuantidadeVinculo(item.id, val)
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={salvandoQtdVinculoId === item.id}
+                          onClick={() =>
+                            handleUpdateQuantidadeVinculo(
+                              item.id,
+                              (Number(item.quantidade) || 1) + 1,
+                            )
+                          }
+                          className="w-5 h-5 rounded flex items-center justify-center bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 disabled:opacity-40 cursor-pointer shadow-2xs transition-colors"
+                          title="Aumentar quantidade de módulos"
+                        >
+                          +
+                        </button>
+                        {salvandoQtdVinculoId === item.id && (
+                          <RefreshCw className="w-3 h-3 animate-spin text-amber-700 ml-0.5" />
+                        )}
+                      </div>
+                    ) : item.quantidade && item.quantidade > 1 ? (
                       <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
                         Qtd: {item.quantidade}
                       </span>
-                    )}
+                    ) : null}
 
                     <Badge
                       variant="outline"

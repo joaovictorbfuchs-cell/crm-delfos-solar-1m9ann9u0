@@ -169,19 +169,33 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
           estado: 'RS',
         } as Cliente)
 
-      const sistema = safeSistemas.find((s) => s?.cliente_id === cliente?.id)
+      // Busca prioritária da usina vinculada:
+      // 1. Pelo contrato_id direto na usina (ex.: usina vinculada ao contrato)
+      // 2. Por cliente_id
+      const usinaVinculada =
+        safeSistemas.find((s) => s?.contrato_id === contrato.id) ||
+        safeSistemas.find((s) => s?.cliente_id === cliente?.id)
+      const sistema = usinaVinculada
 
-      // Potência: contrato -> sistema -> cliente
+      // Potência: usina vinculada recalculada -> contrato -> cliente
       const potenciaKwp =
-        Number(contrato.potencia_kwp) ||
-        Number(sistema?.potencia_total_kwp) ||
+        (usinaVinculada?.potencia_total_kwp !== undefined && Number(usinaVinculada.potencia_total_kwp) > 0
+          ? Number(usinaVinculada.potencia_total_kwp)
+          : null) ??
+        (contrato.potencia_kwp !== undefined && Number(contrato.potencia_kwp) > 0
+          ? Number(contrato.potencia_kwp)
+          : null) ??
         Number(cliente?.potencia_kwp) ||
         6.6
 
-      // Quantidade de placas: contrato -> sistema -> cliente -> cálculo estimado
+      // Quantidade de placas: usina vinculada recalculada -> contrato -> cliente -> cálculo estimado
       const qtdModulos =
-        Number(contrato.qtd_modulos) ||
-        Number(sistema?.quantidade_modulos) ||
+        (usinaVinculada?.quantidade_modulos !== undefined && Number(usinaVinculada.quantidade_modulos) > 0
+          ? Number(usinaVinculada.quantidade_modulos)
+          : null) ??
+        (contrato.qtd_modulos !== undefined && Number(contrato.qtd_modulos) > 0
+          ? Number(contrato.qtd_modulos)
+          : null) ??
         Number(cliente?.placas_qtd) ||
         Math.max(4, Math.round(potenciaKwp / 0.55))
 

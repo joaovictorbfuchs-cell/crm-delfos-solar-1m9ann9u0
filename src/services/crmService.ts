@@ -66,6 +66,7 @@ function mapUsinaToSistema(usina: import('@/types/crm').UsinaCliente): Sistema {
     cliente_id: usina.cliente_id,
     geracao_media_mensal_kwh: usina.geracao_media_mensal_kwh ?? usina.geracao_estimada_kwh,
     data_instalacao: usina.data_instalacao,
+    contrato_id: usina.contrato_id,
     potencia_total_kwp: usina.potencia_kwp,
     quantidade_placas: usina.quantidade_placas ?? usina.qtd_modulos,
     marca_placas: usina.marca_placas,

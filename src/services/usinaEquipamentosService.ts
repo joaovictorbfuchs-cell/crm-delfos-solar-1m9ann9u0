@@ -124,15 +124,25 @@ export async function vincularEquipamentoUsina(
     expand:
       'equipamento_id,equipamento_id.fornecedor_id,equipamento_id.configuracao_monitoramento_id,usina_id',
   })
+  if (dados.usina_id) {
+    await recalcularTotaisUsinaPorVinculos(dados.usina_id).catch((err) =>
+      console.warn(
+        '[usinaEquipamentosService] Falha ao recalcular totais da usina pós-vínculo:',
+        err,
+      ),
+    )
+  }
   return record
 }
 
 /**
  * Atualiza vínculo de equipamento na usina (ex: quantidade, número de série, observações)
+ * e recalcula os totais de módulos e potência kWp da usina automaticamente.
  */
 export async function updateVinculoEquipamentoUsina(
   id: string,
   dados: Partial<SalvarUsinaEquipamentoDados>,
+  usinaIdHint?: string,
 ): Promise<UsinaEquipamentoAtivo> {
   const payload: Record<string, any> = {}
   if (dados.quantidade !== undefined) {
@@ -152,13 +162,87 @@ export async function updateVinculoEquipamentoUsina(
       expand:
         'equipamento_id,equipamento_id.fornecedor_id,equipamento_id.configuracao_monitoramento_id,usina_id',
     })
+  const usinaId = dados.usina_id || record.usina_id || usinaIdHint
+  if (usinaId) {
+    await recalcularTotaisUsinaPorVinculos(usinaId).catch((err) =>
+      console.warn('[usinaEquipamentosService] Falha ao recalcular totais pós-update:', err),
+    )
+  }
   return record
 }
 
 /**
- * Remove vínculo de equipamento da usina
+ * Remove vínculo de equipamento da usina e recalcula totais da usina
  */
-export async function desvincularEquipamentoUsina(id: string): Promise<boolean> {
+export async function desvincularEquipamentoUsina(
+  id: string,
+  usinaIdHint?: string,
+): Promise<boolean> {
+  let resolvedUsinaId = usinaIdHint
+  if (!resolvedUsinaId) {
+    try {
+      const existente = await pb.collection('usina_equipamentos').getOne<UsinaEquipamentoAtivo>(id)
+      resolvedUsinaId = existente.usina_id
+    } catch {
+      // segue sem erro se não conseguir buscar
+    }
+  }
   await pb.collection('usina_equipamentos').delete(id)
+  if (resolvedUsinaId) {
+    await recalcularTotaisUsinaPorVinculos(resolvedUsinaId).catch((err) =>
+      console.warn('[usinaEquipamentosService] Falha ao recalcular totais pós-desvínculo:', err),
+    )
+  }
   return true
+}
+
+/**
+ * Recalcula e persiste o total de módulos e a potência de pico (kWp) da usina
+ * baseado nos vínculos atuais de módulos fotovoltaicos no catálogo:
+ * - totalModulos = Σ(vinculo.quantidade) para todos os módulos vinculados à usina
+ * - potenciaKwp = Σ(vinculo.quantidade × equipamento.potencia_w) / 1000 (somando modelos distintos)
+ * Atualiza qtd_modulos, quantidade_placas, potencia_kwp e potencia_pico_modulos_kwp na coleção usinas.
+ */
+export async function recalcularTotaisUsinaPorVinculos(
+  usinaId: string,
+): Promise<{ qtd_modulos: number; potencia_kwp: number } | null> {
+  if (!usinaId) return null
+  try {
+    const vinculos = await pb.collection('usina_equipamentos').getFullList<UsinaEquipamentoAtivo>({
+      filter: `usina_id = "${usinaId}"`,
+      expand: 'equipamento_id',
+      requestKey: null,
+    })
+
+    const vinculosModulos = vinculos.filter((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
+
+    if (vinculosModulos.length === 0) {
+      return null
+    }
+
+    let totalModulos = 0
+    let totalPotenciaW = 0
+
+    for (const v of vinculosModulos) {
+      const qtd = Number(v.quantidade) > 0 ? Number(v.quantidade) : 1
+      const potW = Number(v.expand?.equipamento_id?.potencia_w) || 0
+      totalModulos += qtd
+      totalPotenciaW += qtd * potW
+    }
+
+    const potenciaKwp = Number((totalPotenciaW / 1000).toFixed(2))
+
+    const payloadUpdate: Record<string, unknown> = {
+      qtd_modulos: totalModulos,
+      quantidade_placas: totalModulos,
+      potencia_kwp: potenciaKwp,
+      potencia_pico_modulos_kwp: potenciaKwp,
+    }
+
+    await pb.collection('usinas').update(usinaId, payloadUpdate)
+    return { qtd_modulos: totalModulos, potencia_kwp: potenciaKwp }
+  } catch (err) {
+    console.error(`[usinaEquipamentosService] Erro ao recalcular totais da usina ${usinaId}:`, err)
+    return null
+  }
 }

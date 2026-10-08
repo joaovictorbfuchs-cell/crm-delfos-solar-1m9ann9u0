@@ -126,12 +126,14 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
     fabricante: string
     modelo: string
     potenciaW: number
+    quantidade?: number
     existente: Equipamento | null
   } | null>(null)
   const [sugestaoInversor, setSugestaoInversor] = useState<{
     fabricante: string
     modelo: string
     potenciaW: number
+    quantidade?: number
     existente: Equipamento | null
   } | null>(null)
 
@@ -706,10 +708,14 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
           catalogoEquipamentos,
         )
 
+        const qtdExtraida = tec.numero_modulos
+          ? Number(tec.numero_modulos)
+          : (usina.qtd_modulos ?? usina.quantidade_placas ?? 1)
         setSugestaoModulo({
           fabricante: fab,
           modelo: mod,
           potenciaW: potCalc,
+          quantidade: qtdExtraida > 0 ? qtdExtraida : 1,
           existente: achado || null,
         })
       } else {
@@ -736,6 +742,7 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
           fabricante: fab,
           modelo: mod,
           potenciaW: potW,
+          quantidade: 1,
           existente: achado || null,
         })
       } else {
@@ -975,14 +982,14 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       }
 
       // Se houver equipamentos existentes correspondentes, vincular como ativo da usina automaticamente
-      // Verificando antes se já existe vínculo (usina_id + equipamento_id) e atualizando em vez de duplicar
+      // Usando a quantidade configurada pelo usuário (ou extraída do documento)
       if (sugestaoModulo?.existente) {
         try {
-          const qtd = updates.qtd_modulos ?? usina.qtd_modulos ?? 1
+          const qtd = sugestaoModulo.quantidade ?? updates.qtd_modulos ?? usina.qtd_modulos ?? 1
           await vincularEquipamentoUsina({
             usina_id: usina.id,
             equipamento_id: sugestaoModulo.existente.id,
-            quantidade: Number(qtd),
+            quantidade: Math.max(1, Number(qtd) || 1),
             observacoes: 'Importado via documento técnico',
           })
         } catch (e) {
@@ -991,10 +998,11 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       }
       if (sugestaoInversor?.existente) {
         try {
+          const qtdInv = sugestaoInversor.quantidade ?? 1
           await vincularEquipamentoUsina({
             usina_id: usina.id,
             equipamento_id: sugestaoInversor.existente.id,
-            quantidade: 1,
+            quantidade: Math.max(1, Number(qtdInv) || 1),
             observacoes: 'Importado via documento técnico',
           })
         } catch (e) {
@@ -1347,7 +1355,7 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                     {/* Módulo Fotovoltaico */}
                     {sugestaoModulo && (
                       <div
-                        className={`p-2.5 bg-white rounded-lg border flex items-center justify-between gap-2 flex-wrap transition-colors ${
+                        className={`p-2.5 bg-white rounded-lg border flex items-center justify-between gap-2.5 flex-wrap transition-colors ${
                           sugestaoModulo.existente
                             ? 'border-emerald-200'
                             : 'border-amber-300 bg-amber-50/40'
@@ -1381,31 +1389,55 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                           </div>
                         </div>
 
-                        {!sugestaoModulo.existente && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setModalCriarRapido({
-                                aberto: true,
-                                tipo: 'modulo_fv',
-                                fabricante: sugestaoModulo.fabricante,
-                                modelo: sugestaoModulo.modelo,
-                                potenciaW: sugestaoModulo.potenciaW || 550,
-                              })
-                            }
-                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
-                          >
-                            <Plus className="w-3 h-3" />
-                            <span>Cadastrar Módulo na Hora</span>
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Campo de quantidade editável */}
+                          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                            <span className="text-[11px] font-semibold text-slate-600">Qtd:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={sugestaoModulo.quantidade ?? 1}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10)
+                                setSugestaoModulo((prev) =>
+                                  prev
+                                    ? { ...prev, quantidade: isNaN(val) || val < 1 ? 1 : val }
+                                    : null,
+                                )
+                              }}
+                              className="w-14 text-center font-bold text-xs bg-white border border-slate-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              title="Quantidade de módulos a vincular"
+                            />
+                            <span className="text-[10px] text-slate-400">un</span>
+                          </div>
+
+                          {!sugestaoModulo.existente && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setModalCriarRapido({
+                                  aberto: true,
+                                  tipo: 'modulo_fv',
+                                  fabricante: sugestaoModulo.fabricante,
+                                  modelo: sugestaoModulo.modelo,
+                                  potenciaW: sugestaoModulo.potenciaW || 550,
+                                })
+                              }
+                              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Cadastrar Módulo na Hora</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
 
                     {/* Inversor */}
                     {sugestaoInversor && (
                       <div
-                        className={`p-2.5 bg-white rounded-lg border flex items-center justify-between gap-2 flex-wrap transition-colors ${
+                        className={`p-2.5 bg-white rounded-lg border flex items-center justify-between gap-2.5 flex-wrap transition-colors ${
                           sugestaoInversor.existente
                             ? 'border-emerald-200'
                             : 'border-amber-300 bg-amber-50/40'
@@ -1439,24 +1471,48 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                           </div>
                         </div>
 
-                        {!sugestaoInversor.existente && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setModalCriarRapido({
-                                aberto: true,
-                                tipo: 'inversor',
-                                fabricante: sugestaoInversor.fabricante,
-                                modelo: sugestaoInversor.modelo,
-                                potenciaW: sugestaoInversor.potenciaW || 5000,
-                              })
-                            }
-                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
-                          >
-                            <Plus className="w-3 h-3" />
-                            <span>Cadastrar Inversor na Hora</span>
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Campo de quantidade editável */}
+                          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                            <span className="text-[11px] font-semibold text-slate-600">Qtd:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={sugestaoInversor.quantidade ?? 1}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10)
+                                setSugestaoInversor((prev) =>
+                                  prev
+                                    ? { ...prev, quantidade: isNaN(val) || val < 1 ? 1 : val }
+                                    : null,
+                                )
+                              }}
+                              className="w-14 text-center font-bold text-xs bg-white border border-slate-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              title="Quantidade de inversores a vincular"
+                            />
+                            <span className="text-[10px] text-slate-400">un</span>
+                          </div>
+
+                          {!sugestaoInversor.existente && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setModalCriarRapido({
+                                  aberto: true,
+                                  tipo: 'inversor',
+                                  fabricante: sugestaoInversor.fabricante,
+                                  modelo: sugestaoInversor.modelo,
+                                  potenciaW: sugestaoInversor.potenciaW || 5000,
+                                })
+                              }
+                              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Cadastrar Inversor na Hora</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1567,17 +1623,21 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
             } else if (novo.tipo === 'inversor') {
               setSugestaoInversor((prev) => (prev ? { ...prev, existente: novo } : null))
             }
-            // Auto vincula imediatamente à usina como ativo
+            // Auto vincula imediatamente à usina como ativo respeitando a quantidade configurada
             try {
+              const qtdParaVincular =
+                novo.tipo === 'modulo_fv'
+                  ? (sugestaoModulo?.quantidade ?? 1)
+                  : (sugestaoInversor?.quantidade ?? 1)
               await vincularEquipamentoUsina({
                 usina_id: usina.id,
                 equipamento_id: novo.id,
-                quantidade: 1,
+                quantidade: Math.max(1, Number(qtdParaVincular) || 1),
                 observacoes: 'Cadastrado e vinculado durante importação do documento',
               })
               toast({
                 title: 'Equipamento cadastrado e vinculado!',
-                description: `${novo.marca} ${novo.modelo} foi salvo no catálogo e vinculado como ativo da usina.`,
+                description: `${novo.marca} ${novo.modelo} foi salvo no catálogo e vinculado como ativo da usina (${qtdParaVincular} un).`,
               })
             } catch (err) {
               console.warn('Erro ao auto-vincular ativo recém criado:', err)

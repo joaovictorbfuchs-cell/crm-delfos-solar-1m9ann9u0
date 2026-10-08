@@ -874,6 +874,7 @@ export interface Sistema extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
+  contrato_id?: string
   // Destaque inicial
   geracao_media_mensal_kwh?: number
   // Instalação
