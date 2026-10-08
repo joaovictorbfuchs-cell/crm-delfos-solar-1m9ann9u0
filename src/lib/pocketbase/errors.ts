@@ -28,43 +28,24 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-    const msg = (error.message || '').toLowerCase()
-    if (
-      msg.includes('auth') ||
-      msg.includes('token') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    ) {
-      return true
-    }
-  }
-  if (typeof error === 'object' && error !== null) {
-    const err = error as {
-      status?: number
-      response?: { status?: number; message?: string }
-      message?: string
-    }
-    if (
-      err.status === 401 ||
-      err.status === 403 ||
-      err.response?.status === 401 ||
-      err.response?.status === 403
-    ) {
-      return true
-    }
-    const msg = (err.message || err.response?.message || '').toLowerCase()
-    if (
-      msg.includes('auth') ||
-      msg.includes('token') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden') ||
-      msg.includes('sessão expirada')
-    ) {
-      return true
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const errorObj = err as Record<string, unknown>
+    if (errorObj.status === 401 || errorObj.status === 403) return true
+    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
+    if (typeof errorObj.message === 'string') {
+      const msg = errorObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('the request requires valid user authorization') ||
+        msg.includes('invalid token') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
+      }
     }
   }
   return false

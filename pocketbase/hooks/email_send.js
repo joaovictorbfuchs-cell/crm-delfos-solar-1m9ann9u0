@@ -1,57 +1,11 @@
 // pocketbase/hooks/email_send.js
 // Endpoint HTTP POST /backend/v1/email/send autenticado para envio via Resend
 
+// Disparo automático no boot desativado permanentemente para evitar e-mails de teste a cada deploy.
 try {
   const bootKey = ($os.getenv('RESEND_API_KEY') || '').trim()
-  console.log('[RESEND BOOT CHECK] RESEND_API_KEY presente no deploy? ' + (bootKey.length > 0))
   if (bootKey) {
-    const testRecipient = 'joao@delfosengenharia.com.br'
-    const bootFrom = (
-      $os.getenv('RESEND_EMAIL_FROM') ||
-      $os.getenv('RESEND_FROM') ||
-      'Delfos Solar <solar@updates.delfos.eng.br>'
-    ).trim()
-    const bootPayload = {
-      from: bootFrom,
-      to: [testRecipient],
-      subject: 'Teste de Ativação — Delfos Solar CRM (Resend)',
-      html:
-        '<div style="font-family: sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; border-radius: 8px;">' +
-        '<h2 style="color: #0284c7;">Configuração de E-mail Resend — Delfos Solar</h2>' +
-        '<p>Olá João,</p>' +
-        '<p>Este é um teste automatizado disparado no deploy confirmando a integração ativa com o serviço <strong>Resend</strong>.</p>' +
-        '<p><strong>Remetente configurado:</strong> ' +
-        bootFrom +
-        '<br/>' +
-        '<strong>Destinatário:</strong> ' +
-        testRecipient +
-        '<br/>' +
-        '<strong>Caso de uso:</strong> Atividade Solicitar Contas RGE e envio de documentos/propostas.</p>' +
-        '<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;" />' +
-        '<p style="font-size: 12px; color: #64748b;">CRM Delfos Solar &bull; Delfos Engenharia Ltda</p>' +
-        '</div>',
-    }
-
-    try {
-      const bootRes = $http.send({
-        url: 'https://api.resend.com/emails',
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + bootKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bootPayload),
-        timeout: 25,
-      })
-      console.log(
-        '[RESEND BOOT TESTE DISPARO] status=' +
-          bootRes.statusCode +
-          ' resposta=' +
-          (bootRes.raw || '').substring(0, 300),
-      )
-    } catch (eSend) {
-      console.error('[RESEND BOOT TESTE ERRO]', String(eSend))
-    }
+    console.log('[RESEND BOOT] RESEND_API_KEY configurada no backend.')
   }
 } catch (eBoot) {
   console.warn('[RESEND BOOT EXCEPTION]', String(eBoot))
