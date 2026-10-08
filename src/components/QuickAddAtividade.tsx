@@ -158,12 +158,17 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
         } else if (onSelectTipoEspecial) {
           onSelectTipoEspecial('auto_leitura_rge')
         }
+      } else if (firstOfCat.id === 'troca_titularidade') {
+        if (onOpenModalCompleto) {
+          onOpenModalCompleto('troca_titularidade')
+        } else if (onSelectTipoEspecial) {
+          onSelectTipoEspecial('troca_titularidade')
+        }
       } else if (firstOfCat.id === 'solicitar_contas_rge') {
         setIsModalSolicitarContasOpen(true)
       } else if (
         onSelectTipoEspecial &&
         (firstOfCat.id === 'anexo_g' ||
-          firstOfCat.id === 'troca_titularidade' ||
           firstOfCat.id === 'transferencia_creditos' ||
           firstOfCat.id === 'gerar_procuracao' ||
           firstOfCat.id === 'gerar_contrato' ||
@@ -184,6 +189,12 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       } else if (onSelectTipoEspecial) {
         onSelectTipoEspecial('auto_leitura_rge')
       }
+    } else if (item.id === 'troca_titularidade') {
+      if (onOpenModalCompleto) {
+        onOpenModalCompleto('troca_titularidade')
+      } else if (onSelectTipoEspecial) {
+        onSelectTipoEspecial('troca_titularidade')
+      }
     } else if (item.id === 'analise_fatura') {
       setIsModalAnaliseFaturaOpen(true)
     } else if (item.id === 'solicitar_contas_rge') {
@@ -191,7 +202,6 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     } else if (
       onSelectTipoEspecial &&
       (item.id === 'anexo_g' ||
-        item.id === 'troca_titularidade' ||
         item.id === 'transferencia_creditos' ||
         item.id === 'gerar_procuracao' ||
         item.id === 'gerar_contrato' ||
@@ -585,7 +595,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                                 ? 'e-mail RGE ↗'
                                 : item.id === 'auto_leitura_rge'
                                   ? 'datas programadas ↗'
-                                  : 'fluxo dedicado ↗'}
+                                  : item.id === 'troca_titularidade'
+                                    ? 'agendar troca ↗'
+                                    : 'fluxo dedicado ↗'}
                         </span>
                       ) : null}
                     </div>

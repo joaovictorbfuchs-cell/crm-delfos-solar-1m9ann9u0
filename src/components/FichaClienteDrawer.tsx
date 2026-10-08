@@ -2293,6 +2293,80 @@ export const FichaClienteDrawer: React.FC = () => {
                                   </div>
                                 )
                               })()}
+
+                              {/* Card 6: Troca de Titularidade (Gerador de Documento) */}
+                              {(() => {
+                                const doc = getDocumentoCliente('troca_titularidade')
+                                const isAssinado = doc?.status_assinatura === 'assinado'
+                                const isAguardando =
+                                  doc?.status_assinatura === 'aguardando_assinatura'
+
+                                return (
+                                  <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                    <div
+                                      onClick={() =>
+                                        handleAbrirDocumentoProjeto(
+                                          'troca_titularidade',
+                                          propostaAprovada,
+                                        )
+                                      }
+                                      className="cursor-pointer space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between w-full mb-1">
+                                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                          <FileText className="w-4 h-4" />
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          PDF / Whats
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                        Termo Troca Titularidade
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 block leading-tight">
+                                        Formulário concessionária RGE
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                      {isAssinado ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Assinado</span>
+                                        </span>
+                                      ) : isAguardando ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
+                                          <span>Aguardando Assinatura</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400">
+                                          Não emitido
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) =>
+                                          handleAlternarStatusDocumento(e, 'troca_titularidade')
+                                        }
+                                        className={`text-[10px] font-semibold underline transition-colors ${
+                                          isAssinado
+                                            ? 'text-slate-500 hover:text-amber-700'
+                                            : 'text-emerald-700 hover:text-emerald-900'
+                                        }`}
+                                        title={
+                                          isAssinado
+                                            ? 'Reabrir / Desmarcar como assinado'
+                                            : 'Marcar documento como assinado pelo cliente'
+                                        }
+                                      >
+                                        {isAssinado ? 'Reabrir' : 'Marcar assinado'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
                             </div>
                           </div>
                         )
@@ -3229,10 +3303,11 @@ export const FichaClienteDrawer: React.FC = () => {
                       if (tipoId === 'auto_leitura_rge') {
                         setModalNovaAtividadeTipoFicha('auto_leitura_rge')
                         setModalNovaAtividadeFichaOpen(true)
+                      } else if (tipoId === 'troca_titularidade') {
+                        setModalNovaAtividadeTipoFicha('troca_titularidade')
+                        setModalNovaAtividadeFichaOpen(true)
                       } else if (tipoId === 'anexo_g') {
                         handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
-                      } else if (tipoId === 'troca_titularidade') {
-                        handleAbrirDocumentoProjeto('troca_titularidade', propostaAprovada)
                       } else if (tipoId === 'transferencia_creditos') {
                         setModalTransferenciaCreditosOpen(true)
                       } else if (tipoId === 'gerar_procuracao') {

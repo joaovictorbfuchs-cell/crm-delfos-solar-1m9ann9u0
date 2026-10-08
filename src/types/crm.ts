@@ -1017,6 +1017,14 @@ export interface Atividade extends RecordModel {
   email_log_erro?: string
   protocolo_atendimento?: string
   retorno_rge?: string
+  retornos_rge?:
+    | Array<{
+        id?: string
+        texto: string
+        dataHora: string
+        autor?: string
+      }>
+    | unknown
   prazo_conclusao_rge?: string
   documentos_anexados?: Array<{ nome: string; tamanho?: number; url?: string }> | unknown
   // Campos de Auto Leitura RGE mãe e filhas
