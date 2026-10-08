@@ -1,6 +1,15 @@
 import pb from '@/lib/pocketbase/client'
 import { prepareDocumentForExtraction, readFileAsBase64 } from '@/lib/documentExtractor'
 
+/** Limite máximo de caracteres para o campo texto_extraido no PocketBase (com margem de segurança) */
+export const MAX_TEXTO_EXTRAIDO_LENGTH = 190000
+
+export function truncarTextoExtraido(texto?: string): string {
+  if (!texto) return ''
+  if (texto.length <= MAX_TEXTO_EXTRAIDO_LENGTH) return texto
+  return texto.slice(0, MAX_TEXTO_EXTRAIDO_LENGTH)
+}
+
 export interface KnowledgeCategory {
   id: string
   titulo: string
@@ -319,7 +328,7 @@ export async function criarArtigo(
   formData.append('titulo', dados.titulo)
   formData.append('conteudo', dados.conteudo)
   formData.append('tags', dados.tags || '')
-  formData.append('texto_extraido', textoFinalExtraido)
+  formData.append('texto_extraido', truncarTextoExtraido(textoFinalExtraido))
   if (user?.id) {
     formData.append('criado_por', user.id)
     formData.append('autor_nome', (user.name as string) || 'Equipe Delfos')
@@ -374,7 +383,9 @@ export async function atualizarArtigo(
   if (dados.titulo) formData.append('titulo', dados.titulo)
   if (dados.conteudo) formData.append('conteudo', dados.conteudo)
   if (dados.tags !== undefined) formData.append('tags', dados.tags)
-  if (textoFinalExtraido !== undefined) formData.append('texto_extraido', textoFinalExtraido)
+  if (textoFinalExtraido !== undefined) {
+    formData.append('texto_extraido', truncarTextoExtraido(textoFinalExtraido))
+  }
 
   if (dados.novosAnexos && dados.novosAnexos.length > 0) {
     for (const file of dados.novosAnexos) {

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { listarCategorias, listarArtigos, getAnexoUrl } from '@/services/knowledgeBaseService'
+import {
+  listarCategorias,
+  listarArtigos,
+  getAnexoUrl,
+  truncarTextoExtraido,
+  MAX_TEXTO_EXTRAIDO_LENGTH,
+} from '@/services/knowledgeBaseService'
 import pb from '@/lib/pocketbase/client'
 import { pb as pbNamed } from '@/lib/pocketbase/client'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
@@ -38,5 +44,16 @@ describe('Base de Conhecimento & Verificação Crítica Delfos CRM', () => {
   it('lida graciosamente com anexos e artigos nulos ou inválidos sem estourar exceção', () => {
     expect(getAnexoUrl(null as any, '')).toBe('#')
     expect(getAnexoUrl({} as any, '')).toBe('#')
+  })
+
+  it('trunca texto_extraido que excede o limite com segurança', () => {
+    expect(truncarTextoExtraido(undefined)).toBe('')
+    expect(truncarTextoExtraido('')).toBe('')
+    const textoCurto = 'Texto de teste curto'
+    expect(truncarTextoExtraido(textoCurto)).toBe(textoCurto)
+
+    const textoLongo = 'A'.repeat(MAX_TEXTO_EXTRAIDO_LENGTH + 5000)
+    const truncado = truncarTextoExtraido(textoLongo)
+    expect(truncado.length).toBe(MAX_TEXTO_EXTRAIDO_LENGTH)
   })
 })
