@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T12:10:01.811Z",
+  "generatedAt": "2026-10-08T13:18:03.068Z",
   "collections": [
     {
       "name": "users",
@@ -6645,6 +6645,128 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_configuracoes_chave ON configuracoes (chave)"]
+    },
+    {
+      "name": "modelos_email_rge",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assunto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email_destino",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_padrao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_modelos_email_rge_nome ON modelos_email_rge (nome)"]
+    },
+    {
+      "name": "emails_rge",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "email",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rotulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_padrao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_emails_rge_email ON emails_rge (email)"]
     }
   ]
 }

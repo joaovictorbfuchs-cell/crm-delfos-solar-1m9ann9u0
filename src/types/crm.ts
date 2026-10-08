@@ -1618,3 +1618,34 @@ export interface OrcamentoSolar extends RecordModel {
     revisao_de?: OrcamentoSolar
   }
 }
+
+// -------------------------------------------------------------
+// Tipos para Modelos de E-mail RGE e Lista de E-mails RGE
+// -------------------------------------------------------------
+
+export interface ModeloEmailRGE extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  tipo?: string
+  assunto?: string
+  texto: string
+  email_destino?: string
+  is_padrao?: boolean
+  ordem?: number
+  created: string
+  updated: string
+}
+
+export interface EmailRGEItem extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  email: string
+  rotulo?: string
+  descricao?: string
+  is_padrao?: boolean
+  created: string
+  updated: string
+}

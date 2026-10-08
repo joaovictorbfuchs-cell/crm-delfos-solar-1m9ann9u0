@@ -875,14 +875,16 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                 </div>
               )}
 
-              {/* Ação especial para Solicitação de Contas RGE */}
+              {/* Ação especial para Solicitação de Contas RGE / Email RGE */}
               {(item.rawAtividade?.tipo === 'solicitar_contas_rge' ||
                 item.subtitulo === 'Solicitar contas RGE' ||
-                item.titulo?.startsWith('Solicitar contas RGE')) && (
+                item.subtitulo === 'Email RGE' ||
+                item.titulo?.startsWith('Solicitar contas RGE') ||
+                item.titulo?.startsWith('Email RGE')) && (
                 <div className="pt-2 border-t border-gray-100 space-y-2">
                   <div className="p-3 rounded-xl bg-sky-50/80 border border-sky-200 text-xs text-sky-950 space-y-1.5">
                     <div className="flex items-center justify-between flex-wrap gap-1 font-bold text-sky-900">
-                      <span>Acompanhamento RGE (Faturas 5 anos)</span>
+                      <span>Acompanhamento Email RGE</span>
                       {item.rawAtividade?.email_enviado_em ? (
                         <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
                           E-mail disparado

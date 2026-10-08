@@ -411,9 +411,9 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
   {
     id: 'solicitar_contas_rge',
     categoria: 'administrativo_pos_venda',
-    tituloPadrao: 'Solicitar contas RGE',
+    tituloPadrao: 'Email RGE',
     descricaoAjuda:
-      'Solicitação oficial de envio de histórico de faturas/contas dos últimos 5 anos à concessionária RGE',
+      'Envio oficial de solicitações, faturas, troca de titularidade e créditos à concessionária RGE',
     corHex: '#0284C7',
     badgeClass: 'bg-sky-50 text-sky-800 border-sky-300',
     iconBg: 'bg-sky-100 text-sky-800 border-sky-200',

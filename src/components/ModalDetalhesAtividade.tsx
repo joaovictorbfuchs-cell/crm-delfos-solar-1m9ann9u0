@@ -1239,7 +1239,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-gray-900 leading-tight">
-                      Acompanhamento da Solicitação RGE
+                      Acompanhamento de Email RGE
                     </h3>
                     <p className="text-[10px] text-gray-500">
                       Protocolo, prazos e retorno oficial da concessionária

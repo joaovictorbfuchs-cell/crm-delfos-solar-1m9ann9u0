@@ -702,13 +702,13 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
       {/* Janela Modal */}
       <div className="relative z-50 w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Banner de atalho se selecionar Solicitar contas RGE */}
+        {/* Banner de atalho se selecionar Email RGE */}
         {selectedTipo === 'solicitar_contas_rge' && (
           <div className="mx-5 mt-4 p-3 bg-sky-50 border border-sky-200 rounded-xl flex items-center justify-between gap-3 text-xs text-sky-900">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-sky-600 shrink-0" />
               <span>
-                Esta atividade possui fluxo completo com envio de e-mail e acompanhamento da RGE.
+                Esta atividade possui fluxo completo de Email RGE com envio e modelos configuráveis.
               </span>
             </div>
             <button
@@ -716,7 +716,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               onClick={() => setIsModalSolicitarContasOpen(true)}
               className="px-3 py-1 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 transition-colors shrink-0"
             >
-              Abrir tela completa
+              Abrir Email RGE
             </button>
           </div>
         )}

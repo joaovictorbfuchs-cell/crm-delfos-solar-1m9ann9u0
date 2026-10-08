@@ -592,7 +592,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                             : item.id === 'analise_fatura'
                               ? 'IA Gemini ↗'
                               : item.id === 'solicitar_contas_rge'
-                                ? 'e-mail RGE ↗'
+                                ? 'Email RGE ↗'
                                 : item.id === 'auto_leitura_rge'
                                   ? 'datas programadas ↗'
                                   : item.id === 'troca_titularidade'
