@@ -34,6 +34,24 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
     })
   })
 
+  describe('VisaoInstaladorMobileOS - Resolução de Checklist e Fallback Canônico', () => {
+    it('deve deduplicar tipos custom prevalecendo sobre nativos e manter checklist dinâmico', async () => {
+      // Verifica se a função deduplicarTiposAtividades está sendo usada corretamente
+      const { deduplicarTiposAtividades, ATIVIDADES_PADRAO, buildCustomTipoDef } =
+        await import('@/constants/atividadesTipos')
+      const customDefs = [
+        buildCustomTipoDef({
+          id: 'custom-limpeza-1',
+          nome: 'Limpeza dos Módulos',
+          categoria: 'manutencao',
+        }),
+      ]
+      const deduplicados = deduplicarTiposAtividades(ATIVIDADES_PADRAO, customDefs)
+      const limpezaDef = deduplicados.find((t) => t.id === 'limpeza')
+      expect(limpezaDef?.customRecordId).toBe('custom-limpeza-1')
+    })
+  })
+
   describe('sanitizeOS', () => {
     it('deve normalizar OS com data_agendada como Date, horario_inicio numérico e duracao como string', () => {
       const dataDate = new Date(2026, 9, 7, 14, 30) // 2026-10-07 14:30

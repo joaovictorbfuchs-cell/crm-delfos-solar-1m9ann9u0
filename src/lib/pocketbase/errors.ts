@@ -25,23 +25,33 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
+      }
+    }
+    const resp = errObj.response as Record<string, unknown> | undefined
+    if (resp && typeof resp === 'object') {
+      if (resp.code === 401 || resp.code === 403 || resp.status === 401 || resp.status === 403) {
+        return true
+      }
+    }
   }
-  if (error && typeof error === 'object' && 'status' in error) {
-    const s = (error as { status: unknown }).status
-    return s === 401 || s === 403
-  }
-  const msg = error instanceof Error ? error.message : String(error || '')
-  return (
-    msg.includes('401') ||
-    msg.includes('403') ||
-    msg.toLowerCase().includes('not authorized') ||
-    msg.toLowerCase().includes('unauthorized') ||
-    msg.toLowerCase().includes('token expired')
-  )
+  return false
 }

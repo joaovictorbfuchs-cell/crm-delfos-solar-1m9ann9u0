@@ -7,12 +7,10 @@ import {
   Building,
   Navigation,
   ChevronDown,
-  ChevronUp,
   RotateCcw,
   RefreshCw,
   CheckSquare,
   Square,
-  AlertCircle,
   FileCheck2,
 } from 'lucide-react'
 import { List, Calendar as CalendarIcon } from 'lucide-react'
@@ -67,45 +65,123 @@ export default function VisaoInstaladorMobileOS({
 
   // Função pura para resolver checklist padrão de fallback para cada tipo canônico de manutenção
   const getFallbackChecklistPorTipo = (tipoCanonico?: string): OSChecklistItem[] => {
-    const t = String(tipoCanonico || '').toLowerCase().trim()
+    const t = String(tipoCanonico || '')
+      .toLowerCase()
+      .trim()
     if (t === 'limpeza' || t === 'limpeza_manutencao') {
       return [
-        { id: 'chk_lp_1', item: 'Inspeção visual prévia e registro do estado de sujeira', concluido: false },
-        { id: 'chk_lp_2', item: 'Lavagem dos módulos com água e equipamento adequado', concluido: false },
-        { id: 'chk_lp_3', item: 'Remoção de resíduos incrustados e secagem/drenagem', concluido: false },
-        { id: 'chk_lp_4', item: 'Registro fotográfico pós-limpeza e conferência de geração', concluido: false },
+        {
+          id: 'chk_lp_1',
+          item: 'Inspeção visual prévia e registro do estado de sujeira',
+          concluido: false,
+        },
+        {
+          id: 'chk_lp_2',
+          item: 'Lavagem dos módulos com água e equipamento adequado',
+          concluido: false,
+        },
+        {
+          id: 'chk_lp_3',
+          item: 'Remoção de resíduos incrustados e secagem/drenagem',
+          concluido: false,
+        },
+        {
+          id: 'chk_lp_4',
+          item: 'Registro fotográfico pós-limpeza e conferência de geração',
+          concluido: false,
+        },
       ]
     }
     if (t === 'manutencao_preventiva') {
       return [
-        { id: 'chk_prev_1', item: 'Inspeção visual de módulos, estruturas e fixadores', concluido: false },
-        { id: 'chk_prev_2', item: 'Reaperto das conexões elétricas e quadros CA/CC', concluido: false },
-        { id: 'chk_prev_3', item: 'Medição de grandezas elétricas (tensão/corrente)', concluido: false },
-        { id: 'chk_prev_4', item: 'Verificação do inversor e sistema de aterramento', concluido: false },
+        {
+          id: 'chk_prev_1',
+          item: 'Inspeção visual de módulos, estruturas e fixadores',
+          concluido: false,
+        },
+        {
+          id: 'chk_prev_2',
+          item: 'Reaperto das conexões elétricas e quadros CA/CC',
+          concluido: false,
+        },
+        {
+          id: 'chk_prev_3',
+          item: 'Medição de grandezas elétricas (tensão/corrente)',
+          concluido: false,
+        },
+        {
+          id: 'chk_prev_4',
+          item: 'Verificação do inversor e sistema de aterramento',
+          concluido: false,
+        },
       ]
     }
     if (t === 'manutencao_corretiva') {
       return [
-        { id: 'chk_corr_1', item: 'Identificação e isolamento da anomalia relatada', concluido: false },
-        { id: 'chk_corr_2', item: 'Substituição ou reparo do componente afetado', concluido: false },
-        { id: 'chk_corr_3', item: 'Testes operacionais e conferência de funcionamento', concluido: false },
-        { id: 'chk_corr_4', item: 'Registro da intervenção técnica e orientações ao cliente', concluido: false },
+        {
+          id: 'chk_corr_1',
+          item: 'Identificação e isolamento da anomalia relatada',
+          concluido: false,
+        },
+        {
+          id: 'chk_corr_2',
+          item: 'Substituição ou reparo do componente afetado',
+          concluido: false,
+        },
+        {
+          id: 'chk_corr_3',
+          item: 'Testes operacionais e conferência de funcionamento',
+          concluido: false,
+        },
+        {
+          id: 'chk_corr_4',
+          item: 'Registro da intervenção técnica e orientações ao cliente',
+          concluido: false,
+        },
       ]
     }
     if (t === 'configuracao_datalogger') {
       return [
-        { id: 'chk_dl_1', item: 'Verificação da rede Wi-Fi / sinal de internet local', concluido: false },
-        { id: 'chk_dl_2', item: 'Conexão física/lógica do datalogger ao inversor', concluido: false },
+        {
+          id: 'chk_dl_1',
+          item: 'Verificação da rede Wi-Fi / sinal de internet local',
+          concluido: false,
+        },
+        {
+          id: 'chk_dl_2',
+          item: 'Conexão física/lógica do datalogger ao inversor',
+          concluido: false,
+        },
         { id: 'chk_dl_3', item: 'Configuração da plataforma de monitoramento', concluido: false },
-        { id: 'chk_dl_4', item: 'Conferência do status online e fluxo de telemetria', concluido: false },
+        {
+          id: 'chk_dl_4',
+          item: 'Conferência do status online e fluxo de telemetria',
+          concluido: false,
+        },
       ]
     }
     if (t === 'garantia_equipamento') {
       return [
-        { id: 'chk_gar_1', item: 'Verificação do número de série e nota fiscal do ativo', concluido: false },
-        { id: 'chk_gar_2', item: 'Constatação do defeito e registros fotográficos', concluido: false },
-        { id: 'chk_gar_3', item: 'Abertura/conferência de chamado junto ao fabricante', concluido: false },
-        { id: 'chk_gar_4', item: 'Encaminhamento para substituição ou laudo pericial', concluido: false },
+        {
+          id: 'chk_gar_1',
+          item: 'Verificação do número de série e nota fiscal do ativo',
+          concluido: false,
+        },
+        {
+          id: 'chk_gar_2',
+          item: 'Constatação do defeito e registros fotográficos',
+          concluido: false,
+        },
+        {
+          id: 'chk_gar_3',
+          item: 'Abertura/conferência de chamado junto ao fabricante',
+          concluido: false,
+        },
+        {
+          id: 'chk_gar_4',
+          item: 'Encaminhamento para substituição ou laudo pericial',
+          concluido: false,
+        },
       ]
     }
     // Fallback geral
@@ -156,7 +232,7 @@ export default function VisaoInstaladorMobileOS({
       // Deduplica custom sobre nativo reutilizando a função padrão do CRM
       const tiposDeduplicados = deduplicarTiposAtividades(ATIVIDADES_PADRAO, customDefs)
 
-      for (const os of (ordens || [])) {
+      for (const os of ordens || []) {
         if (!os || !os.id) continue
         if (next[os.id]) continue // já existe localmente
 
@@ -169,7 +245,9 @@ export default function VisaoInstaladorMobileOS({
 
         // Resolução SOMENTE pelo campo canônico tipo/tipo_custom_id da atividade
         // (sem heurísticas de texto aproximado como .includes('manuten') ou .includes('limpeza'))
-        const tipoCanonico = String(os.tipo || '').trim().toLowerCase()
+        const tipoCanonico = String(os.tipo || '')
+          .trim()
+          .toLowerCase()
         const tipoCustomId = String(os.tipo_custom_id || '').trim()
 
         let matchCustomRecord: any = null
@@ -181,9 +259,14 @@ export default function VisaoInstaladorMobileOS({
 
         // 2. Se for tipo='custom' e não encontrou por ID, tenta casar com customDef deduplicado por nome exato
         if (!matchCustomRecord && tipoCanonico === 'custom') {
-          const nomeServico = String(os.tipo_servico || '').trim().toLowerCase()
+          const nomeServico = String(os.tipo_servico || '')
+            .trim()
+            .toLowerCase()
           matchCustomRecord = tiposCustomList.find(
-            (t) => String(t?.nome || '').trim().toLowerCase() === nomeServico,
+            (t) =>
+              String(t?.nome || '')
+                .trim()
+                .toLowerCase() === nomeServico,
           )
         }
 
@@ -213,7 +296,10 @@ export default function VisaoInstaladorMobileOS({
           // Se não encontrou custom substituto, busca direto na lista de tipos_atividades_custom por correspondência canônica
           if (!matchCustomRecord && nomeAlvo) {
             matchCustomRecord = tiposCustomList.find(
-              (t) => String(t?.nome || '').trim().toLowerCase() === nomeAlvo,
+              (t) =>
+                String(t?.nome || '')
+                  .trim()
+                  .toLowerCase() === nomeAlvo,
             )
           }
         }
@@ -285,7 +371,7 @@ export default function VisaoInstaladorMobileOS({
           const s = String(osItem.horario_inicio || '').trim()
           if (s) return s
         }
-        const rawData = osItem.data_agendada
+        const rawData: unknown = osItem.data_agendada
         const dataStr = rawData instanceof Date ? rawData.toISOString() : String(rawData || '')
         const ext = extractHorario(dataStr)
         return ext !== '--:--' ? ext : '99:99'
@@ -628,10 +714,11 @@ export default function VisaoInstaladorMobileOS({
                   os.expand?.cliente_id?.usina_endereco ||
                   os.expand?.cliente_id?.endereco ||
                   'Endereço não informado'
+                const rawDataAgendada: unknown = os.data_agendada
                 const dataAgendadaStr =
-                  os.data_agendada instanceof Date
-                    ? os.data_agendada.toISOString()
-                    : String(os.data_agendada || '')
+                  rawDataAgendada instanceof Date
+                    ? rawDataAgendada.toISOString()
+                    : String(rawDataAgendada || '')
                 const horario =
                   os.horario_inicio &&
                   typeof os.horario_inicio === 'string' &&
@@ -727,9 +814,7 @@ export default function VisaoInstaladorMobileOS({
                             </strong>{' '}
                             concluídos
                           </span>
-                          <span className="text-emerald-700 font-bold">
-                            Abrir Execução
-                          </span>
+                          <span className="text-emerald-700 font-bold">Abrir Execução</span>
                         </div>
                       )}
                     </div>

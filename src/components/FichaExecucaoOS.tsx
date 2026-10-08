@@ -99,7 +99,9 @@ import {
   isCategoriaManutencaoOuAdministrativa,
   MSG_USINA_OBRIGATORIA,
   getTipoAtividadeConfig,
+  ATIVIDADES_PADRAO,
 } from '@/constants/atividadesTipos'
+import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import { fetchUsinasByClienteId } from '@/services/crmService'
 import { Sun } from 'lucide-react'
 
@@ -487,7 +489,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       .then(({ fetchTiposAtividadesCustom }) => fetchTiposAtividadesCustom())
       .then((tipos) => {
         const tiposList = Array.isArray(tipos) ? tipos : []
-        const tipoCanonico = String(os.tipo || '').trim().toLowerCase()
+        const tipoCanonico = String(os.tipo || '')
+          .trim()
+          .toLowerCase()
         const tipoCustomId = String(os.tipo_custom_id || '').trim()
 
         let match: any = null
@@ -495,8 +499,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           match = tiposList.find((t) => t && t.id === tipoCustomId)
         }
         if (!match && tipoCanonico === 'custom') {
-          const nomeServico = String(os.tipo_servico || '').trim().toLowerCase()
-          match = tiposList.find((t) => String(t?.nome || '').trim().toLowerCase() === nomeServico)
+          const nomeServico = String(os.tipo_servico || '')
+            .trim()
+            .toLowerCase()
+          match = tiposList.find(
+            (t) =>
+              String(t?.nome || '')
+                .trim()
+                .toLowerCase() === nomeServico,
+          )
         }
         if (!match && tipoCanonico) {
           const nativo = ATIVIDADES_PADRAO.find(
@@ -506,7 +517,12 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           )
           const nomeAlvo = (nativo?.tituloPadrao || '').trim().toLowerCase()
           if (nomeAlvo) {
-            match = tiposList.find((t) => String(t?.nome || '').trim().toLowerCase() === nomeAlvo)
+            match = tiposList.find(
+              (t) =>
+                String(t?.nome || '')
+                  .trim()
+                  .toLowerCase() === nomeAlvo,
+            )
           }
         }
         if (!match) {
