@@ -127,9 +127,10 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
   const [valorPorPlaca, setValorPorPlaca] = useState<number>(getValorLimpezaPorPlacaCacheSync)
   const [salvandoValorPadrao, setSalvandoValorPadrao] = useState(false)
 
-  // Deslocamento (requisito 3)
+  // Deslocamento (requisito 3: valor por km editável, padrão 1,50)
   const [incluirDeslocamento, setIncluirDeslocamento] = useState(false)
   const [distanciaKm, setDistanciaKm] = useState<number>(0)
+  const [valorPorKm, setValorPorKm] = useState<number>(VALOR_KM_DESLOCAMENTO_LIMPEZA)
 
   // Seleção de clientes e busca (modo em lote)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -313,11 +314,11 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     return calcularValorLimpezaPorPlacas(numeroPlacasCalculado, valorPorPlaca)
   }, [numeroPlacasCalculado, valorPorPlaca])
 
-  // Valor do deslocamento calculado (requisito 3: distanciaKm * 1.50 * 2)
+  // Valor do deslocamento calculado (requisito 3: distanciaKm * valorPorKm * 2)
   const valorDeslocamentoCalculado = useMemo(() => {
     if (!incluirDeslocamento) return 0
-    return calcularValorDeslocamentoLimpeza(distanciaKm)
-  }, [incluirDeslocamento, distanciaKm])
+    return calcularValorDeslocamentoLimpeza(distanciaKm, valorPorKm)
+  }, [incluirDeslocamento, distanciaKm, valorPorKm])
 
   // Valor total = valor do serviço de limpeza + deslocamento
   const valorTotalCalculado = useMemo(() => {
@@ -332,10 +333,12 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       setAuthErrorCapturado(false)
       setEditandoTelefoneId(null)
       setIncluirDeslocamento(false)
+      setValorPorKm(VALOR_KM_DESLOCAMENTO_LIMPEZA)
       return
     }
 
     setTemplateTexto(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
+    setValorPorKm(VALOR_KM_DESLOCAMENTO_LIMPEZA)
     setAuthErrorCapturado(false)
     setProgressoEnvio(null)
 
@@ -575,6 +578,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
           valor_servico: valorServico,
           custo_deslocamento: incluirDeslocamento ? valorDeslocamentoCalculado : 0,
           distancia_km: incluirDeslocamento ? distanciaKm : 0,
+          valor_km: incluirDeslocamento ? valorPorKm : undefined,
           custo_total: valorTotalCalculado,
           cobrar_deslocamento: incluirDeslocamento,
         })
@@ -669,6 +673,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
           valor_servico: valorServico,
           custo_deslocamento: incluirDeslocamento ? valorDeslocamentoCalculado : 0,
           distancia_km: incluirDeslocamento ? distanciaKm : 0,
+          valor_km: incluirDeslocamento ? valorPorKm : undefined,
           custo_total: valorTotalCalculado,
           cobrar_deslocamento: incluirDeslocamento,
         })
@@ -1268,9 +1273,9 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                 </div>
 
                 {incluirDeslocamento && (
-                  <div className="bg-white p-2.5 rounded-lg border border-emerald-200 space-y-1.5 animate-in fade-in duration-200">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
+                  <div className="bg-white p-2.5 rounded-lg border border-emerald-200 space-y-2 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
                         <Label
                           htmlFor="distancia-km"
                           className="text-[11px] font-semibold text-gray-600 block mb-1"
@@ -1295,13 +1300,40 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                           </span>
                         </div>
                       </div>
-                      <div className="shrink-0 text-right text-[11px] pt-4 text-gray-600">
-                        <div className="text-[10px] text-gray-400">
-                          {distanciaKm} km × R$ 1,50 × 2
+
+                      <div>
+                        <Label
+                          htmlFor="valor-por-km"
+                          className="text-[11px] font-semibold text-gray-600 block mb-1"
+                        >
+                          Valor por km (R$/km)
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="valor-por-km"
+                            type="number"
+                            step="0.10"
+                            min="0"
+                            value={valorPorKm ?? ''}
+                            onChange={(e) =>
+                              setValorPorKm(Math.max(0, Number(e.target.value) || 0))
+                            }
+                            placeholder="1.50"
+                            className="text-xs h-8 pr-10"
+                          />
+                          <span className="absolute right-2 top-2 text-[10px] text-gray-400 font-semibold">
+                            /km
+                          </span>
                         </div>
-                        <div className="font-bold text-emerald-700">
-                          = {formatCurrency(valorDeslocamentoCalculado)}
-                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-emerald-100 text-gray-600">
+                      <div className="text-[10px] text-gray-500">
+                        {distanciaKm} km × {formatCurrency(valorPorKm)} × 2
+                      </div>
+                      <div className="font-bold text-emerald-700">
+                        = {formatCurrency(valorDeslocamentoCalculado)}
                       </div>
                     </div>
                   </div>

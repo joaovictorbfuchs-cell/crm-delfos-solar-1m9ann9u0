@@ -91,6 +91,15 @@ describe('ofertaLimpeza constants and helpers', () => {
     expect(calcularValorDeslocamentoLimpeza(31)).toBe(93) // 31 * 1.5 * 2 = 93
   })
 
+  it('permite customizar o valor por km no cálculo de deslocamento', () => {
+    // 10 km * R$ 2,00 * 2 = R$ 40,00
+    expect(calcularValorDeslocamentoLimpeza(10, 2.0)).toBe(40)
+    // 35 km * R$ 1,50 * 2 = R$ 105,00
+    expect(calcularValorDeslocamentoLimpeza(35, 1.5)).toBe(105)
+    // 35 km * R$ 1,80 * 2 = R$ 126,00
+    expect(calcularValorDeslocamentoLimpeza(35, 1.8)).toBe(126)
+  })
+
   it('extrai numero de placas de usina, sistema ou cliente', () => {
     const cliSemPlacas: Partial<Cliente> = { id: 'c1', nome: 'Teste' }
     expect(extrairNumeroPlacas(cliSemPlacas as Cliente)).toBe(0)

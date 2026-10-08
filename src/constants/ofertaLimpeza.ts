@@ -82,12 +82,13 @@ export function calcularValorLimpezaPorPlacas(
  * Calcula o valor do deslocamento conforme regra:
  * - Distância em KM × R$ 1,50 × 2 (ida e volta)
  */
-export function calcularValorDeslocamentoLimpeza(distanciaKm: number): number {
+export function calcularValorDeslocamentoLimpeza(
+  distanciaKm: number,
+  valorPorKm: number = VALOR_KM_DESLOCAMENTO_LIMPEZA,
+): number {
   const km = Math.max(0, Number(distanciaKm) || 0)
-  return (
-    Math.round(km * VALOR_KM_DESLOCAMENTO_LIMPEZA * MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA * 100) /
-    100
-  )
+  const precoKm = Number(valorPorKm) >= 0 ? Number(valorPorKm) : VALOR_KM_DESLOCAMENTO_LIMPEZA
+  return Math.round(km * precoKm * MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA * 100) / 100
 }
 
 export interface DadosCalculoOfertaLimpeza {

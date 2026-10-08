@@ -68,6 +68,47 @@ describe('ModalOferecerLimpezaAvulsa - Cálculo de Limpeza com Valor Editável p
     expect(valores1600.length).toBeGreaterThan(0)
   })
 
+  it('permite editar o valor por km de deslocamento com padrão R$ 1,50 e recalcula na hora', async () => {
+    render(
+      <ModalOferecerLimpezaAvulsa
+        open={true}
+        onOpenChange={vi.fn()}
+        initialClienteId={clienteMock.id}
+        modoIndividual={true}
+        clienteContexto={clienteMock as any}
+      />,
+    )
+
+    // Ativa checkbox "Incluir deslocamento"
+    const checkboxDeslocamento = screen.getByLabelText(/Incluir deslocamento/i) as HTMLInputElement
+    fireEvent.click(checkboxDeslocamento)
+    expect(checkboxDeslocamento.checked).toBe(true)
+
+    // O campo de valor por km deve existir com valor padrão 1.5
+    const inputValorPorKm = screen.getByLabelText(/Valor por km/i) as HTMLInputElement
+    expect(inputValorPorKm).toBeDefined()
+    expect(inputValorPorKm.value).toBe('1.5')
+
+    // Define a distância para 35 km
+    const inputDistancia = screen.getByLabelText(/Distância \(km\)/i) as HTMLInputElement
+    fireEvent.change(inputDistancia, { target: { value: '35' } })
+
+    // Resumo padrão: 35 km × R$ 1,50 × 2 = R$ 105,00
+    await waitFor(() => {
+      expect(screen.getByText(/35 km × R\$ 1,50 × 2/i)).toBeDefined()
+      expect(screen.getAllByText(/R\$ 105,00/i).length).toBeGreaterThan(0)
+    })
+
+    // Altera o valor por km para 2 (R$ 2,00 por km)
+    fireEvent.change(inputValorPorKm, { target: { value: '2' } })
+
+    // Recalcula na hora: 35 km × R$ 2,00 × 2 = R$ 140,00
+    await waitFor(() => {
+      expect(screen.getByText(/35 km × R\$ 2,00 × 2/i)).toBeDefined()
+      expect(screen.getAllByText(/R\$ 140,00/i).length).toBeGreaterThan(0)
+    })
+  })
+
   it('recalcula em tempo real quando o usuário altera o valor por placa e persiste como novo padrão', async () => {
     const spySetPadrao = vi.spyOn(configuracoesService, 'setValorLimpezaPorPlacaPadrao')
 
