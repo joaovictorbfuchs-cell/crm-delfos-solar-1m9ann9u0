@@ -15,6 +15,7 @@ import {
   CATEGORIAS_ATIVIDADES,
   ATIVIDADES_PADRAO,
   normalizarNomeTipo,
+  correspondemAoMesmoTipo,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import { toast } from 'sonner'
@@ -394,14 +395,10 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   if (!atividadeParaEditar && padraoParaEditar && tiposAtividadesCustom) {
     const nomePadraoNorm = normalizarNomeTipo(padraoParaEditar.tituloPadrao)
     const match = tiposAtividadesCustom.find((t) => {
-      const nomeCustomNorm = normalizarNomeTipo(t.nome)
       if (t.categoria !== padraoParaEditar.categoria) return false
+      const nomeCustomNorm = normalizarNomeTipo(t.nome)
       if (nomeCustomNorm === nomePadraoNorm) return true
-      if (
-        ((nomePadraoNorm.includes('limpeza') || nomePadraoNorm.includes('lavagem')) &&
-          (nomeCustomNorm.includes('limpeza') || nomeCustomNorm.includes('lavagem'))) ||
-        (nomePadraoNorm.includes('datalogger') && nomeCustomNorm.includes('datalogger'))
-      ) {
+      if (correspondemAoMesmoTipo(t.nome, padraoParaEditar.tituloPadrao)) {
         return true
       }
       return false
@@ -685,6 +682,12 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
         (tiposAtividadesCustom || []).find((t) => {
           const tNorm = normalizarNomeTipo(t.nome)
           if (tNorm === nomeNormalizado) return true
+          if (
+            correspondemAoMesmoTipo(t.nome, nome) ||
+            (padraoParaEditar && correspondemAoMesmoTipo(t.nome, padraoParaEditar.tituloPadrao))
+          ) {
+            return true
+          }
           if (
             padraoParaEditar &&
             t.categoria === categoria &&

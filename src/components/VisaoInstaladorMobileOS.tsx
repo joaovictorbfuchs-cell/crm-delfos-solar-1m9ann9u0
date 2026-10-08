@@ -25,6 +25,7 @@ import {
   ATIVIDADES_PADRAO,
   deduplicarTiposAtividades,
   buildCustomTipoDef,
+  encontrarMatchTipoCustom,
 } from '@/constants/atividadesTipos'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
@@ -243,66 +244,19 @@ export default function VisaoInstaladorMobileOS({
           continue
         }
 
-        // Resolução SOMENTE pelo campo canônico tipo/tipo_custom_id da atividade
-        // (sem heurísticas de texto aproximado como .includes('manuten') ou .includes('limpeza'))
+        // Resolução pelo helper canônico unificado (id exato, tipo canônico normalizado ou aliases)
         const tipoCanonico = String(os.tipo || '')
           .trim()
           .toLowerCase()
-        const tipoCustomId = String(os.tipo_custom_id || '').trim()
-
-        let matchCustomRecord: any = null
-
-        // 1. Prioridade: se tiver tipo_custom_id explícito, busca exatamente pelo ID
-        if (tipoCustomId) {
-          matchCustomRecord = tiposCustomList.find((t) => t && t.id === tipoCustomId)
-        }
-
-        // 2. Se for tipo='custom' e não encontrou por ID, tenta casar com customDef deduplicado por nome exato
-        if (!matchCustomRecord && tipoCanonico === 'custom') {
-          const nomeServico = String(os.tipo_servico || '')
-            .trim()
-            .toLowerCase()
-          matchCustomRecord = tiposCustomList.find(
-            (t) =>
-              String(t?.nome || '')
-                .trim()
-                .toLowerCase() === nomeServico,
-          )
-        }
-
-        // 3. Se for tipo nativo canônico (ex: 'limpeza', 'manutencao_preventiva', etc.)
-        // Checa se existe custom com esse nome exato que sobrescreveu o nativo (deduplicação custom > nativo)
-        if (!matchCustomRecord && tipoCanonico) {
-          // Busca o TipoAtividadeDef correspondente
-          const nativoMatch = ATIVIDADES_PADRAO.find(
-            (p) =>
-              p.id === tipoCanonico ||
-              (tipoCanonico === 'limpeza_manutencao' && p.id === 'limpeza'),
-          )
-          const nomeAlvo = (nativoMatch?.tituloPadrao || '').trim().toLowerCase()
-
-          // Procura se um custom substituiu esse nativo na lista deduplicada
-          if (nomeAlvo) {
-            const customSubstituto = tiposDeduplicados.find(
-              (td) => td.customRecordId && td.tituloPadrao.trim().toLowerCase() === nomeAlvo,
-            )
-            if (customSubstituto?.customRecordId) {
-              matchCustomRecord = tiposCustomList.find(
-                (t) => t && t.id === customSubstituto.customRecordId,
-              )
-            }
-          }
-
-          // Se não encontrou custom substituto, busca direto na lista de tipos_atividades_custom por correspondência canônica
-          if (!matchCustomRecord && nomeAlvo) {
-            matchCustomRecord = tiposCustomList.find(
-              (t) =>
-                String(t?.nome || '')
-                  .trim()
-                  .toLowerCase() === nomeAlvo,
-            )
-          }
-        }
+        const matchCustomRecord = encontrarMatchTipoCustom(
+          {
+            tipo_custom_id: os.tipo_custom_id,
+            tipo: os.tipo,
+            tipo_servico: os.tipo_servico,
+            categoria: (os as any).categoria,
+          },
+          tiposCustomList,
+        )
 
         // Se encontrou registro em tipos_atividades_custom com checklist configurado
         const checklistDoCustom = normalizeChecklist(matchCustomRecord?.checklist)

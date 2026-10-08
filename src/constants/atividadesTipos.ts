@@ -444,21 +444,166 @@ export function normalizarNomeTipo(nome?: string): string {
  * mostrar APENAS o custom (que carrega os valores, cor e checklist do usuário).
  * O nativo correspondente sai da lista.
  */
+/** Mapeamento de aliases de nomes normalizados para tipos canônicos de manutenção */
+export const ALIASES_TIPOS_CANONICOS: Record<string, string[]> = {
+  limpeza: [
+    'limpeza',
+    'limpeza dos modulos',
+    'limpeza de modulos',
+    'limpeza e manutencao',
+    'lavagem dos modulos',
+    'lavagem de placas',
+    'limpeza avulsa',
+  ],
+  manutencao_preventiva: ['manutencao preventiva', 'revisao preventiva', 'inspecao preventiva'],
+  manutencao_corretiva: ['manutencao corretiva', 'reparo corretivo', 'correcao de falha'],
+  instalacao: ['instalacao', 'montagem', 'visita tecnica'],
+  configuracao_datalogger: ['configuracao datalogger', 'configuracao de datalogger', 'datalogger'],
+  garantia_equipamento: [
+    'garantia de equipamento',
+    'garantia equipamento',
+    'garantia rma',
+    'garantia',
+  ],
+}
+
+/**
+ * Verifica se um nome customizado ou nativo corresponde ao mesmo tipo canônico
+ */
+export function correspondemAoMesmoTipo(nomeA?: string, nomeB?: string): boolean {
+  const normA = normalizarNomeTipo(nomeA)
+  const normB = normalizarNomeTipo(nomeB)
+  if (!normA || !normB) return false
+  if (normA === normB) return true
+
+  for (const aliases of Object.values(ALIASES_TIPOS_CANONICOS)) {
+    const matchA = aliases.some((al) => normA === al || normA.includes(al) || al.includes(normA))
+    const matchB = aliases.some((al) => normB === al || normB.includes(al) || al.includes(normB))
+    if (matchA && matchB) return true
+  }
+  return false
+}
+
+/**
+ * Deduplica uma lista mista de tipos de atividades (nativos + customizados).
+ * Regra do CRM Delfos Solar: quando um tipo custom tiver nome normalizado igual a um nativo
+ * ou cobrir o alias canônico dele (ex: "Limpeza dos Módulos" ↔ "Limpeza e Manutenção" ↔ "Limpeza"),
+ * mostrar APENAS o custom (que carrega os valores, cor e checklist do usuário).
+ * O nativo correspondente sai da lista.
+ */
 export function deduplicarTiposAtividades(
   padroes: TipoAtividadeDef[],
   customs: TipoAtividadeDef[],
 ): TipoAtividadeDef[] {
-  const customNormalizedNames = new Set(
-    customs.map((c) => normalizarNomeTipo(c.tituloPadrao)).filter(Boolean),
-  )
-
-  // Filtra nativos cujo nome coincida com um custom
+  // Filtra nativos cujo nome coincida direta ou semanticamente com um custom
   const padroesFiltrados = padroes.filter((p) => {
-    const norm = normalizarNomeTipo(p.tituloPadrao)
-    return !customNormalizedNames.has(norm)
+    const normP = normalizarNomeTipo(p.tituloPadrao)
+    const sobrescrito = customs.some((c) => {
+      const normC = normalizarNomeTipo(c.tituloPadrao)
+      if (!normC) return false
+      if (normC === normP) return true
+      if (p.categoria === c.categoria && correspondemAoMesmoTipo(p.tituloPadrao, c.tituloPadrao)) {
+        return true
+      }
+      return false
+    })
+    return !sobrescrito
   })
 
   return [...customs, ...padroesFiltrados]
+}
+
+/**
+ * Encontra o registro correspondente em tipos_atividades_custom para uma atividade ou OS,
+ * respeitando estritamente a prioridade canônica:
+ * 1. tipo_custom_id explícito
+ * 2. tipo='custom' com match de nome normalizado
+ * 3. tipo canônico (ex: 'limpeza', 'limpeza_manutencao', 'manutencao_preventiva', etc.)
+ *    com match por alias ou nome normalizado do padrão
+ * 4. tipo_servico com match por alias ou normalização
+ */
+export function encontrarMatchTipoCustom(
+  params: {
+    tipo_custom_id?: string | null
+    tipo?: string | null
+    tipo_servico?: string | null
+    categoria?: string | null
+  },
+  tiposCustom: Array<{
+    id: string
+    nome: string
+    categoria?: string
+    checklist?: unknown
+    orientacoes_tecnicas?: string
+  }>,
+): {
+  id: string
+  nome: string
+  categoria?: string
+  checklist?: unknown
+  orientacoes_tecnicas?: string
+} | null {
+  if (!Array.isArray(tiposCustom) || tiposCustom.length === 0) return null
+
+  const tipoCustomId = String(params.tipo_custom_id || '').trim()
+  if (tipoCustomId) {
+    const byId = tiposCustom.find((t) => t && t.id === tipoCustomId)
+    if (byId) return byId
+  }
+
+  const tipoCanonico = String(params.tipo || '')
+    .trim()
+    .toLowerCase()
+  const tipoServico = String(params.tipo_servico || '').trim()
+  const nomeServicoNorm = normalizarNomeTipo(tipoServico)
+
+  // Se o tipo for 'custom', buscar por nome normalizado
+  if (tipoCanonico === 'custom' && nomeServicoNorm) {
+    const byName = tiposCustom.find((t) => normalizarNomeTipo(t?.nome) === nomeServicoNorm)
+    if (byName) return byName
+  }
+
+  // Se houver tipo canônico nativo (ex: limpeza, limpeza_manutencao, manutencao_preventiva)
+  if (tipoCanonico) {
+    const nativoMatch = ATIVIDADES_PADRAO.find(
+      (p) => p.id === tipoCanonico || (tipoCanonico === 'limpeza_manutencao' && p.id === 'limpeza'),
+    )
+    const nomePadrao = nativoMatch?.tituloPadrao || ''
+
+    // 1º: match exato de nome normalizado
+    if (nomePadrao) {
+      const normPadrao = normalizarNomeTipo(nomePadrao)
+      const exato = tiposCustom.find((t) => normalizarNomeTipo(t?.nome) === normPadrao)
+      if (exato) return exato
+    }
+
+    // 2º: match via aliases canônicos
+    const matchAlias = tiposCustom.find((t) => {
+      if (nomePadrao && correspondemAoMesmoTipo(t?.nome, nomePadrao)) return true
+      if (tipoCanonico === 'limpeza' || tipoCanonico === 'limpeza_manutencao') {
+        const norm = normalizarNomeTipo(t?.nome)
+        return (
+          norm.includes('limpeza') ||
+          norm.includes('lavagem') ||
+          norm === 'limpeza dos modulos' ||
+          norm === 'limpeza e manutencao'
+        )
+      }
+      return false
+    })
+    if (matchAlias) return matchAlias
+  }
+
+  // Fallback por tipo_servico normalizado ou alias
+  if (nomeServicoNorm) {
+    const byServicoNorm = tiposCustom.find((t) => normalizarNomeTipo(t?.nome) === nomeServicoNorm)
+    if (byServicoNorm) return byServicoNorm
+
+    const byServicoAlias = tiposCustom.find((t) => correspondemAoMesmoTipo(t?.nome, tipoServico))
+    if (byServicoAlias) return byServicoAlias
+  }
+
+  return null
 }
 
 // Retorna tipos padrão agrupados por categoria com deduplicação (custom prevalece sobre nativo)

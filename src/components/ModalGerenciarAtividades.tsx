@@ -14,6 +14,7 @@ import {
   CATEGORIAS_ATIVIDADES,
   ATIVIDADES_PADRAO,
   normalizarNomeTipo,
+  correspondemAoMesmoTipo,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -86,20 +87,13 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
   }
 
   const handleAbrirEdicaoPadrao = (tipoPadrao: TipoAtividadeDef) => {
-    // Verificar se já existe um registro correspondente em tiposAtividadesCustom com mesmo nome/categoria
+    // Verificar se já existe um registro correspondente em tiposAtividadesCustom com mesmo nome/categoria ou aliases
     const nomePadraoNorm = normalizarNomeTipo(tipoPadrao.tituloPadrao)
     const existenteNoBanco = tiposAtividadesCustom.find((t) => {
-      const nomeCustomNorm = normalizarNomeTipo(t.nome)
       if (t.categoria !== tipoPadrao.categoria) return false
+      const nomeCustomNorm = normalizarNomeTipo(t.nome)
       if (nomeCustomNorm === nomePadraoNorm) return true
-      // Correspondência flexível para "Limpeza e Manutenção" vs variações cadastradas
-      if (
-        ((nomePadraoNorm.includes('limpeza') || nomePadraoNorm.includes('lavagem')) &&
-          (nomeCustomNorm.includes('limpeza') || nomeCustomNorm.includes('lavagem'))) ||
-        (nomePadraoNorm.includes('datalogger') && nomeCustomNorm.includes('datalogger'))
-      ) {
-        return true
-      }
+      if (correspondemAoMesmoTipo(t.nome, tipoPadrao.tituloPadrao)) return true
       return false
     })
 
@@ -187,10 +181,23 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
   }
 
   // Filtrar tipos da categoria selecionada
-  const padroesDaCategoria = ATIVIDADES_PADRAO.filter((t) => t.categoria === activeCategoryTab)
+  // Regra do CRM Delfos Solar: se um tipo nativo já possui registro correspondente em tipos_atividades_custom,
+  // ele já foi personalizado e aparece na lista de personalizadas; deve ser OCULTADO dos padrões para evitar duplicata visual.
   const customizadosDaCategoria = tiposAtividadesCustom.filter(
     (t) => t.categoria === activeCategoryTab,
   )
+
+  const padroesDaCategoria = ATIVIDADES_PADRAO.filter((p) => {
+    if (p.categoria !== activeCategoryTab) return false
+    const normP = normalizarNomeTipo(p.tituloPadrao)
+    const sobrescrito = customizadosDaCategoria.some((c) => {
+      const normC = normalizarNomeTipo(c.nome)
+      if (normC === normP) return true
+      if (correspondemAoMesmoTipo(p.tituloPadrao, c.nome)) return true
+      return false
+    })
+    return !sobrescrito
+  })
 
   const currentCategoryDef = CATEGORIAS_ATIVIDADES.find((c) => c.id === activeCategoryTab)
 

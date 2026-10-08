@@ -2141,4 +2141,84 @@ describe('Login e App Smoke Tests', () => {
     expect(html).toContain('Documentação enviada para a concessionária')
     expect(html).toContain('Concluída')
   })
+
+  it('Catálogo e Checklist: correspondemAoMesmoTipo e encontrarMatchTipoCustom resolvem "Limpeza dos Módulos" para custom cykdymjsj84jpgp e deduplicam nativos', async () => {
+    const {
+      correspondemAoMesmoTipo,
+      encontrarMatchTipoCustom,
+      deduplicarTiposAtividades,
+      ATIVIDADES_PADRAO,
+    } = await import('@/constants/atividadesTipos')
+
+    // 1. correspondemAoMesmoTipo cobre variações de nomes e aliases
+    expect(correspondemAoMesmoTipo('Limpeza dos Módulos', 'Limpeza')).toBe(true)
+    expect(correspondemAoMesmoTipo('Limpeza dos Módulos', 'Limpeza e Manutenção')).toBe(true)
+    expect(correspondemAoMesmoTipo('Manutenção Preventiva', 'Revisão Preventiva')).toBe(true)
+    expect(correspondemAoMesmoTipo('Limpeza', 'Manutenção Corretiva')).toBe(false)
+
+    // 2. Registro real do banco cykdymjsj84jpgp
+    const tiposCustomList = [
+      {
+        id: 'cykdymjsj84jpgp',
+        nome: 'Limpeza dos Módulos',
+        categoria: 'manutencao',
+        checklist: [
+          {
+            id: '1',
+            texto: 'Tirar fotos antes de iniciar os trabalhos, fotos amplas e detalhadas',
+          },
+          { id: '2', texto: 'Verificar se não tem módulos trincados antes de iniciar a limpeza' },
+          { id: '3', texto: 'Limpou módulos' },
+          { id: '4', texto: 'Conferir se não ficou marcas de sujeira' },
+          { id: '5', texto: 'Tirar fotos após a finalização da limpeza' },
+          { id: '6', texto: 'Verificar se usina está gerando' },
+        ],
+        orientacoes_tecnicas: 'Usar água e escova macia. Conferir se a usina voltou a gerar.',
+      },
+    ]
+
+    // Resolução por tipo_custom_id exato
+    const matchPorId = encontrarMatchTipoCustom(
+      { tipo_custom_id: 'cykdymjsj84jpgp' },
+      tiposCustomList,
+    )
+    expect(matchPorId?.id).toBe('cykdymjsj84jpgp')
+
+    // Resolução por tipo='limpeza'
+    const matchPorTipo = encontrarMatchTipoCustom({ tipo: 'limpeza' }, tiposCustomList)
+    expect(matchPorTipo?.id).toBe('cykdymjsj84jpgp')
+
+    // Resolução por tipo_servico='Limpeza e Manutenção'
+    const matchPorServico = encontrarMatchTipoCustom(
+      { tipo_servico: 'Limpeza e Manutenção' },
+      tiposCustomList,
+    )
+    expect(matchPorServico?.id).toBe('cykdymjsj84jpgp')
+
+    // 3. deduplicarTiposAtividades oculta o tipo nativo "Limpeza dos Módulos" / "Limpeza" quando já houver o custom
+    const nativosManutencao = ATIVIDADES_PADRAO.filter((p) => p.categoria === 'manutencao')
+    const customDefsMock = [
+      {
+        id: 'custom_cykdymjsj84jpgp',
+        categoria: 'manutencao' as const,
+        tituloPadrao: 'Limpeza dos Módulos',
+        descricaoAjuda: 'Custom',
+        corHex: '#0284C7',
+        badgeClass: '',
+        iconBg: '',
+        iconText: '',
+        borderClass: '',
+        icon: (() => null) as any,
+        isPadrao: false,
+        customRecordId: 'cykdymjsj84jpgp',
+      },
+    ]
+
+    const deduplicados = deduplicarTiposAtividades(nativosManutencao, customDefsMock)
+    // O custom deve estar presente
+    expect(deduplicados.some((d) => d.customRecordId === 'cykdymjsj84jpgp')).toBe(true)
+    // O nativo com id 'limpeza' que tem título 'Limpeza dos Módulos' deve ter sido filtrado
+    const nativoLimpezaAindaPresente = deduplicados.some((d) => d.id === 'limpeza')
+    expect(nativoLimpezaAindaPresente).toBe(false)
+  })
 })

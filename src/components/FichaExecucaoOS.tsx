@@ -100,6 +100,7 @@ import {
   MSG_USINA_OBRIGATORIA,
   getTipoAtividadeConfig,
   ATIVIDADES_PADRAO,
+  encontrarMatchTipoCustom,
 } from '@/constants/atividadesTipos'
 import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import { fetchUsinasByClienteId } from '@/services/crmService'
@@ -356,8 +357,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // 3. Checklist
   const [checklist, setChecklist] = useState<OSChecklistItem[]>(() => {
-    if (os?.checklist && Array.isArray(os.checklist) && os.checklist.length > 0) {
-      return os.checklist
+    if (os?.checklist) {
+      const normalizado = normalizeChecklist(os.checklist)
+      if (normalizado.length > 0) {
+        return normalizado
+      }
     }
     return getDefaultChecklist(os?.tipo_servico || 'Manutenção')
   })
@@ -489,46 +493,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       .then(({ fetchTiposAtividadesCustom }) => fetchTiposAtividadesCustom())
       .then((tipos) => {
         const tiposList = Array.isArray(tipos) ? tipos : []
-        const tipoCanonico = String(os.tipo || '')
-          .trim()
-          .toLowerCase()
-        const tipoCustomId = String(os.tipo_custom_id || '').trim()
 
-        let match: any = null
-        if (tipoCustomId) {
-          match = tiposList.find((t) => t && t.id === tipoCustomId)
-        }
-        if (!match && tipoCanonico === 'custom') {
-          const nomeServico = String(os.tipo_servico || '')
-            .trim()
-            .toLowerCase()
-          match = tiposList.find(
-            (t) =>
-              String(t?.nome || '')
-                .trim()
-                .toLowerCase() === nomeServico,
-          )
-        }
-        if (!match && tipoCanonico) {
-          const nativo = ATIVIDADES_PADRAO.find(
-            (p) =>
-              p.id === tipoCanonico ||
-              (tipoCanonico === 'limpeza_manutencao' && p.id === 'limpeza'),
-          )
-          const nomeAlvo = (nativo?.tituloPadrao || '').trim().toLowerCase()
-          if (nomeAlvo) {
-            match = tiposList.find(
-              (t) =>
-                String(t?.nome || '')
-                  .trim()
-                  .toLowerCase() === nomeAlvo,
-            )
-          }
-        }
-        if (!match) {
-          const tipoNome = (os.tipo_servico || '').toLowerCase().trim()
-          match = tiposList.find((t) => (t?.nome || '').toLowerCase().trim() === tipoNome)
-        }
+        // Resolução de match usando o helper canônico unificado
+        const match = encontrarMatchTipoCustom(
+          {
+            tipo_custom_id: os.tipo_custom_id,
+            tipo: os.tipo,
+            tipo_servico: os.tipo_servico,
+            categoria: (os as any).categoria,
+          },
+          tiposList,
+        )
 
         if (match?.orientacoes_tecnicas) {
           setOrientacoesCatalogo(match.orientacoes_tecnicas)
@@ -538,20 +513,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           )
         }
 
-        // Se a OS tem origem em 'atividades' e não veio com checklist salvo no próprio registro,
-        // carregar o checklist configurado para o tipo exato da atividade em tipos_atividades_custom
-        if (
-          os.origem === 'atividades' &&
-          (!os.checklist || !Array.isArray(os.checklist) || os.checklist.length === 0)
-        ) {
-          const checklistDoMatch = normalizeChecklist(match?.checklist)
-          if (checklistDoMatch.length > 0) {
-            setChecklist(checklistDoMatch)
-          } else {
-            // Se o tipo customizado de atividade não definiu checklist JSON, usa o checklist do tipo real (ex: Manutenção)
-            setChecklist(getDefaultChecklist((os.tipo_servico as any) || 'Manutenção'))
-          }
+        // Resolução estrita do checklist:
+        // (1) Se a OS já tem checklist salvo e preenchido, respeitar
+        const checklistSalvo = os.checklist ? normalizeChecklist(os.checklist) : []
+        if (checklistSalvo.length > 0) {
+          setChecklist(checklistSalvo)
+          return
         }
+
+        // (2) Extrair checklist JSON do registro custom correspondente
+        const checklistDoMatch = normalizeChecklist(match?.checklist)
+        if (checklistDoMatch.length > 0) {
+          setChecklist(checklistDoMatch)
+          return
+        }
+
+        // (3) Fallback genérico SOMENTE se nada casar
+        setChecklist(getDefaultChecklist((os.tipo_servico as any) || 'Manutenção'))
       })
       .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
       .finally(() => setLoadingCatalogo(false))
