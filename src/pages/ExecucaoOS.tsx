@@ -334,7 +334,7 @@ function ExecucaoOSContent() {
 
           // Normaliza checklist de forma tolerante (seja array ou string JSON)
           const checklistNorm = normalizeChecklist(atv.checklist)
-
+          const tipoCustomIdVal = atv.tipo_custom_id || atv.expand?.tipo_custom_id?.id || undefined
           // Extração segura de horário de início a partir de string ou data
           const atvDataStr = typeof atv.data === 'string' ? atv.data.trim() : ''
           let horarioInicioSeguro: string | undefined =
@@ -356,6 +356,8 @@ function ExecucaoOSContent() {
             cliente_id: atv.cliente_id,
             usina_id: atv.usina_id || undefined,
             tipo_servico: tipoServico,
+            tipo: atv.tipo || undefined,
+            tipo_custom_id: tipoCustomIdVal,
             endereco,
             data_agendada: atvDataStr,
             horario_inicio: horarioInicioSeguro,

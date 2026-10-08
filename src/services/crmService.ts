@@ -3377,6 +3377,8 @@ export async function fetchOrdemServicoById(
           cliente_id: atv.cliente_id,
           usina_id: atv.usina_id || undefined,
           tipo_servico: atv.titulo || 'Manutenção',
+          tipo: atv.tipo || undefined,
+          tipo_custom_id: atv.tipo_custom_id || atv.expand?.tipo_custom_id?.id || undefined,
           endereco,
           data_agendada: atv.data || atv.created,
           status:
@@ -3588,6 +3590,8 @@ async function updateAtividadeComoOrdemServico(
     cliente_id: atvRecord.cliente_id,
     usina_id: atvRecord.usina_id || undefined,
     tipo_servico: tipoServicoResolvido || 'Manutenção',
+    tipo: atvRecord.tipo || undefined,
+    tipo_custom_id: atvRecord.tipo_custom_id || atvRecord.expand?.tipo_custom_id?.id || undefined,
     horario_inicio:
       atvRecord.horario_inicio ||
       (atvRecord.data && atvRecord.data.length >= 16

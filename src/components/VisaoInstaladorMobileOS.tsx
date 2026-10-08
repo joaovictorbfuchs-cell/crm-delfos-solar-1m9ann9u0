@@ -20,10 +20,14 @@ import { OrdemServico, OSChecklistItem } from '@/types/crm'
 import {
   normalizeChecklist,
   extractHorario,
-  safeStr,
   CalendarioExecucaoOS,
 } from '@/components/CalendarioExecucaoOS'
 import { updateOrdemServico, finalizarOrdemServico } from '@/services/crmService'
+import {
+  ATIVIDADES_PADRAO,
+  deduplicarTiposAtividades,
+  buildCustomTipoDef,
+} from '@/constants/atividadesTipos'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -55,11 +59,63 @@ export default function VisaoInstaladorMobileOS({
   const [localChecklists, setLocalChecklists] = useState<Record<string, OSChecklistItem[]>>({})
   // Controle de carregamento/salvamento por OS
   const [salvandoOSId, setSalvandoOSId] = useState<string | null>(null)
-  // Cards expandidos para ver detalhes/checklist
+  // Cards expandidos para ver detalhes/checklist (mantido para compatibilidade defensiva)
   const [expandedOSIds, setExpandedOSIds] = useState<Record<string, boolean>>({})
 
   // Catálogo de tipos de atividades custom (para carregar checklist dinâmico de tipos_atividades_custom)
   const [catalogoTipos, setCatalogoTipos] = useState<any[]>([])
+
+  // Função pura para resolver checklist padrão de fallback para cada tipo canônico de manutenção
+  const getFallbackChecklistPorTipo = (tipoCanonico?: string): OSChecklistItem[] => {
+    const t = String(tipoCanonico || '').toLowerCase().trim()
+    if (t === 'limpeza' || t === 'limpeza_manutencao') {
+      return [
+        { id: 'chk_lp_1', item: 'Inspeção visual prévia e registro do estado de sujeira', concluido: false },
+        { id: 'chk_lp_2', item: 'Lavagem dos módulos com água e equipamento adequado', concluido: false },
+        { id: 'chk_lp_3', item: 'Remoção de resíduos incrustados e secagem/drenagem', concluido: false },
+        { id: 'chk_lp_4', item: 'Registro fotográfico pós-limpeza e conferência de geração', concluido: false },
+      ]
+    }
+    if (t === 'manutencao_preventiva') {
+      return [
+        { id: 'chk_prev_1', item: 'Inspeção visual de módulos, estruturas e fixadores', concluido: false },
+        { id: 'chk_prev_2', item: 'Reaperto das conexões elétricas e quadros CA/CC', concluido: false },
+        { id: 'chk_prev_3', item: 'Medição de grandezas elétricas (tensão/corrente)', concluido: false },
+        { id: 'chk_prev_4', item: 'Verificação do inversor e sistema de aterramento', concluido: false },
+      ]
+    }
+    if (t === 'manutencao_corretiva') {
+      return [
+        { id: 'chk_corr_1', item: 'Identificação e isolamento da anomalia relatada', concluido: false },
+        { id: 'chk_corr_2', item: 'Substituição ou reparo do componente afetado', concluido: false },
+        { id: 'chk_corr_3', item: 'Testes operacionais e conferência de funcionamento', concluido: false },
+        { id: 'chk_corr_4', item: 'Registro da intervenção técnica e orientações ao cliente', concluido: false },
+      ]
+    }
+    if (t === 'configuracao_datalogger') {
+      return [
+        { id: 'chk_dl_1', item: 'Verificação da rede Wi-Fi / sinal de internet local', concluido: false },
+        { id: 'chk_dl_2', item: 'Conexão física/lógica do datalogger ao inversor', concluido: false },
+        { id: 'chk_dl_3', item: 'Configuração da plataforma de monitoramento', concluido: false },
+        { id: 'chk_dl_4', item: 'Conferência do status online e fluxo de telemetria', concluido: false },
+      ]
+    }
+    if (t === 'garantia_equipamento') {
+      return [
+        { id: 'chk_gar_1', item: 'Verificação do número de série e nota fiscal do ativo', concluido: false },
+        { id: 'chk_gar_2', item: 'Constatação do defeito e registros fotográficos', concluido: false },
+        { id: 'chk_gar_3', item: 'Abertura/conferência de chamado junto ao fabricante', concluido: false },
+        { id: 'chk_gar_4', item: 'Encaminhamento para substituição ou laudo pericial', concluido: false },
+      ]
+    }
+    // Fallback geral
+    return [
+      { id: 'chk_gen_1', item: 'Inspeção visual dos módulos fotovoltaicos', concluido: false },
+      { id: 'chk_gen_2', item: 'Verificação dos conectores e cabeamento CC', concluido: false },
+      { id: 'chk_gen_3', item: 'Execução do procedimento técnico no local', concluido: false },
+      { id: 'chk_gen_4', item: 'Testes elétricos e conferência de geração', concluido: false },
+    ]
+  }
 
   useEffect(() => {
     let cancelado = false
@@ -82,49 +138,95 @@ export default function VisaoInstaladorMobileOS({
       const next = { ...prev }
       let mudou = false
 
-      for (const os of ordens) {
+      // Monta mapa de tipos customizados com deduplicação (custom prevalece sobre nativo)
+      const tiposCustomList = Array.isArray(catalogoTipos) ? catalogoTipos : []
+      const customDefs = tiposCustomList.map((rec) =>
+        buildCustomTipoDef({
+          id: rec.id,
+          nome: rec.nome,
+          categoria: rec.categoria || 'manutencao',
+          cor: rec.cor,
+          icone: rec.icone,
+          descricao: rec.descricao,
+          is_padrao: rec.is_padrao,
+          valor_base: rec.valor_base,
+          valor_por_placa: rec.valor_por_placa,
+        }),
+      )
+      // Deduplica custom sobre nativo reutilizando a função padrão do CRM
+      const tiposDeduplicados = deduplicarTiposAtividades(ATIVIDADES_PADRAO, customDefs)
+
+      for (const os of (ordens || [])) {
         if (!os || !os.id) continue
-        if (next[os.id]) continue // já existe local
+        if (next[os.id]) continue // já existe localmente
 
         const checklistExistente = normalizeChecklist(os.checklist)
         if (checklistExistente.length > 0) {
           next[os.id] = checklistExistente
           mudou = true
-        } else {
-          // Busca checklist do tipo em tipos_atividades_custom
-          const tipoNome = String(os.tipo_servico || '')
-            .toLowerCase()
-            .trim()
-          const match = catalogoTipos.find((t) => {
-            const n = String(t?.nome || '')
-              .toLowerCase()
-              .trim()
-            return (
-              n === tipoNome ||
-              n.includes(tipoNome) ||
-              tipoNome.includes(n) ||
-              (tipoNome.includes('limpeza') && n.includes('lavagem')) ||
-              (tipoNome.includes('manuten') && n.includes('manuten'))
-            )
-          })
+          continue
+        }
 
-          if (match?.checklist && Array.isArray(match.checklist) && match.checklist.length > 0) {
-            next[os.id] = match.checklist.map((item: any, idx: number) => ({
-              id: item.id || `chk_${idx + 1}`,
-              item: item.texto || item.item || `Item ${idx + 1}`,
-              concluido: Boolean(item.concluido),
-            }))
-            mudou = true
-          } else {
-            // Checklist padrão de campo solar
-            next[os.id] = [
-              { id: 'c1', item: 'Inspeção visual dos módulos fotovoltaicos', concluido: false },
-              { id: 'c2', item: 'Verificação dos conectores e cabeamento CC', concluido: false },
-              { id: 'c3', item: 'Execução do procedimento técnico no local', concluido: false },
-              { id: 'c4', item: 'Testes elétricos e conferência de geração', concluido: false },
-            ]
-            mudou = true
+        // Resolução SOMENTE pelo campo canônico tipo/tipo_custom_id da atividade
+        // (sem heurísticas de texto aproximado como .includes('manuten') ou .includes('limpeza'))
+        const tipoCanonico = String(os.tipo || '').trim().toLowerCase()
+        const tipoCustomId = String(os.tipo_custom_id || '').trim()
+
+        let matchCustomRecord: any = null
+
+        // 1. Prioridade: se tiver tipo_custom_id explícito, busca exatamente pelo ID
+        if (tipoCustomId) {
+          matchCustomRecord = tiposCustomList.find((t) => t && t.id === tipoCustomId)
+        }
+
+        // 2. Se for tipo='custom' e não encontrou por ID, tenta casar com customDef deduplicado por nome exato
+        if (!matchCustomRecord && tipoCanonico === 'custom') {
+          const nomeServico = String(os.tipo_servico || '').trim().toLowerCase()
+          matchCustomRecord = tiposCustomList.find(
+            (t) => String(t?.nome || '').trim().toLowerCase() === nomeServico,
+          )
+        }
+
+        // 3. Se for tipo nativo canônico (ex: 'limpeza', 'manutencao_preventiva', etc.)
+        // Checa se existe custom com esse nome exato que sobrescreveu o nativo (deduplicação custom > nativo)
+        if (!matchCustomRecord && tipoCanonico) {
+          // Busca o TipoAtividadeDef correspondente
+          const nativoMatch = ATIVIDADES_PADRAO.find(
+            (p) =>
+              p.id === tipoCanonico ||
+              (tipoCanonico === 'limpeza_manutencao' && p.id === 'limpeza'),
+          )
+          const nomeAlvo = (nativoMatch?.tituloPadrao || '').trim().toLowerCase()
+
+          // Procura se um custom substituiu esse nativo na lista deduplicada
+          if (nomeAlvo) {
+            const customSubstituto = tiposDeduplicados.find(
+              (td) => td.customRecordId && td.tituloPadrao.trim().toLowerCase() === nomeAlvo,
+            )
+            if (customSubstituto?.customRecordId) {
+              matchCustomRecord = tiposCustomList.find(
+                (t) => t && t.id === customSubstituto.customRecordId,
+              )
+            }
           }
+
+          // Se não encontrou custom substituto, busca direto na lista de tipos_atividades_custom por correspondência canônica
+          if (!matchCustomRecord && nomeAlvo) {
+            matchCustomRecord = tiposCustomList.find(
+              (t) => String(t?.nome || '').trim().toLowerCase() === nomeAlvo,
+            )
+          }
+        }
+
+        // Se encontrou registro em tipos_atividades_custom com checklist configurado
+        const checklistDoCustom = normalizeChecklist(matchCustomRecord?.checklist)
+        if (checklistDoCustom.length > 0) {
+          next[os.id] = checklistDoCustom
+          mudou = true
+        } else {
+          // Fallback puramente canônico pelo tipo (limpeza recebe checklist de limpeza, etc.)
+          next[os.id] = getFallbackChecklistPorTipo(tipoCanonico || os.tipo_servico)
+          mudou = true
         }
       }
 
@@ -180,10 +282,12 @@ export default function VisaoInstaladorMobileOS({
       const safeHoraStr = (osItem: OrdemServico): string => {
         if (!osItem || typeof osItem !== 'object') return '99:99'
         if (osItem.horario_inicio !== undefined && osItem.horario_inicio !== null) {
-          const s = safeStr(osItem.horario_inicio).trim()
+          const s = String(osItem.horario_inicio || '').trim()
           if (s) return s
         }
-        const ext = extractHorario(osItem.data_agendada)
+        const rawData = osItem.data_agendada
+        const dataStr = rawData instanceof Date ? rawData.toISOString() : String(rawData || '')
+        const ext = extractHorario(dataStr)
         return ext !== '--:--' ? ext : '99:99'
       }
 
@@ -507,7 +611,9 @@ export default function VisaoInstaladorMobileOS({
               {atividadesDoInstalador.map((os) => {
                 const isConcluida = os.status === 'concluida'
                 const isSalvando = salvandoOSId === os.id
-                const isExpanded = expandedOSIds[os.id] ?? !isConcluida // pendente expandido por padrão
+                // Na visão do instalador, o clique abre JÁ a tela de execução (onSelectOS).
+                // Caso não haja onSelectOS (fallback), permite expansão in-place via expandedOSIds.
+                const isExpanded = !onSelectOS && (expandedOSIds[os.id] ?? !isConcluida)
                 const checklist = localChecklists[os.id] || normalizeChecklist(os.checklist)
                 const concluidosCount = checklist.filter((c) => c.concluido).length
                 const totalCount = checklist.length
@@ -522,13 +628,17 @@ export default function VisaoInstaladorMobileOS({
                   os.expand?.cliente_id?.usina_endereco ||
                   os.expand?.cliente_id?.endereco ||
                   'Endereço não informado'
+                const dataAgendadaStr =
+                  os.data_agendada instanceof Date
+                    ? os.data_agendada.toISOString()
+                    : String(os.data_agendada || '')
                 const horario =
                   os.horario_inicio &&
                   typeof os.horario_inicio === 'string' &&
                   os.horario_inicio.trim()
                     ? os.horario_inicio.slice(0, 5)
-                    : extractHorario(os.data_agendada) !== '--:--'
-                      ? extractHorario(os.data_agendada)
+                    : extractHorario(dataAgendadaStr) !== '--:--'
+                      ? extractHorario(dataAgendadaStr)
                       : 'A definir'
 
                 return (
@@ -540,9 +650,15 @@ export default function VisaoInstaladorMobileOS({
                         : 'border-emerald-300/80 hover:border-emerald-500'
                     }`}
                   >
-                    {/* Cabeçalho do Card */}
+                    {/* Cabeçalho do Card: No perfil instalador, clique abre direto a Ficha de Execução */}
                     <div
-                      onClick={() => toggleExpandCard(os.id)}
+                      onClick={() => {
+                        if (onSelectOS) {
+                          onSelectOS(os)
+                        } else {
+                          toggleExpandCard(os.id)
+                        }
+                      }}
                       className="p-3.5 cursor-pointer active:bg-gray-50/80 transition-colors select-none"
                     >
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -576,14 +692,10 @@ export default function VisaoInstaladorMobileOS({
                           )}
                           <button
                             type="button"
-                            aria-label="Expandir ou recolher card"
+                            aria-label="Abrir execução da atividade"
                             className="text-gray-400 p-0.5"
                           >
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
+                            <ChevronDown className="w-4 h-4 -rotate-90 text-emerald-600" />
                           </button>
                         </div>
                       </div>
@@ -605,8 +717,8 @@ export default function VisaoInstaladorMobileOS({
                         <span className="line-clamp-2 leading-relaxed">{endereco}</span>
                       </div>
 
-                      {/* Barra rápida de status do checklist se recolhido */}
-                      {!isExpanded && totalCount > 0 && (
+                      {/* Status simples do checklist sem badge/flag 'Toque para ver checklist' */}
+                      {totalCount > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
                           <span>
                             Checklist:{' '}
@@ -616,13 +728,13 @@ export default function VisaoInstaladorMobileOS({
                             concluídos
                           </span>
                           <span className="text-emerald-700 font-bold">
-                            Toque para ver checklist
+                            Abrir Execução
                           </span>
                         </div>
                       )}
                     </div>
 
-                    {/* Conteúdo Expandido (Checklist Dinâmico + Ações) */}
+                    {/* Conteúdo Expandido (Fallback caso não haja navegação para a ficha) */}
                     {isExpanded && (
                       <div className="px-3.5 pb-3.5 pt-1 border-t border-gray-100 space-y-3 bg-white">
                         {/* Botão Traçar Rota GPS */}

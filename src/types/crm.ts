@@ -1349,6 +1349,8 @@ export interface OrdemServico extends RecordModel {
   cliente_id: string
   usina_id?: string
   tipo_servico: OSTipoServico
+  tipo?: string
+  tipo_custom_id?: string
   endereco?: string
   data_agendada: string
   horario_inicio?: string

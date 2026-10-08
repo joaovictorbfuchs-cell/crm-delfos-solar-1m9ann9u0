@@ -486,19 +486,33 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     import('@/services/crmService')
       .then(({ fetchTiposAtividadesCustom }) => fetchTiposAtividadesCustom())
       .then((tipos) => {
-        const tipoNome = (os.tipo_servico || '').toLowerCase()
-        const match = (tipos || []).find((t) => {
-          const n = (t.nome || '').toLowerCase()
-          return (
-            n === tipoNome ||
-            n.includes(tipoNome) ||
-            tipoNome.includes(n) ||
-            (tipoNome === 'limpeza' && n.includes('lavagem')) ||
-            (tipoNome === 'manutenção' && (n.includes('manutenção') || n.includes('revisão'))) ||
-            (tipoNome === 'configuração de datalogger' &&
-              (n.includes('datalogger') || n.includes('configuração')))
+        const tiposList = Array.isArray(tipos) ? tipos : []
+        const tipoCanonico = String(os.tipo || '').trim().toLowerCase()
+        const tipoCustomId = String(os.tipo_custom_id || '').trim()
+
+        let match: any = null
+        if (tipoCustomId) {
+          match = tiposList.find((t) => t && t.id === tipoCustomId)
+        }
+        if (!match && tipoCanonico === 'custom') {
+          const nomeServico = String(os.tipo_servico || '').trim().toLowerCase()
+          match = tiposList.find((t) => String(t?.nome || '').trim().toLowerCase() === nomeServico)
+        }
+        if (!match && tipoCanonico) {
+          const nativo = ATIVIDADES_PADRAO.find(
+            (p) =>
+              p.id === tipoCanonico ||
+              (tipoCanonico === 'limpeza_manutencao' && p.id === 'limpeza'),
           )
-        })
+          const nomeAlvo = (nativo?.tituloPadrao || '').trim().toLowerCase()
+          if (nomeAlvo) {
+            match = tiposList.find((t) => String(t?.nome || '').trim().toLowerCase() === nomeAlvo)
+          }
+        }
+        if (!match) {
+          const tipoNome = (os.tipo_servico || '').toLowerCase().trim()
+          match = tiposList.find((t) => (t?.nome || '').toLowerCase().trim() === tipoNome)
+        }
 
         if (match?.orientacoes_tecnicas) {
           setOrientacoesCatalogo(match.orientacoes_tecnicas)
@@ -514,15 +528,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           os.origem === 'atividades' &&
           (!os.checklist || !Array.isArray(os.checklist) || os.checklist.length === 0)
         ) {
-          if (match?.checklist && Array.isArray(match.checklist) && match.checklist.length > 0) {
-            const mappedChecklist: OSChecklistItem[] = match.checklist.map(
-              (item: any, idx: number) => ({
-                id: item.id || `chk_${idx + 1}`,
-                item: item.texto || item.item || `Item ${idx + 1}`,
-                concluido: Boolean(item.concluido),
-              }),
-            )
-            setChecklist(mappedChecklist)
+          const checklistDoMatch = normalizeChecklist(match?.checklist)
+          if (checklistDoMatch.length > 0) {
+            setChecklist(checklistDoMatch)
           } else {
             // Se o tipo customizado de atividade não definiu checklist JSON, usa o checklist do tipo real (ex: Manutenção)
             setChecklist(getDefaultChecklist((os.tipo_servico as any) || 'Manutenção'))
@@ -531,7 +539,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       })
       .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
       .finally(() => setLoadingCatalogo(false))
-  }, [os.cliente_id, os.tipo_servico, os.origem, os.checklist])
+  }, [os.cliente_id, os.tipo_servico, os.tipo, os.tipo_custom_id, os.origem, os.checklist])
 
   // Reabrir Ordem de Serviço (apenas Admin)
   const handleReabrirOS = async () => {
@@ -1524,8 +1532,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         </div>
       </div>
 
-      {/* PAINEL DE ALTERAÇÃO DIRETA DE HORÁRIO E RESPONSÁVEL (QUANDO ORIGEM É ATIVIDADES DE MANUTENÇÃO) */}
-      {isOrigemAtividades && (
+      {/* PAINEL DE ALTERAÇÃO DIRETA DE HORÁRIO E RESPONSÁVEL (QUANDO ORIGEM É ATIVIDADES DE MANUTENÇÃO) - Oculto para instalador */}
+      {isOrigemAtividades && !isInstalador && (
         <div className="bg-emerald-50/70 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
           <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2.5 flex-wrap gap-2">
             <div className="flex items-center gap-2">

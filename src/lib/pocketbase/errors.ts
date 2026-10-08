@@ -27,3 +27,21 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  if (error && typeof error === 'object' && 'status' in error) {
+    const s = (error as { status: unknown }).status
+    return s === 401 || s === 403
+  }
+  const msg = error instanceof Error ? error.message : String(error || '')
+  return (
+    msg.includes('401') ||
+    msg.includes('403') ||
+    msg.toLowerCase().includes('not authorized') ||
+    msg.toLowerCase().includes('unauthorized') ||
+    msg.toLowerCase().includes('token expired')
+  )
+}
