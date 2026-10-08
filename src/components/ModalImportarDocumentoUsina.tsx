@@ -36,6 +36,7 @@ import { fetchEquipamentos } from '@/services/equipamentosService'
 import { vincularEquipamentoUsina } from '@/services/usinaEquipamentosService'
 import { sincronizarUsinaComCliente } from '@/services/crmService'
 import { ModalCadastroEquipamentoRapido } from '@/components/ModalCadastroEquipamentoRapido'
+import { buscarEquipamentoCorrespondente } from '@/lib/equipamentoMatcher'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import type { UsinaCliente } from '@/types/crm'
 
@@ -683,16 +684,10 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       })
       setSelecionados(selecaoInicial)
 
-      // Identificação inteligente de equipamentos extraídos no catálogo
+      // Identificação inteligente de equipamentos extraídos no catálogo com critério rigoroso
       const tec = res.data.dados_tecnicos || {}
-      const normalizar = (s: string) =>
-        s
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .trim()
 
-      // Verificar Módulo
+      // Verificar Módulo com critério rigoroso (marca obrigatória + potência/modelo compatível)
       if (tec.fabricante_modulos || tec.modelo_modulos) {
         const fab = (tec.fabricante_modulos || '').trim()
         const mod = (tec.modelo_modulos || '').trim()
@@ -701,18 +696,15 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
             ? Math.round((tec.potencia_kwp * 1000) / tec.numero_modulos)
             : 0
 
-        const achado = catalogoEquipamentos.find((eq) => {
-          if (eq.tipo !== 'modulo_fv') return false
-          const eqFab = normalizar(eq.marca)
-          const eqMod = normalizar(eq.modelo)
-          const targetFab = normalizar(fab)
-          const targetMod = normalizar(mod)
-          return (
-            (targetFab && eqFab.includes(targetFab)) ||
-            (targetMod && eqMod.includes(targetMod)) ||
-            (targetMod && targetMod.includes(eqMod))
-          )
-        })
+        const achado = buscarEquipamentoCorrespondente(
+          {
+            tipo: 'modulo_fv',
+            fabricante: fab,
+            modelo: mod,
+            potenciaW: potCalc > 0 ? potCalc : null,
+          },
+          catalogoEquipamentos,
+        )
 
         setSugestaoModulo({
           fabricante: fab,
@@ -724,24 +716,21 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
         setSugestaoModulo(null)
       }
 
-      // Verificar Inversor
+      // Verificar Inversor com critério rigoroso (marca obrigatória + kW/modelo compatível)
       if (tec.fabricante_inversores || tec.modelo_inversores) {
         const fab = (tec.fabricante_inversores || '').trim()
         const mod = (tec.modelo_inversores || '').trim()
         const potW = tec.potencia_kwp ? Math.round(tec.potencia_kwp * 1000) : 5000
 
-        const achado = catalogoEquipamentos.find((eq) => {
-          if (eq.tipo !== 'inversor') return false
-          const eqFab = normalizar(eq.marca)
-          const eqMod = normalizar(eq.modelo)
-          const targetFab = normalizar(fab)
-          const targetMod = normalizar(mod)
-          return (
-            (targetFab && eqFab.includes(targetFab)) ||
-            (targetMod && eqMod.includes(targetMod)) ||
-            (targetMod && targetMod.includes(eqMod))
-          )
-        })
+        const achado = buscarEquipamentoCorrespondente(
+          {
+            tipo: 'inversor',
+            fabricante: fab,
+            modelo: mod,
+            potenciaW: potW > 0 ? potW : null,
+          },
+          catalogoEquipamentos,
+        )
 
         setSugestaoInversor({
           fabricante: fab,
@@ -1357,22 +1346,34 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                   <div className="space-y-2 pt-1">
                     {/* Módulo Fotovoltaico */}
                     {sugestaoModulo && (
-                      <div className="p-2.5 bg-white rounded-lg border border-emerald-200 flex items-center justify-between gap-2 flex-wrap">
+                      <div
+                        className={`p-2.5 bg-white rounded-lg border flex items-center justify-between gap-2 flex-wrap transition-colors ${
+                          sugestaoModulo.existente
+                            ? 'border-emerald-200'
+                            : 'border-amber-300 bg-amber-50/40'
+                        }`}
+                      >
                         <div className="flex items-center gap-2 min-w-0">
-                          <Sun className="w-4 h-4 text-amber-500 shrink-0" />
+                          <Sun
+                            className={`w-4 h-4 shrink-0 ${
+                              sugestaoModulo.existente ? 'text-amber-500' : 'text-amber-600'
+                            }`}
+                          />
                           <div className="truncate">
                             <span className="font-bold text-slate-800 text-xs block truncate">
                               Módulo: {sugestaoModulo.fabricante || 'Fabricante não inf.'}{' '}
                               {sugestaoModulo.modelo || ''}
                             </span>
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-[10px]">
                               {sugestaoModulo.existente ? (
-                                <span className="text-emerald-700 font-semibold">
-                                  ✓ Encontrado no catálogo ({sugestaoModulo.existente.marca}{' '}
+                                <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 inline text-emerald-600" />✓
+                                  Encontrado no catálogo ({sugestaoModulo.existente.marca}{' '}
                                   {sugestaoModulo.existente.modelo}) — será vinculado como ativo
                                 </span>
                               ) : (
-                                <span className="text-amber-700 font-semibold">
+                                <span className="text-amber-800 font-semibold flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 inline text-amber-600" />
                                   Ainda não cadastrado no catálogo de equipamentos
                                 </span>
                               )}
@@ -1392,7 +1393,7 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                                 potenciaW: sugestaoModulo.potenciaW || 550,
                               })
                             }
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
+                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
                           >
                             <Plus className="w-3 h-3" />
                             <span>Cadastrar Módulo na Hora</span>
@@ -1403,22 +1404,34 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
 
                     {/* Inversor */}
                     {sugestaoInversor && (
-                      <div className="p-2.5 bg-white rounded-lg border border-emerald-200 flex items-center justify-between gap-2 flex-wrap">
+                      <div
+                        className={`p-2.5 bg-white rounded-lg border flex items-center justify-between gap-2 flex-wrap transition-colors ${
+                          sugestaoInversor.existente
+                            ? 'border-emerald-200'
+                            : 'border-amber-300 bg-amber-50/40'
+                        }`}
+                      >
                         <div className="flex items-center gap-2 min-w-0">
-                          <Cpu className="w-4 h-4 text-blue-600 shrink-0" />
+                          <Cpu
+                            className={`w-4 h-4 shrink-0 ${
+                              sugestaoInversor.existente ? 'text-blue-600' : 'text-amber-600'
+                            }`}
+                          />
                           <div className="truncate">
                             <span className="font-bold text-slate-800 text-xs block truncate">
                               Inversor: {sugestaoInversor.fabricante || 'Fabricante não inf.'}{' '}
                               {sugestaoInversor.modelo || ''}
                             </span>
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-[10px]">
                               {sugestaoInversor.existente ? (
-                                <span className="text-emerald-700 font-semibold">
-                                  ✓ Encontrado no catálogo ({sugestaoInversor.existente.marca}{' '}
+                                <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 inline text-emerald-600" />✓
+                                  Encontrado no catálogo ({sugestaoInversor.existente.marca}{' '}
                                   {sugestaoInversor.existente.modelo}) — será vinculado como ativo
                                 </span>
                               ) : (
-                                <span className="text-amber-700 font-semibold">
+                                <span className="text-amber-800 font-semibold flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 inline text-amber-600" />
                                   Ainda não cadastrado no catálogo de equipamentos
                                 </span>
                               )}
@@ -1438,7 +1451,7 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                                 potenciaW: sugestaoInversor.potenciaW || 5000,
                               })
                             }
-                            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
+                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
                           >
                             <Plus className="w-3 h-3" />
                             <span>Cadastrar Inversor na Hora</span>
