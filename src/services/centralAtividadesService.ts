@@ -398,6 +398,11 @@ export async function carregarCentralAtividades(
         metadata: {
           valorServico: atv.valor_servico,
           numeroUc: atv.numero_uc,
+          protocoloAtendimento: atv.protocolo_atendimento,
+          retornosRge: atv.retornos_rge,
+          retornoRge: atv.retorno_rge,
+          prazoConclusaoRge: atv.prazo_conclusao_rge,
+          rawAtividade: atv,
         },
       })
     }

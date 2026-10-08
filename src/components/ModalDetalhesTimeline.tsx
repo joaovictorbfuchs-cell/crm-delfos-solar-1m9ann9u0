@@ -31,6 +31,7 @@ import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
 import { baixarProcuracaoPDF, type DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
 import { baixarContratoPDF, type DadosContratoOM } from '@/lib/contratoGenerator'
 import { useClientes } from '@/contexts/ClientesContext'
+import { BlocoRetornosRGE } from '@/components/BlocoRetornosRGE'
 import type { TimelineUnifiedItem } from '@/types/timelineUnified'
 import type { Cliente, AtividadeTipo, AtividadeStatus } from '@/types/crm'
 import {
@@ -838,6 +839,39 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                       <span>Alterar / Nova Rev.</span>
                     </button>
                   )}
+                </div>
+              )}
+
+              {/* Acompanhamento RGE — Troca de Titularidade */}
+              {item.rawAtividade?.tipo === 'troca_titularidade' && (
+                <div className="pt-2 border-t border-gray-100">
+                  <BlocoRetornosRGE
+                    atividade={item.rawAtividade}
+                    statusAtual={formStatus}
+                    onAtualizarAtividade={async (patch) => {
+                      if (!item.rawAtividade?.id) return
+                      const upd = await onUpdateAtividade(item.rawAtividade.id, patch)
+                      if (upd) {
+                        item.rawAtividade = { ...item.rawAtividade, ...upd, ...patch }
+                        if (patch.status) {
+                          setFormStatus(patch.status as AtividadeStatus)
+                          item.status = patch.status
+                        }
+                      }
+                      return upd
+                    }}
+                    onMarcarConcluida={async () => {
+                      if (!item.rawAtividade?.id) return
+                      setFormStatus('concluida')
+                      item.status = 'concluida'
+                      const upd = await onUpdateAtividade(item.rawAtividade.id, {
+                        status: 'concluida',
+                      })
+                      if (upd) {
+                        item.rawAtividade = { ...item.rawAtividade, ...upd, status: 'concluida' }
+                      }
+                    }}
+                  />
                 </div>
               )}
 

@@ -47,6 +47,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { ArrowLeft, RotateCcw, Send, CheckCircle } from 'lucide-react'
 import { ModalEnviarLembreteAutoLeituraWhatsApp } from '@/components/ModalEnviarLembreteAutoLeituraWhatsApp'
 import { ModalRegistrarDadosLeitura } from '@/components/ModalRegistrarDadosLeitura'
+import { obterUltimoRetornoRGE } from '@/components/BlocoRetornosRGE'
 
 // Ordem estrita do funil comercial Delfos Solar
 export const ORDEM_FUNIL_CLIENTE: ClienteStatus[] = [
@@ -837,6 +838,32 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                       <p className="text-[11px] text-gray-500 font-medium">{item.subtitulo}</p>
                     )}
                   </div>
+
+                  {/* Resumo RGE para Troca de Titularidade (Protocolo e Último Retorno) */}
+                  {item.rawAtividade?.tipo === 'troca_titularidade' &&
+                    (() => {
+                      const protocolo = item.rawAtividade.protocolo_atendimento
+                      const ultimoRetorno = obterUltimoRetornoRGE(item.rawAtividade.retornos_rge)
+                      const retornoTexto = ultimoRetorno?.texto || item.rawAtividade.retorno_rge
+
+                      if (!protocolo && !retornoTexto) return null
+
+                      return (
+                        <div className="mt-1.5 p-2 rounded-lg bg-teal-50/70 border border-teal-200 text-[11px] space-y-1">
+                          {protocolo && (
+                            <div className="flex items-center gap-1.5 font-medium text-teal-950">
+                              <span className="text-teal-700 font-semibold">Protocolo RGE:</span>
+                              <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-teal-200">
+                                {protocolo}
+                              </span>
+                            </div>
+                          )}
+                          {retornoTexto && (
+                            <p className="text-teal-900 italic line-clamp-2">"{retornoTexto}"</p>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                   {/* Descrição resumida */}
                   {item.descricao && (

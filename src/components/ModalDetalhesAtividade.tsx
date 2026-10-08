@@ -25,6 +25,7 @@ import {
   Sun,
 } from 'lucide-react'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
+import { BlocoRetornosRGE } from '@/components/BlocoRetornosRGE'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalEnviarLembreteAutoLeituraWhatsApp } from './ModalEnviarLembreteAutoLeituraWhatsApp'
 import { ModalRegistrarDadosLeitura } from './ModalRegistrarDadosLeitura'
@@ -151,9 +152,11 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [modalLembreteWhatsAppOpen, setModalLembreteWhatsAppOpen] = useState(false)
   const [modalRegistrarLeituraOpen, setModalRegistrarLeituraOpen] = useState(false)
   const [atividadeFilhaAlvo, setAtividadeFilhaAlvo] = useState<Atividade | null>(null)
+  const [atividadeLocal, setAtividadeLocal] = useState<Atividade | null>(atividade)
 
   // Preenchimento dos campos quando uma atividade é selecionada
   useEffect(() => {
+    setAtividadeLocal(atividade)
     if (isOpen && atividade) {
       setTitulo(atividade.titulo || '')
       const tipoAtv = atividade.tipo || 'contato_ligacao'
@@ -1369,6 +1372,68 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* SEÇÃO ESPECIAL: ACOMPANHAMENTO RGE — TROCA DE TITULARIDADE */}
+          {(tipo === 'troca_titularidade' || atividadeLocal?.tipo === 'troca_titularidade') && (
+            <BlocoRetornosRGE
+              atividade={atividadeLocal || atividade}
+              statusAtual={status}
+              prazoConclusaoRge={prazoConclusaoRge}
+              onChangePrazoConclusaoRge={(novoPrazo) => {
+                setPrazoConclusaoRge(novoPrazo)
+                if (atividade.id) {
+                  const valIso = novoPrazo ? new Date(novoPrazo + 'T12:00:00Z').toISOString() : null
+                  updateAtividade(atividade.id, {
+                    prazo_conclusao_rge: valIso,
+                  } as Partial<Atividade>)
+                    .then((upd) => {
+                      if (upd) {
+                        setAtividadeLocal(upd)
+                        if (onSaved) onSaved(upd)
+                        if (onSuccess) onSuccess(upd)
+                      }
+                    })
+                    .catch((e) => console.error('Erro ao atualizar prazo RGE:', e))
+                }
+              }}
+              onAtualizarAtividade={async (patch) => {
+                if (!atividade.id) return
+                const upd = await updateAtividade(atividade.id, patch as Partial<Atividade>)
+                if (upd) {
+                  setAtividadeLocal(upd)
+                  if (patch.status) {
+                    setStatus(patch.status as AtividadeStatus)
+                  }
+                  if (patch.protocolo_atendimento !== undefined) {
+                    setProtocoloAtendimento(patch.protocolo_atendimento || '')
+                  }
+                  if (patch.retorno_rge !== undefined) {
+                    setRetornoRge(patch.retorno_rge || '')
+                  }
+                  if (patch.prazo_conclusao_rge !== undefined) {
+                    setPrazoConclusaoRge(
+                      patch.prazo_conclusao_rge ? patch.prazo_conclusao_rge.slice(0, 10) : '',
+                    )
+                  }
+                  if (onSaved) onSaved(upd)
+                  if (onSuccess) onSuccess(upd)
+                }
+                return upd
+              }}
+              onMarcarConcluida={async () => {
+                if (!atividade.id) return
+                setStatus('concluida')
+                const upd = await updateAtividade(atividade.id, {
+                  status: 'concluida',
+                } as Partial<Atividade>)
+                if (upd) {
+                  setAtividadeLocal(upd)
+                  if (onSaved) onSaved(upd)
+                  if (onSuccess) onSuccess(upd)
+                }
+              }}
+            />
           )}
 
           {/* SEÇÃO ESPECIAL: LINK DO RELATÓRIO DE ANÁLISE DE FATURA */}

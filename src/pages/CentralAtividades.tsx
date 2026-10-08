@@ -65,6 +65,7 @@ import {
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { ModalGerenciarAtividades } from '@/components/ModalGerenciarAtividades'
+import { obterUltimoRetornoRGE } from '@/components/BlocoRetornosRGE'
 import type { Atividade, AtividadeCategoriaId, AtividadeStatus } from '@/types/crm'
 
 const ITEMS_PER_PAGE = 25
@@ -844,6 +845,45 @@ export default function CentralAtividadesPage() {
                                     {item.tipoAtividade}
                                   </span>
                                 )}
+
+                                {/* Badge/Resumo RGE para Troca de Titularidade (Desktop) */}
+                                {item.tipoId === 'troca_titularidade' &&
+                                  (() => {
+                                    const raw = item.metadata?.rawAtividade as Atividade | undefined
+                                    const protocolo =
+                                      (item.metadata?.protocoloAtendimento as string | undefined) ||
+                                      raw?.protocolo_atendimento
+                                    const ultimo = obterUltimoRetornoRGE(
+                                      item.metadata?.retornosRge || raw?.retornos_rge,
+                                    )
+                                    const retornoTexto =
+                                      ultimo?.texto ||
+                                      (item.metadata?.retornoRge as string | undefined) ||
+                                      raw?.retorno_rge
+
+                                    if (!protocolo && !retornoTexto) return null
+
+                                    return (
+                                      <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-teal-900 bg-teal-50/80 border border-teal-200 rounded px-1.5 py-0.5 max-w-full">
+                                        {protocolo && (
+                                          <div className="truncate">
+                                            <span className="font-semibold text-teal-700">
+                                              Prot:{' '}
+                                            </span>
+                                            <span className="font-mono font-bold">{protocolo}</span>
+                                          </div>
+                                        )}
+                                        {retornoTexto && (
+                                          <span
+                                            className="truncate italic text-teal-800"
+                                            title={retornoTexto}
+                                          >
+                                            {retornoTexto}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )
+                                  })()}
                               </div>
                             </td>
 
@@ -1006,8 +1046,47 @@ export default function CentralAtividadesPage() {
                                   {item.tipoAtividade}
                                 </span>
                               )}
+
+                              {/* Badge/Resumo RGE para Troca de Titularidade (Mobile) */}
+                              {item.tipoId === 'troca_titularidade' &&
+                                (() => {
+                                  const raw = item.metadata?.rawAtividade as Atividade | undefined
+                                  const protocolo =
+                                    (item.metadata?.protocoloAtendimento as string | undefined) ||
+                                    raw?.protocolo_atendimento
+                                  const ultimo = obterUltimoRetornoRGE(
+                                    item.metadata?.retornosRge || raw?.retornos_rge,
+                                  )
+                                  const retornoTexto =
+                                    ultimo?.texto ||
+                                    (item.metadata?.retornoRge as string | undefined) ||
+                                    raw?.retorno_rge
+
+                                  if (!protocolo && !retornoTexto) return null
+
+                                  return (
+                                    <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-teal-900 bg-teal-50/80 border border-teal-200 rounded px-1.5 py-0.5 max-w-full">
+                                      {protocolo && (
+                                        <div className="truncate">
+                                          <span className="font-semibold text-teal-700">
+                                            Prot:{' '}
+                                          </span>
+                                          <span className="font-mono font-bold">{protocolo}</span>
+                                        </div>
+                                      )}
+                                      {retornoTexto && (
+                                        <span
+                                          className="truncate italic text-teal-800"
+                                          title={retornoTexto}
+                                        >
+                                          {retornoTexto}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
                             </div>
-                          </div>
+                          </div>{' '}
                           <div className="shrink-0">
                             {renderStatusDot(item.status, item.statusRaw)}
                           </div>

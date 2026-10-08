@@ -963,6 +963,13 @@ export interface NotificacaoInterna extends RecordModel {
   }
 }
 
+export interface RetornoRGEItem {
+  id?: string
+  texto: string
+  dataHora: string
+  autor?: string
+}
+
 export interface Atividade extends RecordModel {
   id: string
   collectionId: string
@@ -1017,14 +1024,7 @@ export interface Atividade extends RecordModel {
   email_log_erro?: string
   protocolo_atendimento?: string
   retorno_rge?: string
-  retornos_rge?:
-    | Array<{
-        id?: string
-        texto: string
-        dataHora: string
-        autor?: string
-      }>
-    | unknown
+  retornos_rge?: Array<RetornoRGEItem> | unknown
   prazo_conclusao_rge?: string
   documentos_anexados?: Array<{ nome: string; tamanho?: number; url?: string }> | unknown
   // Campos de Auto Leitura RGE mãe e filhas

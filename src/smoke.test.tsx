@@ -2082,4 +2082,63 @@ describe('Login e App Smoke Tests', () => {
     expect(text).toContain('Baixar como PDF')
     expect(text).toContain('Enviar pelo WhatsApp')
   })
+
+  it('BlocoRetornosRGE: helpers de normalização e ordenação funcionam perfeitamente', async () => {
+    const { normalizarRetornosRGE, obterUltimoRetornoRGE } =
+      await import('@/components/BlocoRetornosRGE')
+
+    // 1. Array vazio ou nulo
+    expect(normalizarRetornosRGE(null)).toEqual([])
+    expect(normalizarRetornosRGE(undefined)).toEqual([])
+    expect(obterUltimoRetornoRGE([])).toBeNull()
+
+    // 2. String JSON válida
+    const jsonStr = JSON.stringify([
+      { id: '1', texto: 'Primeiro retorno', dataHora: '2025-01-01T10:00:00Z', autor: 'Admin' },
+      { id: '2', texto: 'Segundo retorno', dataHora: '2025-01-02T10:00:00Z', autor: 'Admin' },
+    ])
+    const normalizado = normalizarRetornosRGE(jsonStr)
+    expect(normalizado).toHaveLength(2)
+    // Ordenação mais recente primeiro
+    expect(normalizado[0].id).toBe('2')
+    expect(normalizado[1].id).toBe('1')
+
+    const ultimo = obterUltimoRetornoRGE(jsonStr)
+    expect(ultimo?.texto).toBe('Segundo retorno')
+  })
+
+  it('BlocoRetornosRGE: renderiza protocolo, histórico e badges na atividade de troca_titularidade', async () => {
+    const { BlocoRetornosRGE } = await import('@/components/BlocoRetornosRGE')
+    const atvMock: any = {
+      id: 'atv-troca-1',
+      tipo: 'troca_titularidade',
+      titulo: 'Troca de Titularidade - UC 123',
+      protocolo_atendimento: 'RGE-998877',
+      prazo_conclusao_rge: '2025-12-31T12:00:00Z',
+      retornos_rge: [
+        {
+          id: 'ret-1',
+          texto: 'Documentação enviada para a concessionária',
+          dataHora: '2025-10-01T14:30:00Z',
+          autor: 'Carlos',
+        },
+      ],
+      status: 'pendente',
+    }
+
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const html = renderToStaticMarkup(
+      React.createElement(BlocoRetornosRGE, {
+        atividade: atvMock,
+        statusAtual: 'pendente',
+        onAtualizarAtividade: async () => atvMock,
+        onMarcarConcluida: async () => {},
+      }),
+    )
+
+    expect(html).toContain('Acompanhamento RGE — Troca de Titularidade')
+    expect(html).toContain('RGE-998877')
+    expect(html).toContain('Documentação enviada para a concessionária')
+    expect(html).toContain('Concluída')
+  })
 })
