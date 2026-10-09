@@ -1608,7 +1608,7 @@ function CalendarioExecucaoOSContent({
         </div>
 
         {/* Bloco Central: Período, Navegação e Modo de Visualização */}
-        <div className="items-center gap-2 flex-wrap justify-center flex-1 min-w-[280px] pl-[0px] pr-[140px] flex">
+        <div className="items-center gap-2 flex-wrap justify-center flex-1 min-w-[280px] pl-[0px] flex">
           {/* Navegação entre períodos: < Hoje > */}
           <div className="flex items-center gap-1 shrink-0">
             <Button
