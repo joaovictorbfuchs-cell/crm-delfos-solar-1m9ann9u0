@@ -14,7 +14,6 @@ import {
   Share2,
   Copy,
   Check,
-  CheckCircle2,
   Info,
   BarChart3,
   Receipt,
@@ -135,8 +134,18 @@ export const RelatorioFaturaPage: React.FC = () => {
   const totais = dados?.totais || {}
   const impostos = dados?.impostos || {}
   const indicadores = dados?.indicadores || {}
-  const alertas = dados?.alertas || []
-  const recomendacoes = dados?.conclusoes_recomendacoes || []
+  const alertas = useMemo(() => {
+    const rawAlertas = dados?.alertas || []
+    return rawAlertas.filter((alerta) => {
+      const tituloNormalizado = (alerta.titulo || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+      if (tituloNormalizado.includes('divergencia')) return false
+      if (tituloNormalizado.includes('saldo acumulado')) return false
+      return true
+    })
+  }, [dados?.alertas])
 
   // --- 1. LÓGICA DE GD E FLUXO DE CRÉDITOS ---
   const gdCalculada = useMemo(() => {
@@ -508,19 +517,6 @@ export const RelatorioFaturaPage: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Sugestão de Preenchimento Cadastral caso detectada */}
-          {cad.sugestao_preenchimento_crm && (
-            <div className="mt-5 p-3.5 bg-amber-500/20 border border-amber-400/40 rounded-2xl text-xs text-amber-200 flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-amber-100">
-                  Atualização Cadastral Sugerida pela Fatura:
-                </strong>{' '}
-                {cad.sugestao_preenchimento_crm}
-              </div>
-            </div>
-          )}
         </section>
 
         {/* Alertas Críticos destacados em Vermelho */}
@@ -576,7 +572,7 @@ export const RelatorioFaturaPage: React.FC = () => {
         )}
 
         {/* 1. KPIs no Topo */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {/* Consumo do Mês */}
           <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
@@ -611,22 +607,6 @@ export const RelatorioFaturaPage: React.FC = () => {
               <span className="text-xs text-sky-600/70 font-normal">kWh</span>
             </div>
             <span className="text-[10px] text-gray-400 block">Abatidos nesta fatura</span>
-          </div>
-
-          {/* Saldo de Energia */}
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
-            <span className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider block">
-              Saldo Acumulado
-            </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-purple-600 flex items-baseline gap-1">
-              {(medicao.saldo_energia?.saldo_atual_instalacao_kwh || 0).toLocaleString('pt-BR')}
-              <span className="text-xs text-purple-600/70 font-normal">kWh</span>
-            </div>
-            <span className="text-[10px] text-gray-400 block">
-              {medicao.saldo_energia?.meses_cobertura_saldo
-                ? `Cobre ${medicao.saldo_energia.meses_cobertura_saldo} meses`
-                : 'Reserva na concessionária'}
-            </span>
           </div>
 
           {/* Total a Pagar */}
@@ -1011,7 +991,7 @@ export const RelatorioFaturaPage: React.FC = () => {
             <span>Dados do Ciclo e Período de Leitura</span>
           </h3>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
               <span className="text-gray-500 block text-[11px]">Leitura Anterior</span>
               <strong className="text-gray-900 text-sm font-semibold">
@@ -1046,12 +1026,6 @@ export const RelatorioFaturaPage: React.FC = () => {
               <span className="text-gray-500 block text-[11px]">Vencimento</span>
               <strong className="text-emerald-700 text-sm font-bold">
                 {periodo.vencimento || '—'}
-              </strong>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <span className="text-gray-500 block text-[11px]">Bandeira Tarifária</span>
-              <strong className="text-gray-900 text-sm font-semibold">
-                {totais.bandeira_tarifaria?.cor || 'Verde'}
               </strong>
             </div>
           </div>
@@ -1167,10 +1141,6 @@ export const RelatorioFaturaPage: React.FC = () => {
                 Itens Faturados e Desdobramento Tributário (TUSD / TE / ICMS / PIS / COFINS)
               </span>
             </h3>
-            <span className="text-xs text-gray-500 font-mono">
-              Tarifa Cheia Efetiva:{' '}
-              <strong>R$ {(indicadores.tarifa_cheia_efetiva_rs_kwh || 1.15).toFixed(4)}/kWh</strong>
-            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -1252,32 +1222,20 @@ export const RelatorioFaturaPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 8. Conclusões e Recomendações Acionáveis */}
-        <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Conclusões e Recomendações Técnicas Acionáveis</span>
-          </h3>
-
-          <div className="space-y-2.5">
-            {recomendacoes.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                O gerador solar e o arranjo de compensação encontram-se em funcionamento regular.
-                Mantenha o acompanhamento mensal pela Delfos Solar.
-              </p>
-            ) : (
-              recomendacoes.map((rec, i) => (
-                <div
-                  key={i}
-                  className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex items-start gap-3 text-xs text-gray-800"
-                >
-                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0">
-                    {i + 1}
-                  </div>
-                  <div className="leading-relaxed pt-0.5">{rec}</div>
-                </div>
-              ))
-            )}
+        {/* Card de Bandeira Tarifária posicionado logo abaixo de Itens Faturados */}
+        <section className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs flex items-center justify-between">
+          <div className="space-y-0.5">
+            <span className="text-[11px] text-gray-500 uppercase font-semibold tracking-wider block">
+              Bandeira Tarifária do Ciclo
+            </span>
+            <span className="text-xs text-gray-500">
+              Regime tarifário de bandeira aplicado pela ANEEL neste ciclo
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-slate-100 rounded-xl border border-slate-200">
+            <span className="text-xs font-bold text-gray-900">
+              {totais.bandeira_tarifaria?.cor || 'Verde'}
+            </span>
           </div>
         </section>
 
