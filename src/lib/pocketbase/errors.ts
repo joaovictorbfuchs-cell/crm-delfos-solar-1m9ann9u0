@@ -28,10 +28,6 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Identifica erros de sessão expirada ou não autorizada (401 / 403).
- * Salvaguarda obrigatória do projeto.
- */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
@@ -41,12 +37,13 @@ export function isAuthSessionError(error: unknown): boolean {
     if (typeof errObj.message === 'string') {
       const msg = errObj.message.toLowerCase()
       if (
-        msg.includes('token') &&
-        (msg.includes('expired') || msg.includes('invalid') || msg.includes('required'))
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('unauthorized') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('session expired') ||
+        msg.includes('the request requires valid user authorization')
       ) {
-        return true
-      }
-      if (msg.includes('unauthorized') || msg.includes('authenticate')) {
         return true
       }
     }
