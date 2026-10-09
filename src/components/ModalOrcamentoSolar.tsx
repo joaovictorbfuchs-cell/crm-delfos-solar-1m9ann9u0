@@ -167,7 +167,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     selecionarFornecedorOrcamento,
     addOrcamentoSolar,
     updateOrcamentoSolar,
-    addAtividade,
     updateClienteStatus,
   } = useClientes()
   const { user } = useAuth()
@@ -1412,25 +1411,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       } else {
         const created = await addOrcamentoSolar(dataToSend)
         orcamentoSalvoId = created.id
-      }
-
-      // Adicionar atividade na timeline do cliente
-      try {
-        await addAtividade({
-          cliente_id: clienteAtual.id,
-          tipo: 'proposta',
-          titulo: `Proposta Solar (Revisão ${numeroRevisao}): ${potenciaKwp} kWp (${status})`,
-          descricao: `Proposta Solar (Revisão ${numeroRevisao}) de ${potenciaKwp} kWp com ${numeroPlacas} placas (${potenciaPlacaWp}W) e inversor ${marcaInversor}.\nInvestimento total: ${formatCurrency(
-            valorInvestimentoFinal,
-          )} | Geração média: ${calculos.geracaoMediaMensalKwh} kWh/mês | Payback: ${
-            calculos.paybackMeses
-          } meses.\nStatus: ${status} (${statusRevisao}).`,
-          data: new Date().toISOString(),
-          status: status === 'Aprovado' ? 'concluida' : 'pendente',
-          autor: user?.name || 'Equipe Delfos Solar',
-        })
-      } catch (errAtv) {
-        console.error('Erro ao adicionar atividade:', errAtv)
       }
 
       // Atualizar status do cliente para Orçamento se estiver em Novo Lead ou Levantamento

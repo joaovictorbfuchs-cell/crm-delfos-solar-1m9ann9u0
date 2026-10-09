@@ -24,7 +24,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     sistemas,
     addPropostaOM,
     updatePropostaOM,
-    addAtividade,
     addTimelineOM,
     updateClienteStatus,
   } = useClientes()
@@ -204,23 +203,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         nova = await updatePropostaOM(initialProposta.id, dadosProposta)
       } else {
         nova = await addPropostaOM(dadosProposta)
-      }
-
-      // 2. Gravar atividade na timeline unificada do cliente com tipo "proposta"
-      try {
-        await addAtividade({
-          cliente_id: clienteAtual.id,
-          tipo: 'proposta',
-          titulo: 'Proposta O&M Salva',
-          descricao: `Proposta técnica e comercial de Gestão e Manutenção salva para usina de ${potenciaKwp} kWp com comparativo dos 3 planos (Essencial, Prevenção e Completo).\nAtivo protegido: ${formatCurrency(
-            calculos.valorAtivoProtegido,
-          )}/mês. Perda evitada por prevenção: até ${formatCurrency(calculos.perda20Ano)}/ano.`,
-          data: new Date().toISOString(),
-          status: 'concluida',
-          autor: user?.name || 'Equipe Comercial Delfos Solar',
-        })
-      } catch (errAtv) {
-        console.error('Erro ao adicionar atividade de proposta:', errAtv)
       }
 
       // 3. Gravar na timeline O&M
