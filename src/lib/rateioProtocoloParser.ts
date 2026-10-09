@@ -22,6 +22,9 @@
 export interface UnidadeImportadaRateio {
   numero_uc: string
   percentual: number
+  rotulo?: string
+  identificacao?: string
+  documento?: string
 }
 
 export interface ResultadoParseRateioProtocolo {
@@ -29,6 +32,7 @@ export interface ResultadoParseRateioProtocolo {
   protocolo?: string
   dataHora?: string
   unidades: UnidadeImportadaRateio[]
+  percentualGeradora?: number
   somaPercentuais: number
   erros: string[]
   avisos: string[]
@@ -62,6 +66,18 @@ export function extrairNumeroProtocolo(linha: string): string | null {
     const limpo = match[1].trim().replace(/[^A-Za-z0-9-]/g, '')
     if (limpo.length >= 4) return limpo
   }
+
+  // Suporte a linha com apenas "Protocolo 2175698383" (sem dois pontos, mas com número/identificador)
+  const matchSemPontuacao = linha.match(
+    /\b(?:protocolo|atendimento)\s+(?:n[ºo°]?\s+)?([0-9][A-Za-z0-9\-./]*)/i,
+  )
+  if (matchSemPontuacao && matchSemPontuacao[1]) {
+    const limpo = matchSemPontuacao[1].trim().replace(/[^A-Za-z0-9-]/g, '')
+    if (limpo.length >= 4) {
+      return limpo
+    }
+  }
+
   return null
 }
 
@@ -84,6 +100,66 @@ export function extrairDataHoraConfirmacao(texto: string): string | null {
   }
 
   return null
+}
+
+export interface LinhaRateioSetaExtraida {
+  tipo: 'geradora' | 'beneficiaria'
+  rotulo: string
+  documentoBruto: string
+  numero_uc: string
+  percentual: number
+  identificacao: string
+}
+
+/**
+ * Tenta fazer o parse de uma linha no formato de seta:
+ * UCG (290984100192) → 0,00%
+ * UCB 1 (2.909.841.001-92) -> 5,00%
+ * UCB (778.946.001-78) → 15,00%
+ */
+export function tentarParseLinhaSeta(linha: string): LinhaRateioSetaExtraida | null {
+  const limpa = linha.trim()
+  if (!limpa) return null
+
+  // Expressão regular tolerante:
+  // Início da linha: UCG ou UCB (opcionalmente com número/sufixo, ex: UCB 1, UCB 02)
+  // Seguido de documento/número entre parênteses: (2.909.841.001-92) ou (290984100192)
+  // Seguido de seta ("→" ou "->") com espaços opcionais
+  // Seguido de percentual numérico com vírgula ou ponto e símbolo de % opcional ou obrigatório
+  const regex =
+    /^\s*(UC[GB])(?:\s+([A-Za-z0-9_.-]+))?\s*\(([^)]+)\)\s*(?:→|->)\s*([0-9]+(?:[.,][0-9]+)?)\s*%?\s*$/i
+  const match = limpa.match(regex)
+  if (!match) return null
+
+  const prefixo = match[1].toUpperCase()
+  const sufixo = match[2] ? match[2].trim() : ''
+  const docBruto = match[3].trim()
+  const percStr = match[4].trim()
+
+  const tipo: 'geradora' | 'beneficiaria' = prefixo === 'UCG' ? 'geradora' : 'beneficiaria'
+  const rotulo = sufixo ? `${prefixo} ${sufixo}` : prefixo
+  const perc = normalizarPercentual(percStr)
+  if (perc === null) return null
+
+  // O número da UC é extraído do documento/número entre parênteses
+  const numero_uc = docBruto.replace(/\D/g, '')
+  if (!numero_uc) return null
+
+  // Identificação consistente: rótulo + documento
+  // Quando o documento/número estiver disponível, combina rótulo com documento:
+  // Se pontuado (ex.: 2.909.841.001-92) -> "UCB 1 (2.909.841.001-92)"
+  // Se sem pontuação (ex.: 290984100192) -> "UCB 1 (290984100192)"
+  // Se apenas rótulo sem doc extra -> "UCB 1"
+  const identificacao = docBruto ? `${rotulo} (${docBruto})` : rotulo
+
+  return {
+    tipo,
+    rotulo,
+    documentoBruto: docBruto,
+    numero_uc,
+    percentual: perc,
+    identificacao,
+  }
 }
 
 /**
@@ -234,46 +310,79 @@ export function parseConfirmacaoConcessionaria(textoBruto: string): ResultadoPar
     }
   }
 
-  // Fallback caso "Protocolo: 2175698383" esteja no meio de um bloco
+  // Fallback caso "Protocolo: 2175698383" ou variações estejam no texto
   if (!protocolo) {
     const match = textoBruto.match(
-      /protocolo\s*(?:n[ºo°]?|de\s+atendimento)?\s*[:=-]\s*([A-Za-z0-9\-./]+)/i,
+      /(?:protocolo|atendimento|solicita[çc][ãa]o)\s*(?:n[ºo°]?|de\s+atendimento)?\s*[:=-]\s*([A-Za-z0-9\-./]+)/i,
     )
     if (match && match[1]) {
       const limpo = match[1].trim().replace(/[^A-Za-z0-9-]/g, '')
-      if (limpo.length >= 4) protocolo = limpo
+      if (limpo.length >= 4) {
+        protocolo = limpo
+      }
     }
   }
 
   // 2. Extrair data e hora
   dataHora = extrairDataHoraConfirmacao(textoBruto) || undefined
 
-  // 3. Extrair unidades consumidoras
-  const unidadesMap = new Map<string, number>()
+  // 3. Extrair unidades consumidoras: Primeiro verifica se há linhas no formato de seta (UCG / UCB ... -> / → ...%)
+  let percentualGeradora: number | undefined = undefined
+  const linhasSetaBeneficiarias: LinhaRateioSetaExtraida[] = []
+
   for (const linha of linhas) {
-    const u = tentarParseLinhaUC(linha)
-    if (u) {
-      // Se a mesma UC aparecer mais de uma vez no texto, a última substitui ou avisa
-      if (unidadesMap.has(u.numero_uc)) {
-        avisos.push(
-          `A UC ${u.numero_uc} apareceu duplicada no texto; último percentual (${u.percentual}%) considerado.`,
-        )
+    const itemSeta = tentarParseLinhaSeta(linha)
+    if (itemSeta) {
+      if (itemSeta.tipo === 'geradora') {
+        percentualGeradora = itemSeta.percentual
+      } else {
+        linhasSetaBeneficiarias.push(itemSeta)
       }
-      unidadesMap.set(u.numero_uc, u.percentual)
     }
   }
 
-  const unidades: UnidadeImportadaRateio[] = Array.from(unidadesMap.entries()).map(
-    ([numero_uc, percentual]) => ({
-      numero_uc,
-      percentual,
-    }),
-  )
+  const unidadesMap = new Map<string, UnidadeImportadaRateio>()
+
+  if (linhasSetaBeneficiarias.length > 0) {
+    // Formato com setas detectado!
+    for (const b of linhasSetaBeneficiarias) {
+      if (unidadesMap.has(b.numero_uc)) {
+        avisos.push(
+          `A UC ${b.numero_uc} apareceu duplicada no texto; último percentual (${b.percentual}%) considerado.`,
+        )
+      }
+      unidadesMap.set(b.numero_uc, {
+        numero_uc: b.numero_uc,
+        percentual: b.percentual,
+        rotulo: b.rotulo,
+        identificacao: b.identificacao,
+        documento: b.documentoBruto,
+      })
+    }
+  } else {
+    // Formato tabular tradicional (pipe, tab, múltiplos espaços)
+    for (const linha of linhas) {
+      const u = tentarParseLinhaUC(linha)
+      if (u) {
+        if (unidadesMap.has(u.numero_uc)) {
+          avisos.push(
+            `A UC ${u.numero_uc} apareceu duplicada no texto; último percentual (${u.percentual}%) considerado.`,
+          )
+        }
+        unidadesMap.set(u.numero_uc, u)
+      }
+    }
+  }
+
+  const unidades: UnidadeImportadaRateio[] = Array.from(unidadesMap.values())
 
   const somaPercentuais = Math.round(unidades.reduce((acc, u) => acc + u.percentual, 0) * 100) / 100
 
   // Validações obrigatórias
   if (!protocolo) {
+    // Se não encontrou protocolo, gera aviso em vez de travar se as UCs foram extraídas com sucesso,
+    // ou erro descritivo. Mas atentar: o modal permite confirmar apenas se protocolo existir,
+    // portanto marcamos erro claro para o usuário.
     erros.push(
       'Não foi possível identificar o número do protocolo no texto (exemplo esperado: "Protocolo: 2175698383").',
     )
@@ -290,6 +399,7 @@ export function parseConfirmacaoConcessionaria(textoBruto: string): ResultadoPar
     protocolo,
     dataHora,
     unidades,
+    percentualGeradora,
     somaPercentuais,
     erros,
     avisos,
@@ -309,6 +419,16 @@ export async function extrairRateioProtocoloComFallbackIA(
   const parseLocal = parseConfirmacaoConcessionaria(textoBruto)
   if (parseLocal.sucesso && parseLocal.unidades.length > 0 && parseLocal.protocolo) {
     return parseLocal
+  }
+
+  // Se o parser local já extraiu com sucesso as unidades no formato com setas, mas apenas faltou protocolo
+  // retornamos o parseLocal sem necessidade de chamada externa que possa alterar os percentuais
+  if (
+    parseLocal.unidades.length > 0 &&
+    parseLocal.erros.length === 1 &&
+    parseLocal.erros[0].includes('protocolo')
+  ) {
+    // se não há backend configurado ou fallback falhar, mantém as unidades
   }
 
   // 2. Se falhar e não houver texto substantivo
@@ -363,6 +483,10 @@ export async function extrairRateioProtocoloComFallbackIA(
           if (jsonMatch) {
             const parsedObj = JSON.parse(jsonMatch[0])
             const prot = parsedObj.protocolo || parsedObj.numero_protocolo
+            const percGer =
+              parsedObj.percentual_geradora !== undefined
+                ? normalizarPercentual(String(parsedObj.percentual_geradora))
+                : undefined
             const unidadesArray = Array.isArray(parsedObj.unidades)
               ? parsedObj.unidades
               : Array.isArray(parsedObj.beneficiarias)
@@ -374,8 +498,15 @@ export async function extrairRateioProtocoloComFallbackIA(
               for (const item of unidadesArray) {
                 const ucStr = String(item.numero_uc || item.uc || '').replace(/\D/g, '')
                 const perc = normalizarPercentual(String(item.percentual ?? item.rateio ?? ''))
+                const rot = item.rotulo ? String(item.rotulo).trim() : undefined
+                const ident = item.identificacao ? String(item.identificacao).trim() : rot
                 if (ucStr && perc !== null) {
-                  ucsExtraidas.push({ numero_uc: ucStr, percentual: perc })
+                  ucsExtraidas.push({
+                    numero_uc: ucStr,
+                    percentual: perc,
+                    rotulo: rot,
+                    identificacao: ident,
+                  })
                 }
               }
 
@@ -387,6 +518,7 @@ export async function extrairRateioProtocoloComFallbackIA(
                   protocolo: String(prot).trim(),
                   dataHora: extrairDataHoraConfirmacao(textoBruto) || undefined,
                   unidades: ucsExtraidas,
+                  percentualGeradora: percGer ?? undefined,
                   somaPercentuais: soma,
                   erros: [],
                   avisos: ['Dados recuperados com sucesso via fallback de IA.'],

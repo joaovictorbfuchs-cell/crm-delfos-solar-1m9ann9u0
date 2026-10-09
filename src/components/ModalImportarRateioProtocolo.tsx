@@ -107,7 +107,10 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
   // Quando o parse mudar e for válido, define percentual da geradora inteligente
   React.useEffect(() => {
     if (parseResultado?.sucesso) {
-      if (Math.abs(parseResultado.somaPercentuais - 100) <= 0.01) {
+      if (typeof parseResultado.percentualGeradora === 'number') {
+        // Se o texto explicitou a geradora (ex: "UCG (...) → 0,00%"), usa exatamente o valor extraído
+        setPercentualGeradoraSugerido(parseResultado.percentualGeradora)
+      } else if (Math.abs(parseResultado.somaPercentuais - 100) <= 0.01) {
         setPercentualGeradoraSugerido(0)
       } else if (parseResultado.somaPercentuais < 100) {
         // Se a soma der menor que 100, sugere a diferença para fechar 100%
@@ -182,11 +185,12 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
     // 1. Processar UCs que vieram no texto da concessionária
     for (const u of parseResultado.unidades) {
       const existe = mapaExistentes.get(u.numero_uc)
+      const identTexto = u.identificacao || u.rotulo || ''
       if (existe) {
         atualizadasCount++
         listaFinal.push({
           numero_uc: u.numero_uc,
-          identificacao: existe.identificacao || '',
+          identificacao: existe.identificacao || identTexto,
           percentual: u.percentual,
           tipo: 'atualizada',
           percentualAnterior: existe.percentual,
@@ -195,7 +199,7 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
         novasCount++
         listaFinal.push({
           numero_uc: u.numero_uc,
-          identificacao: '',
+          identificacao: identTexto,
           percentual: u.percentual,
           tipo: 'nova',
         })
@@ -372,7 +376,7 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
               rows={7}
               value={textoColado}
               onChange={(e) => setTextoColado(e.target.value)}
-              placeholder={`Cole aqui o texto completo copiado da tela da concessionária...\nExemplo:\nProtocolo: 2175698383\n14:42 05/08/2026\nUC | CPF/CNPJ | Rateio\n308155225 | 54323843020 | 5\n4004357003 | 54323843020 | 35`}
+              placeholder={`Cole aqui o texto completo copiado da concessionária...\nExemplo tabular RGE:\nProtocolo: 2175698383\nUC | CPF/CNPJ | Rateio\n308155225 | 54323843020 | 50\n\nOu formato com setas:\nProtocolo: 2175698383\nUCG (290984100192) → 0,00%\nUCB 1 (2.909.841.001-92) → 50,00%\nUCB 2 (778.946.001-78) → 50,00%`}
               className="w-full rounded-lg border border-slate-300 bg-white p-2.5 font-mono text-[11px] text-slate-800 shadow-2xs focus:border-[#0F2038] focus:ring-1 focus:ring-[#0F2038] focus:outline-none"
               disabled={isProcessando}
             />
