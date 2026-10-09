@@ -25,32 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (
-      errObj.status === 401 ||
-      errObj.status === 403 ||
-      errObj.statusCode === 401 ||
-      errObj.statusCode === 403
-    ) {
-      return true
-    }
-    if (typeof errObj.message === 'string') {
-      const msg = errObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('the request requires valid record authorization token') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('invalid or expired token')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
