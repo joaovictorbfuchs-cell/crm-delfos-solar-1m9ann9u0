@@ -28,6 +28,11 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
+import {
+  parseSaoPauloToUtcIso,
+  getSaoPauloTimestampMs,
+  formatUtcToSaoPaulo,
+} from '@/lib/datetimeSaoPaulo'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
 import {
   resolverNumeroDestinoCliente,
@@ -188,12 +193,21 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
       return
     }
 
+    let agendadoParaUtcIso: string | null = null
     if (agendarEnvio && dataHoraAgendada) {
-      const scheduleTime = new Date(dataHoraAgendada).getTime()
-      if (scheduleTime <= Date.now() + 60 * 1000) {
+      const scheduleTime = getSaoPauloTimestampMs(dataHoraAgendada)
+      if (!scheduleTime || scheduleTime <= Date.now() + 60 * 1000) {
         setFeedback({
           tipo: 'error',
           texto: 'A data/hora de agendamento deve ser posterior ao momento atual.',
+        })
+        return
+      }
+      agendadoParaUtcIso = parseSaoPauloToUtcIso(dataHoraAgendada)
+      if (!agendadoParaUtcIso) {
+        setFeedback({
+          tipo: 'error',
+          texto: 'Data/hora de agendamento inválida. Selecione uma data e horário válidos.',
         })
         return
       }
@@ -214,8 +228,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
         telefone_destino: tel,
         conteudo_final: msgComPrefixo,
         template_id: selectedTemplateId || undefined,
-        agendado_para:
-          agendarEnvio && dataHoraAgendada ? new Date(dataHoraAgendada).toISOString() : null,
+        agendado_para: agendadoParaUtcIso,
         tipo_disparo: 'manual',
       })
 
@@ -235,9 +248,12 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
       }
 
       if (agendarEnvio) {
+        const dataExibicaoSp = agendadoParaUtcIso
+          ? formatUtcToSaoPaulo(agendadoParaUtcIso)
+          : dataHoraAgendada
         setFeedback({
           tipo: 'success',
-          texto: `Mensagem agendada com sucesso para ${formatDateTime(dataHoraAgendada)}! Ela será processada pela fila automática.`,
+          texto: `Mensagem agendada com sucesso para ${dataExibicaoSp} (horário de Brasília/SP)! Ela será processada pela fila automática.`,
         })
       } else if (res.sent) {
         setFeedback({
@@ -295,7 +311,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
             <Clock4 className="w-3 h-3 text-amber-600" />
-            Agendada {agendadoPara ? `(${formatDateTime(agendadoPara)})` : ''}
+            Agendada {agendadoPara ? `(${formatUtcToSaoPaulo(agendadoPara)})` : ''}
           </span>
         )
       case 'falha':
@@ -749,7 +765,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
 
                     <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
                       <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                      <span>{formatDateTime(dataExibida)}</span>
+                      <span>{formatUtcToSaoPaulo(dataExibida)}</span>
                     </div>
                   </div>
 
