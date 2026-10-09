@@ -195,6 +195,30 @@ describe('mesclarMultiplosClientes - otimizações e integridade de dados', () =
     expect(sanitized.portal_senha).toBe('senha-secreta')
   })
 
+  it('sanitizarPayloadUsina aceita campo beneficiarias válido e descarta inválido', () => {
+    const rawValido = {
+      nome: 'Usina com Beneficiarias',
+      beneficiarias: {
+        habilitado: true,
+        percentual_geradora: 60,
+        unidades: [{ numero_uc: '12345', identificacao: 'Casa Praia', percentual: 40 }],
+      },
+    }
+    const sanitizedValido = sanitizarPayloadUsina(rawValido)
+    expect(sanitizedValido.beneficiarias).toEqual({
+      habilitado: true,
+      percentual_geradora: 60,
+      unidades: [{ numero_uc: '12345', identificacao: 'Casa Praia', percentual: 40 }],
+    })
+
+    const rawVazio = {
+      nome: 'Usina sem Beneficiarias',
+      beneficiarias: null,
+    }
+    const sanitizedVazio = sanitizarPayloadUsina(rawVazio)
+    expect(sanitizedVazio.beneficiarias).toBeNull()
+  })
+
   it('updateUsina sanitiza o payload antes de invocar o PATCH no PocketBase', async () => {
     mockPbUpdate.mockClear()
     mockPbGetFullList.mockResolvedValue([])

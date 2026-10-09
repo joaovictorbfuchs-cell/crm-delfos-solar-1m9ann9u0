@@ -4214,6 +4214,7 @@ export const CAMPOS_VALIDOS_USINAS = new Set<string>([
   'dados_atualizados',
   'portal_login',
   'portal_senha',
+  'beneficiarias',
 ])
 
 const CAMPOS_NUMERICOS_USINAS = new Set<string>([
@@ -4353,13 +4354,25 @@ export function sanitizarPayloadUsina(raw: Record<string, unknown>): Record<stri
       continue
     }
 
-    // Tratamento de campos JSON (documentos_usina)
+    // Tratamento de campos JSON (documentos_usina, beneficiarias)
     if (key === 'documentos_usina') {
       if (value === null) {
         sanitized[key] = []
         continue
       }
       if (Array.isArray(value)) {
+        sanitized[key] = value
+        continue
+      }
+      continue
+    }
+
+    if (key === 'beneficiarias') {
+      if (value === null || value === '' || value === false) {
+        sanitized[key] = null
+        continue
+      }
+      if (typeof value === 'object') {
         sanitized[key] = value
         continue
       }

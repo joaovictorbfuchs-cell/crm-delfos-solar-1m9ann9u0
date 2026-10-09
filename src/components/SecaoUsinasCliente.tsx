@@ -22,7 +22,13 @@ import {
   Info,
   Sparkles,
 } from 'lucide-react'
-import { UsinaCliente, ContratoOM, Cliente } from '@/types/crm'
+import {
+  UsinaCliente,
+  ContratoOM,
+  Cliente,
+  UsinaBeneficiariasConfig,
+  UsinaBeneficiariaItem,
+} from '@/types/crm'
 import { formatCurrency, formatDate, formatWhatsAppPhone } from '@/lib/formatters'
 import { calcularStatusDinamicoContrato } from '@/lib/contratoStatusDinamico'
 import { useAuth } from '@/contexts/AuthContext'
@@ -62,6 +68,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Users,
 } from 'lucide-react'
 import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
 import { BlocoAnotacoesUsina } from '@/components/BlocoAnotacoesUsina'
@@ -163,6 +170,11 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [editDadosAtualizados, setEditDadosAtualizados] = useState<boolean>(true)
   const [isUpdatingStatusCadastral, setIsUpdatingStatusCadastral] = useState(false)
 
+  // Unidades Beneficiárias na Edição da Ficha
+  const [editBeneficiariasHabilitado, setEditBeneficiariasHabilitado] = useState(false)
+  const [editPercentualGeradora, setEditPercentualGeradora] = useState<number | string>(100)
+  const [editBeneficiariasLista, setEditBeneficiariasLista] = useState<UsinaBeneficiariaItem[]>([])
+
   // Modal Nova Usina
   // Catálogo de equipamentos para conferência de datasheet
   const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<Equipamento[]>([])
@@ -241,6 +253,15 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [novaUsinaContratoId, setNovaUsinaContratoId] = useState<string>('')
   const [isSavingNovaUsina, setIsSavingNovaUsina] = useState(false)
 
+  // Unidades Beneficiárias no Modal de Criação da Usina
+  const [novaUsinaBeneficiariasHabilitado, setNovaUsinaBeneficiariasHabilitado] = useState(false)
+  const [novaUsinaPercentualGeradora, setNovaUsinaPercentualGeradora] = useState<number | string>(
+    100,
+  )
+  const [novaUsinaBeneficiariasLista, setNovaUsinaBeneficiariasLista] = useState<
+    UsinaBeneficiariaItem[]
+  >([])
+
   // Extração de documento para Nova Usina
   const [isExtraindoDocNovaUsina, setIsExtraindoDocNovaUsina] = useState(false)
   const [statusProgressoNovaUsina, setStatusProgressoNovaUsina] = useState<string | null>(null)
@@ -280,6 +301,18 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     setEditTipoUsina(usina.tipo_usina || 'residencial')
     setEditObservacoes(usina.observacoes || '')
     setEditDadosAtualizados(usina.dados_atualizados ?? false)
+
+    const ben = usina.beneficiarias
+    if (ben && ben.habilitado) {
+      setEditBeneficiariasHabilitado(true)
+      setEditPercentualGeradora(ben.percentual_geradora ?? 0)
+      setEditBeneficiariasLista(Array.isArray(ben.unidades) ? ben.unidades : [])
+    } else {
+      setEditBeneficiariasHabilitado(false)
+      setEditPercentualGeradora(100)
+      setEditBeneficiariasLista([])
+    }
+
     setIsEditingDetalhes(false)
   }
 
@@ -336,6 +369,36 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
       alert('Informe o nome da usina.')
       return
     }
+
+    let beneficiariasPayload: UsinaBeneficiariasConfig | null = null
+    if (editBeneficiariasHabilitado) {
+      const percGeradora = Number(editPercentualGeradora) || 0
+      const totalUnidades = editBeneficiariasLista.reduce(
+        (acc, item) => acc + (Number(item.percentual) || 0),
+        0,
+      )
+      const somaTotal = Math.round((percGeradora + totalUnidades) * 100) / 100
+
+      if (Math.abs(somaTotal - 100) > 0.01) {
+        alert(
+          `A soma dos percentuais deve ser 100% — total atual: ${somaTotal}%. Corrija os percentuais antes de salvar.`,
+        )
+        return
+      }
+
+      beneficiariasPayload = {
+        habilitado: true,
+        percentual_geradora: percGeradora,
+        unidades: editBeneficiariasLista.map((u) => ({
+          numero_uc: String(u.numero_uc || '').trim(),
+          identificacao: String(u.identificacao || '').trim(),
+          percentual: Number(u.percentual) || 0,
+        })),
+      }
+    } else {
+      beneficiariasPayload = null
+    }
+
     setIsSavingDetalhes(true)
     try {
       const payload: Partial<UsinaCliente> = {
@@ -355,6 +418,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
         tipo_usina: editTipoUsina,
         observacoes: editObservacoes.trim(),
         dados_atualizados: editDadosAtualizados,
+        beneficiarias: beneficiariasPayload,
       }
       if (onUpdateUsina) {
         await onUpdateUsina(usinaDetalhes.id, payload)
@@ -391,6 +455,9 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     setNovaUsinaTipo('residencial')
     setNovaUsinaObservacoes('')
     setNovaUsinaContratoId('')
+    setNovaUsinaBeneficiariasHabilitado(false)
+    setNovaUsinaPercentualGeradora(100)
+    setNovaUsinaBeneficiariasLista([])
     setErroExtracaoNovaUsina(null)
     setSucessoExtracaoNovaUsina(null)
     setStatusProgressoNovaUsina(null)
@@ -564,6 +631,36 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
       alert('Informe o nome ou identificação da usina.')
       return
     }
+
+    let beneficiariasPayload: UsinaBeneficiariasConfig | null = null
+    if (novaUsinaBeneficiariasHabilitado) {
+      const percGeradora = Number(novaUsinaPercentualGeradora) || 0
+      const totalUnidades = novaUsinaBeneficiariasLista.reduce(
+        (acc, item) => acc + (Number(item.percentual) || 0),
+        0,
+      )
+      const somaTotal = Math.round((percGeradora + totalUnidades) * 100) / 100
+
+      if (Math.abs(somaTotal - 100) > 0.01) {
+        alert(
+          `A soma dos percentuais deve ser 100% — total atual: ${somaTotal}%. Corrija os percentuais antes de cadastrar.`,
+        )
+        return
+      }
+
+      beneficiariasPayload = {
+        habilitado: true,
+        percentual_geradora: percGeradora,
+        unidades: novaUsinaBeneficiariasLista.map((u) => ({
+          numero_uc: String(u.numero_uc || '').trim(),
+          identificacao: String(u.identificacao || '').trim(),
+          percentual: Number(u.percentual) || 0,
+        })),
+      }
+    } else {
+      beneficiariasPayload = null
+    }
+
     setIsSavingNovaUsina(true)
     try {
       if (onCreateUsina) {
@@ -590,6 +687,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
           dados_atualizados: false,
           observacoes: novaUsinaObservacoes.trim(),
           contrato_id: novaUsinaContratoId || undefined,
+          beneficiarias: beneficiariasPayload,
         })
       }
       setModalNovaUsinaOpen(false)
@@ -1565,9 +1663,11 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       </div>
 
                       <div className="space-y-2 text-xs">
-                        {/* Número da UC */}
+                        {/* Número da UC (Geradora) */}
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-28 shrink-0">Número da UC:</span>
+                          <span className="text-gray-500 w-36 shrink-0">
+                            Número da UC (Geradora):
+                          </span>
                           <InlineEditField
                             value={usinaDetalhes.numero_uc || ''}
                             displayValue={
@@ -1581,6 +1681,324 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                               handleUpdateUsinaField('numero_uc', String(val).trim())
                             }
                           />
+                        </div>
+
+                        {/* Bloco de Beneficiárias (Aditivo) */}
+                        <div className="pt-2 pb-1 border-t border-gray-100">
+                          {(() => {
+                            const benConfig = usinaDetalhes.beneficiarias
+                            const habilitado = Boolean(benConfig?.habilitado)
+                            const percGeradora = Number(benConfig?.percentual_geradora ?? 100)
+                            const unidades = Array.isArray(benConfig?.unidades)
+                              ? benConfig!.unidades
+                              : []
+                            const somaUnidades = unidades.reduce(
+                              (acc, u) => acc + (Number(u.percentual) || 0),
+                              0,
+                            )
+                            const somaTotal = Math.round((percGeradora + somaUnidades) * 100) / 100
+                            const is100 = Math.abs(somaTotal - 100) <= 0.01
+
+                            return (
+                              <div className="space-y-2.5 bg-slate-50/70 p-2.5 rounded-lg border border-slate-200/80">
+                                <div className="flex items-center justify-between">
+                                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={habilitado}
+                                      onChange={async (e) => {
+                                        const novoHabilitado = e.target.checked
+                                        if (novoHabilitado) {
+                                          const novoConfig: UsinaBeneficiariasConfig = {
+                                            habilitado: true,
+                                            percentual_geradora: 100,
+                                            unidades: [],
+                                          }
+                                          await handleUpdateUsinaField('beneficiarias', novoConfig)
+                                        } else {
+                                          await handleUpdateUsinaField('beneficiarias', null)
+                                        }
+                                      }}
+                                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                                    />
+                                    <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                      <Users className="w-3.5 h-3.5 text-emerald-600" />
+                                      Beneficiárias (Rateio de Créditos)
+                                    </span>
+                                  </label>
+
+                                  {habilitado && (
+                                    <span
+                                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                        is100
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                          : 'bg-rose-50 text-rose-800 border-rose-300'
+                                      }`}
+                                    >
+                                      {is100 ? 'Soma: 100%' : `Soma: ${somaTotal}% (deve ser 100%)`}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {habilitado && (
+                                  <div className="space-y-2 pl-6">
+                                    {/* Percentual da Geradora */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-600 w-44 shrink-0 font-medium text-[11px]">
+                                        Percentual da Geradora (%):
+                                      </span>
+                                      <InlineEditField
+                                        value={percGeradora}
+                                        displayValue={
+                                          <span className="font-mono font-bold text-gray-900 bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">
+                                            {percGeradora}%
+                                          </span>
+                                        }
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="Ex: 70"
+                                        onSave={async (val) => {
+                                          const novoPerc = Number(val) || 0
+                                          const novoTotal =
+                                            Math.round((novoPerc + somaUnidades) * 100) / 100
+                                          if (Math.abs(novoTotal - 100) > 0.01) {
+                                            alert(
+                                              `A soma dos percentuais deve ser 100% — total atual: ${novoTotal}%. Ajuste as beneficiárias ou a geradora.`,
+                                            )
+                                            return
+                                          }
+                                          const novoConfig: UsinaBeneficiariasConfig = {
+                                            habilitado: true,
+                                            percentual_geradora: novoPerc,
+                                            unidades,
+                                          }
+                                          await handleUpdateUsinaField('beneficiarias', novoConfig)
+                                        }}
+                                      />
+                                    </div>
+
+                                    {/* Lista de Unidades Beneficiárias */}
+                                    <div className="space-y-1.5 pt-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-slate-700">
+                                          Unidades Beneficiárias Cadastradas ({unidades.length})
+                                        </span>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={async () => {
+                                            const novaUnidade: UsinaBeneficiariaItem = {
+                                              numero_uc: '',
+                                              identificacao: '',
+                                              percentual: 0,
+                                            }
+                                            const novasUnidades = [...unidades, novaUnidade]
+                                            const novoConfig: UsinaBeneficiariasConfig = {
+                                              habilitado: true,
+                                              percentual_geradora: percGeradora,
+                                              unidades: novasUnidades,
+                                            }
+                                            await handleUpdateUsinaField(
+                                              'beneficiarias',
+                                              novoConfig,
+                                            )
+                                          }}
+                                          className="h-6 px-2 text-[10px] bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-300 font-bold flex items-center gap-1 shadow-2xs"
+                                        >
+                                          <Plus className="w-3 h-3 text-emerald-600" />
+                                          <span>Adicionar Beneficiária</span>
+                                        </Button>
+                                      </div>
+
+                                      {unidades.length === 0 ? (
+                                        <p className="text-[11px] text-slate-400 italic">
+                                          Nenhuma unidade beneficiária cadastrada. Clique em
+                                          "Adicionar Beneficiária" acima.
+                                        </p>
+                                      ) : (
+                                        <div className="space-y-1.5">
+                                          {unidades.map((item, idx) => (
+                                            <div
+                                              key={idx}
+                                              className="p-2 rounded bg-white border border-slate-200 text-xs space-y-1.5 shadow-2xs"
+                                            >
+                                              <div className="flex items-center justify-between">
+                                                <span className="font-bold text-slate-700 text-[11px]">
+                                                  Beneficiária #{idx + 1}
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={async () => {
+                                                    const novas = unidades.filter(
+                                                      (_, i) => i !== idx,
+                                                    )
+                                                    const novoConfig: UsinaBeneficiariasConfig = {
+                                                      habilitado: true,
+                                                      percentual_geradora: percGeradora,
+                                                      unidades: novas,
+                                                    }
+                                                    await handleUpdateUsinaField(
+                                                      'beneficiarias',
+                                                      novoConfig,
+                                                    )
+                                                  }}
+                                                  className="text-rose-500 hover:text-rose-700 text-[11px] flex items-center gap-0.5"
+                                                  title="Remover unidade beneficiária"
+                                                >
+                                                  <Trash2 className="w-3 h-3" />
+                                                  <span>Remover</span>
+                                                </button>
+                                              </div>
+
+                                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-gray-500 text-[11px] shrink-0">
+                                                    UC:
+                                                  </span>
+                                                  <InlineEditField
+                                                    value={item.numero_uc}
+                                                    displayValue={
+                                                      <span className="font-mono text-gray-900 bg-slate-50 px-1.5 py-0.5 rounded border border-gray-200 text-[11px]">
+                                                        {item.numero_uc || 'Não inf.'}
+                                                      </span>
+                                                    }
+                                                    type="text"
+                                                    placeholder="Número da UC"
+                                                    onSave={async (val) => {
+                                                      const novas = [...unidades]
+                                                      novas[idx] = {
+                                                        ...novas[idx],
+                                                        numero_uc: String(val).trim(),
+                                                      }
+                                                      await handleUpdateUsinaField(
+                                                        'beneficiarias',
+                                                        {
+                                                          habilitado: true,
+                                                          percentual_geradora: percGeradora,
+                                                          unidades: novas,
+                                                        },
+                                                      )
+                                                    }}
+                                                  />
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-gray-500 text-[11px] shrink-0">
+                                                    Identificação:
+                                                  </span>
+                                                  <InlineEditField
+                                                    value={item.identificacao}
+                                                    displayValue={
+                                                      <span className="text-gray-900 text-[11px] truncate max-w-[140px] block">
+                                                        {item.identificacao || 'Não inf.'}
+                                                      </span>
+                                                    }
+                                                    type="text"
+                                                    placeholder="Nome / Descrição / Endereço"
+                                                    onSave={async (val) => {
+                                                      const novas = [...unidades]
+                                                      novas[idx] = {
+                                                        ...novas[idx],
+                                                        identificacao: String(val).trim(),
+                                                      }
+                                                      await handleUpdateUsinaField(
+                                                        'beneficiarias',
+                                                        {
+                                                          habilitado: true,
+                                                          percentual_geradora: percGeradora,
+                                                          unidades: novas,
+                                                        },
+                                                      )
+                                                    }}
+                                                  />
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-gray-500 text-[11px] shrink-0">
+                                                    Rateio (%):
+                                                  </span>
+                                                  <InlineEditField
+                                                    value={item.percentual}
+                                                    displayValue={
+                                                      <span className="font-mono font-bold text-gray-900 bg-slate-50 px-1.5 py-0.5 rounded border border-gray-200 text-[11px]">
+                                                        {item.percentual}%
+                                                      </span>
+                                                    }
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="0"
+                                                    onSave={async (val) => {
+                                                      const novoPerc = Number(val) || 0
+                                                      const novas = [...unidades]
+                                                      novas[idx] = {
+                                                        ...novas[idx],
+                                                        percentual: novoPerc,
+                                                      }
+                                                      const sumU = novas.reduce(
+                                                        (acc, u) =>
+                                                          acc + (Number(u.percentual) || 0),
+                                                        0,
+                                                      )
+                                                      const totalCheck =
+                                                        Math.round((percGeradora + sumU) * 100) /
+                                                        100
+                                                      if (Math.abs(totalCheck - 100) > 0.01) {
+                                                        alert(
+                                                          `A soma dos percentuais deve ser 100% — total atual: ${totalCheck}%. Ajuste os percentuais.`,
+                                                        )
+                                                        return
+                                                      }
+                                                      await handleUpdateUsinaField(
+                                                        'beneficiarias',
+                                                        {
+                                                          habilitado: true,
+                                                          percentual_geradora: percGeradora,
+                                                          unidades: novas,
+                                                        },
+                                                      )
+                                                    }}
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {/* Indicador de status da soma ao vivo */}
+                                      <div
+                                        className={`p-2 rounded text-[11px] font-bold border flex items-center gap-1.5 ${
+                                          is100
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                            : 'bg-rose-50 text-rose-800 border-rose-300'
+                                        }`}
+                                      >
+                                        {is100 ? (
+                                          <>
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                            <span>
+                                              Soma: 100% (Geradora {percGeradora}% + Beneficiárias{' '}
+                                              {somaUnidades}%)
+                                            </span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                            <span>
+                                              A soma dos percentuais deve ser 100% — total atual:{' '}
+                                              {somaTotal}% (Geradora {percGeradora}% + Beneficiárias{' '}
+                                              {somaUnidades}%)
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
 
                         {/* Concessionária e Classe de Consumo */}
@@ -2368,7 +2786,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs font-bold text-slate-700">
-                        Número da UC (Unidade Consumidora)
+                        Número da UC (Geradora)
                       </Label>
                       <Input
                         value={editNumeroUc}
@@ -2387,6 +2805,231 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                         className="mt-1"
                       />
                     </div>
+                  </div>
+
+                  {/* Bloco de Beneficiárias na Edição Completa da Ficha */}
+                  <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editBeneficiariasHabilitado}
+                          onChange={(e) => {
+                            const checked = e.target.checked
+                            setEditBeneficiariasHabilitado(checked)
+                            if (checked && editBeneficiariasLista.length === 0) {
+                              setEditPercentualGeradora(100)
+                            }
+                          }}
+                          className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                        />
+                        <span className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-emerald-600" />
+                          Habilitar Unidades Beneficiárias (Rateio de Créditos)
+                        </span>
+                      </Label>
+
+                      {editBeneficiariasHabilitado &&
+                        (() => {
+                          const percGeradora = Number(editPercentualGeradora) || 0
+                          const totalU = editBeneficiariasLista.reduce(
+                            (acc, item) => acc + (Number(item.percentual) || 0),
+                            0,
+                          )
+                          const soma = Math.round((percGeradora + totalU) * 100) / 100
+                          const is100 = Math.abs(soma - 100) <= 0.01
+                          return (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                is100
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                  : 'bg-rose-50 text-rose-800 border-rose-300'
+                              }`}
+                            >
+                              {is100 ? 'Soma: 100%' : `Soma: ${soma}% (deve ser 100%)`}
+                            </span>
+                          )
+                        })()}
+                    </div>
+
+                    {editBeneficiariasHabilitado && (
+                      <div className="space-y-3 pt-2 border-t border-slate-200">
+                        <div className="max-w-xs">
+                          <Label className="text-xs font-bold text-slate-700">
+                            Percentual da Geradora (%) *
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            value={editPercentualGeradora}
+                            onChange={(e) => setEditPercentualGeradora(e.target.value)}
+                            placeholder="Ex: 70"
+                            className="mt-1"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700">
+                              Unidades Beneficiárias Cadastradas ({editBeneficiariasLista.length})
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditBeneficiariasLista([
+                                  ...editBeneficiariasLista,
+                                  { numero_uc: '', identificacao: '', percentual: 0 },
+                                ])
+                              }}
+                              className="h-7 px-2.5 text-xs bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-300 font-bold flex items-center gap-1 shadow-2xs"
+                            >
+                              <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>+ Adicionar Beneficiária</span>
+                            </Button>
+                          </div>
+
+                          {editBeneficiariasLista.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic py-1">
+                              Nenhuma unidade beneficiária adicionada ainda. Clique no botão acima
+                              para incluir.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {editBeneficiariasLista.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-2 shadow-2xs"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-slate-700 text-xs">
+                                      Beneficiária #{idx + 1}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditBeneficiariasLista(
+                                          editBeneficiariasLista.filter((_, i) => i !== idx),
+                                        )
+                                      }}
+                                      className="text-rose-500 hover:text-rose-700 text-xs flex items-center gap-1"
+                                      title="Remover beneficiária"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Remover</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <div>
+                                      <Label className="text-[11px] text-slate-600">
+                                        Número da UC
+                                      </Label>
+                                      <Input
+                                        value={item.numero_uc}
+                                        onChange={(e) => {
+                                          const novalista = [...editBeneficiariasLista]
+                                          novalista[idx] = {
+                                            ...novalista[idx],
+                                            numero_uc: e.target.value,
+                                          }
+                                          setEditBeneficiariasLista(novalista)
+                                        }}
+                                        placeholder="Ex: 2008741529"
+                                        className="mt-0.5 h-8 text-xs"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <Label className="text-[11px] text-slate-600">
+                                        Identificação (Nome / Endereço)
+                                      </Label>
+                                      <Input
+                                        value={item.identificacao}
+                                        onChange={(e) => {
+                                          const novalista = [...editBeneficiariasLista]
+                                          novalista[idx] = {
+                                            ...novalista[idx],
+                                            identificacao: e.target.value,
+                                          }
+                                          setEditBeneficiariasLista(novalista)
+                                        }}
+                                        placeholder="Ex: Filial Centro / Residência"
+                                        className="mt-0.5 h-8 text-xs"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <Label className="text-[11px] text-slate-600">
+                                        Percentual do Rateio (%)
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="100"
+                                        value={item.percentual}
+                                        onChange={(e) => {
+                                          const novalista = [...editBeneficiariasLista]
+                                          novalista[idx] = {
+                                            ...novalista[idx],
+                                            percentual: Number(e.target.value) || 0,
+                                          }
+                                          setEditBeneficiariasLista(novalista)
+                                        }}
+                                        placeholder="Ex: 30"
+                                        className="mt-0.5 h-8 text-xs"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Indicador de Soma ao Vivo */}
+                          {(() => {
+                            const percGeradora = Number(editPercentualGeradora) || 0
+                            const totalU = editBeneficiariasLista.reduce(
+                              (acc, item) => acc + (Number(item.percentual) || 0),
+                              0,
+                            )
+                            const soma = Math.round((percGeradora + totalU) * 100) / 100
+                            const is100 = Math.abs(soma - 100) <= 0.01
+                            return (
+                              <div
+                                className={`p-2.5 rounded-lg text-xs font-bold border flex items-center gap-2 ${
+                                  is100
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                    : 'bg-rose-50 text-rose-800 border-rose-300'
+                                }`}
+                              >
+                                {is100 ? (
+                                  <>
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                    <span>
+                                      Soma: 100% (Geradora {percGeradora}% + Beneficiárias {totalU}
+                                      %)
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                                    <span>
+                                      A soma dos percentuais deve ser 100% — total atual: {soma}%
+                                      (Geradora {percGeradora}% + Beneficiárias {totalU}%)
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
@@ -2777,9 +3420,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-bold text-slate-700">
-                  Número da UC (Unidade Consumidora)
-                </Label>
+                <Label className="text-xs font-bold text-slate-700">Número da UC (Geradora)</Label>
                 <Input
                   value={novaUsinaNumeroUc}
                   onChange={(e) => setNovaUsinaNumeroUc(e.target.value)}
@@ -2797,6 +3438,228 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   className="mt-1"
                 />
               </div>
+            </div>
+
+            {/* Bloco de Beneficiárias no Modal de Criação da Usina */}
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={novaUsinaBeneficiariasHabilitado}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      setNovaUsinaBeneficiariasHabilitado(checked)
+                      if (checked && novaUsinaBeneficiariasLista.length === 0) {
+                        setNovaUsinaPercentualGeradora(100)
+                      }
+                    }}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-emerald-600" />
+                    Habilitar Unidades Beneficiárias (Rateio de Créditos)
+                  </span>
+                </Label>
+
+                {novaUsinaBeneficiariasHabilitado &&
+                  (() => {
+                    const percGeradora = Number(novaUsinaPercentualGeradora) || 0
+                    const totalU = novaUsinaBeneficiariasLista.reduce(
+                      (acc, item) => acc + (Number(item.percentual) || 0),
+                      0,
+                    )
+                    const soma = Math.round((percGeradora + totalU) * 100) / 100
+                    const is100 = Math.abs(soma - 100) <= 0.01
+                    return (
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                          is100
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : 'bg-rose-50 text-rose-800 border-rose-300'
+                        }`}
+                      >
+                        {is100 ? 'Soma: 100%' : `Soma: ${soma}% (deve ser 100%)`}
+                      </span>
+                    )
+                  })()}
+              </div>
+
+              {novaUsinaBeneficiariasHabilitado && (
+                <div className="space-y-3 pt-2 border-t border-slate-200">
+                  <div className="max-w-xs">
+                    <Label className="text-xs font-bold text-slate-700">
+                      Percentual da Geradora (%) *
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={novaUsinaPercentualGeradora}
+                      onChange={(e) => setNovaUsinaPercentualGeradora(e.target.value)}
+                      placeholder="Ex: 70"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">
+                        Unidades Beneficiárias Cadastradas ({novaUsinaBeneficiariasLista.length})
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setNovaUsinaBeneficiariasLista([
+                            ...novaUsinaBeneficiariasLista,
+                            { numero_uc: '', identificacao: '', percentual: 0 },
+                          ])
+                        }}
+                        className="h-7 px-2.5 text-xs bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-300 font-bold flex items-center gap-1 shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>+ Adicionar Beneficiária</span>
+                      </Button>
+                    </div>
+
+                    {novaUsinaBeneficiariasLista.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic py-1">
+                        Nenhuma unidade beneficiária adicionada ainda. Clique no botão acima para
+                        incluir.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {novaUsinaBeneficiariasLista.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-2 shadow-2xs"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-700 text-xs">
+                                Beneficiária #{idx + 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNovaUsinaBeneficiariasLista(
+                                    novaUsinaBeneficiariasLista.filter((_, i) => i !== idx),
+                                  )
+                                }}
+                                className="text-rose-500 hover:text-rose-700 text-xs flex items-center gap-1"
+                                title="Remover beneficiária"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Remover</span>
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div>
+                                <Label className="text-[11px] text-slate-600">Número da UC</Label>
+                                <Input
+                                  value={item.numero_uc}
+                                  onChange={(e) => {
+                                    const novalista = [...novaUsinaBeneficiariasLista]
+                                    novalista[idx] = {
+                                      ...novalista[idx],
+                                      numero_uc: e.target.value,
+                                    }
+                                    setNovaUsinaBeneficiariasLista(novalista)
+                                  }}
+                                  placeholder="Ex: 2008741529"
+                                  className="mt-0.5 h-8 text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-[11px] text-slate-600">
+                                  Identificação (Nome / Endereço)
+                                </Label>
+                                <Input
+                                  value={item.identificacao}
+                                  onChange={(e) => {
+                                    const novalista = [...novaUsinaBeneficiariasLista]
+                                    novalista[idx] = {
+                                      ...novalista[idx],
+                                      identificacao: e.target.value,
+                                    }
+                                    setNovaUsinaBeneficiariasLista(novalista)
+                                  }}
+                                  placeholder="Ex: Filial Centro / Residência"
+                                  className="mt-0.5 h-8 text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-[11px] text-slate-600">
+                                  Percentual do Rateio (%)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={item.percentual}
+                                  onChange={(e) => {
+                                    const novalista = [...novaUsinaBeneficiariasLista]
+                                    novalista[idx] = {
+                                      ...novalista[idx],
+                                      percentual: Number(e.target.value) || 0,
+                                    }
+                                    setNovaUsinaBeneficiariasLista(novalista)
+                                  }}
+                                  placeholder="Ex: 30"
+                                  className="mt-0.5 h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Indicador de Soma ao Vivo */}
+                    {(() => {
+                      const percGeradora = Number(novaUsinaPercentualGeradora) || 0
+                      const totalU = novaUsinaBeneficiariasLista.reduce(
+                        (acc, item) => acc + (Number(item.percentual) || 0),
+                        0,
+                      )
+                      const soma = Math.round((percGeradora + totalU) * 100) / 100
+                      const is100 = Math.abs(soma - 100) <= 0.01
+                      return (
+                        <div
+                          className={`p-2.5 rounded-lg text-xs font-bold border flex items-center gap-2 ${
+                            is100
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : 'bg-rose-50 text-rose-800 border-rose-300'
+                          }`}
+                        >
+                          {is100 ? (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <span>
+                                Soma: 100% (Geradora {percGeradora}% + Beneficiárias {totalU}%)
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                              <span>
+                                A soma dos percentuais deve ser 100% — total atual: {soma}%
+                                (Geradora {percGeradora}% + Beneficiárias {totalU}%)
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Dica de preenchimento inline completo após cadastro */}

@@ -351,6 +351,18 @@ export type UsinaTipoEstrutura = 'solo' | 'telhado'
 export type UsinaStatus = 'ativo' | 'inativo'
 export type UsinaTipo = 'residencial' | 'comercial' | 'industrial' | 'rural' | 'investidor'
 
+export interface UsinaBeneficiariaItem {
+  numero_uc: string
+  identificacao: string
+  percentual: number
+}
+
+export interface UsinaBeneficiariasConfig {
+  habilitado: boolean
+  percentual_geradora: number
+  unidades: UsinaBeneficiariaItem[]
+}
+
 export interface DocumentoUsinaItem {
   id: string
   nome_arquivo: string
@@ -476,6 +488,9 @@ export interface UsinaCliente extends RecordModel {
 
   // Lista dinâmica de documentos anexados (aditivo)
   documentos_usina?: DocumentoUsinaItem[]
+
+  // Unidades beneficiárias do rateio de créditos (aditivo)
+  beneficiarias?: UsinaBeneficiariasConfig | null
 
   // Verificação e atualização cadastral dos dados da usina (aditivo)
   dados_atualizados?: boolean
