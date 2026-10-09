@@ -69,6 +69,35 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       cleanPhone = '55' + cleanPhone
     }
 
+    // VERIFICAÇÃO DE CONTATO BLOQUEADO (Recurso 1 - Atendimento WhatsApp)
+    // Se o remetente estiver bloqueado, ignorar silenciosamente antes de registrar/atualizar conversa ou notificar.
+    try {
+      const last8Bloq = normPhone.length >= 8 ? normPhone.slice(-8) : cleanPhone.slice(-8)
+      if (last8Bloq) {
+        const bloqueadosRecs = $app.findRecordsByFilter(
+          'whatsapp_bloqueados',
+          `numero ~ '${last8Bloq}'`,
+          '-created',
+          20,
+          0,
+        )
+        for (let bIdx = 0; bIdx < bloqueadosRecs.length; bIdx++) {
+          const bNum = bloqueadosRecs[bIdx].getString('numero') || ''
+          const matchBloq = compararFlexivel(rawPhone, bNum)
+          const bClean = bNum.replace(/\D/g, '')
+          if (matchBloq !== 'nenhum' || bClean === cleanPhone || bClean === normPhone) {
+            console.log(
+              '[WHATSAPP WEBHOOK] Remetente bloqueado ignorado silenciosamente:',
+              cleanPhone,
+            )
+            return e.json(200, { ok: true, ignored: true, reason: 'contact_blocked' })
+          }
+        }
+      }
+    } catch (errBloqCheck) {
+      console.log('[WHATSAPP WEBHOOK AVISO CHECK BLOQUEADO]', errBloqCheck)
+    }
+
     // Extrair foto de perfil do contato (se presente no payload) para salvar no contato/avatar,
     // mas NUNCA tratar como mídia da mensagem
     const senderPhoto = (

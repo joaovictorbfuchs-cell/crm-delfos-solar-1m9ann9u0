@@ -104,6 +104,9 @@ import {
   sendWhatsAppVideo as apiSendWhatsAppVideo,
   fetchWhatsAppConfigStatus,
   fetchWhatsAppConversas,
+  fetchWhatsAppBloqueados,
+  bloquearContatoWhatsApp as apiBloquearContatoWhatsApp,
+  desbloquearContatoWhatsApp as apiDesbloquearContatoWhatsApp,
   vincularConversaCliente as apiVincularConversaCliente,
   assumirConversa as apiAssumirConversa,
   finalizarConversa as apiFinalizarConversa,
@@ -137,6 +140,7 @@ import type {
   WhatsAppTemplate,
   WhatsAppMensagem,
   WhatsAppConversa,
+  WhatsAppBloqueado,
   WhatsAppConfigStatus,
   NotificacaoInterna,
 } from '@/types/crm'
@@ -475,10 +479,16 @@ interface ClientesContextType {
   addWhatsAppTemplate: (data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
   updateWhatsAppTemplate: (id: string, data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
   removeWhatsAppTemplate: (id: string) => Promise<void>
+  whatsAppBloqueados: WhatsAppBloqueado[]
+  isNumeroBloqueado: (numero: string) => boolean
+  bloquearContato: (data: { numero: string; motivo?: string }) => Promise<WhatsAppBloqueado>
+  desbloquearContato: (numero: string) => Promise<boolean>
+  refreshWhatsAppBloqueados: () => Promise<void>
   vincularConversa: (
     conversaId: string,
     clienteId: string,
     atendenteNome?: string,
+    nomeContatoAdicional?: string,
   ) => Promise<WhatsAppConversa>
   assumirAtendimento: (
     conversaId: string,
@@ -645,6 +655,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [whatsAppTemplates, setWhatsAppTemplates] = useState<WhatsAppTemplate[]>([])
   const [whatsAppMensagens, setWhatsAppMensagens] = useState<WhatsAppMensagem[]>([])
   const [whatsAppConversas, setWhatsAppConversas] = useState<WhatsAppConversa[]>([])
+  const [whatsAppBloqueados, setWhatsAppBloqueados] = useState<WhatsAppBloqueado[]>([])
   const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppConfigStatus | null>(null)
   const [notificacoes, setNotificacoes] = useState<NotificacaoInterna[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -820,6 +831,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchWhatsAppMensagens(),
         fetchWhatsAppConfigStatus(),
         fetchWhatsAppConversas(),
+        fetchWhatsAppBloqueados(),
         fetchFornecedores(),
         fetchFornecedoresOrcamentos(),
         fetchServicosAvulsos(),
@@ -841,6 +853,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             msgRes,
             cfgRes,
             convRes,
+            bloqRes,
             fornRes,
             fornOrcRes,
             avulsosRes,
@@ -868,6 +881,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               }),
             )
             setWhatsAppConversas(getValue(convRes, []))
+            setWhatsAppBloqueados(getValue(bloqRes, []))
             setFornecedores(getValue(fornRes, []))
             setFornecedoresOrcamentos(getValue(fornOrcRes, []))
             setServicosAvulsos(getValue(avulsosRes, []))
@@ -2518,19 +2532,85 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return refreshed
   }
 
+  // Verificação de número bloqueado
+  const isNumeroBloqueado = useCallback(
+    (numero: string): boolean => {
+      if (!numero) return false
+      const limpo = numero.replace(/\D/g, '')
+      if (!limpo) return false
+      const ult8 = limpo.length >= 8 ? limpo.slice(-8) : limpo
+      return whatsAppBloqueados.some((b) => {
+        const bLimpo = (b.numero || '').replace(/\D/g, '')
+        if (bLimpo === limpo) return true
+        if (bLimpo && limpo.endsWith(bLimpo)) return true
+        if (limpo && bLimpo.endsWith(limpo)) return true
+        if (ult8 && bLimpo.endsWith(ult8)) return true
+        return false
+      })
+    },
+    [whatsAppBloqueados],
+  )
+
+  const bloquearContato = async (data: { numero: string; motivo?: string }) => {
+    const criado = await apiBloquearContatoWhatsApp({
+      numero: data.numero,
+      motivo: data.motivo,
+      usuarioId: user?.id,
+      usuarioNome: user?.name || user?.email || 'Atendente',
+    })
+    setWhatsAppBloqueados((prev) => [criado, ...prev.filter((b) => b.id !== criado.id)])
+    return criado
+  }
+
+  const desbloquearContato = async (numero: string) => {
+    const res = await apiDesbloquearContatoWhatsApp(numero)
+    const limpo = numero.replace(/\D/g, '')
+    const ult8 = limpo.length >= 8 ? limpo.slice(-8) : limpo
+    setWhatsAppBloqueados((prev) =>
+      prev.filter((b) => {
+        const bLimpo = (b.numero || '').replace(/\D/g, '')
+        if (bLimpo === limpo || (ult8 && bLimpo.endsWith(ult8))) return false
+        return true
+      }),
+    )
+    return res
+  }
+
+  const refreshWhatsAppBloqueados = async () => {
+    try {
+      const bloqs = await fetchWhatsAppBloqueados()
+      setWhatsAppBloqueados(bloqs)
+    } catch (err) {
+      console.warn('Erro ao atualizar bloqueados:', err)
+    }
+  }
+
   const vincularConversa = async (
     conversaId: string,
     clienteId: string,
     atendenteNome?: string,
+    nomeContatoAdicional?: string,
   ) => {
-    const updated = await apiVincularConversaCliente(conversaId, clienteId, atendenteNome)
+    const updated = await apiVincularConversaCliente(
+      conversaId,
+      clienteId,
+      atendenteNome,
+      nomeContatoAdicional,
+    )
     setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updated : c)))
-    const [cRes, mRes] = await Promise.allSettled([fetchClientes(), fetchWhatsAppMensagens()])
+    const [cRes, mRes, caRes] = await Promise.allSettled([
+      fetchClientes(),
+      fetchWhatsAppMensagens(),
+      fetchContatosAdicionais(),
+    ])
     if (cRes.status === 'fulfilled') {
       setClientes(cRes.value)
     }
     if (mRes.status === 'fulfilled') {
       setWhatsAppMensagens(mRes.value)
+    }
+    if (caRes.status === 'fulfilled') {
+      setContatosAdicionais(caRes.value)
     }
     return updated
   }
@@ -3087,6 +3167,11 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addWhatsAppTemplate,
         updateWhatsAppTemplate,
         removeWhatsAppTemplate,
+        whatsAppBloqueados,
+        isNumeroBloqueado,
+        bloquearContato,
+        desbloquearContato,
+        refreshWhatsAppBloqueados,
         vincularConversa,
         assumirAtendimento,
         finalizarAtendimento,

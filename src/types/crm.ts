@@ -571,6 +571,19 @@ export interface WhatsAppConversa extends RecordModel {
   }
 }
 
+export interface WhatsAppBloqueado extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  numero: string
+  data_bloqueio?: string
+  usuario_bloqueou_id?: string
+  usuario_bloqueou_nome?: string
+  motivo?: string
+  created: string
+  updated: string
+}
+
 // -------------------------------------------------------------
 // Tipos para Gestão de Fornecedores e Orçamentos de Fornecedores
 // -------------------------------------------------------------

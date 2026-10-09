@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T18:22:39.391Z",
+  "generatedAt": "2026-10-09T18:43:21.611Z",
   "collections": [
     {
       "name": "users",
@@ -6773,6 +6773,64 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_emails_rge_email ON emails_rge (email)"]
+    },
+    {
+      "name": "whatsapp_bloqueados",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "numero",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_bloqueio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "usuario_bloqueou_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "usuario_bloqueou_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_whatsapp_bloqueados_numero ON whatsapp_bloqueados (numero)"]
     }
   ]
 }

@@ -25,6 +25,37 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
       return e.json(400, { error: 'Telefone de destino é obrigatório', ok: false })
     }
 
+    // Verificar se número está bloqueado
+    try {
+      const cleanDest = telefoneDestino.replace(/\D/g, '')
+      const last8 = cleanDest.length >= 8 ? cleanDest.slice(-8) : cleanDest
+      if (last8) {
+        const bloqueados = $app.findRecordsByFilter(
+          'whatsapp_bloqueados',
+          `numero ~ '${last8}'`,
+          '-created',
+          10,
+          0,
+        )
+        for (let b = 0; b < bloqueados.length; b++) {
+          const bNum = (bloqueados[b].getString('numero') || '').replace(/\D/g, '')
+          if (
+            bNum === cleanDest ||
+            (bNum && cleanDest.endsWith(bNum)) ||
+            (cleanDest && bNum.endsWith(cleanDest))
+          ) {
+            return e.json(400, {
+              error: 'Contato bloqueado para envio de documentos.',
+              ok: false,
+              blocked: true,
+            })
+          }
+        }
+      }
+    } catch (errBloq) {
+      console.log('[WHATSAPP SEND DOC BLOQUEIO CHECK AVISO]', errBloq)
+    }
+
     // Buscar dados do cliente para registro
     let finalClienteId = clienteId
     let clienteNome = 'Cliente'

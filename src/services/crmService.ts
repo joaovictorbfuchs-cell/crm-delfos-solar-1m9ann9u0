@@ -2183,25 +2183,106 @@ export async function deleteWhatsAppConversa(id: string): Promise<boolean> {
   return true
 }
 
+// -------------------------------------------------------------
+// Bloqueio de Contatos WhatsApp
+// -------------------------------------------------------------
+
+export async function fetchWhatsAppBloqueados(): Promise<
+  import('@/types/crm').WhatsAppBloqueado[]
+> {
+  try {
+    return await pb
+      .collection('whatsapp_bloqueados')
+      .getFullList<import('@/types/crm').WhatsAppBloqueado>({
+        sort: '-created',
+        requestKey: null,
+      })
+  } catch (err) {
+    console.warn('Erro ao carregar contatos bloqueados:', err)
+    return []
+  }
+}
+
+export async function bloquearContatoWhatsApp(data: {
+  numero: string
+  motivo?: string
+  usuarioId?: string
+  usuarioNome?: string
+}): Promise<import('@/types/crm').WhatsAppBloqueado> {
+  const numeroLimpo = data.numero.replace(/\D/g, '')
+  return pb.collection('whatsapp_bloqueados').create<import('@/types/crm').WhatsAppBloqueado>({
+    numero: numeroLimpo || data.numero,
+    data_bloqueio: new Date().toISOString(),
+    usuario_bloqueou_id: data.usuarioId || '',
+    usuario_bloqueou_nome: data.usuarioNome || '',
+    motivo: data.motivo || '',
+  })
+}
+
+export async function desbloquearContatoWhatsApp(idOuNumero: string): Promise<boolean> {
+  try {
+    // Tenta primeiro por ID direto
+    try {
+      await pb.collection('whatsapp_bloqueados').delete(idOuNumero)
+      return true
+    } catch (_) {
+      // Se não for ID, tenta por número
+      const limpo = idOuNumero.replace(/\D/g, '')
+      const records = await pb
+        .collection('whatsapp_bloqueados')
+        .getFullList<import('@/types/crm').WhatsAppBloqueado>({
+          filter: `numero = '${limpo}' || numero = '${idOuNumero}'`,
+        })
+      for (const r of records) {
+        await pb.collection('whatsapp_bloqueados').delete(r.id)
+      }
+      return true
+    }
+  } catch (err) {
+    console.error('Erro ao desbloquear contato:', err)
+    throw err
+  }
+}
+
 export async function vincularConversaCliente(
   conversaId: string,
   clienteId: string,
   atendenteNome?: string,
+  nomeContatoAdicional?: string,
 ): Promise<import('@/types/crm').WhatsAppConversa> {
   const cliente = await pb.collection('clientes').getOne<Cliente>(clienteId)
   const conversa = await pb
     .collection('whatsapp_conversas')
     .getOne<import('@/types/crm').WhatsAppConversa>(conversaId)
 
-  // Se o cliente não tiver whatsapp preenchido ou for diferente, atualizar
-  const clienteWhats = cliente.whatsapp || cliente.telefone || ''
-  if (!clienteWhats || !cliente.whatsapp) {
+  // Se foi fornecido o nome deste contato adicional (Recurso 2):
+  // Gravar como Contato Adicional do cliente associado ao número da conversa, sem sobrescrever telefone/WhatsApp principais
+  const nomeAdicionalTratado = (nomeContatoAdicional || '').trim()
+  if (nomeAdicionalTratado) {
     try {
-      await pb.collection('clientes').update(clienteId, {
-        whatsapp: conversa.numero,
+      await pb.collection('contatos_adicionais').create({
+        cliente: clienteId,
+        nome: nomeAdicionalTratado,
+        telefone: conversa.numero,
+        papel: 'outro',
+        is_whatsapp: true,
+        is_principal: false,
       })
-    } catch {
-      /* intentionally ignored */
+    } catch (errContato) {
+      console.warn('Erro ao criar contato adicional ao vincular conversa:', errContato)
+    }
+  } else {
+    // Se não forneceu contato adicional separado e o cliente não possui WhatsApp definido,
+    // preencher o WhatsApp do cliente apenas se ainda estiver vazio (mantendo independência conforme regra permanente)
+    const clienteWhats = cliente.whatsapp || ''
+    if (!clienteWhats) {
+      try {
+        await pb.collection('clientes').update(clienteId, {
+          whatsapp: conversa.numero,
+        })
+      } catch {
+        /* intentionally ignored */
+      }
     }
   }
 
