@@ -361,6 +361,9 @@ export interface UsinaBeneficiariasConfig {
   habilitado: boolean
   percentual_geradora: number
   unidades: UsinaBeneficiariaItem[]
+  protocolo?: string
+  data_protocolo?: string
+  atualizado_em?: string
 }
 
 export interface DocumentoUsinaItem {
