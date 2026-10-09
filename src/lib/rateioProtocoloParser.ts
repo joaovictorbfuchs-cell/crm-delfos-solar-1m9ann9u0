@@ -295,3 +295,146 @@ export function parseConfirmacaoConcessionaria(textoBruto: string): ResultadoPar
     avisos,
   }
 }
+
+/**
+ * Fallback de IA para extração de rateio/protocolo quando o parser determinístico falhar.
+ * Utiliza o endpoint backend existente (/backend/v1/extract-document ou /backend/v1/analisar-fatura-rge).
+ */
+export async function extrairRateioProtocoloComFallbackIA(
+  textoBruto: string,
+  tokenAuth?: string,
+  baseUrlCustom?: string,
+): Promise<ResultadoParseRateioProtocolo> {
+  // 1. Tentar primeiro o parser determinístico local
+  const parseLocal = parseConfirmacaoConcessionaria(textoBruto)
+  if (parseLocal.sucesso && parseLocal.unidades.length > 0 && parseLocal.protocolo) {
+    return parseLocal
+  }
+
+  // 2. Se falhar e não houver texto substantivo
+  if (!textoBruto || !textoBruto.trim()) {
+    return parseLocal
+  }
+
+  const baseUrl =
+    baseUrlCustom ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_POCKETBASE_URL) ||
+    ''
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (tokenAuth) {
+    headers.Authorization = tokenAuth
+  }
+
+  // Tentar chamar o endpoint de documentos existente (/backend/v1/extract-document)
+  try {
+    const res = await fetch(`${baseUrl}/backend/v1/extract-document`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        file_name: 'confirmacao-rateio-concessionaria.txt',
+        mime_type: 'text/plain',
+        text_content: textoBruto,
+      }),
+    })
+
+    if (res.ok) {
+      const json = await res.json()
+      const rawText = json?.raw_text || ''
+
+      // Tenta reparsear o raw_text retornado pelo $ai.chat
+      if (rawText) {
+        const reparseRaw = parseConfirmacaoConcessionaria(rawText)
+        if (reparseRaw.sucesso && reparseRaw.unidades.length > 0) {
+          return {
+            ...reparseRaw,
+            avisos: [
+              ...reparseRaw.avisos,
+              'Dados estruturados com auxílio do assistente de IA Skip.',
+            ],
+          }
+        }
+
+        // Tentar extrair bloco JSON da resposta da IA caso retorne { protocolo, percentual_geradora, unidades }
+        try {
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            const parsedObj = JSON.parse(jsonMatch[0])
+            const prot = parsedObj.protocolo || parsedObj.numero_protocolo
+            const unidadesArray = Array.isArray(parsedObj.unidades)
+              ? parsedObj.unidades
+              : Array.isArray(parsedObj.beneficiarias)
+                ? parsedObj.beneficiarias
+                : []
+
+            if (prot && unidadesArray.length > 0) {
+              const ucsExtraidas: UnidadeImportadaRateio[] = []
+              for (const item of unidadesArray) {
+                const ucStr = String(item.numero_uc || item.uc || '').replace(/\D/g, '')
+                const perc = normalizarPercentual(String(item.percentual ?? item.rateio ?? ''))
+                if (ucStr && perc !== null) {
+                  ucsExtraidas.push({ numero_uc: ucStr, percentual: perc })
+                }
+              }
+
+              if (ucsExtraidas.length > 0) {
+                const soma =
+                  Math.round(ucsExtraidas.reduce((a, b) => a + b.percentual, 0) * 100) / 100
+                return {
+                  sucesso: true,
+                  protocolo: String(prot).trim(),
+                  dataHora: extrairDataHoraConfirmacao(textoBruto) || undefined,
+                  unidades: ucsExtraidas,
+                  somaPercentuais: soma,
+                  erros: [],
+                  avisos: ['Dados recuperados com sucesso via fallback de IA.'],
+                }
+              }
+            }
+          }
+        } catch (_) {
+          /* ignorar e tentar o fallback RGE abaixo */
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[rateioProtocoloParser] Fallback extract-document falhou:', err)
+  }
+
+  // Tentar também endpoint da fatura RGE se o anterior não resolveu
+  try {
+    const resRge = await fetch(`${baseUrl}/backend/v1/analisar-fatura-rge`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        file_name: 'rateio-concessionaria.txt',
+        mime_type: 'text/plain',
+        text_content: textoBruto,
+      }),
+    })
+
+    if (resRge.ok) {
+      const jsonRge = await resRge.json()
+      const rawTextRge = jsonRge?.raw_text || ''
+      if (rawTextRge) {
+        const reparseRge = parseConfirmacaoConcessionaria(rawTextRge)
+        if (reparseRge.sucesso && reparseRge.unidades.length > 0) {
+          return {
+            ...reparseRge,
+            avisos: [
+              ...reparseRge.avisos,
+              'Dados estruturados com auxílio do modelo de visão RGE/Gemini.',
+            ],
+          }
+        }
+      }
+    }
+  } catch (errRge) {
+    console.warn('[rateioProtocoloParser] Fallback analisar-fatura-rge falhou:', errRge)
+  }
+
+  // Se nenhum fallback de IA conseguiu, retorna o resultado do parse determinístico original com seus erros
+  return parseLocal
+}

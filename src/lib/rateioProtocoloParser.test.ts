@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
+import { vi } from 'vitest'
 import {
   parseConfirmacaoConcessionaria,
   tentarParseLinhaUC,
   normalizarPercentual,
+  extrairRateioProtocoloComFallbackIA,
 } from './rateioProtocoloParser'
 
 describe('rateioProtocoloParser', () => {
@@ -95,5 +97,43 @@ Protocolo: 12345678
 `)
     expect(resSemUnidades.sucesso).toBe(false)
     expect(resSemUnidades.erros.some((e) => e.includes('Nenhuma unidade'))).toBe(true)
+  })
+
+  it('extrairRateioProtocoloComFallbackIA usa parser local de primeira se for válido', async () => {
+    const res = await extrairRateioProtocoloComFallbackIA(exemploReal)
+    expect(res.sucesso).toBe(true)
+    expect(res.protocolo).toBe('2175698383')
+    expect(res.unidades).toHaveLength(5)
+  })
+
+  it('extrairRateioProtocoloComFallbackIA recorre ao endpoint quando o determinístico falha', async () => {
+    const textoBaguncado =
+      'Texto desestruturado qualquer sem padrão tabular normal de concessionária'
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        raw_text: JSON.stringify({
+          protocolo: '55667788',
+          unidades: [
+            { uc: '999888777', percentual: 60 },
+            { uc: '111222333', percentual: 40 },
+          ],
+        }),
+      }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const res = await extrairRateioProtocoloComFallbackIA(
+      textoBaguncado,
+      'Bearer token123',
+      'http://localhost',
+    )
+    expect(res.sucesso).toBe(true)
+    expect(res.protocolo).toBe('55667788')
+    expect(res.unidades).toHaveLength(2)
+    expect(res.somaPercentuais).toBe(100)
+    expect(res.avisos.some((a) => a.includes('fallback de IA'))).toBe(true)
+
+    vi.unstubAllGlobals()
   })
 })

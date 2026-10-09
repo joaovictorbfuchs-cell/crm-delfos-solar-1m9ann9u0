@@ -13,8 +13,10 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   parseConfirmacaoConcessionaria,
+  extrairRateioProtocoloComFallbackIA,
   ResultadoParseRateioProtocolo,
 } from '@/lib/rateioProtocoloParser'
+import { pb } from '@/lib/pocketbase/client'
 import { UsinaBeneficiariaItem, UsinaBeneficiariasConfig, UsinaCliente } from '@/types/crm'
 import {
   FileText,
@@ -79,17 +81,28 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
   const [textoColado, setTextoColado] = useState('')
   const [isProcessando, setIsProcessando] = useState(false)
   const [percentualGeradoraSugerido, setPercentualGeradoraSugerido] = useState<number | string>(0)
+  const [parseResultadoIa, setParseResultadoIa] = useState<ResultadoParseRateioProtocolo | null>(
+    null,
+  )
+  const [isProcessandoIa, setIsProcessandoIa] = useState(false)
 
   // Unidades atuais já cadastradas na usina
   const unidadesExistentes = useMemo<UsinaBeneficiariaItem[]>(() => {
     return Array.isArray(beneficiariasAtuais?.unidades) ? beneficiariasAtuais!.unidades : []
   }, [beneficiariasAtuais])
 
-  // Resultado do parse tolerante em tempo real
-  const parseResultado = useMemo<ResultadoParseRateioProtocolo | null>(() => {
+  // Resultado do parse tolerante determinístico em tempo real
+  const parseResultadoLocal = useMemo<ResultadoParseRateioProtocolo | null>(() => {
     if (!textoColado.trim()) return null
     return parseConfirmacaoConcessionaria(textoColado)
   }, [textoColado])
+
+  // Resultado efetivo: se o local tiver sucesso, usa ele; senão usa o parse retornado pelo fallback IA
+  const parseResultado = useMemo<ResultadoParseRateioProtocolo | null>(() => {
+    if (parseResultadoLocal?.sucesso) return parseResultadoLocal
+    if (parseResultadoIa?.sucesso) return parseResultadoIa
+    return parseResultadoLocal || parseResultadoIa
+  }, [parseResultadoLocal, parseResultadoIa])
 
   // Quando o parse mudar e for válido, define percentual da geradora inteligente
   React.useEffect(() => {
@@ -105,6 +118,37 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
       }
     }
   }, [parseResultado])
+
+  // Fallback IA automático: quando o texto tiver mais de 20 caracteres mas o parser determinístico falhar
+  React.useEffect(() => {
+    setParseResultadoIa(null)
+    const textoLimpo = textoColado.trim()
+    if (!textoLimpo || textoLimpo.length < 20) return
+    if (parseResultadoLocal?.sucesso) return
+
+    let cancelado = false
+    const timer = setTimeout(async () => {
+      setIsProcessandoIa(true)
+      try {
+        const token = pb.authStore.token
+        const resIa = await extrairRateioProtocoloComFallbackIA(textoLimpo, token)
+        if (!cancelado && resIa && resIa.sucesso) {
+          setParseResultadoIa(resIa)
+        }
+      } catch (err) {
+        console.warn('[ModalImportarRateioProtocolo] Fallback IA silencioso:', err)
+      } finally {
+        if (!cancelado) {
+          setIsProcessandoIa(false)
+        }
+      }
+    }, 700)
+
+    return () => {
+      cancelado = true
+      clearTimeout(timer)
+    }
+  }, [textoColado, parseResultadoLocal])
 
   // Simulação / Merge da lista resultante
   const mergePreview = useMemo(() => {
@@ -335,7 +379,14 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
           </div>
 
           {/* Feedback de erros ou avisos do parser */}
-          {parseResultado && !parseResultado.sucesso && (
+          {isProcessandoIa && (
+            <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex items-center gap-2 text-[11px] font-semibold">
+              <RefreshCw className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+              <span>Analisando com assistente de IA Skip (fallback estruturado)...</span>
+            </div>
+          )}
+
+          {parseResultado && !parseResultado.sucesso && !isProcessandoIa && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-[11px]">
                 <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
@@ -346,6 +397,17 @@ export const ModalImportarRateioProtocolo: React.FC<ModalImportarRateioProtocolo
                   <li key={idx}>{err}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {parseResultado?.avisos && parseResultado.avisos.length > 0 && (
+            <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-emerald-800 text-[11px] space-y-0.5">
+              {parseResultado.avisos.map((av, idx) => (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span>{av}</span>
+                </div>
+              ))}
             </div>
           )}
 

@@ -74,7 +74,9 @@ import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
 import { BlocoAnotacoesUsina } from '@/components/BlocoAnotacoesUsina'
 import { SecaoDocumentosUsina } from '@/components/SecaoDocumentosUsina'
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
+import { ModalImportarRateioProtocolo } from '@/components/ModalImportarRateioProtocolo'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
+import { createAtividade } from '@/services/crmService'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
 import { formatarCPF } from '@/lib/cpfValidator'
@@ -149,6 +151,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [isEditingDetalhes, setIsEditingDetalhes] = useState(false)
   const [isSavingDetalhes, setIsSavingDetalhes] = useState(false)
   const [modalImportarDocUsinaOpen, setModalImportarDocUsinaOpen] = useState(false)
+  const [modalImportarRateioOpen, setModalImportarRateioOpen] = useState(false)
   const [modalNovaAtividadeUsinaOpen, setModalNovaAtividadeUsinaOpen] = useState(false)
 
   // Form states para edição na ficha própria
@@ -1157,6 +1160,61 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                 }}
               />
 
+              {/* Modal de Importar Rateio e Protocolo da Concessionária */}
+              <ModalImportarRateioProtocolo
+                isOpen={modalImportarRateioOpen}
+                onClose={() => setModalImportarRateioOpen(false)}
+                usina={usinaDetalhes}
+                clienteNome={clienteNome}
+                beneficiariasAtuais={usinaDetalhes.beneficiarias}
+                onConfirmarImportacao={async ({
+                  novoConfig,
+                  protocolo,
+                  dataHora,
+                  unidadesParaTimeline,
+                }) => {
+                  // 1. Persistir beneficiárias na coleção usinas via handleUpdateUsinaField
+                  await handleUpdateUsinaField('beneficiarias', novoConfig)
+
+                  // 2. Montar descrição com protocolo, data/hora, percentual geradora e lista de UCs
+                  const linhasDescricao: string[] = [
+                    `Atualização de Beneficiárias e Rateio de Créditos`,
+                    `Protocolo: ${protocolo}`,
+                  ]
+                  if (dataHora) {
+                    linhasDescricao.push(`Data/Hora Concessionária: ${dataHora}`)
+                  }
+                  linhasDescricao.push(`Usina: ${usinaDetalhes.nome}`)
+                  linhasDescricao.push(`Percentual da Geradora: ${novoConfig.percentual_geradora}%`)
+                  linhasDescricao.push(``)
+                  linhasDescricao.push(
+                    `Lista de Beneficiárias Atualizada (${unidadesParaTimeline.length}):`,
+                  )
+
+                  for (const u of unidadesParaTimeline) {
+                    const tagStatus = u.isNova ? '(Nova UC cadastrada)' : '(Percentual atualizado)'
+                    const ident = u.identificacao ? ` - ${u.identificacao}` : ''
+                    linhasDescricao.push(
+                      `• UC ${u.numero_uc}${ident}: ${u.percentual}% ${tagStatus}`,
+                    )
+                  }
+
+                  const descricaoCompleta = linhasDescricao.join('\n')
+
+                  // 3. Registrar na timeline através de createAtividade na coleção atividades
+                  await createAtividade({
+                    cliente_id: clienteId,
+                    usina_id: usinaDetalhes.id,
+                    tipo: 'transferencia_creditos',
+                    titulo: `Atualização de Beneficiárias • Protocolo ${protocolo}`,
+                    descricao: descricaoCompleta,
+                    status: 'concluida',
+                    autor: 'CRM Delfos Solar',
+                    data_conclusao: new Date().toISOString(),
+                  })
+                }}
+              />
+
               <DialogHeader>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
@@ -1727,17 +1785,33 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                                     </span>
                                   </label>
 
-                                  {habilitado && (
-                                    <span
-                                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                                        is100
-                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                          : 'bg-rose-50 text-rose-800 border-rose-300'
-                                      }`}
+                                  <div className="flex items-center gap-2">
+                                    {habilitado && (
+                                      <span
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                          is100
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                            : 'bg-rose-50 text-rose-800 border-rose-300'
+                                        }`}
+                                      >
+                                        {is100
+                                          ? 'Soma: 100%'
+                                          : `Soma: ${somaTotal}% (deve ser 100%)`}
+                                      </span>
+                                    )}
+
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setModalImportarRateioOpen(true)}
+                                      className="h-6 px-2 text-[10px] bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-300 font-bold flex items-center gap-1 shadow-2xs"
+                                      title="Importar rateio e protocolo colando texto da concessionária"
                                     >
-                                      {is100 ? 'Soma: 100%' : `Soma: ${somaTotal}% (deve ser 100%)`}
-                                    </span>
-                                  )}
+                                      <FileText className="w-3 h-3 text-emerald-600" />
+                                      <span>Importar Rateio / Protocolo</span>
+                                    </Button>
+                                  </div>
                                 </div>
 
                                 {habilitado && (
