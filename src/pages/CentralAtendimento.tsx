@@ -39,9 +39,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreVertical, UserCheck, Building2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { MoreVertical, UserCheck, Building2, Ban } from 'lucide-react'
 import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
-import { fetchOutrosContatos, createWhatsAppConversa } from '@/services/crmService'
+import {
+  fetchOutrosContatos,
+  createWhatsAppConversa,
+  fetchWhatsAppBloqueados,
+} from '@/services/crmService'
 import { fetchContatosUnicos } from '@/services/contatosService'
 import {
   casarRemetenteComContatos,
@@ -72,10 +86,20 @@ export const CentralAtendimento: React.FC = () => {
     vincularConversa,
     cadastrarLeadDeConversa,
     cadastrarOutroContatoDeConversa,
+    isNumeroBloqueado,
+    refreshWhatsAppBloqueados,
+    bloquearContato,
   } = useClientes()
 
   const { user } = useAuth()
   const { toast } = useToast()
+
+  // Contatos bloqueados: garantir lista sincronizada ao montar a tela para o filtro de conversas
+  useEffect(() => {
+    refreshWhatsAppBloqueados().catch((err) =>
+      console.warn('Falha ao carregar contatos bloqueados na Central:', err),
+    )
+  }, [refreshWhatsAppBloqueados])
 
   // Polling automático a cada 15 segundos conforme solicitado
   useEffect(() => {
@@ -93,6 +117,9 @@ export const CentralAtendimento: React.FC = () => {
   const [conversaParaOutroContato, setConversaParaOutroContato] = useState<WhatsAppConversa | null>(
     null,
   )
+  const [conversaParaBloquear, setConversaParaBloquear] = useState<WhatsAppConversa | null>(null)
+  const [motivoBloqueio, setMotivoBloqueio] = useState('')
+  const [isBloqueando, setIsBloqueando] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
@@ -303,6 +330,12 @@ export const CentralAtendimento: React.FC = () => {
     const safeClientes = Array.isArray(clientes) ? clientes : []
     const safeContatosAdic = Array.isArray(contatosAdicionais) ? contatosAdicionais : []
 
+    // Conversas de contatos bloqueados NÃO aparecem em nenhuma lista da Central:
+    // são ocultadas por número (E.164, mesmo critério do isNumeroBloqueado) até serem desbloqueadas.
+    const conversasVisiveis = safeConversas.filter(
+      (c) => c && !(c.numero && isNumeroBloqueado(c.numero)),
+    )
+
     // Mapear conversas que possuem mensagens no histórico correspondentes ao termo buscado
     const conversasComMensagemMatch = new Set<string>()
     if (normalizedTerm && Array.isArray(whatsAppMensagens)) {
@@ -404,18 +437,18 @@ export const CentralAtendimento: React.FC = () => {
       return isNaN(t) ? 0 : t
     }
 
-    const novos = safeConversas
+    const novos = conversasVisiveis
       .filter((c) => c && c.status === 'novo' && filterFn(c))
       .sort((a, b) => safeTime(b.updated || b.created) - safeTime(a.updated || a.created))
 
-    const emAtendimento = safeConversas
+    const emAtendimento = conversasVisiveis
       .filter(
         (c) =>
           c && (c.status === 'em_atendimento' || c.status === 'aguardando_cliente') && filterFn(c),
       )
       .sort((a, b) => safeTime(b.updated || b.created) - safeTime(a.updated || a.created))
 
-    const resolvidos = safeConversas
+    const resolvidos = conversasVisiveis
       .filter((c) => {
         if (!c || c.status !== 'resolvido') return false
         if (!filterFn(c)) return false
@@ -427,13 +460,24 @@ export const CentralAtendimento: React.FC = () => {
       .sort((a, b) => safeTime(b.resolvida_em || b.updated) - safeTime(a.resolvida_em || a.updated))
 
     return { novos, emAtendimento, resolvidos }
-  }, [whatsAppConversas, whatsAppMensagens, searchTerm, clientesMap])
+  }, [whatsAppConversas, whatsAppMensagens, searchTerm, clientesMap, isNumeroBloqueado])
 
   // Conversa ativa selecionada
+  // Se a conversa selecionada pertencer a um contato bloqueado, ela deixa de ser exibida no painel do chat
+  // (o bloqueio esconde a conversa por completo; ao desbloquear, ela volta a aparecer normalmente).
   const selectedConversa = useMemo(() => {
     if (!selectedConversaId) return null
-    return whatsAppConversas.find((c) => c.id === selectedConversaId) || null
-  }, [whatsAppConversas, selectedConversaId])
+    const conv = whatsAppConversas.find((c) => c.id === selectedConversaId) || null
+    if (conv && conv.numero && isNumeroBloqueado(conv.numero)) return null
+    return conv
+  }, [whatsAppConversas, selectedConversaId, isNumeroBloqueado])
+
+  // Fechar/limpar automaticamente a conversa aberta quando ela for bloqueada
+  useEffect(() => {
+    if (selectedConversaId && !selectedConversa) {
+      setSelectedConversaId(null)
+    }
+  }, [selectedConversa, selectedConversaId])
 
   const selectedCliente = useMemo(() => {
     if (!selectedConversa?.cliente_id) return null
@@ -448,6 +492,36 @@ export const CentralAtendimento: React.FC = () => {
     if (diff < 3600) return `${Math.floor(diff / 60)} min atrás`
     if (diff < 86400) return `${Math.floor(diff / 3600)} h atrás`
     return `${Math.floor(diff / 86400)} d atrás`
+  }
+
+  // Bloquear contato direto do card da Fila de Novos (menu de três pontinhos)
+  const handleBloquearDoCard = async () => {
+    if (!conversaParaBloquear) return
+    setIsBloqueando(true)
+    try {
+      await bloquearContato({
+        numero: conversaParaBloquear.numero,
+        motivo: motivoBloqueio.trim() || undefined,
+      })
+      // Refetch defensivo das bloqueadas para que a lista da Central atualize na hora
+      // (mesmo que o estado global já tenha sido atualizado por bloquearContato)
+      await refreshWhatsAppBloqueados()
+      toast({
+        title: 'Contato bloqueado',
+        description: `O número ${formatWhatsAppPhone(conversaParaBloquear.numero)} foi bloqueado. A conversa saiu da lista de atendimento e novas mensagens serão ignoradas.`,
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao bloquear contato a partir do card:', err)
+      toast({
+        title: 'Erro ao bloquear contato',
+        description: err instanceof Error ? err.message : 'Não foi possível bloquear o contato.',
+        variant: 'destructive',
+      })
+    } finally {
+      setConversaParaBloquear(null)
+      setMotivoBloqueio('')
+      setIsBloqueando(false)
+    }
   }
 
   // Vincular ação
@@ -509,6 +583,8 @@ export const CentralAtendimento: React.FC = () => {
 
     return { porTelefone, porCliente }
   }, [whatsAppConversas])
+  // (Contatos bloqueados NÃO são excluídos aqui: o mapa conversasPorTelefoneOuCliente é usado
+  // apenas pela busca de clientes no banco — a conversa continua existindo no banco, apenas oculta.)
 
   // Helper para localizar conversa existente para um determinado telefone ou clienteId
   const findConversaExistente = (
@@ -1367,6 +1443,17 @@ export const CentralAtendimento: React.FC = () => {
                                   <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                                   <span>Vincular a cliente existente</span>
                                 </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setConversaParaBloquear(conv)
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-rose-700 font-medium hover:bg-rose-50"
+                                >
+                                  <Ban className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Bloquear contato</span>
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
 
@@ -1628,6 +1715,69 @@ export const CentralAtendimento: React.FC = () => {
         isOpen={modalTemplatesOpen}
         onClose={() => setModalTemplatesOpen(false)}
       />
+
+      {/* Dialog de Confirmação de Bloqueio a partir do card da Fila de Novos */}
+      <Dialog
+        open={Boolean(conversaParaBloquear)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConversaParaBloquear(null)
+            setMotivoBloqueio('')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bloquear Contato WhatsApp?</DialogTitle>
+            <DialogDescription>
+              Ao bloquear, a conversa sai imediatamente da lista da Central de Atendimento, novas
+              mensagens deste número serão ignoradas pelo webhook e o envio ficará desabilitado. A
+              conversa continua registrada no banco e volta a aparecer se o contato for
+              desbloqueado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs text-gray-600">
+              Número:{' '}
+              <span className="font-mono font-semibold text-gray-900">
+                {conversaParaBloquear ? formatWhatsAppPhone(conversaParaBloquear.numero) : ''}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <label
+                className="text-xs font-medium text-gray-700"
+                htmlFor="motivo-bloqueio-central"
+              >
+                Motivo do bloqueio (opcional)
+              </label>
+              <Textarea
+                id="motivo-bloqueio-central"
+                value={motivoBloqueio}
+                onChange={(e) => setMotivoBloqueio(e.target.value)}
+                placeholder="Ex.: spam, propaganda, número inválido..."
+                rows={3}
+                className="text-xs resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isBloqueando}
+              onClick={() => {
+                setConversaParaBloquear(null)
+                setMotivoBloqueio('')
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" disabled={isBloqueando} onClick={handleBloquearDoCard}>
+              {isBloqueando ? 'Bloqueando...' : 'Bloquear contato'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
