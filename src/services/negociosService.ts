@@ -20,6 +20,7 @@ export type CreateNegocioInput = {
   motivo_reabertura?: string
   condicao_pagamento?: string
   consultor_responsavel?: string
+  fotos?: File[] | string[]
 }
 
 export type UpdateNegocioInput = Partial<CreateNegocioInput>
@@ -326,7 +327,25 @@ export async function createNegocio(data: CreateNegocioInput): Promise<Negocio> 
   // Se consultor_responsavel estiver vazio, faz expand apenas de cliente_id para evitar 400
   const expandQuery = consultor ? 'cliente_id,consultor_responsavel' : 'cliente_id'
 
-  const createdNegocio = await pb.collection('negocios').create<Negocio>(payload, {
+  const hasFiles = Array.isArray(data.fotos) && data.fotos.some((f) => f instanceof File)
+  let requestBody: Record<string, any> | FormData = payload
+
+  if (hasFiles) {
+    const formData = new FormData()
+    for (const [key, val] of Object.entries(payload)) {
+      if (val !== undefined && val !== null) {
+        formData.append(key, typeof val === 'object' ? JSON.stringify(val) : String(val))
+      }
+    }
+    for (const item of data.fotos || []) {
+      if (item instanceof File) {
+        formData.append('fotos', item)
+      }
+    }
+    requestBody = formData
+  }
+
+  const createdNegocio = await pb.collection('negocios').create<Negocio>(requestBody, {
     expand: expandQuery,
   })
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Briefcase,
   DollarSign,
@@ -10,7 +10,11 @@ import {
   ExternalLink,
   ChevronRight,
   Percent,
+  ImageIcon,
+  Upload,
+  Maximize2,
 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 import {
   Dialog,
   DialogContent,
@@ -302,29 +306,7 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
                   </div>
 
                   <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
-                    <span className="flex items-center gap-1 font-semibold text-slate-800">
-                      <DollarSign className="w-3 h-3 text-emerald-600" />
-                      {formatCurrency(valorExibir, {
-                        recorrente: Boolean(
-                          neg.recorrencia_mensal ||
-                          (clienteNome && clienteNome.trim().toLowerCase() === 'joão silva'),
-                        ),
-                        periodicidade: 'mês',
-                      })}
-                    </span>
-                    {neg.etapa_funil && (
-                      <span className="capitalize text-slate-600">• {neg.etapa_funil}</span>
-                    )}
-                    {neg.probabilidade !== undefined && neg.probabilidade !== null && (
-                      <span className="text-amber-700 font-bold flex items-center">
-                        • {neg.probabilidade}% prob.
-                      </span>
-                    )}
-                    {neg.data_previsao_fechamento && (
-                      <span className="text-slate-400">
-                        • Prev: {neg.data_previsao_fechamento.split(' ')[0].split('T')[0]}
-                      </span>
-                    )}
+                    {/* Campos de funil/valores/prob/datas omitidos da exibição na ficha do cliente */}
                   </div>
                 </div>
 
@@ -415,6 +397,7 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
   const [motivoPerda, setMotivoPerda] = useState<string>(negocio.motivo_perda || '')
   const [reabertura, setReabertura] = useState<boolean>(Boolean(negocio.reabertura))
   const [motivoReabertura, setMotivoReabertura] = useState<string>(negocio.motivo_reabertura || '')
+  const [fotoAmpliadaUrl, setFotoAmpliadaUrl] = useState<string | null>(null)
 
   const { usuarios } = useClientes()
 
@@ -608,122 +591,21 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
             </div>
           </div>
 
-          {/* Linha 2: Etapa do Funil e Probabilidade */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Etapa do Funil</Label>
-              <select
-                value={etapa}
-                onChange={(e) => {
-                  const opt = ETAPAS_FUNIL_OPCOES.find((x) => x.value === e.target.value)
-                  setEtapa(e.target.value as EtapaFunilSelect)
-                  if (opt) setProbabilidade(String(opt.defaultProb))
-                }}
-                className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              >
-                {ETAPAS_FUNIL_OPCOES.map((ef) => (
-                  <option key={ef.value} value={ef.value}>
-                    {ef.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Probabilidade (%)</span>
-                <span className="text-[11px] text-amber-700 font-bold">{probabilidade}%</span>
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={probabilidade}
-                onChange={(e) => setProbabilidade(e.target.value)}
-                placeholder="Ex: 75"
-                className="text-xs h-9"
-              />
-            </div>
-          </div>
-
-          {/* Linha 3: Valores Estimado e Final */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Valor Estimado (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={valorEstimado}
-                onChange={(e) => setValorEstimado(e.target.value)}
-                placeholder="0,00"
-                className="text-xs h-9"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Valor Final Fechado (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={valorFinal}
-                onChange={(e) => setValorFinal(e.target.value)}
-                placeholder="0,00"
-                className="text-xs h-9"
-              />
-            </div>
-          </div>
-
-          {/* Linha 4: Previsão de Fechamento e Data de Fechamento */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Data Previsão Fechamento</Label>
-              <Input
-                type="date"
-                value={dataPrevisao}
-                onChange={(e) => setDataPrevisao(e.target.value)}
-                className="text-xs h-9"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Data de Fechamento</Label>
-              <Input
-                type="date"
-                value={dataFechamento}
-                onChange={(e) => setDataFechamento(e.target.value)}
-                className="text-xs h-9"
-              />
-            </div>
-          </div>
-
-          {/* Linha: Condição de Pagamento e Responsável pelo Negócio */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Condição de Pagamento</Label>
-              <Input
-                type="text"
-                value={condicaoPagamento}
-                onChange={(e) => setCondicaoPagamento(e.target.value)}
-                placeholder="Ex: Entrada 30% + Financiamento Santander em 60x"
-                className="text-xs h-9"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Responsável pelo Negócio</Label>
-              <select
-                value={consultorResponsavel}
-                onChange={(e) => setConsultorResponsavel(e.target.value)}
-                className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              >
-                <option value="">Sem responsável definido</option>
-                {usuarios.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} {u.role ? `(${u.role})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Responsável pelo Negócio (Etapa do funil, probabilidade, valores, previsão, fechamento e condição de pagamento removidos da exibição na ficha do cliente) */}
+          <div className="space-y-1">
+            <Label className="text-xs font-bold text-slate-700">Responsável pelo Negócio</Label>
+            <select
+              value={consultorResponsavel}
+              onChange={(e) => setConsultorResponsavel(e.target.value)}
+              className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="">Sem responsável definido</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} {u.role ? `(${u.role})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Se status for perdido, campo motivo de perda */}
@@ -774,9 +656,93 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
             )}
           </div>
 
+          {/* Seção de Fotos Anexadas ao Negócio */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-amber-600" />
+                Fotos do Negócio{' '}
+                {Array.isArray(negocio.fotos) &&
+                  negocio.fotos.length > 0 &&
+                  `(${negocio.fotos.length})`}
+              </Label>
+            </div>
+
+            {Array.isArray(negocio.fotos) && negocio.fotos.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5 pt-1">
+                {negocio.fotos.map((fotoNome, idx) => {
+                  const recordRef = {
+                    ...negocio,
+                    collectionId: negocio.collectionId || 'negocios',
+                    collectionName: negocio.collectionName || 'negocios',
+                  }
+                  const fileUrl = pb.files.getURL(recordRef, fotoNome)
+                  return (
+                    <div
+                      key={`foto-${idx}`}
+                      className="relative group rounded-xl overflow-hidden aspect-square border border-slate-200 bg-white shadow-2xs"
+                    >
+                      <img
+                        src={fileUrl}
+                        alt={`Foto ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFotoAmpliadaUrl(fileUrl)}
+                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-bold gap-1 cursor-pointer"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        Ampliar
+                      </button>
+                      <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded">
+                        #{idx + 1}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="py-4 border border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center text-center p-3 bg-white">
+                <ImageIcon className="w-6 h-6 text-slate-300 mb-1" />
+                <p className="text-xs text-slate-500 font-medium">
+                  Nenhuma foto anexada a este negócio
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Seção Aditiva: Atividades e Anotações deste Negócio (Etapa 2) */}
           <SecaoAtividadesNegocio negocio={negocio} clienteNome={clienteNome} />
         </div>
+
+        {/* Modal de Visualização Ampliada da Foto */}
+        {fotoAmpliadaUrl && (
+          <Dialog open={Boolean(fotoAmpliadaUrl)} onOpenChange={() => setFotoAmpliadaUrl(null)}>
+            <DialogContent className="max-w-4xl p-2 bg-black/95 border-slate-800 text-white">
+              <DialogHeader className="p-2 border-b border-white/10 flex flex-row items-center justify-between">
+                <DialogTitle className="text-sm font-semibold text-white">
+                  Visualização da Foto
+                </DialogTitle>
+                <a
+                  href={fotoAmpliadaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-amber-400 hover:underline flex items-center gap-1 font-semibold mr-6"
+                >
+                  Abrir original em nova aba
+                </a>
+              </DialogHeader>
+              <div className="relative flex items-center justify-center p-2 min-h-[300px] max-h-[75vh] overflow-hidden">
+                <img
+                  src={fotoAmpliadaUrl}
+                  alt="Visualização ampliada"
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <DialogFooter className="flex items-center justify-between border-t border-slate-100 pt-3">
           <Button
@@ -882,8 +848,12 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
   const [consultorResponsavel, setConsultorResponsavel] = useState<string>(user?.id || '')
   const [reabertura, setReabertura] = useState<boolean>(false)
   const [motivoReabertura, setMotivoReabertura] = useState<string>('')
+  const [anotacoes, setAnotacoes] = useState<string>('')
+  const [fotosArquivos, setFotosArquivos] = useState<{ file: File; previewUrl: string }[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [erroInline, setErroInline] = useState<string | null>(null)
+
   // Limpa erro inline e pré-preenche consultor com usuário logado ao abrir
   useEffect(() => {
     if (open) {
@@ -893,6 +863,40 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       }
     }
   }, [open, user?.id])
+
+  const handleSelecionarFotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const novosItens = files.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+
+    setFotosArquivos((prev) => {
+      const combinado = [...prev, ...novosItens]
+      if (combinado.length > 25) {
+        toast.warning('Limite máximo de 25 fotos por negócio. As excedentes foram ignoradas.')
+        return combinado.slice(0, 25)
+      }
+      return combinado
+    })
+
+    if (e.target) {
+      e.target.value = ''
+    }
+  }
+
+  const handleRemoverFoto = (index: number) => {
+    setFotosArquivos((prev) => {
+      const item = prev[index]
+      if (item?.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl)
+      }
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!clienteId) return
@@ -913,7 +917,10 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       const reaberturaFinal = isModoFicha ? false : reabertura
       const motivoReaberturaFinal =
         isModoFicha || !reabertura ? undefined : motivoReabertura.trim() || undefined
-      await createNegocio({
+
+      const arquivosParaEnvio = fotosArquivos.map((f) => f.file)
+
+      const novoNegocio = await createNegocio({
         cliente_id: clienteId,
         titulo: `Negócio - ${nomeLimpo}`,
         tipo_negocio: tipoNegocioFinal,
@@ -932,7 +939,32 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
             : undefined,
         reabertura: reaberturaFinal,
         motivo_reabertura: motivoReaberturaFinal,
+        fotos: arquivosParaEnvio.length > 0 ? arquivosParaEnvio : undefined,
       })
+
+      // Se houver anotações (via modal da ficha), cria atividade vinculando cliente e negócio
+      const textoAnotacoes = anotacoes.trim()
+      if (isModoFicha && textoAnotacoes && novoNegocio?.id) {
+        try {
+          const agoraIso = new Date().toISOString()
+          await pb.collection('atividades').create({
+            cliente_id: clienteId,
+            negocio_id: novoNegocio.id,
+            tipo: 'anotacao',
+            titulo: `Anotação - ${novoNegocio.titulo || 'Novo Negócio'}`,
+            descricao: textoAnotacoes,
+            observacoes: textoAnotacoes,
+            concluida: true,
+            concluida_em: agoraIso,
+            data_agendada: agoraIso,
+            prioridade: 'normal',
+            responsavel: consultorResponsavel || user?.id || '',
+          })
+        } catch (errAnotacao) {
+          console.warn('Erro ao salvar anotação vinculada:', errAnotacao)
+        }
+      }
+
       if (refreshData) {
         await refreshData()
       }
@@ -952,6 +984,9 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
       setConsultorResponsavel(user?.id || '')
       setReabertura(false)
       setMotivoReabertura('')
+      setAnotacoes('')
+      fotosArquivos.forEach((f) => URL.revokeObjectURL(f.previewUrl))
+      setFotosArquivos([])
       setErroInline(null)
     } catch (err: any) {
       console.error('Erro ao criar negócio:', err)
@@ -1035,6 +1070,84 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Anotações (visível apenas na criação via ficha) */}
+              <div className="sm:col-span-2 space-y-1">
+                <Label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Anotações (opcional)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    Será salva na Linha do Tempo e nas Atividades
+                  </span>
+                </Label>
+                <Textarea
+                  value={anotacoes}
+                  onChange={(e) => setAnotacoes(e.target.value)}
+                  placeholder="Registre observações, histórico inicial do lead, necessidades do cliente..."
+                  rows={3}
+                  className="text-xs bg-white"
+                />
+              </div>
+
+              {/* Upload de Fotos (visível no modal via ficha) */}
+              <div className="sm:col-span-2 space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-amber-600" />
+                    Fotos do Negócio (opcional)
+                  </Label>
+                  <span className="text-[11px] text-slate-400">
+                    {fotosArquivos.length}/25 selecionadas
+                  </span>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                  multiple
+                  onChange={handleSelecionarFotos}
+                  className="hidden"
+                />
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 text-xs font-semibold flex items-center gap-1.5 border-slate-300 hover:border-amber-500 hover:bg-amber-50"
+                >
+                  <Upload className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Selecionar Fotos</span>
+                </Button>
+
+                {fotosArquivos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-2">
+                    {fotosArquivos.map((item, idx) => (
+                      <div
+                        key={`preview-${idx}`}
+                        className="relative group rounded-lg overflow-hidden aspect-square border-2 border-amber-500 bg-white shadow-2xs"
+                      >
+                        <img
+                          src={item.previewUrl}
+                          alt={`Prévia ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoverFoto(idx)}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-xs hover:bg-rose-700 transition-colors"
+                          title="Remover foto"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <span className="absolute bottom-1 right-1 bg-amber-600 text-white text-[9px] font-bold px-1 py-0.2 rounded">
+                          #{idx + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (

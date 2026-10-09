@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T23:42:21.483Z",
+  "generatedAt": "2026-10-09T23:53:42.452Z",
   "collections": [
     {
       "name": "users",
@@ -5826,6 +5826,12 @@
         {
           "name": "recorrencia_mensal",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fotos",
+          "type": "file",
           "required": false,
           "system": false
         }

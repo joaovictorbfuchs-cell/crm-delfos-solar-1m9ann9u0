@@ -11,7 +11,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Briefcase, UserPlus, Search, Building2, User } from 'lucide-react'
+import {
+  Plus,
+  Briefcase,
+  UserPlus,
+  Search,
+  Building2,
+  User,
+  ImageIcon,
+  Upload,
+  X,
+} from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -19,6 +29,7 @@ import { createNegocio } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { TipoNegocioSelect, EtapaFunilSelect, NegocioStatus, Cliente } from '@/types/crm'
 import { toast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
 
 interface ModalNovoNegocioFunilProps {
   open: boolean
@@ -100,6 +111,9 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
   const [reabertura, setReabertura] = useState<boolean>(false)
   const [motivoReabertura, setMotivoReabertura] = useState<string>('')
   const [recorrenciaMensal, setRecorrenciaMensal] = useState<boolean>(false)
+  const [anotacoes, setAnotacoes] = useState<string>('')
+  const [fotosArquivos, setFotosArquivos] = useState<{ file: File; previewUrl: string }[]>([])
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [erroValidacao, setErroValidacao] = useState<string | null>(null)
@@ -156,6 +170,42 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
     }
   }
 
+  const handleSelecionarFotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const novosItens = files.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+
+    setFotosArquivos((prev) => {
+      const combinado = [...prev, ...novosItens]
+      if (combinado.length > 25) {
+        toast({
+          title: 'Limite excedido',
+          description: 'Limite máximo de 25 fotos por negócio. As excedentes foram ignoradas.',
+        })
+        return combinado.slice(0, 25)
+      }
+      return combinado
+    })
+
+    if (e.target) {
+      e.target.value = ''
+    }
+  }
+
+  const handleRemoverFoto = (index: number) => {
+    setFotosArquivos((prev) => {
+      const item = prev[index]
+      if (item?.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl)
+      }
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
   const resetForm = () => {
     setModoCliente('existente')
     setClienteId('')
@@ -178,6 +228,9 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
     setReabertura(false)
     setMotivoReabertura('')
     setRecorrenciaMensal(false)
+    setAnotacoes('')
+    fotosArquivos.forEach((f) => URL.revokeObjectURL(f.previewUrl))
+    setFotosArquivos([])
     setErroValidacao(null)
   }
 
@@ -269,7 +322,9 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
 
     setIsSubmitting(true)
     try {
-      await createNegocio({
+      const arquivosParaEnvio = fotosArquivos.map((f) => f.file)
+
+      const novoNegocio = await createNegocio({
         cliente_id: finalClienteId,
         titulo: tituloFinal,
         tipo_negocio: tipoNegocio,
@@ -289,7 +344,31 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
         reabertura: reaberturaFinal,
         motivo_reabertura: motivoReaberturaFinal,
         recorrencia_mensal: recorrenciaFinal,
+        fotos: arquivosParaEnvio.length > 0 ? arquivosParaEnvio : undefined,
       })
+
+      // Se houver anotações (via modal da ficha), cria atividade vinculando cliente e negócio
+      const textoAnotacoes = anotacoes.trim()
+      if (isModoFicha && textoAnotacoes && novoNegocio?.id) {
+        try {
+          const agoraIso = new Date().toISOString()
+          await pb.collection('atividades').create({
+            cliente_id: finalClienteId,
+            negocio_id: novoNegocio.id,
+            tipo: 'anotacao',
+            titulo: `Anotação - ${novoNegocio.titulo || 'Novo Negócio'}`,
+            descricao: textoAnotacoes,
+            observacoes: textoAnotacoes,
+            concluida: true,
+            concluida_em: agoraIso,
+            data_agendada: agoraIso,
+            prioridade: 'normal',
+            responsavel: consultorResponsavel || user?.id || '',
+          })
+        } catch (errAnotacao) {
+          console.warn('Erro ao salvar anotação vinculada no ModalNovoNegocioFunil:', errAnotacao)
+        }
+      }
 
       toast({
         title: 'Negócio criado com sucesso!',
@@ -535,6 +614,84 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Anotações (visível apenas na criação via ficha) */}
+                <div className="sm:col-span-2 space-y-1">
+                  <Label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span>Anotações (opcional)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      Será salva na Linha do Tempo e nas Atividades
+                    </span>
+                  </Label>
+                  <Textarea
+                    value={anotacoes}
+                    onChange={(e) => setAnotacoes(e.target.value)}
+                    placeholder="Registre observações, histórico inicial do lead, necessidades do cliente..."
+                    rows={3}
+                    className="text-xs bg-white"
+                  />
+                </div>
+
+                {/* Upload de Fotos (visível no modal via ficha) */}
+                <div className="sm:col-span-2 space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-emerald-600" />
+                      Fotos do Negócio (opcional)
+                    </Label>
+                    <span className="text-[11px] text-slate-400">
+                      {fotosArquivos.length}/25 selecionadas
+                    </span>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                    multiple
+                    onChange={handleSelecionarFotos}
+                    className="hidden"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 text-xs font-semibold flex items-center gap-1.5 border-slate-300 hover:border-emerald-500 hover:bg-emerald-50"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Selecionar Fotos</span>
+                  </Button>
+
+                  {fotosArquivos.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-2">
+                      {fotosArquivos.map((item, idx) => (
+                        <div
+                          key={`preview-${idx}`}
+                          className="relative group rounded-lg overflow-hidden aspect-square border-2 border-emerald-500 bg-white shadow-2xs"
+                        >
+                          <img
+                            src={item.previewUrl}
+                            alt={`Prévia ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoverFoto(idx)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-xs hover:bg-rose-700 transition-colors"
+                            title="Remover foto"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <span className="absolute bottom-1 right-1 bg-emerald-600 text-white text-[9px] font-bold px-1 py-0.2 rounded">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

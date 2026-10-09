@@ -192,6 +192,7 @@ export interface Negocio extends RecordModel {
   motivo_reabertura?: string
   condicao_pagamento?: string
   consultor_responsavel?: string
+  fotos?: string[]
   created: string
   updated: string
   expand?: {
