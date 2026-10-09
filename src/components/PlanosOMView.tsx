@@ -179,24 +179,26 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
 
       // Potência: usina vinculada recalculada -> contrato -> cliente
       const potenciaKwp =
-        (usinaVinculada?.potencia_total_kwp !== undefined && Number(usinaVinculada.potencia_total_kwp) > 0
+        ((usinaVinculada?.potencia_total_kwp !== undefined &&
+        Number(usinaVinculada.potencia_total_kwp) > 0
           ? Number(usinaVinculada.potencia_total_kwp)
           : null) ??
-        (contrato.potencia_kwp !== undefined && Number(contrato.potencia_kwp) > 0
-          ? Number(contrato.potencia_kwp)
-          : null) ??
-        Number(cliente?.potencia_kwp) ||
+          (contrato.potencia_kwp !== undefined && Number(contrato.potencia_kwp) > 0
+            ? Number(contrato.potencia_kwp)
+            : null) ??
+          Number(cliente?.potencia_kwp)) ||
         6.6
 
       // Quantidade de placas: usina vinculada recalculada -> contrato -> cliente -> cálculo estimado
       const qtdModulos =
-        (usinaVinculada?.quantidade_modulos !== undefined && Number(usinaVinculada.quantidade_modulos) > 0
+        ((usinaVinculada?.quantidade_modulos !== undefined &&
+        Number(usinaVinculada.quantidade_modulos) > 0
           ? Number(usinaVinculada.quantidade_modulos)
           : null) ??
-        (contrato.qtd_modulos !== undefined && Number(contrato.qtd_modulos) > 0
-          ? Number(contrato.qtd_modulos)
-          : null) ??
-        Number(cliente?.placas_qtd) ||
+          (contrato.qtd_modulos !== undefined && Number(contrato.qtd_modulos) > 0
+            ? Number(contrato.qtd_modulos)
+            : null) ??
+          Number(cliente?.placas_qtd)) ||
         Math.max(4, Math.round(potenciaKwp / 0.55))
 
       // Área do telhado estimada
