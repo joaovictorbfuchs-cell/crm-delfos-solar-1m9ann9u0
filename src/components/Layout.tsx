@@ -510,9 +510,11 @@ export default function Layout() {
         <main
           className={`flex-1 px-3 sm:px-6 lg:px-8 pt-3 pb-6 overflow-y-auto ${
             location.pathname === '/servicos-campo' || location.pathname === '/execucao-os'
-              ? 'max-lg:pt-[3.75rem]'
-              : 'max-lg:pt-[4.5rem]'
-          } ${isInstalador ? 'max-lg:pb-6' : 'max-lg:pb-20'}`}
+              ? 'max-lg:pt-[3.75rem] max-lg:pb-20'
+              : location.pathname === '/central-atendimento'
+                ? 'max-lg:pt-14 max-lg:pb-16 max-lg:px-2'
+                : 'max-lg:pt-[4.5rem] max-lg:pb-20'
+          } ${isInstalador ? 'max-lg:pb-6' : ''}`}
         >
           <Outlet />
         </main>

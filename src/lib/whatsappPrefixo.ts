@@ -30,7 +30,7 @@ export function obterPrimeiroNomeUsuarioLogado(fallback: string = 'Atendente'): 
  * Regex que identifica se uma mensagem já começa com prefixo entre colchetes seguido de dois-pontos.
  * Exemplo: "[Daniel]: Olá", "[Cassio]: ", "[João Victor]: "
  */
-export const REGEX_PREFIXO_MANUAL = /^\[[^\]]+\]:\s*/
+export const REGEX_PREFIXO_MANUAL = /^(?:\*\[[^\]]+\]\*|\[[^\]]+\]):\s*/
 
 /**
  * Verifica se a mensagem já possui prefixo de remetente entre colchetes.
@@ -68,5 +68,5 @@ export function aplicarPrefixoMensagemManual(texto: string, nomeCustomizado?: st
 
   const nome =
     (nomeCustomizado && nomeCustomizado.trim().split(/\s+/)[0]) || obterPrimeiroNomeUsuarioLogado()
-  return `[${nome}]: ${trimmed}`
+  return `*[${nome}]*: ${trimmed}`
 }

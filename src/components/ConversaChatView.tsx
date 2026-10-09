@@ -46,7 +46,7 @@ import {
 import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
+import { aplicarPrefixoMensagemManual, removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
 import { GravadorAudioWhatsApp } from '@/components/GravadorAudioWhatsApp'
@@ -1204,18 +1204,26 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       {!isAudioMsg && (
                         <div className="text-xs leading-relaxed select-text">
                           <span className="text-[#111b21] whitespace-pre-wrap break-words">
-                            {/* Se for imagem ou vídeo com texto padrão [Imagem]/[Vídeo], não redundar se a mídia renderizou */}
-                            {isImagemMsg
-                              ? conteudoMensagem === '[Imagem]' ||
-                                conteudoMensagem === '[Mensagem recebida]'
-                                ? ''
+                            {/* Se for mensagem enviada (interna), remove o prefixo do autor [Nome]: ou *[Nome]*: para não duplicar */}
+                            {(() => {
+                              const textoExibicao = !isRecebida
+                                ? removerPrefixoMensagemManual(conteudoMensagem)
                                 : conteudoMensagem
-                              : isVideoMsg
-                                ? conteudoMensagem === '[Vídeo]' ||
-                                  conteudoMensagem === '[Mensagem recebida]'
+
+                              if (isImagemMsg) {
+                                return textoExibicao === '[Imagem]' ||
+                                  textoExibicao === '[Mensagem recebida]'
                                   ? ''
-                                  : conteudoMensagem
-                                : conteudoMensagem || (isDocumentoMsg ? '' : '—')}
+                                  : textoExibicao
+                              }
+                              if (isVideoMsg) {
+                                return textoExibicao === '[Vídeo]' ||
+                                  textoExibicao === '[Mensagem recebida]'
+                                  ? ''
+                                  : textoExibicao
+                              }
+                              return textoExibicao || (isDocumentoMsg ? '' : '—')
+                            })()}
                           </span>
 
                           {/* Horário + Ícones de Status WhatsApp inline ao final do texto (mesma linha) */}

@@ -1015,9 +1015,9 @@ export const CentralAtendimento: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4 flex flex-col h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-6.5rem)] lg:h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-6.5rem)] lg:max-h-[calc(100dvh-7.5rem)]">
-      {/* Barra de Ações Superior - Minimalista: Busca com autocomplete e ações funcionais */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
+    <div className="flex flex-col h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-8rem)] lg:max-h-[calc(100dvh-7.5rem)] min-h-0 lg:space-y-4">
+      {/* Barra de Ações Superior - Oculta no mobile (lg:flex) para liberar todo o espaço até a lista de conversas */}
+      <div className="hidden lg:flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
         {/* Campo de Busca com Dropdown de Resultados da Base de Clientes */}
         <div className="relative flex-1 min-w-[220px] max-w-sm sm:w-80">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1271,10 +1271,12 @@ export const CentralAtendimento: React.FC = () => {
           </div>
 
           {/* Desktop & Mobile: Listas de Conversas com scroll independente */}
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 pb-2 lg:pb-0">
             {/* 1. FILA DE NOVOS */}
-            <div className={`space-y-2.5 ${activeMobileTab !== 'novos' ? 'hidden lg:block' : ''}`}>
-              <div className="flex items-center justify-between px-1">
+            <div
+              className={`space-y-2.5 flex-1 min-h-0 ${activeMobileTab !== 'novos' ? 'hidden lg:block' : 'flex flex-col h-full'}`}
+            >
+              <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
@@ -1292,7 +1294,7 @@ export const CentralAtendimento: React.FC = () => {
                   Nenhuma mensagem nova pendente na fila.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                <div className="space-y-2 flex-1 lg:flex-none lg:max-h-[260px] overflow-y-auto pr-1">
                   {conversasClassificadas.novos.map((conv) => {
                     const isSelected = selectedConversaId === conv.id
                     const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
@@ -1476,9 +1478,9 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 2. EM ATENDIMENTO */}
             <div
-              className={`space-y-2.5 ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : ''}`}
+              className={`space-y-2.5 flex-1 min-h-0 ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : 'flex flex-col h-full'}`}
             >
-              <div className="flex items-center justify-between px-1">
+              <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
@@ -1496,7 +1498,7 @@ export const CentralAtendimento: React.FC = () => {
                   Nenhum atendimento em andamento no momento.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                <div className="space-y-2 flex-1 lg:flex-none lg:max-h-[360px] overflow-y-auto pr-1">
                   {conversasClassificadas.emAtendimento.map((conv) => {
                     const isSelected = selectedConversaId === conv.id
                     const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
@@ -1579,9 +1581,9 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 3. RESOLVIDOS (ÚLTIMAS 24H) */}
             <div
-              className={`space-y-2.5 ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : ''}`}
+              className={`space-y-2.5 flex-1 min-h-0 ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : 'flex flex-col h-full'}`}
             >
-              <div className="flex items-center justify-between px-1">
+              <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-gray-600">
@@ -1599,7 +1601,7 @@ export const CentralAtendimento: React.FC = () => {
                   Nenhuma conversa finalizada nas últimas 24 horas.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                <div className="space-y-2 flex-1 lg:flex-none lg:max-h-[260px] overflow-y-auto pr-1">
                   {conversasClassificadas.resolvidos.map((conv) => {
                     const isSelected = selectedConversaId === conv.id
                     const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
