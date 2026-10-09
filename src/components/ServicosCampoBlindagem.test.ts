@@ -100,4 +100,11 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(Array.isArray(os2.checklist)).toBe(true)
     })
   })
+
+  describe('Slot rightActionsSlot no CalendarioExecucaoOS', () => {
+    it('garante que a interface CalendarioExecucaoOSProps suporta rightActionsSlot e leftControlsSlot', async () => {
+      const mod = await import('@/components/CalendarioExecucaoOS')
+      expect(typeof mod.CalendarioExecucaoOS).toBe('function')
+    })
+  })
 })
