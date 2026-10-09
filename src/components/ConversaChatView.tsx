@@ -765,7 +765,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                           className="w-full text-left px-3.5 py-2 hover:bg-blue-50 flex items-center gap-2.5 text-blue-800 font-medium"
                         >
                           <Building2 className="w-4 h-4 text-blue-600" />
-                          <span>Cadastrar como outro contato</span>
+                          <span>Cadastrar como contato</span>
                         </button>
                       )}
 

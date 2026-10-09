@@ -1426,7 +1426,7 @@ export const CentralAtendimento: React.FC = () => {
                                   className="flex items-center gap-2 cursor-pointer text-blue-800 font-medium hover:bg-blue-50"
                                 >
                                   <Building2 className="w-3.5 h-3.5 text-blue-600" />
-                                  <span>Cadastrar como outro contato</span>
+                                  <span>Cadastrar como contato</span>
                                 </DropdownMenuItem>
 
                                 <DropdownMenuItem

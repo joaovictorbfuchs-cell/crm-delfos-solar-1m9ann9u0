@@ -168,7 +168,7 @@ export const ModalCadastrarOutroContatoWhatsApp: React.FC<
               <Contact className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-lg">Cadastrar como Outro Contato</DialogTitle>
+              <DialogTitle className="text-lg">Cadastrar como Contato</DialogTitle>
               <DialogDescription className="text-xs">
                 Registre fornecedores, parceiros ou instaladores. A conversa será finalizada e sairá
                 da Fila de Novos.
