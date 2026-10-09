@@ -705,9 +705,32 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
       }
 
       // 1. Extração estruturada padrão do documento
-      const res = await extrairDadosDocumento(selectedFile, {
-        onProgress: (msg) => setAnalyzingProgressText(msg),
-      })
+      let res: import('@/services/documentExtractionService').ExtractDocumentResult | null = null
+      try {
+        res = await extrairDadosDocumento(selectedFile, {
+          onProgress: (msg) => setAnalyzingProgressText(msg),
+        })
+      } catch (extractErr) {
+        console.warn(
+          '[ImportarDadosDocumento] Exceção ao chamar extrairDadosDocumento:',
+          extractErr,
+        )
+        const msg =
+          extractErr instanceof Error && extractErr.message
+            ? extractErr.message
+            : 'Não foi possível extrair os dados deste documento automaticamente.'
+        setErrorMessage(
+          'Não foi possível extrair os dados deste documento automaticamente. Tente novamente ou preencha manualmente.',
+        )
+        toast({
+          title: 'Aviso de extração',
+          description:
+            'Não foi possível extrair os dados deste documento automaticamente. Tente novamente ou preencha manualmente.',
+          variant: 'destructive',
+        })
+        setExtractionResult(null)
+        return
+      }
 
       // Se não tentamos a RGE antes mas o texto extraído revela que é fatura RGE
       if (!faturaRGERes && isPdfOrImg) {

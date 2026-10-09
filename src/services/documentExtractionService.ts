@@ -150,8 +150,13 @@ export async function extrairDadosDocumento(
     let errMessage = `Erro do servidor: status ${res.status}`
     try {
       const errBody = await res.json()
-      if (errBody?.error) errMessage = errBody.error
-      else if (errBody?.message) errMessage = errBody.message
+      if (errBody?.error) {
+        errMessage =
+          typeof errBody.error === 'string' ? errBody.error : JSON.stringify(errBody.error)
+      } else if (errBody?.message) {
+        errMessage =
+          typeof errBody.message === 'string' ? errBody.message : JSON.stringify(errBody.message)
+      }
     } catch {
       /* intentionally ignored */
     }
@@ -165,20 +170,55 @@ export async function extrairDadosDocumento(
         'O documento excede o limite de processamento de IA. Reduza a resolução da foto ou envie o arquivo PDF em formato digital.'
     }
 
-    throw new Error(errMessage)
+    console.warn(
+      `[extrairDadosDocumento] Falha HTTP ${res.status} ao extrair dados de "${fileInfo.fileName}": ${errMessage}`,
+    )
+
+    return {
+      ok: false,
+      data: null,
+      message:
+        'Não foi possível extrair os dados deste documento automaticamente. Tente novamente ou preencha manualmente.',
+      fileInfo,
+    }
   }
 
-  const json = (await res.json()) as {
-    ok: boolean
-    data: DocumentoExtraidoData | null
+  let json: {
+    ok?: boolean
+    data?: DocumentoExtraidoData | null
     raw_text?: string
     message?: string
     error?: string
     conversation_id?: string
+  } = {}
+
+  try {
+    json = (await res.json()) || {}
+  } catch (parseErr) {
+    console.warn('[extrairDadosDocumento] Resposta do backend não é JSON válido:', parseErr)
+    return {
+      ok: false,
+      data: null,
+      message:
+        'Não foi possível interpretar a resposta do extrator de documentos. Tente novamente ou preencha manualmente.',
+      fileInfo,
+    }
   }
 
   if (json.error && !json.ok) {
-    throw new Error(json.error)
+    console.warn(
+      `[extrairDadosDocumento] Resposta com erro de processamento para "${fileInfo.fileName}": ${json.error}`,
+    )
+    return {
+      ok: false,
+      data: null,
+      message:
+        json.message ||
+        'Não foi possível extrair os dados deste documento automaticamente. Tente novamente ou preencha manualmente.',
+      raw_text: json.raw_text,
+      conversation_id: json.conversation_id,
+      fileInfo,
+    }
   }
 
   const dataSanitizada = json.data ? sanitizarDocumentoExtraido(json.data) : null

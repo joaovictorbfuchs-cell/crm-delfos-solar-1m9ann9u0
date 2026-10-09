@@ -175,8 +175,10 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
       userMessageContent = `Documento: ${fileName}\n\nConteúdo textual extraído do arquivo:\n"""\n${textContent}\n"""\n\nAnalise o conteúdo acima e extraia todos os dados disponíveis retornando exclusivamente o JSON estruturado.`
     }
 
-    // 4. Chamada 100% STATELESS usando $ai.chat (OpenAI-shape) com model 'fast'.
-    // Isto elimina completamente o acúmulo de contexto/histórico de conversas prévias.
+    // 4. Chamada STATELESS usando $ai.chat (OpenAI-shape) com model 'fast'.
+    // Caso o gateway retorne erro (ex: 400 em imagem multimodal ou timeout),
+    // tenta fallback seguro utilizando o texto extraído (OCR/leitura textual)
+    // para não quebrar a requisição do usuário.
     let chatRes = null
     try {
       chatRes = $ai.chat({
@@ -203,7 +205,43 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
             'O documento excede o limite de processamento de IA. Reduza a resolução da foto ou envie o arquivo PDF em formato digital.',
         })
       }
-      throw aiErr
+
+      // Se a chamada multimodal falhou (ex: 400 por payload de imagem base64) e temos texto disponível,
+      // executa fallback enviando apenas o texto puro como mensagem simples string
+      if (Array.isArray(userMessageContent) && textContent && textContent.length > 10) {
+        try {
+          console.log(
+            `[EXTRACT DOC] Tentando fallback apenas textual para "${fileName}" (${textContent.length} chars)...`,
+          )
+          chatRes = $ai.chat({
+            model: 'fast',
+            messages: [
+              { role: 'system', content: systemPromptExtratorSolar },
+              {
+                role: 'user',
+                content: `Documento: ${fileName}\n\nTexto extraído do documento:\n"""\n${textContent}\n"""\n\nAnalise o texto acima e extraia os dados cadastrais, endereço, dados técnicos e de consumo retornando exclusivamente o JSON estruturado.`,
+              },
+            ],
+          })
+        } catch (fallbackErr) {
+          console.log(
+            `[EXTRACT DOC] Fallback textual também falhou para "${fileName}":`,
+            fallbackErr,
+          )
+        }
+      }
+
+      if (!chatRes) {
+        // Se ainda não temos resposta, retornar 200 com ok=false e mensagem explicativa amigável
+        return e.json(200, {
+          ok: false,
+          data: null,
+          message:
+            'Não foi possível extrair os dados deste documento automaticamente pela IA. Tente enviar o arquivo em formato PDF original ou preencha manualmente.',
+          raw_text: '',
+          conversation_id: null,
+        })
+      }
     }
 
     const rawContent = (
