@@ -367,8 +367,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   })
 
   // 4. Fotos: fotos já salvas (nomes em PB) + novas fotos capturadas na sessão
-  const [fotosSalvas, setFotosSalvas] = useState<string[]>(os?.fotos || [])
+  const normalizarFotosIniciais = (fotosRaw: unknown): string[] => {
+    if (Array.isArray(fotosRaw)) {
+      return fotosRaw.filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+    }
+    if (typeof fotosRaw === 'string' && fotosRaw.trim().length > 0) {
+      return [fotosRaw.trim()]
+    }
+    return []
+  }
+
+  const [fotosSalvas, setFotosSalvas] = useState<string[]>(() => normalizarFotosIniciais(os?.fotos))
   const [novasFotos, setNovasFotos] = useState<{ file: File; previewUrl: string }[]>([])
+
+  // Sincronizar estado local de fotos salvas sempre que a OS recebida por props mudar (ou novo id)
+  useEffect(() => {
+    setFotosSalvas(normalizarFotosIniciais(os?.fotos))
+  }, [os?.id, os?.fotos])
 
   // 5. Detalhes da execução
   const [detalhesExecucao, setDetalhesExecucao] = useState<string>(os.detalhes_execucao || '')
@@ -809,9 +824,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         payload,
         filesToUpload.length > 0 ? filesToUpload : undefined,
       )
-      setFotosSalvas(updated.fotos || [])
+      const fotosDoRetorno = normalizarFotosIniciais(updated.fotos)
+      // Mesclar fotos salvas anteriores com as novas fotos retornadas pelo backend (garantindo unicidade)
+      const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
+      const updatedComFotos: OrdemServico = {
+        ...updated,
+        fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
+      }
+      setFotosSalvas(updatedComFotos.fotos || [])
       setNovasFotos([])
-      onOSUpdated(updated)
+      onOSUpdated(updatedComFotos)
       toast({
         title: 'Progresso salvo!',
         description: 'Os dados da OS foram atualizados com sucesso.',
@@ -1168,7 +1190,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         cliente_id: os.cliente_id,
         tipo_servico: os.tipo_servico,
         tecnico_nome: os.atribuida_a,
+        origem: os.origem,
       })
+
+      const fotosDoRetorno = normalizarFotosIniciais(finalized.fotos)
+      const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
+      const finalizedComFotos: OrdemServico = {
+        ...finalized,
+        fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
+      }
+      setFotosSalvas(finalizedComFotos.fotos || [])
+      setNovasFotos([])
 
       setShowConfirmModal(false)
       toast({
@@ -1177,7 +1209,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           ? 'Ordem concluída e Relatório em PDF gerado automaticamente para o Administrador.'
           : 'Ordem de serviço marcada como concluída e registrada no histórico.',
       })
-      onOSFinalizada(finalized)
+      onOSFinalizada(finalizedComFotos)
     } catch (err) {
       console.error('Erro ao finalizar OS:', err)
       toast({
@@ -1949,7 +1981,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
             {/* Fotos já persistidas no PocketBase */}
             {fotosSalvas.map((fotoNome, idx) => {
-              const fileUrl = pb.files.getURL(os, fotoNome)
+              // Garante que o objeto passado para pb.files.getURL contenha collectionId ou collectionName resolvido
+              const recordRef = {
+                ...os,
+                collectionId:
+                  os.collectionId || (os.origem === 'atividades' ? 'atividades' : 'ordens_servico'),
+                collectionName:
+                  os.collectionName ||
+                  (os.origem === 'atividades' ? 'atividades' : 'ordens_servico'),
+              }
+              const fileUrl = pb.files.getURL(recordRef, fotoNome)
               return (
                 <div
                   key={`saved-${idx}`}

@@ -25,5 +25,31 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+  }
+  if (typeof error === 'object' && error !== null) {
+    const status = (error as { status?: unknown }).status
+    if (status === 401 || status === 403) return true
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      const lower = message.toLowerCase()
+      if (
+        lower.includes('token') ||
+        lower.includes('auth') ||
+        lower.includes('unauthorized') ||
+        lower.includes('forbidden') ||
+        lower.includes('sessão') ||
+        lower.includes('autenticação')
+      ) {
+        return true
+      }
+    }
+  }
+  return false
 }

@@ -3577,21 +3577,24 @@ async function updateAtividadeComoOrdemServico(
     payloadAtividade.data = data.data_agendada
   }
 
-  // Arquivo de cronograma ou medidor se vier arquivo
-  const fileToUpload = relatorioPdfFile || (newPhotos && newPhotos[0])
+  // Arquivo de cronograma ou fotos do serviço em campo
+  const hasFilesToUpload = Boolean(relatorioPdfFile) || Boolean(newPhotos && newPhotos.length > 0)
   let atvRecord: any
-  if (fileToUpload) {
+  if (hasFilesToUpload) {
     const formData = new FormData()
     Object.entries(payloadAtividade).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) {
+      if (v !== undefined && v !== null && k !== 'fotos' && k !== 'cronograma_arquivo') {
         if (typeof v === 'object') formData.append(k, JSON.stringify(v))
         else formData.append(k, String(v))
       }
     })
     if (relatorioPdfFile) {
       formData.append('cronograma_arquivo', relatorioPdfFile)
-    } else if (newPhotos && newPhotos[0]) {
-      formData.append('foto_medidor', newPhotos[0])
+    }
+    if (newPhotos && newPhotos.length > 0) {
+      for (const photo of newPhotos) {
+        formData.append('fotos', photo)
+      }
     }
     atvRecord = await pb.collection('atividades').update(id, formData, {
       expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
@@ -3695,6 +3698,11 @@ async function updateAtividadeComoOrdemServico(
     detalhes_execucao: atvRecord.descricao || data.detalhes_execucao || '',
     concluida_em: osStatus === 'concluida' ? atvRecord.updated || atvRecord.data : undefined,
     origem: 'atividades',
+    fotos: Array.isArray(atvRecord.fotos)
+      ? atvRecord.fotos
+      : atvRecord.fotos
+        ? [atvRecord.fotos]
+        : [],
     created: atvRecord.created,
     updated: atvRecord.updated,
     expand: {

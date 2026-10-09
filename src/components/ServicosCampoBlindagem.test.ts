@@ -99,6 +99,20 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       const os2 = sanitizeOS({ id: 'os-2', checklist: '{invalid-json' })
       expect(Array.isArray(os2.checklist)).toBe(true)
     })
+
+    it('sanitiza e normaliza fotos heterogêneas de atividades (array, string única, nulo)', () => {
+      const os1 = sanitizeOS({ id: 'os-fotos-1', fotos: null })
+      expect(os1.fotos).toEqual([])
+
+      const os2 = sanitizeOS({ id: 'os-fotos-2', fotos: 'foto_antiga.jpg' })
+      expect(os2.fotos).toEqual(['foto_antiga.jpg'])
+
+      const os3 = sanitizeOS({ id: 'os-fotos-3', fotos: ['f1.jpg', 'f2.jpg'] })
+      expect(os3.fotos).toEqual(['f1.jpg', 'f2.jpg'])
+
+      const os4 = sanitizeOS({ id: 'os-fotos-4', fotos: 12345 })
+      expect(os4.fotos).toEqual([])
+    })
   })
 
   describe('Slot rightActionsSlot no CalendarioExecucaoOS', () => {

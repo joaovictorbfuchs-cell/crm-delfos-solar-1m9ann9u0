@@ -2,7 +2,11 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { OrdemServico, OSTipoServico, OSChecklistItem } from '@/types/crm'
 import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
-import { CalendarioExecucaoOS, normalizeChecklist } from '@/components/CalendarioExecucaoOS'
+import {
+  CalendarioExecucaoOS,
+  normalizeChecklist,
+  sanitizeOS,
+} from '@/components/CalendarioExecucaoOS'
 import VisaoInstaladorMobileOS from '@/components/VisaoInstaladorMobileOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
 import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
@@ -335,8 +339,27 @@ function ExecucaoOSContent() {
           // Normaliza checklist de forma tolerante (seja array ou string JSON)
           const checklistNorm = normalizeChecklist(atv.checklist)
           const tipoCustomIdVal = atv.tipo_custom_id || atv.expand?.tipo_custom_id?.id || undefined
-          // Extração segura de horário de início a partir de string ou data
-          const atvDataStr = typeof atv.data === 'string' ? atv.data.trim() : ''
+          // Extração segura de horário de início e data agendada (padrão v0.0.972 tolerante a Date, string e nulo)
+          let atvDataStr = ''
+          if (atv.data) {
+            if (atv.data instanceof Date) {
+              if (!isNaN(atv.data.getTime())) {
+                const y = atv.data.getFullYear()
+                const m = String(atv.data.getMonth() + 1).padStart(2, '0')
+                const d = String(atv.data.getDate()).padStart(2, '0')
+                const h = String(atv.data.getHours()).padStart(2, '0')
+                const min = String(atv.data.getMinutes()).padStart(2, '0')
+                atvDataStr = `${y}-${m}-${d} ${h}:${min}:00`
+              }
+            } else {
+              try {
+                atvDataStr = String(atv.data).trim()
+              } catch {
+                atvDataStr = ''
+              }
+            }
+          }
+
           let horarioInicioSeguro: string | undefined =
             typeof atv.horario_inicio === 'string' && atv.horario_inicio.trim()
               ? atv.horario_inicio.trim()
@@ -348,6 +371,13 @@ function ExecucaoOSContent() {
               horarioInicioSeguro = horaMin
             }
           }
+
+          // Guarda defensiva para fotos da atividade: array, string única ou vazio
+          const fotosAtividade: string[] = Array.isArray(atv.fotos)
+            ? atv.fotos.filter((f: any) => typeof f === 'string' && f.trim().length > 0)
+            : typeof atv.fotos === 'string' && atv.fotos.trim().length > 0
+              ? [atv.fotos.trim()]
+              : []
 
           return {
             id: atv.id || 'atv-' + Math.random().toString(36).slice(2, 7),
@@ -365,6 +395,7 @@ function ExecucaoOSContent() {
             duracao_minutos: duracaoNum,
             tempo_previsto_minutos: duracaoNum,
             checklist: checklistNorm,
+            fotos: fotosAtividade,
             status,
             atribuida_a: atribuidaA,
             responsavel_usuario_id: atv.responsavel_id || undefined,
@@ -529,15 +560,21 @@ function ExecucaoOSContent() {
 
   // Callback de OS atualizada (rascunho ou salva)
   const handleOSUpdated = (updatedOS: OrdemServico) => {
-    setOrdens((prev) => prev.map((item) => (item.id === updatedOS.id ? updatedOS : item)))
-    if (selectedOS?.id === updatedOS.id) {
-      setSelectedOS(updatedOS)
+    const sanitized = sanitizeOS(updatedOS)
+    setOrdens((prev) =>
+      Array.isArray(prev) ? prev.map((item) => (item.id === sanitized.id ? sanitized : item)) : [],
+    )
+    if (selectedOS?.id === sanitized.id) {
+      setSelectedOS(sanitized)
     }
   }
 
   // Callback de OS finalizada
   const handleOSFinalizada = (finalizedOS: OrdemServico) => {
-    setOrdens((prev) => prev.map((item) => (item.id === finalizedOS.id ? finalizedOS : item)))
+    const sanitized = sanitizeOS(finalizedOS)
+    setOrdens((prev) =>
+      Array.isArray(prev) ? prev.map((item) => (item.id === sanitized.id ? sanitized : item)) : [],
+    )
     setSelectedOS(null)
     setActiveTab('concluidas')
   }
@@ -872,7 +909,7 @@ function ExecucaoOSContent() {
         )}
 
         <FichaExecucaoOS
-          os={selectedOS}
+          os={selectedOS ? sanitizeOS(selectedOS) : selectedOS}
           instaladores={instaladores}
           onBack={() => {
             setSelectedOS(null)
@@ -1453,12 +1490,12 @@ function ExecucaoOSContent() {
                 return (
                   <div
                     key={os.id}
-                    onClick={() => setSelectedOS(os)}
+                    onClick={() => setSelectedOS(sanitizeOS(os))}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
-                        setSelectedOS(os)
+                        setSelectedOS(sanitizeOS(os))
                       }
                     }}
                     className={`bg-white rounded-xl p-3 sm:p-3.5 border transition-all text-left flex flex-col justify-between group cursor-pointer shadow-2xs hover:shadow-xs hover:border-emerald-500 active:scale-[0.99] ${
