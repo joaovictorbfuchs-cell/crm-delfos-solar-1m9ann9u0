@@ -51,11 +51,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { MoreVertical, UserCheck, Building2, Ban } from 'lucide-react'
 import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
-import {
-  fetchOutrosContatos,
-  createWhatsAppConversa,
-  fetchWhatsAppBloqueados,
-} from '@/services/crmService'
+import { fetchOutrosContatos, createWhatsAppConversa } from '@/services/crmService'
 import { fetchContatosUnicos } from '@/services/contatosService'
 import {
   casarRemetenteComContatos,
