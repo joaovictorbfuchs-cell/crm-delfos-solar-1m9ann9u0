@@ -567,16 +567,21 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
         aria-hidden="true"
       />
 
-      {/* Modal Card */}
-      <div className="relative z-50 w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
+      {/* Modal Card ampliado (max-w-4xl / max-w-5xl em desktop, max-h-[90vh], scroll interno, header e footer fixos) */}
+      <div className="relative z-50 w-full max-w-4xl lg:max-w-5xl max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Header Fixo */}
+        <div className="px-6 py-4 sm:py-5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shadow-xs">
               <UserPlus className="w-5 h-5 text-emerald-700" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">+ Novo Negócio</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-gray-900">+ Novo Negócio</h2>
+                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Etapa 1 - Novo Lead
+                </span>
+              </div>
               <p className="text-xs text-gray-500">
                 Cadastre uma nova oportunidade no funil comercial
               </p>
@@ -586,450 +591,501 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
             type="button"
             onClick={handleClose}
             disabled={isSubmitting}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            aria-label="Fechar modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* SELETOR NO TOPO: NOVO CLIENTE (DEFAULT) OU CLIENTE EXISTENTE */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-emerald-600" />
-                Vincular a:
-              </span>
-              <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setModoCliente('novo')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
-                    modoCliente === 'novo'
-                      ? 'bg-emerald-600 text-white shadow-2xs font-bold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Novo cliente
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModoCliente('existente')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
-                    modoCliente === 'existente'
-                      ? 'bg-emerald-600 text-white shadow-2xs font-bold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Cliente existente
-                </button>
-              </div>
-            </div>
-            {modoCliente === 'existente' && (
-              <div className="space-y-1.5 pt-1">
-                <ClienteAutocomplete
-                  clientes={clientes}
-                  value={clienteExistenteId}
-                  onChange={handleSelectClienteExistente}
-                  placeholder="Buscar cliente existente por nome, telefone, cidade ou documento..."
-                />
-                {errors.clienteExistente && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.clienteExistente}
-                  </p>
-                )}
-                {clienteExistenteSelecionado && (
-                  <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold">{clienteExistenteSelecionado.nome}</p>
-                      <p className="text-[11px] text-emerald-700">
-                        {clienteExistenteSelecionado.telefone ||
-                          clienteExistenteSelecionado.whatsapp ||
-                          'Sem telefone'}
-                        {clienteExistenteSelecionado.cidade
-                          ? ` • ${clienteExistenteSelecionado.cidade}`
-                          : ''}
-                      </p>
-                    </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-full">
-                      Vinculado
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* BOTÃO EM DESTAQUE: IMPORTAR DADOS DA CONTA */}
-          <div className="p-3 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-emerald-600 text-white rounded-lg shrink-0 shadow-xs">
-                <FileText className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-emerald-950">
-                    Tem a fatura de energia em mãos?
+        {/* Form com Scroll Interno e Footer Fixo */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          {/* Corpo com Scroll Interno */}
+          <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
+            {/* SEÇÃO 1: VINCULAÇÃO E IMPORTAÇÃO RÁPIDA (GRID 2 COLUNAS NO DESKTOP) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Card 1: Modo de Seleção (Novo Lead vs Cliente Existente) */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-emerald-600" />
+                    Vincular Oportunidade a:
                   </span>
-                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                    RGE / Gemini
-                  </span>
-                </div>
-                <p className="text-[11px] text-emerald-800/80 leading-snug">
-                  Anexe a conta ou tire foto para preencher titular, CPF/CNPJ, endereço, UC e
-                  consumo.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setModalImportarContaOpen(true)}
-              className="w-full sm:w-auto shrink-0 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              Importar dados da conta
-            </button>
-          </div>
-
-          {/* Banner indicador caso dados da fatura já tenham sido importados */}
-          {dadosFaturaArmazenados && (
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-900 animate-in fade-in">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>
-                  Dados importados da conta{' '}
-                  {dadosFaturaArmazenados.uc ? (
-                    <strong className="font-mono text-[11px] bg-white px-1.5 py-0.5 rounded border border-emerald-200">
-                      UC {dadosFaturaArmazenados.uc}
-                    </strong>
-                  ) : null}
-                  {dadosFaturaArmazenados.consumo_medio
-                    ? ` • Média: ${Math.round(dadosFaturaArmazenados.consumo_medio)} kWh/mês`
-                    : null}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalImportarContaOpen(true)}
-                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline shrink-0 ml-2"
-              >
-                Revisar dados
-              </button>
-            </div>
-          )}
-
-          {/* PASSO 1: ESCOLHA O TIPO DE VENDA PRIMEIRO */}
-          <div className="p-3.5 bg-slate-50 rounded-xl border-2 border-emerald-500/40 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
-                1. Tipo de venda{' '}
-                <span className="text-emerald-600 font-extrabold">* (Escolha primeiro)</span>
-              </label>
-              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                Etapa inicial obrigatória
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Selecione a categoria comercial deste card para definir ícone e cor no funil:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              {TIPOS_VENDA_OPTIONS.map((opcao) => {
-                const cfg = TIPOS_VENDA_CONFIG[opcao]
-                const IconComponent = cfg.icon
-                const isSelected = tipoVenda === opcao
-
-                return (
-                  <button
-                    key={opcao}
-                    type="button"
-                    onClick={() => {
-                      setTipoVenda(opcao)
-                      // Alinha produto secundário com a seleção
-                      if (opcao === 'O&M (Operação e Manutenção)') {
-                        setProduto('Plano de O&M')
-                      } else if (opcao === 'Carregadores Veículos Elétricos') {
-                        setProduto('Carregadores veiculares')
-                      } else if (opcao === 'Baterias') {
-                        setProduto('Sistemas Híbridos')
-                      } else {
-                        setProduto('Energia Solar')
-                      }
-                    }}
-                    className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
-                      isSelected
-                        ? `${cfg.bgLightClass} ring-2 ring-emerald-500 shadow-xs font-semibold`
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
-                    }`}
-                  >
-                    <div
-                      className={`p-1.5 rounded-md shrink-0 mt-0.5 ${
-                        isSelected ? 'bg-white shadow-2xs' : 'bg-slate-100'
+                  <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setModoCliente('novo')}
+                      className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                        modoCliente === 'novo'
+                          ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      <IconComponent className={`w-4 h-4 ${cfg.iconClass}`} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold leading-tight">{opcao}</div>
-                      <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                        {cfg.descricao}
+                      Novo cliente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoCliente('existente')}
+                      className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                        modoCliente === 'existente'
+                          ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Cliente existente
+                    </button>
+                  </div>
+                </div>
+
+                {modoCliente === 'existente' ? (
+                  <div className="space-y-2 pt-1">
+                    <ClienteAutocomplete
+                      clientes={clientes}
+                      value={clienteExistenteId}
+                      onChange={handleSelectClienteExistente}
+                      placeholder="Buscar cliente existente por nome, telefone, cidade ou documento..."
+                    />
+                    {errors.clienteExistente && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {errors.clienteExistente}
+                      </p>
+                    )}
+                    {clienteExistenteSelecionado && (
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold">{clienteExistenteSelecionado.nome}</p>
+                          <p className="text-[11px] text-emerald-700">
+                            {clienteExistenteSelecionado.telefone ||
+                              clienteExistenteSelecionado.whatsapp ||
+                              'Sem telefone'}
+                            {clienteExistenteSelecionado.cidade
+                              ? ` • ${clienteExistenteSelecionado.cidade}`
+                              : ''}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-full">
+                          Vinculado
+                        </span>
                       </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Campos exclusivos para cadastro de NOVO lead */}
-          {modoCliente === 'novo' ? (
-            <>
-              {/* Campo CNPJ opcional com consulta automática */}
-              <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
-                <CnpjInputWithLookup
-                  value={cnpj}
-                  onChange={(val) => {
-                    setCnpj(val)
-                    if (conflitosCnpj.length > 0) setConflitosCnpj([])
-                  }}
-                  onBlur={handleCnpjBlur}
-                  onLookupClick={() =>
-                    lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
-                  }
-                  status={cnpjStatus}
-                  errorMessage={cnpjErrorMessage}
-                  isLoading={isCnpjLoading}
-                  label="CNPJ (Empresa / PJ) - Consulta Automática"
-                  helperText="Preencha os 14 dígitos e saia do campo para buscar dados da Receita Federal"
-                />
-
-                <CnpjConflictBanner
-                  conflitos={conflitosCnpj}
-                  onManterMeusDados={() => {
-                    setConflitosCnpj([])
-                    setPendenteDadosReceita(null)
-                  }}
-                  onUsarDadosReceita={() => {
-                    if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
-                  }}
-                />
-
-                {situacaoCadastral && (
-                  <div className="flex items-center gap-2 pt-1 text-xs text-gray-600 flex-wrap">
-                    <span className="font-semibold text-gray-700">Situação:</span>
-                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                      {situacaoCadastral}
-                    </span>
-                    {cnaePrincipal && (
-                      <span className="text-[11px] text-gray-500 truncate" title={cnaePrincipal}>
-                        • CNAE: {cnaePrincipal}
-                      </span>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* Nome */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                  Nome do Lead / Razão Social <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: João da Silva ou Fazenda Esperança"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                    errors.nome ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                  }`}
-                />
-                {errors.nome && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.nome}
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Cadastrar um <strong>novo lead</strong> criará o registro de cliente e a
+                    oportunidade vinculada diretamente na coluna "1 - Novo Lead".
                   </p>
                 )}
               </div>
 
-              {/* Telefone, WhatsApp e Consumo */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                    WhatsApp <span className="text-emerald-600 font-bold">(XX) XXXXX-XXXX</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="(54) 99876-5432"
-                    value={whatsapp}
-                    onChange={(e) => {
-                      const formatted = formatWhatsAppPhone(e.target.value)
-                      setWhatsapp(formatted)
-                      if (!telefone) setTelefone(formatted)
-                    }}
-                    className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                  />
+              {/* Card 2: Importação de Fatura de Energia */}
+              <div className="p-4 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex flex-col justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 bg-emerald-600 text-white rounded-lg shrink-0 shadow-xs">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-bold text-emerald-950">
+                        Tem a fatura de energia em mãos?
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                        RGE / Gemini
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800/80 leading-snug mt-0.5">
+                      Anexe a conta ou tire foto para preencher titular, CPF/CNPJ, endereço, UC e
+                      consumo automaticamente.
+                    </p>
+                  </div>
                 </div>
 
+                <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                  {dadosFaturaArmazenados ? (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-900">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="text-[11px]">
+                        Conta importada: <strong>UC {dadosFaturaArmazenados.uc || '—'}</strong>
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-emerald-700/70">
+                      Preenchimento com IA do documento
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setModalImportarContaOpen(true)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer ml-auto"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    {dadosFaturaArmazenados ? 'Revisar fatura' : 'Importar dados da conta'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* SEÇÃO 2: TIPO DE PRODUTO / OPORTUNIDADE (GRID COM OS 5 CARDS) */}
+            <div className="p-4 bg-slate-50/80 rounded-xl border-2 border-emerald-500/40 space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                    Telefone <span className="text-red-500">*</span>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Tipo de Oportunidade / Venda{' '}
+                    <span className="text-emerald-600 font-extrabold">* (Escolha primeiro)</span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder="(54) 3522-1234"
-                    value={telefone}
-                    onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
-                    className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                      errors.telefone ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                    }`}
+                  <p className="text-[11px] text-slate-500">
+                    Selecione a categoria comercial para definir o ícone e a cor do card no funil:
+                  </p>
+                </div>
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                  Etapa inicial obrigatória
+                </span>
+              </div>
+
+              {/* Grid responsivo dos 5 cards de produtos */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                {TIPOS_VENDA_OPTIONS.map((opcao) => {
+                  const cfg = TIPOS_VENDA_CONFIG[opcao]
+                  const IconComponent = cfg.icon
+                  const isSelected = tipoVenda === opcao
+
+                  return (
+                    <button
+                      key={opcao}
+                      type="button"
+                      onClick={() => {
+                        setTipoVenda(opcao)
+                        // Alinha produto secundário com a seleção
+                        if (opcao === 'O&M (Operação e Manutenção)') {
+                          setProduto('Plano de O&M')
+                        } else if (opcao === 'Carregadores Veículos Elétricos') {
+                          setProduto('Carregadores veiculares')
+                        } else if (opcao === 'Baterias') {
+                          setProduto('Sistemas Híbridos')
+                        } else {
+                          setProduto('Energia Solar')
+                        }
+                      }}
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? `${cfg.bgLightClass} ring-2 ring-emerald-500 shadow-xs font-semibold`
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                          isSelected ? 'bg-white shadow-2xs' : 'bg-slate-100'
+                        }`}
+                      >
+                        <IconComponent className={`w-4 h-4 ${cfg.iconClass}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold leading-tight">{opcao}</div>
+                        <div className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
+                          {cfg.descricao}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* SEÇÃO 3: CAMPOS DO LEAD OU CLIENTE EXISTENTE (GRID DE 2 COLUNAS NO DESKTOP) */}
+            {modoCliente === 'novo' ? (
+              <div className="space-y-4">
+                {/* Bloco CNPJ com consulta automática na Receita Federal */}
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+                  <CnpjInputWithLookup
+                    value={cnpj}
+                    onChange={(val) => {
+                      setCnpj(val)
+                      if (conflitosCnpj.length > 0) setConflitosCnpj([])
+                    }}
+                    onBlur={handleCnpjBlur}
+                    onLookupClick={() =>
+                      lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
+                    }
+                    status={cnpjStatus}
+                    errorMessage={cnpjErrorMessage}
+                    isLoading={isCnpjLoading}
+                    label="CNPJ (Empresa / PJ) - Consulta Automática"
+                    helperText="Preencha os 14 dígitos e saia do campo para buscar dados da Receita Federal"
                   />
-                  {errors.telefone && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      {errors.telefone}
-                    </p>
+
+                  <CnpjConflictBanner
+                    conflitos={conflitosCnpj}
+                    onManterMeusDados={() => {
+                      setConflitosCnpj([])
+                      setPendenteDadosReceita(null)
+                    }}
+                    onUsarDadosReceita={() => {
+                      if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
+                    }}
+                  />
+
+                  {situacaoCadastral && (
+                    <div className="flex items-center gap-2 pt-1 text-xs text-gray-600 flex-wrap">
+                      <span className="font-semibold text-gray-700">Situação:</span>
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                        {situacaoCadastral}
+                      </span>
+                      {cnaePrincipal && (
+                        <span className="text-[11px] text-gray-500 truncate" title={cnaePrincipal}>
+                          • CNAE: {cnaePrincipal}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                <div>
+                {/* Grid 2 colunas: Identificação e Dados de Contato */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Coluna 1: Dados do Lead / Razão Social */}
+                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-3">
+                    <div className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
+                      Identificação do Lead
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
+                        Nome do Lead / Razão Social <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: João da Silva ou Fazenda Esperança"
+                        value={nome}
+                        onChange={(e) => setNome(e.target.value)}
+                        className={`w-full px-3.5 py-2 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
+                          errors.nome ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
+                        }`}
+                      />
+                      {errors.nome && (
+                        <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          {errors.nome}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
+                        Cidade / Região
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Erechim/RS, Passo Fundo/RS, Chapecó/SC"
+                        value={cidade}
+                        onChange={(e) => setCidade(e.target.value)}
+                        className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Coluna 2: Contato e Comunicação */}
+                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-3">
+                    <div className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
+                      Contato e WhatsApp
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
+                          WhatsApp{' '}
+                          <span className="text-emerald-600 font-bold">(XX) XXXXX-XXXX</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="(54) 99876-5432"
+                          value={whatsapp}
+                          onChange={(e) => {
+                            const formatted = formatWhatsAppPhone(e.target.value)
+                            setWhatsapp(formatted)
+                            if (!telefone) setTelefone(formatted)
+                          }}
+                          className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
+                          Telefone <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="(54) 3522-1234"
+                          value={telefone}
+                          onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
+                          className={`w-full px-3.5 py-2 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
+                            errors.telefone ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
+                          }`}
+                        />
+                        {errors.telefone && (
+                          <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            {errors.telefone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
+                        E-mail de Contato (Opcional)
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="contato@empresa.com.br"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grid 2 colunas: Detalhes da Oportunidade e Origem */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Consumo */}
+                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Consumo (kWh/mês)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="Ex: 850"
+                      value={consumoKwhMes}
+                      onChange={(e) => setConsumoKwhMes(e.target.value)}
+                      className={`w-full px-3.5 py-2 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
+                        errors.consumo ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
+                      }`}
+                    />
+                    <p className="text-[11px] text-gray-400">
+                      Calcula potência e valor estimado automaticamente.
+                    </p>
+                    {errors.consumo && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {errors.consumo}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Origem do Lead */}
+                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Origem do Lead <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={origem}
+                      onChange={(e) => setOrigem(e.target.value as OrigemLeadTipo)}
+                      className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                    >
+                      {ORIGENS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-gray-400">Canal de captação comercial.</p>
+                  </div>
+
+                  {/* Produto / Serviço Secundário */}
+                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Produto / Serviço
+                    </label>
+                    <select
+                      value={produto}
+                      onChange={(e) => setProduto(e.target.value as ProdutoTipo)}
+                      className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                    >
+                      {PRODUTOS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-gray-400">Subcategoria do portfólio.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Modo Cliente Existente: campos complementares deste negócio */
+              <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-3">
+                <div className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
+                  Detalhes do Negócio para o Cliente Selecionado
+                </div>
+                <div className="max-w-md">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                    Consumo (kWh/mês)
+                    Consumo Estimado (kWh/mês)
                   </label>
                   <input
                     type="number"
                     min="0"
                     step="1"
-                    placeholder="Ex: 850"
+                    placeholder={
+                      clienteExistenteSelecionado?.consumo_kwh_mes
+                        ? `Padrão do cliente: ${clienteExistenteSelecionado.consumo_kwh_mes} kWh/mês`
+                        : 'Ex: 850'
+                    }
                     value={consumoKwhMes}
                     onChange={(e) => setConsumoKwhMes(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                      errors.consumo ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                    }`}
+                    className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
                   />
-                  {errors.consumo && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      {errors.consumo}
-                    </p>
-                  )}
+                  <span className="text-[11px] text-gray-500 mt-1 block">
+                    Caso preenchido, calcula automaticamente potência estimada e valor no funil.
+                  </span>
                 </div>
               </div>
+            )}
 
-              {/* Origem e Produto */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                    Origem do Lead <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={origem}
-                    onChange={(e) => setOrigem(e.target.value as OrigemLeadTipo)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                  >
-                    {ORIGENS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                    Produto / Serviço
-                  </label>
-                  <select
-                    value={produto}
-                    onChange={(e) => setProduto(e.target.value as ProdutoTipo)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                  >
-                    {PRODUTOS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Cidade / Região (opcional, padrão Erechim/RS) */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                  Cidade / Região
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Erechim/RS, Passo Fundo/RS, Chapecó/SC"
-                  value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                />
-              </div>
-            </>
-          ) : (
-            /* Modo Cliente Existente: campos complementares deste negócio */
-            <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-3">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                  Consumo Estimado (kWh/mês)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder={
-                    clienteExistenteSelecionado?.consumo_kwh_mes
-                      ? `Padrão do cliente: ${clienteExistenteSelecionado.consumo_kwh_mes} kWh/mês`
-                      : 'Ex: 850'
-                  }
-                  value={consumoKwhMes}
-                  onChange={(e) => setConsumoKwhMes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                />
-                <span className="text-[11px] text-gray-500 mt-1 block">
-                  Caso preenchido, calcula automaticamente potência estimada e valor no funil.
-                </span>
-              </div>
+            {/* Aviso Informativo do Estágio Inicial */}
+            <div className="p-3.5 bg-emerald-50/70 rounded-xl border border-emerald-100 flex items-start gap-2.5 text-xs text-emerald-900">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>
+                O negócio será criado diretamente na etapa <strong>"1 - Novo Lead"</strong> do funil
+                comercial com a categoria <strong>"{tipoVenda}"</strong> e vínculo automático.
+              </span>
             </div>
-          )}
-
-          <div className="p-3 bg-emerald-50/60 rounded-lg border border-emerald-100 flex items-start gap-2 text-xs text-emerald-800">
-            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            <span>
-              O lead será criado diretamente na etapa <strong>"1 - Novo Lead"</strong> do funil de
-              vendas com o tipo <strong>"{tipoVenda}"</strong>.
-            </span>
           </div>
 
-          {/* Footer buttons */}
-          <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-120 flex items-center gap-2 hover:scale-[1.02] disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : modoCliente === 'existente' ? (
-                'Salvar Negócio'
-              ) : (
-                'Salvar Lead'
-              )}
-            </button>
+          {/* Footer Fixo */}
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex items-center justify-between gap-3 shrink-0">
+            <span className="text-xs text-gray-500">
+              Campos marcados com <span className="text-red-500 font-bold">*</span> são
+              obrigatórios.
+            </span>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isSubmitting}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-200/60 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-5 py-2 bg-[#16A34A] hover:bg-[#15803D] active:bg-[#166534] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-120 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : modoCliente === 'existente' ? (
+                  'Salvar Negócio'
+                ) : (
+                  'Salvar Lead'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
