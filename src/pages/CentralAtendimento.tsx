@@ -451,16 +451,23 @@ export const CentralAtendimento: React.FC = () => {
   }
 
   // Vincular ação
-  const handleVincularCliente = async (clienteId: string) => {
+  const handleVincularCliente = async (clienteId: string, nomeContatoAdicional?: string) => {
     if (!conversaParaVincular) return
     try {
       const atendenteNome = user?.name || user?.email || 'João Silva'
-      await vincularConversa(conversaParaVincular.id, clienteId, atendenteNome)
+      await vincularConversa(
+        conversaParaVincular.id,
+        clienteId,
+        atendenteNome,
+        nomeContatoAdicional,
+      )
       setSelectedConversaId(conversaParaVincular.id)
       setConversaParaVincular(null)
       toast({
         title: 'Conversa vinculada com sucesso',
-        description: 'A conversa foi associada ao cliente e movida para "Em Atendimento".',
+        description: nomeContatoAdicional
+          ? `A conversa foi associada ao cliente com o contato adicional "${nomeContatoAdicional}".`
+          : 'A conversa foi associada ao cliente e movida para "Em Atendimento".',
       })
     } catch (err: unknown) {
       console.error('Erro ao vincular conversa:', err)

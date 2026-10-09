@@ -27,7 +27,18 @@ import {
   Download,
   AlertTriangle,
   FileText,
+  Ban,
+  ShieldAlert,
+  Unlock,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import {
   ModalEnviarMidiaWhatsApp,
   type TipoMidiaEnvio,
@@ -172,6 +183,9 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     finalizarAtendimento,
     orcamentosSolar,
     openFichaCliente,
+    isNumeroBloqueado,
+    bloquearContato,
+    desbloquearContato,
   } = useClientes()
 
   const { toast } = useToast()
@@ -196,6 +210,13 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     caption?: string
   } | null>(null)
   const [mediaErrors, setMediaErrors] = useState<Record<string, boolean>>({})
+  const [dialogBloqueioOpen, setDialogBloqueioOpen] = useState(false)
+  const [motivoBloqueio, setMotivoBloqueio] = useState('')
+  const [isBlockingAction, setIsBlockingAction] = useState(false)
+
+  const numeroBloqueado = useMemo(() => {
+    return isNumeroBloqueado(conversa.numero)
+  }, [isNumeroBloqueado, conversa.numero])
 
   const handleMediaError = (msgId: string) => {
     setMediaErrors((prev) => ({ ...prev, [msgId]: true }))
@@ -371,6 +392,54 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     return () => clearTimeout(timer)
   }, [])
 
+  // Ação: Bloquear / Desbloquear Contato
+  const handleConfirmarBloqueio = async () => {
+    if (isBlockingAction) return
+    setIsBlockingAction(true)
+    try {
+      await bloquearContato({
+        numero: conversa.numero,
+        motivo: motivoBloqueio.trim() || undefined,
+      })
+      setDialogBloqueioOpen(false)
+      setMotivoBloqueio('')
+      toast({
+        title: 'Contato bloqueado',
+        description: `O número ${formatWhatsAppPhone(conversa.numero)} foi bloqueado com sucesso. Novas mensagens serão ignoradas e o envio foi desabilitado.`,
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao bloquear contato:', err)
+      toast({
+        title: 'Erro ao bloquear contato',
+        description: err instanceof Error ? err.message : 'Não foi possível bloquear o contato.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsBlockingAction(false)
+    }
+  }
+
+  const handleDesbloquear = async () => {
+    setShowOptionsMenu(false)
+    setIsBlockingAction(true)
+    try {
+      await desbloquearContato(conversa.numero)
+      toast({
+        title: 'Contato desbloqueado',
+        description: `O número ${formatWhatsAppPhone(conversa.numero)} foi desbloqueado com sucesso.`,
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao desbloquear contato:', err)
+      toast({
+        title: 'Erro ao desbloquear contato',
+        description: err instanceof Error ? err.message : 'Não foi possível desbloquear o contato.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsBlockingAction(false)
+    }
+  }
+
   // Obter último orçamento do cliente para preencher variáveis de template
   const ultimoOrcamento = useMemo(() => {
     if (!cliente) return null
@@ -450,6 +519,14 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   // Enviar Mensagem Manual de Texto
   const handleEnviar = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+    if (numeroBloqueado) {
+      toast({
+        title: 'Envio desabilitado',
+        description: 'Não é possível enviar mensagens para um contato bloqueado.',
+        variant: 'destructive',
+      })
+      return
+    }
     const msg = mensagemTexto.trim()
     if (!msg || isSending) return
 
@@ -490,6 +567,14 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
 
   // Enviar Mensagem de Voz / Áudio gravado no navegador
   const handleEnviarAudio = async (audioBase64: string, duracaoSegundos: number) => {
+    if (numeroBloqueado) {
+      toast({
+        title: 'Envio desabilitado',
+        description: 'Não é possível enviar áudio para um contato bloqueado.',
+        variant: 'destructive',
+      })
+      return
+    }
     setFeedback(null)
     try {
       const res = await sendWhatsAppAudioMessage({
@@ -598,8 +683,20 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
               >
                 {cliente?.nome || formatWhatsAppPhone(conversa.numero)}
               </h2>
+              {numeroBloqueado && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full shrink-0">
+                  <Ban className="w-3 h-3 text-rose-600" />
+                  Contato bloqueado
+                </span>
+              )}
             </div>
-            <p className="text-[12px] text-[#667781] truncate leading-tight">{contatoSubtitulo}</p>
+            <p className="text-[12px] text-[#667781] truncate leading-tight">
+              {numeroBloqueado ? (
+                <span className="text-rose-600 font-medium">Bloqueado para novas mensagens</span>
+              ) : (
+                contatoSubtitulo
+              )}
+            </p>
           </div>
         </div>
 
@@ -726,6 +823,35 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                   <Sparkles className="w-4 h-4 text-amber-500" />
                   <span>Templates de resposta rápida</span>
                 </button>
+
+                <div className="my-1 border-t border-gray-100" />
+
+                {/* Opção Bloquear / Desbloquear Contato */}
+                {numeroBloqueado ? (
+                  <button
+                    type="button"
+                    disabled={isBlockingAction}
+                    onClick={handleDesbloquear}
+                    className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-emerald-700 font-medium"
+                  >
+                    <Unlock className="w-4 h-4 text-emerald-600" />
+                    <span>Desbloquear contato</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isBlockingAction}
+                    onClick={() => {
+                      setShowOptionsMenu(false)
+                      setMotivoBloqueio('')
+                      setDialogBloqueioOpen(true)
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-rose-50 flex items-center gap-2.5 text-rose-700 font-medium"
+                  >
+                    <Ban className="w-4 h-4 text-rose-600" />
+                    <span>Bloquear contato</span>
+                  </button>
+                )}
 
                 <div className="px-3.5 py-1.5 text-[11px] text-gray-400 border-t border-gray-100 mt-1">
                   Número: {formatWhatsAppPhone(conversa.numero)}
@@ -1266,171 +1392,266 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
         </div>
       )}
 
-      {/* 3. BARRA DE DIGITAÇÃO FULL-WIDTH (Estilo WhatsApp Web) */}
-      <form
-        onSubmit={handleEnviar}
-        className="w-full bg-[#f0f2f5] px-3 py-2 border-t border-gray-200/80 flex items-center gap-2 shrink-0 select-text"
-      >
-        {/* Ícone de Emoji à esquerda */}
-        <button
-          type="button"
-          onClick={() => setShowEmojiPicker((prev) => !prev)}
-          className={`p-2 rounded-full transition-colors ${
-            showEmojiPicker
-              ? 'bg-black/10 text-[#00a884]'
-              : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
-          }`}
-          title="Inserir emoji"
-        >
-          <Smile className="w-5 h-5" />
-        </button>
-
-        {/* Ícone de Anexo à esquerda com menu flutuante (Imagem, Vídeo, Documento, Templates) */}
-        <div className="relative" ref={anexosRef}>
+      {/* 3. BARRA DE DIGITAÇÃO FULL-WIDTH (Estilo WhatsApp Web) ou AVISO DE CONTATO BLOQUEADO */}
+      {numeroBloqueado ? (
+        <div className="w-full bg-rose-50/90 border-t border-rose-200 px-4 py-3 flex items-center justify-between gap-3 text-rose-800 shrink-0">
+          <div className="flex items-center gap-2.5 text-xs min-w-0">
+            <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+            <div>
+              <span className="font-bold">Envio de mensagens desabilitado:</span>{' '}
+              <span>este contato está bloqueado no CRM Delfos Solar.</span>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => setShowAnexosMenu((prev) => !prev)}
+            disabled={isBlockingAction}
+            onClick={handleDesbloquear}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-lg text-xs font-semibold transition-colors shadow-2xs shrink-0"
+          >
+            <Unlock className="w-3.5 h-3.5" />
+            <span>Desbloquear</span>
+          </button>
+        </div>
+      ) : (
+        <form
+          onSubmit={handleEnviar}
+          className="w-full bg-[#f0f2f5] px-3 py-2 border-t border-gray-200/80 flex items-center gap-2 shrink-0 select-text"
+        >
+          {/* Ícone de Emoji à esquerda */}
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
             className={`p-2 rounded-full transition-colors ${
-              showAnexosMenu
+              showEmojiPicker
                 ? 'bg-black/10 text-[#00a884]'
                 : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
             }`}
-            title="Anexar mídia (Imagem, Vídeo, Documento) ou Templates"
+            title="Inserir emoji"
           >
-            <Paperclip className="w-5 h-5" />
+            <Smile className="w-5 h-5" />
           </button>
 
-          {showAnexosMenu && (
-            <div className="absolute left-0 bottom-full mb-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2">
-              <div className="px-3 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                Anexar Mídia
+          {/* Ícone de Anexo à esquerda com menu flutuante (Imagem, Vídeo, Documento, Templates) */}
+          <div className="relative" ref={anexosRef}>
+            <button
+              type="button"
+              onClick={() => setShowAnexosMenu((prev) => !prev)}
+              className={`p-2 rounded-full transition-colors ${
+                showAnexosMenu
+                  ? 'bg-black/10 text-[#00a884]'
+                  : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
+              }`}
+              title="Anexar mídia (Imagem, Vídeo, Documento) ou Templates"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+
+            {showAnexosMenu && (
+              <div className="absolute left-0 bottom-full mb-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2">
+                <div className="px-3 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                  Anexar Mídia
+                </div>
+
+                {/* Opção 1: Enviar Imagem */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAnexosMenu(false)
+                    setTipoMidiaModal('imagem')
+                    setModalMidiaOpen(true)
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <ImageIcon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-semibold leading-tight">Fotos e Imagens</div>
+                    <div className="text-[10px] text-gray-500 font-normal">PNG, JPG, WEBP</div>
+                  </div>
+                </button>
+
+                {/* Opção 2: Enviar Vídeo */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAnexosMenu(false)
+                    setTipoMidiaModal('video')
+                    setModalMidiaOpen(true)
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                    <Video className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-semibold leading-tight">Vídeo</div>
+                    <div className="text-[10px] text-gray-500 font-normal">MP4, 3GP, MOV</div>
+                  </div>
+                </button>
+
+                {/* Opção 3: Enviar Documento */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAnexosMenu(false)
+                    setTipoMidiaModal('documento')
+                    setModalMidiaOpen(true)
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-semibold leading-tight">Documento</div>
+                    <div className="text-[10px] text-gray-500 font-normal">
+                      PDF, DOCX, XLSX, TXT
+                    </div>
+                  </div>
+                </button>
+
+                <div className="my-1 border-t border-gray-100" />
+
+                {/* Atalho para Templates */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAnexosMenu(false)
+                    setShowTemplatesDropdown(true)
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-amber-50 flex items-center gap-2.5 text-gray-700 hover:text-amber-800 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-semibold leading-tight">Templates Rápidos</div>
+                    <div className="text-[10px] text-gray-500 font-normal">Respostas prontas</div>
+                  </div>
+                </button>
               </div>
-
-              {/* Opção 1: Enviar Imagem */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAnexosMenu(false)
-                  setTipoMidiaModal('imagem')
-                  setModalMidiaOpen(true)
-                }}
-                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
-              >
-                <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                  <ImageIcon className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-semibold leading-tight">Fotos e Imagens</div>
-                  <div className="text-[10px] text-gray-500 font-normal">PNG, JPG, WEBP</div>
-                </div>
-              </button>
-
-              {/* Opção 2: Enviar Vídeo */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAnexosMenu(false)
-                  setTipoMidiaModal('video')
-                  setModalMidiaOpen(true)
-                }}
-                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
-              >
-                <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
-                  <Video className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-semibold leading-tight">Vídeo</div>
-                  <div className="text-[10px] text-gray-500 font-normal">MP4, 3GP, MOV</div>
-                </div>
-              </button>
-
-              {/* Opção 3: Enviar Documento */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAnexosMenu(false)
-                  setTipoMidiaModal('documento')
-                  setModalMidiaOpen(true)
-                }}
-                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
-              >
-                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-semibold leading-tight">Documento</div>
-                  <div className="text-[10px] text-gray-500 font-normal">PDF, DOCX, XLSX, TXT</div>
-                </div>
-              </button>
-
-              <div className="my-1 border-t border-gray-100" />
-
-              {/* Atalho para Templates */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAnexosMenu(false)
-                  setShowTemplatesDropdown(true)
-                }}
-                className="w-full text-left px-3.5 py-2 hover:bg-amber-50 flex items-center gap-2.5 text-gray-700 hover:text-amber-800 transition-colors"
-              >
-                <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-semibold leading-tight">Templates Rápidos</div>
-                  <div className="text-[10px] text-gray-500 font-normal">Respostas prontas</div>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Campo de Texto centralizado */}
-        <div className="flex-1 min-w-0 bg-white rounded-lg border border-transparent focus-within:border-transparent shadow-2xs px-3 py-2 flex items-center">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={mensagemTexto}
-            onChange={(e) => setMensagemTexto(e.target.value)}
-            onInput={(e) => {
-              const target = e.currentTarget
-              target.style.height = 'auto'
-              target.style.height = `${target.scrollHeight}px`
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleEnviar()
-              }
-            }}
-            placeholder="Mensagem"
-            className="w-full bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] resize-none outline-none max-h-24 leading-normal overflow-y-auto"
-          />
-        </div>
-
-        {/* Se houver texto digitado, mostra botão Enviar Texto. Se vazio, exibe o Gravador de Áudio WhatsApp */}
-        {mensagemTexto.trim() ? (
-          <button
-            type="submit"
-            disabled={isSending}
-            className="p-2.5 bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 disabled:hover:bg-[#00a884] disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-colors shadow-2xs shrink-0"
-            title="Enviar mensagem (Enter)"
-          >
-            {isSending ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
             )}
-          </button>
-        ) : (
-          <GravadorAudioWhatsApp
-            onSendAudio={handleEnviarAudio}
-            disabled={isSending}
-            className="shrink-0"
-          />
-        )}
-      </form>
+          </div>
+
+          {/* Campo de Texto centralizado */}
+          <div className="flex-1 min-w-0 bg-white rounded-lg border border-transparent focus-within:border-transparent shadow-2xs px-3 py-2 flex items-center">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={mensagemTexto}
+              onChange={(e) => setMensagemTexto(e.target.value)}
+              onInput={(e) => {
+                const target = e.currentTarget
+                target.style.height = 'auto'
+                target.style.height = `${target.scrollHeight}px`
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleEnviar()
+                }
+              }}
+              placeholder="Mensagem"
+              className="w-full bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] resize-none outline-none max-h-24 leading-normal overflow-y-auto"
+            />
+          </div>
+
+          {/* Se houver texto digitado, mostra botão Enviar Texto. Se vazio, exibe o Gravador de Áudio WhatsApp */}
+          {mensagemTexto.trim() ? (
+            <button
+              type="submit"
+              disabled={isSending}
+              className="p-2.5 bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 disabled:hover:bg-[#00a884] disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-colors shadow-2xs shrink-0"
+              title="Enviar mensagem (Enter)"
+            >
+              {isSending ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          ) : (
+            <GravadorAudioWhatsApp
+              onSendAudio={handleEnviarAudio}
+              disabled={isSending}
+              className="shrink-0"
+            />
+          )}
+        </form>
+      )}
+
+      {/* Dialog de Confirmação de Bloqueio */}
+      <Dialog open={dialogBloqueioOpen} onOpenChange={setDialogBloqueioOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-rose-100 text-rose-700 rounded-xl shrink-0">
+                <Ban className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-gray-900">
+                  Bloquear Contato WhatsApp?
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-500 mt-0.5">
+                  Número:{' '}
+                  <strong className="font-mono text-gray-800">
+                    {formatWhatsAppPhone(conversa.numero)}
+                  </strong>
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <p className="text-gray-600 leading-relaxed">Ao bloquear este número:</p>
+            <ul className="list-disc pl-5 space-y-1 text-gray-600 text-[11px]">
+              <li>Novas mensagens recebidas deste remetente serão ignoradas pelo sistema.</li>
+              <li>
+                O envio manual de novas mensagens pela Central de Atendimento ficará desabilitado.
+              </li>
+              <li>Você poderá desbloquear o número a qualquer momento pelo mesmo menu.</li>
+            </ul>
+
+            <div className="space-y-1 pt-2">
+              <label
+                htmlFor="motivoBloqueioInput"
+                className="block text-xs font-semibold text-gray-700"
+              >
+                Motivo do bloqueio (opcional):
+              </label>
+              <input
+                id="motivoBloqueioInput"
+                type="text"
+                placeholder="Ex: Spam, número inválido, solicitação do titular..."
+                value={motivoBloqueio}
+                onChange={(e) => setMotivoBloqueio(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-gray-50 focus:bg-white border border-gray-200 rounded-lg focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all outline-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              disabled={isBlockingAction}
+              onClick={() => setDialogBloqueioOpen(false)}
+              className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={isBlockingAction}
+              onClick={handleConfirmarBloqueio}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+            >
+              <Ban className="w-3.5 h-3.5" />
+              <span>{isBlockingAction ? 'Bloqueando...' : 'Confirmar Bloqueio'}</span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Envio de Mídia WhatsApp (Imagem, Vídeo, Documento) */}
       <ModalEnviarMidiaWhatsApp

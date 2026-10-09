@@ -25,7 +25,7 @@ interface ModalVincularClienteProps {
   conversa: WhatsAppConversa | null
   clientes: Cliente[]
   contatosAdicionais?: ContatoAdicional[]
-  onVincular: (clienteId: string) => Promise<void>
+  onVincular: (clienteId: string, nomeContatoAdicional?: string) => Promise<void>
   onCadastrarLead?: (conversa: WhatsAppConversa) => void
 }
 
@@ -41,6 +41,7 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
   const { refreshData } = useClientes()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
+  const [nomeContatoAdicional, setNomeContatoAdicional] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isReloading, setIsReloading] = useState(false)
@@ -140,7 +141,9 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
     setIsSubmitting(true)
     setError(null)
     try {
-      await onVincular(selectedClienteId)
+      const nomeLimpo = nomeContatoAdicional.trim()
+      await onVincular(selectedClienteId, nomeLimpo || undefined)
+      setNomeContatoAdicional('')
       onClose()
     } catch (err: unknown) {
       console.error('Erro ao vincular conversa:', err)
@@ -300,6 +303,28 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
               </div>
             </div>
           )}
+
+          {/* Campo opcional: Nome do contato adicional */}
+          <div className="p-3.5 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-1.5">
+            <label
+              htmlFor="nomeContatoAdicionalInput"
+              className="block text-xs font-bold text-gray-800"
+            >
+              Nome do contato (opcional):
+            </label>
+            <input
+              id="nomeContatoAdicionalInput"
+              type="text"
+              placeholder="Ex: Esposa Maria, Engenheiro Carlos, Financeiro..."
+              value={nomeContatoAdicional}
+              onChange={(e) => setNomeContatoAdicional(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+            />
+            <p className="text-[11px] text-gray-500">
+              Se preenchido, este nome será gravado como contato adicional do cliente associado ao
+              número {formatWhatsAppPhone(conversa.numero)}.
+            </p>
+          </div>
 
           {/* Contador e Ajuda de Resultados */}
           <div className="flex items-center justify-between text-[11px] text-gray-500 px-0.5">
