@@ -154,188 +154,206 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
     // -------------------------------------------------------------
     // PARTE 2: DISPARO AUTOMÁTICO DE LEMBRETE DE VISITA TÉCNICA
     // Atividades do tipo 'visita_tecnica' agendadas para amanhã
+    // Destinatários: CLIENTES (não são usuários do Skip).
     // -------------------------------------------------------------
     try {
-      // Obter template de lembrete
-      let tplLembrete = null
-      try {
-        tplLembrete = $app.findFirstRecordByData(
-          'whatsapp_templates',
-          'slug',
-          'lembrete_visita_tecnica',
-        )
-      } catch (_) {}
+      // FLAG DE CONTROLE REVERSÍVEL:
+      // Desativado por solicitação do usuário para não disparar mensagens automáticas a clientes finais.
+      // Para reativar: defina a variável de ambiente MENSAGENS_CLIENTE_ATIVAS=true
+      // ou altere o padrão abaixo para true.
+      const envFlagMsgCli = ($os.getenv('MENSAGENS_CLIENTE_ATIVAS') || '').trim().toLowerCase()
+      const mensagensClienteAtivas = envFlagMsgCli === 'true' || envFlagMsgCli === '1'
 
-      if (tplLembrete && tplLembrete.getBool('ativo') !== false) {
-        // Calcular janela de amanhã (entre agora + 12h e agora + 36h)
-        const amanhaInicio = new Date(now.getTime() + 12 * 60 * 60 * 1000).toISOString()
-        const amanhaFim = new Date(now.getTime() + 36 * 60 * 60 * 1000).toISOString()
+      if (!mensagensClienteAtivas) {
+        // Disparo inerte/desativado. Apenas registra log caso queira monitorar.
+      } else {
+        // Obter template de lembrete
+        let tplLembrete = null
+        try {
+          tplLembrete = $app.findFirstRecordByData(
+            'whatsapp_templates',
+            'slug',
+            'lembrete_visita_tecnica',
+          )
+        } catch (_) {}
 
-        const filterVisitas = `tipo = 'visita_tecnica' && status = 'pendente' && data >= '${amanhaInicio}' && data <= '${amanhaFim}'`
-        const visitas = $app.findRecordsByFilter('atividades', filterVisitas, 'data', 20, 0)
+        if (tplLembrete && tplLembrete.getBool('ativo') !== false) {
+          // Calcular janela de amanhã (entre agora + 12h e agora + 36h)
+          const amanhaInicio = new Date(now.getTime() + 12 * 60 * 60 * 1000).toISOString()
+          const amanhaFim = new Date(now.getTime() + 36 * 60 * 60 * 1000).toISOString()
 
-        for (let j = 0; j < visitas.length; j++) {
-          const atv = visitas[j]
-          const clienteId = atv.getString('cliente_id')
-          const refKey = 'visita_' + atv.id
+          const filterVisitas = `tipo = 'visita_tecnica' && status = 'pendente' && data >= '${amanhaInicio}' && data <= '${amanhaFim}'`
+          const visitas = $app.findRecordsByFilter('atividades', filterVisitas, 'data', 20, 0)
 
-          // Verificar idempotência: já existe mensagem disparada para essa atividade?
-          try {
-            const jaEnviado = $app.findRecordsByFilter(
-              msgsCol.id,
-              `referencia_id = '${refKey}'`,
-              '',
-              1,
-              0,
-            )
-            if (jaEnviado && jaEnviado.length > 0) {
-              continue // Idempotente: já disparado
-            }
-          } catch (_) {}
+          for (let j = 0; j < visitas.length; j++) {
+            const atv = visitas[j]
+            const clienteId = atv.getString('cliente_id')
+            const refKey = 'visita_' + atv.id
 
-          let clienteRec = null
-          try {
-            clienteRec = $app.findRecordsByFilter('clientes', `id = '${clienteId}'`, '', 1, 0)[0]
-          } catch (_) {}
-
-          if (!clienteRec) continue
-
-          const telCliente = (
-            clienteRec.getString('whatsapp') ||
-            clienteRec.getString('telefone') ||
-            ''
-          ).trim()
-          if (!telCliente) continue
-
-          // Formatar data da visita
-          let dataVisitaStr = atv.getString('data')
-          try {
-            const d = new Date(dataVisitaStr)
-            dataVisitaStr =
-              d.toLocaleDateString('pt-BR') +
-              ' às ' +
-              d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-          } catch (_) {}
-
-          const enderecoCliente =
-            [
-              clienteRec.getString('endereco'),
-              clienteRec.getString('numero'),
-              clienteRec.getString('bairro'),
-              clienteRec.getString('cidade'),
-            ]
-              .filter(Boolean)
-              .join(', ') || 'endereço cadastrado'
-
-          let tplTexto = tplLembrete.getString('conteudo')
-          tplTexto = tplTexto
-            .replace(/\{\{nome_cliente\}\}/g, clienteRec.getString('nome'))
-            .replace(/\{\{data\}\}/g, dataVisitaStr)
-            .replace(/\{\{endereco\}\}/g, enderecoCliente)
-
-          // Criar registro de mensagem com tipo_disparo = lembrete_visita
-          const novaMsg = new Record(msgsCol)
-          novaMsg.set('cliente_id', clienteId)
-          novaMsg.set('template_id', tplLembrete.id)
-          novaMsg.set('telefone_destino', telCliente)
-          novaMsg.set('conteudo_final', tplTexto)
-          novaMsg.set('tipo_disparo', 'lembrete_visita')
-          novaMsg.set('referencia_id', refKey)
-
-          if (!rawApiUrl) {
-            novaMsg.set('status', 'falha')
-            novaMsg.set('log_erro', 'Gateway não configurado nos Secrets do backend')
-            $app.save(novaMsg)
-            continue
-          }
-
-          // Enviar via HTTP
-          let cleanPhone = telCliente.replace(/\D/g, '')
-          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
-            cleanPhone = '55' + cleanPhone
-          }
-
-          try {
-            let cleanUrl = rawApiUrl.replace(/\/+$/, '')
-            if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-              cleanUrl = 'https://' + cleanUrl
-            }
-
-            const lowerUrl = cleanUrl.toLowerCase()
-            const isZApi =
-              lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
-            let targetUrl = cleanUrl
-            let payloadGateway = {}
-            const headers = { 'Content-Type': 'application/json' }
-
-            if (isZApi) {
-              let baseWithoutSuffix = cleanUrl.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
-              const zapiMatch = baseWithoutSuffix.match(
-                /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+            // Verificar idempotência: já existe mensagem disparada para essa atividade?
+            try {
+              const jaEnviado = $app.findRecordsByFilter(
+                msgsCol.id,
+                `referencia_id = '${refKey}'`,
+                '',
+                1,
+                0,
               )
-              if (zapiMatch) {
-                targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
-              } else {
-                targetUrl = baseWithoutSuffix + '/send-text'
+              if (jaEnviado && jaEnviado.length > 0) {
+                continue // Idempotente: já disparado
               }
+            } catch (_) {}
 
-              if (apiKey) {
-                headers['Client-Token'] = apiKey
-              }
-              payloadGateway = {
-                phone: cleanPhone,
-                message: tplTexto,
-              }
-            } else {
-              if (apiKey) {
-                headers['apikey'] = apiKey
-                headers['Authorization'] = 'Bearer ' + apiKey
-                headers['X-Api-Key'] = apiKey
-              }
-              payloadGateway = {
-                number: cleanPhone,
-                phone: cleanPhone,
-                message: tplTexto,
-                text: tplTexto,
-                sender: originNumber,
-              }
-            }
+            let clienteRec = null
+            try {
+              clienteRec = $app.findRecordsByFilter('clientes', `id = '${clienteId}'`, '', 1, 0)[0]
+            } catch (_) {}
 
-            const res = $http.send({
-              url: targetUrl,
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify(payloadGateway),
-              timeout: 15,
-            })
+            if (!clienteRec) continue
 
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              let extId = ''
-              try {
-                if (res.json) {
-                  if (res.json.messageId) extId = String(res.json.messageId)
-                  else if (res.json.id) extId = String(res.json.id)
-                  else if (res.json.zaapId) extId = String(res.json.zaapId)
-                  else if (res.json.key && res.json.key.id) extId = String(res.json.key.id)
-                }
-              } catch (_) {}
-              novaMsg.set('status', 'enviada')
-              novaMsg.set('enviado_em', new Date().toISOString())
-              if (extId) novaMsg.set('id_externo_gateway', extId)
-              novaMsg.set('log_erro', '')
-            } else {
-              const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
+            const telCliente = (
+              clienteRec.getString('whatsapp') ||
+              clienteRec.getString('telefone') ||
+              ''
+            ).trim()
+            if (!telCliente) continue
+
+            // Formatar data da visita
+            let dataVisitaStr = atv.getString('data')
+            try {
+              const d = new Date(dataVisitaStr)
+              dataVisitaStr =
+                d.toLocaleDateString('pt-BR') +
+                ' às ' +
+                d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            } catch (_) {}
+
+            const enderecoCliente =
+              [
+                clienteRec.getString('endereco'),
+                clienteRec.getString('numero'),
+                clienteRec.getString('bairro'),
+                clienteRec.getString('cidade'),
+              ]
+                .filter(Boolean)
+                .join(', ') || 'endereço cadastrado'
+
+            let tplTexto = tplLembrete.getString('conteudo')
+            tplTexto = tplTexto
+              .replace(/\{\{nome_cliente\}\}/g, clienteRec.getString('nome'))
+              .replace(/\{\{data\}\}/g, dataVisitaStr)
+              .replace(/\{\{endereco\}\}/g, enderecoCliente)
+
+            // Criar registro de mensagem com tipo_disparo = lembrete_visita
+            const novaMsg = new Record(msgsCol)
+            novaMsg.set('cliente_id', clienteId)
+            novaMsg.set('template_id', tplLembrete.id)
+            novaMsg.set('telefone_destino', telCliente)
+            novaMsg.set('conteudo_final', tplTexto)
+            novaMsg.set('tipo_disparo', 'lembrete_visita')
+            novaMsg.set('referencia_id', refKey)
+
+            if (!rawApiUrl) {
               novaMsg.set('status', 'falha')
-              novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}: ${errStr}`)
+              novaMsg.set('log_erro', 'Gateway não configurado nos Secrets do backend')
+              $app.save(novaMsg)
+              continue
             }
-          } catch (sendErr) {
-            novaMsg.set('status', 'falha')
-            novaMsg.set('log_erro', String(sendErr))
-          }
 
-          $app.save(novaMsg)
+            // Enviar via HTTP
+            let cleanPhone = telCliente.replace(/\D/g, '')
+            if (
+              cleanPhone.length >= 10 &&
+              cleanPhone.length <= 11 &&
+              !cleanPhone.startsWith('55')
+            ) {
+              cleanPhone = '55' + cleanPhone
+            }
+
+            try {
+              let cleanUrl = rawApiUrl.replace(/\/+$/, '')
+              if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                cleanUrl = 'https://' + cleanUrl
+              }
+
+              const lowerUrl = cleanUrl.toLowerCase()
+              const isZApi =
+                lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
+              let targetUrl = cleanUrl
+              let payloadGateway = {}
+              const headers = { 'Content-Type': 'application/json' }
+
+              if (isZApi) {
+                let baseWithoutSuffix = cleanUrl
+                  .replace(/\/+send-text\/?$/i, '')
+                  .replace(/\/+$/, '')
+                const zapiMatch = baseWithoutSuffix.match(
+                  /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+                )
+                if (zapiMatch) {
+                  targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
+                } else {
+                  targetUrl = baseWithoutSuffix + '/send-text'
+                }
+
+                if (apiKey) {
+                  headers['Client-Token'] = apiKey
+                }
+                payloadGateway = {
+                  phone: cleanPhone,
+                  message: tplTexto,
+                }
+              } else {
+                if (apiKey) {
+                  headers['apikey'] = apiKey
+                  headers['Authorization'] = 'Bearer ' + apiKey
+                  headers['X-Api-Key'] = apiKey
+                }
+                payloadGateway = {
+                  number: cleanPhone,
+                  phone: cleanPhone,
+                  message: tplTexto,
+                  text: tplTexto,
+                  sender: originNumber,
+                }
+              }
+
+              const res = $http.send({
+                url: targetUrl,
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payloadGateway),
+                timeout: 15,
+              })
+
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                let extId = ''
+                try {
+                  if (res.json) {
+                    if (res.json.messageId) extId = String(res.json.messageId)
+                    else if (res.json.id) extId = String(res.json.id)
+                    else if (res.json.zaapId) extId = String(res.json.zaapId)
+                    else if (res.json.key && res.json.key.id) extId = String(res.json.key.id)
+                  }
+                } catch (_) {}
+                novaMsg.set('status', 'enviada')
+                novaMsg.set('enviado_em', new Date().toISOString())
+                if (extId) novaMsg.set('id_externo_gateway', extId)
+                novaMsg.set('log_erro', '')
+              } else {
+                const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
+                novaMsg.set('status', 'falha')
+                novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}: ${errStr}`)
+              }
+            } catch (sendErr) {
+              novaMsg.set('status', 'falha')
+              novaMsg.set('log_erro', String(sendErr))
+            }
+
+            $app.save(novaMsg)
+          }
         }
-      }
+      } // fim if (mensagensClienteAtivas)
     } catch (errVisita) {
       console.log('Erro ao checar lembretes de visita técnica:', errVisita)
     }
@@ -343,169 +361,191 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
     // -------------------------------------------------------------
     // PARTE 3: DISPARO AUTOMÁTICO DE FOLLOW-UP PÓS-VENDA
     // Instalações concluídas há mais de 7 dias (clientes ou sistemas com data_instalacao <= now - 7 dias)
+    // Destinatários: CLIENTES (não são usuários do Skip).
     // -------------------------------------------------------------
     try {
-      let tplFollowup = null
-      try {
-        tplFollowup = $app.findFirstRecordByData('whatsapp_templates', 'slug', 'followup_pos_venda')
-      } catch (_) {}
+      // FLAG DE CONTROLE REVERSÍVEL:
+      // Desativado por solicitação do usuário para não disparar mensagens automáticas a clientes finais.
+      // Para reativar: defina a variável de ambiente MENSAGENS_CLIENTE_ATIVAS=true
+      // ou altere o padrão abaixo para true.
+      const envFlagFollow = ($os.getenv('MENSAGENS_CLIENTE_ATIVAS') || '').trim().toLowerCase()
+      const followUpClienteAtivo = envFlagFollow === 'true' || envFlagFollow === '1'
 
-      if (tplFollowup && tplFollowup.getBool('ativo') !== false) {
-        // Data limite: 7 dias atrás
-        const seteDiasAtras = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      if (!followUpClienteAtivo) {
+        // Disparo inerte/desativado.
+      } else {
+        let tplFollowup = null
+        try {
+          tplFollowup = $app.findFirstRecordByData(
+            'whatsapp_templates',
+            'slug',
+            'followup_pos_venda',
+          )
+        } catch (_) {}
 
-        // Buscar clientes com data_instalacao preenchida <= seteDiasAtras
-        const filterInstalados = `data_instalacao != '' && data_instalacao <= '${seteDiasAtras}'`
-        const instalados = $app.findRecordsByFilter(
-          'clientes',
-          filterInstalados,
-          '-data_instalacao',
-          30,
-          0,
-        )
+        if (tplFollowup && tplFollowup.getBool('ativo') !== false) {
+          // Data limite: 7 dias atrás
+          const seteDiasAtras = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-        for (let k = 0; k < instalados.length; k++) {
-          const cliente = instalados[k]
-          const refKey = 'followup_' + cliente.id
+          // Buscar clientes com data_instalacao preenchida <= seteDiasAtras
+          const filterInstalados = `data_instalacao != '' && data_instalacao <= '${seteDiasAtras}'`
+          const instalados = $app.findRecordsByFilter(
+            'clientes',
+            filterInstalados,
+            '-data_instalacao',
+            30,
+            0,
+          )
 
-          // Verificar idempotência
-          try {
-            const jaEnviado = $app.findRecordsByFilter(
-              msgsCol.id,
-              `referencia_id = '${refKey}'`,
-              '',
-              1,
-              0,
-            )
-            if (jaEnviado && jaEnviado.length > 0) {
-              continue // Já recebeu follow-up
-            }
-          } catch (_) {}
+          for (let k = 0; k < instalados.length; k++) {
+            const cliente = instalados[k]
+            const refKey = 'followup_' + cliente.id
 
-          const telCliente = (
-            cliente.getString('whatsapp') ||
-            cliente.getString('telefone') ||
-            ''
-          ).trim()
-          if (!telCliente) continue
-
-          const enderecoCliente =
-            [
-              cliente.getString('endereco'),
-              cliente.getString('numero'),
-              cliente.getString('bairro'),
-              cliente.getString('cidade'),
-            ]
-              .filter(Boolean)
-              .join(', ') || 'seu endereço'
-
-          let tplTexto = tplFollowup.getString('conteudo')
-          tplTexto = tplTexto
-            .replace(/\{\{nome_cliente\}\}/g, cliente.getString('nome'))
-            .replace(/\{\{endereco\}\}/g, enderecoCliente)
-            .replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
-
-          const novaMsg = new Record(msgsCol)
-          novaMsg.set('cliente_id', cliente.id)
-          novaMsg.set('template_id', tplFollowup.id)
-          novaMsg.set('telefone_destino', telCliente)
-          novaMsg.set('conteudo_final', tplTexto)
-          novaMsg.set('tipo_disparo', 'followup_posvenda')
-          novaMsg.set('referencia_id', refKey)
-
-          if (!rawApiUrl) {
-            novaMsg.set('status', 'falha')
-            novaMsg.set('log_erro', 'Gateway não configurado nos Secrets do backend')
-            $app.save(novaMsg)
-            continue
-          }
-
-          let cleanPhone = telCliente.replace(/\D/g, '')
-          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
-            cleanPhone = '55' + cleanPhone
-          }
-
-          try {
-            let cleanUrl = rawApiUrl.replace(/\/+$/, '')
-            if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-              cleanUrl = 'https://' + cleanUrl
-            }
-
-            const lowerUrl = cleanUrl.toLowerCase()
-            const isZApi =
-              lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
-            let targetUrl = cleanUrl
-            let payloadGateway = {}
-            const headers = { 'Content-Type': 'application/json' }
-
-            if (isZApi) {
-              let baseWithoutSuffix = cleanUrl.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
-              const zapiMatch = baseWithoutSuffix.match(
-                /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+            // Verificar idempotência
+            try {
+              const jaEnviado = $app.findRecordsByFilter(
+                msgsCol.id,
+                `referencia_id = '${refKey}'`,
+                '',
+                1,
+                0,
               )
-              if (zapiMatch) {
-                targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
-              } else {
-                targetUrl = baseWithoutSuffix + '/send-text'
+              if (jaEnviado && jaEnviado.length > 0) {
+                continue // Já recebeu follow-up
               }
+            } catch (_) {}
 
-              if (apiKey) {
-                headers['Client-Token'] = apiKey
-              }
-              payloadGateway = {
-                phone: cleanPhone,
-                message: tplTexto,
-              }
-            } else {
-              if (apiKey) {
-                headers['apikey'] = apiKey
-                headers['Authorization'] = 'Bearer ' + apiKey
-                headers['X-Api-Key'] = apiKey
-              }
-              payloadGateway = {
-                number: cleanPhone,
-                phone: cleanPhone,
-                message: tplTexto,
-                text: tplTexto,
-                sender: originNumber,
-              }
-            }
+            const telCliente = (
+              cliente.getString('whatsapp') ||
+              cliente.getString('telefone') ||
+              ''
+            ).trim()
+            if (!telCliente) continue
 
-            const res = $http.send({
-              url: targetUrl,
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify(payloadGateway),
-              timeout: 15,
-            })
+            const enderecoCliente =
+              [
+                cliente.getString('endereco'),
+                cliente.getString('numero'),
+                cliente.getString('bairro'),
+                cliente.getString('cidade'),
+              ]
+                .filter(Boolean)
+                .join(', ') || 'seu endereço'
 
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              let extId = ''
-              try {
-                if (res.json) {
-                  if (res.json.messageId) extId = String(res.json.messageId)
-                  else if (res.json.id) extId = String(res.json.id)
-                  else if (res.json.zaapId) extId = String(res.json.zaapId)
-                  else if (res.json.key && res.json.key.id) extId = String(res.json.key.id)
-                }
-              } catch (_) {}
-              novaMsg.set('status', 'enviada')
-              novaMsg.set('enviado_em', new Date().toISOString())
-              if (extId) novaMsg.set('id_externo_gateway', extId)
-              novaMsg.set('log_erro', '')
-            } else {
-              const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
+            let tplTexto = tplFollowup.getString('conteudo')
+            tplTexto = tplTexto
+              .replace(/\{\{nome_cliente\}\}/g, cliente.getString('nome'))
+              .replace(/\{\{endereco\}\}/g, enderecoCliente)
+              .replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
+
+            const novaMsg = new Record(msgsCol)
+            novaMsg.set('cliente_id', cliente.id)
+            novaMsg.set('template_id', tplFollowup.id)
+            novaMsg.set('telefone_destino', telCliente)
+            novaMsg.set('conteudo_final', tplTexto)
+            novaMsg.set('tipo_disparo', 'followup_posvenda')
+            novaMsg.set('referencia_id', refKey)
+
+            if (!rawApiUrl) {
               novaMsg.set('status', 'falha')
-              novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}: ${errStr}`)
+              novaMsg.set('log_erro', 'Gateway não configurado nos Secrets do backend')
+              $app.save(novaMsg)
+              continue
             }
-          } catch (sendErr) {
-            novaMsg.set('status', 'falha')
-            novaMsg.set('log_erro', String(sendErr))
-          }
 
-          $app.save(novaMsg)
+            let cleanPhone = telCliente.replace(/\D/g, '')
+            if (
+              cleanPhone.length >= 10 &&
+              cleanPhone.length <= 11 &&
+              !cleanPhone.startsWith('55')
+            ) {
+              cleanPhone = '55' + cleanPhone
+            }
+
+            try {
+              let cleanUrl = rawApiUrl.replace(/\/+$/, '')
+              if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                cleanUrl = 'https://' + cleanUrl
+              }
+
+              const lowerUrl = cleanUrl.toLowerCase()
+              const isZApi =
+                lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
+              let targetUrl = cleanUrl
+              let payloadGateway = {}
+              const headers = { 'Content-Type': 'application/json' }
+
+              if (isZApi) {
+                let baseWithoutSuffix = cleanUrl
+                  .replace(/\/+send-text\/?$/i, '')
+                  .replace(/\/+$/, '')
+                const zapiMatch = baseWithoutSuffix.match(
+                  /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+                )
+                if (zapiMatch) {
+                  targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
+                } else {
+                  targetUrl = baseWithoutSuffix + '/send-text'
+                }
+
+                if (apiKey) {
+                  headers['Client-Token'] = apiKey
+                }
+                payloadGateway = {
+                  phone: cleanPhone,
+                  message: tplTexto,
+                }
+              } else {
+                if (apiKey) {
+                  headers['apikey'] = apiKey
+                  headers['Authorization'] = 'Bearer ' + apiKey
+                  headers['X-Api-Key'] = apiKey
+                }
+                payloadGateway = {
+                  number: cleanPhone,
+                  phone: cleanPhone,
+                  message: tplTexto,
+                  text: tplTexto,
+                  sender: originNumber,
+                }
+              }
+
+              const res = $http.send({
+                url: targetUrl,
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payloadGateway),
+                timeout: 15,
+              })
+
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                let extId = ''
+                try {
+                  if (res.json) {
+                    if (res.json.messageId) extId = String(res.json.messageId)
+                    else if (res.json.id) extId = String(res.json.id)
+                    else if (res.json.zaapId) extId = String(res.json.zaapId)
+                    else if (res.json.key && res.json.key.id) extId = String(res.json.key.id)
+                  }
+                } catch (_) {}
+                novaMsg.set('status', 'enviada')
+                novaMsg.set('enviado_em', new Date().toISOString())
+                if (extId) novaMsg.set('id_externo_gateway', extId)
+                novaMsg.set('log_erro', '')
+              } else {
+                const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
+                novaMsg.set('status', 'falha')
+                novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}: ${errStr}`)
+              }
+            } catch (sendErr) {
+              novaMsg.set('status', 'falha')
+              novaMsg.set('log_erro', String(sendErr))
+            }
+
+            $app.save(novaMsg)
+          }
         }
-      }
+      } // fim if (followUpClienteAtivo)
     } catch (errFollowup) {
       console.log('Erro ao checar follow-ups pós-venda:', errFollowup)
     }

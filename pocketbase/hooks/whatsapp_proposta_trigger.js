@@ -14,6 +14,21 @@ onRecordAfterUpdateSuccess((e) => {
 
     // Disparar somente se o status acabou de mudar para 'Aprovado'
     if (novoStatus === 'Aprovado' && statusAnterior !== 'Aprovado') {
+      // FLAG DE CONTROLE REVERSÍVEL:
+      // Mensagens automáticas para pessoas que não são usuárias do sistema (ex: clientes finais)
+      // foram desativadas por solicitação do usuário.
+      // Para reativar: defina a variável de ambiente MENSAGENS_CLIENTE_ATIVAS=true
+      // ou altere o padrão abaixo para true.
+      const envFlag = ($os.getenv('MENSAGENS_CLIENTE_ATIVAS') || '').trim().toLowerCase()
+      const mensagensClienteAtivas = envFlag === 'true' || envFlag === '1'
+      if (!mensagensClienteAtivas) {
+        console.log(
+          '[WHATSAPP PROPOSTA TRIGGER] Disparo automático desativado para clientes finais (MENSAGENS_CLIENTE_ATIVAS=false). Orçamento ID:',
+          record.id,
+        )
+        return e.next()
+      }
+
       const orcamentoId = record.id
       const clienteId = record.getString('cliente_id')
       const refKey = 'prop_aprovada_' + orcamentoId
