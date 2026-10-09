@@ -56,7 +56,7 @@ export function extrairNumeroProtocolo(linha: string): string | null {
   if (!linha) return null
   // Padrões tolerantes: "Protocolo: 2175698383", "Protocolo : 2175698383", "Nº Protocolo: 2175698383", "Protocolo de Atendimento: 2175698383"
   const match = linha.match(
-    /(?:protocolo|atendimento|solicita[çc][ãa]o)\s*(?:n[ºo°]?|de\s+atendimento)?\s*[:=-]\s*([A-Za-z0-9\-.\/]+)/i,
+    /(?:protocolo|atendimento|solicita[çc][ãa]o)\s*(?:n[ºo°]?|de\s+atendimento)?\s*[:=-]\s*([A-Za-z0-9\-./]+)/i,
   )
   if (match && match[1]) {
     const limpo = match[1].trim().replace(/[^A-Za-z0-9-]/g, '')
@@ -237,7 +237,7 @@ export function parseConfirmacaoConcessionaria(textoBruto: string): ResultadoPar
   // Fallback caso "Protocolo: 2175698383" esteja no meio de um bloco
   if (!protocolo) {
     const match = textoBruto.match(
-      /protocolo\s*(?:n[ºo°]?|de\s+atendimento)?\s*[:=-]\s*([A-Za-z0-9\-.\/]+)/i,
+      /protocolo\s*(?:n[ºo°]?|de\s+atendimento)?\s*[:=-]\s*([A-Za-z0-9\-./]+)/i,
     )
     if (match && match[1]) {
       const limpo = match[1].trim().replace(/[^A-Za-z0-9-]/g, '')
