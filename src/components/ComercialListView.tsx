@@ -65,6 +65,8 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { updateNegocio, deleteNegocio, bulkDeleteNegocios } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
+import { ModalMarcarPerdido, type MotivoPerdaTipo } from '@/components/ModalMarcarPerdido'
+import { createAtividade } from '@/services/crmService'
 
 const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
   'Novo Lead': 'novo lead',
@@ -230,6 +232,9 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   const [modalConfirmarMoverContatosLoteOpen, setModalConfirmarMoverContatosLoteOpen] =
     useState(false)
   const [isMovingContatos, setIsMovingContatos] = useState(false)
+
+  // Interceptação de marcação como perdido via Modal obrigatório
+  const [itemPendentePerda, setItemPendentePerda] = useState<ComercialListItem | null>(null)
 
   // Modais de confirmação / seleção em lote
   const [modalMoverEtapaOpen, setModalMoverEtapaOpen] = useState(false)
@@ -1202,28 +1207,8 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                               </DropdownMenuItem>
 
                               <DropdownMenuItem
-                                onClick={async () => {
-                                  try {
-                                    if (item.negocioId) {
-                                      await updateNegocio(item.negocioId, {
-                                        status: 'perdido',
-                                      })
-                                    } else {
-                                      await updateClienteStatus(item.id, 'Perdido')
-                                    }
-                                    toast({
-                                      title: 'Lead perdido',
-                                      description: `"${item.nomeCliente}" foi marcado como Perdido.`,
-                                    })
-                                    if (onNegociosChanged) onNegociosChanged()
-                                  } catch (err) {
-                                    console.error('Erro ao marcar perdido:', err)
-                                    toast({
-                                      title: 'Erro ao atualizar',
-                                      description: 'Não foi possível alterar a etapa.',
-                                      variant: 'destructive',
-                                    })
-                                  }
+                                onClick={() => {
+                                  setItemPendentePerda(item)
                                 }}
                                 className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 text-xs font-medium"
                               >
@@ -1424,6 +1409,103 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modal Obrigatório para Registrar Motivo da Perda (ComercialListView) */}
+      {itemPendentePerda && (
+        <ModalMarcarPerdido
+          open={Boolean(itemPendentePerda)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setItemPendentePerda(null)
+            }
+          }}
+          cliente={
+            itemPendentePerda.rawCliente ||
+            ({
+              id: itemPendentePerda.clienteId || itemPendentePerda.id,
+              nome: itemPendentePerda.nomeCliente || itemPendentePerda.titulo,
+              status: itemPendentePerda.status,
+            } as Cliente)
+          }
+          onConfirm={async (motivo: MotivoPerdaTipo, observacao?: string) => {
+            const item = itemPendentePerda
+            const rotulos: Record<string, string> = {
+              preco: 'Preço',
+              concorrente: 'Concorrente',
+              desistiu: 'Desistiu',
+              nao_respondeu: 'Não respondeu',
+              outro: 'Outro',
+            }
+            const labelMotivo = rotulos[motivo] || motivo
+            const descMotivo =
+              motivo === 'outro' && observacao ? `Outro: ${observacao}` : labelMotivo
+            const obsComplemento =
+              observacao && motivo !== 'outro' ? ` Observações: ${observacao}` : ''
+            const agora = new Date().toISOString()
+
+            try {
+              if (item.negocioId) {
+                // 1. Atualiza negócio com status 'perdido' e motivo_perda
+                await updateNegocio(item.negocioId, {
+                  status: 'perdido',
+                  motivo_perda: motivo === 'outro' && observacao ? `outro: ${observacao}` : motivo,
+                })
+
+                // Atualiza também o cliente se houver cliente_id vinculado
+                if (item.clienteId) {
+                  await updateCliente(item.clienteId, {
+                    motivo_perda: motivo,
+                    observacoes_perda: observacao || undefined,
+                  }).catch((e) => console.warn('Erro ao atualizar motivo no cliente:', e))
+                }
+              } else {
+                // Modo cliente legado
+                await updateCliente(item.id, {
+                  status: 'Perdido',
+                  motivo_perda: motivo,
+                  observacoes_perda: observacao || undefined,
+                })
+              }
+
+              // 2. Registrar no histórico unificado (coleção atividades) com cliente_id E negocio_id
+              const cliId = item.clienteId || item.id
+              if (cliId) {
+                try {
+                  await createAtividade({
+                    cliente_id: cliId,
+                    negocio_id: item.negocioId || undefined,
+                    tipo: 'mudanca_estagio',
+                    titulo: 'Negócio marcado como Perdido',
+                    descricao: `Negócio "${item.titulo}" marcado como Perdido no funil comercial. Motivo: ${descMotivo}.${obsComplemento}`,
+                    data: agora,
+                    status: 'concluida',
+                    autor: 'CRM Delfos Solar',
+                    responsavel_nome: 'CRM Delfos Solar',
+                  })
+                } catch (ativErr) {
+                  console.warn('Erro ao registrar atividade de perda no histórico:', ativErr)
+                }
+              }
+
+              toast({
+                title: 'Negócio marcado como perdido',
+                description: `"${item.nomeCliente}" foi registrado como Perdido (${labelMotivo}).`,
+              })
+
+              setItemPendentePerda(null)
+              if (onNegociosChanged) onNegociosChanged()
+            } catch (err) {
+              console.error('Erro ao confirmar perda do item:', err)
+              toast({
+                title: 'Erro ao registrar perda',
+                description: 'Não foi possível registrar a perda do negócio. Tente novamente.',
+                variant: 'destructive',
+              })
+              throw err
+            }
+          }}
+        />
       )}
 
       {/* Modal 1: Mover Etapa */}

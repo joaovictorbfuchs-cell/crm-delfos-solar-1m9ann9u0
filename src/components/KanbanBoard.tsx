@@ -53,6 +53,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { updateNegocio, deleteNegocio } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
+import { ModalMarcarPerdido, type MotivoPerdaTipo } from '@/components/ModalMarcarPerdido'
+import { createAtividade } from '@/services/crmService'
 
 // Mapa bidirecional de etapas entre o funil comercial e as colunas do Kanban
 const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
@@ -183,6 +185,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [editingCard, setEditingCard] = useState<KanbanCardItem | null>(null)
   const [novoTituloInput, setNovoTituloInput] = useState('')
   const [isSavingTitulo, setIsSavingTitulo] = useState(false)
+
+  // Interceptação de marcação como perdido via Modal obrigatório
+  const [cardPendentePerda, setCardPendentePerda] = useState<KanbanCardItem | null>(null)
 
   useEffect(() => {
     if (editingCard) {
@@ -425,6 +430,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const previousStatus = targetCard.status
     setOptimisticStatusMap((prev) => ({ ...prev, [cardId]: targetStatus }))
 
+    // Se o destino for Perdido, interceptar obrigatoriamente para registrar o motivo
+    if (targetStatus === 'Perdido') {
+      setCardPendentePerda(targetCard)
+      return
+    }
+
     try {
       if (targetCard.negocioId) {
         // Grava no PocketBase em segundo plano sem disparar loading de tela cheia
@@ -433,10 +444,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             status: 'ganho',
             etapa_funil: 'contrato assinado',
             data_fechamento: new Date().toISOString(),
-          })
-        } else if (targetStatus === 'Perdido') {
-          await updateNegocio(targetCard.negocioId, {
-            status: 'perdido',
           })
         } else {
           const novaEtapa = STATUS_TO_ETAPA_NEGOCIO[targetStatus] || 'novo lead'
@@ -971,28 +978,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           </DropdownMenuItem>
 
                           <DropdownMenuItem
-                            onClick={async () => {
-                              try {
-                                if (card.negocioId) {
-                                  await updateNegocio(card.negocioId, {
-                                    status: 'perdido',
-                                  })
-                                  if (onNegocioUpdated) onNegocioUpdated()
-                                } else {
-                                  await updateClienteStatus(card.id, 'Perdido')
-                                }
-                                toast({
-                                  title: 'Negócio marcado como perdido',
-                                  description: `"${card.titulo}" foi atualizado.`,
-                                })
-                              } catch (err) {
-                                console.error('Erro ao marcar perdido:', err)
-                                toast({
-                                  title: 'Erro ao marcar perdido',
-                                  description: 'Não foi possível atualizar o negócio.',
-                                  variant: 'destructive',
-                                })
-                              }
+                            onClick={() => {
+                              setCardPendentePerda(card)
                             }}
                             className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 font-medium"
                           >
@@ -1288,6 +1275,104 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Obrigatório para Registrar Motivo da Perda */}
+      {cardPendentePerda && (
+        <ModalMarcarPerdido
+          open={Boolean(cardPendentePerda)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCardPendentePerda(null)
+            }
+          }}
+          cliente={
+            cardPendentePerda.rawCliente ||
+            ({
+              id: cardPendentePerda.clienteId || cardPendentePerda.id,
+              nome: cardPendentePerda.nomeCliente || cardPendentePerda.titulo,
+              status: cardPendentePerda.status,
+            } as Cliente)
+          }
+          onConfirm={async (motivo: MotivoPerdaTipo, observacao?: string) => {
+            const card = cardPendentePerda
+            const rotulos: Record<string, string> = {
+              preco: 'Preço',
+              concorrente: 'Concorrente',
+              desistiu: 'Desistiu',
+              nao_respondeu: 'Não respondeu',
+              outro: 'Outro',
+            }
+            const labelMotivo = rotulos[motivo] || motivo
+            const descMotivo =
+              motivo === 'outro' && observacao ? `Outro: ${observacao}` : labelMotivo
+            const obsComplemento =
+              observacao && motivo !== 'outro' ? ` Observações: ${observacao}` : ''
+            const agora = new Date().toISOString()
+
+            try {
+              if (card.negocioId) {
+                // 1. Atualiza negócio com status 'perdido' e motivo_perda
+                await updateNegocio(card.negocioId, {
+                  status: 'perdido',
+                  motivo_perda: motivo === 'outro' && observacao ? `outro: ${observacao}` : motivo,
+                })
+
+                // Atualiza também o cliente se houver cliente_id vinculado
+                if (card.clienteId) {
+                  await updateCliente(card.clienteId, {
+                    motivo_perda: motivo,
+                    observacoes_perda: observacao || undefined,
+                  }).catch((e) => console.warn('Erro ao atualizar motivo no cliente:', e))
+                }
+              } else {
+                // Modo cliente legado
+                await updateCliente(card.id, {
+                  status: 'Perdido',
+                  motivo_perda: motivo,
+                  observacoes_perda: observacao || undefined,
+                })
+              }
+
+              // 2. Registrar no histórico unificado (coleção atividades) com cliente_id E negocio_id
+              const cliId = card.clienteId || card.id
+              if (cliId) {
+                try {
+                  await createAtividade({
+                    cliente_id: cliId,
+                    negocio_id: card.negocioId || undefined,
+                    tipo: 'mudanca_estagio',
+                    titulo: 'Negócio marcado como Perdido',
+                    descricao: `Negócio "${card.titulo}" marcado como Perdido no funil comercial. Motivo: ${descMotivo}.${obsComplemento}`,
+                    data: agora,
+                    status: 'concluida',
+                    autor: 'CRM Delfos Solar',
+                    responsavel_nome: 'CRM Delfos Solar',
+                  })
+                } catch (ativErr) {
+                  console.warn('Erro ao registrar atividade de perda no histórico:', ativErr)
+                }
+              }
+
+              toast({
+                title: 'Negócio marcado como perdido',
+                description: `"${card.titulo}" foi registrado como Perdido (${labelMotivo}).`,
+              })
+
+              setCardPendentePerda(null)
+              if (onNegocioUpdated) onNegocioUpdated()
+              if (refreshData) refreshData()
+            } catch (err) {
+              console.error('Erro ao confirmar perda do negócio:', err)
+              toast({
+                title: 'Erro ao registrar perda',
+                description: 'Não foi possível registrar a perda do negócio. Tente novamente.',
+                variant: 'destructive',
+              })
+              throw err
+            }
+          }}
+        />
+      )}
 
       {/* AlertDialog de Confirmação para Mover Cliente para Outros Contatos */}
       <AlertDialog

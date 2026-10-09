@@ -2,6 +2,24 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
+/**
+ * Verifica se um erro corresponde a expiração de sessão / token inválido / 401 / 403
+ */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  const err = error as any
+  const status = Number(err.status || err.statusCode || err.response?.status)
+  if (status === 401 || status === 403) return true
+  const msg = String(err.message || err.response?.message || '').toLowerCase()
+  return (
+    msg.includes('token is expired') ||
+    msg.includes('token is invalid') ||
+    msg.includes('failed to authenticate') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
+  )
+}
+
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -25,5 +43,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
