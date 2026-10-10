@@ -338,7 +338,7 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
   }
 
   return (
-    <>
+    <div className="contents" key="modal-gerenciar-whatsapp-templates-root">
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
           {/* Cabeçalho */}
@@ -520,23 +520,23 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                               <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                               <div className="flex-1">
                                 {fluxo ? (
-                                  <>
+                                  <div className="contents" key="fluxo-info-box">
                                     <span className="font-semibold text-foreground">
                                       Usado em: {fluxo.tituloUso}
                                     </span>
                                     <span className="text-muted-foreground block text-[11px] mt-0.5">
                                       {fluxo.descricaoUso} ({fluxo.origemEnvio})
                                     </span>
-                                  </>
+                                  </div>
                                 ) : (
-                                  <>
+                                  <div className="contents" key="geral-info-box">
                                     <span className="font-medium text-foreground">
                                       Template Geral / Personalizado
                                     </span>
                                     <span className="text-muted-foreground block text-[11px] mt-0.5">
                                       Disponível na central de conversas e mensagens manuais.
                                     </span>
-                                  </>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -632,15 +632,15 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                               onClick={() => handleCopiarTexto(template.conteudo, template.id)}
                             >
                               {copiadoId === template.id ? (
-                                <>
+                                <span className="inline-flex items-center gap-1.5">
                                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                   <span className="text-emerald-600 font-medium">Copiado!</span>
-                                </>
+                                </span>
                               ) : (
-                                <>
+                                <span className="inline-flex items-center gap-1.5">
                                   <Copy className="w-3.5 h-3.5 text-muted-foreground" />
                                   <span>Copiar Texto</span>
-                                </>
+                                </span>
                               )}
                             </Button>
 
@@ -702,15 +702,15 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
           <DialogHeader className="p-6 pb-4 border-b border-border bg-card">
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
               {templateEditando ? (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <Edit2 className="w-5 h-5 text-amber-500" />
                   Editar Template: {templateEditando.titulo}
-                </>
+                </span>
               ) : (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <Plus className="w-5 h-5 text-emerald-600" />
                   Criar Novo Template de WhatsApp
-                </>
+                </span>
               )}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">

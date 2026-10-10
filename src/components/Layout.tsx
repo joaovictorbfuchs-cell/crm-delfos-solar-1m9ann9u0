@@ -449,7 +449,7 @@ export default function Layout() {
 
             {/* Botões do Topo para Admin (WhatsApp, Templates, Notificações) */}
             {isAdmin && (
-              <>
+              <div className="contents" key="header-admin-botoes">
                 <button
                   type="button"
                   onClick={() => navigate('/central-atendimento')}
@@ -496,7 +496,7 @@ export default function Layout() {
                 </button>
 
                 <NotificacoesBell />
-              </>
+              </div>
             )}
 
             {/* Botão do Assistente Delfos no Header Desktop (ícone pequeno redondo no topo) */}

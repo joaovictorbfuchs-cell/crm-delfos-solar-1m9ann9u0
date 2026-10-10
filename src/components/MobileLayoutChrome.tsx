@@ -369,7 +369,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       ]
 
   return (
-    <>
+    <div className="contents" key="mobile-layout-chrome-root">
       {/* ============================================================== */}
       {/* 1. HEADER MOBILE SIMPLIFICADO (APENAS MOBILE: lg:hidden)       */}
       {/* ============================================================== */}
@@ -519,7 +519,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Ações Mobile dedicadas para Serviços de Campo: Nova Atividade + Filtro ao lado do título */}
           {isServicosCampoRoute ? (
-            <>
+            <div className="contents" key="mobile-servicos-campo-actions">
               {isAdmin && <AssistenteDelfosBotao size="sm" />}
 
               {/* Botão Nova Atividade compacto verde #16A34A com ícone Plus */}
@@ -558,14 +558,14 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                   }`}
                 />
               </button>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="contents" key="mobile-outras-telas-actions">
               {/* Botão do Assistente Inteligente Delfos no topo do mobile (para Admin) */}
               {isAdmin && <AssistenteDelfosBotao size="sm" />}
 
               {isAdmin && (
-                <>
+                <div className="contents" key="mobile-admin-actions">
                   {/* Botão + para adicionar novo negócio (lead/deal) */}
                   <button
                     type="button"
@@ -606,12 +606,12 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                       </span>
                     )}
                   </button>
-                </>
+                </div>
               )}
 
               {/* Ações do topo para Instalador nas demais telas (se houver): Atualizar e Sair */}
               {isInstalador && (
-                <>
+                <div className="contents" key="mobile-instalador-actions">
                   <button
                     type="button"
                     onClick={handleMobileRefresh}
@@ -634,9 +634,9 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                     <LogOut className="w-3.5 h-3.5 text-red-600" />
                     <span>Sair</span>
                   </button>
-                </>
+                </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </header>
@@ -850,7 +850,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       {/* 5. MODAL GLOBAL DE NOVO LEAD PARA MOBILE (Acionado pelo +)     */}
       {/* ============================================================== */}
       <NovoLeadModal isOpen={modalNovoLeadOpen} onClose={() => setModalNovoLeadOpen(false)} />
-    </>
+    </div>
   )
 }
 

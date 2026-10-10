@@ -1276,15 +1276,15 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
             className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-2 h-9 px-5 shadow-xs"
           >
             {isSubmitting ? (
-              <>
+              <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Salvando alterações...
-              </>
+              </span>
             ) : (
-              <>
+              <span className="inline-flex items-center gap-2">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Salvar Alterações
-              </>
+              </span>
             )}
           </Button>
         </DialogFooter>

@@ -1406,15 +1406,15 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
             >
               {isSubmitting ? (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Salvando...
-                </>
+                </span>
               ) : (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4" />
                   Confirmar e Agendar
-                </>
+                </span>
               )}
             </button>
           </div>

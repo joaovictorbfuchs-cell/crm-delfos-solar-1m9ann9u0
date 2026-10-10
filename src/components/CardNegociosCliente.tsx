@@ -1151,7 +1151,7 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
               </div>
             </div>
           ) : (
-            <>
+            <div className="contents" key="formulario-negocio-completo-campos">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs font-bold text-slate-700">Tipo de Negócio *</Label>
@@ -1285,7 +1285,7 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
                   </div>
                 )}
               </div>
-            </>
+            </div>
           )}
 
           <DialogFooter className="border-t border-slate-100 pt-3">

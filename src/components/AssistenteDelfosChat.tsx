@@ -192,7 +192,7 @@ export default function AssistenteDelfosChat({
   }
 
   return (
-    <>
+    <div className="contents" key="assistente-delfos-chat-wrapper">
       {/* Botão Flutuante autônomo (renderizado apenas se explicitamente habilitado, fallback) */}
       {mostrarBotaoFlutuante && !aberto && (
         <div className="fixed top-3 right-28 z-40 print:hidden font-sans">
@@ -254,7 +254,7 @@ export default function AssistenteDelfosChat({
 
             {/* Corpo do Chat (se não minimizado) */}
             {!minimizado && (
-              <>
+              <div className="contents" key="corpo-chat-container">
                 {/* Filtro de Categoria Opcional */}
                 <div className="bg-gray-50 border-b border-gray-200 px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] shrink-0">
                   <span className="text-gray-500 font-medium shrink-0">Buscar em:</span>
@@ -398,11 +398,11 @@ export default function AssistenteDelfosChat({
                     <Send className="w-4 h-4" />
                   </Button>
                 </form>
-              </>
+              </div>
             )}
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

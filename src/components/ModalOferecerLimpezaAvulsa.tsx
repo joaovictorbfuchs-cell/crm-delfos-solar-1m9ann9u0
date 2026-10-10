@@ -1148,7 +1148,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                               </Button>
                             </div>
                           ) : (
-                            <>
+                            <div className="contents" key="item-telefone-exibicao">
                               <div className="flex flex-col gap-0.5">
                                 <div className="flex items-center gap-1.5">
                                   <Phone className="w-3 h-3 text-emerald-600" />
@@ -1188,7 +1188,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                                   {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
                                 </span>
                               </button>
-                            </>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1466,7 +1466,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                 )}
               </span>
             ) : (
-              <>
+              <span className="inline-flex items-center gap-1">
                 <span className="font-bold text-gray-900">
                   {selectedIds.length === 1
                     ? '1 cliente selecionado'
@@ -1476,7 +1476,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                   {' '}
                   • Envio direto via Z-API com registro de atividade no CRM
                 </span>
-              </>
+              </span>
             )}
           </div>
 
@@ -1498,16 +1498,16 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
               className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4"
             >
               {isEnviando ? (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>
                     {modoIndividual
                       ? 'Abrindo WhatsApp...'
                       : `Enviando ${progressoEnvio?.atual || 0} de ${progressoEnvio?.total || selectedIds.length}...`}
                   </span>
-                </>
+                </span>
               ) : (
-                <>
+                <span className="inline-flex items-center gap-2">
                   {modoIndividual ? (
                     <ExternalLink className="w-4 h-4" />
                   ) : (
@@ -1520,7 +1520,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                         ? 'Enviar Oferta por WhatsApp'
                         : `Enviar para ${selectedIds.length} Clientes`}
                   </span>
-                </>
+                </span>
               )}
             </Button>
           </div>

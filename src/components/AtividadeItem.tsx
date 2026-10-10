@@ -76,15 +76,15 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
                 title={isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'}
               >
                 {isConcluida ? (
-                  <>
+                  <span className="inline-flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Concluída</span>
-                  </>
+                  </span>
                 ) : (
-                  <>
+                  <span className="inline-flex items-center gap-1">
                     <Circle className="w-3.5 h-3.5 text-amber-600" />
                     <span>Pendente</span>
-                  </>
+                  </span>
                 )}
               </button>
             )}

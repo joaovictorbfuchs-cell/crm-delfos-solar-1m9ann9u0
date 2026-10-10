@@ -53,6 +53,8 @@ import {
   Send,
 } from 'lucide-react'
 import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
+import { RelatorioOSConteudo } from '@/components/RelatorioOSConteudo'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { formatDateTime } from '@/lib/formatters'
 import { updateAtividade } from '@/services/crmService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
@@ -235,6 +237,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Modal WhatsApp direto com o cliente da OS
   const [modalWhatsAppClienteAberto, setModalWhatsAppClienteAberto] = useState(false)
   const [modalEnviarRelatorioClienteAberto, setModalEnviarRelatorioClienteAberto] = useState(false)
+  const [modalVisualizarRelatorioAberto, setModalVisualizarRelatorioAberto] = useState(false)
   const [isReabrindo, setIsReabrindo] = useState(false)
 
   // Estado para admin reatribuir instalador direto na ficha
@@ -2168,11 +2171,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => window.open('/relatorio-os-preview/' + os.id, '_blank')}
-                  className="rounded-xl h-9 px-3 text-xs font-bold text-slate-700 border-slate-300 hover:bg-slate-100 bg-white inline-flex items-center gap-1.5 shrink-0"
-                  title="Visualizar relatório técnico em página web em nova aba"
+                  onClick={() => setModalVisualizarRelatorioAberto(true)}
+                  className="rounded-xl h-9 px-3 text-xs font-bold text-slate-700 border-slate-300 hover:bg-slate-100 bg-white inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  title="Visualizar relatório técnico completo diretamente na tela"
                 >
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-600" />
+                  <FileText className="w-3.5 h-3.5 text-slate-600" />
                   <span>Visualizar relatório (web)</span>
                 </Button>
               </div>
@@ -2228,6 +2231,44 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         onConfirmarEnvio={handleConfirmarEnvioWhatsAppCliente}
         confirmLabel="Enviar WhatsApp ao Cliente"
       />
+
+      {/* Modal Amplo de Visualização Web do Relatório Técnico na Própria Tela */}
+      {modalVisualizarRelatorioAberto && (
+        <Dialog
+          open={modalVisualizarRelatorioAberto}
+          onOpenChange={(open) => setModalVisualizarRelatorioAberto(open)}
+        >
+          <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] h-[92vh] p-0 overflow-hidden flex flex-col rounded-2xl border border-slate-200 shadow-2xl bg-slate-100">
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-bold text-slate-900">
+                  Relatório Técnico de Execução • OS #
+                  {String(os?.id || '')
+                    .slice(-6)
+                    .toUpperCase()}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mr-6">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open('/relatorio-os-preview/' + os.id, '_blank')}
+                  className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
+                  title="Abrir também em nova guia"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Nova guia</span>
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-slate-100">
+              <RelatorioOSConteudo id={os.id} showHeaderActions={true} requireAuth={false} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Modal de Envio Completo do Relatório ao Cliente (E-mail + WhatsApp) */}
       {modalEnviarRelatorioClienteAberto && (

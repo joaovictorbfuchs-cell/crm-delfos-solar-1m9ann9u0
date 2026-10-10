@@ -1575,20 +1575,20 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0284C7] hover:bg-[#0369A1] text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 disabled:opacity-50"
             >
               {isEnviando ? (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Enviando e-mail...</span>
-                </>
+                </span>
               ) : confirmarEnvio ? (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <Check className="w-4 h-4" />
                   <span>Confirmar e Enviar Agora</span>
-                </>
+                </span>
               ) : (
-                <>
+                <span className="inline-flex items-center gap-2">
                   <Send className="w-4 h-4" />
                   <span>Gerar e enviar email</span>
-                </>
+                </span>
               )}
             </button>
           </div>

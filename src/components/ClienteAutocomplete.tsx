@@ -358,7 +358,7 @@ export const ClienteAutocomplete: React.FC<ClienteAutocompleteProps> = ({
               Nenhum cliente encontrado para "{searchTerm}"
             </div>
           ) : (
-            <>
+            <div className="contents" key="lista-clientes-autocomplete-wrapper">
               {/* Cabeçalho informativo com total de resultados */}
               <div className="px-3 py-1.5 bg-gray-50/90 border-b border-gray-100 flex items-center justify-between text-[11px] text-gray-500 font-medium">
                 <span>
@@ -425,21 +425,21 @@ export const ClienteAutocomplete: React.FC<ClienteAutocompleteProps> = ({
                           </span>
 
                           {(cliente.cpf || cliente.cnpj) && (
-                            <>
+                            <span className="inline-flex items-center gap-1.5" key="doc-info">
                               <span className="text-gray-300">•</span>
                               <span className="text-gray-400 text-[10px]">
                                 {cliente.cnpj ? `CNPJ: ${cliente.cnpj}` : `CPF: ${cliente.cpf}`}
                               </span>
-                            </>
+                            </span>
                           )}
 
                           {(cliente.whatsapp || cliente.telefone) && (
-                            <>
+                            <span className="inline-flex items-center gap-1.5" key="tel-info">
                               <span className="text-gray-300">•</span>
                               <span className="text-gray-500 text-[10px]">
                                 {cliente.whatsapp || cliente.telefone}
                               </span>
-                            </>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -453,7 +453,7 @@ export const ClienteAutocomplete: React.FC<ClienteAutocompleteProps> = ({
                   )
                 })}
               </ul>
-            </>
+            </div>
           )}
         </div>
       )}

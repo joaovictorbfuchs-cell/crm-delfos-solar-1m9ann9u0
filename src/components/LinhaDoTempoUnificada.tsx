@@ -1256,10 +1256,10 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
               className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
             >
               {isDeletingAtividade ? (
-                <>
+                <span className="inline-flex items-center">
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   Excluindo...
-                </>
+                </span>
               ) : (
                 'Confirmar Exclusão'
               )}

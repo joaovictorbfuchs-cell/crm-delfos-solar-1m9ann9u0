@@ -416,15 +416,15 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                   className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs gap-1.5 h-8 px-4"
                 >
                   {isSubmitting ? (
-                    <>
+                    <span className="inline-flex items-center gap-1.5">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       Salvando...
-                    </>
+                    </span>
                   ) : (
-                    <>
+                    <span className="inline-flex items-center gap-1.5">
                       <Plus className="h-3.5 w-3.5" />
                       Adicionar Atividade
-                    </>
+                    </span>
                   )}
                 </Button>
               </div>

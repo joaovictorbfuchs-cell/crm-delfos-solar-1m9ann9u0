@@ -1164,7 +1164,7 @@ export const FichaClienteDrawer: React.FC = () => {
               }}
             />
             {selectedCliente.status === 'Perdido' && (
-              <>
+              <div className="contents" key="cliente-status-perdido-container">
                 <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
                   Fora do funil
                 </span>
@@ -1222,7 +1222,7 @@ export const FichaClienteDrawer: React.FC = () => {
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reativar cliente</span>
                 </button>
-              </>
+              </div>
             )}
             <OrigemClienteBadge cliente={selectedCliente} showSublabel />
             <InlineEditField
@@ -3286,7 +3286,7 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
               {/* ======================================================== */}
               {activeClientTab === 'historico' && (
-                <>
+                <div className="contents" key="ficha-tab-historico-container">
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
                   {/* Alterna Anotação vs Agendar Atividade (Seleção 2 etapas) */}
@@ -3365,7 +3365,7 @@ export const FichaClienteDrawer: React.FC = () => {
                       setIsModalPropostaOpen(true)
                     }}
                   />
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -4080,10 +4080,10 @@ export const FichaClienteDrawer: React.FC = () => {
                 className="bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold"
               >
                 {isDeletingCliente ? (
-                  <>
+                  <span className="inline-flex items-center">
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     Excluindo cliente...
-                  </>
+                  </span>
                 ) : (
                   'Sim, Excluir Cliente'
                 )}

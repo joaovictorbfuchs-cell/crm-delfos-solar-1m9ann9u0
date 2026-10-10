@@ -353,15 +353,15 @@ export const ModalCriarAnaliseFatura: React.FC<ModalCriarAnaliseFaturaProps> = (
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-all"
           >
             {isProcessing ? (
-              <>
+              <span className="inline-flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Processando fatura com IA...</span>
-              </>
+              </span>
             ) : (
-              <>
+              <span className="inline-flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
                 <span>Analisar fatura</span>
-              </>
+              </span>
             )}
           </button>
         </div>

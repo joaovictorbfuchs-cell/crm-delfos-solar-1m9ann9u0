@@ -12,6 +12,7 @@ import VisaoInstaladorMobileOS from '@/components/VisaoInstaladorMobileOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
 import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
 import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
+import { RelatorioOSConteudo } from '@/components/RelatorioOSConteudo'
 import { PainelEdicaoRodapeComercial } from '@/components/PainelEdicaoRodapeComercial'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useToast } from '@/hooks/use-toast'
@@ -88,6 +89,9 @@ function ExecucaoOSContent() {
   // Modal para admin enviar relatório de OS via WhatsApp
   const [osParaWhatsApp, setOsParaWhatsApp] = useState<OrdemServico | null>(null)
   const [osParaEnviarCliente, setOsParaEnviarCliente] = useState<OrdemServico | null>(null)
+  const [osParaVisualizarRelatorio, setOsParaVisualizarRelatorio] = useState<OrdemServico | null>(
+    null,
+  )
 
   // Estado de geração de PDF sob demanda ao clicar em "Ver Relatório"
   const [gerandoPdfOsId, setGerandoPdfOsId] = useState<string | null>(null)
@@ -1768,13 +1772,11 @@ function ExecucaoOSContent() {
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() =>
-                                window.open('/relatorio-os-preview/' + os.id, '_blank')
-                              }
-                              className="h-8 px-2.5 text-[11px] font-bold text-slate-700 border-slate-300 hover:bg-slate-100 bg-white inline-flex items-center gap-1"
-                              title="Visualizar relatório técnico em página web em nova aba"
+                              onClick={() => setOsParaVisualizarRelatorio(os)}
+                              className="h-8 px-2.5 text-[11px] font-bold text-slate-700 border-slate-300 hover:bg-slate-100 bg-white inline-flex items-center gap-1 cursor-pointer"
+                              title="Visualizar relatório técnico completo na própria tela"
                             >
-                              <ExternalLink className="w-3.5 h-3.5 text-slate-600" />
+                              <FileText className="w-3.5 h-3.5 text-slate-600" />
                               <span>Visualizar relatório (web)</span>
                             </Button>
 
@@ -1831,6 +1833,52 @@ function ExecucaoOSContent() {
             carregarDados()
           }}
         />
+      )}
+
+      {/* Modal Amplo de Visualização Web do Relatório Técnico na Própria Tela */}
+      {osParaVisualizarRelatorio && (
+        <Dialog
+          open={Boolean(osParaVisualizarRelatorio)}
+          onOpenChange={(open) => {
+            if (!open) setOsParaVisualizarRelatorio(null)
+          }}
+        >
+          <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] h-[92vh] p-0 overflow-hidden flex flex-col rounded-2xl border border-slate-200 shadow-2xl bg-slate-100">
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-bold text-slate-900">
+                  Relatório Técnico de Execução • OS #
+                  {String(osParaVisualizarRelatorio?.id || '')
+                    .slice(-6)
+                    .toUpperCase()}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mr-6">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    window.open('/relatorio-os-preview/' + osParaVisualizarRelatorio.id, '_blank')
+                  }
+                  className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
+                  title="Abrir também em nova guia"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Nova guia</span>
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-slate-100">
+              <RelatorioOSConteudo
+                id={osParaVisualizarRelatorio.id}
+                showHeaderActions={true}
+                requireAuth={false}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Modal Enviar Relatório ao Cliente (E-mail + WhatsApp com feedback por item) */}

@@ -202,15 +202,15 @@ export const ModalGerenciarProfissionais: React.FC<ModalGerenciarProfissionaisPr
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
                 {editingId ? (
-                  <>
+                  <span className="inline-flex items-center gap-1.5">
                     <Edit2 className="w-3.5 h-3.5 text-emerald-700" />
                     Editar Profissional
-                  </>
+                  </span>
                 ) : (
-                  <>
+                  <span className="inline-flex items-center gap-1.5">
                     <Plus className="w-3.5 h-3.5 text-emerald-700" />
                     Cadastrar Novo Profissional
-                  </>
+                  </span>
                 )}
               </span>
               {editingId && (
@@ -277,15 +277,15 @@ export const ModalGerenciarProfissionais: React.FC<ModalGerenciarProfissionaisPr
                 className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
               >
                 {editingId ? (
-                  <>
+                  <span className="inline-flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Salvar Alterações</span>
-                  </>
+                  </span>
                 ) : (
-                  <>
+                  <span className="inline-flex items-center gap-1.5">
                     <Plus className="w-3.5 h-3.5" />
                     <span>Adicionar Profissional</span>
-                  </>
+                  </span>
                 )}
               </button>
             </div>

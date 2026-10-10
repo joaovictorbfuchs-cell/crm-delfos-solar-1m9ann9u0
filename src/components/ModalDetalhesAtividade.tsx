@@ -1509,15 +1509,15 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
             }`}
           >
             {status === 'concluida' ? (
-              <>
+              <span className="inline-flex items-center gap-1.5">
                 <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
                 <span>Reabrir como Pendente</span>
-              </>
+              </span>
             ) : (
-              <>
+              <span className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Marcar como Concluída</span>
-              </>
+              </span>
             )}
           </button>
 
@@ -1570,15 +1570,15 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
             >
               {isSubmitting ? (
-                <>
+                <span className="inline-flex items-center gap-1.5">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Salvando...</span>
-                </>
+                </span>
               ) : (
-                <>
+                <span className="inline-flex items-center gap-1.5">
                   <Save className="w-4 h-4" />
                   <span>Salvar Alterações</span>
-                </>
+                </span>
               )}
             </button>
           </div>
