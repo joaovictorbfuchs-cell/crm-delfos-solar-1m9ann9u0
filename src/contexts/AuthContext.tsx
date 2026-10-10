@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { AuthModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
+import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import type { UserRole } from '@/types/crm'
 
 export interface UserAuthData {
@@ -96,47 +97,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           clearTimeout(timeoutId)
           console.warn('Erro ao executar authRefresh:', err)
 
-          // Não limpar authStore se for cancelamento de requisição ou erro temporário de rede.
-          // Só limpa se o backend explicitamente retornou 401/403 (sessão expirada/revogada)
-          // ou se a authStore não for mais válida.
+          // Identificar erros de cancelamento de requisição ou erro transitório de rede
           const isAutocancelled =
             err?.isAbort ||
             err?.name === 'AbortError' ||
+            err?.status === 0 ||
             String(err?.message || '')
               .toLowerCase()
-              .includes('autocancelled')
-          const isNetworkError = err?.status === 0 || !err?.status
+              .includes('autocancelled') ||
+            String(err?.message || '')
+              .toLowerCase()
+              .includes('abort')
 
-          // Erro 400 (Bad Request) ou 401/403 (Unauthorized/Forbidden) indicam token inválido, expirado ou formato incorreto
-          const isInvalidAuthError =
-            err?.status === 400 ||
-            err?.status === 401 ||
-            err?.status === 403 ||
-            (err?.name === 'ClientResponseError' &&
-              (err?.status === 400 || err?.status === 401 || err?.status === 403))
-
-          if (isInvalidAuthError || !pb.authStore.isValid) {
-            // Sessão inválida/expirada: limpar explicitamente authStore e voltar ao estado deslogado
+          // Só limpar authStore quando for erro real de autenticação/sessão inválida
+          // Ignorar cancelamentos e colisões temporárias
+          if (!isAutocancelled && isAuthSessionError(err)) {
             pb.authStore.clear()
             setUser(null)
             setUserProfile(null)
             setToken(null)
-          } else if (isAutocancelled || isNetworkError) {
-            console.warn(
-              'authRefresh cancelado ou erro de rede temporário. Mantendo sessão ativa se ainda válida localmente.',
-            )
-            if (!pb.authStore.isValid) {
-              pb.authStore.clear()
-              setUser(null)
-              setUserProfile(null)
-              setToken(null)
-            }
+          } else if (!pb.authStore.isValid) {
+            pb.authStore.clear()
+            setUser(null)
+            setUserProfile(null)
+            setToken(null)
           } else {
-            // Outros erros inesperados: limpar estado de autenticação para evitar inconsistência
-            pb.authStore.clear()
-            setUser(null)
-            setUserProfile(null)
-            setToken(null)
+            console.warn(
+              'authRefresh não conclusivo (possível concorrência ou rede). Mantendo sessão se authStore local permanecer válida.',
+            )
           }
         })
         .finally(() => {
@@ -174,17 +162,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const isAutocancelled =
           err?.isAbort ||
           err?.name === 'AbortError' ||
+          err?.status === 0 ||
           String(err?.message || '')
             .toLowerCase()
-            .includes('autocancelled')
-        const isInvalidAuthError =
-          err?.status === 400 ||
-          err?.status === 401 ||
-          err?.status === 403 ||
-          (err?.name === 'ClientResponseError' &&
-            (err?.status === 400 || err?.status === 401 || err?.status === 403))
+            .includes('autocancelled') ||
+          String(err?.message || '')
+            .toLowerCase()
+            .includes('abort')
 
-        if (!isAutocancelled && (isInvalidAuthError || !pb.authStore.isValid)) {
+        if (!isAutocancelled && isAuthSessionError(err)) {
+          pb.authStore.clear()
+          setUser(null)
+          setUserProfile(null)
+          setToken(null)
+        } else if (!pb.authStore.isValid) {
           pb.authStore.clear()
           setUser(null)
           setUserProfile(null)

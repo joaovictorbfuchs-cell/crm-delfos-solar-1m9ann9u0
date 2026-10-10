@@ -507,7 +507,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
         {/* Total em Serviços (se houver valor) ou Distribuição */}
         <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs">
           {totaisGerais.temValores ? (
-            <>
+            <div className="contents">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Valor Total
@@ -520,9 +520,9 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                 {formatCurrency(totaisGerais.somaValores)}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">Faturamento das OS concluídas</p>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="contents">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Serviços Realizados
@@ -535,7 +535,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                 {Object.keys(totaisGerais.tiposTotais).length}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">Tipos distintos executados</p>
-            </>
+            </div>
           )}
         </div>
       </div>

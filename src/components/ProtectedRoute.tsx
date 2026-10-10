@@ -83,6 +83,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     return null
   }
 
-  return <>{children}</>
+  return <div className="contents">{children}</div>
 }
 export default ProtectedRoute

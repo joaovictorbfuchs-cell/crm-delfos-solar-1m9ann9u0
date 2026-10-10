@@ -357,7 +357,7 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
   const hasNoPhone = responsavelId && !responsavelTelefone
 
   return (
-    <>
+    <div className="contents">
       <TooltipProvider delayDuration={200}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -376,27 +376,27 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
               } ${className}`}
             >
               {status === 'loading' ? (
-                <>
+                <div className="contents">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
                   {showLabel && <span className="text-[11px]">Enviando...</span>}
-                </>
+                </div>
               ) : status === 'success' ? (
-                <>
+                <div className="contents">
                   <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
                   {showLabel && <span className="text-[11px] font-bold text-white">Enviado ✓</span>}
-                </>
+                </div>
               ) : status === 'error' ? (
-                <>
+                <div className="contents">
                   <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
                   {showLabel && (
                     <span className="text-[11px] text-rose-700 font-semibold">Tentar envio</span>
                   )}
-                </>
+                </div>
               ) : (
-                <>
+                <div className="contents">
                   <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   {showLabel && <span className="text-[11px]">{label}</span>}
-                </>
+                </div>
               )}
             </Button>
           </TooltipTrigger>
@@ -430,7 +430,7 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
         onConfirmarEnvio={handleConfirmarEnvioModal}
         confirmLabel="Confirmar e Enviar OS ao Técnico"
       />
-    </>
+    </div>
   )
 }
 

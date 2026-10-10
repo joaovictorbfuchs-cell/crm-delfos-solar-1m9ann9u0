@@ -600,7 +600,7 @@ export default function VisaoInstaladorMobileOS({
         </ErrorBoundary>
       ) : (
         /* SELECIONADO: LISTA DO DIA (visão instalador mobile padrão) */
-        <>
+        <div className="contents">
           {/* Cabeçalho do Dia com data e resumo */}
           <div className="bg-[#0F2038] text-white rounded-2xl p-4 shadow-sm border border-slate-700/80">
             <div className="flex items-center justify-between gap-2 mb-2">
@@ -853,7 +853,7 @@ export default function VisaoInstaladorMobileOS({
                         {/* Barra de Ações do Instalador */}
                         <div className="pt-2 flex items-center gap-2 flex-wrap">
                           {!isConcluida ? (
-                            <>
+                            <div className="contents">
                               <Button
                                 type="button"
                                 disabled={isSalvando}
@@ -875,7 +875,7 @@ export default function VisaoInstaladorMobileOS({
                                   Ver Ficha
                                 </Button>
                               )}
-                            </>
+                            </div>
                           ) : (
                             <div className="w-full flex items-center justify-between gap-2">
                               <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
@@ -916,7 +916,7 @@ export default function VisaoInstaladorMobileOS({
               })}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

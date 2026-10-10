@@ -682,15 +682,15 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
               className="px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none hover:scale-[1.02]"
             >
               {isSending ? (
-                <>
+                <div className="contents">
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>Enviando Relatório...</span>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="contents">
                   <Send className="w-4 h-4" />
                   <span>Confirmar e Enviar Relatório</span>
-                </>
+                </div>
               )}
             </button>
           </div>

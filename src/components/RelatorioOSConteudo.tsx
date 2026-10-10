@@ -47,10 +47,12 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       return
     }
 
-    // Se exige login e não está autenticado (ou token expirado / inválido), redirecionar para /login
+    const currentPath = window.location.pathname + window.location.search
+
+    // Se exige login e não está autenticado (ou token expirado / inválido), redirecionar para /login preservando state.from
     if (requireAuth && (!isAuthenticated || !pb.authStore.isValid)) {
       navigate('/login', {
-        state: { from: window.location.pathname + window.location.search },
+        state: { from: currentPath },
         replace: true,
       })
       return
@@ -70,24 +72,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       if (isMounted) {
         setLoading(true)
         setErro(null)
-      }
-
-      // Se temos token mas não foi validado recentemente ou se é rota autenticada,
-      // garantir sessão ativa com authRefresh defensivo
-      if (pb.authStore.isValid && pb.authStore.token) {
-        try {
-          await pb.collection('users').authRefresh({ requestKey: null })
-        } catch (refreshErr) {
-          if (isAuthSessionError(refreshErr)) {
-            if (requireAuth) {
-              navigate('/login', {
-                state: { from: window.location.pathname + window.location.search },
-                replace: true,
-              })
-              return
-            }
-          }
-        }
       }
 
       try {
@@ -120,10 +104,10 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           }
         }
 
-        // Se encontrou erro de autenticação e a rota exige auth, redireciona ao login
+        // Se encontrou erro de autenticação e a rota exige auth, redireciona ao login com state.from
         if (!registro && isAuthErrorEncountered && requireAuth) {
           navigate('/login', {
-            state: { from: window.location.pathname + window.location.search },
+            state: { from: currentPath },
             replace: true,
           })
           return
@@ -172,7 +156,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       } catch (err: any) {
         if (isAuthSessionError(err) && requireAuth) {
           navigate('/login', {
-            state: { from: window.location.pathname + window.location.search },
+            state: { from: currentPath },
             replace: true,
           })
           return

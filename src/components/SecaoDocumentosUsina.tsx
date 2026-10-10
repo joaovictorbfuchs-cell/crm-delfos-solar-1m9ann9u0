@@ -321,15 +321,15 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
               className="bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold text-xs h-7 px-3 rounded-lg flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
               {enviando ? (
-                <>
+                <div className="contents">
                   <RefreshCw className="w-3 h-3 animate-spin text-[#4ade80]" />
                   <span>Enviando {filaUpload.length} arquivo(s)...</span>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="contents">
                   <Check className="w-3.5 h-3.5 text-[#4ade80]" />
                   <span>Enviar Todos</span>
-                </>
+                </div>
               )}
             </Button>
           </div>
@@ -561,7 +561,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
                   {/* Abrir / Visualizar */}
                   {urlArquivo && (
-                    <>
+                    <div className="contents">
                       {ehImg ? (
                         <Button
                           type="button"
@@ -600,7 +600,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                         <Download className="w-3.5 h-3.5 text-slate-500" />
                         <span className="hidden sm:inline">Baixar</span>
                       </a>
-                    </>
+                    </div>
                   )}
 
                   {/* Excluir (apenas quando não é readOnly) */}
@@ -707,15 +707,15 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
               className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5"
             >
               {excluindo ? (
-                <>
+                <div className="contents">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   <span>Excluindo...</span>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="contents">
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Sim, Excluir Documento</span>
-                </>
+                </div>
               )}
             </Button>
           </div>

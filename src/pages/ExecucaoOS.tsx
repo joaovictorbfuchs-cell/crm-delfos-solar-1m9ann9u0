@@ -1436,7 +1436,7 @@ function ExecucaoOSContent() {
           </ErrorBoundary>
         )
       ) : (
-        <>
+        <div className="contents">
           {/* Tag informativa de filtros ativos, se houver algum selecionado */}
           {activeFiltersCount > 0 && (
             <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 text-xs text-emerald-900 shadow-2xs">
@@ -1818,7 +1818,7 @@ function ExecucaoOSContent() {
               })}
             </div>
           )}
-        </>
+        </div>
       )}
       {/* Modal de Envio do Relatório em PDF por WhatsApp ao Cliente (Apenas Admin) */}
       {osParaWhatsApp && (
