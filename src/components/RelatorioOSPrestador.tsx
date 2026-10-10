@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Send } from 'lucide-react'
 import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
+import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
+import { gerarPdfRelatorioConsolidadoMensal } from '@/lib/relatorioConsolidadoCampoPdf'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -122,7 +124,9 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
   const [dataReferencia, setDataReferencia] = useState<Date>(() => new Date())
   const [prestadorAberto, setPrestadorAberto] = useState<string | null>(null)
   const [osParaWhatsApp, setOsParaWhatsApp] = useState<OrdemServico | null>(null)
+  const [osParaEnviarCliente, setOsParaEnviarCliente] = useState<OrdemServico | null>(null)
   const [gerandoPdfOsId, setGerandoPdfOsId] = useState<string | null>(null)
+  const [gerandoPdfConsolidado, setGerandoPdfConsolidado] = useState<boolean>(false)
 
   const handleVerRelatorioPdf = async (os: OrdemServico) => {
     if (os.relatorio_pdf) {
@@ -184,6 +188,36 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
 
   const irParaMesAtual = () => {
     setDataReferencia(new Date())
+  }
+
+  const handleGerarPdfConsolidadoMensal = async () => {
+    setGerandoPdfConsolidado(true)
+    toast({
+      title: 'Gerando Relatório Consolidado...',
+      description: `Compilando atividades e métricas de ${MESES[mesAtual]} de ${anoAtual}.`,
+    })
+    try {
+      const res = await gerarPdfRelatorioConsolidadoMensal(
+        osConcluidasMes,
+        MESES[mesAtual] || 'Mes',
+        anoAtual,
+      )
+      const blobUrl = URL.createObjectURL(res.file)
+      window.open(blobUrl, '_blank')
+      toast({
+        title: 'Relatório Consolidado pronto!',
+        description: 'O PDF foi aberto em uma nova aba para visualização e download.',
+      })
+    } catch (err) {
+      console.error('Erro ao gerar relatório consolidado mensal:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Falha ao gerar relatório consolidado',
+        description: 'Tente novamente.',
+      })
+    } finally {
+      setGerandoPdfConsolidado(false)
+    }
   }
 
   // Filtragem das OS concluídas do mês selecionado
@@ -345,52 +379,67 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
           </div>
         </div>
 
-        {/* Seletor Mês/Ano */}
-        <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 w-full sm:w-auto justify-between sm:justify-end">
+        {/* Seletor Mês/Ano e Ação de Gerar PDF Consolidado */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto justify-between sm:justify-end">
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
-            onClick={mesAnterior}
-            className="h-8 w-8 p-0 rounded-lg hover:bg-white text-gray-700"
-            title="Mês anterior"
+            onClick={handleGerarPdfConsolidadoMensal}
+            disabled={gerandoPdfConsolidado || osConcluidasMes.length === 0}
+            className="h-9 px-3 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl shadow-2xs inline-flex items-center gap-1.5"
+            title="Gerar PDF oficial do Relatório Consolidado Mensal do Serviço de Campo"
           >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-
-          <div className="px-3 text-center min-w-[150px]">
-            <span className="text-sm font-bold text-gray-900 capitalize block">
-              {MESES[mesAtual] || ''} {anoAtual}
+            <FileText className="w-3.5 h-3.5" />
+            <span>
+              {gerandoPdfConsolidado ? 'Gerando Relatório...' : 'Gerar PDF Mensal Consolidado'}
             </span>
-            {isMesAtual && (
-              <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">
-                Mês Atual
-              </span>
-            )}
-          </div>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={mesSeguinte}
-            className="h-8 w-8 p-0 rounded-lg hover:bg-white text-gray-700"
-            title="Próximo mês"
-          >
-            <ChevronRight className="w-4 h-4" />
           </Button>
 
-          {!isMesAtual && (
+          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={irParaMesAtual}
-              className="h-8 text-xs font-semibold rounded-lg bg-white border-gray-200 text-emerald-700 hover:bg-emerald-50 ml-1"
+              onClick={mesAnterior}
+              className="h-8 w-8 p-0 rounded-lg hover:bg-white text-gray-700"
+              title="Mês anterior"
             >
-              Hoje
+              <ChevronLeft className="w-4 h-4" />
             </Button>
-          )}
+
+            <div className="px-3 text-center min-w-[150px]">
+              <span className="text-sm font-bold text-gray-900 capitalize block">
+                {MESES[mesAtual] || ''} {anoAtual}
+              </span>
+              {isMesAtual && (
+                <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">
+                  Mês Atual
+                </span>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={mesSeguinte}
+              className="h-8 w-8 p-0 rounded-lg hover:bg-white text-gray-700"
+              title="Próximo mês"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+
+            {!isMesAtual && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={irParaMesAtual}
+                className="h-8 text-xs font-semibold rounded-lg bg-white border-gray-200 text-emerald-700 hover:bg-emerald-50 ml-1"
+              >
+                Hoje
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -794,17 +843,16 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                                   <FileText className="w-3 h-3 mr-1 text-emerald-600" />
                                   {gerandoPdfOsId === os.id ? 'Gerando...' : 'Ver PDF'}
                                 </Button>
-
                                 <Button
                                   type="button"
                                   size="sm"
-                                  onClick={() => setOsParaWhatsApp(os)}
-                                  className="h-8 px-2.5 text-[10px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
-                                  title="Enviar Relatório Técnico de Execução por WhatsApp"
+                                  onClick={() => setOsParaEnviarCliente(os)}
+                                  className="h-8 px-2.5 text-[10px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1"
+                                  title="Enviar Relatório Técnico por E-mail e WhatsApp ao Cliente"
                                 >
-                                  <Send className="w-3 h-3 mr-1" />
-                                  WhatsApp
-                                </Button>
+                                  <Send className="w-3 h-3" />
+                                  <span>Enviar ao Cliente</span>
+                                </Button>{' '}
                               </div>
                             </div>
                           </div>
@@ -826,6 +874,16 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
           onClose={() => setOsParaWhatsApp(null)}
           os={osParaWhatsApp}
           cliente={osParaWhatsApp.expand?.cliente_id}
+        />
+      )}
+
+      {/* Modal Enviar Relatório ao Cliente (E-mail + WhatsApp) */}
+      {osParaEnviarCliente && (
+        <ModalEnviarRelatorioCliente
+          isOpen={Boolean(osParaEnviarCliente)}
+          onClose={() => setOsParaEnviarCliente(null)}
+          os={osParaEnviarCliente}
+          cliente={osParaEnviarCliente.expand?.cliente_id}
         />
       )}
     </div>

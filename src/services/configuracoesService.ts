@@ -2,6 +2,25 @@ import pb from '@/lib/pocketbase/client'
 
 export const STORAGE_KEY_VALOR_POR_PLACA = 'delfos_valor_limpeza_por_placa'
 export const VALOR_POR_PLACA_PADRAO_SISTEMA = 8.0
+export const CHAVE_RODAPE_COMERCIAL_RELATORIO_OS = 'rodape_comercial_relatorio_os'
+export const STORAGE_KEY_RODAPE_COMERCIAL = 'delfos_rodape_comercial_relatorio_os'
+
+export interface RodapeComercialConfig {
+  titulo: string
+  descricao: string
+  indicacao: string
+  contato: string
+}
+
+export const RODAPE_COMERCIAL_PADRAO: RodapeComercialConfig = {
+  titulo: 'Plano Delfos de Manutenção Preventiva & O&M',
+  descricao:
+    'Mantenha sua usina com geração máxima e segurança com nosso plano de limpeza periódica e revisão técnica. Atendimento ágil e garantia de excelência em Erechim e região.',
+  indicacao:
+    'Indique um amigo para instalar ou revisar sua usina solar com a Delfos e ganhe benefícios exclusivos!',
+  contato:
+    'Dúvidas ou agendamentos: (54) 99129-2121 • solar@updates.delfos.eng.br • www.delfos.eng.br',
+}
 
 export interface ConfiguracaoItem {
   id?: string
@@ -120,4 +139,127 @@ export async function setValorLimpezaPorPlacaPadrao(novoValor: number): Promise<
   }
 
   return valorSanitizado
+}
+
+/**
+ * Obtém a configuração de rodapé comercial do Relatório de OS.
+ * Busca no PocketBase e faz fallback para cache local ou padrão do sistema.
+ */
+export async function getRodapeComercialRelatorioOS(): Promise<RodapeComercialConfig> {
+  try {
+    const record = await pb
+      .collection('configuracoes')
+      .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_RODAPE_COMERCIAL_RELATORIO_OS}"`)
+
+    if (record) {
+      let config: RodapeComercialConfig | null = null
+      if (record.dados && typeof record.dados === 'object') {
+        config = {
+          titulo: record.dados.titulo || RODAPE_COMERCIAL_PADRAO.titulo,
+          descricao: record.dados.descricao || RODAPE_COMERCIAL_PADRAO.descricao,
+          indicacao: record.dados.indicacao || RODAPE_COMERCIAL_PADRAO.indicacao,
+          contato: record.dados.contato || RODAPE_COMERCIAL_PADRAO.contato,
+        }
+      } else if (record.valor) {
+        try {
+          const parsed = JSON.parse(record.valor)
+          config = {
+            titulo: parsed.titulo || RODAPE_COMERCIAL_PADRAO.titulo,
+            descricao: parsed.descricao || RODAPE_COMERCIAL_PADRAO.descricao,
+            indicacao: parsed.indicacao || RODAPE_COMERCIAL_PADRAO.indicacao,
+            contato: parsed.contato || RODAPE_COMERCIAL_PADRAO.contato,
+          }
+        } catch {
+          config = {
+            ...RODAPE_COMERCIAL_PADRAO,
+            descricao: record.valor,
+          }
+        }
+      }
+
+      if (config) {
+        try {
+          localStorage.setItem(STORAGE_KEY_RODAPE_COMERCIAL, JSON.stringify(config))
+        } catch {
+          /* ignore */
+        }
+        return config
+      }
+    }
+  } catch (err) {
+    console.warn('[configuracoesService] Falha ao ler rodape_comercial_relatorio_os:', err)
+  }
+
+  return getRodapeComercialCacheSync()
+}
+
+/**
+ * Leitura síncrona do cache local de rodapé comercial.
+ */
+export function getRodapeComercialCacheSync(): RodapeComercialConfig {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY_RODAPE_COMERCIAL)
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      if (parsed && typeof parsed === 'object') {
+        return {
+          titulo: parsed.titulo || RODAPE_COMERCIAL_PADRAO.titulo,
+          descricao: parsed.descricao || RODAPE_COMERCIAL_PADRAO.descricao,
+          indicacao: parsed.indicacao || RODAPE_COMERCIAL_PADRAO.indicacao,
+          contato: parsed.contato || RODAPE_COMERCIAL_PADRAO.contato,
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return { ...RODAPE_COMERCIAL_PADRAO }
+}
+
+/**
+ * Salva a configuração do rodapé comercial do relatório no PocketBase e cache local.
+ */
+export async function setRodapeComercialRelatorioOS(
+  novaConfig: Partial<RodapeComercialConfig>,
+): Promise<RodapeComercialConfig> {
+  const finalConfig: RodapeComercialConfig = {
+    titulo: (novaConfig.titulo ?? RODAPE_COMERCIAL_PADRAO.titulo).trim(),
+    descricao: (novaConfig.descricao ?? RODAPE_COMERCIAL_PADRAO.descricao).trim(),
+    indicacao: (novaConfig.indicacao ?? RODAPE_COMERCIAL_PADRAO.indicacao).trim(),
+    contato: (novaConfig.contato ?? RODAPE_COMERCIAL_PADRAO.contato).trim(),
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY_RODAPE_COMERCIAL, JSON.stringify(finalConfig))
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    let recordExistente: ConfiguracaoItem | null = null
+    try {
+      recordExistente = await pb
+        .collection('configuracoes')
+        .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_RODAPE_COMERCIAL_RELATORIO_OS}"`)
+    } catch {
+      recordExistente = null
+    }
+
+    const payload = {
+      chave: CHAVE_RODAPE_COMERCIAL_RELATORIO_OS,
+      valor: finalConfig.descricao,
+      dados: finalConfig,
+      descricao: 'Rodapé comercial e texto de indicação exibido no Relatório Técnico de OS',
+    }
+
+    if (recordExistente?.id) {
+      await pb.collection('configuracoes').update(recordExistente.id, payload)
+    } else {
+      await pb.collection('configuracoes').create(payload)
+    }
+  } catch (err) {
+    console.error('[configuracoesService] Erro ao persistir rodape_comercial no PocketBase:', err)
+  }
+
+  return finalConfig
 }

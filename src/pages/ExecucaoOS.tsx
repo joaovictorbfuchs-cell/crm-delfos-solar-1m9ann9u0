@@ -10,6 +10,8 @@ import {
 import VisaoInstaladorMobileOS from '@/components/VisaoInstaladorMobileOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
 import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
+import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
+import { PainelEdicaoRodapeComercial } from '@/components/PainelEdicaoRodapeComercial'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useToast } from '@/hooks/use-toast'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -83,6 +85,7 @@ function ExecucaoOSContent() {
 
   // Modal para admin enviar relatório de OS via WhatsApp
   const [osParaWhatsApp, setOsParaWhatsApp] = useState<OrdemServico | null>(null)
+  const [osParaEnviarCliente, setOsParaEnviarCliente] = useState<OrdemServico | null>(null)
 
   // Estado de geração de PDF sob demanda ao clicar em "Ver Relatório"
   const [gerandoPdfOsId, setGerandoPdfOsId] = useState<string | null>(null)
@@ -97,7 +100,7 @@ function ExecucaoOSContent() {
   // Aba / Filtro na Lista: 'pendentes', 'calendario', 'concluidas' ou 'relatorio' (apenas admin)
   // Padrão do usuário: abrir DIRETO na aba Calendário na visualização semanal
   const [activeTab, setActiveTab] = useState<
-    'pendentes' | 'concluidas' | 'calendario' | 'relatorio'
+    'pendentes' | 'concluidas' | 'calendario' | 'relatorio' | 'configuracoes'
   >('calendario')
 
   // Filtros de busca, tipo, prestador e período
@@ -898,11 +901,12 @@ function ExecucaoOSContent() {
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setOsParaWhatsApp(selectedOS)}
-                className="h-8 px-2.5 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs"
+                onClick={() => setOsParaEnviarCliente(selectedOS)}
+                className="h-8 px-2.5 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5"
+                title="Abrir modal para envio do relatório por e-mail e WhatsApp ao cliente"
               >
-                <Send className="w-3.5 h-3.5 mr-1.5" />
-                Enviar Relatório por WhatsApp
+                <Send className="w-3.5 h-3.5" />
+                <span>Enviar relatório ao cliente</span>
               </Button>
             </div>
           </div>
@@ -919,6 +923,17 @@ function ExecucaoOSContent() {
           onOSFinalizada={handleOSFinalizada}
         />
 
+        {/* Modal Enviar Relatório ao Cliente (E-mail e WhatsApp com confirmação) */}
+        {osParaEnviarCliente && (
+          <ModalEnviarRelatorioCliente
+            isOpen={Boolean(osParaEnviarCliente)}
+            onClose={() => setOsParaEnviarCliente(null)}
+            os={osParaEnviarCliente}
+            cliente={osParaEnviarCliente.expand?.cliente_id}
+            onSuccess={() => carregarDados(true)}
+          />
+        )}
+
         {/* Modal WhatsApp no modo visualização de Ficha */}
         {osParaWhatsApp && (
           <ModalEnviarRelatorioOSWhatsApp
@@ -933,11 +948,11 @@ function ExecucaoOSContent() {
     )
   }
 
-  // Renderiza as abas de navegação (Pendentes, Calendário, Concluídas, Relatório)
+  // Renderiza as abas de navegação (Pendentes, Calendário, Concluídas, Relatório, Configurações)
   const renderTabsNavegacao = () => (
     <div
       className={`grid gap-1 p-0.5 bg-gray-100/90 rounded-lg border border-gray-200 shrink-0 ${
-        isAdmin ? 'grid-cols-4' : 'grid-cols-3'
+        isAdmin ? 'grid-cols-5' : 'grid-cols-3'
       }`}
     >
       <button
@@ -1033,6 +1048,23 @@ function ExecucaoOSContent() {
           >
             Mês
           </span>
+        </button>
+      )}
+
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => setActiveTab('configuracoes')}
+          className={`h-7 px-2 sm:px-2.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
+            activeTab === 'configuracoes'
+              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+          title="Configurações do Relatório"
+          aria-label="Configurações do Relatório"
+        >
+          <Wrench className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="hidden sm:inline">Rodapé OS</span>
         </button>
       )}
     </div>
@@ -1364,7 +1396,11 @@ function ExecucaoOSContent() {
         </Popover>
       )}
       {/* Conteúdo da Aba Relatório (apenas Admin) */}
-      {activeTab === 'relatorio' && isAdmin ? (
+      {activeTab === 'configuracoes' && isAdmin ? (
+        <div className="space-y-4">
+          <PainelEdicaoRodapeComercial />
+        </div>
+      ) : activeTab === 'relatorio' && isAdmin ? (
         isLoading ? (
           <div className="py-16 flex flex-col items-center justify-center text-center">
             <div className="w-8 h-8 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin mb-3 mx-auto" />
@@ -1728,12 +1764,12 @@ function ExecucaoOSContent() {
                             <Button
                               type="button"
                               size="sm"
-                              onClick={() => setOsParaWhatsApp(os)}
-                              className="h-8 px-2.5 text-[11px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs"
-                              title="Enviar Relatório Técnico de Execução por WhatsApp ao Cliente"
+                              onClick={() => setOsParaEnviarCliente(os)}
+                              className="h-8 px-2.5 text-[11px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1"
+                              title="Enviar Relatório Técnico de Execução por E-mail e WhatsApp ao Cliente"
                             >
-                              <Send className="w-3.5 h-3.5 mr-1" />
-                              Enviar Relatório por WhatsApp
+                              <Send className="w-3 h-3" />
+                              <span>Enviar ao cliente</span>
                             </Button>
                           </div>
                         )}
@@ -1776,6 +1812,19 @@ function ExecucaoOSContent() {
           cliente={osParaWhatsApp.expand?.cliente_id}
           onSuccess={() => {
             carregarDados()
+          }}
+        />
+      )}
+
+      {/* Modal Enviar Relatório ao Cliente (E-mail + WhatsApp com feedback por item) */}
+      {osParaEnviarCliente && (
+        <ModalEnviarRelatorioCliente
+          isOpen={Boolean(osParaEnviarCliente)}
+          onClose={() => setOsParaEnviarCliente(null)}
+          os={osParaEnviarCliente}
+          cliente={osParaEnviarCliente.expand?.cliente_id}
+          onSuccess={() => {
+            carregarDados(true)
           }}
         />
       )}

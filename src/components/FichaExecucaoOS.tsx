@@ -50,7 +50,9 @@ import {
   Navigation,
   Save,
   Loader2,
+  Send,
 } from 'lucide-react'
+import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
 import { formatDateTime } from '@/lib/formatters'
 import { updateAtividade } from '@/services/crmService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
@@ -231,6 +233,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Modal WhatsApp direto com o cliente da OS
   const [modalWhatsAppClienteAberto, setModalWhatsAppClienteAberto] = useState(false)
+  const [modalEnviarRelatorioClienteAberto, setModalEnviarRelatorioClienteAberto] = useState(false)
   const [isReabrindo, setIsReabrindo] = useState(false)
 
   // Estado para admin reatribuir instalador direto na ficha
@@ -2149,6 +2152,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                     PDF Gerado
                   </Badge>
                 )}
+                {/* Botão de Envio de Relatório ao Cliente */}
+                <Button
+                  type="button"
+                  onClick={() => setModalEnviarRelatorioClienteAberto(true)}
+                  className="rounded-xl h-9 px-3 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5 shrink-0"
+                  title="Enviar relatório técnico de execução por e-mail e WhatsApp ao cliente"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Enviar relatório ao cliente</span>
+                </Button>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -2202,6 +2215,20 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         onConfirmarEnvio={handleConfirmarEnvioWhatsAppCliente}
         confirmLabel="Enviar WhatsApp ao Cliente"
       />
+
+      {/* Modal de Envio Completo do Relatório ao Cliente (E-mail + WhatsApp) */}
+      {modalEnviarRelatorioClienteAberto && (
+        <ModalEnviarRelatorioCliente
+          isOpen={modalEnviarRelatorioClienteAberto}
+          onClose={() => setModalEnviarRelatorioClienteAberto(false)}
+          os={os}
+          cliente={cliente}
+          sistema={sistema}
+          onSuccess={() => {
+            if (onOSUpdated) onOSUpdated(os)
+          }}
+        />
+      )}
 
       {/* Modal de Confirmação de Finalização */}
       {showConfirmModal && (

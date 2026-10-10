@@ -1,7 +1,18 @@
 import { OrdemServico, Cliente, Sistema, OSChecklistItem } from '@/types/crm'
 import { otimizarImagemParaImpressao } from '@/lib/propostaImageOptimizer'
 import { renderizarHTMLParaPdfBase64 } from '@/lib/pdfWhatsAppService'
+import {
+  getRodapeComercialRelatorioOS,
+  getRodapeComercialCacheSync,
+} from '@/services/configuracoesService'
 import pb from '@/lib/pocketbase/client'
+
+export interface RelatorioOSRodapeComercial {
+  titulo?: string
+  descricao?: string
+  indicacao?: string
+  contato?: string
+}
 
 export interface RelatorioOSDadosInput {
   os: OrdemServico
@@ -10,6 +21,7 @@ export interface RelatorioOSDadosInput {
   fotosDataUrls?: string[] // Data URLs ou URLs diretas otimizadas
   inversoresInfo?: string
   assinaturaBase64?: string
+  rodapeComercial?: RelatorioOSRodapeComercial | null
 }
 
 /**
@@ -121,6 +133,19 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     inversoresInfo,
     assinaturaBase64,
   } = dados
+
+  const concessionaria = sistema?.concessionaria || (cliente as any)?.concessionaria || 'RGE Sul'
+  const telhadoTipo =
+    (sistema as any)?.tipo_telhado || (cliente as any)?.telhado_tipo || 'Não informado'
+  const placasMarca =
+    (sistema as any)?.fabricante_modulos || (cliente as any)?.marca_placas || 'Não informada'
+  const inversorCompleto =
+    inversoresInfo ||
+    sistema?.fabricante_inversores ||
+    (cliente as any)?.inversor_marca ||
+    'Não informado'
+  const fotoMedidorDataUrl = (os as any).foto_medidor_url || (os as any).foto_medidor || null
+  const rodapeComercial = (dados as any).rodapeComercial || getRodapeComercialCacheSync()
 
   const osIdCurto = os.id ? os.id.slice(-6).toUpperCase() : '000000'
   const osIdFormatado = `OS #${osIdCurto}`
@@ -1151,6 +1176,7 @@ export async function gerarPdfRelatorioOS(
     sistema?: Sistema | null
     newPhotos?: File[]
     inversoresInfo?: string
+    rodapeComercial?: RelatorioOSRodapeComercial | null
   } = {},
 ): Promise<{ base64: string; file: File; fileName: string; html: string }> {
   const osIdCurto = os.id ? os.id.slice(-6).toUpperCase() : '000000'
@@ -1159,16 +1185,20 @@ export async function gerarPdfRelatorioOS(
     .substring(0, 25)
   const fileName = `Relatorio_OS_${osIdCurto}_${clienteNomeLimpo}.pdf`
 
-  // 1. Otimização de fotos
+  // 1. Carrega configuração de rodapé se não fornecida explicitamente
+  const rodape = opcoes.rodapeComercial ?? (await getRodapeComercialRelatorioOS())
+
+  // 2. Otimização de fotos
   const fotosDataUrls = await prepararFotosRelatorio(os, opcoes.newPhotos)
 
-  // 2. Montagem do HTML
+  // 3. Montagem do HTML
   const html = gerarHTMLRelatorioOS({
     os,
     cliente: opcoes.cliente || os.expand?.cliente_id,
     sistema: opcoes.sistema,
     fotosDataUrls,
     inversoresInfo: opcoes.inversoresInfo,
+    rodapeComercial: rodape,
   })
 
   // 3. Renderização para PDF A4 Base64
