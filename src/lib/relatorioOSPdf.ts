@@ -129,11 +129,34 @@ export const FOTO_FALLBACK_PLACEHOLDER =
 
 function normalizarChecklistArray(checklistRaw: any): OSChecklistItem[] {
   if (!checklistRaw) return []
-  if (Array.isArray(checklistRaw)) return checklistRaw
+  const mapearItem = (item: any, idx: number): OSChecklistItem => ({
+    id: item?.id ? String(item.id) : `chk_${idx + 1}`,
+    item: String(
+      item?.item || item?.texto || item?.descricao || item?.nome || `Item ${idx + 1}`,
+    ).trim(),
+    concluido: Boolean(item?.concluido),
+  })
+
+  if (Array.isArray(checklistRaw)) {
+    return checklistRaw
+      .filter((item) => item !== null && item !== undefined && typeof item === 'object')
+      .map(mapearItem)
+  }
   if (typeof checklistRaw === 'string') {
+    const trimmed = checklistRaw.trim()
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return []
     try {
-      const parsed = JSON.parse(checklistRaw)
-      if (Array.isArray(parsed)) return parsed
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item) => item !== null && item !== undefined && typeof item === 'object')
+          .map(mapearItem)
+      }
+      if (typeof parsed === 'object' && parsed !== null) {
+        return Object.values(parsed)
+          .filter((item: any) => item !== null && typeof item === 'object')
+          .map(mapearItem)
+      }
     } catch {
       return []
     }
@@ -141,7 +164,9 @@ function normalizarChecklistArray(checklistRaw: any): OSChecklistItem[] {
   if (typeof checklistRaw === 'object') {
     try {
       const vals = Object.values(checklistRaw)
-      if (Array.isArray(vals)) return vals as OSChecklistItem[]
+      if (Array.isArray(vals)) {
+        return vals.filter((item: any) => item !== null && typeof item === 'object').map(mapearItem)
+      }
     } catch {
       return []
     }

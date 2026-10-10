@@ -338,7 +338,7 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
   const nomeCliente = cliente?.nome || 'Cliente'
 
   return (
-    <>
+    <div className="contents">
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent className="max-h-[92vh] max-w-4xl mx-auto flex flex-col bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
           {/* Top Bar Header */}
@@ -522,7 +522,7 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
                         STATUS_CONFIG.pendente
                       const Icon = st.icon
                       return (
-                        <>
+                        <div className="contents">
                           {atrasoInfo.atrasada && (
                             <Badge
                               variant="destructive"
@@ -539,7 +539,7 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
                             <Icon className="w-3.5 h-3.5" />
                             {st.label}
                           </Badge>
-                        </>
+                        </div>
                       )
                     })()}
                   </div>
@@ -934,7 +934,7 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }
 export default DrawerAtividadesManutencaoCliente

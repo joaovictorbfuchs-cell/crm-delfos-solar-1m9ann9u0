@@ -367,10 +367,10 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
                 className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs h-8 px-4"
               >
                 {salvando ? (
-                  <>
+                  <div className="contents">
                     <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
                     <span>Salvando...</span>
-                  </>
+                  </div>
                 ) : (
                   <span>Salvar Anotação</span>
                 )}

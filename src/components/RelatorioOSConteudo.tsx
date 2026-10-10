@@ -123,7 +123,70 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
         if (!isMounted) return
 
-        setOs(registro)
+        // Normalização antecipada de detalhes_execucao e checklist ANTES do setOs
+        // Garante que atividades lidas diretamente do banco reflitam observações de campo e checklist padronizado
+        const rawChecklist = registro.checklist
+        let checklistNormalizado: OSChecklistItem[] = []
+        if (Array.isArray(rawChecklist)) {
+          checklistNormalizado = rawChecklist
+            .filter((item) => item !== null && item !== undefined && typeof item === 'object')
+            .map((item: any, idx: number) => ({
+              id: item.id ? String(item.id) : `chk_${idx + 1}`,
+              item: String(
+                item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+              ).trim(),
+              concluido: Boolean(item.concluido),
+            }))
+        } else if (typeof rawChecklist === 'string') {
+          const trimmed = rawChecklist.trim()
+          if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
+            try {
+              const parsed = JSON.parse(trimmed)
+              if (Array.isArray(parsed)) {
+                checklistNormalizado = parsed
+                  .filter((item) => item !== null && item !== undefined && typeof item === 'object')
+                  .map((item: any, idx: number) => ({
+                    id: item.id ? String(item.id) : `chk_${idx + 1}`,
+                    item: String(
+                      item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+                    ).trim(),
+                    concluido: Boolean(item.concluido),
+                  }))
+              } else if (typeof parsed === 'object' && parsed !== null) {
+                checklistNormalizado = Object.values(parsed)
+                  .filter((item: any) => item !== null && typeof item === 'object')
+                  .map((item: any, idx: number) => ({
+                    id: item.id ? String(item.id) : `chk_${idx + 1}`,
+                    item: String(
+                      item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+                    ).trim(),
+                    concluido: Boolean(item.concluido),
+                  }))
+              }
+            } catch {
+              checklistNormalizado = []
+            }
+          }
+        } else if (typeof rawChecklist === 'object' && rawChecklist !== null) {
+          checklistNormalizado = Object.values(rawChecklist)
+            .filter((item: any) => item !== null && typeof item === 'object')
+            .map((item: any, idx: number) => ({
+              id: item.id ? String(item.id) : `chk_${idx + 1}`,
+              item: String(
+                item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+              ).trim(),
+              concluido: Boolean(item.concluido),
+            }))
+        }
+
+        const registroNormalizado = {
+          ...registro,
+          detalhes_execucao:
+            registro.observacoes || registro.detalhes_execucao || registro.descricao || '',
+          checklist: checklistNormalizado,
+        }
+
+        setOs(registroNormalizado)
 
         // Extrai cliente vinculado
         let cliObj =
@@ -266,17 +329,58 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
     os?.expand?.profissional_id?.nome ||
     'Técnico Autorizado Delfos'
 
-  // Normalização de checklist
+  // Normalização de checklist com tolerância a variações de campos (item/texto/descricao/nome)
   let checklistItens: OSChecklistItem[] = []
   if (Array.isArray(os?.checklist)) {
     checklistItens = os.checklist
+      .filter((item: any) => item !== null && item !== undefined && typeof item === 'object')
+      .map((item: any, idx: number) => ({
+        id: item.id ? String(item.id) : `chk_${idx + 1}`,
+        item: String(
+          item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+        ).trim(),
+        concluido: Boolean(item.concluido),
+      }))
   } else if (typeof os?.checklist === 'string') {
-    try {
-      const parsed = JSON.parse(os.checklist)
-      if (Array.isArray(parsed)) checklistItens = parsed
-    } catch {
-      checklistItens = []
+    const trimmed = os.checklist.trim()
+    if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          checklistItens = parsed
+            .filter((item: any) => item !== null && item !== undefined && typeof item === 'object')
+            .map((item: any, idx: number) => ({
+              id: item.id ? String(item.id) : `chk_${idx + 1}`,
+              item: String(
+                item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+              ).trim(),
+              concluido: Boolean(item.concluido),
+            }))
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          checklistItens = Object.values(parsed)
+            .filter((item: any) => item !== null && typeof item === 'object')
+            .map((item: any, idx: number) => ({
+              id: item.id ? String(item.id) : `chk_${idx + 1}`,
+              item: String(
+                item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+              ).trim(),
+              concluido: Boolean(item.concluido),
+            }))
+        }
+      } catch {
+        checklistItens = []
+      }
     }
+  } else if (typeof os?.checklist === 'object' && os?.checklist !== null) {
+    checklistItens = Object.values(os.checklist)
+      .filter((item: any) => item !== null && typeof item === 'object')
+      .map((item: any, idx: number) => ({
+        id: item.id ? String(item.id) : `chk_${idx + 1}`,
+        item: String(
+          item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
+        ).trim(),
+        concluido: Boolean(item.concluido),
+      }))
   }
 
   // URLs de fotos

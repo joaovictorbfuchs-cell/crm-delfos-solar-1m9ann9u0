@@ -460,15 +460,15 @@ export const GravadorAudioWhatsApp: React.FC<GravadorAudioWhatsAppProps> = ({
             title="Enviar mensagem de áudio pelo WhatsApp"
           >
             {estado === 'enviando' ? (
-              <>
+              <div className="contents">
                 <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 <span>Enviando...</span>
-              </>
+              </div>
             ) : (
-              <>
+              <div className="contents">
                 <Send className="w-3.5 h-3.5" />
                 <span>Enviar Áudio</span>
-              </>
+              </div>
             )}
           </button>
         </div>

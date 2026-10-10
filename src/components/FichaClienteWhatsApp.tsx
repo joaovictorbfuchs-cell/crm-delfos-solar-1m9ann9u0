@@ -605,20 +605,20 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
               className="px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition-all duration-150 flex items-center gap-2 hover:scale-[1.02] disabled:opacity-50"
             >
               {isSending ? (
-                <>
+                <div className="contents">
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>Processando...</span>
-                </>
+                </div>
               ) : agendarEnvio ? (
-                <>
+                <div className="contents">
                   <Clock className="w-4 h-4" />
                   <span>Salvar na Fila de Agendamento</span>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="contents">
                   <Send className="w-4 h-4" />
                   <span>Disparar Mensagem Agora</span>
-                </>
+                </div>
               )}
             </button>
           </div>

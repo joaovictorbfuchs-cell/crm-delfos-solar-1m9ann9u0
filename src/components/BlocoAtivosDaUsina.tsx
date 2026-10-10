@@ -1256,15 +1256,15 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                   title="Persistir vínculos destes equipamentos na tabela de ativos da usina"
                 >
                   {efetivandoVinculos ? (
-                    <>
+                    <div className="contents">
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                       <span>Efetivando Vínculos...</span>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="contents">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Efetivar Vínculo no Catálogo</span>
-                    </>
+                    </div>
                   )}
                 </button>
               </div>
@@ -1803,7 +1803,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
 
                   <div className="flex items-center gap-2 shrink-0">
                     {doc.url ? (
-                      <>
+                      <div className="contents">
                         <a
                           href={doc.url}
                           target="_blank"
@@ -1824,7 +1824,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           <Download className="w-3.5 h-3.5 text-slate-500" />
                           <span>Download</span>
                         </a>
-                      </>
+                      </div>
                     ) : (
                       <span className="text-[10px] text-slate-400 italic">Sem URL disponível</span>
                     )}
@@ -1884,10 +1884,10 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
               {removendoDoc ? (
-                <>
+                <div className="contents">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   <span>Removendo...</span>
-                </>
+                </div>
               ) : (
                 <span>Sim, Excluir Documento</span>
               )}
@@ -1971,10 +1971,10 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                 className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {uploadManualSalvando ? (
-                  <>
+                  <div className="contents">
                     <RefreshCw className="w-3 h-3 animate-spin" />
                     <span>Salvando...</span>
-                  </>
+                  </div>
                 ) : (
                   <span>Salvar Documento</span>
                 )}
@@ -2185,10 +2185,10 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {salvandoVinculo ? (
-                  <>
+                  <div className="contents">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                     <span>Salvando...</span>
-                  </>
+                  </div>
                 ) : (
                   <span>Adicionar à Usina</span>
                 )}
@@ -2246,10 +2246,10 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
               {excluindoAtivoUsina ? (
-                <>
+                <div className="contents">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   <span>Excluindo...</span>
-                </>
+                </div>
               ) : (
                 <span>Sim, Excluir Equipamento</span>
               )}
