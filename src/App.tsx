@@ -35,6 +35,7 @@ import Login from './pages/Login'
 import RedefinirSenha from './pages/RedefinirSenha'
 import RelatorioFaturaPage from './pages/RelatorioFatura'
 import RelatorioOSPublico from './pages/RelatorioOSPublico'
+import RelatorioOSPreview from './pages/RelatorioOSPreview'
 import BaseConhecimento from './pages/BaseConhecimento'
 import NotFound from './pages/NotFound'
 
@@ -78,6 +79,17 @@ const App = () => (
               <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o relatório da ordem de serviço">
                 <RelatorioOSPublico />
               </ErrorBoundary>
+            }
+          />
+          {/* Rota autenticada para visualização do preview web do relatório técnico */}
+          <Route
+            path="/relatorio-os-preview/:id"
+            element={
+              <ProtectedRoute>
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o preview do relatório da ordem de serviço">
+                  <RelatorioOSPreview />
+                </ErrorBoundary>
+              </ProtectedRoute>
             }
           />
 

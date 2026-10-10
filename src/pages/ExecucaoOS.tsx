@@ -37,6 +37,7 @@ import {
   RotateCcw,
   Navigation,
   Plus,
+  ExternalLink,
 } from 'lucide-react'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { Button } from '@/components/ui/button'
@@ -1743,7 +1744,7 @@ function ExecucaoOSContent() {
                         {/* OS CONCLUÍDA: Ações exclusivas de Admin para Relatório Técnico em PDF e WhatsApp para Cliente */}
                         {os.status === 'concluida' && isAdmin && (
                           <div
-                            className="flex items-center gap-1.5"
+                            className="flex items-center gap-1.5 flex-wrap"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Button
@@ -1761,6 +1762,20 @@ function ExecucaoOSContent() {
                                 : os.relatorio_pdf
                                   ? 'Ver Relatório (PDF)'
                                   : 'Gerar Relatório (PDF)'}
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                window.open('/relatorio-os-preview/' + os.id, '_blank')
+                              }
+                              className="h-8 px-2.5 text-[11px] font-bold text-slate-700 border-slate-300 hover:bg-slate-100 bg-white inline-flex items-center gap-1"
+                              title="Visualizar relatório técnico em página web em nova aba"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-slate-600" />
+                              <span>Visualizar relatório (web)</span>
                             </Button>
 
                             <Button

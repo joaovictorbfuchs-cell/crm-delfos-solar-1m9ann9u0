@@ -116,6 +116,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { MessageSquare, RotateCcw } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatUtcToSaoPauloInput } from '@/lib/datetimeSaoPaulo'
 
 interface FichaExecucaoOSProps {
   os: OrdemServico
@@ -249,15 +250,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [atividadeDataHora, setAtividadeDataHora] = useState<string>(() => {
     const raw: any = os?.data_agendada
     if (!raw) return ''
-    if (raw instanceof Date) {
-      if (isNaN(raw.getTime())) return ''
-      const y = raw.getFullYear()
-      const m = String(raw.getMonth() + 1).padStart(2, '0')
-      const d = String(raw.getDate()).padStart(2, '0')
-      const h = String(raw.getHours()).padStart(2, '0')
-      const min = String(raw.getMinutes()).padStart(2, '0')
-      return `${y}-${m}-${d}T${h}:${min}`
-    }
+    const spIso = formatUtcToSaoPauloInput(raw)
+    if (spIso) return spIso
     const rawStr = String(raw).trim()
     if (rawStr.length >= 16) {
       return rawStr.replace(' ', 'T').slice(0, 16)
@@ -270,6 +264,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     if (os?.horario_inicio) return safeHorarioStr(os.horario_inicio, '08:00')
     const raw: any = os?.data_agendada
     if (raw) {
+      const spIso = formatUtcToSaoPauloInput(raw)
+      if (spIso && spIso.length >= 16) {
+        return spIso.slice(11, 16)
+      }
       if (raw instanceof Date && !isNaN(raw.getTime())) {
         const h = String(raw.getHours()).padStart(2, '0')
         const min = String(raw.getMinutes()).padStart(2, '0')
@@ -283,8 +281,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return '08:00'
   })
   const [duracaoMinutos, setDuracaoMinutos] = useState<number>(() => {
-    const num = Number(os?.duracao_minutos)
-    if (!isNaN(num) && num > 0) {
+    const raw: any = os?.duracao_minutos
+    if (raw === null || raw === undefined || raw === '') return 60
+    const num = Number(raw)
+    if (!isNaN(num) && isFinite(num) && num > 0) {
       return Math.round(num)
     }
     return 60
@@ -295,20 +295,26 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     if (os?.horario_inicio) {
       ini = safeHorarioStr(os.horario_inicio, '08:00')
     } else if (os?.data_agendada) {
-      const rawData: any = os.data_agendada
-      if (rawData instanceof Date && !isNaN(rawData.getTime())) {
-        const h = String(rawData.getHours()).padStart(2, '0')
-        const min = String(rawData.getMinutes()).padStart(2, '0')
-        ini = `${h}:${min}`
+      const spIso = formatUtcToSaoPauloInput(os.data_agendada)
+      if (spIso && spIso.length >= 16) {
+        ini = spIso.slice(11, 16)
       } else {
-        const rawStr = String(rawData).trim()
-        if (rawStr.length >= 16) {
-          ini = rawStr.replace(' ', 'T').slice(11, 16)
+        const rawData: any = os.data_agendada
+        if (rawData instanceof Date && !isNaN(rawData.getTime())) {
+          const h = String(rawData.getHours()).padStart(2, '0')
+          const min = String(rawData.getMinutes()).padStart(2, '0')
+          ini = `${h}:${min}`
+        } else {
+          const rawStr = String(rawData).trim()
+          if (rawStr.length >= 16) {
+            ini = rawStr.replace(' ', 'T').slice(11, 16)
+          }
         }
       }
     }
-    const numDur = Number(os?.duracao_minutos)
-    const dur = !isNaN(numDur) && numDur > 0 ? Math.round(numDur) : 60
+    const rawDur: any = os?.duracao_minutos
+    const numDur = rawDur !== null && rawDur !== undefined && rawDur !== '' ? Number(rawDur) : NaN
+    const dur = !isNaN(numDur) && isFinite(numDur) && numDur > 0 ? Math.round(numDur) : 60
     return somarMinutos(ini, dur)
   })
 
@@ -360,11 +366,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // 3. Checklist
   const [checklist, setChecklist] = useState<OSChecklistItem[]>(() => {
-    if (os?.checklist) {
-      const normalizado = normalizeChecklist(os.checklist)
-      if (normalizado.length > 0) {
-        return normalizado
-      }
+    const normalizado = normalizeChecklist(os?.checklist)
+    if (normalizado && normalizado.length > 0) {
+      return normalizado
     }
     return getDefaultChecklist(os?.tipo_servico || 'Manutenção')
   })
@@ -1256,33 +1260,33 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       </div>
 
       {/* Cabeçalho da OS no padrão do sistema: fundo cinza escuro/navy Delfos (#0F2038 / slate-900) com detalhes em verde solar (#16A34A) e branco */}
-      <div className="bg-[#0F2038] text-white rounded-xl p-3.5 sm:p-4 shadow-sm relative overflow-hidden border border-slate-700/80">
-        <div className="relative z-10 flex flex-col gap-2">
-          {/* Linha 1: Tag OS + Data Agendada */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#4ade80] bg-white/10 px-2 py-0.5 rounded">
-              OS #{(os?.id || '').slice(-6).toUpperCase()} • {os?.tipo_servico || 'Serviço'}
-            </span>
-            <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-black/30 px-2 py-0.5 rounded">
-              <Clock className="w-3 h-3 text-[#4ade80]" />
-              <span>
-                Agendada: <strong>{formatDateTime(os?.data_agendada)}</strong>
+      <TooltipProvider delayDuration={150}>
+        <div className="bg-[#0F2038] text-white rounded-xl p-3.5 sm:p-4 shadow-sm relative overflow-hidden border border-slate-700/80">
+          <div className="relative z-10 flex flex-col gap-2">
+            {/* Linha 1: Tag OS + Data Agendada */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#4ade80] bg-white/10 px-2 py-0.5 rounded">
+                OS #{(os?.id || '').slice(-6).toUpperCase()} • {os?.tipo_servico || 'Serviço'}
               </span>
+              <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-black/30 px-2 py-0.5 rounded">
+                <Clock className="w-3 h-3 text-[#4ade80]" />
+                <span>
+                  Agendada: <strong>{formatDateTime(os?.data_agendada)}</strong>
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Linha 2: Nome do cliente + Telefone em linha única + Botão Whats só de ícone */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <h2 className="text-lg sm:text-xl font-black text-white leading-tight truncate">
-                {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
-              </h2>
+            {/* Linha 2: Nome do cliente + Telefone em linha única + Botão Whats só de ícone */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <h2 className="text-lg sm:text-xl font-black text-white leading-tight truncate">
+                  {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
+                </h2>
 
-              {telefoneAutoritativoCliente && (
-                <div className="inline-flex items-center gap-1.5 text-xs text-slate-200 bg-white/10 px-2 py-0.5 rounded-md">
-                  <Phone className="w-3 h-3 text-[#4ade80] shrink-0" />
-                  <span className="font-medium">{telefoneAutoritativoCliente}</span>
-                  <TooltipProvider delayDuration={150}>
+                {telefoneAutoritativoCliente && (
+                  <div className="inline-flex items-center gap-1.5 text-xs text-slate-200 bg-white/10 px-2 py-0.5 rounded-md">
+                    <Phone className="w-3 h-3 text-[#4ade80] shrink-0" />
+                    <span className="font-medium">{telefoneAutoritativoCliente}</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
@@ -1298,96 +1302,94 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         Conversar com o cliente no WhatsApp
                       </TooltipContent>
                     </Tooltip>
-                  </TooltipProvider>
-                </div>
-              )}
-            </div>
-
-            {/* Select compacto do Responsável com ícone de enviar OS por WhatsApp ao lado */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              {isAdmin ? (
-                <div className="flex items-center gap-1.5 text-xs text-slate-200 bg-white/10 px-2 py-1 rounded-lg">
-                  <User className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
-                  <span className="font-medium text-[11px] text-slate-300 shrink-0 hidden sm:inline">
-                    Resp:
-                  </span>
-                  <select
-                    value={responsavelId}
-                    onChange={(e) => setResponsavelId(e.target.value)}
-                    disabled={!podeEditarOS}
-                    className="bg-slate-900/90 border border-slate-600 text-white text-[11px] rounded px-1.5 py-0.5 max-w-[150px] sm:max-w-[180px] focus:outline-hidden focus:border-[#16A34A] disabled:opacity-60"
-                  >
-                    <option value="">-- Não atribuído --</option>
-                    {instaladores.map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <BotaoEnviarOSWhatsApp
-                    osId={os.id}
-                    responsavelNome={
-                      instaladores.find((i) => i.id === responsavelId)?.name ||
-                      os.atribuida_a ||
-                      os.expand?.responsavel_usuario_id?.name
-                    }
-                    responsavelTelefone={
-                      instaladores.find((i) => i.id === responsavelId)?.phone ||
-                      os.expand?.responsavel_usuario_id?.phone
-                    }
-                    responsavelId={responsavelId || os.responsavel_usuario_id}
-                    size="icon"
-                    variant="ghost"
-                    showLabel={false}
-                    className="h-6 w-6 p-0 rounded-sm bg-[#16A34A] hover:bg-[#15803D] text-white border-0"
-                  />
-                </div>
-              ) : (
-                os.atribuida_a && (
-                  <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-white/10 px-2 py-0.5 rounded">
-                    <User className="w-3 h-3 text-[#4ade80]" />
-                    <span>{os.atribuida_a}</span>
                   </div>
-                )
-              )}
-            </div>
-          </div>
+                )}
+              </div>
 
-          {/* Linha 3: Endereço compactado com ícones de Maps e Waze */}
-          <div className="flex items-center justify-between gap-2 text-xs text-slate-200 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-lg flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
-              <span
-                className="truncate text-[11px]"
-                title={enderecoCompleto || 'Endereço não informado'}
-              >
-                {os.endereco ||
-                  usinaVinculada?.endereco ||
-                  cliente?.endereco ||
-                  'Endereço não informado'}
-                {cliente?.cidade ? ` - ${cliente.cidade}` : ''}
-              </span>
+              {/* Select compacto do Responsável com ícone de enviar OS por WhatsApp ao lado */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {isAdmin ? (
+                  <div className="flex items-center gap-1.5 text-xs text-slate-200 bg-white/10 px-2 py-1 rounded-lg">
+                    <User className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
+                    <span className="font-medium text-[11px] text-slate-300 shrink-0 hidden sm:inline">
+                      Resp:
+                    </span>
+                    <select
+                      value={responsavelId}
+                      onChange={(e) => setResponsavelId(e.target.value)}
+                      disabled={!podeEditarOS}
+                      className="bg-slate-900/90 border border-slate-600 text-white text-[11px] rounded px-1.5 py-0.5 max-w-[150px] sm:max-w-[180px] focus:outline-hidden focus:border-[#16A34A] disabled:opacity-60"
+                    >
+                      <option value="">-- Não atribuído --</option>
+                      {instaladores.map((inst) => (
+                        <option key={inst.id} value={inst.id}>
+                          {inst.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <BotaoEnviarOSWhatsApp
+                      osId={os.id}
+                      responsavelNome={
+                        instaladores.find((i) => i.id === responsavelId)?.name ||
+                        os.atribuida_a ||
+                        os.expand?.responsavel_usuario_id?.name
+                      }
+                      responsavelTelefone={
+                        instaladores.find((i) => i.id === responsavelId)?.phone ||
+                        os.expand?.responsavel_usuario_id?.phone
+                      }
+                      responsavelId={responsavelId || os.responsavel_usuario_id}
+                      size="icon"
+                      variant="ghost"
+                      showLabel={false}
+                      className="h-6 w-6 p-0 rounded-sm bg-[#16A34A] hover:bg-[#15803D] text-white border-0"
+                    />
+                  </div>
+                ) : (
+                  os.atribuida_a && (
+                    <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-white/10 px-2 py-0.5 rounded">
+                      <User className="w-3 h-3 text-[#4ade80]" />
+                      <span>{os.atribuida_a}</span>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
 
-            {(enderecoCompleto || temCoordenadasGps) && (
-              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                {/* Botão Principal: Traçar Rota (GPS Usina) no padrão verde solar primário do sistema */}
-                <button
-                  type="button"
-                  onClick={handleTraçarRotaGPSUsina}
-                  className="h-6 px-2.5 inline-flex items-center gap-1 rounded-md bg-[#16A34A] hover:bg-[#15803D] text-white text-[10px] font-bold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
-                  title={
-                    temCoordenadasGps
-                      ? `Traçar Rota via GPS (${latCoord}, ${lngCoord}) a partir da sede Delfos Solar`
-                      : 'Traçar Rota via endereço textual a partir da sede Delfos Solar'
-                  }
+            {/* Linha 3: Endereço compactado com ícones de Maps e Waze */}
+            <div className="flex items-center justify-between gap-2 text-xs text-slate-200 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-lg flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <MapPin className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
+                <span
+                  className="truncate text-[11px]"
+                  title={enderecoCompleto || 'Endereço não informado'}
                 >
-                  <Navigation className="w-3 h-3 text-white" />
-                  <span>Traçar Rota (GPS Usina)</span>
-                </button>
+                  {os.endereco ||
+                    usinaVinculada?.endereco ||
+                    cliente?.endereco ||
+                    'Endereço não informado'}
+                  {cliente?.cidade ? ` - ${cliente.cidade}` : ''}
+                </span>
+              </div>
 
-                <TooltipProvider delayDuration={150}>
+              {(enderecoCompleto || temCoordenadasGps) && (
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                  {/* Botão Principal: Traçar Rota (GPS Usina) no padrão verde solar primário do sistema */}
+                  <button
+                    type="button"
+                    onClick={handleTraçarRotaGPSUsina}
+                    className="h-6 px-2.5 inline-flex items-center gap-1 rounded-md bg-[#16A34A] hover:bg-[#15803D] text-white text-[10px] font-bold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+                    title={
+                      temCoordenadasGps
+                        ? `Traçar Rota via GPS (${latCoord}, ${lngCoord}) a partir da sede Delfos Solar`
+                        : 'Traçar Rota via endereço textual a partir da sede Delfos Solar'
+                    }
+                  >
+                    <Navigation className="w-3 h-3 text-white" />
+                    <span>Traçar Rota (GPS Usina)</span>
+                  </button>
+
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -1406,9 +1408,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         : 'Abrir endereço no Google Maps'}
                     </TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
 
-                <TooltipProvider delayDuration={150}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -1425,141 +1425,142 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                       Abrir rota no Waze
                     </TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
 
-          {/* Linha 4: Dados técnicos comprimidos da usina (Inversor + Links Datasheet/Datalogger + Módulos) */}
-          <div className="bg-slate-900/80 border border-slate-700/80 rounded-lg p-2 text-xs space-y-1.5">
-            {/* Inversores */}
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
-                  Inversor:
-                </span>
-                {inversoresUsina.length > 0 ? (
-                  inversoresUsina.map((inv, idx) => (
-                    <div key={inv.id || idx} className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-white text-xs">
-                        {inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}
-                        {[inv.marca, inv.modelo].filter(Boolean).join(' ') || 'Inversor Solar'}
-                        {inv.potencia_w ? ` (${(inv.potencia_w / 1000).toFixed(1)} kW)` : ''}
-                      </span>
-                      {inv.numero_serie && (
-                        <span className="text-[10px] text-[#4ade80] bg-white/10 px-1 rounded">
-                          SN: {inv.numero_serie}
-                        </span>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <span className="text-slate-400 text-[11px]">
-                    {carregandoUsina ? 'Carregando...' : 'Nenhum inversor vinculado'}
+            {/* Linha 4: Dados técnicos comprimidos da usina (Inversor + Links Datasheet/Datalogger + Módulos) */}
+            <div className="bg-slate-900/80 border border-slate-700/80 rounded-lg p-2 text-xs space-y-1.5">
+              {/* Inversores */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
+                    Inversor:
                   </span>
-                )}
-              </div>
+                  {inversoresUsina.length > 0 ? (
+                    inversoresUsina.map((inv, idx) => (
+                      <div key={inv.id || idx} className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-white text-xs">
+                          {inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}
+                          {[inv.marca, inv.modelo].filter(Boolean).join(' ') || 'Inversor Solar'}
+                          {inv.potencia_w ? ` (${(inv.potencia_w / 1000).toFixed(1)} kW)` : ''}
+                        </span>
+                        {inv.numero_serie && (
+                          <span className="text-[10px] text-[#4ade80] bg-white/10 px-1 rounded">
+                            SN: {inv.numero_serie}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-slate-400 text-[11px]">
+                      {carregandoUsina ? 'Carregando...' : 'Nenhum inversor vinculado'}
+                    </span>
+                  )}
+                </div>
 
-              {/* Links clicáveis de Datasheet do Inversor e Configuração do Datalogger / Monitoramento */}
-              <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-1">
-                {inversoresUsina.map((inv, idx) => (
-                  <div key={`links-${inv.id || idx}`} className="contents">
-                    {inv.datasheetUrl && (
-                      <a
-                        href={inv.datasheetUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4ade80] hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-[#16A34A]/40 transition-colors shadow-2xs"
-                        title="Ver Datasheet do Inversor (PDF)"
-                      >
-                        <FileCode2 className="w-3 h-3 text-[#4ade80]" />
-                        <span>Datasheet Inversor</span>
-                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
-                      </a>
-                    )}
+                {/* Links clicáveis de Datasheet do Inversor e Configuração do Datalogger / Monitoramento */}
+                <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-1">
+                  {inversoresUsina.map((inv, idx) => (
+                    <div key={`links-${inv.id || idx}`} className="contents">
+                      {inv.datasheetUrl && (
+                        <a
+                          href={inv.datasheetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4ade80] hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-[#16A34A]/40 transition-colors shadow-2xs"
+                          title="Ver Datasheet do Inversor (PDF)"
+                        >
+                          <FileCode2 className="w-3 h-3 text-[#4ade80]" />
+                          <span>Datasheet Inversor</span>
+                          <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                        </a>
+                      )}
 
-                    {/* Configuração de Monitoramento do Datalogger vinculada ao inversor (PDF / Link / Ambos) */}
-                    {inv.configMonitoramento ? (
-                      <MonitoramentoConfigBadge
-                        configuracao={inv.configMonitoramento}
-                        rotulo="Config. de Monitoramento"
-                        mostrarTipo
-                      />
-                    ) : inv.dataloggerUrl ? (
+                      {/* Configuração de Monitoramento do Datalogger vinculada ao inversor (PDF / Link / Ambos) */}
+                      {inv.configMonitoramento ? (
+                        <MonitoramentoConfigBadge
+                          configuracao={inv.configMonitoramento}
+                          rotulo="Config. de Monitoramento"
+                          mostrarTipo
+                        />
+                      ) : inv.dataloggerUrl ? (
+                        <a
+                          href={inv.dataloggerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
+                          title="Abrir página/tutorial de Configuração do Datalogger"
+                        >
+                          <Wifi className="w-3 h-3 text-amber-300" />
+                          <span>Configurar Datalogger</span>
+                          <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                        </a>
+                      ) : null}
+                    </div>
+                  ))}
+
+                  {/* Caso o link ou configuração de datalogger venha da usina/cliente mas nenhum inversor tenha o item específico */}
+                  {!inversoresUsina.some((i) => i.configMonitoramento || i.dataloggerUrl) &&
+                    (usinaVinculada?.monitoramento_datalogger_url ||
+                      cliente?.monitoramento_datalogger_url) && (
                       <a
-                        href={inv.dataloggerUrl}
+                        href={
+                          usinaVinculada?.monitoramento_datalogger_url ||
+                          cliente?.monitoramento_datalogger_url
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
-                        title="Abrir página/tutorial de Configuração do Datalogger"
+                        title="Abrir link de configuração do datalogger"
                       >
                         <Wifi className="w-3 h-3 text-amber-300" />
                         <span>Configurar Datalogger</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
-                    ) : null}
-                  </div>
-                ))}
-
-                {/* Caso o link ou configuração de datalogger venha da usina/cliente mas nenhum inversor tenha o item específico */}
-                {!inversoresUsina.some((i) => i.configMonitoramento || i.dataloggerUrl) &&
-                  (usinaVinculada?.monitoramento_datalogger_url ||
-                    cliente?.monitoramento_datalogger_url) && (
-                    <a
-                      href={
-                        usinaVinculada?.monitoramento_datalogger_url ||
-                        cliente?.monitoramento_datalogger_url
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
-                      title="Abrir link de configuração do datalogger"
-                    >
-                      <Wifi className="w-3 h-3 text-amber-300" />
-                      <span>Configurar Datalogger</span>
-                      <ExternalLink className="w-2.5 h-2.5 opacity-70" />
-                    </a>
-                  )}
-              </div>
-            </div>
-
-            {/* Módulos */}
-            <div className="flex items-center gap-1.5 flex-wrap border-t border-slate-700/80 pt-1">
-              <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
-                Módulos:
-              </span>
-              {modulosUsina.length > 0 ? (
-                modulosUsina.map((mod, idx) => (
-                  <div key={mod.id || idx} className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold text-white text-xs">
-                      {mod.quantidade ? `${mod.quantidade}x ` : ''}
-                      {[mod.marca, mod.modelo].filter(Boolean).join(' ') || 'Módulos Fotovoltaicos'}
-                      {mod.potencia_w ? ` (${mod.potencia_w}W)` : ''}
-                    </span>
-                    {mod.datasheetUrl && (
-                      <a
-                        href={mod.datasheetUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[10px] text-[#4ade80] hover:text-white underline decoration-[#16A34A] underline-offset-2 transition-colors ml-1"
-                        title="Ver Datasheet do Módulo (PDF)"
-                      >
-                        <FileCode2 className="w-3 h-3 text-[#4ade80]" />
-                        <span>Datasheet Módulo</span>
-                        <ExternalLink className="w-2 h-2 opacity-70" />
-                      </a>
                     )}
-                  </div>
-                ))
-              ) : (
-                <span className="text-slate-400 text-[11px]">
-                  {carregandoUsina ? 'Carregando...' : 'Nenhum módulo vinculado'}
+                </div>
+              </div>
+
+              {/* Módulos */}
+              <div className="flex items-center gap-1.5 flex-wrap border-t border-slate-700/80 pt-1">
+                <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
+                  Módulos:
                 </span>
-              )}
+                {modulosUsina.length > 0 ? (
+                  modulosUsina.map((mod, idx) => (
+                    <div key={mod.id || idx} className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-white text-xs">
+                        {mod.quantidade ? `${mod.quantidade}x ` : ''}
+                        {[mod.marca, mod.modelo].filter(Boolean).join(' ') ||
+                          'Módulos Fotovoltaicos'}
+                        {mod.potencia_w ? ` (${mod.potencia_w}W)` : ''}
+                      </span>
+                      {mod.datasheetUrl && (
+                        <a
+                          href={mod.datasheetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] text-[#4ade80] hover:text-white underline decoration-[#16A34A] underline-offset-2 transition-colors ml-1"
+                          title="Ver Datasheet do Módulo (PDF)"
+                        >
+                          <FileCode2 className="w-3 h-3 text-[#4ade80]" />
+                          <span>Datasheet Módulo</span>
+                          <ExternalLink className="w-2 h-2 opacity-70" />
+                        </a>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-slate-400 text-[11px]">
+                    {carregandoUsina ? 'Carregando...' : 'Nenhum módulo vinculado'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </TooltipProvider>
 
       {/* PAINEL DE ALTERAÇÃO DIRETA DE HORÁRIO E RESPONSÁVEL (QUANDO ORIGEM É ATIVIDADES DE MANUTENÇÃO) - Oculto para instalador */}
       {isOrigemAtividades && !isInstalador && (
@@ -2161,6 +2162,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Enviar relatório ao cliente</span>
+                </Button>
+
+                {/* Botão de Visualização Web do Relatório da OS */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => window.open('/relatorio-os-preview/' + os.id, '_blank')}
+                  className="rounded-xl h-9 px-3 text-xs font-bold text-slate-700 border-slate-300 hover:bg-slate-100 bg-white inline-flex items-center gap-1.5 shrink-0"
+                  title="Visualizar relatório técnico em página web em nova aba"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Visualizar relatório (web)</span>
                 </Button>
               </div>
 

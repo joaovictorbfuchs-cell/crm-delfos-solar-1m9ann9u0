@@ -1344,18 +1344,20 @@ function CalendarioExecucaoOSContent({
 
         const safeMinuto = Math.min(59, Math.max(0, minuto))
         const rawTop = (hora - HORA_INICIAL) * ALTURA_HORA_PX + (safeMinuto / 60) * ALTURA_HORA_PX
-        const top = !isNaN(rawTop) && isFinite(rawTop) ? Math.max(0, Math.round(rawTop)) : 0
+        const top = Math.max(0, isFinite(rawTop) && !isNaN(rawTop) ? Math.round(rawTop) : 0)
 
         const rawHeight = (duracaoMinutos / 60) * ALTURA_HORA_PX - 2
-        const height =
-          !isNaN(rawHeight) && isFinite(rawHeight) ? Math.max(28, Math.round(rawHeight)) : 28
+        const height = Math.max(
+          28,
+          isFinite(rawHeight) && !isNaN(rawHeight) ? Math.round(rawHeight) : 28,
+        )
 
         comHorario.push({
           os,
           hora,
           minuto: safeMinuto,
-          top,
-          height,
+          top: Math.max(0, isFinite(top) ? top : 0),
+          height: Math.max(28, isFinite(height) ? height : 28),
           duracaoMinutos,
         })
       } catch (err) {
@@ -1383,6 +1385,7 @@ function CalendarioExecucaoOSContent({
     for (const os of ordensMescladas || []) {
       if (!os) continue
       try {
+        if (!os.data_agendada) continue
         const { date: dVal, str: dataStr } = safeParseDataAgendada(os.data_agendada)
         if (!dVal || !dataStr) continue
         const timeVal = dVal.getTime()
@@ -2284,16 +2287,21 @@ function CalendarioExecucaoOSContent({
                             ? numDuracaoEfetiva
                             : DURACAO_PADRAO_MINUTOS
                         const rawHeightCalc = (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2
-                        const cardHeight =
-                          !isNaN(rawHeightCalc) && isFinite(rawHeightCalc)
-                            ? Math.max(28, Math.round(rawHeightCalc))
-                            : 28
+                        const cardHeight = Math.max(
+                          28,
+                          Math.max(
+                            0,
+                            isFinite(rawHeightCalc) && !isNaN(rawHeightCalc)
+                              ? Math.round(rawHeightCalc)
+                              : 28,
+                          ),
+                        )
 
                         const rawCardTop = Number(item.top)
-                        const cardTop =
-                          !isNaN(rawCardTop) && isFinite(rawCardTop)
-                            ? Math.max(0, Math.round(rawCardTop))
-                            : 0
+                        const cardTop = Math.max(
+                          0,
+                          isFinite(rawCardTop) && !isNaN(rawCardTop) ? Math.round(rawCardTop) : 0,
+                        )
 
                         const clienteNome =
                           os.expand?.cliente_id?.nome ||
