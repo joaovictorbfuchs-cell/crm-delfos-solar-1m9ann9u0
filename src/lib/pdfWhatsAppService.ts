@@ -153,11 +153,14 @@ export async function renderizarHTMLParaPdfBase64(
         iframe.style.position = 'fixed'
         iframe.style.left = '-9999px'
         iframe.style.top = '0'
-        iframe.style.width = '794px' // ~210mm a 96 DPI
-        iframe.style.height = '1123px' // ~297mm a 96 DPI
+        iframe.style.width = '800px'
+        iframe.style.minHeight = '1120px'
+        iframe.style.height = '1120px'
         iframe.style.border = 'none'
-        iframe.style.opacity = '0'
+        iframe.style.visibility = 'visible'
+        iframe.style.opacity = '0.01'
         iframe.style.pointerEvents = 'none'
+        iframe.style.zIndex = '-9999'
         document.body.appendChild(iframe)
 
         const doc = iframe.contentDocument || iframe.contentWindow?.document
@@ -204,6 +207,9 @@ export async function renderizarHTMLParaPdfBase64(
             })
           }),
         )
+
+        // Espera de estabilização (~300ms) antes da captura para renderização perfeita do layout e fontes
+        await new Promise<void>((r) => setTimeout(r, 300))
 
         const opt = {
           margin: 0,

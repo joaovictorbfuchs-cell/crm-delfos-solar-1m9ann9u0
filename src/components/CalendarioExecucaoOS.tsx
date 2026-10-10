@@ -485,23 +485,16 @@ export function sanitizeOS(os: any): OrdemServico {
     }
   }
 
-  let dataAgendadaStr = ''
-  if (os.data_agendada !== undefined && os.data_agendada !== null) {
-    if (os.data_agendada instanceof Date) {
-      if (!isNaN(os.data_agendada.getTime())) {
-        const y = os.data_agendada.getFullYear()
-        const m = String(os.data_agendada.getMonth() + 1).padStart(2, '0')
-        const d = String(os.data_agendada.getDate()).padStart(2, '0')
-        const h = String(os.data_agendada.getHours()).padStart(2, '0')
-        const min = String(os.data_agendada.getMinutes()).padStart(2, '0')
-        dataAgendadaStr = `${y}-${m}-${d} ${h}:${min}:00`
-      }
-    } else {
-      try {
-        dataAgendadaStr = String(os.data_agendada)
-      } catch {
-        dataAgendadaStr = ''
-      }
+  const { str: dataAgendadaStr } = safeParseDataAgendada(os.data_agendada)
+
+  // Tratamento tolerante para atribuida_a (string ou objeto expandido)
+  let atribuidaAStr = ''
+  if (os.atribuida_a) {
+    if (typeof os.atribuida_a === 'string') {
+      atribuidaAStr = os.atribuida_a
+    } else if (typeof os.atribuida_a === 'object') {
+      const obj = os.atribuida_a as any
+      atribuidaAStr = obj.nome || obj.name || obj.razao_social || ''
     }
   }
 
@@ -533,11 +526,46 @@ export function sanitizeOS(os: any): OrdemServico {
   return {
     ...os,
     data_agendada: dataAgendadaStr,
+    atribuida_a: atribuidaAStr || os.atribuida_a,
     horario_inicio: horarioInicioStr,
     horario_fim: horarioFimStr,
     duracao_minutos: duracaoNum,
     tempo_previsto_minutos: duracaoNum,
     checklist: checklistNormalizada,
+  }
+}
+
+// Helper seguro para converter e validar datas de agendamento (tolera Date, string, nulo, número)
+export function safeParseDataAgendada(val: unknown): { date: Date | null; str: string } {
+  if (val === undefined || val === null) {
+    return { date: null, str: '' }
+  }
+
+  try {
+    if (val instanceof Date) {
+      if (!isNaN(val.getTime()) && isFinite(val.getTime())) {
+        const y = val.getFullYear()
+        const m = String(val.getMonth() + 1).padStart(2, '0')
+        const d = String(val.getDate()).padStart(2, '0')
+        const h = String(val.getHours()).padStart(2, '0')
+        const min = String(val.getMinutes()).padStart(2, '0')
+        return { date: val, str: `${y}-${m}-${d} ${h}:${min}:00` }
+      }
+      return { date: null, str: '' }
+    }
+
+    const str = String(val).trim()
+    if (!str || str === 'null' || str === 'undefined' || str === 'Invalid Date') {
+      return { date: null, str: '' }
+    }
+
+    const d = new Date(str)
+    if (!isNaN(d.getTime()) && isFinite(d.getTime())) {
+      return { date: d, str }
+    }
+    return { date: null, str: '' }
+  } catch {
+    return { date: null, str: '' }
   }
 }
 
@@ -567,7 +595,29 @@ export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
             concluido: Boolean(item.concluido),
           }))
       }
+      if (typeof parsed === 'object' && parsed !== null) {
+        return Object.values(parsed)
+          .filter((item: any) => item !== null && typeof item === 'object')
+          .map((item: any, idx: number) => ({
+            id: safeStr(item.id) || `chk_${idx + 1}`,
+            item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+            concluido: Boolean(item.concluido),
+          }))
+      }
     } catch (_) {
+      return []
+    }
+  }
+  if (typeof raw === 'object' && raw !== null) {
+    try {
+      return Object.values(raw)
+        .filter((item: any) => item !== null && typeof item === 'object')
+        .map((item: any, idx: number) => ({
+          id: safeStr(item.id) || `chk_${idx + 1}`,
+          item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+          concluido: Boolean(item.concluido),
+        }))
+    } catch {
       return []
     }
   }
@@ -1333,12 +1383,11 @@ function CalendarioExecucaoOSContent({
     for (const os of ordensMescladas || []) {
       if (!os) continue
       try {
-        const dataStr = safeStr(os.data_agendada).trim()
-        if (!dataStr) continue
-        const d = new Date(dataStr)
-        const timeVal = d.getTime()
+        const { date: dVal, str: dataStr } = safeParseDataAgendada(os.data_agendada)
+        if (!dVal || !dataStr) continue
+        const timeVal = dVal.getTime()
         if (isNaN(timeVal) || !isFinite(timeVal)) continue
-        const key = getLocalDateKey(d)
+        const key = getLocalDateKey(dVal)
         if (!key || key.includes('NaN') || !/^\d{4}-\d{2}-\d{2}$/.test(key)) continue
         if (!map.has(key)) {
           map.set(key, [])

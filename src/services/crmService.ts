@@ -2198,6 +2198,7 @@ export async function fetchWhatsAppBloqueados(): Promise<
         requestKey: null,
       })
   } catch (err) {
+    // Catch silencioso defensivo caso a coleção não exista ou falhe
     console.warn('Erro ao carregar contatos bloqueados:', err)
     return []
   }

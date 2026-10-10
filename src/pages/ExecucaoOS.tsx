@@ -5,6 +5,7 @@ import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import {
   CalendarioExecucaoOS,
   normalizeChecklist,
+  safeParseDataAgendada,
   sanitizeOS,
 } from '@/components/CalendarioExecucaoOS'
 import VisaoInstaladorMobileOS from '@/components/VisaoInstaladorMobileOS'
@@ -287,15 +288,23 @@ function ExecucaoOSContent() {
           // Endereço: usina expand -> cliente expand -> endereco_uc
           const endereco = atv.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
 
-          // Atribuído a: responsavel_nome -> equipe_nome -> fornecedor -> autor
-          const atribuidaA =
-            atv.responsavel_nome ||
-            resp?.name ||
-            atv.equipe_nome ||
-            forn?.nome_empresa ||
-            forn?.contato_nome ||
-            atv.autor ||
-            ''
+          // Atribuído a: responsavel_nome -> equipe_nome -> fornecedor -> autor (tolera string ou objeto expandido)
+          let atribuidaA = ''
+          if (typeof atv.atribuida_a === 'string') {
+            atribuidaA = atv.atribuida_a
+          } else if (atv.atribuida_a && typeof atv.atribuida_a === 'object') {
+            atribuidaA = atv.atribuida_a.nome || atv.atribuida_a.name || ''
+          }
+          if (!atribuidaA) {
+            atribuidaA =
+              atv.responsavel_nome ||
+              resp?.name ||
+              atv.equipe_nome ||
+              forn?.nome_empresa ||
+              forn?.contato_nome ||
+              atv.autor ||
+              ''
+          }
 
           // Instruções combinando título e descrição quando existirem
           const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
@@ -342,26 +351,9 @@ function ExecucaoOSContent() {
           // Normaliza checklist de forma tolerante (seja array ou string JSON)
           const checklistNorm = normalizeChecklist(atv.checklist)
           const tipoCustomIdVal = atv.tipo_custom_id || atv.expand?.tipo_custom_id?.id || undefined
-          // Extração segura de horário de início e data agendada (padrão v0.0.972 tolerante a Date, string e nulo)
-          let atvDataStr = ''
-          if (atv.data) {
-            if (atv.data instanceof Date) {
-              if (!isNaN(atv.data.getTime())) {
-                const y = atv.data.getFullYear()
-                const m = String(atv.data.getMonth() + 1).padStart(2, '0')
-                const d = String(atv.data.getDate()).padStart(2, '0')
-                const h = String(atv.data.getHours()).padStart(2, '0')
-                const min = String(atv.data.getMinutes()).padStart(2, '0')
-                atvDataStr = `${y}-${m}-${d} ${h}:${min}:00`
-              }
-            } else {
-              try {
-                atvDataStr = String(atv.data).trim()
-              } catch {
-                atvDataStr = ''
-              }
-            }
-          }
+          // Extração segura de horário de início e data agendada com safeParseDataAgendada
+          const parsedDataObj = safeParseDataAgendada(atv.data_agendada || atv.data)
+          let atvDataStr = parsedDataObj.str
 
           let horarioInicioSeguro: string | undefined =
             typeof atv.horario_inicio === 'string' && atv.horario_inicio.trim()
@@ -417,11 +409,21 @@ function ExecucaoOSContent() {
           } as OrdemServico
         })
 
-        // Normalizar checklist das OSs reais para garantir que seja sempre array válido
+        // Normalizar checklist e campos das OSs reais para garantir que seja sempre seguro
         const osReais = (Array.isArray(osList) ? osList : []).map((osItem) => {
           if (!osItem || typeof osItem !== 'object') return osItem
+          let atribuidaReal = ''
+          if (typeof osItem.atribuida_a === 'string') {
+            atribuidaReal = osItem.atribuida_a
+          } else if (osItem.atribuida_a && typeof osItem.atribuida_a === 'object') {
+            atribuidaReal =
+              (osItem.atribuida_a as any).nome || (osItem.atribuida_a as any).name || ''
+          }
+          const { str: dataSegura } = safeParseDataAgendada(osItem.data_agendada)
           return {
             ...osItem,
+            atribuida_a: atribuidaReal || osItem.atribuida_a || '',
+            data_agendada: dataSegura,
             checklist: normalizeChecklist(osItem.checklist),
           }
         })

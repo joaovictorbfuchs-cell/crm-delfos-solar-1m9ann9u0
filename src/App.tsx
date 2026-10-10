@@ -34,6 +34,7 @@ import GerenciarUsuarios from './pages/GerenciarUsuarios'
 import Login from './pages/Login'
 import RedefinirSenha from './pages/RedefinirSenha'
 import RelatorioFaturaPage from './pages/RelatorioFatura'
+import RelatorioOSPublico from './pages/RelatorioOSPublico'
 import BaseConhecimento from './pages/BaseConhecimento'
 import NotFound from './pages/NotFound'
 
@@ -67,6 +68,15 @@ const App = () => (
             element={
               <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o relatório de análise de fatura">
                 <RelatorioFaturaPage />
+              </ErrorBoundary>
+            }
+          />
+          {/* Rota pública para visualização do Relatório Técnico de Execução de OS */}
+          <Route
+            path="/relatorio-os/:id"
+            element={
+              <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o relatório da ordem de serviço">
+                <RelatorioOSPublico />
               </ErrorBoundary>
             }
           />

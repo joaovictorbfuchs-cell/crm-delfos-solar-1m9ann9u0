@@ -125,10 +125,20 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
       try {
         const d = new Date(osDetalhes.data_agendada)
         if (!isNaN(d.getTime())) {
-          const dia = String(d.getUTCDate()).padStart(2, '0')
-          const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-          const ano = d.getUTCFullYear()
-          dataFmt = `${dia}/${mes}/${ano}`
+          dataFmt = d.toLocaleDateString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          })
+          const horas = d.toLocaleTimeString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+          if (horas && horas !== '00:00') {
+            dataFmt = `${dataFmt} às ${horas}`
+          }
         }
       } catch (_) {
         dataFmt = String(osDetalhes.data_agendada).slice(0, 10)
@@ -136,11 +146,11 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
     }
 
     return {
-      nome_cliente: nomeCli,
-      tipo_servico: osDetalhes?.tipo_servico || 'Manutenção',
-      endereco: enderecoCli,
-      data_agendada: dataFmt,
-      nome_instalador: responsavelNome || 'Instalador',
+      nome_cliente: nomeCli || 'Cliente',
+      tipo_servico: osDetalhes?.tipo_servico || osDetalhes?.titulo || 'Serviço em Campo',
+      endereco: enderecoCli || 'Endereço a confirmar',
+      data_agendada: dataFmt || 'A definir',
+      nome_instalador: responsavelNome || osDetalhes?.atribuida_a || 'Instalador',
       id_os: osId || '',
     }
   }, [osDetalhes, clientes, responsavelNome, osId])
@@ -185,9 +195,33 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
     setFeedbackMsg('')
 
     try {
+      // Interpolação defensiva completa de marcadores antes do disparo manual
+      let mensagemProcessada = mensagem || ''
+      mensagemProcessada = mensagemProcessada.replace(
+        /\{Delfos Engenharia Ltda\}/g,
+        'Delfos Engenharia Ltda',
+      )
+
+      const mapaSubstituicao: Record<string, string> = {
+        nome_cliente: contextoVariaveis.nome_cliente || 'Cliente',
+        tipo_servico: contextoVariaveis.tipo_servico || 'Serviço em Campo',
+        endereco: contextoVariaveis.endereco || 'Endereço a confirmar',
+        data_agendada: contextoVariaveis.data_agendada || 'A definir',
+        nome_instalador: contextoVariaveis.nome_instalador || responsavelNome || 'Instalador',
+        id_os: contextoVariaveis.id_os || osId || '',
+      }
+
+      Object.entries(mapaSubstituicao).forEach(([tag, val]) => {
+        mensagemProcessada = mensagemProcessada.replace(new RegExp(`\\{${tag}\\}`, 'gi'), val)
+        mensagemProcessada = mensagemProcessada.replace(new RegExp(`\\{\\{${tag}\\}\\}`, 'gi'), val)
+      })
+
+      // Limpeza de quaisquer marcadores remanescentes (nunca enviar chaves literais)
+      mensagemProcessada = mensagemProcessada.replace(/\{[a-zA-Z0-9_-]+\}/g, '').trim()
+
       const res = await enviarNotificacaoOSManual(osId, {
         telefone_destino: telefone,
-        mensagem_personalizada: mensagem,
+        mensagem_personalizada: mensagemProcessada,
       })
 
       if (res.ok) {

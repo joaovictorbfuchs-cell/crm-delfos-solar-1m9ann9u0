@@ -46,6 +46,10 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
   // Seleção de canais para envio
   const [enviarPorEmail, setEnviarPorEmail] = useState<boolean>(true)
   const [enviarPorWhatsApp, setEnviarPorWhatsApp] = useState<boolean>(true)
+  const [enviarApenasLink, setEnviarApenasLink] = useState<boolean>(false)
+
+  // Link público do relatório
+  const linkRelatorio = `${window.location.origin}/relatorio-os/${os.id}`
 
   // Conteúdo e PDF
   const [mensagem, setMensagem] = useState<string>('')
@@ -121,7 +125,8 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
 
     setAssuntoEmail(`Delfos Solar - Relatório Técnico de Execução • OS #${osIdCurto}`)
 
-    const msgSugerida = `Olá ${clientePrimeiroNome}! Segue o Relatório Técnico de Execução da Ordem de Serviço #${osIdCurto} (${os.tipo_servico || 'Serviço em Campo'}) realizada pela equipe da Delfos Solar. Qualquer dúvida, estamos à disposição!`
+    const urlRelatorioOS = `${window.location.origin}/relatorio-os/${os.id}`
+    const msgSugerida = `Olá ${clientePrimeiroNome}! Segue o Relatório Técnico de Execução da Ordem de Serviço #${osIdCurto} (${os.tipo_servico || 'Serviço em Campo'}) realizada pela equipe da Delfos Solar.\n\nVocê também pode acessar o relatório online pelo link:\n${urlRelatorioOS}\n\nQualquer dúvida, estamos à disposição!`
     setMensagem(msgSugerida)
 
     setStatusEmail({ status: 'idle' })
@@ -184,8 +189,8 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
   const temTelefoneValido = Boolean(telefoneCliente.trim().replace(/\D/g, '').length >= 10)
 
   const podeEnviar =
-    base64Doc &&
-    !isGenerating &&
+    (enviarApenasLink || Boolean(base64Doc)) &&
+    (!isGenerating || enviarApenasLink) &&
     !isSending &&
     ((enviarPorEmail && temEmailValido) || (enviarPorWhatsApp && temTelefoneValido))
 
@@ -224,11 +229,19 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
                 <div style="padding: 24px;">
                   <p style="font-size: 14px; margin-top: 0;">Olá, <strong>${clienteNome}</strong>!</p>
                   <p style="font-size: 13px; color: #475569;">
-                    Segue em anexo o Relatório Técnico oficial referente à conclusão da <strong>Ordem de Serviço #${osIdCurto}</strong> (${os.tipo_servico || 'Serviço em Campo'}).
+                    Apresentamos o Relatório Técnico oficial referente à conclusão da <strong>Ordem de Serviço #${osIdCurto}</strong> (${os.tipo_servico || 'Serviço em Campo'}).
                   </p>
                   <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 12px; margin: 16px 0;">
                     <p style="margin: 0; font-size: 12px; color: #166534; font-weight: bold;">
                       ✓ Serviço finalizado com sucesso e validado pela equipe técnica Delfos Solar.
+                    </p>
+                  </div>
+                  <div style="text-align: center; margin: 24px 0;">
+                    <a href="${linkRelatorio}" style="background-color: #16A34A; color: #FFFFFF; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">
+                      Acessar Relatório Técnico Completo Online
+                    </a>
+                    <p style="font-size: 11px; color: #64748B; margin-top: 8px;">
+                      Ou cole o link no seu navegador: <br /><a href="${linkRelatorio}" style="color: #16A34A;">${linkRelatorio}</a>
                     </p>
                   </div>
                   <p style="font-size: 12px; color: #64748B; margin-bottom: 0;">
@@ -248,10 +261,12 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
             assunto: assuntoEmail.trim() || `Delfos Solar - Relatório Técnico • OS #${osIdCurto}`,
             corpoHtml,
             from: 'Delfos Solar <solar@updates.delfos.eng.br>',
-            anexo: {
-              filename: fileNomeFinal,
-              content: cleanBase64,
-            },
+            anexo: enviarApenasLink
+              ? undefined
+              : {
+                  filename: fileNomeFinal,
+                  content: cleanBase64,
+                },
           })
 
           setStatusEmail({
@@ -294,20 +309,35 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
             }
           }
 
-          const legendaTrimmed = mensagem.trim()
-          const legendaComPrefixo = legendaTrimmed
-            ? aplicarPrefixoMensagemManual(legendaTrimmed)
-            : ''
+          let textoMensagem = mensagem.trim()
+          if (!textoMensagem.includes(linkRelatorio)) {
+            textoMensagem = `${textoMensagem}\n\nLink do relatório: ${linkRelatorio}`.trim()
+          }
+          const legendaComPrefixo = textoMensagem ? aplicarPrefixoMensagemManual(textoMensagem) : ''
 
-          const res = await sendWhatsAppDocument({
-            cliente_id: cliente?.id,
-            telefone_destino: telLimpo,
-            tipo: 'documento',
-            referencia_id: os.id,
-            legenda: legendaComPrefixo,
-            nome_arquivo: fileNomeFinal,
-            base64: base64Doc,
-          })
+          let res: any
+          if (enviarApenasLink) {
+            // Dispara via mensagem de texto com o link embutido
+            const { sendWhatsAppMensagem } = await import('@/services/crmService')
+            res = await sendWhatsAppMensagem({
+              cliente_id: cliente?.id,
+              telefone_destino: telLimpo,
+              mensagem: legendaComPrefixo,
+              referencia_id: os.id,
+              tipo_disparo: 'manual',
+            })
+          } else {
+            // Dispara documento em anexo com a legenda contendo o link
+            res = await sendWhatsAppDocument({
+              cliente_id: cliente?.id,
+              telefone_destino: telLimpo,
+              tipo: 'documento',
+              referencia_id: os.id,
+              legenda: legendaComPrefixo,
+              nome_arquivo: fileNomeFinal,
+              base64: base64Doc,
+            })
+          }
 
           if (res.sent) {
             setStatusWhatsApp({
@@ -401,8 +431,38 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
 
         {/* Corpo do Modal */}
         <form onSubmit={handleEnviar} className="p-4 sm:p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* Card do PDF Anexo */}
-          <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/80 flex items-center justify-between gap-3">
+          {/* Opção de Enviar Apenas Link */}
+          <div className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200 flex flex-col gap-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enviarApenasLink}
+                onChange={(e) => setEnviarApenasLink(e.target.checked)}
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="text-xs font-bold text-emerald-950">
+                Enviar apenas o link (sem anexo PDF)
+              </span>
+            </label>
+            <div className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-emerald-100 flex items-center justify-between gap-2 overflow-hidden">
+              <span className="truncate font-mono text-[10px] text-slate-700">{linkRelatorio}</span>
+              <a
+                href={linkRelatorio}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold shrink-0 underline"
+              >
+                Abrir link
+              </a>
+            </div>
+          </div>
+
+          {/* Card do PDF Anexo (só relevante se não for apenas link) */}
+          <div
+            className={`p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/80 flex items-center justify-between gap-3 ${
+              enviarApenasLink ? 'opacity-50' : ''
+            }`}
+          >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg shrink-0">
                 <FileCheck className="w-4 h-4 text-emerald-700" />
@@ -412,8 +472,12 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
                   {nomeArquivo || 'Relatorio_OS.pdf'}
                 </div>
                 <div className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
-                  <span>Relatório Técnico Oficial Delfos Solar</span>
-                  {isGenerating && (
+                  <span>
+                    {enviarApenasLink
+                      ? 'Anexo desativado pelo envio por link'
+                      : 'Relatório Técnico Oficial Delfos Solar'}
+                  </span>
+                  {!enviarApenasLink && isGenerating && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
                       <RefreshCw className="w-3 h-3 animate-spin" />
                       Processando PDF...
@@ -435,7 +499,13 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
                 </button>
               )}
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white border border-emerald-300 text-emerald-800">
-                {base64Doc ? 'Pronto' : isGenerating ? 'Gerando...' : 'Pendente'}
+                {enviarApenasLink
+                  ? 'Link direto'
+                  : base64Doc
+                    ? 'Pronto'
+                    : isGenerating
+                      ? 'Gerando...'
+                      : 'Pendente'}
               </span>
             </div>
           </div>

@@ -124,60 +124,80 @@ export function limparTextoDetalhesExecucao(detalhes?: string): string {
  * Monta o HTML completo do Relatório Técnico de Execução de OS
  * Layout A4 premium institucional corporativo com CSS compatível com html2canvas
  */
+export const FOTO_FALLBACK_PLACEHOLDER =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450" fill="%230F172A"><rect width="100%" height="100%" fill="%230F172A"/><circle cx="300" cy="200" r="44" fill="%231E293B"/><path d="M280 200h40M300 180v40" stroke="%2364748B" stroke-width="4" stroke-linecap="round"/><text x="300" y="280" fill="%2394A3B8" font-family="sans-serif" font-size="16" font-weight="bold" text-anchor="middle">Registro Fotogr%C3%A1fico</text><text x="300" y="306" fill="%2364748B" font-family="sans-serif" font-size="12" text-anchor="middle">Delfos Solar %E2%80%A2 Opera%C3%A7%C3%A3o e Manuten%C3%A7%C3%A3o</text></svg>'
+
+function normalizarChecklistArray(checklistRaw: any): OSChecklistItem[] {
+  if (!checklistRaw) return []
+  if (Array.isArray(checklistRaw)) return checklistRaw
+  if (typeof checklistRaw === 'string') {
+    try {
+      const parsed = JSON.parse(checklistRaw)
+      if (Array.isArray(parsed)) return parsed
+    } catch {
+      return []
+    }
+  }
+  if (typeof checklistRaw === 'object') {
+    try {
+      const vals = Object.values(checklistRaw)
+      if (Array.isArray(vals)) return vals as OSChecklistItem[]
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
-  const {
-    os,
-    cliente = os.expand?.cliente_id,
-    sistema,
-    fotosDataUrls = [],
-    inversoresInfo,
-    assinaturaBase64,
-  } = dados
+  const os = dados?.os || ({} as any)
+  const cliente = dados?.cliente || os.expand?.cliente_id || null
+  const sistema = dados?.sistema || null
+  const rawFotos = Array.isArray(dados?.fotosDataUrls) ? dados.fotosDataUrls : []
+  // Blindagem de fotos: se vazia ou inválida, substitui por placeholder seguro sem quebrar o layout
+  const fotosDataUrls: string[] = rawFotos.map((f) =>
+    f && typeof f === 'string' && f.trim() ? f : FOTO_FALLBACK_PLACEHOLDER,
+  )
+  const inversoresInfo = dados?.inversoresInfo
+  const assinaturaBase64 = dados?.assinaturaBase64
 
   const concessionaria = sistema?.concessionaria || (cliente as any)?.concessionaria || 'RGE Sul'
-  const telhadoTipo =
-    (sistema as any)?.tipo_telhado || (cliente as any)?.telhado_tipo || 'Não informado'
-  const placasMarca =
-    (sistema as any)?.fabricante_modulos || (cliente as any)?.marca_placas || 'Não informada'
+  const telhadoTipo = (sistema as any)?.tipo_telhado || (cliente as any)?.telhado_tipo || '-'
+  const placasMarca = (sistema as any)?.fabricante_modulos || (cliente as any)?.marca_placas || '-'
   const inversorCompleto =
-    inversoresInfo ||
-    sistema?.fabricante_inversores ||
-    (cliente as any)?.inversor_marca ||
-    'Não informado'
-  const fotoMedidorDataUrl = (os as any).foto_medidor_url || (os as any).foto_medidor || null
-  const rodapeComercial = (dados as any).rodapeComercial || getRodapeComercialCacheSync()
+    inversoresInfo || sistema?.fabricante_inversores || (cliente as any)?.inversor_marca || '-'
+  const fotoMedidorDataUrl = (os as any)?.foto_medidor_url || (os as any)?.foto_medidor || null
+  const rodapeComercial = (dados as any)?.rodapeComercial || getRodapeComercialCacheSync()
 
-  const osIdCurto = os.id ? os.id.slice(-6).toUpperCase() : '000000'
+  const osIdCurto = os?.id ? String(os.id).slice(-6).toUpperCase() : '000000'
   const osIdFormatado = `OS #${osIdCurto}`
-  const tipoServico = os.tipo_servico || 'Serviço em Campo'
+  const tipoServico = os?.tipo_servico || (os as any)?.titulo || 'Serviço em Campo'
   const prestadorNome =
-    os.atribuida_a ||
-    os.expand?.responsavel_usuario_id?.name ||
-    os.expand?.profissional_id?.nome ||
+    os?.atribuida_a ||
+    os?.expand?.responsavel_usuario_id?.name ||
+    os?.expand?.profissional_id?.nome ||
     'Técnico Autorizado Delfos'
-  const prestadorTelefone = os.expand?.responsavel_usuario_id?.phone || ''
+  const prestadorTelefone = os?.expand?.responsavel_usuario_id?.phone || '-'
 
   const clienteNome = cliente?.nome || cliente?.razao_social || 'Cliente Solar'
   const clienteDoc = cliente?.cpf || cliente?.cnpj || ''
-  const clienteTelefone = cliente?.whatsapp || cliente?.telefone || ''
-  const enderecoUsina = os.endereco || cliente?.endereco || 'Endereço da usina não informado'
+  const clienteTelefone = cliente?.whatsapp || cliente?.telefone || '-'
+  const enderecoUsina = os?.endereco || cliente?.endereco || '-'
   const cidadeUsina = cliente?.cidade ? `${cliente.cidade} - ${cliente.estado || 'RS'}` : ''
   const potenciaUsina =
     sistema?.potencia_total_kwp || cliente?.potencia_kwp
       ? `${sistema?.potencia_total_kwp || cliente?.potencia_kwp} kWp`
-      : '—'
+      : '-'
   const placasUsina =
     sistema?.quantidade_modulos || cliente?.placas_qtd
       ? `${sistema?.quantidade_modulos || cliente?.placas_qtd} módulos`
-      : '—'
-  const inversorUsina =
-    inversoresInfo || sistema?.fabricante_inversores || cliente?.inversor_marca || '—'
-  const ucUsina = sistema?.numero_uc || cliente?.uc || '—'
+      : '-'
+  const ucUsina = sistema?.numero_uc || cliente?.uc || '-'
 
-  const dataInicioStr = extrairInicioAtendimentoOS(os.detalhes_execucao, os.data_agendada)
-  const dataConclusaoStr = formatarDataHoraRelatorio(os.concluida_em || os.updated)
+  const dataInicioStr = extrairInicioAtendimentoOS(os?.detalhes_execucao, os?.data_agendada) || '-'
+  const dataConclusaoStr = formatarDataHoraRelatorio(os?.concluida_em || os?.updated) || '-'
 
-  const checklistItens: OSChecklistItem[] = Array.isArray(os.checklist) ? os.checklist : []
+  const checklistItens: OSChecklistItem[] = normalizarChecklistArray(os?.checklist)
   const itensConcluidos = checklistItens.filter((c) => c.concluido).length
   const totalItens = checklistItens.length
 
@@ -1113,49 +1133,60 @@ export async function prepararFotosRelatorio(
   const urlsParaOtimizar: string[] = []
 
   // 1. Fotos já salvas no PocketBase
-  if (Array.isArray(os.fotos) && os.fotos.length > 0) {
+  if (Array.isArray(os?.fotos) && os.fotos.length > 0) {
     for (const fotoNome of os.fotos) {
       if (fotoNome) {
         try {
           const url = pb.files.getURL(os, fotoNome)
           if (url) urlsParaOtimizar.push(url)
         } catch (e) {
-          console.warn('Erro ao obter URL da foto da OS:', e)
+          console.warn('Erro ao obter URL da foto da OS, usando placeholder:', e)
+          urlsParaOtimizar.push(FOTO_FALLBACK_PLACEHOLDER)
         }
       }
     }
   }
 
-  // 2. Novas fotos passadas como File (converte temporariamente em Data URI)
+  // 2. Novas fotos passadas como File (converte temporariamente em Data URI com fallback defensivo)
   if (Array.isArray(newPhotos) && newPhotos.length > 0) {
     for (const file of newPhotos) {
       try {
         const dataUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader()
           reader.onload = () => resolve(String(reader.result || ''))
-          reader.onerror = () => resolve('')
+          reader.onerror = () => resolve(FOTO_FALLBACK_PLACEHOLDER)
           reader.readAsDataURL(file)
         })
-        if (dataUrl) urlsParaOtimizar.push(dataUrl)
+        urlsParaOtimizar.push(dataUrl || FOTO_FALLBACK_PLACEHOLDER)
       } catch (err) {
-        console.warn('Erro ao ler nova foto para relatório:', err)
+        console.warn('Erro ao ler nova foto para relatório, usando placeholder:', err)
+        urlsParaOtimizar.push(FOTO_FALLBACK_PLACEHOLDER)
       }
     }
   }
 
-  // 3. Comprimir via canvas (máximo 600x450 JPEG 0.75 para manter o arquivo bem abaixo de 3 MB)
+  // 3. Comprimir via canvas (máximo 600x450 JPEG 0.75 para manter o arquivo leve)
+  // Se alguma foto falhar ao virar dataUrl, usar placeholder embutido em vez de quebrar o HTML inteiro
   const fotosOtimizadas: string[] = []
   for (const src of urlsParaOtimizar) {
     try {
+      if (!src || src.startsWith('data:image/svg+xml')) {
+        fotosOtimizadas.push(src || FOTO_FALLBACK_PLACEHOLDER)
+        continue
+      }
       const otimizada = await otimizarImagemParaImpressao(src, {
         maxWidth: 600,
         maxHeight: 450,
         mimeType: 'image/jpeg',
         quality: 0.75,
       })
-      fotosOtimizadas.push(otimizada || src)
-    } catch {
-      fotosOtimizadas.push(src)
+      fotosOtimizadas.push(otimizada || src || FOTO_FALLBACK_PLACEHOLDER)
+    } catch (errOtimizacao) {
+      console.warn(
+        'Falha na otimização de imagem para o relatório, usando placeholder:',
+        errOtimizacao,
+      )
+      fotosOtimizadas.push(FOTO_FALLBACK_PLACEHOLDER)
     }
   }
 
