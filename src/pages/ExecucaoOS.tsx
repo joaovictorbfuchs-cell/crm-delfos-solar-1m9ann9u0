@@ -401,7 +401,7 @@ function ExecucaoOSContent() {
             responsavel_usuario_id: atv.responsavel_id || undefined,
             profissional_id: undefined,
             instrucoes,
-            detalhes_execucao: atv.descricao || '',
+            detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
             concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
             origem: 'atividades',
             created: atv.created,

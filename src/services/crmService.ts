@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import type {
   Cliente,
   ClienteStatus,
@@ -3474,7 +3475,8 @@ export async function fetchOrdemServicoById(
           responsavel_usuario_id: atv.responsavel_id || undefined,
           profissional_id: undefined,
           instrucoes,
-          detalhes_execucao: atv.descricao || '',
+          checklist: normalizeChecklist(atv.checklist),
+          detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
           concluida_em: atv.status === 'concluida' ? atv.updated || atv.data : undefined,
           origem: 'atividades',
           created: atv.created,
@@ -3695,8 +3697,16 @@ async function updateAtividadeComoOrdemServico(
     responsavel_usuario_id: atvRecord.responsavel_id || undefined,
     profissional_id: undefined,
     instrucoes,
-    checklist: data.checklist,
-    detalhes_execucao: atvRecord.descricao || data.detalhes_execucao || '',
+    checklist:
+      data.checklist !== undefined
+        ? normalizeChecklist(data.checklist)
+        : normalizeChecklist(atvRecord.checklist),
+    detalhes_execucao:
+      atvRecord.observacoes ||
+      atvRecord.detalhes_execucao ||
+      atvRecord.descricao ||
+      data.detalhes_execucao ||
+      '',
     concluida_em: osStatus === 'concluida' ? atvRecord.updated || atvRecord.data : undefined,
     origem: 'atividades',
     fotos: Array.isArray(atvRecord.fotos)
