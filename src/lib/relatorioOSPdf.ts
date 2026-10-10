@@ -780,16 +780,16 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </table>
     </div>
 
-    <!-- 1. DADOS DO CLIENTE & LOCAL DA INSTALAÇÃO -->
+    <!-- 1. DADOS DO CLIENTE & DADOS TÉCNICOS DA USINA -->
     <div class="secao-card">
       <div class="secao-card-header">
         <table class="secao-header-table" cellpadding="0" cellspacing="0">
           <tr>
             <td class="secao-title-text">
-              <span class="secao-title-icon">&#9632;</span> 1. Dados do Cliente &amp; Local da Usina
+              <span class="secao-title-icon">&#9632;</span> 1. Dados do Cliente &amp; Cadastro Técnico da Usina
             </td>
             <td class="secao-header-extra">
-              UC: <strong style="color: #0F172A;">${ucUsina}</strong>
+              Concessionária: <strong style="color: #0F172A;">${concessionaria}</strong> • UC: <strong style="color: #0F172A;">${ucUsina}</strong>
             </td>
           </tr>
         </table>
@@ -838,18 +838,44 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
                 <tr>
                   <td style="width: 50%; padding-right: 4px;">
                     <div class="field-box">
-                      <div class="field-label">Potência &amp; Módulos</div>
-                      <div class="field-value">${potenciaUsina} (${placasUsina})</div>
+                      <div class="field-label">Potência Nominal da Usina</div>
+                      <div class="field-value">${potenciaUsina}</div>
                     </div>
                   </td>
                   <td style="width: 50%; padding-left: 4px;">
                     <div class="field-box">
-                      <div class="field-label">Inversor / Equipamento</div>
-                      <div class="field-value">${inversorUsina}</div>
+                      <div class="field-label">Estrutura / Telhado</div>
+                      <div class="field-value">${telhadoTipo}</div>
                     </div>
                   </td>
                 </tr>
               </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="field-cell" style="width: 50%;">
+              <table cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  <td style="width: 50%; padding-right: 4px;">
+                    <div class="field-box">
+                      <div class="field-label">Qtd. Módulos / Placas</div>
+                      <div class="field-value">${placasUsina}</div>
+                    </div>
+                  </td>
+                  <td style="width: 50%; padding-left: 4px;">
+                    <div class="field-box">
+                      <div class="field-label">Marca dos Módulos</div>
+                      <div class="field-value">${placasMarca}</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+            <td class="field-cell" style="width: 50%;">
+              <div class="field-box">
+                <div class="field-label">Inversor(es) Instalado(s)</div>
+                <div class="field-value">${inversorCompleto}</div>
+              </div>
             </td>
           </tr>
         </table>
@@ -920,7 +946,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </div>
 
-    <!-- 5. REGISTROS FOTOGRÁFICOS -->
+    <!-- 5. REGISTROS FOTOGRÁFICOS & LEITURA DO MEDIDOR -->
     <div class="secao-card">
       <div class="secao-card-header">
         <table class="secao-header-table" cellpadding="0" cellspacing="0">
@@ -929,12 +955,32 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
               <span class="secao-title-icon">&#9632;</span> 5. Registros Fotográficos do Trabalho Realizado
             </td>
             <td class="secao-header-extra">
-              ${fotosDataUrls.length} ${fotosDataUrls.length === 1 ? 'registro' : 'registros'}
+              ${fotosDataUrls.length + (fotoMedidorDataUrl ? 1 : 0)} ${fotosDataUrls.length + (fotoMedidorDataUrl ? 1 : 0) === 1 ? 'registro' : 'registros'}
             </td>
           </tr>
         </table>
       </div>
       <div class="secao-card-body">
+        ${
+          fotoMedidorDataUrl
+            ? `
+        <!-- FOTO DO MEDIDOR EM DESTAQUE -->
+        <div class="medidor-box">
+          <table class="medidor-table" cellpadding="0" cellspacing="0">
+            <tr>
+              <td class="medidor-img-cell">
+                <img src="${fotoMedidorDataUrl}" alt="Leitura do Medidor" class="medidor-img" />
+              </td>
+              <td class="medidor-info-cell">
+                <div class="medidor-badge">DESTAQUE • MEDIÇÃO DE CONCESSIONÁRIA</div>
+                <div class="medidor-titulo">Leitura do medidor</div>
+                <div class="medidor-desc">Registro fotográfico do medidor bidirecional da concessionária aferido in loco durante a execução do serviço.</div>
+              </td>
+            </tr>
+          </table>
+        </div>`
+            : ''
+        }
         ${fotosHtml}
       </div>
     </div>
@@ -989,13 +1035,34 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </div>
 
+    <!-- BLOCO COMERCIAL E INDICAÇÃO CONFIGURÁVEL -->
+    ${
+      rodapeComercial && (rodapeComercial.titulo || rodapeComercial.descricao)
+        ? `
+    <div class="comercial-box">
+      <div class="comercial-titulo">&#9733; ${rodapeComercial.titulo}</div>
+      <div class="comercial-desc">${rodapeComercial.descricao}</div>
+      ${
+        rodapeComercial.indicacao
+          ? `<div class="comercial-indicacao">&#127873; ${rodapeComercial.indicacao}</div>`
+          : ''
+      }
+      ${
+        rodapeComercial.contato
+          ? `<div class="comercial-contato">${rodapeComercial.contato}</div>`
+          : ''
+      }
+    </div>`
+        : ''
+    }
+
     <!-- RODAPÉ INSTITUCIONAL CANÔNICO DELFOS SOLAR -->
     <div class="footer-card">
       <table class="footer-table" cellpadding="0" cellspacing="0">
         <tr>
           <td style="vertical-align: middle;">
             <div class="footer-brand-title">Delfos Engenharia Solar • Excelência Técnica em Energia Fotovoltaica</div>
-            <div class="footer-contact">Rua Espírito Santo, 275 – Centro, Erechim/RS • Telefone / WhatsApp: (54) 99129-2121 • www.delfos.eng.br</div>
+            <div class="footer-contact">Rua Espírito Santo, 275 – Erechim/RS, CEP 99709-296 • Telefone / WhatsApp: (54) 99129-2121 • www.delfos.eng.br</div>
             <div class="footer-address">Atendimento técnico autorizado em conformidade com as normas ABNT NBR 16690 e NR-10.</div>
           </td>
           <td class="footer-meta-right">
