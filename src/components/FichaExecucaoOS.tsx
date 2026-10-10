@@ -539,8 +539,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         }
 
         // Resolução estrita do checklist:
-        // (1) Se a OS já tem checklist salvo e preenchido, respeitar
+        // Guarda 1: NUNCA redefinir o checklist se o checklist salvo já tem itens marcados como concluídos
         const checklistSalvo = os.checklist ? normalizeChecklist(os.checklist) : []
+        const temItemConcluido = checklistSalvo.some((it) => it.concluido)
+
+        if (temItemConcluido) {
+          setChecklist(checklistSalvo)
+          return
+        }
+
+        // Guarda 2: Se a OS já tem checklist salvo (mesmo sem itens marcados), respeitar e não sobrescrever
         if (checklistSalvo.length > 0) {
           setChecklist(checklistSalvo)
           return
@@ -553,7 +561,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           return
         }
 
-        // (3) Fallback genérico SOMENTE se nada casar
+        // (3) Fallback genérico SOMENTE se não há nenhum checklist salvo
         setChecklist(getDefaultChecklist((os.tipo_servico as any) || 'Manutenção'))
       })
       .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
@@ -565,10 +573,24 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     if (!isAdmin) return
     setIsReabrindo(true)
     try {
-      const updated = await updateOrdemServico(os.id, {
+      // Preservar checklist gravado na coleção atividades / ordens_servico - nunca enviar vazio
+      const checklistPreservado =
+        checklist && checklist.length > 0
+          ? checklist
+          : os.checklist
+            ? normalizeChecklist(os.checklist)
+            : undefined
+
+      const payloadReabertura: Partial<OrdemServico> = {
         status: 'pendente',
         concluida_em: null as unknown as string,
-      })
+        origem: os.origem || undefined,
+      }
+      if (checklistPreservado && checklistPreservado.length > 0) {
+        payloadReabertura.checklist = checklistPreservado
+      }
+
+      const updated = await updateOrdemServico(os.id, payloadReabertura)
       onOSUpdated(updated)
       toast({
         title: 'Ordem de Serviço Reaberta! 🔄',

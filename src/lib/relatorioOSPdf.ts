@@ -226,6 +226,26 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   const itensConcluidos = checklistItens.filter((c) => c.concluido).length
   const totalItens = checklistItens.length
 
+  // Lista formatada para a seção de serviços e procedimentos executados no local
+  const servicosExecutadosHtml =
+    checklistItens.length > 0
+      ? checklistItens
+          .map((c) => {
+            if (c.concluido) {
+              return `<div style="padding: 4px 0; font-size: 8.5pt; color: #166534; font-weight: 700;">
+                <span style="display: inline-block; background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; border-radius: 4px; padding: 1px 6px; font-size: 7pt; font-weight: 900; margin-right: 6px;">[✓] Concluído</span>
+                <span style="color: #0F172A;">${c.item}</span>
+                <span style="font-size: 7pt; color: #16A34A; font-weight: 800; margin-left: 6px;">— Serviço Realizado</span>
+              </div>`
+            }
+            return `<div style="padding: 4px 0; font-size: 8.5pt; color: #64748B;">
+              <span style="display: inline-block; background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1; border-radius: 4px; padding: 1px 6px; font-size: 7pt; font-weight: 700; margin-right: 6px;">[ ] Pendente</span>
+              <span>${c.item}</span>
+            </div>`
+          })
+          .join('')
+      : `<div style="font-size: 8.5pt; color: #94A3B8; font-style: italic;">Nenhum serviço ou procedimento listado.</div>`
+
   const observacoesLimpas = limparTextoDetalhesExecucao(os.detalhes_execucao)
 
   // Montagem da galeria de fotos em grade de 2 colunas com table para compatibilidade 100% no html2canvas
@@ -999,13 +1019,43 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </div>
 
-    <!-- 4. OBSERVAÇÕES TÉCNICAS DO PRESTADOR -->
+    <!-- 4. SERVIÇOS E PROCEDIMENTOS EXECUTADOS NO LOCAL JUNTO AOS DETALHES DE EXECUÇÃO -->
+    <div class="secao-card" style="border: 1.5px solid #86EFAC; background: #F0FDF4;">
+      <div class="secao-card-header" style="background: #DCFCE7; border-bottom: 1.5px solid #86EFAC;">
+        <table class="secao-header-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="secao-title-text" style="color: #166534;">
+              <span class="secao-title-icon" style="color: #15803D;">&#9632;</span> 4. Serviços e Procedimentos Executados no Local
+            </td>
+            <td class="secao-header-extra" style="color: #166534; font-weight: 800;">
+              ${itensConcluidos} de ${totalItens} procedimentos validados
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="secao-card-body">
+        <div style="background: #FFFFFF; border: 1px solid #BBF7D0; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;">
+          <div style="font-size: 7.5pt; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.04em;">Procedimentos Técnicos Realizados em Campo</div>
+          ${servicosExecutadosHtml}
+        </div>
+        ${
+          observacoesLimpas && observacoesLimpas !== 'Sem observações adicionais.'
+            ? `<div style="background: #FFFFFF; border: 1px solid #BBF7D0; border-radius: 6px; padding: 10px 12px;">
+                <div style="font-size: 7.5pt; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.04em;">Detalhes e Observações de Execução</div>
+                <div style="font-size: 8.5pt; color: #1E293B; line-height: 1.5; white-space: pre-line;">${observacoesLimpas}</div>
+              </div>`
+            : ''
+        }
+      </div>
+    </div>
+
+    <!-- 5. OBSERVAÇÕES TÉCNICAS DO PRESTADOR -->
     <div class="secao-card">
       <div class="secao-card-header">
         <table class="secao-header-table" cellpadding="0" cellspacing="0">
           <tr>
             <td class="secao-title-text">
-              <span class="secao-title-icon">&#9632;</span> 4. Observações Técnicas &amp; Detalhes da Execução
+              <span class="secao-title-icon">&#9632;</span> 5. Observações Técnicas &amp; Detalhes da Execução
             </td>
             <td class="secao-header-extra">Registro de Campo</td>
           </tr>
@@ -1016,13 +1066,13 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </div>
 
-    <!-- 5. REGISTROS FOTOGRÁFICOS & LEITURA DO MEDIDOR -->
+    <!-- 6. REGISTROS FOTOGRÁFICOS & LEITURA DO MEDIDOR -->
     <div class="secao-card">
       <div class="secao-card-header">
         <table class="secao-header-table" cellpadding="0" cellspacing="0">
           <tr>
             <td class="secao-title-text">
-              <span class="secao-title-icon">&#9632;</span> 5. Registros Fotográficos do Trabalho Realizado
+              <span class="secao-title-icon">&#9632;</span> 6. Registros Fotográficos do Trabalho Realizado
             </td>
             <td class="secao-header-extra">
               ${fotosDataUrls.length + (fotoMedidorDataUrl ? 1 : 0)} ${fotosDataUrls.length + (fotoMedidorDataUrl ? 1 : 0) === 1 ? 'registro' : 'registros'}
@@ -1055,13 +1105,13 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </div>
 
-    <!-- 6. RESPONSÁVEL TÉCNICO & ASSINATURA -->
+    <!-- 7. RESPONSÁVEL TÉCNICO & ASSINATURA -->
     <div class="secao-card assinatura-wrap">
       <div class="secao-card-header">
         <table class="secao-header-table" cellpadding="0" cellspacing="0">
           <tr>
             <td class="secao-title-text">
-              <span class="secao-title-icon">&#9632;</span> 6. Responsável Técnico &amp; Validação de Conclusão
+              <span class="secao-title-icon">&#9632;</span> 7. Responsável Técnico &amp; Validação de Conclusão
             </td>
             <td class="secao-header-extra">Identificação &amp; Assinatura</td>
           </tr>

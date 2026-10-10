@@ -3552,6 +3552,11 @@ async function updateAtividadeComoOrdemServico(
     payloadAtividade.descricao = data.detalhes_execucao
   }
 
+  // Checklist gravado na atividade: persistir JSON normalizado (nunca sobrepor com vazio se já existia)
+  if (data.checklist !== undefined) {
+    payloadAtividade.checklist = normalizeChecklist(data.checklist)
+  }
+
   // Responsável
   if (data.responsavel_usuario_id !== undefined) {
     payloadAtividade.responsavel_id = data.responsavel_usuario_id || null

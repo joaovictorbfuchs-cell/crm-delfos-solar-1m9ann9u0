@@ -11,6 +11,7 @@ import {
   Check,
   Loader2,
   AlertTriangle,
+  CheckSquare,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
@@ -18,6 +19,7 @@ import { getRodapeComercialRelatorioOS } from '@/services/configuracoesService'
 import pb from '@/lib/pocketbase/client'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/contexts/AuthContext'
+import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import type { OSChecklistItem } from '@/types/crm'
 
 export interface RelatorioOSConteudoProps {
@@ -329,59 +331,9 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
     os?.expand?.profissional_id?.nome ||
     'Técnico Autorizado Delfos'
 
-  // Normalização de checklist com tolerância a variações de campos (item/texto/descricao/nome)
-  let checklistItens: OSChecklistItem[] = []
-  if (Array.isArray(os?.checklist)) {
-    checklistItens = os.checklist
-      .filter((item: any) => item !== null && item !== undefined && typeof item === 'object')
-      .map((item: any, idx: number) => ({
-        id: item.id ? String(item.id) : `chk_${idx + 1}`,
-        item: String(
-          item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
-        ).trim(),
-        concluido: Boolean(item.concluido),
-      }))
-  } else if (typeof os?.checklist === 'string') {
-    const trimmed = os.checklist.trim()
-    if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
-      try {
-        const parsed = JSON.parse(trimmed)
-        if (Array.isArray(parsed)) {
-          checklistItens = parsed
-            .filter((item: any) => item !== null && item !== undefined && typeof item === 'object')
-            .map((item: any, idx: number) => ({
-              id: item.id ? String(item.id) : `chk_${idx + 1}`,
-              item: String(
-                item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
-              ).trim(),
-              concluido: Boolean(item.concluido),
-            }))
-        } else if (typeof parsed === 'object' && parsed !== null) {
-          checklistItens = Object.values(parsed)
-            .filter((item: any) => item !== null && typeof item === 'object')
-            .map((item: any, idx: number) => ({
-              id: item.id ? String(item.id) : `chk_${idx + 1}`,
-              item: String(
-                item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
-              ).trim(),
-              concluido: Boolean(item.concluido),
-            }))
-        }
-      } catch {
-        checklistItens = []
-      }
-    }
-  } else if (typeof os?.checklist === 'object' && os?.checklist !== null) {
-    checklistItens = Object.values(os.checklist)
-      .filter((item: any) => item !== null && typeof item === 'object')
-      .map((item: any, idx: number) => ({
-        id: item.id ? String(item.id) : `chk_${idx + 1}`,
-        item: String(
-          item.item || item.texto || item.descricao || item.nome || `Item ${idx + 1}`,
-        ).trim(),
-        concluido: Boolean(item.concluido),
-      }))
-  }
+  // Normalização de checklist com tolerância total (string JSON, array, objeto, nulo)
+  const checklistItens: OSChecklistItem[] = normalizeChecklist(os?.checklist)
+  const itensConcluidosServicos = checklistItens.filter((i) => i.concluido)
 
   // URLs de fotos
   const fotosUrls: string[] = []
@@ -584,7 +536,70 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* Checklist Técnico */}
+        {/* Bloco de Destaque: Serviços e Procedimentos Executados no Local */}
+        {checklistItens.length > 0 && (
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-200 bg-linear-to-b from-white to-emerald-50/20">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-emerald-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                  <CheckSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+                    Serviços e Procedimentos Executados no Local
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    Procedimentos técnicos validados e concluídos pela equipe em campo
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 shadow-2xs">
+                {itensConcluidosServicos.length} realizado
+                {itensConcluidosServicos.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {checklistItens.map((item, idx) => (
+                <div
+                  key={`exec_${idx}`}
+                  className={`flex items-start justify-between gap-3 p-3.5 rounded-xl border transition-colors ${
+                    item.concluido
+                      ? 'bg-emerald-50/70 border-emerald-300 text-slate-900 shadow-2xs'
+                      : 'bg-slate-50/80 border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    {item.concluido ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold leading-snug break-words">{item.item}</p>
+                      {item.concluido && (
+                        <p className="text-[10px] font-bold text-emerald-700 mt-0.5 flex items-center gap-1">
+                          <span>Serviço Realizado</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                      item.concluido
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {item.concluido ? '✓ Realizado' : 'Pendente'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Checklist Técnico de Execução */}
         {checklistItens.length > 0 && (
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
