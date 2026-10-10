@@ -1797,15 +1797,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer ml-auto"
             >
               {isSalvandoAtividade ? (
-                <>
+                <div className="contents" key="salvando">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>Salvando...</span>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="contents" key="salvar">
                   <Save className="w-3.5 h-3.5" />
                   <span>Salvar Alterações</span>
-                </>
+                </div>
               )}
             </button>
           </div>
@@ -2102,7 +2102,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-white/95 backdrop-blur-md border-t border-gray-200 z-30 shadow-lg">
         <div className="max-w-3xl mx-auto flex items-center gap-2">
           {os.status !== 'concluida' ? (
-            <>
+            <div className="contents" key="os-nao-concluida">
               {!osEmAndamento ? (
                 <Button
                   type="button"
@@ -2139,7 +2139,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                 <span>Concluir OS</span>
               </Button>
-            </>
+            </div>
           ) : (
             <div className="w-full flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -2180,7 +2180,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               <div className="flex items-center gap-2 shrink-0">
                 {/* Apenas Admin pode reabrir a OS concluída ou salvar alterações */}
                 {isAdmin && (
-                  <>
+                  <div className="contents" key="admin-acoes-os">
                     <Button
                       type="button"
                       variant="outline"
@@ -2199,7 +2199,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>{isReabrindo ? 'Reabrindo...' : 'Reabrir Ordem de Serviço'}</span>
                     </Button>
-                  </>
+                  </div>
                 )}
                 <Button
                   type="button"

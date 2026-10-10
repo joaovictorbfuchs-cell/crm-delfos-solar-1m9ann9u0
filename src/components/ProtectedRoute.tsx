@@ -37,8 +37,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   // Se a sessão expirou ou não for válida no PocketBase, exibir toast informativo
   // apenas se o usuário tinha alguma credencial/token prévia que expirou (evitando toast falso ao entrar pela primeira vez deslogado)
   React.useEffect(() => {
+    if (isLoading) return
     const hadPreviousToken = Boolean(pb.authStore.token)
-    if (!isLoading && (!isAuthenticated || !isPbAuthValid) && hadPreviousToken) {
+    if ((!isAuthenticated || !isPbAuthValid) && hadPreviousToken) {
       const now = Date.now()
       if (now - lastToastTime > 5000) {
         lastToastTime = now

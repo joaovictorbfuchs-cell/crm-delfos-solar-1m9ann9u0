@@ -1825,7 +1825,7 @@ function CalendarioExecucaoOSContent({
       {/* VISÃO 1: MÊS (Grade com 7 colunas, domingo a sábado)        */}
       {/* ========================================================== */}
       {viewMode === 'mes' && (
-        <>
+        <div className="contents" key="view-mes">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden">
             {/* Cabeçalho dos Dias da Semana */}
             <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50/80 text-center text-xs font-bold text-gray-600">
@@ -2008,7 +2008,7 @@ function CalendarioExecucaoOSContent({
               </Button>{' '}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* ========================================================== */}

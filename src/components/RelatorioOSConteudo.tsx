@@ -13,19 +13,26 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useNavigate } from 'react-router-dom'
 import { getRodapeComercialRelatorioOS } from '@/services/configuracoesService'
 import pb from '@/lib/pocketbase/client'
+import { isAuthSessionError } from '@/lib/pocketbase/errors'
+import { useAuth } from '@/contexts/AuthContext'
 import type { OSChecklistItem } from '@/types/crm'
 
 export interface RelatorioOSConteudoProps {
   id?: string
   showHeaderActions?: boolean
+  requireAuth?: boolean
 }
 
 export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   id,
   showHeaderActions = true,
+  requireAuth = false,
 }) => {
+  const navigate = useNavigate()
+  const { isLoading: authLoading, isAuthenticated } = useAuth()
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [os, setOs] = useState<any>(null)
@@ -35,25 +42,67 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   const [linkCopiado, setLinkCopiado] = useState(false)
 
   useEffect(() => {
+    // Se a rota exige login (como /relatorio-os-preview/:id), aguardar o AuthContext finalizar o loading
+    if (requireAuth && authLoading) {
+      return
+    }
+
+    // Se exige login e não está autenticado (ou token expirado / inválido), redirecionar para /login
+    if (requireAuth && (!isAuthenticated || !pb.authStore.isValid)) {
+      navigate('/login', {
+        state: { from: window.location.pathname + window.location.search },
+        replace: true,
+      })
+      return
+    }
+
+    let isMounted = true
+
     async function carregar() {
       if (!id) {
-        setErro('Identificador da Ordem de Serviço não informado.')
-        setLoading(false)
+        if (isMounted) {
+          setErro('Identificador da Ordem de Serviço não informado.')
+          setLoading(false)
+        }
         return
       }
 
-      setLoading(true)
-      setErro(null)
+      if (isMounted) {
+        setLoading(true)
+        setErro(null)
+      }
+
+      // Se temos token mas não foi validado recentemente ou se é rota autenticada,
+      // garantir sessão ativa com authRefresh defensivo
+      if (pb.authStore.isValid && pb.authStore.token) {
+        try {
+          await pb.collection('users').authRefresh({ requestKey: null })
+        } catch (refreshErr) {
+          if (isAuthSessionError(refreshErr)) {
+            if (requireAuth) {
+              navigate('/login', {
+                state: { from: window.location.pathname + window.location.search },
+                replace: true,
+              })
+              return
+            }
+          }
+        }
+      }
 
       try {
         let registro: any = null
+        let isAuthErrorEncountered = false
 
         // 1. Tenta carregar primeiro em atividades (expand cliente_id, usina_id)
         try {
           registro = await pb.collection('atividades').getOne(id, {
             expand: 'cliente_id,usina_id,responsavel_id',
           })
-        } catch {
+        } catch (err: any) {
+          if (isAuthSessionError(err)) {
+            isAuthErrorEncountered = true
+          }
           registro = null
         }
 
@@ -63,16 +112,32 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             registro = await pb.collection('ordens_servico').getOne(id, {
               expand: 'cliente_id,sistema_id,responsavel_usuario_id,profissional_id',
             })
-          } catch {
+          } catch (err: any) {
+            if (isAuthSessionError(err)) {
+              isAuthErrorEncountered = true
+            }
             registro = null
           }
         }
 
-        if (!registro) {
-          setErro('Ordem de Serviço ou Atividade não localizada no sistema.')
-          setLoading(false)
+        // Se encontrou erro de autenticação e a rota exige auth, redireciona ao login
+        if (!registro && isAuthErrorEncountered && requireAuth) {
+          navigate('/login', {
+            state: { from: window.location.pathname + window.location.search },
+            replace: true,
+          })
           return
         }
+
+        if (!registro) {
+          if (isMounted) {
+            setErro('Relatório não encontrado no sistema.')
+            setLoading(false)
+          }
+          return
+        }
+
+        if (!isMounted) return
 
         setOs(registro)
 
@@ -85,7 +150,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                 .getOne(registro.cliente_id)
                 .catch(() => null)
             : null)
-        setCliente(cliObj)
+        if (isMounted) setCliente(cliObj)
 
         // Extrai usina / sistema vinculado
         let usinaObj = registro.expand?.usina_id || registro.expand?.sistema_id || null
@@ -95,25 +160,40 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             .getOne(registro.usina_id)
             .catch(() => null)
         }
-        setUsina(usinaObj)
+        if (isMounted) setUsina(usinaObj)
 
         // Carrega rodapé comercial configurável
         try {
           const rodape = await getRodapeComercialRelatorioOS()
-          setRodapeComercial(rodape)
+          if (isMounted) setRodapeComercial(rodape)
         } catch {
           /* ignore */
         }
       } catch (err: any) {
+        if (isAuthSessionError(err) && requireAuth) {
+          navigate('/login', {
+            state: { from: window.location.pathname + window.location.search },
+            replace: true,
+          })
+          return
+        }
         console.error('Erro ao carregar relatório da OS:', err)
-        setErro(err?.message || 'Falha ao carregar relatório da OS.')
+        if (isMounted) {
+          setErro(err?.message || 'Falha ao carregar relatório da OS.')
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     carregar()
-  }, [id])
+
+    return () => {
+      isMounted = false
+    }
+  }, [id, requireAuth, authLoading, isAuthenticated, navigate])
 
   const handleCopiarLink = () => {
     try {
