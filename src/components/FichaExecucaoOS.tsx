@@ -1463,7 +1463,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               {/* Links clicáveis de Datasheet do Inversor e Configuração do Datalogger / Monitoramento */}
               <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-1">
                 {inversoresUsina.map((inv, idx) => (
-                  <React.Fragment key={`links-${inv.id || idx}`}>
+                  <div key={`links-${inv.id || idx}`} className="contents">
                     {inv.datasheetUrl && (
                       <a
                         href={inv.datasheetUrl}
@@ -1498,7 +1498,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     ) : null}
-                  </React.Fragment>
+                  </div>
                 ))}
 
                 {/* Caso o link ou configuração de datalogger venha da usina/cliente mas nenhum inversor tenha o item específico */}
