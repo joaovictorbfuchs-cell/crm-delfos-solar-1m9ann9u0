@@ -37,8 +37,7 @@ import {
   abrirProcuracaoImpressao,
   gerarBase64Procuracao,
 } from '@/lib/procuracaoGenerator'
-import { PDFDownloadLink } from '@react-pdf/renderer'
-import { ProcuracaoPDFDocument } from '@/components/ProcuracaoPDFDocument'
+import { BotaoBaixarProcuracaoPDF } from '@/components/BotaoBaixarProcuracaoPDF'
 
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
@@ -552,28 +551,10 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                   <span>Imprimir</span>
                 </Button>
                 {/* BOTÃO OBRIGATÓRIO 1: BAIXAR COMO PDF */}
-                <PDFDownloadLink
-                  document={<ProcuracaoPDFDocument dados={dadosConsolidados} />}
-                  fileName="procuracao.pdf"
+                <BotaoBaixarProcuracaoPDF
+                  dados={dadosConsolidados}
                   onClick={handleDownloadPDFClick}
-                  className="inline-flex"
-                >
-                  {({ loading }) => (
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={loading}
-                      className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02] cursor-pointer"
-                    >
-                      {loading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4" />
-                      )}
-                      <span>{loading ? 'Preparando PDF...' : 'Baixar como PDF'}</span>
-                    </Button>
-                  )}
-                </PDFDownloadLink>
+                />
                 {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP (abre modal de conferência) */}
                 <Button
                   type="button"
