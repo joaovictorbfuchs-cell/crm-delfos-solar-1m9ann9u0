@@ -1008,7 +1008,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
                 <Sun className="w-3.5 h-3.5 text-amber-500" />
-                Módulos Fotovoltaicos da Usina
+                Módulos Fotovoltaicos
               </span>
               {(usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos) && (
                 <button
