@@ -1017,7 +1017,7 @@ export const CentralAtendimento: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-8rem)] lg:max-h-[calc(100dvh-7.5rem)] min-h-0 lg:space-y-4">
       {/* Barra de Ações Superior - Oculta no mobile (lg:flex) para liberar todo o espaço até a lista de conversas */}
-      <div className="hidden lg:flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
+      <div className="hidden lg:flex w-full min-w-0 flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
         {/* Campo de Busca com Dropdown de Resultados da Base de Clientes */}
         <div className="relative flex-1 min-w-[220px] max-w-sm sm:w-80">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1228,10 +1228,10 @@ export const CentralAtendimento: React.FC = () => {
       </div>
 
       {/* Main Grid: Navegação por 3 colunas e Área de Chat */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 w-full min-w-0 overflow-hidden">
         {/* Coluna de Atendimentos / Listas */}
         <div
-          className={`${selectedConversa ? 'hidden lg:flex lg:col-span-5 xl:col-span-4' : 'col-span-12 lg:col-span-5 xl:col-span-4 flex'} flex-col min-h-0 h-full space-y-3 overflow-hidden`}
+          className={`${selectedConversa ? 'hidden lg:flex lg:col-span-5 xl:col-span-4' : 'col-span-12 lg:col-span-5 xl:col-span-4 flex'} flex-col min-h-0 h-full space-y-3 overflow-hidden min-w-0 relative z-10`}
         >
           {/* Tabs Mobile */}
           <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl lg:hidden shrink-0">
@@ -1646,7 +1646,7 @@ export const CentralAtendimento: React.FC = () => {
 
         {/* Coluna Principal: Tela de Chat da Conversa */}
         <div
-          className={`${!selectedConversa ? 'hidden lg:flex lg:col-span-7 xl:col-span-8' : 'col-span-12 lg:col-span-7 xl:col-span-8 flex'} flex-col min-h-0 h-full overflow-hidden`}
+          className={`${!selectedConversa ? 'hidden lg:flex lg:col-span-7 xl:col-span-8' : 'col-span-12 lg:col-span-7 xl:col-span-8 flex'} flex-col min-h-0 h-full overflow-hidden min-w-0 relative z-0`}
         >
           {selectedConversa ? (
             <ConversaChatView
