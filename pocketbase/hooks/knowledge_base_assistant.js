@@ -1,11 +1,16 @@
 /**
  * Hook para a Base de Conhecimento do CRM Delfos Solar:
  * 1. Rota POST /backend/v1/assistente-delfos
- *    - Recebe a pergunta do usuário e histórico recente da sessão
- *    - Busca os artigos mais relevantes na base de conhecimento (título, conteúdo, texto_extraido, tags)
+ *    - Recebe a pergunta do usuário e histórico recente da sessão (body.historico)
+ *    - Busca semântica avançada via embeddings Gemini (text-embedding-004 com fallback gemini-embedding-001 e $ai.embed)
+ *    - Similaridade de cosseno combinada com pontuação léxica de palavras-chave como reforço
+ *    - Utiliza os top 6 artigos mais relevantes
+ *    - Incorpora o texto_extraido INTEGRAL de documentos anexados (sem corte de 3000 chars; limite total de contexto de 30k chars)
  *    - Identifica a categoria de origem mais relevante
- *    - Invoca Gemini (com fallback $ai.chat) para interpretar documentos e responder com tom profissional
- *    - Se não encontrar informação na base: responde exatamente "Não encontrei essa informação na base de conhecimento. Deseja cadastrar um novo artigo sobre este tema?"
+ *    - Modelos Gemini válidos: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash (timeout 60s)
+ *    - Envia histórico conversacional recente antes da pergunta atual
+ *    - Fallback seguro para $ai.chat
+ *    - Mantém exatamente as regras de resposta vigentes (português, citar categoria, frase padrão estrita se não encontrar)
  * 2. Rota POST /backend/v1/extrair-texto-anexo
  *    - Extrai texto de PDFs, Word (.docx) e imagens via OCR/Visão com Gemini para indexação
  */
@@ -20,9 +25,76 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
     const body = e.requestInfo().body || {}
     const pergunta = (body.pergunta || body.message || '').trim()
     const categoriaFiltroId = body.categoria_id || null
+    const historicoRecebido = Array.isArray(body.historico) ? body.historico : []
 
     if (!pergunta) {
       return e.json(400, { error: 'Pergunta é obrigatória', ok: false })
+    }
+
+    // Funções utilitárias inline para isolamento de VM goja
+    const computeCosineSimilarity = (vecA, vecB) => {
+      if (!vecA || !vecB || vecA.length !== vecB.length || vecA.length === 0) return 0
+      let dotProduct = 0
+      let normA = 0
+      let normB = 0
+      for (let i = 0; i < vecA.length; i++) {
+        dotProduct += vecA[i] * vecB[i]
+        normA += vecA[i] * vecA[i]
+        normB += vecB[i] * vecB[i]
+      }
+      if (normA === 0 || normB === 0) return 0
+      return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
+    }
+
+    const getEmbedding = (textToEmbed, apiKey) => {
+      if (!textToEmbed || !apiKey) return null
+      const sanitized = textToEmbed.slice(0, 4000)
+      const candidateModels = ['text-embedding-004', 'gemini-embedding-001']
+
+      for (let m = 0; m < candidateModels.length; m++) {
+        const model = candidateModels[m]
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`
+        const payload = {
+          model: `models/${model}`,
+          content: {
+            parts: [{ text: sanitized }],
+          },
+        }
+
+        try {
+          const res = $http.send({
+            url: url,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            timeout: 25,
+          })
+
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            const data = res.json || JSON.parse(res.raw || '{}')
+            const values = data?.embedding?.values || data?.embeddings?.[0]?.values || data?.values
+            if (values && Array.isArray(values) && values.length > 0) {
+              return values
+            }
+          }
+        } catch (callErr) {
+          console.log(`[ASSISTENTE DELFOS] Erro embedding ${model}:`, callErr)
+        }
+      }
+
+      // Fallback para $ai.embed se disponível
+      try {
+        if (typeof $ai !== 'undefined' && typeof $ai.embed === 'function') {
+          const aiRes = $ai.embed({ input: sanitized.slice(0, 2700) })
+          if (aiRes?.data?.[0]?.embedding) {
+            return aiRes.data[0].embedding
+          }
+        }
+      } catch (skipAiErr) {
+        console.log('[ASSISTENTE DELFOS] Erro fallback embedding $ai:', skipAiErr)
+      }
+
+      return null
     }
 
     // 1. Carregar categorias e artigos da Base de Conhecimento
@@ -59,7 +131,7 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
       })
     }
 
-    // 2. Classificação de relevância por termos e palavras-chave da pergunta
+    // 2. Pontuação léxica de palavras-chave (reforço)
     const sanitizeWord = (w) =>
       w
         .toLowerCase()
@@ -160,6 +232,14 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
       .map(sanitizeWord)
       .filter((t) => t.length >= 3 && !stopWords.includes(t))
 
+    // 3. Obtenção do embedding da pergunta para busca semântica
+    const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
+    let queryEmbedding = null
+    if (geminiApiKey) {
+      queryEmbedding = getEmbedding(pergunta, geminiApiKey)
+    }
+
+    // 4. Ranqueamento dos artigos: similaridade de cosseno (semântica) + reforço de palavras-chave
     const scoredArticles = []
 
     for (let i = 0; i < articles.length; i++) {
@@ -171,47 +251,77 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
       const catId = art.getString('categoria_id')
       const catNome = categoriesMap[catId] || 'Geral'
 
+      // A) Score por palavras-chave
       const haystack = (titulo + ' ' + tags + ' ' + conteudo + ' ' + textoExtraido).toLowerCase()
-      let score = 0
+      let keywordScore = 0
 
-      // Match exato com frase
       if (haystack.includes(pergunta.toLowerCase())) {
-        score += 30
+        keywordScore += 30
       }
 
       for (let k = 0; k < queryKeywords.length; k++) {
         const kw = queryKeywords[k]
         if (titulo.toLowerCase().includes(kw)) {
-          score += 15
+          keywordScore += 15
         }
         if (tags.toLowerCase().includes(kw)) {
-          score += 10
+          keywordScore += 10
         }
         if (conteudo.toLowerCase().includes(kw)) {
-          score += 4
+          keywordScore += 4
         }
         if (textoExtraido.toLowerCase().includes(kw)) {
-          score += 3
+          keywordScore += 3
         }
       }
 
-      if (score > 0) {
-        scoredArticles.push({
-          id: art.id,
-          titulo: titulo,
-          conteudo: conteudo,
-          texto_extraido: textoExtraido,
-          categoria_id: catId,
-          categoria_nome: catNome,
-          score: score,
-        })
+      // B) Score semântico via embeddings
+      let semanticSimilarity = 0
+      if (queryEmbedding && geminiApiKey) {
+        // Sintetiza texto representativo do artigo para o embedding
+        const textoParaEmbedding = (
+          `Título: ${titulo}\nTags: ${tags}\nConteúdo: ${conteudo.slice(0, 1500)}\n` +
+          (textoExtraido ? `Texto anexos: ${textoExtraido.slice(0, 2000)}` : '')
+        ).trim()
+
+        const artVec = getEmbedding(textoParaEmbedding, geminiApiKey)
+        if (artVec) {
+          semanticSimilarity = computeCosineSimilarity(queryEmbedding, artVec)
+        }
       }
+
+      // Score final combinado: similaridade semântica (0 a 1) escalada para 100 pontos + reforço de termos
+      let totalScore = 0
+      if (semanticSimilarity > 0) {
+        totalScore = semanticSimilarity * 100 + keywordScore * 0.5
+      } else {
+        totalScore = keywordScore
+      }
+
+      scoredArticles.push({
+        id: art.id,
+        titulo: titulo,
+        conteudo: conteudo,
+        texto_extraido: textoExtraido,
+        categoria_id: catId,
+        categoria_nome: catNome,
+        score: totalScore,
+        semanticSimilarity: semanticSimilarity,
+        keywordScore: keywordScore,
+      })
     }
 
     scoredArticles.sort((a, b) => b.score - a.score)
 
-    // Se nenhuma palavra-chave pontuou com relevância mínima
-    if (scoredArticles.length === 0 || (queryKeywords.length > 0 && scoredArticles[0].score < 3)) {
+    // Critério de corte: relevância semântica razoável ou pontuação de palavras-chave
+    const melhorArtigo = scoredArticles[0]
+    const temRelevancia =
+      melhorArtigo &&
+      (melhorArtigo.semanticSimilarity >= 0.42 ||
+        melhorArtigo.keywordScore >= 3 ||
+        melhorArtigo.score >= 42)
+
+    if (!temRelevancia) {
       return e.json(200, {
         ok: true,
         resposta:
@@ -222,25 +332,32 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
       })
     }
 
-    // Selecionar os top 3 artigos mais relevantes
-    const topArticles = scoredArticles.slice(0, 3)
+    // 5. Selecionar os top 6 artigos mais relevantes
+    const topArticles = scoredArticles.slice(0, 6)
     const categoriaOrigem = topArticles[0].categoria_nome
 
-    // Montar o contexto para a IA
+    // 6. Montar o contexto para a IA com texto_extraido INTEGRAL (sem corte de 3000 chars; limite total de 30k chars)
     let contextStr = ''
     for (let j = 0; j < topArticles.length; j++) {
       const a = topArticles[j]
-      contextStr += `\n\n--- ARTIGO ${j + 1} (Categoria: ${a.categoria_nome}) ---\n`
-      contextStr += `Título: ${a.titulo}\n`
-      contextStr += `Conteúdo:\n${a.conteudo}\n`
-      if (a.texto_extraido) {
-        contextStr += `Texto complementar extraído de documentos anexados:\n${a.texto_extraido.substring(0, 3000)}\n`
+      let blocoArtigo = `\n\n--- ARTIGO ${j + 1} (Categoria: ${a.categoria_nome}) ---\n`
+      blocoArtigo += `Título: ${a.titulo}\n`
+      blocoArtigo += `Conteúdo:\n${a.conteudo}\n`
+      if (a.texto_extraido && a.texto_extraido.trim()) {
+        blocoArtigo += `Texto complementar extraído de documentos anexados (integral):\n${a.texto_extraido.trim()}\n`
       }
-    }
 
-    // Limitar contexto geral
-    if (contextStr.length > 15000) {
-      contextStr = contextStr.substring(0, 15000) + '...'
+      if ((contextStr + blocoArtigo).length > 30000) {
+        const espacoRestante = Math.max(0, 30000 - contextStr.length - 100)
+        if (espacoRestante > 200) {
+          contextStr +=
+            blocoArtigo.substring(0, espacoRestante) +
+            '\n... [restante do documento omitido por limite de contexto de 30k]'
+        }
+        break
+      } else {
+        contextStr += blocoArtigo
+      }
     }
 
     const systemPromptAssistente = `Você é o Assistente Delfos, um assistente inteligente integrado ao CRM da Delfos Solar (empresa especializada em projetos, homologação de energia solar e O&M no Rio Grande do Sul).
@@ -255,37 +372,67 @@ SUAS REGRAS PERMANENTES E OBRIGATÓRIAS:
 (Não acrescente desculpas, não invente respostas genéricas de internet).
 6. Mantenha a resposta concisa, bem formatada com listas e tópicos quando aplicável.`
 
+    // Formatação do prompt com o histórico recente da conversa
+    let historicoTexto = ''
+    if (historicoRecebido && historicoRecebido.length > 0) {
+      const msgsValidas = historicoRecebido
+        .slice(-6)
+        .filter((h) => h && typeof h.content === 'string' && h.content.trim())
+
+      if (msgsValidas.length > 0) {
+        historicoTexto = 'Histórico recente da conversa com o usuário:\n'
+        for (let h = 0; h < msgsValidas.length; h++) {
+          const item = msgsValidas[h]
+          const papel = item.role === 'user' ? 'Usuário' : 'Assistente'
+          historicoTexto += `[${papel}]: ${item.content.trim()}\n`
+        }
+        historicoTexto += '\n'
+      }
+    }
+
     const userPrompt = `Contexto da Base de Conhecimento Delfos Solar:
 ${contextStr}
 
-Pergunta do usuário:
+${historicoTexto}Pergunta atual do usuário:
 "${pergunta}"
 
 Por favor elabore a resposta seguindo rigorosamente as instruções.`
 
-    // Chamada ao Gemini API com fallback para $ai.chat
-    const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
+    // 7. Chamada ao Gemini API com modelos existentes e timeout de 60s (gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash)
     let respostaTexto = ''
     let modelUsed = ''
 
     if (geminiApiKey) {
-      const candidateModels = [
-        'gemini-2.5-flash',
-        'gemini-1.5-flash',
-        'gemini-2.0-flash',
-        'gemini-3.7-flash',
-      ]
+      const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+
+      const contentsPayload = []
+
+      // Injeta mensagens anteriores do histórico
+      if (historicoRecebido && historicoRecebido.length > 0) {
+        const msgsValidas = historicoRecebido
+          .slice(-6)
+          .filter((h) => h && typeof h.content === 'string' && h.content.trim())
+
+        for (let h = 0; h < msgsValidas.length; h++) {
+          const item = msgsValidas[h]
+          contentsPayload.push({
+            role: item.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: item.content.trim() }],
+          })
+        }
+      }
+
+      // Adiciona o turno atual
+      contentsPayload.push({
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      })
 
       const geminiPayload = {
         system_instruction: {
           parts: [{ text: systemPromptAssistente }],
         },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: userPrompt }],
-          },
-        ],
+        contents: contentsPayload,
         generationConfig: {
           temperature: 0.2,
           maxOutputTokens: 2048,
@@ -301,7 +448,7 @@ Por favor elabore a resposta seguindo rigorosamente as instruções.`
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(geminiPayload),
-            timeout: 30,
+            timeout: 60,
           })
 
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -317,6 +464,8 @@ Por favor elabore a resposta seguindo rigorosamente as instruções.`
               modelUsed = `gemini:${model}`
               break
             }
+          } else {
+            console.log(`[ASSISTENTE DELFOS] Gemini ${model} status ${res.statusCode}:`, res.raw)
           }
         } catch (callErr) {
           console.log(`[ASSISTENTE DELFOS] Erro chamada Gemini ${model}:`, callErr)
@@ -324,15 +473,32 @@ Por favor elabore a resposta seguindo rigorosamente as instruções.`
       }
     }
 
-    // Fallback nativo $ai.chat
+    // 8. Fallback nativo para $ai.chat
     if (!respostaTexto) {
       try {
+        const messagesAiChat = [{ role: 'system', content: systemPromptAssistente }]
+
+        if (historicoRecebido && historicoRecebido.length > 0) {
+          const msgsValidas = historicoRecebido
+            .slice(-6)
+            .filter((h) => h && typeof h.content === 'string' && h.content.trim())
+          for (let h = 0; h < msgsValidas.length; h++) {
+            const item = msgsValidas[h]
+            messagesAiChat.push({
+              role: item.role === 'assistant' ? 'assistant' : 'user',
+              content: item.content.trim(),
+            })
+          }
+        }
+
+        messagesAiChat.push({
+          role: 'user',
+          content: userPrompt,
+        })
+
         const aiRes = $ai.chat({
           model: 'fast',
-          messages: [
-            { role: 'system', content: systemPromptAssistente },
-            { role: 'user', content: userPrompt },
-          ],
+          messages: messagesAiChat,
         })
         if (
           aiRes &&
@@ -406,7 +572,7 @@ routerAdd('POST', '/backend/v1/extrair-texto-anexo', (e) => {
     if (base64Data && (mimeType.startsWith('image/') || mimeType === 'application/pdf')) {
       const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
       if (geminiApiKey) {
-        const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash']
+        const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
         const promptOcr =
           'Você é um assistente de extração de texto para a Base de Conhecimento técnica e comercial da Delfos Solar. Transcreva todo o texto, tabelas, dados técnicos, números e informações legíveis contidas neste documento/imagem de forma fiel e estruturada em texto puro legível.'
 
@@ -443,7 +609,7 @@ routerAdd('POST', '/backend/v1/extrair-texto-anexo', (e) => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(geminiPayload),
-              timeout: 35,
+              timeout: 45,
             })
             if (res.statusCode >= 200 && res.statusCode < 300) {
               const data = res.json || JSON.parse(res.raw || '{}')

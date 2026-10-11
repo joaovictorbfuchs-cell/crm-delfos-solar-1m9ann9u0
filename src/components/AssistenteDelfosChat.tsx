@@ -153,9 +153,19 @@ export default function AssistenteDelfosChat({
     setCarregando(true)
 
     try {
+      // Monta o histórico recente com as últimas mensagens trocadas antes da pergunta atual
+      const historicoRecente = mensagens
+        .filter((m) => m.id !== 'msg-bem-vindo')
+        .slice(-6)
+        .map((m) => ({
+          role: (m.remetente === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: m.texto,
+        }))
+
       const res = await perguntarAssistenteDelfos({
         pergunta: pergunta,
         categoria_id: categoriaFiltro === 'todas' ? null : categoriaFiltro,
+        historico: historicoRecente,
       })
 
       const msgResposta: AssistenteMensagem = {

@@ -63,6 +63,11 @@ export interface AssistenteMensagem {
   erro?: boolean
 }
 
+export interface AssistenteHistoricoItem {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 /**
  * Lista todas as categorias da base de conhecimento
  */
@@ -426,6 +431,7 @@ export function getAnexoUrl(article: KnowledgeArticle, filename: string): string
 export async function perguntarAssistenteDelfos(params: {
   pergunta: string
   categoria_id?: string | null
+  historico?: AssistenteHistoricoItem[]
 }): Promise<AssistenteDelfosResposta> {
   const baseUrl = import.meta.env.VITE_POCKETBASE_URL || ''
   const token = pb.authStore.token
@@ -439,6 +445,7 @@ export async function perguntarAssistenteDelfos(params: {
     body: JSON.stringify({
       pergunta: params.pergunta,
       categoria_id: params.categoria_id || null,
+      historico: params.historico || [],
     }),
   })
 
