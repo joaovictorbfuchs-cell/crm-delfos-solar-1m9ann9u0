@@ -1057,709 +1057,677 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
           </div>
 
           {/* -------------------------------------------------------------- */}
-          {/* CARD MÓDULOS FOTOVOLTAICOS                                     */}
+          {/* MÓDULOS FOTOVOLTAICOS                                          */}
           {/* -------------------------------------------------------------- */}
-          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-xl p-3 border border-slate-200/80 transition-colors space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1 rounded-md bg-amber-100/80 text-amber-800">
-                <Sun className="w-3.5 h-3.5 text-amber-600" />
-              </div>
-              <span className="text-xs font-bold text-slate-900">Módulos Fotovoltaicos</span>
-            </div>
+          {/* Conteúdo de Módulos: Vinculados do catálogo, declarados e ativos individuais */}
+          <div className="space-y-2">
+            {/* 1. Módulos vinculados via catálogo (usina_equipamentos) */}
+            {vinculos
+              .filter((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
+              .map((item) => {
+                const eq = item.expand?.equipamento_id
+                if (!eq) return null
+                const datasheetUrl = getDatasheetEquipamentoUrl(eq)
+                const fornecedor = eq.expand?.fornecedor_id
+                const telefoneSuporte =
+                  eq.telefone_suporte_fornecedor ||
+                  fornecedor?.telefone_suporte ||
+                  fornecedor?.whatsapp ||
+                  fornecedor?.telefone ||
+                  ''
+                const expandidoDetalhes = Boolean(itensExpandidos[item.id])
+                const toggleDetalhes = () => {
+                  setItensExpandidos((prev) => ({
+                    ...prev,
+                    [item.id]: !prev[item.id],
+                  }))
+                }
 
-            {/* Conteúdo de Módulos: Vinculados do catálogo, declarados e ativos individuais */}
-            <div className="space-y-2">
-              {/* 1. Módulos vinculados via catálogo (usina_equipamentos) */}
-              {vinculos
-                .filter((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
-                .map((item) => {
-                  const eq = item.expand?.equipamento_id
-                  if (!eq) return null
-                  const datasheetUrl = getDatasheetEquipamentoUrl(eq)
-                  const fornecedor = eq.expand?.fornecedor_id
-                  const telefoneSuporte =
-                    eq.telefone_suporte_fornecedor ||
-                    fornecedor?.telefone_suporte ||
-                    fornecedor?.whatsapp ||
-                    fornecedor?.telefone ||
-                    ''
-                  const expandidoDetalhes = Boolean(itensExpandidos[item.id])
-                  const toggleDetalhes = () => {
-                    setItensExpandidos((prev) => ({
-                      ...prev,
-                      [item.id]: !prev[item.id],
-                    }))
-                  }
+                return (
+                  <div
+                    key={item.id}
+                    className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition-all flex flex-col gap-2"
+                  >
+                    {/* UMA linha principal: Fabricante, Modelo, Potência, Datasheet e Ícone Excluir */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                        <span className="font-bold text-slate-900 text-xs truncate">
+                          {eq.marca} {eq.modelo}
+                        </span>
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition-all flex flex-col gap-2"
-                    >
-                      {/* UMA linha principal: Fabricante, Modelo, Potência, Datasheet e Ícone Excluir */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
-                        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                          <span className="font-bold text-slate-900 text-xs truncate">
-                            {eq.marca} {eq.modelo}
+                        {eq.potencia_w > 0 && (
+                          <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                            {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
                           </span>
+                        )}
 
-                          {eq.potencia_w > 0 && (
-                            <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                              {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
-                            </span>
-                          )}
+                        {item.quantidade && item.quantidade > 1 ? (
+                          <span className="text-[10px] text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
+                            {item.quantidade} un
+                          </span>
+                        ) : null}
 
-                          {item.quantidade && item.quantidade > 1 ? (
-                            <span className="text-[10px] text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
-                              {item.quantidade} un
-                            </span>
-                          ) : null}
-
-                          {(item.numero_serie || telefoneSuporte || fornecedor) && (
-                            <button
-                              type="button"
-                              onClick={toggleDetalhes}
-                              className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
-                              title="Mais detalhes"
-                            >
-                              <ChevronDown
-                                className={`w-3.5 h-3.5 transition-transform ${
-                                  expandidoDetalhes ? 'rotate-180' : ''
-                                }`}
-                              />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {datasheetUrl ? (
-                            <a
-                              href={datasheetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] transition-colors shadow-2xs"
-                              title="Abrir Datasheet do Módulo"
-                            >
-                              <FileText className="w-3 h-3 text-emerald-700" />
-                              <span>Datasheet</span>
-                              <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                            </a>
-                          ) : null}
-
+                        {(item.numero_serie || telefoneSuporte || fornecedor) && (
                           <button
                             type="button"
-                            onClick={() =>
-                              handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)
-                            }
-                            className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                            aria-label="Excluir equipamento da usina"
-                            title="Excluir equipamento da usina"
+                            onClick={toggleDetalhes}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
+                            title="Mais detalhes"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform ${
+                                expandidoDetalhes ? 'rotate-180' : ''
+                              }`}
+                            />
                           </button>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Detalhes secundários discretos atrás de expandir */}
-                      {expandidoDetalhes && (
-                        <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
-                          {item.numero_serie && (
-                            <div className="flex items-center gap-1 font-mono">
-                              <Hash className="w-3 h-3 text-slate-400" />
-                              <span>
-                                S/N: <strong>{item.numero_serie}</strong>
-                              </span>
-                            </div>
-                          )}
-                          {(fornecedor || telefoneSuporte) && (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {fornecedor && (
-                                <span className="text-slate-600">
-                                  Fornecedor: <strong>{fornecedor.nome_empresa}</strong>
-                                </span>
-                              )}
-                              {telefoneSuporte && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleWhatsAppSuporte(telefoneSuporte)}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px]"
-                                  title={`WhatsApp: ${telefoneSuporte}`}
-                                >
-                                  <Phone className="w-2.5 h-2.5" />
-                                  <span>{telefoneSuporte}</span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {datasheetUrl ? (
+                          <a
+                            href={datasheetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] transition-colors shadow-2xs"
+                            title="Abrir Datasheet do Módulo"
+                          >
+                            <FileText className="w-3 h-3 text-emerald-700" />
+                            <span>Datasheet</span>
+                            <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                          </a>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)}
+                          className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                          aria-label="Excluir equipamento da usina"
+                          title="Excluir equipamento da usina"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  )
-                })}
 
-              {/* 2. Ativos individuais de módulos */}
-              {ativosIndividuais
-                .filter(
-                  (a) =>
-                    a.tipo === 'placa_solar' ||
-                    (a.tipo as string) === 'modulo_fv' ||
-                    a.fabricante?.toLowerCase().includes('sunova') ||
-                    a.fabricante?.toLowerCase().includes('canadian') ||
-                    a.fabricante?.toLowerCase().includes('ja solar') ||
-                    a.fabricante?.toLowerCase().includes('trina') ||
-                    a.modelo?.toLowerCase().includes('placa') ||
-                    a.modelo?.toLowerCase().includes('modulo'),
-                )
-                .map((ativo) => {
-                  const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
-                  const expandido = Boolean(itensExpandidos[ativo.id])
-                  const toggleDetalhes = () => {
-                    setItensExpandidos((prev) => ({
-                      ...prev,
-                      [ativo.id]: !prev[ativo.id],
-                    }))
-                  }
-                  return (
-                    <div
-                      key={ativo.id}
-                      className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition-all flex flex-col gap-2"
-                    >
-                      <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
-                        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                          <span className="font-bold text-slate-900 text-xs truncate">
-                            {ativo.fabricante} {ativo.modelo}
-                          </span>
-                          {(ativo.numero_serie ||
-                            ativo.data_instalacao ||
-                            ativo.observacoes ||
-                            ativo.data_fim_garantia) && (
-                            <button
-                              type="button"
-                              onClick={toggleDetalhes}
-                              className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
-                              title="Mais detalhes"
-                            >
-                              <ChevronDown
-                                className={`w-3.5 h-3.5 transition-transform ${
-                                  expandido ? 'rotate-180' : ''
-                                }`}
-                              />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleRemoverAtivoIndividual(
-                                ativo.id,
-                                `${ativo.fabricante} ${ativo.modelo}`,
-                              )
-                            }
-                            className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                            aria-label="Excluir equipamento da usina"
-                            title="Excluir equipamento da usina"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {expandido && (
-                        <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            {ativo.numero_serie && (
-                              <span className="flex items-center gap-1 font-mono">
-                                <Hash className="w-3 h-3 text-slate-400" />
-                                <span>
-                                  S/N: <strong>{ativo.numero_serie}</strong>
-                                </span>
+                    {/* Detalhes secundários discretos atrás de expandir */}
+                    {expandidoDetalhes && (
+                      <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
+                        {item.numero_serie && (
+                          <div className="flex items-center gap-1 font-mono">
+                            <Hash className="w-3 h-3 text-slate-400" />
+                            <span>
+                              S/N: <strong>{item.numero_serie}</strong>
+                            </span>
+                          </div>
+                        )}
+                        {(fornecedor || telefoneSuporte) && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {fornecedor && (
+                              <span className="text-slate-600">
+                                Fornecedor: <strong>{fornecedor.nome_empresa}</strong>
                               </span>
                             )}
-                            {ativo.data_instalacao && (
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-slate-400" />
-                                <span>Instalado: {formatDate(ativo.data_instalacao)}</span>
-                              </span>
-                            )}
-                            {ativo.data_fim_garantia && (
-                              <Badge
-                                variant={garantia.badgeVariant}
-                                className={`text-[10px] ${garantia.badgeClasses}`}
+                            {telefoneSuporte && (
+                              <button
+                                type="button"
+                                onClick={() => handleWhatsAppSuporte(telefoneSuporte)}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px]"
+                                title={`WhatsApp: ${telefoneSuporte}`}
                               >
-                                {garantia.label} ({formatDate(ativo.data_fim_garantia)})
-                              </Badge>
+                                <Phone className="w-2.5 h-2.5" />
+                                <span>{telefoneSuporte}</span>
+                              </button>
                             )}
                           </div>
-                          {ativo.observacoes && (
-                            <p className="italic text-slate-500">"{ativo.observacoes}"</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-              {/* 3. Módulos declarados no cadastro técnico da usina */}
-              {!temEquipamentoCatalogoModulo && (
-                <div className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs flex items-center justify-between gap-2 min-h-[38px]">
-                  {/* UMA linha com Fabricante, Modelo e Potência */}
-                  <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-slate-400 text-[11px]">Fabricante:</span>
-                      <InlineEditField
-                        value={usina.fabricante_modulos || usina.marca_placas || ''}
-                        displayValue={
-                          <span className="font-bold text-slate-900 text-xs">
-                            {usina.fabricante_modulos || usina.marca_placas || 'Não inf.'}
-                          </span>
-                        }
-                        type="text"
-                        placeholder="Canadian Solar, JA Solar, Trina..."
-                        onSave={async (val) => {
-                          const s = String(val).trim()
-                          await onUpdateUsinaMultipleFields({
-                            fabricante_modulos: s,
-                            marca_placas: s,
-                          })
-                        }}
-                      />
-                    </div>
-
-                    <span className="text-slate-300">•</span>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-slate-400 text-[11px]">Modelo:</span>
-                      <InlineEditField
-                        value={usina.modelo_modulos || ''}
-                        displayValue={
-                          <span className="font-mono text-slate-800 text-[11px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
-                            {usina.modelo_modulos || 'Não inf.'}
-                          </span>
-                        }
-                        type="text"
-                        placeholder="Modelo do módulo"
-                        onSave={async (val) =>
-                          onUpdateUsinaField('modelo_modulos', String(val).trim())
-                        }
-                      />
-                    </div>
-
-                    {usina.potencia_kwp > 0 && (
-                      <div className="contents">
-                        <span className="text-slate-300">•</span>
-                        <span className="text-slate-400 text-[11px]">Potência:</span>
-                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                          {usina.potencia_kwp} kWp
-                        </span>
+                        )}
                       </div>
                     )}
                   </div>
+                )
+              })}
 
-                  {/* Ações da linha: um único botão de datasheet e somente o ícone de excluir */}
+            {/* 2. Ativos individuais de módulos */}
+            {ativosIndividuais
+              .filter(
+                (a) =>
+                  a.tipo === 'placa_solar' ||
+                  (a.tipo as string) === 'modulo_fv' ||
+                  a.fabricante?.toLowerCase().includes('sunova') ||
+                  a.fabricante?.toLowerCase().includes('canadian') ||
+                  a.fabricante?.toLowerCase().includes('ja solar') ||
+                  a.fabricante?.toLowerCase().includes('trina') ||
+                  a.modelo?.toLowerCase().includes('placa') ||
+                  a.modelo?.toLowerCase().includes('modulo'),
+              )
+              .map((ativo) => {
+                const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
+                const expandido = Boolean(itensExpandidos[ativo.id])
+                const toggleDetalhes = () => {
+                  setItensExpandidos((prev) => ({
+                    ...prev,
+                    [ativo.id]: !prev[ativo.id],
+                  }))
+                }
+                return (
+                  <div
+                    key={ativo.id}
+                    className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition-all flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                        <span className="font-bold text-slate-900 text-xs truncate">
+                          {ativo.fabricante} {ativo.modelo}
+                        </span>
+                        {(ativo.numero_serie ||
+                          ativo.data_instalacao ||
+                          ativo.observacoes ||
+                          ativo.data_fim_garantia) && (
+                          <button
+                            type="button"
+                            onClick={toggleDetalhes}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
+                            title="Mais detalhes"
+                          >
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform ${
+                                expandido ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemoverAtivoIndividual(
+                              ativo.id,
+                              `${ativo.fabricante} ${ativo.modelo}`,
+                            )
+                          }
+                          className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                          aria-label="Excluir equipamento da usina"
+                          title="Excluir equipamento da usina"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {expandido && (
+                      <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {ativo.numero_serie && (
+                            <span className="flex items-center gap-1 font-mono">
+                              <Hash className="w-3 h-3 text-slate-400" />
+                              <span>
+                                S/N: <strong>{ativo.numero_serie}</strong>
+                              </span>
+                            </span>
+                          )}
+                          {ativo.data_instalacao && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              <span>Instalado: {formatDate(ativo.data_instalacao)}</span>
+                            </span>
+                          )}
+                          {ativo.data_fim_garantia && (
+                            <Badge
+                              variant={garantia.badgeVariant}
+                              className={`text-[10px] ${garantia.badgeClasses}`}
+                            >
+                              {garantia.label} ({formatDate(ativo.data_fim_garantia)})
+                            </Badge>
+                          )}
+                        </div>
+                        {ativo.observacoes && (
+                          <p className="italic text-slate-500">"{ativo.observacoes}"</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+            {/* 3. Módulos declarados no cadastro técnico da usina */}
+            {!temEquipamentoCatalogoModulo && (
+              <div className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs flex items-center justify-between gap-2 min-h-[38px]">
+                {/* UMA linha com Fabricante, Modelo e Potência */}
+                <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {(() => {
-                      const eqModulo = encontrarDatasheetModuloUsina(usina)
-                      const url =
-                        eqModulo && eqModulo.datasheet_pdf
-                          ? getDatasheetEquipamentoUrl(eqModulo)
-                          : null
+                    <InlineEditField
+                      value={usina.fabricante_modulos || usina.marca_placas || ''}
+                      displayValue={
+                        <span className="font-bold text-slate-900 text-xs">
+                          {usina.fabricante_modulos || usina.marca_placas || 'Não inf.'}
+                        </span>
+                      }
+                      type="text"
+                      placeholder="Canadian Solar, JA Solar, Trina..."
+                      onSave={async (val) => {
+                        const s = String(val).trim()
+                        await onUpdateUsinaMultipleFields({
+                          fabricante_modulos: s,
+                          marca_placas: s,
+                        })
+                      }}
+                    />
+                  </div>
+
+                  <span className="text-slate-300">•</span>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <InlineEditField
+                      value={usina.modelo_modulos || ''}
+                      displayValue={
+                        <span className="font-mono text-slate-800 text-[11px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                          {usina.modelo_modulos || 'Não inf.'}
+                        </span>
+                      }
+                      type="text"
+                      placeholder="Modelo do módulo"
+                      onSave={async (val) =>
+                        onUpdateUsinaField('modelo_modulos', String(val).trim())
+                      }
+                    />
+                  </div>
+
+                  {usina.potencia_kwp > 0 && (
+                    <div className="contents">
+                      <span className="text-slate-300">•</span>
+                      <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                        {usina.potencia_kwp} kWp
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ações da linha: um único botão de datasheet e somente o ícone de excluir */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {(() => {
+                    const eqModulo = encontrarDatasheetModuloUsina(usina)
+                    const url =
+                      eqModulo && eqModulo.datasheet_pdf
+                        ? getDatasheetEquipamentoUrl(eqModulo)
+                        : null
+                    if (url) {
+                      return (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] transition-colors shadow-2xs"
+                          title="Abrir Datasheet PDF"
+                        >
+                          <FileText className="w-3 h-3 text-emerald-700" />
+                          <span>Datasheet</span>
+                          <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                        </a>
+                      )
+                    }
+                    return (
+                      <DatasheetBadge
+                        marca={usina.fabricante_modulos || usina.marca_placas || ''}
+                        modelo={usina.modelo_modulos || ''}
+                        tipo="modulo_fv"
+                        mostrarLinkBusca={true}
+                      />
+                    )
+                  })()}
+
+                  {(usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleRemoverEquipamentoDeclarado(
+                          'modulo_fv',
+                          `${usina.fabricante_modulos || usina.marca_placas || 'Módulos'} ${usina.modelo_modulos || ''}`.trim(),
+                        )
+                      }
+                      className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                      aria-label="Excluir equipamento da usina"
+                      title="Excluir equipamento da usina"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* -------------------------------------------------------------- */}
+          {/* INVERSORES                                                     */}
+          {/* -------------------------------------------------------------- */}
+          {/* Conteúdo de Inversores: Vinculados do catálogo, declarados e individuais */}
+          <div className="space-y-2">
+            {/* 1. Inversores vinculados via catálogo (usina_equipamentos) */}
+            {vinculos
+              .filter((v) => v.expand?.equipamento_id?.tipo === 'inversor')
+              .map((item) => {
+                const eq = item.expand?.equipamento_id
+                if (!eq) return null
+                const datasheetUrl = getDatasheetEquipamentoUrl(eq)
+                const dataloggerUrl = getDataloggerEquipamentoUrl(eq)
+                const fornecedor = eq.expand?.fornecedor_id
+                const telefoneSuporte =
+                  eq.telefone_suporte_fornecedor ||
+                  fornecedor?.telefone_suporte ||
+                  fornecedor?.whatsapp ||
+                  fornecedor?.telefone ||
+                  ''
+                const cfgMonitoramento = encontrarConfigMonitoramentoInversor(eq, eq.marca)
+                const expandidoDetalhes = Boolean(itensExpandidos[item.id])
+                const toggleDetalhes = () => {
+                  setItensExpandidos((prev) => ({
+                    ...prev,
+                    [item.id]: !prev[item.id],
+                  }))
+                }
+
+                return (
+                  <div
+                    key={item.id}
+                    className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex flex-col gap-2"
+                  >
+                    {/* UMA linha principal: Fabricante, Modelo, Potência, Ícone Monitoramento, Datasheet e Ícone Excluir */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                        <span className="font-bold text-slate-900 text-xs truncate">
+                          {eq.marca} {eq.modelo}
+                        </span>
+
+                        {eq.potencia_w > 0 && (
+                          <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                            {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
+                          </span>
+                        )}
+
+                        {item.quantidade && item.quantidade > 1 ? (
+                          <span className="text-[10px] text-blue-900 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-bold">
+                            {item.quantidade} un
+                          </span>
+                        ) : null}
+
+                        {/* Configuração de monitoramento: APENAS UM ÍCONE (não botão com texto) */}
+                        {cfgMonitoramento && (
+                          <div
+                            className="shrink-0"
+                            title={`Configuração de Monitoramento: ${cfgMonitoramento.titulo || cfgMonitoramento.marca || ''}`}
+                          >
+                            <MonitoramentoConfigBadge configuracao={cfgMonitoramento} iconeApenas />
+                          </div>
+                        )}
+
+                        {(item.numero_serie || telefoneSuporte || fornecedor || dataloggerUrl) && (
+                          <button
+                            type="button"
+                            onClick={toggleDetalhes}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
+                            title="Mais detalhes"
+                          >
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform ${
+                                expandidoDetalhes ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {datasheetUrl ? (
+                          <a
+                            href={datasheetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] transition-colors shadow-2xs"
+                            title="Abrir Datasheet do Inversor"
+                          >
+                            <FileText className="w-3 h-3 text-emerald-700" />
+                            <span>Datasheet</span>
+                            <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                          </a>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)}
+                          className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                          aria-label="Excluir equipamento da usina"
+                          title="Excluir equipamento da usina"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Detalhes secundários discretos atrás de expandir */}
+                    {expandidoDetalhes && (
+                      <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
+                        {item.numero_serie && (
+                          <div className="flex items-center gap-1 font-mono">
+                            <Hash className="w-3 h-3 text-slate-400" />
+                            <span>
+                              S/N: <strong>{item.numero_serie}</strong>
+                            </span>
+                          </div>
+                        )}
+                        {(fornecedor || telefoneSuporte) && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {fornecedor && (
+                              <span className="text-slate-600">
+                                Fornecedor: <strong>{fornecedor.nome_empresa}</strong>
+                              </span>
+                            )}
+                            {telefoneSuporte && (
+                              <button
+                                type="button"
+                                onClick={() => handleWhatsAppSuporte(telefoneSuporte)}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px]"
+                                title={`WhatsApp: ${telefoneSuporte}`}
+                              >
+                                <Phone className="w-2.5 h-2.5" />
+                                <span>{telefoneSuporte}</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {dataloggerUrl && (
+                          <div className="pt-1">
+                            <a
+                              href={dataloggerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-blue-700 hover:underline"
+                            >
+                              <Settings className="w-3 h-3" />
+                              <span>Configuração do Datalogger</span>
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+            {/* 2. Ativos individuais de inversores */}
+            {ativosIndividuais
+              .filter(
+                (a) =>
+                  a.tipo === 'inversor' ||
+                  a.fabricante?.toLowerCase().includes('solis') ||
+                  a.fabricante?.toLowerCase().includes('growatt') ||
+                  a.fabricante?.toLowerCase().includes('deye') ||
+                  a.modelo?.toLowerCase().includes('solis') ||
+                  a.modelo?.toLowerCase().includes('inversor'),
+              )
+              .map((ativo) => {
+                const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
+                const expandido = Boolean(itensExpandidos[ativo.id])
+                const toggleDetalhes = () => {
+                  setItensExpandidos((prev) => ({
+                    ...prev,
+                    [ativo.id]: !prev[ativo.id],
+                  }))
+                }
+                return (
+                  <div
+                    key={ativo.id}
+                    className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                        <span className="font-bold text-slate-900 text-xs truncate">
+                          {ativo.fabricante} {ativo.modelo}
+                        </span>
+                        {(ativo.numero_serie ||
+                          ativo.data_instalacao ||
+                          ativo.observacoes ||
+                          ativo.data_fim_garantia) && (
+                          <button
+                            type="button"
+                            onClick={toggleDetalhes}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
+                            title="Mais detalhes"
+                          >
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform ${
+                                expandido ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemoverAtivoIndividual(
+                              ativo.id,
+                              `${ativo.fabricante} ${ativo.modelo}`,
+                            )
+                          }
+                          className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                          aria-label="Excluir equipamento da usina"
+                          title="Excluir equipamento da usina"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {expandido && (
+                      <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {ativo.numero_serie && (
+                            <span className="flex items-center gap-1 font-mono">
+                              <Hash className="w-3 h-3 text-slate-400" />
+                              <span>
+                                S/N: <strong>{ativo.numero_serie}</strong>
+                              </span>
+                            </span>
+                          )}
+                          {ativo.data_instalacao && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              <span>Instalado: {formatDate(ativo.data_instalacao)}</span>
+                            </span>
+                          )}
+                          {ativo.data_fim_garantia && (
+                            <Badge
+                              variant={garantia.badgeVariant}
+                              className={`text-[10px] ${garantia.badgeClasses}`}
+                            >
+                              {garantia.label} ({formatDate(ativo.data_fim_garantia)})
+                            </Badge>
+                          )}
+                        </div>
+                        {ativo.observacoes && (
+                          <p className="italic text-slate-500">"{ativo.observacoes}"</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+            {/* 3. Inversor declarado no cadastro da usina */}
+            {!temEquipamentoCatalogoInversor && (
+              <div className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs flex items-center justify-between gap-2 min-h-[38px]">
+                {/* UMA linha com Fabricante, Modelo e Potência */}
+                <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <InlineEditField
+                      value={usina.inversores_info || ''}
+                      displayValue={
+                        <span className="font-bold text-slate-900 text-xs">
+                          {usina.inversores_info || 'Não inf.'}
+                        </span>
+                      }
+                      type="text"
+                      placeholder="Ex: Solis SOLIS - 75K - 5G - PRO ou Growatt MIN 8000TL-X"
+                      className="w-full"
+                      onSave={async (val) =>
+                        onUpdateUsinaField('inversores_info', String(val).trim())
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Ações da linha: um único botão de datasheet e somente o ícone de excluir */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {(() => {
+                    const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
+                    if (eq && eq.datasheet_pdf) {
+                      const url = getDatasheetEquipamentoUrl(eq)
                       if (url) {
                         return (
                           <a
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] transition-colors shadow-2xs"
-                            title="Abrir Datasheet PDF"
+                            title={`Abrir Datasheet PDF (${eq.marca} ${eq.modelo})`}
                           >
                             <FileText className="w-3 h-3 text-emerald-700" />
                             <span>Datasheet</span>
-                            <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                            <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
                           </a>
                         )
                       }
-                      return (
-                        <DatasheetBadge
-                          marca={usina.fabricante_modulos || usina.marca_placas || ''}
-                          modelo={usina.modelo_modulos || ''}
-                          tipo="modulo_fv"
-                          mostrarLinkBusca={true}
-                        />
-                      )
-                    })()}
+                    }
+                    return null
+                  })()}
 
-                    {(usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRemoverEquipamentoDeclarado(
-                            'modulo_fv',
-                            `${usina.fabricante_modulos || usina.marca_placas || 'Módulos'} ${usina.modelo_modulos || ''}`.trim(),
-                          )
-                        }
-                        className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                        aria-label="Excluir equipamento da usina"
-                        title="Excluir equipamento da usina"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* -------------------------------------------------------------- */}
-          {/* CARD INVERSORES                                                */}
-          {/* -------------------------------------------------------------- */}
-          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-xl p-3 border border-slate-200/80 transition-colors space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1 rounded-md bg-blue-100/80 text-blue-800">
-                <Cpu className="w-3.5 h-3.5 text-blue-600" />
-              </div>
-              <span className="text-xs font-bold text-slate-900">Inversores Fotovoltaicos</span>
-            </div>
-
-            {/* Conteúdo de Inversores: Vinculados do catálogo, declarados e individuais */}
-            <div className="space-y-2">
-              {/* 1. Inversores vinculados via catálogo (usina_equipamentos) */}
-              {vinculos
-                .filter((v) => v.expand?.equipamento_id?.tipo === 'inversor')
-                .map((item) => {
-                  const eq = item.expand?.equipamento_id
-                  if (!eq) return null
-                  const datasheetUrl = getDatasheetEquipamentoUrl(eq)
-                  const dataloggerUrl = getDataloggerEquipamentoUrl(eq)
-                  const fornecedor = eq.expand?.fornecedor_id
-                  const telefoneSuporte =
-                    eq.telefone_suporte_fornecedor ||
-                    fornecedor?.telefone_suporte ||
-                    fornecedor?.whatsapp ||
-                    fornecedor?.telefone ||
-                    ''
-                  const cfgMonitoramento = encontrarConfigMonitoramentoInversor(eq, eq.marca)
-                  const expandidoDetalhes = Boolean(itensExpandidos[item.id])
-                  const toggleDetalhes = () => {
-                    setItensExpandidos((prev) => ({
-                      ...prev,
-                      [item.id]: !prev[item.id],
-                    }))
-                  }
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex flex-col gap-2"
-                    >
-                      {/* UMA linha principal: Fabricante, Modelo, Potência, Ícone Monitoramento, Datasheet e Ícone Excluir */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
-                        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                          <span className="font-bold text-slate-900 text-xs truncate">
-                            {eq.marca} {eq.modelo}
-                          </span>
-
-                          {eq.potencia_w > 0 && (
-                            <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                              {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
-                            </span>
-                          )}
-
-                          {item.quantidade && item.quantidade > 1 ? (
-                            <span className="text-[10px] text-blue-900 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-bold">
-                              {item.quantidade} un
-                            </span>
-                          ) : null}
-
-                          {/* Configuração de monitoramento: APENAS UM ÍCONE (não botão com texto) */}
-                          {cfgMonitoramento && (
-                            <div
-                              className="shrink-0"
-                              title={`Configuração de Monitoramento: ${cfgMonitoramento.titulo || cfgMonitoramento.marca || ''}`}
-                            >
-                              <MonitoramentoConfigBadge
-                                configuracao={cfgMonitoramento}
-                                iconeApenas
-                              />
-                            </div>
-                          )}
-
-                          {(item.numero_serie ||
-                            telefoneSuporte ||
-                            fornecedor ||
-                            dataloggerUrl) && (
-                            <button
-                              type="button"
-                              onClick={toggleDetalhes}
-                              className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
-                              title="Mais detalhes"
-                            >
-                              <ChevronDown
-                                className={`w-3.5 h-3.5 transition-transform ${
-                                  expandidoDetalhes ? 'rotate-180' : ''
-                                }`}
-                              />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {datasheetUrl ? (
-                            <a
-                              href={datasheetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] transition-colors shadow-2xs"
-                              title="Abrir Datasheet do Inversor"
-                            >
-                              <FileText className="w-3 h-3 text-emerald-700" />
-                              <span>Datasheet</span>
-                              <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                            </a>
-                          ) : null}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)
-                            }
-                            className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                            aria-label="Excluir equipamento da usina"
-                            title="Excluir equipamento da usina"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Detalhes secundários discretos atrás de expandir */}
-                      {expandidoDetalhes && (
-                        <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
-                          {item.numero_serie && (
-                            <div className="flex items-center gap-1 font-mono">
-                              <Hash className="w-3 h-3 text-slate-400" />
-                              <span>
-                                S/N: <strong>{item.numero_serie}</strong>
-                              </span>
-                            </div>
-                          )}
-                          {(fornecedor || telefoneSuporte) && (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {fornecedor && (
-                                <span className="text-slate-600">
-                                  Fornecedor: <strong>{fornecedor.nome_empresa}</strong>
-                                </span>
-                              )}
-                              {telefoneSuporte && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleWhatsAppSuporte(telefoneSuporte)}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px]"
-                                  title={`WhatsApp: ${telefoneSuporte}`}
-                                >
-                                  <Phone className="w-2.5 h-2.5" />
-                                  <span>{telefoneSuporte}</span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {dataloggerUrl && (
-                            <div className="pt-1">
-                              <a
-                                href={dataloggerUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] text-blue-700 hover:underline"
-                              >
-                                <Settings className="w-3 h-3" />
-                                <span>Configuração do Datalogger</span>
-                                <ExternalLink className="w-2.5 h-2.5" />
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-              {/* 2. Ativos individuais de inversores */}
-              {ativosIndividuais
-                .filter(
-                  (a) =>
-                    a.tipo === 'inversor' ||
-                    a.fabricante?.toLowerCase().includes('solis') ||
-                    a.fabricante?.toLowerCase().includes('growatt') ||
-                    a.fabricante?.toLowerCase().includes('deye') ||
-                    a.modelo?.toLowerCase().includes('solis') ||
-                    a.modelo?.toLowerCase().includes('inversor'),
-                )
-                .map((ativo) => {
-                  const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
-                  const expandido = Boolean(itensExpandidos[ativo.id])
-                  const toggleDetalhes = () => {
-                    setItensExpandidos((prev) => ({
-                      ...prev,
-                      [ativo.id]: !prev[ativo.id],
-                    }))
-                  }
-                  return (
-                    <div
-                      key={ativo.id}
-                      className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex flex-col gap-2"
-                    >
-                      <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
-                        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                          <span className="font-bold text-slate-900 text-xs truncate">
-                            {ativo.fabricante} {ativo.modelo}
-                          </span>
-                          {(ativo.numero_serie ||
-                            ativo.data_instalacao ||
-                            ativo.observacoes ||
-                            ativo.data_fim_garantia) && (
-                            <button
-                              type="button"
-                              onClick={toggleDetalhes}
-                              className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
-                              title="Mais detalhes"
-                            >
-                              <ChevronDown
-                                className={`w-3.5 h-3.5 transition-transform ${
-                                  expandido ? 'rotate-180' : ''
-                                }`}
-                              />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleRemoverAtivoIndividual(
-                                ativo.id,
-                                `${ativo.fabricante} ${ativo.modelo}`,
-                              )
-                            }
-                            className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                            aria-label="Excluir equipamento da usina"
-                            title="Excluir equipamento da usina"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {expandido && (
-                        <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2 rounded-lg">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            {ativo.numero_serie && (
-                              <span className="flex items-center gap-1 font-mono">
-                                <Hash className="w-3 h-3 text-slate-400" />
-                                <span>
-                                  S/N: <strong>{ativo.numero_serie}</strong>
-                                </span>
-                              </span>
-                            )}
-                            {ativo.data_instalacao && (
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-slate-400" />
-                                <span>Instalado: {formatDate(ativo.data_instalacao)}</span>
-                              </span>
-                            )}
-                            {ativo.data_fim_garantia && (
-                              <Badge
-                                variant={garantia.badgeVariant}
-                                className={`text-[10px] ${garantia.badgeClasses}`}
-                              >
-                                {garantia.label} ({formatDate(ativo.data_fim_garantia)})
-                              </Badge>
-                            )}
-                          </div>
-                          {ativo.observacoes && (
-                            <p className="italic text-slate-500">"{ativo.observacoes}"</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-              {/* 3. Inversor declarado no cadastro da usina */}
-              {!temEquipamentoCatalogoInversor && (
-                <div className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs flex items-center justify-between gap-2 min-h-[38px]">
-                  {/* UMA linha com Fabricante, Modelo e Potência */}
-                  <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-slate-400 text-[11px]">Inversor:</span>
-                      <InlineEditField
-                        value={usina.inversores_info || ''}
-                        displayValue={
-                          <span className="font-bold text-slate-900 text-xs">
-                            {usina.inversores_info || 'Não inf.'}
-                          </span>
-                        }
-                        type="text"
-                        placeholder="Ex: Solis SOLIS - 75K - 5G - PRO ou Growatt MIN 8000TL-X"
-                        className="w-full"
-                        onSave={async (val) =>
-                          onUpdateUsinaField('inversores_info', String(val).trim())
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Ações da linha: um único botão de datasheet e somente o ícone de excluir */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {(() => {
-                      const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
-                      if (eq && eq.datasheet_pdf) {
-                        const url = getDatasheetEquipamentoUrl(eq)
-                        if (url) {
-                          return (
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] transition-colors shadow-2xs"
-                              title={`Abrir Datasheet PDF (${eq.marca} ${eq.modelo})`}
-                            >
-                              <FileText className="w-3 h-3 text-emerald-700" />
-                              <span>Datasheet</span>
-                              <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
-                            </a>
-                          )
-                        }
+                  {(usina.inversores_info ||
+                    usina.fabricante_inversores ||
+                    usina.modelo_inversores) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleRemoverEquipamentoDeclarado(
+                          'inversor',
+                          usina.inversores_info ||
+                            `${usina.fabricante_inversores || 'Inversor'} ${usina.modelo_inversores || ''}`.trim(),
+                        )
                       }
-                      return null
-                    })()}
-
-                    {(usina.inversores_info ||
-                      usina.fabricante_inversores ||
-                      usina.modelo_inversores) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRemoverEquipamentoDeclarado(
-                            'inversor',
-                            usina.inversores_info ||
-                              `${usina.fabricante_inversores || 'Inversor'} ${usina.modelo_inversores || ''}`.trim(),
-                          )
-                        }
-                        className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                        aria-label="Excluir equipamento da usina"
-                        title="Excluir equipamento da usina"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+                      className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                      aria-label="Excluir equipamento da usina"
+                      title="Excluir equipamento da usina"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* -------------------------------------------------------------- */}
