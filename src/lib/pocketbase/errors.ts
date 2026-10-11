@@ -32,21 +32,25 @@ export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
     const errObj = error as Record<string, unknown>
-    const status = errObj.status ?? errObj.statusCode
-    if (status === 401 || status === 403) return true
-    const message = typeof errObj.message === 'string' ? errObj.message.toLowerCase() : ''
-    if (
-      message.includes('token is expired') ||
-      message.includes('token expired') ||
-      message.includes('failed to authenticate') ||
-      message.includes('the request requires valid user authorization') ||
-      message.includes('the request requires valid admin authorization') ||
-      message.includes('sessão expirada') ||
-      message.includes('sessao expirada') ||
-      message.includes('não autorizado') ||
-      message.includes('nao autorizado')
-    ) {
-      return true
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('the request requires higher permissions') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
+      }
+    }
+    if (errObj.response && typeof errObj.response === 'object') {
+      const resp = errObj.response as Record<string, unknown>
+      if (resp.code === 401 || resp.code === 403 || resp.status === 401 || resp.status === 403) {
+        return true
+      }
     }
   }
   return false
