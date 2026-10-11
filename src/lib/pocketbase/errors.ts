@@ -28,30 +28,25 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (typeof errObj.message === 'string') {
-      const msg = errObj.message.toLowerCase()
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (err instanceof ClientResponseError) {
+    if (err.status === 401 || err.status === 403) return true
+  }
+  if (typeof err === 'object') {
+    const obj = err as Record<string, unknown>
+    if (obj.status === 401 || obj.status === 403) return true
+    if (obj.statusCode === 401 || obj.statusCode === 403) return true
+    if (typeof obj.message === 'string') {
+      const msg = obj.message.toLowerCase()
       if (
         msg.includes('token is expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('the request requires valid user authorization token') ||
-        (msg.includes('something went wrong while processing your request') &&
-          (errObj.status === 401 || errObj.status === 403))
+        msg.includes('token expired') ||
+        msg.includes('invalid token') ||
+        msg.includes('missing or invalid token') ||
+        msg.includes('unauthorized') ||
+        msg.includes('the request requires valid record authorization token')
       ) {
-        return true
-      }
-      if (msg.includes('token') && (msg.includes('expired') || msg.includes('invalid'))) {
-        return true
-      }
-    }
-    if (errObj.response && typeof errObj.response === 'object') {
-      const resp = errObj.response as Record<string, unknown>
-      if (resp.code === 401 || resp.code === 403 || resp.status === 401 || resp.status === 403) {
         return true
       }
     }
