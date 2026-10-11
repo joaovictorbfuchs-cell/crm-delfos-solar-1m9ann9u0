@@ -10,9 +10,6 @@ import {
   CheckCircle2,
   FileUp,
   AlertTriangle,
-  Link as LinkIcon,
-  Phone,
-  Building2,
   Settings,
   Info,
   Upload,
@@ -22,7 +19,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Equipamento, TipoEquipamento, ConfiguracaoMonitoramento } from '@/types/equipamentos'
-import type { Fornecedor } from '@/types/crm'
 import {
   createEquipamento,
   updateEquipamento,
@@ -38,10 +34,8 @@ import {
   sugerirConfiguracaoPorMarca,
   getProcedimentoMonitoramentoUrl,
 } from '@/services/configuracoesMonitoramentoService'
-import { fetchFornecedores } from '@/services/crmService'
 import { extractDatasheetFromPdf } from '@/lib/datasheetExtractor'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
-import { MonitoramentoConfigBadge } from './MonitoramentoConfigBadge'
 import { ErrorBoundary } from './ErrorBoundary'
 
 export interface ModalFormEquipamentoProps {
@@ -50,7 +44,7 @@ export interface ModalFormEquipamentoProps {
   editingItem?: Equipamento | null
   tipoInicial?: TipoEquipamento
   tiposPermitidos?: TipoEquipamento[]
-  fornecedores?: Fornecedor[]
+  fornecedores?: any[]
   configuracoesMonitoramento?: ConfiguracaoMonitoramento[]
   quantidadeInicial?: number
   exibirQuantidade?: boolean
@@ -67,13 +61,12 @@ export function ModalFormEquipamento({
   editingItem = null,
   tipoInicial = 'inversor',
   tiposPermitidos,
-  fornecedores: fornecedoresProp,
+  fornecedores: _fornecedoresProp,
   configuracoesMonitoramento: configuracoesProp,
   quantidadeInicial = 1,
   exibirQuantidade = false,
   onSalvo,
 }: ModalFormEquipamentoProps) {
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>(fornecedoresProp || [])
   const [configuracoesMonitoramento, setConfiguracoesMonitoramento] = useState<
     ConfiguracaoMonitoramento[]
   >(configuracoesProp || [])
@@ -85,13 +78,9 @@ export function ModalFormEquipamento({
   const [potenciaInput, setPotenciaInput] = useState<string>('')
   const [descricaoPadrao, setDescricaoPadrao] = useState<string>('')
   const [garantiaAnos, setGarantiaAnos] = useState<string>('')
-  const [datasheetUrl, setDatasheetUrl] = useState<string>('')
-  const [dataloggerUrl, setDataloggerUrl] = useState<string>('')
   const [configuracaoMonitoramentoId, setConfiguracaoMonitoramentoId] = useState<string>('')
   const [configuracaoAlteradaManualmente, setConfiguracaoAlteradaManualmente] =
     useState<boolean>(false)
-  const [fornecedorId, setFornecedorId] = useState<string>('')
-  const [telefoneSuporte, setTelefoneSuporte] = useState<string>('')
   const [quantidade, setQuantidade] = useState<number>(quantidadeInicial || 1)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -115,29 +104,9 @@ export function ModalFormEquipamento({
 
   const [avisoAuxiliar, setAvisoAuxiliar] = useState<string | null>(null)
 
-  // Carregar fornecedores e configurações de monitoramento caso não tenham sido passados por prop
+  // Carregar configurações de monitoramento caso não tenham sido passadas por prop
   useEffect(() => {
     let cancelado = false
-
-    if (fornecedoresProp && fornecedoresProp.length > 0) {
-      setFornecedores(fornecedoresProp)
-    } else if (isOpen) {
-      ;(async () => {
-        try {
-          const data = await fetchFornecedores()
-          if (!cancelado) {
-            setFornecedores(Array.isArray(data) ? data : [])
-          }
-        } catch (err) {
-          console.error('[ModalFormEquipamento] Erro ao carregar fornecedores no modal:', err)
-          if (!cancelado) {
-            setAvisoAuxiliar(
-              'Não foi possível carregar a lista de fornecedores. Você pode prosseguir normalmente.',
-            )
-          }
-        }
-      })()
-    }
 
     if (configuracoesProp && configuracoesProp.length > 0) {
       setConfiguracoesMonitoramento(configuracoesProp)
@@ -165,7 +134,7 @@ export function ModalFormEquipamento({
     return () => {
       cancelado = true
     }
-  }, [fornecedoresProp, configuracoesProp, isOpen])
+  }, [configuracoesProp, isOpen])
 
   // Resetar/popular campos quando o modal abre ou editingItem muda
   useEffect(() => {
@@ -185,12 +154,8 @@ export function ModalFormEquipamento({
             ? String(editingItem.garantia_anos)
             : '',
         )
-        setDatasheetUrl(editingItem.datasheet_url || '')
-        setDataloggerUrl(editingItem.datalogger_url || '')
         setConfiguracaoMonitoramentoId(editingItem.configuracao_monitoramento_id || '')
         setConfiguracaoAlteradaManualmente(Boolean(editingItem.configuracao_monitoramento_id))
-        setFornecedorId(editingItem.fornecedor_id || '')
-        setTelefoneSuporte(editingItem.telefone_suporte_fornecedor || '')
         setSelectedFile(null)
         setRemoverFotoExistente(false)
         let urlAtual: string | null = null
@@ -223,12 +188,8 @@ export function ModalFormEquipamento({
         setPotenciaInput('')
         setDescricaoPadrao('')
         setGarantiaAnos('')
-        setDatasheetUrl('')
-        setDataloggerUrl('')
         setConfiguracaoMonitoramentoId('')
         setConfiguracaoAlteradaManualmente(false)
-        setFornecedorId('')
-        setTelefoneSuporte('')
         setQuantidade(quantidadeInicial || 1)
         setSelectedFile(null)
         setPreviewUrl(null)
@@ -265,22 +226,6 @@ export function ModalFormEquipamento({
         '[ModalFormEquipamento] Erro ao sugerir configuração de monitoramento por marca:',
         err,
       )
-    }
-  }
-
-  // Preencher telefone de suporte se mudar o fornecedor e o campo estiver vazio
-  const handleFornecedorChange = (novoId: string) => {
-    setFornecedorId(novoId || '')
-    if (novoId && Array.isArray(fornecedores)) {
-      try {
-        const forn = fornecedores.find((f) => f && f.id === novoId)
-        if (forn && (!telefoneSuporte || !telefoneSuporte.trim())) {
-          const tel = forn.telefone_suporte || forn.telefone || forn.whatsapp || ''
-          if (tel) setTelefoneSuporte(tel)
-        }
-      } catch (err) {
-        console.error('[ModalFormEquipamento] Erro ao preencher telefone de suporte:', err)
-      }
     }
   }
 
@@ -469,11 +414,7 @@ export function ModalFormEquipamento({
         potencia_w: potenciaWatts,
         descricao_padrao: descricaoPadrao.trim(),
         garantia_anos: garantiaNum,
-        datasheet_url: datasheetUrl.trim(),
-        datalogger_url: dataloggerUrl.trim(),
         configuracao_monitoramento_id: configuracaoMonitoramentoId || undefined,
-        fornecedor_id: fornecedorId || undefined,
-        telefone_suporte_fornecedor: telefoneSuporte.trim(),
       }
 
       let salvo: Equipamento
@@ -576,7 +517,7 @@ export function ModalFormEquipamento({
 
           {/* Formulário */}
           <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
-            {/* Alerta de aviso auxiliar (carga de fornecedores / monitoramento) */}
+            {/* Alerta de aviso auxiliar (carga de monitoramento) */}
             {avisoAuxiliar && (
               <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 flex items-start gap-2.5 text-xs animate-in fade-in">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -837,43 +778,6 @@ export function ModalFormEquipamento({
               </div>
             </div>
 
-            {/* Links Técnicos: Datasheet URL e Datalogger URL */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
-                  <LinkIcon className="w-3 h-3 text-emerald-600" />
-                  <span>Link do Datasheet (URL)</span>
-                </label>
-                <input
-                  type="url"
-                  value={datasheetUrl}
-                  onChange={(e) => setDatasheetUrl(e.target.value)}
-                  placeholder="https://exemplo.com/datasheet.pdf"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-                <span className="text-[10px] text-gray-400 block mt-1">
-                  Link direto do fabricante ou catálogo online
-                </span>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
-                  <Settings className="w-3 h-3 text-blue-600" />
-                  <span>Link Datalogger (URL)</span>
-                </label>
-                <input
-                  type="url"
-                  value={dataloggerUrl}
-                  onChange={(e) => setDataloggerUrl(e.target.value)}
-                  placeholder="https://server.growatt.com ou IP local"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-                <span className="text-[10px] text-gray-400 block mt-1">
-                  Link para configurar o monitoramento/datalogger
-                </span>
-              </div>
-            </div>
-
             {/* Bloco Configuração de Monitoramento (Específico para Inversor) */}
             {tipo === 'inversor' && (
               <div className="p-3.5 bg-gradient-to-r from-emerald-50/70 to-blue-50/70 rounded-2xl border border-emerald-200/80 space-y-2">
@@ -1016,48 +920,6 @@ export function ModalFormEquipamento({
                 </div>
               </div>
             )}
-
-            {/* Fornecedor e Telefone do Suporte */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
-                  <Building2 className="w-3 h-3 text-emerald-600" />
-                  <span>Fornecedor (Menu Fornecedores)</span>
-                </label>
-                <select
-                  value={fornecedorId}
-                  onChange={(e) => handleFornecedorChange(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
-                >
-                  <option value="">Selecione um fornecedor cadastrado...</option>
-                  {fornecedores.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.nome_empresa} {f.cidade ? `(${f.cidade}/${f.uf || ''})` : ''}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-[10px] text-gray-400 block mt-1">
-                  Vinculado ao menu de fornecedores do CRM
-                </span>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
-                  <Phone className="w-3 h-3 text-emerald-600" />
-                  <span>Telefone Suporte do Fornecedor</span>
-                </label>
-                <input
-                  type="text"
-                  value={telefoneSuporte}
-                  onChange={(e) => setTelefoneSuporte(e.target.value)}
-                  placeholder="(54) 99999-9999 ou 0800..."
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-                <span className="text-[10px] text-gray-400 block mt-1">
-                  Suporte técnico / WhatsApp da garantia
-                </span>
-              </div>
-            </div>
 
             {/* Descrição Padrão */}
             <div>
