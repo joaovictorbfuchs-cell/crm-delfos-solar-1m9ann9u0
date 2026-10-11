@@ -153,13 +153,13 @@ export default function AssistenteDelfosChat({
     setCarregando(true)
 
     try {
-      // Monta o histórico recente com as últimas mensagens trocadas antes da pergunta atual
+      // Monta o histórico recente com as últimas mensagens trocadas antes da pergunta atual (máximo 6 mensagens e cada uma limitada a 1.200 caracteres para evitar estouro de tokens)
       const historicoRecente = mensagens
         .filter((m) => m.id !== 'msg-bem-vindo')
         .slice(-6)
         .map((m) => ({
           role: (m.remetente === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          content: m.texto,
+          content: typeof m.texto === 'string' ? m.texto.slice(0, 1200) : '',
         }))
 
       const res = await perguntarAssistenteDelfos({
@@ -171,7 +171,9 @@ export default function AssistenteDelfosChat({
       const msgResposta: AssistenteMensagem = {
         id: `ast-${Date.now()}`,
         remetente: 'assistente',
-        texto: res.resposta,
+        texto:
+          res.resposta ||
+          'Não encontrei essa informação na base de conhecimento. Deseja cadastrar um novo artigo sobre este tema?',
         horario: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         categoriaOrigem: res.categoria_origem,
         artigosUtilizados: res.artigos_utilizados,
@@ -180,6 +182,7 @@ export default function AssistenteDelfosChat({
 
       setMensagens((prev) => [...prev, msgResposta])
     } catch (err: any) {
+      console.warn('[AssistenteDelfosChat] Erro ao consultar assistente:', err)
       const msgErro: AssistenteMensagem = {
         id: `err-${Date.now()}`,
         remetente: 'assistente',

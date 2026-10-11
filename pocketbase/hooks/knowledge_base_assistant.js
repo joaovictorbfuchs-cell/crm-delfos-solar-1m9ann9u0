@@ -336,23 +336,33 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
     const topArticles = scoredArticles.slice(0, 6)
     const categoriaOrigem = topArticles[0].categoria_nome
 
-    // 6. Montar o contexto para a IA com texto_extraido INTEGRAL (sem corte de 3000 chars; limite total de 30k chars)
+    // 6. Montar o contexto para a IA com salvaguarda rigorosa de tamanho
+    // Cada artigo tem seu texto extraído limitado a 15k chars e o contexto total a 30k chars
+    // para garantir margem de segurança folgada contra limites de tokens da API Gemini.
     let contextStr = ''
+    const MAX_TEXTO_POR_ARTIGO = 15000
+    const MAX_CONTEXTO_TOTAL = 30000
+
     for (let j = 0; j < topArticles.length; j++) {
       const a = topArticles[j]
       let blocoArtigo = `\n\n--- ARTIGO ${j + 1} (Categoria: ${a.categoria_nome}) ---\n`
       blocoArtigo += `Título: ${a.titulo}\n`
-      blocoArtigo += `Conteúdo:\n${a.conteudo}\n`
+      blocoArtigo += `Conteúdo:\n${(a.conteudo || '').slice(0, 8000)}\n`
       if (a.texto_extraido && a.texto_extraido.trim()) {
-        blocoArtigo += `Texto complementar extraído de documentos anexados (integral):\n${a.texto_extraido.trim()}\n`
+        const extraidoLimpo = a.texto_extraido.trim()
+        const extraidoCortado =
+          extraidoLimpo.length > MAX_TEXTO_POR_ARTIGO
+            ? extraidoLimpo.slice(0, MAX_TEXTO_POR_ARTIGO) + '\n... [trecho do anexo truncado]'
+            : extraidoLimpo
+        blocoArtigo += `Texto complementar extraído de documentos anexados:\n${extraidoCortado}\n`
       }
 
-      if ((contextStr + blocoArtigo).length > 30000) {
-        const espacoRestante = Math.max(0, 30000 - contextStr.length - 100)
+      if ((contextStr + blocoArtigo).length > MAX_CONTEXTO_TOTAL) {
+        const espacoRestante = Math.max(0, MAX_CONTEXTO_TOTAL - contextStr.length - 100)
         if (espacoRestante > 200) {
           contextStr +=
             blocoArtigo.substring(0, espacoRestante) +
-            '\n... [restante do documento omitido por limite de contexto de 30k]'
+            '\n... [restante do documento omitido por limite de contexto]'
         }
         break
       } else {
@@ -373,18 +383,45 @@ SUAS REGRAS PERMANENTES E OBRIGATÓRIAS:
 6. Mantenha a resposta concisa, bem formatada com listas e tópicos quando aplicável.`
 
     // Formatação do prompt com o histórico recente da conversa
+    // Salvaguarda: corta o histórico antigo mantendo no máximo as últimas 4 a 6 mensagens mais recentes
+    // e com teto de caracteres por mensagem (1.500 chars) e total (6.000 chars) para evitar erro 400 "Input too long".
     let historicoTexto = ''
-    if (historicoRecebido && historicoRecebido.length > 0) {
-      const msgsValidas = historicoRecebido
-        .slice(-6)
-        .filter((h) => h && typeof h.content === 'string' && h.content.trim())
+    const MAX_HISTORICO_CHARS_TOTAL = 6000
+    const MAX_CHARS_POR_MSG = 1500
 
-      if (msgsValidas.length > 0) {
+    // Filtra e normaliza itens válidos do histórico mais recente (máx 6)
+    let msgsValidasHist = []
+    if (historicoRecebido && historicoRecebido.length > 0) {
+      const msgsFiltradas = historicoRecebido
+        .filter((h) => h && typeof h.content === 'string' && h.content.trim())
+        .slice(-6)
+
+      // Monta da mais recente para a mais antiga para garantir que as mais recentes fiquem dentro do teto
+      let charsAcumulados = 0
+      const msgsFinaisReversas = []
+      for (let idx = msgsFiltradas.length - 1; idx >= 0; idx--) {
+        const item = msgsFiltradas[idx]
+        const conteudoTrunk = item.content.trim().slice(0, MAX_CHARS_POR_MSG)
+        if (charsAcumulados + conteudoTrunk.length <= MAX_HISTORICO_CHARS_TOTAL) {
+          msgsFinaisReversas.push({
+            role: item.role === 'assistant' || item.role === 'model' ? 'model' : 'user',
+            origRole: item.role,
+            content: conteudoTrunk,
+          })
+          charsAcumulados += conteudoTrunk.length
+        } else {
+          // Se não cabe mais mensagens inteiras, interrompe (corta histórico antigo)
+          break
+        }
+      }
+      msgsValidasHist = msgsFinaisReversas.reverse()
+
+      if (msgsValidasHist.length > 0) {
         historicoTexto = 'Histórico recente da conversa com o usuário:\n'
-        for (let h = 0; h < msgsValidas.length; h++) {
-          const item = msgsValidas[h]
+        for (let h = 0; h < msgsValidasHist.length; h++) {
+          const item = msgsValidasHist[h]
           const papel = item.role === 'user' ? 'Usuário' : 'Assistente'
-          historicoTexto += `[${papel}]: ${item.content.trim()}\n`
+          historicoTexto += `[${papel}]: ${item.content}\n`
         }
         historicoTexto += '\n'
       }
@@ -401,23 +438,20 @@ Por favor elabore a resposta seguindo rigorosamente as instruções.`
     // 7. Chamada ao Gemini API com modelos existentes e timeout de 60s (gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash)
     let respostaTexto = ''
     let modelUsed = ''
+    let erroInputTooLong = false
 
     if (geminiApiKey) {
       const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
 
       const contentsPayload = []
 
-      // Injeta mensagens anteriores do histórico
-      if (historicoRecebido && historicoRecebido.length > 0) {
-        const msgsValidas = historicoRecebido
-          .slice(-6)
-          .filter((h) => h && typeof h.content === 'string' && h.content.trim())
-
-        for (let h = 0; h < msgsValidas.length; h++) {
-          const item = msgsValidas[h]
+      // Injeta mensagens anteriores do histórico truncado
+      if (msgsValidasHist && msgsValidasHist.length > 0) {
+        for (let h = 0; h < msgsValidasHist.length; h++) {
+          const item = msgsValidasHist[h]
           contentsPayload.push({
-            role: item.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: item.content.trim() }],
+            role: item.role === 'model' ? 'model' : 'user',
+            parts: [{ text: item.content }],
           })
         }
       }
@@ -465,28 +499,37 @@ Por favor elabore a resposta seguindo rigorosamente as instruções.`
               break
             }
           } else {
-            console.log(`[ASSISTENTE DELFOS] Gemini ${model} status ${res.statusCode}:`, res.raw)
+            const rawBody = String(res.raw || '')
+            console.log(`[ASSISTENTE DELFOS] Gemini ${model} status ${res.statusCode}:`, rawBody)
+            if (
+              rawBody.toLowerCase().includes('input too long') ||
+              rawBody.toLowerCase().includes('limit is') ||
+              rawBody.toLowerCase().includes('tokens')
+            ) {
+              erroInputTooLong = true
+            }
           }
         } catch (callErr) {
           console.log(`[ASSISTENTE DELFOS] Erro chamada Gemini ${model}:`, callErr)
+          const errStr = String(callErr || '').toLowerCase()
+          if (errStr.includes('input too long') || errStr.includes('token')) {
+            erroInputTooLong = true
+          }
         }
       }
     }
 
-    // 8. Fallback nativo para $ai.chat
+    // 8. Fallback nativo para $ai.chat (utilizando o histórico truncado)
     if (!respostaTexto) {
       try {
         const messagesAiChat = [{ role: 'system', content: systemPromptAssistente }]
 
-        if (historicoRecebido && historicoRecebido.length > 0) {
-          const msgsValidas = historicoRecebido
-            .slice(-6)
-            .filter((h) => h && typeof h.content === 'string' && h.content.trim())
-          for (let h = 0; h < msgsValidas.length; h++) {
-            const item = msgsValidas[h]
+        if (msgsValidasHist && msgsValidasHist.length > 0) {
+          for (let h = 0; h < msgsValidasHist.length; h++) {
+            const item = msgsValidasHist[h]
             messagesAiChat.push({
-              role: item.role === 'assistant' ? 'assistant' : 'user',
-              content: item.content.trim(),
+              role: item.role === 'model' || item.origRole === 'assistant' ? 'assistant' : 'user',
+              content: item.content,
             })
           }
         }
@@ -516,6 +559,23 @@ Por favor elabore a resposta seguindo rigorosamente as instruções.`
     }
 
     if (!respostaTexto) {
+      // Se ocorreu erro de limite de tokens/input too long, responde com mensagem amigável em vez de 500 silencioso
+      if (erroInputTooLong) {
+        return e.json(200, {
+          ok: true,
+          resposta:
+            'A conversa ou os documentos anexados ultrapassaram o limite de leitura do assistente. Por favor, envie sua dúvida com uma pergunta mais pontual ou inicie um novo tópico.',
+          encontrado: false,
+          categoria_origem: categoriaOrigem,
+          artigos_utilizados: topArticles.map((a) => ({
+            id: a.id,
+            titulo: a.titulo,
+            categoria: a.categoria_nome,
+          })),
+          model_used: 'friendly_fallback:input_too_long',
+        })
+      }
+
       return e.json(500, {
         ok: false,
         error: 'Não foi possível gerar a resposta no momento. Tente novamente.',

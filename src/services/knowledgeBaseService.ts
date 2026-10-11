@@ -451,16 +451,29 @@ export async function perguntarAssistenteDelfos(params: {
 
   if (!res.ok) {
     let errMsg = 'Erro na comunicação com o assistente.'
+    let amigavel =
+      'Não encontrei essa informação na base de conhecimento. Deseja cadastrar um novo artigo sobre este tema?'
     try {
       const errJson = await res.json()
-      if (errJson?.error) errMsg = errJson.error
+      if (errJson?.error) errMsg = String(errJson.error)
+      if (errJson?.resposta) amigavel = String(errJson.resposta)
+
+      const errLower = errMsg.toLowerCase()
+      if (
+        errLower.includes('input too long') ||
+        errLower.includes('limit is') ||
+        errLower.includes('token') ||
+        res.status === 400
+      ) {
+        amigavel =
+          'A conversa ou os documentos anexados ultrapassaram o limite de leitura do assistente. Por favor, envie sua dúvida com uma pergunta mais pontual ou inicie um novo tópico.'
+      }
     } catch {
       /* ignore */
     }
     return {
       ok: false,
-      resposta:
-        'Não encontrei essa informação na base de conhecimento. Deseja cadastrar um novo artigo sobre este tema?',
+      resposta: amigavel,
       encontrado: false,
       error: errMsg,
     }

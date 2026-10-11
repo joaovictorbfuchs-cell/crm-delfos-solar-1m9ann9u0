@@ -56,4 +56,31 @@ describe('Base de Conhecimento & Verificação Crítica Delfos CRM', () => {
     const truncado = truncarTextoExtraido(textoLongo)
     expect(truncado.length).toBe(MAX_TEXTO_EXTRAIDO_LENGTH)
   })
+
+  it('perguntarAssistenteDelfos retorna mensagem amigável quando backend retorna erro 400 Input too long', async () => {
+    const { perguntarAssistenteDelfos } = await import('@/services/knowledgeBaseService')
+    const originalFetch = globalThis.fetch
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: '400 Input too long: 1632032 input tokens, limit is 1048576 for this model',
+      }),
+    }) as any
+
+    const res = await perguntarAssistenteDelfos({
+      pergunta: 'Como funciona a tarifa?',
+      historico: [
+        { role: 'user', content: 'Mensagem antiga 1' },
+        { role: 'assistant', content: 'Resposta antiga 1' },
+      ],
+    })
+
+    expect(res.ok).toBe(false)
+    expect(res.resposta).toContain('ultrapassaram o limite de leitura')
+    expect(res.error).toContain('Input too long')
+
+    globalThis.fetch = originalFetch
+  })
 })
