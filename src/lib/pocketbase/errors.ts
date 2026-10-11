@@ -20,11 +20,12 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(error: any): boolean {
+export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  const status = error?.status ?? error?.statusCode ?? error?.response?.status
+  const err = error as any
+  const status = err?.status ?? err?.statusCode ?? err?.response?.status
   if (status === 401 || status === 403) return true
-  const msg = String(error?.message || '').toLowerCase()
+  const msg = String(err?.message || '').toLowerCase()
   return (
     msg.includes('auth') ||
     msg.includes('token') ||
