@@ -2,6 +2,47 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
+/**
+ * Identifica se um erro lançado por chamada PocketBase é decorrente de
+ * expiração/invalidação de sessão (401/403 ou tokens expirados/revogados).
+ */
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+
+  // Se for ClientResponseError do PocketBase
+  if (err instanceof ClientResponseError) {
+    if (err.status === 401 || err.status === 403) return true
+    const msg = (err.message || '').toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('something went wrong while processing your request')
+    ) {
+      return true
+    }
+  }
+
+  // Objeto genérico com status/statusCode
+  if (typeof err === 'object' && err !== null) {
+    const obj = err as Record<string, any>
+    const status = Number(obj.status || obj.statusCode || obj.code)
+    if (status === 401 || status === 403) return true
+
+    const msg = String(obj.message || obj.error || '').toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('jwt expired') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden')
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data

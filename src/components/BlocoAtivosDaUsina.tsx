@@ -2085,12 +2085,12 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               return (
                 <div
                   key={doc.id}
-                  className="px-3 py-1.5 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-2.5 transition-colors text-xs"
+                  className="px-2.5 py-1 bg-slate-50/70 hover:bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 transition-colors text-xs min-h-[32px]"
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
                     <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     <span
-                      className="font-bold text-slate-900 truncate max-w-[240px] sm:max-w-xs shrink-0"
+                      className="font-bold text-slate-900 truncate max-w-[200px] sm:max-w-xs shrink-0"
                       title={doc.nome_arquivo}
                     >
                       {doc.nome_arquivo}
@@ -2136,7 +2136,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-md border border-slate-200 transition-colors shadow-2xs"
                           title="Visualizar documento em nova aba"
                         >
                           <Eye className="w-3 h-3 text-slate-500" />
@@ -2146,7 +2146,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                         <a
                           href={doc.url}
                           download={doc.nome_arquivo || 'documento_usina'}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-md border border-slate-200 transition-colors shadow-2xs"
                           title="Baixar arquivo"
                         >
                           <Download className="w-3 h-3 text-slate-500" />

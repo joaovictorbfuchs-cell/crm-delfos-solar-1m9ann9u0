@@ -428,20 +428,20 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
             return (
               <div
                 key={doc.id}
-                className="px-3 py-1.5 bg-white hover:bg-slate-50/80 rounded-xl border border-slate-200 flex items-center justify-between gap-2.5 transition-colors shadow-2xs text-xs"
+                className="px-2.5 py-1 bg-white hover:bg-slate-50/90 rounded-lg border border-slate-200 flex items-center justify-between gap-2 transition-colors shadow-2xs text-xs min-h-[32px]"
               >
-                {/* Thumbnail / Ícone do arquivo + Nome original + Badges em linha única */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+                {/* Linha enxuta: Ícone/Thumbnail + Nome + Badge de categoria + Data/Tamanho + Descrição inline */}
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <div
                     onClick={() => {
                       if (ehImg && urlArquivo) {
                         setPreviewImagem({ url: urlArquivo, nome: nomeExibicao })
                       }
                     }}
-                    className={`w-7 h-7 rounded border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0 ${
+                    className={`w-6 h-6 rounded border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0 ${
                       ehImg ? 'cursor-pointer hover:opacity-90' : ''
                     }`}
-                    title={ehImg ? 'Clique para ampliar imagem' : 'Arquivo PDF'}
+                    title={ehImg ? 'Clique para ampliar imagem' : ehPdf ? 'Arquivo PDF' : 'Arquivo'}
                   >
                     {ehImg ? (
                       <img
@@ -450,12 +450,12 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <FileText className="w-4 h-4 text-rose-600" />
+                      <FileText className="w-3.5 h-3.5 text-rose-600" />
                     )}
                   </div>
 
                   <span
-                    className="font-bold text-slate-900 truncate max-w-[200px] sm:max-w-xs shrink-0"
+                    className="font-bold text-slate-900 truncate max-w-[180px] sm:max-w-[220px] shrink-0"
                     title={nomeExibicao}
                   >
                     {nomeExibicao}
@@ -480,7 +480,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                     </span>
                   )}
 
-                  {/* Campo de Descrição em linha única */}
+                  {/* Descrição inline compacta */}
                   <div className="min-w-0 flex-1 hidden sm:block">
                     {estaEditando ? (
                       <div className="flex items-center gap-1">
@@ -490,7 +490,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                           value={editandoDescricao}
                           onChange={(e) => setEditandoDescricao(e.target.value)}
                           placeholder="Descrição (laudo, medição...)"
-                          className="text-xs h-6 bg-white py-0 px-2"
+                          className="text-xs h-5.5 bg-white py-0 px-2"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSalvarEdicaoDescricao(doc.id)
                             if (e.key === 'Escape') handleCancelarEdicaoDescricao()
@@ -501,10 +501,10 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                           size="sm"
                           disabled={salvandoEdicao}
                           onClick={() => handleSalvarEdicaoDescricao(doc.id)}
-                          className="h-6 px-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-[11px] font-bold shrink-0"
+                          className="h-5.5 px-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-[10px] font-bold shrink-0"
                         >
                           {salvandoEdicao ? (
-                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                           ) : (
                             <Check className="w-3 h-3" />
                           )}
@@ -515,7 +515,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                           size="sm"
                           disabled={salvandoEdicao}
                           onClick={handleCancelarEdicaoDescricao}
-                          className="h-6 px-1 text-slate-500 hover:text-slate-700 shrink-0"
+                          className="h-5.5 px-1 text-slate-500 hover:text-slate-700 shrink-0"
                         >
                           <X className="w-3 h-3" />
                         </Button>
@@ -523,7 +523,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                     ) : (
                       <div
                         onClick={() => handleIniciarEdicaoDescricao(doc)}
-                        className={`text-[11px] truncate cursor-pointer rounded px-1.5 py-0.5 border transition-colors ${
+                        className={`text-[11px] truncate cursor-pointer rounded px-1 py-0.5 border transition-colors ${
                           doc.descricao && doc.descricao.trim()
                             ? 'text-slate-700 border-transparent hover:border-slate-200 hover:bg-slate-100/50'
                             : 'text-slate-400 italic border-dashed border-slate-200 hover:border-emerald-300'
@@ -540,7 +540,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                   </div>
                 </div>
 
-                {/* Ações compactas em linha única: Visualizar/Abrir, Download e Excluir */}
+                {/* Ações em UMA linha enxuta: Visualizar, Download e Excluir */}
                 <div className="flex items-center gap-1 shrink-0">
                   {urlArquivo && (
                     <div className="contents">
@@ -550,7 +550,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                           variant="outline"
                           size="sm"
                           onClick={() => setPreviewImagem({ url: urlArquivo, nome: nomeExibicao })}
-                          className="h-6 px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 border-slate-200"
+                          className="h-6 px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 border-slate-200 shadow-2xs"
                           title="Visualizar imagem"
                         >
                           <Eye className="w-3 h-3 text-slate-500" />
@@ -579,7 +579,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                         title="Baixar arquivo"
                       >
                         <Download className="w-3 h-3 text-slate-500" />
-                        <span className="hidden sm:inline">Baixar</span>
+                        <span className="hidden sm:inline">Download</span>
                       </a>
                     </div>
                   )}
