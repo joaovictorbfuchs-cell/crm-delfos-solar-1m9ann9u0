@@ -388,25 +388,36 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   })
 
   // 4. Fotos: fotos já salvas (nomes em PB) + novas fotos capturadas na sessão
-  const normalizarFotosIniciais = (fotosRaw: unknown): string[] => {
+  const normalizarFotosIniciais = (fotosRaw: unknown, fotoMedidorRaw?: unknown): string[] => {
+    const list: string[] = []
     if (Array.isArray(fotosRaw)) {
-      return fotosRaw.filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+      list.push(
+        ...fotosRaw.filter((f): f is string => typeof f === 'string' && f.trim().length > 0),
+      )
+    } else if (typeof fotosRaw === 'string' && fotosRaw.trim().length > 0) {
+      list.push(fotosRaw.trim())
     }
-    if (typeof fotosRaw === 'string' && fotosRaw.trim().length > 0) {
-      return [fotosRaw.trim()]
+    // Suporte aditivo: incluir foto_medidor (campo único) se existir e ainda não estiver na lista
+    if (typeof fotoMedidorRaw === 'string' && fotoMedidorRaw.trim().length > 0) {
+      const medidorNome = fotoMedidorRaw.trim()
+      if (!list.includes(medidorNome)) {
+        list.push(medidorNome)
+      }
     }
-    return []
+    return list
   }
 
-  const [fotosSalvas, setFotosSalvas] = useState<string[]>(() => normalizarFotosIniciais(os?.fotos))
+  const [fotosSalvas, setFotosSalvas] = useState<string[]>(() =>
+    normalizarFotosIniciais(os?.fotos, (os as any)?.foto_medidor),
+  )
   const [novasFotos, setNovasFotos] = useState<{ file: File; previewUrl: string }[]>([])
   const [fotoParaRemover, setFotoParaRemover] = useState<string | null>(null)
   const [isRemovendoFotoSalva, setIsRemovendoFotoSalva] = useState(false)
 
   // Sincronizar estado local de fotos salvas sempre que a OS recebida por props mudar (ou novo id)
   useEffect(() => {
-    setFotosSalvas(normalizarFotosIniciais(os?.fotos))
-  }, [os?.id, os?.fotos])
+    setFotosSalvas(normalizarFotosIniciais(os?.fotos, (os as any)?.foto_medidor))
+  }, [os?.id, os?.fotos, (os as any)?.foto_medidor])
 
   // 5. Detalhes da execução
   const [detalhesExecucao, setDetalhesExecucao] = useState<string>(os.detalhes_execucao || '')
@@ -919,14 +930,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         payload,
         filesToUpload.length > 0 ? filesToUpload : undefined,
       )
-      const fotosDoRetorno = normalizarFotosIniciais(updated.fotos)
+      const fotosDoRetorno = normalizarFotosIniciais(updated.fotos, (updated as any)?.foto_medidor)
       // Mesclar fotos salvas anteriores com as novas fotos retornadas pelo backend (garantindo unicidade)
       const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
       const updatedComFotos: OrdemServico = {
         ...updated,
         fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
       }
-      setFotosSalvas(updatedComFotos.fotos || [])
+      setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
       setNovasFotos([])
       onOSUpdated(updatedComFotos)
       toast({
@@ -1288,13 +1299,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         origem: os.origem,
       })
 
-      const fotosDoRetorno = normalizarFotosIniciais(finalized.fotos)
+      const fotosDoRetorno = normalizarFotosIniciais(
+        finalized.fotos,
+        (finalized as any)?.foto_medidor,
+      )
       const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
       const finalizedComFotos: OrdemServico = {
         ...finalized,
         fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
       }
-      setFotosSalvas(finalizedComFotos.fotos || [])
+      setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
       setNovasFotos([])
 
       setShowConfirmModal(false)
@@ -2405,8 +2419,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               <span>Remover foto anexada</span>
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs sm:text-sm text-gray-600">
-              Tem certeza que deseja remover esta foto da ordem de serviço? Esta ação não pode ser
-              desfeita.
+              Remover foto anexada? Esta ação não pode ser desfeita
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2">
