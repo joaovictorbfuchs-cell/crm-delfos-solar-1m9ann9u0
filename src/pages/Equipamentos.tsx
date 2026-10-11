@@ -803,7 +803,7 @@ export function EquipamentosPage() {
                             return (
                               <MonitoramentoConfigBadge
                                 configuracao={cfgVinculada}
-                                rotulo="Config. de Monitoramento"
+                                rotulo="Monitoramento"
                                 mostrarTipo
                               />
                             )

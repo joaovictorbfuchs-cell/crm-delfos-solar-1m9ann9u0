@@ -1238,7 +1238,20 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                        {(() => {
+                          const cfg = encontrarConfigMonitoramentoInversor(
+                            null,
+                            ativo.fabricante || ativo.modelo || '',
+                          )
+                          if (cfg) {
+                            return (
+                              <MonitoramentoConfigBadge configuracao={cfg} rotulo="Monitoramento" />
+                            )
+                          }
+                          return null
+                        })()}
+
                         <button
                           type="button"
                           onClick={() =>
@@ -1433,7 +1446,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     key={item.id}
                     className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex flex-col gap-2"
                   >
-                    {/* UMA linha principal: Fabricante, Modelo, Potência, Ícone Monitoramento, Datasheet e Ícone Excluir */}
+                    {/* UMA linha principal: Fabricante, Modelo, Potência, Datasheet, Botão Monitoramento e Ícone Excluir */}
                     <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
                       <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
                         <span className="font-bold text-slate-900 text-xs truncate">
@@ -1452,16 +1465,6 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           </span>
                         ) : null}
 
-                        {/* Configuração de monitoramento: APENAS UM ÍCONE (não botão com texto) */}
-                        {cfgMonitoramento && (
-                          <div
-                            className="shrink-0"
-                            title={`Configuração de Monitoramento: ${cfgMonitoramento.titulo || cfgMonitoramento.marca || ''}`}
-                          >
-                            <MonitoramentoConfigBadge configuracao={cfgMonitoramento} iconeApenas />
-                          </div>
-                        )}
-
                         {(item.numero_serie || telefoneSuporte || fornecedor || dataloggerUrl) && (
                           <button
                             type="button"
@@ -1478,7 +1481,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                         {datasheetUrl ? (
                           <a
                             href={datasheetUrl}
@@ -1492,6 +1495,14 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                             <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
                           </a>
                         ) : null}
+
+                        {/* Botão de Monitoramento: na mesma linha do botão de datasheet */}
+                        {cfgMonitoramento && (
+                          <MonitoramentoConfigBadge
+                            configuracao={cfgMonitoramento}
+                            rotulo="Monitoramento"
+                          />
+                        )}
 
                         <button
                           type="button"
@@ -1681,8 +1692,8 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                   </div>
                 </div>
 
-                {/* Ações da linha: um único botão de datasheet e somente o ícone de excluir */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                {/* Ações da linha: botão de datasheet, botão de monitoramento e ícone de excluir */}
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                   {(() => {
                     const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
                     if (eq && eq.datasheet_pdf) {
@@ -1702,6 +1713,18 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           </a>
                         )
                       }
+                    }
+                    return null
+                  })()}
+
+                  {(() => {
+                    const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
+                    const cfg = encontrarConfigMonitoramentoInversor(
+                      eq,
+                      usina.fabricante_inversores || usina.inversores_info || '',
+                    )
+                    if (cfg) {
+                      return <MonitoramentoConfigBadge configuracao={cfg} rotulo="Monitoramento" />
                     }
                     return null
                   })()}

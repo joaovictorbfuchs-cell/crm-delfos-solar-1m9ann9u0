@@ -1583,7 +1583,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                       {inv.configMonitoramento ? (
                         <MonitoramentoConfigBadge
                           configuracao={inv.configMonitoramento}
-                          rotulo="Config. de Monitoramento"
+                          rotulo="Monitoramento"
                           mostrarTipo
                         />
                       ) : inv.dataloggerUrl ? (
