@@ -405,6 +405,25 @@ export interface DocumentoUsinaRegistro extends RecordModel {
   }
 }
 
+export type DocumentoContratoOMCategoria = 'Procuração assinada' | 'Contrato assinado' | 'Outros'
+
+export interface DocumentoContratoOMRegistro extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  contrato_id: string
+  arquivo: string
+  nome_original?: string
+  categoria?: DocumentoContratoOMCategoria
+  tamanho?: number
+  ativo?: boolean
+  created: string
+  updated: string
+  expand?: {
+    contrato_id?: ContratoOM
+  }
+}
+
 export interface UsinaCliente extends RecordModel {
   id: string
   collectionId: string

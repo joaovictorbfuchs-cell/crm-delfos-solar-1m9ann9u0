@@ -446,66 +446,7 @@ export const FichaOMDrawer: React.FC = () => {
           {/* ======================================================== */}
           {activeTab === 'contrato' && (
             <div className="space-y-5 animate-in fade-in duration-150">
-              {/* Bloco de Emissão de Procuração e Contrato O&M */}
-              <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 shadow-xs space-y-3.5">
-                <div className="flex items-start sm:items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-emerald-200">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-gray-900">
-                          {propostaAprovada
-                            ? 'Documentação O&M — Proposta Fechada'
-                            : 'Documentação O&M — Procuração'}
-                        </h4>
-                        {propostaAprovada && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            {propostaAprovada.status || 'Aprovado'}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-600 mt-0.5">
-                        {propostaAprovada
-                          ? `Plano O&M ${propostaAprovada.plano_escolhido || 'Padrão'} (${propostaAprovada.potencia_kwp} kWp) aprovado. Gere a procuração e o contrato com os dados do cliente.`
-                          : 'Gere a Procuração Particular oficial para representação perante a concessionária de energia.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {propostaAprovada && (
-                    <span className="text-xs font-bold text-emerald-800 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
-                      {formatCurrency(propostaAprovada.valor_mensal_plano || 0)}/mês •{' '}
-                      {formatCurrency(propostaAprovada.valor_anual_plano || 0)}/ano
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setModalProcuracaoOpen(true)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:bg-[#166534] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all hover:scale-[1.01]"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>Gerar Procuração</span>
-                  </button>
-
-                  {propostaAprovada && (
-                    <button
-                      type="button"
-                      onClick={() => setModalContratoOpen(true)}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-emerald-50/60 active:bg-emerald-100/60 text-emerald-800 border-2 border-emerald-300 text-xs sm:text-sm font-bold rounded-xl shadow-2xs transition-all hover:scale-[1.01]"
-                    >
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Gerar Contrato</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Cards de Métricas Principais do Contrato */}
+              {/* Cards de Métricas Principais do Contrato */}{' '}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
@@ -547,7 +488,6 @@ export const FichaOMDrawer: React.FC = () => {
                   <div className="text-xs text-gray-500 mt-1">12 parcelas contratadas</div>
                 </div>
               </div>
-
               {/* Vigência & Dias até Vencimento */}
               <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs space-y-4">
                 <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
@@ -618,7 +558,6 @@ export const FichaOMDrawer: React.FC = () => {
                   </div>
                 )}
               </div>
-
               {/* Seção Aditiva: Usinas Vinculadas ao Contrato (Relação N:N e Histórico) */}
               {contrato && (
                 <SecaoContratoUsinas
@@ -628,7 +567,6 @@ export const FichaOMDrawer: React.FC = () => {
                   plano={contrato.plano}
                 />
               )}
-
               {/* Resumo do Sistema Fotovoltaico do Cliente */}
               <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs space-y-3">
                 <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">

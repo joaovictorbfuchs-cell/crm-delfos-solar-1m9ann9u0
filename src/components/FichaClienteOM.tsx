@@ -1,18 +1,13 @@
 import React, { useState, useMemo } from 'react'
 import {
   ShieldCheck,
-  Calendar,
-  FileText,
-  User,
-  Zap,
-  Activity,
-  MapPin,
   CalendarClock,
   Sparkles,
   Pencil,
   Check,
   X,
   Loader2,
+  FileText,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -28,6 +23,7 @@ import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { InlineEditField } from './InlineEditField'
 import { SecaoContratoUsinas } from './SecaoContratoUsinas'
+import { BlocoDocumentosContratoOM } from './BlocoDocumentosContratoOM'
 import { toast } from 'sonner'
 
 interface FichaClienteOMProps {
@@ -445,142 +441,6 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
 
   return (
     <div className="space-y-5 animate-in fade-in duration-150">
-      {/* 1. DADOS INICIAIS DO CLIENTE */}
-      <div className="p-4 sm:p-5 bg-white rounded-2xl border border-gray-200/90 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
-              <User className="w-4 h-4 text-emerald-700" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
-                Ficha O&M do Cliente
-              </span>
-              <h3 className="text-base font-bold text-gray-900">{cliente.nome}</h3>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {getStatusPlanoBadge(statusPlano)}
-            {onNavigateToTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateToTab('historico')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 transition-colors shadow-2xs"
-              >
-                <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Editar Dados</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Grade com dados cadastrais e técnicos iniciais */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 bg-gray-50/70 rounded-xl border border-gray-200/70 space-y-1">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-gray-400" />
-              Cidade
-            </span>
-            <div className="font-semibold text-gray-800 truncate">
-              {cliente.cidade || 'Não informada'}
-            </div>
-          </div>
-
-          <div className="p-3 bg-gray-50/70 rounded-xl border border-gray-200/70 space-y-1">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-              <Activity className="w-3 h-3 text-gray-400" />
-              Telefone
-            </span>
-            <div className="font-semibold text-gray-800 truncate">
-              {cliente.telefone || 'Não informado'}
-            </div>
-          </div>
-
-          <div className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200/70 space-y-1">
-            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-              <Zap className="w-3 h-3 text-emerald-600" />
-              Potência do Sistema
-            </span>
-            <div className="font-bold text-emerald-900 text-sm">
-              {potenciaExibida > 0
-                ? `${potenciaExibida.toLocaleString('pt-BR')} kWp`
-                : 'Não informada'}
-            </div>
-          </div>
-
-          <div className="p-3 bg-gray-50/70 rounded-xl border border-gray-200/70 space-y-1">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-gray-400" />
-              Data de Instalação
-            </span>
-            <div className="font-semibold text-gray-800">
-              {dataInstalacaoExibida ? formatDate(dataInstalacaoExibida) : 'Não informada'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 1.1 BLOCO DE DOCUMENTAÇÃO O&M (PROCURAÇÃO E CONTRATO) */}
-      <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 shadow-xs space-y-4">
-        <div className="flex items-start sm:items-center justify-between flex-wrap gap-2 pb-3 border-b border-emerald-200">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-sm sm:text-base font-bold text-gray-900">
-                  {propostaAprovada
-                    ? 'Documentos O&M — Proposta Fechada'
-                    : 'Documentação O&M — Procuração'}
-                </h4>
-                {propostaAprovada && (
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    Status: {propostaAprovada.status || 'Aprovado'}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {propostaAprovada
-                  ? `Proposta O&M Plano ${propostaAprovada.plano_escolhido || 'Padrão'} (${propostaAprovada.potencia_kwp} kWp) aprovada. Gere a procuração e o contrato com os dados do cliente.`
-                  : 'Emita a Procuração Particular para representação perante a concessionária de energia.'}
-              </p>
-            </div>
-          </div>
-
-          {propostaAprovada && (
-            <span className="text-xs font-bold text-emerald-800 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
-              {formatCurrency(propostaAprovada.valor_mensal_plano || 0)}/mês •{' '}
-              {formatCurrency(propostaAprovada.valor_anual_plano || 0)}/ano
-            </span>
-          )}
-        </div>
-
-        {/* Botões de Ação: Gerar Procuração (sempre disponível) e Gerar Contrato */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setModalProcuracaoOpen(true)}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:bg-[#166534] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all hover:scale-[1.01]"
-          >
-            <FileText className="w-4 h-4" />
-            <span>Gerar Procuração</span>
-          </button>
-
-          {propostaAprovada && (
-            <button
-              type="button"
-              onClick={() => setModalContratoOpen(true)}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-emerald-50/60 active:bg-emerald-100/60 text-emerald-800 border-2 border-emerald-300 text-xs sm:text-sm font-bold rounded-xl shadow-2xs transition-all hover:scale-[1.01]"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Gerar Contrato</span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* 2. CONTRATO VIGENTE E STATUS DO PLANO O&M */}
       {!contrato ? (
         <div className="p-6 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 rounded-2xl border-2 border-dashed border-amber-300 space-y-4">
@@ -858,6 +718,9 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
               if (onNavigateToTab) onNavigateToTab('usinas')
             }}
           />
+
+          {/* DOCUMENTOS DO CONTRATO (ANEXOS, PROCURAÇÃO ASSINADA, CONTRATO ASSINADO, OUTROS) */}
+          <BlocoDocumentosContratoOM contratoId={contrato.id} clienteNome={cliente.nome} />
 
           {/* 3. PRÓXIMO ATENDIMENTO AGENDADO COM SEU TIPO */}
           <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200 flex items-start gap-3">

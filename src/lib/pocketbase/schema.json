@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T21:43:16.119Z",
+  "generatedAt": "2026-10-11T21:51:48.775Z",
   "collections": [
     {
       "name": "users",
@@ -6861,6 +6861,76 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_whatsapp_bloqueados_numero ON whatsapp_bloqueados (numero)"]
+    },
+    {
+      "name": "documentos_contrato_om",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "contrato_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "contratos_om"
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_original",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Procuração assinada", "Contrato assinado", "Outros"]
+        },
+        {
+          "name": "tamanho",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_docs_contrato_om_contrato_id ON documentos_contrato_om (contrato_id)",
+        "CREATE INDEX idx_docs_contrato_om_categoria ON documentos_contrato_om (categoria)",
+        "CREATE INDEX idx_docs_contrato_om_ativo ON documentos_contrato_om (ativo)"
+      ]
     }
   ]
 }
