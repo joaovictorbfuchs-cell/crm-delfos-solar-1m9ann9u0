@@ -16,6 +16,7 @@ import {
   EyeOff,
   TrendingUp,
   MessageSquare,
+  Trash2,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
@@ -119,6 +120,31 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     cliente: Cliente
   } | null>(null)
   const [isEncerrando, setIsEncerrando] = useState(false)
+
+  // Exclusão de contrato
+  const [contratoParaExcluir, setContratoParaExcluir] = useState<{
+    contrato: ContratoOM
+    cliente: Cliente
+  } | null>(null)
+  const [isExcluindo, setIsExcluindo] = useState(false)
+  const { deleteContratoOM } = useClientes()
+
+  const handleConfirmarExclusao = async () => {
+    if (!contratoParaExcluir) return
+    try {
+      setIsExcluindo(true)
+      await deleteContratoOM(contratoParaExcluir.contrato.id)
+      toast.success(
+        `Contrato de ${contratoParaExcluir.cliente.nome} excluído com sucesso. O cadastro do cliente permanece intacto.`,
+      )
+      setContratoParaExcluir(null)
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao excluir contrato. Tente novamente.')
+    } finally {
+      setIsExcluindo(false)
+    }
+  }
 
   // Coleções com garantia de array seguro
   const safeClientes = useMemo(() => (Array.isArray(clientes) ? clientes : []), [clientes])
@@ -1004,6 +1030,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                   <th className="py-3 px-4">Nº de Placas</th>
                   <th className="py-3 px-4">Próxima Atividade</th>
                   <th className="py-3 px-4">Valor Mensal</th>
+                  <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1116,6 +1143,23 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                           <span className="text-[10px] font-normal text-gray-400">/mês</span>
                         </div>
                       </td>
+
+                      <td
+                        className="py-3 px-4 whitespace-nowrap text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setContratoParaExcluir({ contrato, cliente })
+                          }}
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Excluir contrato O&M (cliente permanece intacto)"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -1190,7 +1234,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                 type="button"
                 onClick={() => setContratoParaEncerrar(null)}
                 disabled={isEncerrando}
-                className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-xl"
+                className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-xl cursor-pointer"
               >
                 Voltar
               </button>
@@ -1198,9 +1242,65 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                 type="button"
                 onClick={handleConfirmarEncerramento}
                 disabled={isEncerrando}
-                className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 {isEncerrando ? 'Encerrando...' : 'Confirmar Encerramento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmação de Exclusão de Contrato (SEM excluir cliente) */}
+      {contratoParaExcluir && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-md w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-100 text-rose-700 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">Excluir Contrato O&M</h3>
+                <p className="text-xs text-gray-500">
+                  {contratoParaExcluir.cliente.nome}
+                  {contratoParaExcluir.contrato.numero_contrato
+                    ? ` • Contrato nº ${contratoParaExcluir.contrato.numero_contrato}`
+                    : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs text-gray-600 bg-amber-50/60 p-3 rounded-xl border border-amber-200/80">
+              <p>
+                Tem certeza de que deseja excluir este contrato de O&M (Plano{' '}
+                <strong className="text-gray-900">
+                  {contratoParaExcluir.contrato.plano || 'Essencial'}
+                </strong>
+                )?
+              </p>
+              <p className="text-[11px] text-amber-900 font-semibold">
+                ✓ O cliente <strong>{contratoParaExcluir.cliente.nome}</strong> permanecerá 100%
+                intacto no sistema. Apenas o vínculo do contrato será removido.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setContratoParaExcluir(null)}
+                disabled={isExcluindo}
+                className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarExclusao}
+                disabled={isExcluindo}
+                className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isExcluindo ? 'Excluindo...' : 'Excluir Contrato'}</span>
               </button>
             </div>
           </div>

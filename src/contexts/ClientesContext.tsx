@@ -417,6 +417,7 @@ interface ClientesContextType {
   addContratoOM: (data: Parameters<typeof apiCreateContratoOM>[0]) => Promise<ContratoOM>
   updateContratoOM: (id: string, data: Partial<ContratoOM>) => Promise<ContratoOM>
   removeContratoOM: (id: string) => Promise<void>
+  deleteContratoOM: (id: string) => Promise<void>
   encerrarContratoOM: (
     contratoId: string,
     dadosEncerramento: {
@@ -3020,6 +3021,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addContratoOM,
         updateContratoOM,
         removeContratoOM,
+        deleteContratoOM: removeContratoOM,
         encerrarContratoOM,
         renovarContratoOM,
         addAnomaliaOM,
@@ -3289,6 +3291,7 @@ export function useClientes(): ClientesContextType {
       addContratoOM: async () => ({}) as any,
       updateContratoOM: async () => ({}) as any,
       removeContratoOM: async () => {},
+      deleteContratoOM: async () => {},
       encerrarContratoOM: async () => ({}) as any,
       renovarContratoOM: async () => ({}) as any,
       addAnomaliaOM: async () => ({}) as any,
