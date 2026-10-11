@@ -44,6 +44,9 @@ export interface ModalFormEquipamentoProps {
   editingItem?: Equipamento | null
   tipoInicial?: TipoEquipamento
   tiposPermitidos?: TipoEquipamento[]
+  marcaInicial?: string
+  modeloInicial?: string
+  potenciaInicial?: number
   fornecedores?: any[]
   configuracoesMonitoramento?: ConfiguracaoMonitoramento[]
   quantidadeInicial?: number
@@ -61,6 +64,9 @@ export function ModalFormEquipamento({
   editingItem = null,
   tipoInicial = 'inversor',
   tiposPermitidos,
+  marcaInicial,
+  modeloInicial,
+  potenciaInicial,
   fornecedores: _fornecedoresProp,
   configuracoesMonitoramento: configuracoesProp,
   quantidadeInicial = 1,
@@ -178,14 +184,18 @@ export function ModalFormEquipamento({
         setExtracaoStatus(null)
         setErrorMessage(null)
       } else {
-        setTipo(
+        const tipoFinal =
           tiposPermitidos && !tiposPermitidos.includes(tipoInicial)
             ? tiposPermitidos[0]
-            : tipoInicial,
+            : tipoInicial
+        setTipo(tipoFinal)
+        setMarca(marcaInicial || '')
+        setModelo(modeloInicial || '')
+        setPotenciaInput(
+          potenciaInicial !== undefined && potenciaInicial !== null && potenciaInicial > 0
+            ? converterWattsParaInput(potenciaInicial, tipoFinal)
+            : '',
         )
-        setMarca('')
-        setModelo('')
-        setPotenciaInput('')
         setDescricaoPadrao('')
         setGarantiaAnos('')
         setConfiguracaoMonitoramentoId('')
@@ -204,7 +214,15 @@ export function ModalFormEquipamento({
       console.error('[ModalFormEquipamento] Erro ao inicializar campos do modal:', resetErr)
       setErrorMessage('Ocorreu uma falha ao preparar o formulário do equipamento.')
     }
-  }, [isOpen, editingItem, tipoInicial])
+  }, [
+    isOpen,
+    editingItem,
+    tipoInicial,
+    marcaInicial,
+    modeloInicial,
+    potenciaInicial,
+    quantidadeInicial,
+  ])
 
   // Sugestão automática de configuração de monitoramento ao alterar a marca (apenas se tipo === 'inversor')
   const handleMarcaChange = (novaMarca: string) => {
