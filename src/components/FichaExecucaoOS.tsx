@@ -51,10 +51,21 @@ import {
   Save,
   Loader2,
   Send,
+  Trash2,
 } from 'lucide-react'
 import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
 import { RelatorioOSConteudo } from '@/components/RelatorioOSConteudo'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { formatDateTime } from '@/lib/formatters'
 import { updateAtividade } from '@/services/crmService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
@@ -389,6 +400,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   const [fotosSalvas, setFotosSalvas] = useState<string[]>(() => normalizarFotosIniciais(os?.fotos))
   const [novasFotos, setNovasFotos] = useState<{ file: File; previewUrl: string }[]>([])
+  const [fotoParaRemover, setFotoParaRemover] = useState<string | null>(null)
+  const [isRemovendoFotoSalva, setIsRemovendoFotoSalva] = useState(false)
 
   // Sincronizar estado local de fotos salvas sempre que a OS recebida por props mudar (ou novo id)
   useEffect(() => {
@@ -822,6 +835,56 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       }
       return prev.filter((_, i) => i !== index)
     })
+  }
+
+  // Remoção de foto já salva e persistida no PocketBase (com confirmação)
+  const handleConfirmarRemoverFotoSalva = async () => {
+    if (!fotoParaRemover || !os?.id) return
+
+    const nomeDoArquivo = fotoParaRemover
+    setIsRemovendoFotoSalva(true)
+    try {
+      const colecao =
+        os.collectionName ||
+        (os.collectionId === 'atividades' || os.origem === 'atividades'
+          ? 'atividades'
+          : 'ordens_servico')
+
+      const isFotoMedidor = (os as any)?.foto_medidor === nomeDoArquivo
+
+      if (isFotoMedidor) {
+        await pb.collection(colecao).update(os.id, { foto_medidor: null })
+      } else {
+        await pb.collection(colecao).update(os.id, { 'fotos-': [nomeDoArquivo] })
+      }
+
+      const novasFotosSalvas = fotosSalvas.filter((f) => f !== nomeDoArquivo)
+      setFotosSalvas(novasFotosSalvas)
+
+      const osAtualizada: OrdemServico = {
+        ...os,
+        fotos: novasFotosSalvas,
+        ...(isFotoMedidor ? { foto_medidor: undefined } : {}),
+      }
+
+      onOSUpdated(osAtualizada)
+
+      toast({
+        title: 'Foto removida',
+        description: 'A foto foi removida da ordem de serviço com sucesso.',
+      })
+      setFotoParaRemover(null)
+    } catch (err: any) {
+      console.error('Erro ao remover foto da ordem de serviço:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao remover foto',
+        description:
+          err?.message || 'Não foi possível remover a foto da ordem de serviço. Tente novamente.',
+      })
+    } finally {
+      setIsRemovendoFotoSalva(false)
+    }
   }
 
   // Salvar rascunho / alterações intermediárias
@@ -2030,15 +2093,35 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                     alt={`Foto ${idx + 1}`}
                     className="w-full h-full object-cover"
                   />
-                  <a
-                    href={fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
-                  >
-                    Ver foto
-                  </a>
-                  <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                  {/* Overlay no hover com link para abrir foto e botão para remover */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-white text-xs font-bold underline pointer-events-auto px-2 py-1 bg-black/30 rounded-md hover:bg-black/50"
+                    >
+                      Ver foto
+                    </a>
+                  </div>
+
+                  {/* Botão de lixeira (excluir foto salva) no canto superior direito com overlay no hover */}
+                  {podeEditarOS && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setFotoParaRemover(fotoNome)
+                      }}
+                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer z-10"
+                      title="Remover foto da ordem de serviço"
+                      aria-label="Remover foto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded pointer-events-none">
                     Salva
                   </span>
                 </div>
@@ -2305,6 +2388,57 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           }}
         />
       )}
+
+      {/* AlertDialog de Confirmação para Remover Foto Salva */}
+      <AlertDialog
+        open={Boolean(fotoParaRemover)}
+        onOpenChange={(open) => {
+          if (!open && !isRemovendoFotoSalva) {
+            setFotoParaRemover(null)
+          }
+        }}
+      >
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-600 shrink-0" />
+              <span>Remover foto anexada</span>
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs sm:text-sm text-gray-600">
+              Tem certeza que deseja remover esta foto da ordem de serviço? Esta ação não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel
+              disabled={isRemovendoFotoSalva}
+              onClick={() => setFotoParaRemover(null)}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmarRemoverFotoSalva()
+              }}
+              disabled={isRemovendoFotoSalva}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold inline-flex items-center gap-2 cursor-pointer"
+            >
+              {isRemovendoFotoSalva ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Removendo...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>Remover Foto</span>
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal de Confirmação de Finalização */}
       {showConfirmModal && (
