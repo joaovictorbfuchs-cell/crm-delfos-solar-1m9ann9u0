@@ -161,14 +161,10 @@ export const SecaoContratoUsinas: React.FC<SecaoContratoUsinasProps> = ({
           <span>Carregando usinas vinculadas...</span>
         </div>
       ) : vinculosAtivos.length === 0 ? (
-        <div className="py-5 px-4 bg-gray-50/80 rounded-xl border border-dashed border-gray-200 text-center space-y-2">
+        <div className="py-5 px-4 bg-gray-50/80 rounded-xl border border-dashed border-gray-200 text-center space-y-2 pt-[0.3px] pb-[0.3px] pr-[0px] pl-[0px]">
           <AlertCircle className="w-6 h-6 text-amber-500 mx-auto" />
           <p className="text-xs font-semibold text-gray-700">
             Nenhuma usina vinculada ativamente a este contrato no momento.
-          </p>
-          <p className="text-[11px] text-gray-500">
-            Clique no botão acima para adicionar uma ou mais usinas sob a cobertura deste plano{' '}
-            {plano ? `(${plano})` : ''}.
           </p>
         </div>
       ) : (
