@@ -23,11 +23,14 @@ interface MonitoramentoConfigBadgeProps {
  * - Se for PDF: abre/baixa o PDF oficial com o passo a passo.
  * - Se for LINK: abre o link em nova aba (target _blank) com rel="noopener noreferrer".
  */
-export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> = ({
+export const MonitoramentoConfigBadge: React.FC<
+  MonitoramentoConfigBadgeProps & { iconeApenas?: boolean }
+> = ({
   configuracao,
   className = '',
   rotulo = 'Configuração de monitoramento',
   mostrarTipo = false,
+  iconeApenas = false,
 }) => {
   if (!configuracao) return null
 
@@ -81,15 +84,19 @@ export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> =
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className={`inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-200 transition-colors shrink-0 shadow-2xs ${className}`}
+      className={
+        iconeApenas
+          ? `p-1 rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs inline-flex items-center justify-center shrink-0 ${className}`
+          : `inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-200 transition-colors shrink-0 shadow-2xs ${className}`
+      }
       title={tituloTooltip}
     >
       {isPdf ? (
-        <FileText className="w-3 h-3 text-emerald-600 shrink-0" />
+        <FileText className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
       ) : (
-        <ExternalLink className="w-3 h-3 text-emerald-600 shrink-0" />
+        <ExternalLink className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
       )}
-      <span>{rotulo}</span>
+      {!iconeApenas && <span>{rotulo}</span>}
       {mostrarTipo && (
         <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-100/60 px-1 py-0.2 rounded ml-0.5">
           {isPdf ? 'PDF' : 'Link'}

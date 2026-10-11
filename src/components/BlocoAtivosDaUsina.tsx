@@ -1083,10 +1083,13 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     fornecedor?.whatsapp ||
                     fornecedor?.telefone ||
                     ''
-                  const [expandidoDetalhes, setExpandidoDetalhes] = [
-                    itemExpandidoId === item.id,
-                    (exp: boolean) => setItemExpandidoId(exp ? item.id : null),
-                  ]
+                  const expandidoDetalhes = Boolean(itensExpandidos[item.id])
+                  const toggleDetalhes = () => {
+                    setItensExpandidos((prev) => ({
+                      ...prev,
+                      [item.id]: !prev[item.id],
+                    }))
+                  }
 
                   return (
                     <div
@@ -1115,7 +1118,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           {(item.numero_serie || telefoneSuporte || fornecedor) && (
                             <button
                               type="button"
-                              onClick={() => setExpandidoDetalhes(!expandidoDetalhes)}
+                              onClick={toggleDetalhes}
                               className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
                               title="Mais detalhes"
                             >
@@ -1209,7 +1212,13 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                 )
                 .map((ativo) => {
                   const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
-                  const expandido = itemExpandidoId === ativo.id
+                  const expandido = Boolean(itensExpandidos[ativo.id])
+                  const toggleDetalhes = () => {
+                    setItensExpandidos((prev) => ({
+                      ...prev,
+                      [ativo.id]: !prev[ativo.id],
+                    }))
+                  }
                   return (
                     <div
                       key={ativo.id}
@@ -1226,7 +1235,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                             ativo.data_fim_garantia) && (
                             <button
                               type="button"
-                              onClick={() => setItemExpandidoId(expandido ? null : ativo.id)}
+                              onClick={toggleDetalhes}
                               className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
                               title="Mais detalhes"
                             >
@@ -1433,7 +1442,13 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     fornecedor?.telefone ||
                     ''
                   const cfgMonitoramento = encontrarConfigMonitoramentoInversor(eq, eq.marca)
-                  const expandidoDetalhes = itemExpandidoId === item.id
+                  const expandidoDetalhes = Boolean(itensExpandidos[item.id])
+                  const toggleDetalhes = () => {
+                    setItensExpandidos((prev) => ({
+                      ...prev,
+                      [item.id]: !prev[item.id],
+                    }))
+                  }
 
                   return (
                     <div
@@ -1461,18 +1476,15 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
 
                           {/* Configuração de monitoramento: APENAS UM ÍCONE (não botão com texto) */}
                           {cfgMonitoramento && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const url =
-                                  cfgMonitoramento.link_portal || cfgMonitoramento.pdf_procedimento
-                                if (url) window.open(url, '_blank')
-                              }}
-                              className="p-1 rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs cursor-pointer"
-                              title={`Monitoramento: ${cfgMonitoramento.titulo || cfgMonitoramento.marca || 'Configuração'}`}
+                            <div
+                              className="shrink-0"
+                              title={`Configuração de Monitoramento: ${cfgMonitoramento.titulo || cfgMonitoramento.marca || ''}`}
                             >
-                              <Activity className="w-3.5 h-3.5" />
-                            </button>
+                              <MonitoramentoConfigBadge
+                                configuracao={cfgMonitoramento}
+                                iconeApenas
+                              />
+                            </div>
                           )}
 
                           {(item.numero_serie ||
@@ -1481,7 +1493,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                             dataloggerUrl) && (
                             <button
                               type="button"
-                              onClick={() => setItemExpandidoId(expandidoDetalhes ? null : item.id)}
+                              onClick={toggleDetalhes}
                               className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
                               title="Mais detalhes"
                             >
@@ -1587,7 +1599,13 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                 )
                 .map((ativo) => {
                   const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
-                  const expandido = itemExpandidoId === ativo.id
+                  const expandido = Boolean(itensExpandidos[ativo.id])
+                  const toggleDetalhes = () => {
+                    setItensExpandidos((prev) => ({
+                      ...prev,
+                      [ativo.id]: !prev[ativo.id],
+                    }))
+                  }
                   return (
                     <div
                       key={ativo.id}
@@ -1604,7 +1622,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                             ativo.data_fim_garantia) && (
                             <button
                               type="button"
-                              onClick={() => setItemExpandidoId(expandido ? null : ativo.id)}
+                              onClick={toggleDetalhes}
                               className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors cursor-pointer"
                               title="Mais detalhes"
                             >
