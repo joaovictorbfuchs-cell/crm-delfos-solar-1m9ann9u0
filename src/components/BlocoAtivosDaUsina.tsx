@@ -129,6 +129,12 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [observacoes, setObservacoes] = useState<string>('')
   const [salvandoVinculo, setSalvandoVinculo] = useState<boolean>(false)
 
+  // IDs dos itens expandidos (para ver detalhes de suporte, datasheet, observações, etc.)
+  const [itensExpandidos, setItensExpandidos] = useState<Record<string, boolean>>({})
+  const toggleItemExpandido = (id: string) => {
+    setItensExpandidos((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
   // Modal de Confirmação para Excluir Equipamento/Ativo da Usina
   const [itemParaExcluirUsina, setItemParaExcluirUsina] = useState<{
     tipo: 'vinculo' | 'ativo_individual' | 'declarado'
@@ -955,35 +961,24 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
           {/* -------------------------------------------------------------- */}
           {/* LINHA 1: CARD RESUMO DA USINA                                  */}
           {/* -------------------------------------------------------------- */}
-          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 transition-colors space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-emerald-100/80 text-emerald-800">
-                  <Layers className="w-3.5 h-3.5 text-emerald-700" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-slate-900">
-                    Resumo dos Parâmetros Fotovoltaicos
-                  </span>
-                  <span className="text-[10px] text-slate-500 ml-2 font-normal hidden sm:inline">
-                    Valores consolidados da usina (clique para editar inline)
-                  </span>
-                </div>
+          <div className="bg-slate-50/70 rounded-xl p-3 border border-slate-200/80 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="text-xs font-bold text-slate-900">Resumo da Usina</span>
               </div>
-              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Geral da Usina
-              </span>
+              <span className="text-[10px] text-slate-400">Clique no valor para editar</span>
             </div>
 
-            {/* Grid 3 colunas de indicadores do resumo */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            {/* Grid 3 colunas de indicadores do resumo enxuto */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
               {/* Indicador Potência */}
-              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/90 shadow-2xs">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200/70">
-                  <Zap className="w-4 h-4 text-amber-600" />
+              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
+                <div className="w-7 h-7 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200/60">
+                  <Zap className="w-3.5 h-3.5 text-amber-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
+                  <span className="text-[10px] font-semibold text-slate-400 block leading-tight">
                     Potência Total
                   </span>
                   <InlineEditField
@@ -1004,18 +999,18 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               </div>
 
               {/* Indicador Módulos */}
-              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/90 shadow-2xs">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200/70">
-                  <Sun className="w-4 h-4 text-blue-600" />
+              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
+                <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200/60">
+                  <Sun className="w-3.5 h-3.5 text-blue-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
-                    Qtd de Módulos
+                  <span className="text-[10px] font-semibold text-slate-400 block leading-tight">
+                    Quantidade de Módulos
                   </span>
                   <InlineEditField
                     value={usina.qtd_modulos ?? 0}
                     displayValue={
-                      <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200 inline-block">
+                      <span className="font-black text-blue-700 text-sm">
                         {usina.qtd_modulos || 0} un
                       </span>
                     }
@@ -1030,18 +1025,18 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               </div>
 
               {/* Indicador Geração */}
-              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/90 shadow-2xs">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200/70">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
+                <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200/60">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
+                  <span className="text-[10px] font-semibold text-slate-400 block leading-tight">
                     Geração Estimada
                   </span>
                   <InlineEditField
                     value={usina.geracao_estimada_kwh ?? 0}
                     displayValue={
-                      <span className="font-bold text-emerald-800 text-xs">
+                      <span className="font-black text-emerald-700 text-sm">
                         {usina.geracao_estimada_kwh
                           ? `${usina.geracao_estimada_kwh} kWh/mês`
                           : 'Não inf.'}

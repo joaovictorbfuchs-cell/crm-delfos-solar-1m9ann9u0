@@ -375,9 +375,11 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   const selectedDiaKey = selectedDia ? toLocalDateKey(selectedDia) : ''
   const atividadesDiaSelecionado = useMemo(() => {
     if (!selectedDiaKey) return []
-    return (atividadesPorData.get(selectedDiaKey) || []).sort(
-      (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime(),
-    )
+    return (atividadesPorData.get(selectedDiaKey) || []).sort((a, b) => {
+      const timeA = a.data ? new Date(a.data).getTime() : 0
+      const timeB = b.data ? new Date(b.data).getTime() : 0
+      return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB)
+    })
   }, [selectedDiaKey, atividadesPorData])
 
   // Total de atividades da semana atual
