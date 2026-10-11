@@ -867,8 +867,173 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
 
             const isAtivo = usina.status !== 'inativo'
 
-            return
-            null
+            const nomeUsina = usina.nome || `Usina ${index + 1}`
+            const cidadeOuEndereco =
+              [
+                usina.cidade,
+                usina.estado ? usina.estado : null,
+                !usina.cidade && usina.endereco ? usina.endereco : null,
+              ]
+                .filter(Boolean)
+                .join(' - ') ||
+              usina.endereco ||
+              'Endereço não informado'
+
+            const potenciaFormatada =
+              Number(usina.potencia_kwp) > 0
+                ? Number(usina.potencia_kwp).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 2,
+                  })
+                : null
+
+            const modulosQtd = Number(usina.qtd_modulos) || Number(usina.quantidade_placas) || 0
+            const geracaoEstimada =
+              Number(usina.geracao_estimada_kwh) || Number(usina.geracao_media_mensal_kwh) || 0
+
+            return (
+              <div
+                key={usina.id || index}
+                onClick={() => handleOpenFichaUsina(usina)}
+                className="group relative bg-white hover:bg-slate-50/80 rounded-xl p-4 border border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-md transition-all duration-150 cursor-pointer text-left"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleOpenFichaUsina(usina)
+                  }
+                }}
+              >
+                {/* Linha Superior: Nome, Badges (Status Operacional, Tipo, Contrato) e Botão Ver Ficha */}
+                <div className="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h5 className="font-bold text-slate-900 text-sm group-hover:text-[#0F2038] transition-colors truncate">
+                        {nomeUsina}
+                      </h5>
+
+                      {/* Badge Ativa / Inativa */}
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                          isAtivo
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}
+                      >
+                        {isAtivo ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Ativa
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-3 h-3 text-rose-600" /> Inativa
+                          </>
+                        )}
+                      </span>
+
+                      {/* Tipo da Usina */}
+                      {usina.tipo_usina && (
+                        <Badge
+                          variant="secondary"
+                          className="capitalize text-[10px] font-semibold bg-slate-100 text-slate-700 border-slate-200"
+                        >
+                          {usina.tipo_usina}
+                        </Badge>
+                      )}
+
+                      {/* Badge do Status do Contrato O&M vinculado quando houver */}
+                      {contratoVinculado && statusCalc && (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-bold ${statusCalc.badgeColorClass}`}
+                          title={`Contrato ${contratoVinculado.numero_contrato || ''}`}
+                        >
+                          Contrato: {statusCalc.badgeLabel}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Endereço / Localização */}
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{cidadeOuEndereco}</span>
+                    </div>
+                  </div>
+
+                  {/* Indicador de Abertura / Ação */}
+                  <div className="flex items-center gap-1 text-xs font-bold text-[#0F2038] group-hover:text-[#E0A838] transition-colors shrink-0 pt-0.5">
+                    <span className="hidden sm:inline">Ver Ficha</span>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#E0A838] transition-colors" />
+                  </div>
+                </div>
+
+                {/* Métricas Técnicas em Destaque */}
+                <div className="mt-3.5 pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  {/* Potência kWp */}
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50/70 border border-slate-100">
+                    <div className="p-1.5 rounded-md bg-amber-50 text-[#E0A838] shrink-0">
+                      <Zap className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-medium text-slate-400 block leading-tight">
+                        Potência
+                      </span>
+                      <span className="font-bold text-slate-800 text-xs">
+                        {potenciaFormatada ? `${potenciaFormatada} kWp` : 'Não inf.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Módulos */}
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50/70 border border-slate-100">
+                    <div className="p-1.5 rounded-md bg-blue-50 text-blue-600 shrink-0">
+                      <Layers className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-medium text-slate-400 block leading-tight">
+                        Módulos
+                      </span>
+                      <span className="font-bold text-slate-800 text-xs">
+                        {modulosQtd > 0 ? `${modulosQtd} un.` : 'Não inf.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Geração Estimada */}
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50/70 border border-slate-100">
+                    <div className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 shrink-0">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-medium text-slate-400 block leading-tight">
+                        Geração Estimada
+                      </span>
+                      <span className="font-bold text-slate-800 text-xs truncate block">
+                        {geracaoEstimada > 0
+                          ? `${geracaoEstimada.toLocaleString('pt-BR')} kWh/mês`
+                          : 'Não inf.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Número da UC */}
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50/70 border border-slate-100">
+                    <div className="p-1.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
+                      <Hash className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-medium text-slate-400 block leading-tight">
+                        Número UC
+                      </span>
+                      <span className="font-mono font-bold text-slate-800 text-xs truncate block">
+                        {usina.numero_uc ? usina.numero_uc : 'Não inf.'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
           })}
         </div>
       )}
