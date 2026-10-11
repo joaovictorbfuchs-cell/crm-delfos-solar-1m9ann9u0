@@ -1309,7 +1309,7 @@ export const CentralAtendimento: React.FC = () => {
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 pb-2 lg:pb-0">
             {/* 1. FILA DE NOVOS */}
             <div
-              className={`${conversasClassificadas.novos.length === 0 ? 'space-y-0' : 'space-y-2.5'} min-h-0 lg:flex-none ${activeMobileTab !== 'novos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
+              className={`${conversasClassificadas.novos.length === 0 ? 'space-y-0' : 'space-y-2.5'} shrink-0 lg:shrink-0 ${activeMobileTab !== 'novos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1515,7 +1515,7 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 2. EM ATENDIMENTO */}
             <div
-              className={`${conversasClassificadas.emAtendimento.length === 0 ? 'space-y-0' : 'space-y-2.5'} min-h-0 lg:flex-none ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
+              className={`${conversasClassificadas.emAtendimento.length === 0 ? 'space-y-0' : 'space-y-2.5'} shrink-0 lg:shrink-0 ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1618,7 +1618,7 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 3. RESOLVIDOS (ÚLTIMAS 24H) */}
             <div
-              className={`${conversasClassificadas.resolvidos.length === 0 ? 'space-y-0' : 'space-y-2.5'} min-h-0 lg:flex-none ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
+              className={`${conversasClassificadas.resolvidos.length === 0 ? 'space-y-0' : 'space-y-2.5'} shrink-0 lg:shrink-0 ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
