@@ -43,6 +43,7 @@ import {
   desvincularEquipamentoUsina,
   updateVinculoEquipamentoUsina,
 } from '@/services/usinaEquipamentosService'
+import { uploadDocumentoUsina, getDocumentoUsinaFileUrl } from '@/services/documentosUsinaService'
 import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import type { ConfiguracaoMonitoramento } from '@/types/equipamentos'
 import { fetchConfiguracoesMonitoramento } from '@/services/configuracoesMonitoramentoService'
@@ -2408,80 +2409,130 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* MODAL DE ANEXAR DOCUMENTO MANUALMENTE */}
-      <Dialog open={uploadManualAberto} onOpenChange={setUploadManualAberto}>
-        <DialogContent className="max-w-md">
+      {/* MODAL DE ANEXAR DOCUMENTOS COM CLASSIFICAÇÃO INDIVIDUAL */}
+      <Dialog
+        open={uploadManualAberto}
+        onOpenChange={(val) => {
+          setUploadManualAberto(val)
+          if (!val) {
+            setArquivosParaClassificar([])
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Paperclip className="w-4 h-4 text-blue-600" />
-              Anexar Documento à Usina
+              Anexar Documentos à Usina
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Adicione projetos, memoriais ou datasheets adicionais à usina "{usina.nome}"
+              Selecione um ou mais arquivos e classifique a categoria de cada documento para a usina
+              "{usina.nome}".
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSalvarUploadManual} className="space-y-3.5 text-xs">
+          <form onSubmit={handleSalvarUploadManual} className="space-y-4 text-xs">
             <div>
               <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                Tipo / Categoria do Documento *
-              </label>
-              <select
-                value={uploadManualCategoria}
-                onChange={(e) => setUploadManualCategoria(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white"
-              >
-                <option value="projeto">Projeto Técnico / Memorial</option>
-                <option value="datasheet_inversor">
-                  Datasheet do Inversor (Adicional/Ampliação)
-                </option>
-                <option value="datasheet_modulo">Datasheet do Módulo (Adicional/Ampliação)</option>
-                <option value="fatura">Conta / Fatura de Energia</option>
-                <option value="memorial">ART / Parecer de Acesso</option>
-                <option value="outro">Outro Documento Técnico</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                Arquivo(s) (PDF, Imagem, Excel) *
+                Selecionar Arquivo(s) (PDF, Imagem, Planilha) *
               </label>
               <input
                 ref={inputManualRef}
                 type="file"
                 multiple
-                required
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.csv"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.csv,.doc,.docx"
                 onChange={(e) => {
                   const files = e.target.files ? Array.from(e.target.files) : []
-                  setUploadManualArquivos(files)
+                  if (files.length > 0) {
+                    const novosItens = files.map((file, idx) => ({
+                      id: `${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+                      file,
+                      categoria: uploadManualCategoria || 'projeto',
+                    }))
+                    setArquivosParaClassificar((prev) => [...prev, ...novosItens])
+                    if (inputManualRef.current) {
+                      inputManualRef.current.value = ''
+                    }
+                  }
                 }}
-                className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-300 rounded-xl p-1.5"
+                className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-300 rounded-xl p-1.5 cursor-pointer"
               />
-              {uploadManualArquivos.length > 0 && (
-                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                  {uploadManualArquivos.map((file, idx) => (
+              <p className="text-[10px] text-slate-400 mt-1">
+                Dica: Você pode selecionar vários arquivos de uma vez.
+              </p>
+            </div>
+
+            {/* LISTA DE ARQUIVOS COM SELEÇÃO DE CATEGORIA INDIVIDUAL */}
+            {arquivosParaClassificar.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 uppercase">
+                  <span>Arquivos para envio ({arquivosParaClassificar.length})</span>
+                  <span className="text-slate-400 font-normal">Classifique cada arquivo</span>
+                </div>
+
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {arquivosParaClassificar.map((item, idx) => (
                     <div
-                      key={`${file.name}-${idx}`}
-                      className="text-[11px] text-slate-500 flex items-center gap-1.5"
+                      key={item.id}
+                      className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                     >
-                      <FileText className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span className="truncate">{file.name}</span>
-                      <span className="shrink-0 text-slate-400">
-                        ({(file.size / 1024).toFixed(0)} KB)
-                      </span>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="font-semibold text-slate-800 truncate text-[11px]"
+                            title={item.file.name}
+                          >
+                            {item.file.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {(item.file.size / 1024).toFixed(0)} KB
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <select
+                          value={item.categoria}
+                          onChange={(e) => {
+                            const novaCat = e.target.value
+                            setArquivosParaClassificar((prev) =>
+                              prev.map((it, i) => (i === idx ? { ...it, categoria: novaCat } : it)),
+                            )
+                          }}
+                          className="text-[11px] font-medium px-2 py-1 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="projeto">Projeto Técnico / Memorial</option>
+                          <option value="datasheet_inversor">Datasheet do Inversor</option>
+                          <option value="datasheet_modulo">Datasheet do Módulo</option>
+                          <option value="fatura">Conta / Fatura de Energia</option>
+                          <option value="memorial">ART / Parecer de Acesso</option>
+                          <option value="outro">Outro Documento Técnico</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setArquivosParaClassificar((prev) => prev.filter((_, i) => i !== idx))
+                          }}
+                          className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                          title="Remover arquivo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setUploadManualAberto(false)
-                  setUploadManualArquivos([])
+                  setArquivosParaClassificar([])
                 }}
                 className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
               >
@@ -2489,7 +2540,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={uploadManualSalvando || uploadManualArquivos.length === 0}
+                disabled={uploadManualSalvando || arquivosParaClassificar.length === 0}
                 className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {uploadManualSalvando ? (
@@ -2498,7 +2549,12 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     <span>Salvando...</span>
                   </div>
                 ) : (
-                  <span>Salvar Documento</span>
+                  <span>
+                    Salvar{' '}
+                    {arquivosParaClassificar.length > 1
+                      ? `Todos (${arquivosParaClassificar.length})`
+                      : 'Documento'}
+                  </span>
                 )}
               </button>
             </div>
