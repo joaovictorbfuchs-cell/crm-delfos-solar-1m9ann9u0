@@ -64,6 +64,7 @@ import {
 import { formatDate } from '@/lib/formatters'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
+import { formatarPotenciaEquipamentoUnidade } from '@/lib/equipamentoFormatters'
 import { normalizarDigitosDestino } from '@/lib/resolverNumeroDestinoCliente'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { useAuth } from '@/contexts/AuthContext'
@@ -148,7 +149,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [docParaExcluir, setDocParaExcluir] = useState<DocumentoUsinaItem | null>(null)
   const [removendoDoc, setRemovendoDoc] = useState<boolean>(false)
   const [uploadManualAberto, setUploadManualAberto] = useState<boolean>(false)
-  const [uploadManualArquivo, setUploadManualArquivo] = useState<File | null>(null)
+  const [uploadManualArquivos, setUploadManualArquivos] = useState<File[]>([])
   const [uploadManualCategoria, setUploadManualCategoria] = useState<string>('projeto')
   const [uploadManualSalvando, setUploadManualSalvando] = useState<boolean>(false)
   const inputManualRef = React.useRef<HTMLInputElement | null>(null)
@@ -292,48 +293,59 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
         )
       }
 
-      // Se tipo === 'inversor' e houver onUpdateUsinaMultipleFields / onUpdateUsinaField:
+      // Sincronização condicional com os campos escalares legados da usina:
+      // Apenas preenche se a usina AINDA NÃO POSSUIR equipamentos vinculados daquele tipo.
+      // Se já existirem vínculos de inversor ou módulo em usina_equipamentos, NÃO sobrescreve
+      // os campos escalares legados para evitar conflito na mesclagem de ativos.
       try {
         if (equipamentoCriado.tipo === 'inversor') {
-          const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
-          const updatesInversor: Partial<UsinaCliente> = {
-            fabricante_inversores: equipamentoCriado.marca || '',
-            modelo_inversores: equipamentoCriado.modelo || '',
-            potencia_pico_inversores_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
-          }
-          if (onUpdateUsinaMultipleFields) {
-            await onUpdateUsinaMultipleFields(updatesInversor)
-          } else if (onUpdateUsinaField) {
-            if (equipamentoCriado.marca) {
-              await onUpdateUsinaField('fabricante_inversores', equipamentoCriado.marca)
+          const jaTemInversores = vinculos.some(
+            (v) => v.expand?.equipamento_id?.tipo === 'inversor',
+          )
+          if (!jaTemInversores) {
+            const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
+            const updatesInversor: Partial<UsinaCliente> = {
+              fabricante_inversores: equipamentoCriado.marca || '',
+              modelo_inversores: equipamentoCriado.modelo || '',
+              potencia_pico_inversores_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
             }
-            if (equipamentoCriado.modelo) {
-              await onUpdateUsinaField('modelo_inversores', equipamentoCriado.modelo)
-            }
-            if (potPicoKwp > 0) {
-              await onUpdateUsinaField('potencia_pico_inversores_kwp', potPicoKwp)
+            if (onUpdateUsinaMultipleFields) {
+              await onUpdateUsinaMultipleFields(updatesInversor)
+            } else if (onUpdateUsinaField) {
+              if (equipamentoCriado.marca) {
+                await onUpdateUsinaField('fabricante_inversores', equipamentoCriado.marca)
+              }
+              if (equipamentoCriado.modelo) {
+                await onUpdateUsinaField('modelo_inversores', equipamentoCriado.modelo)
+              }
+              if (potPicoKwp > 0) {
+                await onUpdateUsinaField('potencia_pico_inversores_kwp', potPicoKwp)
+              }
             }
           }
         } else if (equipamentoCriado.tipo === 'modulo_fv') {
-          const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
-          const updatesModulo: Partial<UsinaCliente> = {
-            fabricante_modulos: equipamentoCriado.marca || '',
-            modelo_modulos: equipamentoCriado.modelo || '',
-            quantidade_placas: qtd,
-            potencia_pico_modulos_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
-          }
-          if (onUpdateUsinaMultipleFields) {
-            await onUpdateUsinaMultipleFields(updatesModulo)
-          } else if (onUpdateUsinaField) {
-            if (equipamentoCriado.marca) {
-              await onUpdateUsinaField('fabricante_modulos', equipamentoCriado.marca)
+          const jaTemModulos = vinculos.some((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
+          if (!jaTemModulos) {
+            const potPicoKwp = ((equipamentoCriado.potencia_w || 0) * qtd) / 1000
+            const updatesModulo: Partial<UsinaCliente> = {
+              fabricante_modulos: equipamentoCriado.marca || '',
+              modelo_modulos: equipamentoCriado.modelo || '',
+              quantidade_placas: qtd,
+              potencia_pico_modulos_kwp: potPicoKwp > 0 ? potPicoKwp : undefined,
             }
-            if (equipamentoCriado.modelo) {
-              await onUpdateUsinaField('modelo_modulos', equipamentoCriado.modelo)
-            }
-            await onUpdateUsinaField('quantidade_placas', qtd)
-            if (potPicoKwp > 0) {
-              await onUpdateUsinaField('potencia_pico_modulos_kwp', potPicoKwp)
+            if (onUpdateUsinaMultipleFields) {
+              await onUpdateUsinaMultipleFields(updatesModulo)
+            } else if (onUpdateUsinaField) {
+              if (equipamentoCriado.marca) {
+                await onUpdateUsinaField('fabricante_modulos', equipamentoCriado.marca)
+              }
+              if (equipamentoCriado.modelo) {
+                await onUpdateUsinaField('modelo_modulos', equipamentoCriado.modelo)
+              }
+              await onUpdateUsinaField('quantidade_placas', qtd)
+              if (potPicoKwp > 0) {
+                await onUpdateUsinaField('potencia_pico_modulos_kwp', potPicoKwp)
+              }
             }
           }
         }
@@ -580,50 +592,59 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
     }
   }
 
-  // Upload manual rápido de documento direto na ficha
+  // Upload manual rápido de documento direto na ficha (suporta seleção múltipla)
   const handleSalvarUploadManual = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!uploadManualArquivo) {
-      toast.warning('Selecione um arquivo para upload.')
+    if (!uploadManualArquivos || uploadManualArquivos.length === 0) {
+      toast.warning('Selecione ao menos um arquivo para upload.')
       return
     }
 
     setUploadManualSalvando(true)
     try {
-      let fileDataUrl = ''
-      try {
-        fileDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result as string)
-          reader.onerror = (err) => reject(err)
-          reader.readAsDataURL(uploadManualArquivo)
-        })
-      } catch (err) {
-        console.warn('Erro ao ler base64:', err)
-      }
+      const novosItens: DocumentoUsinaItem[] = []
 
-      const novoItem: DocumentoUsinaItem = {
-        id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        nome_arquivo: uploadManualArquivo.name,
-        categoria: uploadManualCategoria,
-        url: fileDataUrl,
-        tamanho: uploadManualArquivo.size,
-        tipo_mime: uploadManualArquivo.type || 'application/pdf',
-        criado_em: new Date().toISOString(),
-        origem: 'upload',
+      for (let i = 0; i < uploadManualArquivos.length; i++) {
+        const file = uploadManualArquivos[i]
+        let fileDataUrl = ''
+        try {
+          fileDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = (err) => reject(err)
+            reader.readAsDataURL(file)
+          })
+        } catch (err) {
+          console.warn('Erro ao ler base64:', err)
+        }
+
+        novosItens.push({
+          id: `doc_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+          nome_arquivo: file.name,
+          categoria: uploadManualCategoria,
+          url: fileDataUrl,
+          tamanho: file.size,
+          tipo_mime: file.type || 'application/pdf',
+          criado_em: new Date().toISOString(),
+          origem: 'upload',
+        })
       }
 
       const docsAtuais = Array.isArray(usina.documentos_usina) ? [...usina.documentos_usina] : []
-      docsAtuais.push(novoItem)
+      docsAtuais.push(...novosItens)
 
       await onUpdateUsinaField('documentos_usina', docsAtuais)
-      toast.success(`Documento "${uploadManualArquivo.name}" adicionado com sucesso!`)
+      if (novosItens.length === 1) {
+        toast.success(`Documento "${novosItens[0].nome_arquivo}" adicionado com sucesso!`)
+      } else {
+        toast.success(`${novosItens.length} documentos adicionados com sucesso!`)
+      }
       setUploadManualAberto(false)
-      setUploadManualArquivo(null)
+      setUploadManualArquivos([])
       setUploadManualCategoria('projeto')
     } catch (err) {
-      console.error('Erro ao salvar documento anexado:', err)
-      toast.error('Erro ao anexar documento.')
+      console.error('Erro ao salvar documentos anexados:', err)
+      toast.error('Erro ao anexar documento(s).')
     } finally {
       setUploadManualSalvando(false)
     }
@@ -1059,6 +1080,40 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
           {/* -------------------------------------------------------------- */}
           {/* MÓDULOS FOTOVOLTAICOS                                          */}
           {/* -------------------------------------------------------------- */}
+          {/* Cabeçalho de Grupo: Módulos Fotovoltaicos */}
+          {(() => {
+            const vinculosModulos = vinculos.filter(
+              (v) => v.expand?.equipamento_id?.tipo === 'modulo_fv',
+            )
+            const ativosModulos = ativosIndividuais.filter(
+              (a) =>
+                a.tipo === 'placa_solar' ||
+                (a.tipo as string) === 'modulo_fv' ||
+                a.fabricante?.toLowerCase().includes('sunova') ||
+                a.fabricante?.toLowerCase().includes('canadian') ||
+                a.fabricante?.toLowerCase().includes('ja solar') ||
+                a.fabricante?.toLowerCase().includes('trina') ||
+                a.modelo?.toLowerCase().includes('placa') ||
+                a.modelo?.toLowerCase().includes('modulo'),
+            )
+            const totalModulos =
+              vinculosModulos.reduce((acc, v) => acc + (v.quantidade || 1), 0) +
+              ativosModulos.length +
+              (!temEquipamentoCatalogoModulo &&
+              (usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos)
+                ? usina.quantidade_placas || 1
+                : 0)
+
+            return (
+              <div className="flex items-center justify-between pt-1 pb-0.5">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  Módulos Fotovoltaicos ({totalModulos})
+                </span>
+              </div>
+            )
+          })()}
+
           {/* Conteúdo de Módulos: Vinculados do catálogo, declarados e ativos individuais */}
           <div className="space-y-2">
             {/* 1. Módulos vinculados via catálogo (usina_equipamentos) */}
@@ -1088,24 +1143,28 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     key={item.id}
                     className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition-all flex flex-col gap-2"
                   >
-                    {/* UMA linha principal: Fabricante, Modelo, Potência, Datasheet e Ícone Excluir */}
+                    {/* UMA linha principal: Fabricante, Modelo, Potência, Quantidade, Datasheet e Ícone Excluir */}
                     <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
                       <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                        <span className="font-bold text-slate-900 text-xs truncate">
-                          {eq.marca} {eq.modelo}
+                        {/* Marca e Modelo com o mesmo estilo de destaque da potência */}
+                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                          {eq.marca}
+                        </span>
+                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                          {eq.modelo}
                         </span>
 
+                        {/* Potência em W para módulos */}
                         {eq.potencia_w > 0 && (
                           <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                            {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
+                            {Math.round(eq.potencia_w)} W
                           </span>
                         )}
 
-                        {item.quantidade && item.quantidade > 1 ? (
-                          <span className="text-[10px] text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
-                            {item.quantidade} un
-                          </span>
-                        ) : null}
+                        {/* Quantidade SEMPRE visível (mesmo 1) */}
+                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                          {item.quantidade || 1} un
+                        </span>
 
                         {(item.numero_serie || telefoneSuporte || fornecedor) && (
                           <button
@@ -1436,6 +1495,38 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
           {/* -------------------------------------------------------------- */}
           {/* INVERSORES                                                     */}
           {/* -------------------------------------------------------------- */}
+          {/* Cabeçalho de Grupo: Inversores */}
+          {(() => {
+            const vinculosInversores = vinculos.filter(
+              (v) => v.expand?.equipamento_id?.tipo === 'inversor',
+            )
+            const ativosInversores = ativosIndividuais.filter(
+              (a) =>
+                a.tipo === 'inversor' ||
+                a.fabricante?.toLowerCase().includes('solis') ||
+                a.fabricante?.toLowerCase().includes('growatt') ||
+                a.fabricante?.toLowerCase().includes('deye') ||
+                a.modelo?.toLowerCase().includes('solis') ||
+                a.modelo?.toLowerCase().includes('inversor'),
+            )
+            const totalInversores =
+              vinculosInversores.reduce((acc, v) => acc + (v.quantidade || 1), 0) +
+              ativosInversores.length +
+              (!temEquipamentoCatalogoInversor &&
+              (usina.inversores_info || usina.fabricante_inversores || usina.modelo_inversores)
+                ? 1
+                : 0)
+
+            return (
+              <div className="flex items-center justify-between pt-1 pb-0.5">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-purple-600" />
+                  Inversores ({totalInversores})
+                </span>
+              </div>
+            )
+          })()}
+
           {/* Conteúdo de Inversores: Vinculados do catálogo, declarados e individuais */}
           <div className="space-y-2">
             {/* 1. Inversores vinculados via catálogo (usina_equipamentos) */}
@@ -1467,24 +1558,31 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     key={item.id}
                     className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex flex-col gap-2"
                   >
-                    {/* UMA linha principal: Fabricante, Modelo, Potência, Datasheet, Botão Monitoramento e Ícone Excluir */}
+                    {/* UMA linha principal: Fabricante, Modelo, Potência, Quantidade, Datasheet, Botão Monitoramento e Ícone Excluir */}
                     <div className="flex items-center justify-between gap-2 flex-wrap min-h-[30px]">
                       <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                        <span className="font-bold text-slate-900 text-xs truncate">
-                          {eq.marca} {eq.modelo}
+                        {/* Marca e Modelo com o mesmo estilo de destaque da potência */}
+                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                          {eq.marca}
+                        </span>
+                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                          {eq.modelo}
                         </span>
 
+                        {/* Potência em kW para inversores */}
                         {eq.potencia_w > 0 && (
                           <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                            {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
+                            {(eq.potencia_w / 1000).toLocaleString('pt-BR', {
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            kW
                           </span>
                         )}
 
-                        {item.quantidade && item.quantidade > 1 ? (
-                          <span className="text-[10px] text-blue-900 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-bold">
-                            {item.quantidade} un
-                          </span>
-                        ) : null}
+                        {/* Quantidade SEMPRE visível (mesmo 1) */}
+                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                          {item.quantidade || 1} un
+                        </span>
 
                         {(item.numero_serie || telefoneSuporte || fornecedor || dataloggerUrl) && (
                           <button
@@ -1502,6 +1600,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                         )}
                       </div>
 
+                      {/* Contêiner flex horizontal com datasheet, monitoramento e exclusão */}
                       <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                         {datasheetUrl ? (
                           <a
@@ -1517,7 +1616,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           </a>
                         ) : null}
 
-                        {/* Botão de Monitoramento: na mesma linha do botão de datasheet */}
+                        {/* Botão de Monitoramento: no MESMO contêiner flex horizontal do botão datasheet */}
                         {cfgMonitoramento && (
                           <MonitoramentoConfigBadge
                             configuracao={cfgMonitoramento}
@@ -2189,24 +2288,34 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
 
             <div>
               <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                Arquivo (PDF, Imagem, Excel) *
+                Arquivo(s) (PDF, Imagem, Excel) *
               </label>
               <input
                 ref={inputManualRef}
                 type="file"
+                multiple
                 required
                 accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.csv"
                 onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) setUploadManualArquivo(f)
+                  const files = e.target.files ? Array.from(e.target.files) : []
+                  setUploadManualArquivos(files)
                 }}
                 className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-300 rounded-xl p-1.5"
               />
-              {uploadManualArquivo && (
-                <div className="mt-1 text-[11px] text-slate-500 flex items-center gap-1.5">
-                  <FileText className="w-3 h-3 text-slate-400" />
-                  <span>{uploadManualArquivo.name}</span>
-                  <span>({(uploadManualArquivo.size / 1024).toFixed(0)} KB)</span>
+              {uploadManualArquivos.length > 0 && (
+                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                  {uploadManualArquivos.map((file, idx) => (
+                    <div
+                      key={`${file.name}-${idx}`}
+                      className="text-[11px] text-slate-500 flex items-center gap-1.5"
+                    >
+                      <FileText className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="truncate">{file.name}</span>
+                      <span className="shrink-0 text-slate-400">
+                        ({(file.size / 1024).toFixed(0)} KB)
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -2216,7 +2325,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                 type="button"
                 onClick={() => {
                   setUploadManualAberto(false)
-                  setUploadManualArquivo(null)
+                  setUploadManualArquivos([])
                 }}
                 className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
               >
@@ -2224,7 +2333,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={uploadManualSalvando || !uploadManualArquivo}
+                disabled={uploadManualSalvando || uploadManualArquivos.length === 0}
                 className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {uploadManualSalvando ? (

@@ -152,16 +152,14 @@ export function formatarPotenciaEquipamentoUnidade(
     return tipo === 'modulo_fv' ? '0 W' : '0 kW'
   }
   const isModulo = tipo === 'modulo_fv' || (!tipo && potenciaW <= 800)
-  const kw = potenciaW / 1000
-  const kwFormatado = parseFloat(kw.toFixed(3)).toLocaleString('pt-BR', {
-    maximumFractionDigits: 3,
-  })
-  const formattedW = `${Math.round(potenciaW).toLocaleString('pt-BR')} W`
-
   if (isModulo) {
-    return `${formattedW} (${kwFormatado} kW)`
+    return `${Math.round(potenciaW)} W`
   }
-  return `${kwFormatado} kW (${formattedW})`
+  const kw = potenciaW / 1000
+  const kwFormatado = kw.toLocaleString('pt-BR', {
+    maximumFractionDigits: 2,
+  })
+  return `${kwFormatado} kW`
 }
 
 /**

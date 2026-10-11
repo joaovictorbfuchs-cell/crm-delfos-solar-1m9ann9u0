@@ -41,7 +41,7 @@ export function getUrlConfiguracaoMonitoramentoPdf(
 export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> = ({
   configuracao,
   apenasIcone = false,
-  mostrarTipo = false,
+  mostrarTipo: _mostrarTipo = false,
   tamanho = 'md',
   className = '',
   rotulo = 'Monitoramento',
@@ -74,15 +74,10 @@ export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> =
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className={`inline-flex items-center gap-1 font-bold rounded-lg border bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 transition-colors shadow-2xs ${sizeClasses}`}
-          title={`Configuração de Monitoramento (PDF) - ${configuracao.fabricante || ''}`}
+          title={`Configuração de Monitoramento - ${configuracao.fabricante || ''}`}
         >
           <FileText className={`${iconSize} text-emerald-700 shrink-0`} />
-          {!apenasIcone && (
-            <span>
-              {rotulo || 'Monitoramento'}
-              {mostrarTipo ? ' (PDF)' : ''}
-            </span>
-          )}
+          {!apenasIcone && <span>{rotulo || 'Monitoramento'}</span>}
           <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5 shrink-0" />
         </a>
       )}
@@ -94,15 +89,10 @@ export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> =
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className={`inline-flex items-center gap-1 font-bold rounded-lg border bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-300 transition-colors shadow-2xs ${sizeClasses}`}
-          title={`Configuração de Monitoramento (Link) - ${configuracao.fabricante || ''}`}
+          title={`Configuração de Monitoramento - ${configuracao.fabricante || ''}`}
         >
           <ExternalLink className={`${iconSize} text-blue-700 shrink-0`} />
-          {!apenasIcone && (
-            <span>
-              {rotulo || 'Monitoramento'}
-              {mostrarTipo ? ' (Link)' : ''}
-            </span>
-          )}
+          {!apenasIcone && <span>{rotulo || 'Monitoramento'}</span>}
           <ExternalLink className="w-2.5 h-2.5 text-blue-600 ml-0.5 shrink-0" />
         </a>
       )}
