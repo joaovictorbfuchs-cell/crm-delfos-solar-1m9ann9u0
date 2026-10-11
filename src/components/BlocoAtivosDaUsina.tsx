@@ -1107,20 +1107,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
         )}
 
         {/* Inversor(es): Marca / Modelo / Potência + Datasheet (Deduplicação quando já vinculado ao catálogo) */}
-        {temEquipamentoCatalogoInversor ? (
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <Cpu className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-              <span className="text-slate-600 font-medium">Inversores Fotovoltaicos:</span>
-            </div>
-            <Badge
-              variant="outline"
-              className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] font-medium"
-            >
-              Equipamentos gerenciados nos cards de ativos abaixo com datasheet oficial.
-            </Badge>
-          </div>
-        ) : (
+        {!temEquipamentoCatalogoInversor && (
           <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
