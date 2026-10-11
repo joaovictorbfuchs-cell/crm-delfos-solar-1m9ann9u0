@@ -354,8 +354,17 @@ export function calcularDataLembrete2DiasAntes(dataLeituraYYYYMMDD: string): {
   const [ano, mes, dia] = dataLeituraYYYYMMDD.split('-').map(Number)
   // Leitura ao meio dia UTC
   const leituraDate = new Date(Date.UTC(ano, mes - 1, dia, 12, 0, 0))
-  // Lembrete 2 dias antes às 08:00 UTC
+
+  // Lembrete 2 dias antes; se cair em sábado ou domingo, antecipar para a sexta-feira anterior (nunca no fim de semana)
   const lembreteDate = new Date(Date.UTC(ano, mes - 1, dia - 2, 8, 0, 0))
+  const diaSemanaLembrete = lembreteDate.getUTCDay() // 0 = Domingo, 6 = Sábado
+  if (diaSemanaLembrete === 0) {
+    // Caiu no domingo -> recua 2 dias para sexta-feira
+    lembreteDate.setUTCDate(lembreteDate.getUTCDate() - 2)
+  } else if (diaSemanaLembrete === 6) {
+    // Caiu no sábado -> recua 1 dia para sexta-feira
+    lembreteDate.setUTCDate(lembreteDate.getUTCDate() - 1)
+  }
 
   return {
     dataLeituraIso: leituraDate.toISOString(),
@@ -414,11 +423,14 @@ export interface CriarFilhasLembreteParams {
   responsavelId?: string
   responsavelNome?: string
   autor?: string
+  mensagemCliente?: string
 }
 
 /**
  * Cria atividades filhas para datas que ainda NÃO possuem filha vinculada (deduplicação por data_leitura).
  * Retorna as atividades criadas.
+ * Regra: se o dia do lembrete (2 dias antes) cair no fim de semana (sábado ou domingo),
+ * ajusta para a sexta-feira anterior (nunca no fim de semana).
  */
 export async function sincronizarFilhasNovas(
   params: CriarFilhasLembreteParams,
@@ -433,6 +445,7 @@ export async function sincronizarFilhasNovas(
     responsavelId,
     responsavelNome,
     autor,
+    mensagemCliente,
   } = params
 
   const existentes = filhasExistentes ?? (await buscarAtividadesFilhasAutoLeitura(maeId))
@@ -461,6 +474,7 @@ export async function sincronizarFilhasNovas(
       data_lembrete: normalizarDataPb(dataLembreteIso),
       status: 'pendente',
       autor: autor || responsavelNome || 'Sistema Delfos',
+      mensagem_cliente: mensagemCliente || undefined,
     }
 
     if (usinaId && usinaId.trim()) {

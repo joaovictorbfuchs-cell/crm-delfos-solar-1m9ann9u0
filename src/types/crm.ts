@@ -1066,6 +1066,8 @@ export interface Atividade extends RecordModel {
   data_lembrete?: string
   dados_leitura_registrados?: string
   foto_medidor?: string
+  mensagem_cliente?: string
+  sem_retorno_leitura_media?: boolean
   // Campos de unificação CRM (Fase A e Piloto)
   tipo_custom_id?: string
   tipo_unificado?: string

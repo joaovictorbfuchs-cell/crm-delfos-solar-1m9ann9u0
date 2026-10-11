@@ -15,7 +15,9 @@ import {
   Sparkles,
   AlertTriangle,
   Briefcase,
+  MessageSquare,
 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
 import { ModalCriarAnaliseFatura } from '@/components/ModalCriarAnaliseFatura'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -143,9 +145,17 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [descricao, setDescricao] = useState('')
 
   // Estados dedicados para Auto Leitura RGE
+  const TEXTO_PADRAO_AUTO_LEITURA_INICIAL =
+    'Olá, [nome do cliente]! Sua usina está com a auto leitura do medidor agendada para [data]. Pedimos, gentilmente, que nos envie pelo WhatsApp a leitura do medidor até [dia anterior], para mantermos o acompanhamento da sua geração em dia. Qualquer dúvida, estamos à disposição. Atenciosamente, equipe Delfos Engenharia.'
+
   const [numeroUcAutoLeitura, setNumeroUcAutoLeitura] = useState<string>('')
   const [datasLeituraAutoLeitura, setDatasLeituraAutoLeitura] = useState<string[]>([])
   const [novaDataInput, setNovaDataInput] = useState<string>('')
+  const [mensagemClienteAutoLeitura, setMensagemClienteAutoLeitura] = useState<string>(
+    TEXTO_PADRAO_AUTO_LEITURA_INICIAL,
+  )
+  const [salvandoTemplatePadrao, setSalvandoTemplatePadrao] = useState(false)
+  const [sucessoSalvarTemplate, setSucessoSalvarTemplate] = useState(false)
 
   const [programacaoLeituras, setProgramacaoLeituras] =
     useState<ProgramacaoLeituraItem[]>(ITENS_EXEMPLO_PROGRAMACAO)
@@ -198,6 +208,17 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       if (tipoParaUsar === 'auto_leitura_rge') {
         setDatasLeituraAutoLeitura([])
         setNovaDataInput('')
+        // Carrega texto atual do template padrão de auto leitura
+        pb.collection('whatsapp_templates')
+          .getOne('qvmkpl0mj2pun1i')
+          .then((tpl) => {
+            if (tpl && tpl.conteudo) {
+              setMensagemClienteAutoLeitura(tpl.conteudo)
+            }
+          })
+          .catch(() => {
+            setMensagemClienteAutoLeitura(TEXTO_PADRAO_AUTO_LEITURA_INICIAL)
+          })
       }
 
       // Definir responsável padrão: usuário logado se encontrado na lista, ou primeiro usuário
@@ -401,6 +422,23 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
   const handleRemoveDataLeitura = (dataParaRemover: string) => {
     setDatasLeituraAutoLeitura((prev) => prev.filter((d) => d !== dataParaRemover))
+  }
+
+  const handleSalvarComoPadrao = async () => {
+    try {
+      setSalvandoTemplatePadrao(true)
+      setSucessoSalvarTemplate(false)
+      await pb.collection('whatsapp_templates').update('qvmkpl0mj2pun1i', {
+        conteudo: mensagemClienteAutoLeitura,
+      })
+      setSucessoSalvarTemplate(true)
+      setTimeout(() => setSucessoSalvarTemplate(false), 3000)
+    } catch (err) {
+      console.error('Erro ao salvar template padrão:', err)
+      setFormError('Erro ao salvar texto padrão no template WhatsApp.')
+    } finally {
+      setSalvandoTemplatePadrao(false)
+    }
   }
 
   const handleAddDataProgramacao = () => {
@@ -645,6 +683,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
       if (selectedTipo === 'auto_leitura_rge') {
         atividadePrincipalPayload.datas_leitura = datasLeituraAutoLeitura
+        atividadePrincipalPayload.mensagem_cliente = mensagemClienteAutoLeitura.trim()
       }
 
       // Salva a atividade principal (mãe)
@@ -664,6 +703,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           responsavelId: responsavelIdLimpo,
           responsavelNome,
           autor: user?.name || 'João Delfos',
+          mensagemCliente: mensagemClienteAutoLeitura.trim() || undefined,
         })
       }
 
@@ -1373,6 +1413,55 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* REGRA 2: Campo de Mensagem de Auto Leitura Editável com Salvar como Padrão */}
+              <div className="space-y-2 pt-3 border-t border-orange-100">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <label className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-orange-600" />
+                    <span>Texto da Mensagem ao Cliente</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleSalvarComoPadrao}
+                    disabled={salvandoTemplatePadrao || !mensagemClienteAutoLeitura.trim()}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-orange-700 bg-orange-100 hover:bg-orange-200 disabled:opacity-50 rounded-lg transition-colors"
+                    title="Gravar este texto no template padrão para uso em outros clientes"
+                  >
+                    {salvandoTemplatePadrao ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Salvando padrão...</span>
+                      </>
+                    ) : sucessoSalvarTemplate ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span className="text-emerald-700">Padrão salvo!</span>
+                      </>
+                    ) : (
+                      <span>Salvar como padrão</span>
+                    )}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Variáveis automáticas substituídas no envio:{' '}
+                  <code className="text-orange-800 bg-orange-100/70 px-1 rounded">
+                    [nome do cliente]
+                  </code>
+                  , <code className="text-orange-800 bg-orange-100/70 px-1 rounded">[data]</code> e{' '}
+                  <code className="text-orange-800 bg-orange-100/70 px-1 rounded">
+                    [dia anterior]
+                  </code>
+                  .
+                </p>
+                <textarea
+                  rows={4}
+                  value={mensagemClienteAutoLeitura}
+                  onChange={(e) => setMensagemClienteAutoLeitura(e.target.value)}
+                  placeholder="Digite a mensagem que o cliente receberá pelo WhatsApp..."
+                  className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y bg-white text-gray-900 leading-relaxed font-sans"
+                />
               </div>
             </div>
           )}

@@ -12,14 +12,22 @@ describe('autoLeituraService', () => {
     expect(formatarDataParaDDMMAAAA('')).toBe('')
   })
 
-  it('calcula data do lembrete exatamente 2 dias antes às 08:00 UTC', () => {
+  it('calcula data do lembrete 2 dias antes e antecipa para sexta-feira se cair no fim de semana', () => {
+    // 2027-01-15 é Sexta-feira -> 2 dias antes é Quarta-feira (13/01)
     const res = calcularDataLembrete2DiasAntes('2027-01-15')
     expect(res.dataLeituraIso).toBe('2027-01-15T12:00:00.000Z')
     expect(res.dataLembreteIso).toBe('2027-01-13T08:00:00.000Z')
 
+    // 2027-03-01 é Segunda-feira -> 2 dias antes seria Sábado (27/02)
+    // Regra 1: se cair em sábado ou domingo, enviar na SEXTA-FEIRA anterior (nunca no fim de semana)
+    // Sábado 27/02 -> antecipa para Sexta 26/02
     const resFev = calcularDataLembrete2DiasAntes('2027-03-01')
-    // 2 dias antes de 01/03/2027 (não bissexto) é 27/02/2027
-    expect(resFev.dataLembreteIso).toBe('2027-02-27T08:00:00.000Z')
+    expect(resFev.dataLembreteIso).toBe('2027-02-26T08:00:00.000Z')
+
+    // 2027-03-02 é Terça-feira -> 2 dias antes seria Domingo (28/02)
+    // Domingo 28/02 -> antecipa para Sexta 26/02
+    const resTerca = calcularDataLembrete2DiasAntes('2027-03-02')
+    expect(resTerca.dataLembreteIso).toBe('2027-02-26T08:00:00.000Z')
   })
 
   it('normaliza datas_leitura de diferentes formatos e deduplica', () => {
