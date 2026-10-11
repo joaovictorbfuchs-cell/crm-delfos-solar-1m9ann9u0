@@ -1123,7 +1123,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                         {datasheetUrl ? (
                           <a
                             href={datasheetUrl}
@@ -1137,6 +1137,16 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                             <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
                           </a>
                         ) : null}
+
+                        {(() => {
+                          const cfg = encontrarConfigMonitoramentoInversor(eq, eq.marca)
+                          if (cfg) {
+                            return (
+                              <MonitoramentoConfigBadge configuracao={cfg} rotulo="Monitoramento" />
+                            )
+                          }
+                          return null
+                        })()}
 
                         <button
                           type="button"
@@ -1356,9 +1366,8 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     </div>
                   )}
                 </div>
-
-                {/* Ações da linha: um único botão de datasheet e somente o ícone de excluir */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                {/* Ações da linha: um único botão de datasheet, monitoramento se houver e somente o ícone de excluir */}
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                   {(() => {
                     const eqModulo = encontrarDatasheetModuloUsina(usina)
                     const url =
@@ -1391,6 +1400,18 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     )
                   })()}
 
+                  {(() => {
+                    const eqModulo = encontrarDatasheetModuloUsina(usina)
+                    const cfg = encontrarConfigMonitoramentoInversor(
+                      eqModulo,
+                      usina.fabricante_modulos || usina.marca_placas || '',
+                    )
+                    if (cfg) {
+                      return <MonitoramentoConfigBadge configuracao={cfg} rotulo="Monitoramento" />
+                    }
+                    return null
+                  })()}
+
                   {(usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos) && (
                     <button
                       type="button"
@@ -1407,7 +1428,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
-                </div>
+                </div>{' '}
               </div>
             )}
           </div>
@@ -1616,7 +1637,20 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                        {(() => {
+                          const cfg = encontrarConfigMonitoramentoInversor(
+                            null,
+                            ativo.fabricante || ativo.modelo || '',
+                          )
+                          if (cfg) {
+                            return (
+                              <MonitoramentoConfigBadge configuracao={cfg} rotulo="Monitoramento" />
+                            )
+                          }
+                          return null
+                        })()}
+
                         <button
                           type="button"
                           onClick={() =>

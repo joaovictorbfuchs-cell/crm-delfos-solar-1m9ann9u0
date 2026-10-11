@@ -1,146 +1,112 @@
 import React from 'react'
-import { FileText, ExternalLink, Settings, Video } from 'lucide-react'
-import type { ConfiguracaoMonitoramento } from '@/types/equipamentos'
-import { getProcedimentoMonitoramentoUrl } from '@/services/configuracoesMonitoramentoService'
+import { FileText, ExternalLink } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 
-interface MonitoramentoConfigBadgeProps {
-  configuracao?: ConfiguracaoMonitoramento | null
-  className?: string
-  /**
-   * Texto alternativo curto ou detalhado
-   */
-  rotulo?: string
-  /**
-   * Mostrar detalhes como a marca ou tipo de procedimento
-   */
-  mostrarTipo?: boolean
+export interface ConfiguracaoMonitoramentoLike {
+  id?: string
+  fabricante?: string
+  tipo_procedimento?: 'pdf' | 'link' | 'ambos' | string
+  arquivo_pdf?: string
+  link_externo?: string
+  collectionId?: string
+  collectionName?: string
+  [key: string]: any
 }
 
-/**
- * Badge visual de "Configuração de Monitoramento" anexada ao inversor,
- * no MESMO FORMATO em que o download do datasheet fica anexado ao equipamento.
- *
- * - Se for PDF: abre/baixa o PDF oficial com o passo a passo.
- * - Se for LINK: abre o link em nova aba (target _blank) com rel="noopener noreferrer".
- */
-export const MonitoramentoConfigBadge: React.FC<
-  MonitoramentoConfigBadgeProps & { iconeApenas?: boolean }
-> = ({
+export interface MonitoramentoConfigBadgeProps {
+  configuracao?: ConfiguracaoMonitoramentoLike | null
+  apenasIcone?: boolean
+  mostrarTipo?: boolean
+  tamanho?: 'sm' | 'md' | 'lg'
+  className?: string
+  rotulo?: string
+}
+
+export function getUrlConfiguracaoMonitoramentoPdf(
+  cfg: ConfiguracaoMonitoramentoLike,
+): string | null {
+  if (!cfg || !cfg.arquivo_pdf) return null
+  if (cfg.arquivo_pdf.startsWith('http://') || cfg.arquivo_pdf.startsWith('https://')) {
+    return cfg.arquivo_pdf
+  }
+  try {
+    return pb.files.getURL(cfg as any, cfg.arquivo_pdf)
+  } catch {
+    const baseUrl = import.meta.env.VITE_POCKETBASE_URL || ''
+    const col = cfg.collectionName || cfg.collectionId || 'configuracoes_monitoramento'
+    return `${baseUrl}/api/files/${col}/${cfg.id}/${cfg.arquivo_pdf}`
+  }
+}
+
+export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> = ({
   configuracao,
+  apenasIcone = false,
+  mostrarTipo = false,
+  tamanho = 'md',
   className = '',
   rotulo = 'Monitoramento',
-  mostrarTipo = false,
-  iconeApenas = false,
 }) => {
   if (!configuracao) return null
 
-  const proc = getProcedimentoMonitoramentoUrl(configuracao)
-  if (!proc.temPdf && !proc.temLink && !proc.url) return null
+  const temPdf = Boolean(configuracao.arquivo_pdf)
+  const temLink = Boolean(configuracao.link_externo)
 
-  // Se tem ambos cadastrados para o mesmo procedimento (PDF e Link), renderiza os dois botões lado a lado: verde para PDF e azul para Link
-  if (proc.temAmbos && proc.pdfUrl && proc.linkUrl) {
-    if (iconeApenas) {
-      return (
-        <div className={`inline-flex items-center gap-1 shrink-0 ${className}`}>
-          <a
-            href={proc.pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="p-1 rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs inline-flex items-center justify-center shrink-0"
-            title={`Abrir PDF de monitoramento (${configuracao.marca})`}
-          >
-            <FileText className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          </a>
-          <a
-            href={proc.linkUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="p-1 rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors shadow-2xs inline-flex items-center justify-center shrink-0"
-            title={`Acessar link de monitoramento (${configuracao.marca}): ${proc.linkUrl}`}
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-          </a>
-        </div>
-      )
-    }
+  if (!temPdf && !temLink) return null
 
-    return (
-      <div className={`inline-flex flex-wrap items-center gap-1.5 ${className}`}>
-        <a
-          href={proc.pdfUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-200 transition-colors shrink-0 shadow-2xs"
-          title={`Abrir PDF com passo a passo de configuração do datalogger (${configuracao.marca})`}
-        >
-          <FileText className="w-3 h-3 text-emerald-600 shrink-0" />
-          <span>{rotulo}</span>
-          <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5 shrink-0" />
-        </a>
+  const pdfUrl = getUrlConfiguracaoMonitoramentoPdf(configuracao)
+  const linkUrl = configuracao.link_externo
 
-        <a
-          href={proc.linkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 hover:text-blue-900 bg-blue-50 hover:bg-blue-100/90 px-2 py-0.5 rounded border border-blue-200 transition-colors shrink-0 shadow-2xs"
-          title={`Acessar link/vídeo de configuração do datalogger (${configuracao.marca}): ${proc.linkUrl}`}
-        >
-          <ExternalLink className="w-3 h-3 text-blue-600 shrink-0" />
-          <span>{rotulo}</span>
-          <ExternalLink className="w-2.5 h-2.5 text-blue-600 ml-0.5 shrink-0" />
-        </a>
-      </div>
-    )
-  }
+  const sizeClasses =
+    tamanho === 'sm'
+      ? 'px-2 py-0.5 text-[10px]'
+      : tamanho === 'lg'
+        ? 'px-3 py-1.5 text-xs font-semibold'
+        : 'px-2.5 py-1 text-[11px] font-medium'
 
-  // Caso tenha apenas PDF ou apenas Link
-  const isPdf = proc.temPdf || proc.tipo === 'pdf'
-  const urlFinal = proc.pdfUrl || proc.linkUrl || proc.url!
-
-  const tituloTooltip = isPdf
-    ? `Abrir PDF com passo a passo de configuração do datalogger (${configuracao.marca})`
-    : `Acessar link/vídeo de instrução de configuração do datalogger (${configuracao.marca}): ${urlFinal}`
-
-  const corClasses = isPdf
-    ? iconeApenas
-      ? 'p-1 rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs inline-flex items-center justify-center shrink-0'
-      : 'inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-200 transition-colors shrink-0 shadow-2xs'
-    : iconeApenas
-      ? 'p-1 rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors shadow-2xs inline-flex items-center justify-center shrink-0'
-      : 'inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 hover:text-blue-900 bg-blue-50 hover:bg-blue-100/90 px-2 py-0.5 rounded border border-blue-200 transition-colors shrink-0 shadow-2xs'
+  const iconSize = tamanho === 'sm' ? 'w-3 h-3' : tamanho === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'
 
   return (
-    <a
-      href={urlFinal}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
-      className={`${corClasses} ${className}`}
-      title={tituloTooltip}
-    >
-      {isPdf ? (
-        <FileText className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-      ) : (
-        <ExternalLink className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-      )}
-      {!iconeApenas && <span>{rotulo}</span>}
-      {mostrarTipo && (
-        <span
-          className={`text-[10px] font-semibold px-1 py-0.2 rounded ml-0.5 ${
-            isPdf ? 'text-emerald-600 bg-emerald-100/60' : 'text-blue-600 bg-blue-100/60'
-          }`}
+    <div className={`inline-flex items-center gap-1.5 flex-wrap ${className}`}>
+      {temPdf && pdfUrl && (
+        <a
+          href={pdfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`inline-flex items-center gap-1 font-bold rounded-lg border bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 transition-colors shadow-2xs ${sizeClasses}`}
+          title={`Configuração de Monitoramento (PDF) - ${configuracao.fabricante || ''}`}
         >
-          {isPdf ? 'PDF' : 'Link'}
-        </span>
+          <FileText className={`${iconSize} text-emerald-700 shrink-0`} />
+          {!apenasIcone && (
+            <span>
+              {rotulo || 'Monitoramento'}
+              {mostrarTipo ? ' (PDF)' : ''}
+            </span>
+          )}
+          <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5 shrink-0" />
+        </a>
       )}
-      <ExternalLink
-        className={`w-2.5 h-2.5 ml-0.5 shrink-0 ${isPdf ? 'text-emerald-600' : 'text-blue-600'}`}
-      />
-    </a>
+
+      {temLink && linkUrl && (
+        <a
+          href={linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`inline-flex items-center gap-1 font-bold rounded-lg border bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-300 transition-colors shadow-2xs ${sizeClasses}`}
+          title={`Configuração de Monitoramento (Link) - ${configuracao.fabricante || ''}`}
+        >
+          <ExternalLink className={`${iconSize} text-blue-700 shrink-0`} />
+          {!apenasIcone && (
+            <span>
+              {rotulo || 'Monitoramento'}
+              {mostrarTipo ? ' (Link)' : ''}
+            </span>
+          )}
+          <ExternalLink className="w-2.5 h-2.5 text-blue-600 ml-0.5 shrink-0" />
+        </a>
+      )}
+    </div>
   )
 }
 
