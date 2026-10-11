@@ -1271,10 +1271,10 @@ export const CentralAtendimento: React.FC = () => {
           </div>
 
           {/* Desktop & Mobile: Listas de Conversas com scroll independente */}
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 pb-2 lg:pb-0">
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 pb-2 lg:pb-0">
             {/* 1. FILA DE NOVOS */}
             <div
-              className={`space-y-2.5 flex-1 min-h-0 ${activeMobileTab !== 'novos' ? 'hidden lg:block' : 'flex flex-col h-full'}`}
+              className={`space-y-2.5 min-h-0 lg:flex-none ${activeMobileTab !== 'novos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1294,7 +1294,7 @@ export const CentralAtendimento: React.FC = () => {
                   Nenhuma mensagem nova pendente na fila.
                 </div>
               ) : (
-                <div className="space-y-2 flex-1 lg:flex-none lg:max-h-[260px] overflow-y-auto pr-1">
+                <div className="space-y-2 flex-1 lg:flex-none overflow-y-auto lg:overflow-visible pr-1">
                   {conversasClassificadas.novos.map((conv) => {
                     const isSelected = selectedConversaId === conv.id
                     const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
@@ -1303,7 +1303,7 @@ export const CentralAtendimento: React.FC = () => {
                       <div
                         key={conv.id}
                         onClick={() => setSelectedConversaId(conv.id)}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
+                        className={`w-full max-w-full overflow-hidden break-words p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
                           isSelected
                             ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-500/20 shadow-xs'
                             : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
@@ -1357,18 +1357,18 @@ export const CentralAtendimento: React.FC = () => {
                           if (resMatch.candidatosCompativeis.length === 0) return null
                           const isMultiplos = resMatch.candidatosCompativeis.length > 1
                           return (
-                            <div className="mt-2 p-2 bg-amber-50/90 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 space-y-1">
-                              <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                            <div className="w-full max-w-full overflow-hidden break-words mt-2 p-2 bg-amber-50/90 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 space-y-1">
+                              <div className="flex items-center gap-1.5 font-bold text-amber-950 min-w-0">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                <span>
+                                <span className="truncate">
                                   {isMultiplos
                                     ? `${resMatch.candidatosCompativeis.length} contatos compatíveis encontrados:`
                                     : 'Contato compatível identificado:'}
                                 </span>
                               </div>
-                              <div className="text-[10px] text-amber-800 leading-tight">
+                              <div className="text-[10px] text-amber-800 leading-tight min-w-0 break-words">
                                 {resMatch.candidatosCompativeis.slice(0, 2).map((cand, idx) => (
-                                  <div key={idx} className="truncate">
+                                  <div key={idx} className="truncate min-w-0">
                                     • <strong className="text-gray-900">{cand.clienteNome}</strong>
                                     {cand.tipoMatch === 'tolerante_nono_digito' && (
                                       <span className="ml-1 text-[9px] text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
@@ -1388,12 +1388,12 @@ export const CentralAtendimento: React.FC = () => {
                           )
                         })()}
 
-                        <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded">
+                        <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-1 w-full max-w-full min-w-0 flex-wrap">
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded shrink-0">
                             Número Não Vinculado
                           </span>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 shrink-0">
                             {/* Menu de 3 pontos no card da Fila de Novos */}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -1478,7 +1478,7 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 2. EM ATENDIMENTO */}
             <div
-              className={`space-y-2.5 flex-1 min-h-0 ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : 'flex flex-col h-full'}`}
+              className={`space-y-2.5 min-h-0 lg:flex-none ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1498,7 +1498,7 @@ export const CentralAtendimento: React.FC = () => {
                   Nenhum atendimento em andamento no momento.
                 </div>
               ) : (
-                <div className="space-y-2 flex-1 lg:flex-none lg:max-h-[360px] overflow-y-auto pr-1">
+                <div className="space-y-2 flex-1 lg:flex-none overflow-y-auto lg:overflow-visible pr-1">
                   {conversasClassificadas.emAtendimento.map((conv) => {
                     const isSelected = selectedConversaId === conv.id
                     const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
@@ -1510,7 +1510,7 @@ export const CentralAtendimento: React.FC = () => {
                       <div
                         key={conv.id}
                         onClick={() => setSelectedConversaId(conv.id)}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
+                        className={`w-full max-w-full overflow-hidden break-words p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
                           isSelected
                             ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs'
                             : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
@@ -1581,7 +1581,7 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 3. RESOLVIDOS (ÚLTIMAS 24H) */}
             <div
-              className={`space-y-2.5 flex-1 min-h-0 ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : 'flex flex-col h-full'}`}
+              className={`space-y-2.5 min-h-0 lg:flex-none ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1601,7 +1601,7 @@ export const CentralAtendimento: React.FC = () => {
                   Nenhuma conversa finalizada nas últimas 24 horas.
                 </div>
               ) : (
-                <div className="space-y-2 flex-1 lg:flex-none lg:max-h-[260px] overflow-y-auto pr-1">
+                <div className="space-y-2 flex-1 lg:flex-none overflow-y-auto lg:overflow-visible pr-1">
                   {conversasClassificadas.resolvidos.map((conv) => {
                     const isSelected = selectedConversaId === conv.id
                     const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
@@ -1610,7 +1610,7 @@ export const CentralAtendimento: React.FC = () => {
                       <div
                         key={conv.id}
                         onClick={() => setSelectedConversaId(conv.id)}
-                        className={`p-3 rounded-2xl border transition-all cursor-pointer opacity-85 hover:opacity-100 ${
+                        className={`w-full max-w-full overflow-hidden break-words p-3 rounded-2xl border transition-all cursor-pointer opacity-85 hover:opacity-100 ${
                           isSelected
                             ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-400/20 shadow-xs'
                             : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
