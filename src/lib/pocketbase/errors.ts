@@ -28,29 +28,24 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Identifica se um erro lançado por requisição ao PocketBase é relativo à
- * expiração, invalidação ou ausência de sessão/token de autenticação (HTTP 401 ou 403).
- */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-
-  const err = error as Record<string, unknown>
-  const status = Number(
-    err.status || err.statusCode || (err.response as Record<string, unknown>)?.status,
-  )
-  if (status === 401 || status === 403) return true
-
-  const msg = String(err.message || '').toLowerCase()
-  if (
-    msg.includes('token is expired') ||
-    msg.includes('token expired') ||
-    msg.includes('unauthorized') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('the request requires valid user authorization token')
-  ) {
-    return true
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token is invalid') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
+      }
+    }
   }
-
   return false
 }
