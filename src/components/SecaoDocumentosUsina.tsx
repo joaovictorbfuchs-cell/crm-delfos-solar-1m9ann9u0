@@ -248,33 +248,25 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
   }
 
   return (
-    <div className="p-4 rounded-2xl border border-emerald-300 bg-emerald-50/40 shadow-xs space-y-4">
-      {/* Cabeçalho no padrão visual Delfos Solar */}
-      <div className="flex items-center justify-between flex-wrap gap-2.5 border-b border-emerald-200/70 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-[#0F2038] text-[#16A34A] shadow-xs">
-            <FileText className="w-5 h-5 text-[#4ade80]" />
+    <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3.5">
+      {/* Cabeçalho compacto */}
+      <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-2.5">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-blue-50 text-blue-700 rounded-lg">
+            <FileText className="w-4 h-4 text-blue-600" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-[#0F2038] uppercase tracking-wider">
-                Documentos da Usina
-              </span>
-              <Badge
-                variant="outline"
-                className="bg-white text-emerald-800 text-[11px] font-bold border-emerald-300 shadow-2xs"
-              >
-                {documentos.length} {documentos.length === 1 ? 'documento' : 'documentos'}
-              </Badge>
-            </div>
-            <p className="text-[11px] text-slate-600 mt-0.5">
-              Fotos da instalação, laudos, projetos executivos, medições, comprovantes e ARTs da
-              usina "{usinaNome}".
-            </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-900">Documentos Anexados</span>
+            <Badge
+              variant="outline"
+              className="bg-slate-50 text-slate-700 text-[10px] font-bold border-slate-200 shadow-2xs"
+            >
+              {documentos.length}
+            </Badge>
           </div>
         </div>
 
-        {/* Botão de Upload Múltiplo (Apenas em modo edição) */}
+        {/* Botão de Anexar Documentos */}
         {!readOnly && (
           <div className="flex items-center gap-2">
             <input
@@ -289,10 +281,10 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
             <Button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs shadow-2xs h-8 px-3 rounded-lg flex items-center gap-1.5 transition-transform active:scale-[0.98]"
+              className="bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold text-xs shadow-2xs h-7 px-3 rounded-lg flex items-center gap-1.5 transition-transform active:scale-[0.98] cursor-pointer"
             >
-              <Upload className="w-3.5 h-3.5 text-white" />
-              <span>Upload de Arquivos</span>
+              <Upload className="w-3 h-3 text-white" />
+              <span>Anexar documentos</span>
             </Button>
           </div>
         )}
@@ -401,18 +393,18 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
       {/* LISTA DE DOCUMENTOS SALVOS E VISÍVEIS                                      */}
       {/* ========================================================================= */}
       {carregando ? (
-        <div className="py-8 text-center text-xs text-emerald-800 flex items-center justify-center gap-2 bg-white rounded-xl border border-dashed border-emerald-300">
-          <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
-          <span>Carregando documentos da usina...</span>
+        <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2 bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+          <RefreshCw className="w-4 h-4 animate-spin text-slate-400" />
+          <span>Carregando documentos...</span>
         </div>
       ) : documentos.length === 0 ? (
-        <div className="py-8 text-center text-xs text-slate-500 bg-white/70 rounded-xl border border-dashed border-slate-200 space-y-1.5 p-4">
-          <FileText className="w-7 h-7 text-slate-400 mx-auto" />
-          <p className="font-bold text-slate-700">Nenhum documento salvo para esta usina ainda.</p>
+        <div className="py-6 text-center text-xs text-slate-500 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 space-y-1 p-4">
+          <FileText className="w-6 h-6 text-slate-400 mx-auto" />
+          <p className="font-semibold text-slate-700">Nenhum documento anexado ainda.</p>
           <p className="text-[11px] text-slate-400 max-w-md mx-auto">
             {readOnly
               ? 'Nenhum laudo, projeto, medição ou foto foi anexado à usina até o momento.'
-              : 'Clique no botão "Upload de Arquivos" acima para enviar vários arquivos de uma vez (fotos e PDFs) e informar a descrição de cada um.'}
+              : 'Clique em "Anexar documentos" acima para enviar fotos ou PDFs.'}
           </p>
         </div>
       ) : (

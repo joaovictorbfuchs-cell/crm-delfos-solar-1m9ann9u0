@@ -70,7 +70,7 @@ import {
 } from 'lucide-react'
 import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
 import { BlocoAnotacoesUsina } from '@/components/BlocoAnotacoesUsina'
-import { SecaoDocumentosUsina } from '@/components/SecaoDocumentosUsina'
+
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
 import { ModalImportarRateioProtocolo } from '@/components/ModalImportarRateioProtocolo'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
@@ -2418,13 +2418,6 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     usina={usinaDetalhes}
                     clienteId={clienteId}
                     clienteNome={clienteNome}
-                  />
-
-                  {/* Documentos da Usina (Upload Múltiplo, Descrição por Documento, Lightbox & Download) */}
-                  <SecaoDocumentosUsina
-                    usinaId={usinaDetalhes.id}
-                    usinaNome={usinaDetalhes.nome}
-                    readOnly={false}
                   />
 
                   {/* Observações Técnicas */}
