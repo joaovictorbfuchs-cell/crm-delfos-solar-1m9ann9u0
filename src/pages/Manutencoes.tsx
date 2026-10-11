@@ -79,6 +79,12 @@ export default function Manutencoes() {
       </div>
 
       {/* Conteúdo Principal: Base Completa O&M com sub-abas Planos O&M e Clientes Pós-Vendas */}
+      <ListaOM
+        onOpenFichaOM={openFichaOM}
+        onOpenNovoContrato={() => setIsNovoContratoOpen(true)}
+        activeSubTab={activeSubTab}
+        onSubTabChange={setActiveSubTab}
+      />
 
       {/* Modal Novo Contrato de O&M */}
       <ModalNovoContratoOM
