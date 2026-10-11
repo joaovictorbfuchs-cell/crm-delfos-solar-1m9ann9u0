@@ -138,9 +138,10 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         `Contrato de ${contratoParaExcluir.cliente.nome} excluído com sucesso. O cadastro do cliente permanece intacto.`,
       )
       setContratoParaExcluir(null)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      toast.error('Erro ao excluir contrato. Tente novamente.')
+      const mensagemErro = err?.message || 'Erro ao excluir contrato. Tente novamente.'
+      toast.error(mensagemErro)
     } finally {
       setIsExcluindo(false)
     }

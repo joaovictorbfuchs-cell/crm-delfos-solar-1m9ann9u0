@@ -1803,8 +1803,57 @@ export async function updateContratoOM(id: string, data: Partial<ContratoOM>): P
 }
 
 export async function deleteContratoOM(id: string): Promise<boolean> {
-  await pb.collection('contratos_om').delete(id)
-  return true
+  try {
+    // 1. Buscar todos os registros de contratos_usinas vinculados a este contrato e excluí-los
+    // (esses registros são vínculos N:N; sua exclusão não afeta nem o cliente nem a usina)
+    try {
+      const vinculos = await pb.collection('contratos_usinas').getFullList({
+        filter: `contrato_id = "${id}"`,
+        requestKey: null,
+      })
+      for (const vinculo of vinculos) {
+        await pb.collection('contratos_usinas').delete(vinculo.id)
+      }
+    } catch (errVinculo) {
+      console.warn(
+        'Aviso ao limpar vínculos contratos_usinas antes de excluir contrato O&M:',
+        errVinculo,
+      )
+    }
+
+    // 2. Buscar usinas que apontam diretamente para este contrato e limpar o campo contrato_id
+    // (limpar o vínculo sem excluir a usina nem o cliente)
+    try {
+      const usinas = await pb.collection('usinas').getFullList({
+        filter: `contrato_id = "${id}"`,
+        requestKey: null,
+      })
+      for (const usina of usinas) {
+        await pb.collection('usinas').update(usina.id, {
+          contrato_id: '',
+        })
+      }
+    } catch (errUsina) {
+      console.warn('Aviso ao desvincular usinas antes de excluir contrato O&M:', errUsina)
+    }
+
+    // 3. Excluir o contrato em contratos_om
+    await pb.collection('contratos_om').delete(id)
+    return true
+  } catch (err: any) {
+    const errorMsg = String(err?.message || '')
+    const responseData = JSON.stringify(err?.response?.data || {})
+    const isRelationError =
+      errorMsg.includes('required relation') ||
+      errorMsg.includes('relation reference') ||
+      responseData.includes('required relation') ||
+      responseData.includes('relation reference')
+
+    if (isRelationError) {
+      throw new Error('Não foi possível excluir: existem vínculos com usinas deste contrato.')
+    }
+    throw err
+  }
 }
 
 export async function fetchAnomaliasOM(clienteId?: string): Promise<AnomaliaOM[]> {

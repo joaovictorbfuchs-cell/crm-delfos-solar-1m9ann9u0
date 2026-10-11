@@ -6,6 +6,7 @@ import {
   NOMES_COLECOES_CRM,
   sanitizarPayloadUsina,
   updateUsina,
+  deleteContratoOM,
 } from './crmService'
 
 // Mock do cliente PocketBase
@@ -248,5 +249,92 @@ describe('mesclarMultiplosClientes - otimizações e integridade de dados', () =
     })
     expect(calledPayload.id).toBeUndefined()
     expect(calledPayload.campo_fantasma).toBeUndefined()
+  })
+
+  describe('deleteContratoOM - limpeza prévia de vínculos', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+    })
+
+    it('remove vínculos de contratos_usinas, limpa contrato_id das usinas e exclui o contrato', async () => {
+      const mockVinculos = [{ id: 'vinculo-1' }, { id: 'vinculo-2' }]
+      const mockUsinas = [{ id: 'usina-1' }, { id: 'usina-2' }]
+
+      mockPbGetFullList.mockImplementation(({ filter }: { filter?: string } = {}) => {
+        if (filter?.includes('contrato_id = "contrato-123"')) {
+          // Diferenciar pela coleção chamada na última vez ou retornar conforme mock
+          return Promise.resolve(mockVinculos)
+        }
+        return Promise.resolve([])
+      })
+
+      // Mais preciso: mapear chamadas por coleção
+      const deletedContratosUsinas: string[] = []
+      const updatedUsinas: Array<{ id: string; data: any }> = []
+      let deletedContratosOm: string | null = null
+
+      const customCollection = (colName: string) => ({
+        getFullList: vi.fn().mockImplementation(({ filter }: { filter?: string } = {}) => {
+          if (colName === 'contratos_usinas' && filter?.includes('contrato-123')) {
+            return Promise.resolve(mockVinculos)
+          }
+          if (colName === 'usinas' && filter?.includes('contrato-123')) {
+            return Promise.resolve(mockUsinas)
+          }
+          return Promise.resolve([])
+        }),
+        delete: vi.fn().mockImplementation((id: string) => {
+          if (colName === 'contratos_usinas') deletedContratosUsinas.push(id)
+          if (colName === 'contratos_om') deletedContratosOm = id
+          return Promise.resolve(true)
+        }),
+        update: vi.fn().mockImplementation((id: string, data: any) => {
+          if (colName === 'usinas') updatedUsinas.push({ id, data })
+          return Promise.resolve({ id, ...data })
+        }),
+      })
+
+      const pbModule = await import('@/lib/pocketbase/client')
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(customCollection as any)
+
+      const success = await deleteContratoOM('contrato-123')
+
+      expect(success).toBe(true)
+      expect(deletedContratosUsinas).toEqual(['vinculo-1', 'vinculo-2'])
+      expect(updatedUsinas).toEqual([
+        { id: 'usina-1', data: { contrato_id: '' } },
+        { id: 'usina-2', data: { contrato_id: '' } },
+      ])
+      expect(deletedContratosOm).toBe('contrato-123')
+    })
+
+    it('emite mensagem amigável em português quando houver erro de required relation reference', async () => {
+      const customCollection = (colName: string) => ({
+        getFullList: vi.fn().mockResolvedValue([]),
+        delete: vi.fn().mockImplementation(() => {
+          if (colName === 'contratos_om') {
+            const err: any = new Error(
+              'Failed to delete record. Make sure that the record is not part of a required relation reference.',
+            )
+            err.status = 400
+            err.response = {
+              data: {
+                message: 'Make sure that the record is not part of a required relation reference.',
+              },
+            }
+            throw err
+          }
+          return Promise.resolve(true)
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      })
+
+      const pbModule = await import('@/lib/pocketbase/client')
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(customCollection as any)
+
+      await expect(deleteContratoOM('contrato-bloqueado')).rejects.toThrow(
+        'Não foi possível excluir: existem vínculos com usinas deste contrato.',
+      )
+    })
   })
 })
