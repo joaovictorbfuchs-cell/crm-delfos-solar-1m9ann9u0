@@ -35,7 +35,7 @@ import {
 import { fetchEquipamentos } from '@/services/equipamentosService'
 import { vincularEquipamentoUsina } from '@/services/usinaEquipamentosService'
 import { sincronizarUsinaComCliente } from '@/services/crmService'
-import { ModalCadastroEquipamentoRapido } from '@/components/ModalCadastroEquipamentoRapido'
+import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import { buscarEquipamentoCorrespondente } from '@/lib/equipamentoMatcher'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import type { UsinaCliente } from '@/types/crm'
@@ -144,12 +144,14 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
     fabricante: string
     modelo: string
     potenciaW: number
+    quantidade?: number
   }>({
     aberto: false,
     tipo: 'inversor',
     fabricante: '',
     modelo: '',
     potenciaW: 0,
+    quantidade: 1,
   })
 
   // Carregar catálogo de equipamentos para comparação inteligente
@@ -1422,6 +1424,7 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                                   fabricante: sugestaoModulo.fabricante,
                                   modelo: sugestaoModulo.modelo,
                                   potenciaW: sugestaoModulo.potenciaW || 550,
+                                  quantidade: sugestaoModulo.quantidade ?? 1,
                                 })
                               }
                               className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
@@ -1504,6 +1507,7 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                                   fabricante: sugestaoInversor.fabricante,
                                   modelo: sugestaoInversor.modelo,
                                   potenciaW: sugestaoInversor.potenciaW || 5000,
+                                  quantidade: sugestaoInversor.quantidade ?? 1,
                                 })
                               }
                               className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
@@ -1605,43 +1609,125 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
         </DialogFooter>
       </DialogContent>
 
-      {/* Modal de cadastro rápido na hora da importação */}
+      {/* Modal de cadastro de equipamento na hora da importação (formulário completo) */}
       {modalCriarRapido.aberto && (
-        <ModalCadastroEquipamentoRapido
+        <ModalFormEquipamento
           isOpen={modalCriarRapido.aberto}
           onClose={() => setModalCriarRapido((prev) => ({ ...prev, aberto: false }))}
           tipoInicial={modalCriarRapido.tipo}
+          tiposPermitidos={[modalCriarRapido.tipo]}
           marcaInicial={modalCriarRapido.fabricante}
           modeloInicial={modalCriarRapido.modelo}
           potenciaInicial={modalCriarRapido.potenciaW}
-          onEquipamentoCadastrado={async (novo) => {
-            // Atualiza catálogo local e estado de sugestão
-            const atualizados = await fetchEquipamentos()
-            setCatalogoEquipamentos(atualizados)
-            if (novo.tipo === 'modulo_fv') {
-              setSugestaoModulo((prev) => (prev ? { ...prev, existente: novo } : null))
-            } else if (novo.tipo === 'inversor') {
-              setSugestaoInversor((prev) => (prev ? { ...prev, existente: novo } : null))
-            }
-            // Auto vincula imediatamente à usina como ativo respeitando a quantidade configurada
+          exibirQuantidade={true}
+          quantidadeInicial={modalCriarRapido.quantidade || 1}
+          onSalvo={async (novo, _isEdicao, extra) => {
+            const qtdFinal =
+              extra?.quantidade && extra.quantidade > 0
+                ? extra.quantidade
+                : modalCriarRapido.quantidade || 1
+
+            // 1. Atualizar catálogo local e sugestões
             try {
-              const qtdParaVincular =
-                novo.tipo === 'modulo_fv'
-                  ? (sugestaoModulo?.quantidade ?? 1)
-                  : (sugestaoInversor?.quantidade ?? 1)
+              const atualizados = await fetchEquipamentos()
+              setCatalogoEquipamentos(atualizados)
+            } catch (fetchErr) {
+              console.warn('[ModalImportarDocumentoUsina] Erro ao recarregar catálogo:', fetchErr)
+            }
+
+            if (novo.tipo === 'modulo_fv') {
+              setSugestaoModulo((prev) =>
+                prev ? { ...prev, existente: novo, quantidade: qtdFinal } : null,
+              )
+            } else if (novo.tipo === 'inversor') {
+              setSugestaoInversor((prev) =>
+                prev ? { ...prev, existente: novo, quantidade: qtdFinal } : null,
+              )
+            }
+
+            // 2. Auto vincular como ativo da usina
+            try {
               await vincularEquipamentoUsina({
                 usina_id: usina.id,
                 equipamento_id: novo.id,
-                quantidade: Math.max(1, Number(qtdParaVincular) || 1),
+                quantidade: Math.max(1, Number(qtdFinal) || 1),
                 observacoes: 'Cadastrado e vinculado durante importação do documento',
               })
-              toast({
-                title: 'Equipamento cadastrado e vinculado!',
-                description: `${novo.marca} ${novo.modelo} foi salvo no catálogo e vinculado como ativo da usina (${qtdParaVincular} un).`,
-              })
-            } catch (err) {
-              console.warn('Erro ao auto-vincular ativo recém criado:', err)
+            } catch (vincErr) {
+              console.warn(
+                '[ModalImportarDocumentoUsina] Erro ao auto-vincular ativo recém criado:',
+                vincErr,
+              )
             }
+
+            // 3. Atualizar campos da ficha da usina conforme modo adicionar/sobrescrever
+            try {
+              const potPicoKwp = ((novo.potencia_w || 0) * qtdFinal) / 1000
+              const updatesFicha: Partial<UsinaCliente> = {}
+              const resumoCampos: string[] = []
+
+              if (novo.tipo === 'inversor') {
+                const descrInversor = `${novo.marca || ''} ${novo.modelo || ''}`.trim()
+                updatesFicha.fabricante_inversores = novo.marca || ''
+                updatesFicha.modelo_inversores = novo.modelo || ''
+                if (potPicoKwp > 0) {
+                  updatesFicha.potencia_pico_inversores_kwp = potPicoKwp
+                }
+
+                if (modoImportacao === 'adicionar') {
+                  const atualInfo = (usina.inversores_info || '').trim()
+                  if (
+                    atualInfo &&
+                    descrInversor &&
+                    !atualInfo.toLowerCase().includes(descrInversor.toLowerCase())
+                  ) {
+                    updatesFicha.inversores_info = `${atualInfo} + ${descrInversor}`
+                  } else if (!atualInfo && descrInversor) {
+                    updatesFicha.inversores_info = descrInversor
+                  }
+                } else {
+                  updatesFicha.inversores_info = descrInversor
+                }
+
+                resumoCampos.push(`Inversor: ${descrInversor}`)
+              } else if (novo.tipo === 'modulo_fv') {
+                updatesFicha.fabricante_modulos = novo.marca || ''
+                updatesFicha.modelo_modulos = novo.modelo || ''
+                updatesFicha.marca_placas = novo.marca || ''
+
+                if (modoImportacao === 'adicionar') {
+                  const qtdAtual = Number(usina.qtd_modulos ?? usina.quantidade_placas) || 0
+                  const novaQtd = qtdAtual > 0 ? qtdAtual + qtdFinal : qtdFinal
+                  updatesFicha.qtd_modulos = novaQtd
+                  updatesFicha.quantidade_placas = novaQtd
+                } else {
+                  updatesFicha.qtd_modulos = qtdFinal
+                  updatesFicha.quantidade_placas = qtdFinal
+                }
+
+                if (potPicoKwp > 0) {
+                  updatesFicha.potencia_pico_modulos_kwp = potPicoKwp
+                }
+
+                resumoCampos.push(`Módulos: ${novo.marca} ${novo.modelo} (${qtdFinal} un)`)
+              }
+
+              if (Object.keys(updatesFicha).length > 0) {
+                await onApplyImport(updatesFicha, resumoCampos, modoImportacao)
+              }
+            } catch (syncFichaErr) {
+              console.error(
+                '[ModalImportarDocumentoUsina] Erro ao sincronizar ficha com equipamento cadastrado:',
+                syncFichaErr,
+              )
+            }
+
+            toast({
+              title: 'Equipamento cadastrado e ficha atualizada!',
+              description: `${novo.marca} ${novo.modelo} foi cadastrado, vinculado como ativo e salvo na ficha da usina.`,
+            })
+
+            setModalCriarRapido((prev) => ({ ...prev, aberto: false }))
           }}
         />
       )}
