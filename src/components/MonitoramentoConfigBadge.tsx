@@ -5,8 +5,11 @@ import pb from '@/lib/pocketbase/client'
 export interface ConfiguracaoMonitoramentoLike {
   id?: string
   fabricante?: string
+  marca?: string
+  titulo?: string
   tipo_procedimento?: 'pdf' | 'link' | 'ambos' | string
   arquivo_pdf?: string
+  link_procedimento?: string
   link_externo?: string
   collectionId?: string
   collectionName?: string
@@ -16,6 +19,7 @@ export interface ConfiguracaoMonitoramentoLike {
 export interface MonitoramentoConfigBadgeProps {
   configuracao?: ConfiguracaoMonitoramentoLike | null
   apenasIcone?: boolean
+  iconeApenas?: boolean
   mostrarTipo?: boolean
   tamanho?: 'sm' | 'md' | 'lg'
   className?: string
@@ -41,6 +45,7 @@ export function getUrlConfiguracaoMonitoramentoPdf(
 export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> = ({
   configuracao,
   apenasIcone = false,
+  iconeApenas = false,
   mostrarTipo: _mostrarTipo = false,
   tamanho = 'md',
   className = '',
@@ -48,13 +53,21 @@ export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> =
 }) => {
   if (!configuracao) return null
 
-  const temPdf = Boolean(configuracao.arquivo_pdf)
-  const temLink = Boolean(configuracao.link_externo)
+  const somenteIcone = Boolean(apenasIcone || iconeApenas)
+
+  const rawLink =
+    (typeof configuracao.link_procedimento === 'string' && configuracao.link_procedimento.trim()) ||
+    (typeof configuracao.link_externo === 'string' && configuracao.link_externo.trim()) ||
+    (typeof configuracao.link === 'string' && configuracao.link.trim()) ||
+    ''
+
+  const temPdf = Boolean(configuracao.arquivo_pdf && String(configuracao.arquivo_pdf).trim())
+  const temLink = Boolean(rawLink)
 
   if (!temPdf && !temLink) return null
 
   const pdfUrl = getUrlConfiguracaoMonitoramentoPdf(configuracao)
-  const linkUrl = configuracao.link_externo
+  const linkUrl = rawLink
 
   const sizeClasses =
     tamanho === 'sm'
@@ -74,10 +87,14 @@ export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> =
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className={`inline-flex items-center gap-1 font-bold rounded-lg border bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 transition-colors shadow-2xs ${sizeClasses}`}
-          title={`Configuração de Monitoramento - ${configuracao.fabricante || ''}`}
+          title={`Procedimento PDF - ${configuracao.titulo || configuracao.fabricante || configuracao.marca || 'Monitoramento'}`}
         >
           <FileText className={`${iconSize} text-emerald-700 shrink-0`} />
-          {!apenasIcone && <span>{rotulo || 'Monitoramento'}</span>}
+          {!somenteIcone && (
+            <span>
+              {temLink ? `${rotulo || 'Monitoramento'} (PDF)` : rotulo || 'Monitoramento'}
+            </span>
+          )}
           <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5 shrink-0" />
         </a>
       )}
@@ -89,10 +106,14 @@ export const MonitoramentoConfigBadge: React.FC<MonitoramentoConfigBadgeProps> =
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className={`inline-flex items-center gap-1 font-bold rounded-lg border bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-300 transition-colors shadow-2xs ${sizeClasses}`}
-          title={`Configuração de Monitoramento - ${configuracao.fabricante || ''}`}
+          title={`Vídeo / Procedimento Online - ${configuracao.titulo || configuracao.fabricante || configuracao.marca || 'Monitoramento'}`}
         >
           <ExternalLink className={`${iconSize} text-blue-700 shrink-0`} />
-          {!apenasIcone && <span>{rotulo || 'Monitoramento'}</span>}
+          {!somenteIcone && (
+            <span>
+              {temPdf ? `${rotulo || 'Monitoramento'} (Vídeo)` : rotulo || 'Monitoramento'}
+            </span>
+          )}
           <ExternalLink className="w-2.5 h-2.5 text-blue-600 ml-0.5 shrink-0" />
         </a>
       )}

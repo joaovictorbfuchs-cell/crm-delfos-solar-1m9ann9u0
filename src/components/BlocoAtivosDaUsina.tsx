@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Cpu,
   Sun,
@@ -149,7 +149,9 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [docParaExcluir, setDocParaExcluir] = useState<DocumentoUsinaItem | null>(null)
   const [removendoDoc, setRemovendoDoc] = useState<boolean>(false)
   const [uploadManualAberto, setUploadManualAberto] = useState<boolean>(false)
-  const [uploadManualArquivos, setUploadManualArquivos] = useState<File[]>([])
+  const [arquivosParaClassificar, setArquivosParaClassificar] = useState<
+    Array<{ id: string; file: File; categoria: string }>
+  >([])
   const [uploadManualCategoria, setUploadManualCategoria] = useState<string>('projeto')
   const [uploadManualSalvando, setUploadManualSalvando] = useState<boolean>(false)
   const inputManualRef = React.useRef<HTMLInputElement | null>(null)
@@ -465,18 +467,15 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
   const handleUpdateQuantidadeVinculo = async (vinculoId: string, novaQtd: number) => {
     const qtdFinal = Math.max(1, Math.round(novaQtd) || 1)
     setSalvandoQtdVinculoId(vinculoId)
-    // Atualização otimista local imediata
+    // Atualização otimista local imediata (silenciosa: sem toast, sem carregarDados com scroll/flash)
     setVinculos((prev) =>
       prev.map((v) => (v.id === vinculoId ? { ...v, quantidade: qtdFinal } : v)),
     )
     try {
       await updateVinculoEquipamentoUsina(vinculoId, { quantidade: qtdFinal }, usina?.id)
-      toast.success(`Quantidade atualizada para ${qtdFinal}. Totais recalculados!`)
-      await carregarDados()
     } catch (err) {
-      console.error('Erro ao atualizar quantidade do módulo:', err)
+      console.error('Erro ao atualizar quantidade do equipamento:', err)
       toast.error('Erro ao salvar quantidade.')
-      await carregarDados()
     } finally {
       setSalvandoQtdVinculoId(null)
     }
@@ -592,56 +591,91 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
     }
   }
 
-  // Upload manual rápido de documento direto na ficha (suporta seleção múltipla)
+  // Upload manual rápido de documentos direto na ficha com classificação individual por arquivo
   const handleSalvarUploadManual = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!uploadManualArquivos || uploadManualArquivos.length === 0) {
+    if (!arquivosParaClassificar || arquivosParaClassificar.length === 0) {
       toast.warning('Selecione ao menos um arquivo para upload.')
       return
     }
 
     setUploadManualSalvando(true)
+    const novosItens: DocumentoUsinaItem[] = []
+    let falhas = 0
+
     try {
-      const novosItens: DocumentoUsinaItem[] = []
-
-      for (let i = 0; i < uploadManualArquivos.length; i++) {
-        const file = uploadManualArquivos[i]
-        let fileDataUrl = ''
+      for (let i = 0; i < arquivosParaClassificar.length; i++) {
+        const item = arquivosParaClassificar[i]
+        const file = item.file
         try {
-          fileDataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
-            reader.onerror = (err) => reject(err)
-            reader.readAsDataURL(file)
+          // Converter com leitura de DataURL ou upload na coleção de documentos_usina
+          let fileDataUrl = ''
+          try {
+            // Tenta salvar via serviço de arquivos de documentos_usina se tiver usina.id
+            if (usina?.id) {
+              const regDoc = await uploadDocumentoUsina({
+                usina_id: usina.id,
+                arquivo: file,
+                nome_original: file.name,
+                descricao: item.categoria,
+                ativo: true,
+              }).catch(() => null)
+              if (regDoc) {
+                fileDataUrl = getDocumentoUsinaFileUrl(regDoc)
+              }
+            }
+          } catch {
+            // Fallback para FileReader base64 caso falhe o upload direto no PB
+          }
+
+          if (!fileDataUrl) {
+            fileDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result as string)
+              reader.onerror = (err) => reject(err)
+              reader.readAsDataURL(file)
+            })
+          }
+
+          novosItens.push({
+            id: `doc_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+            nome_arquivo: file.name,
+            categoria: item.categoria || 'projeto',
+            url: fileDataUrl,
+            tamanho: file.size,
+            tipo_mime: file.type || 'application/pdf',
+            criado_em: new Date().toISOString(),
+            origem: 'upload',
           })
-        } catch (err) {
-          console.warn('Erro ao ler base64:', err)
+        } catch (itemErr) {
+          console.error(`Erro ao processar arquivo "${file.name}":`, itemErr)
+          falhas++
         }
-
-        novosItens.push({
-          id: `doc_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
-          nome_arquivo: file.name,
-          categoria: uploadManualCategoria,
-          url: fileDataUrl,
-          tamanho: file.size,
-          tipo_mime: file.type || 'application/pdf',
-          criado_em: new Date().toISOString(),
-          origem: 'upload',
-        })
       }
 
-      const docsAtuais = Array.isArray(usina.documentos_usina) ? [...usina.documentos_usina] : []
-      docsAtuais.push(...novosItens)
+      if (novosItens.length > 0) {
+        const docsAtuais = Array.isArray(usina.documentos_usina) ? [...usina.documentos_usina] : []
+        docsAtuais.push(...novosItens)
 
-      await onUpdateUsinaField('documentos_usina', docsAtuais)
-      if (novosItens.length === 1) {
-        toast.success(`Documento "${novosItens[0].nome_arquivo}" adicionado com sucesso!`)
+        await onUpdateUsinaField('documentos_usina', docsAtuais)
+
+        if (falhas === 0) {
+          if (novosItens.length === 1) {
+            toast.success(`Documento "${novosItens[0].nome_arquivo}" anexado com sucesso!`)
+          } else {
+            toast.success(`${novosItens.length} documentos anexados com sucesso!`)
+          }
+        } else {
+          toast.warning(
+            `${novosItens.length} documento(s) salvo(s) com sucesso, mas ${falhas} arquivo(s) falharam.`,
+          )
+        }
+        await carregarDados()
+        setUploadManualAberto(false)
+        setArquivosParaClassificar([])
       } else {
-        toast.success(`${novosItens.length} documentos adicionados com sucesso!`)
+        toast.error('Nenhum documento pôde ser processado. Tente novamente.')
       }
-      setUploadManualAberto(false)
-      setUploadManualArquivos([])
-      setUploadManualCategoria('projeto')
     } catch (err) {
       console.error('Erro ao salvar documentos anexados:', err)
       toast.error('Erro ao anexar documento(s).')
@@ -784,6 +818,117 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
   const vinculosDeduplicados = useMemo(() => {
     return vinculos
   }, [vinculos])
+
+  // =========================================================================
+  // CÁLCULO DINÂMICO: POTÊNCIA TOTAL E QUANTIDADE DE MÓDULOS (useMemo)
+  // =========================================================================
+  const { potenciaTotalCalculada, qtdModulosCalculada } = useMemo(() => {
+    const vinculosModulos = vinculos.filter((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
+    const ativosModulos = ativosIndividuais.filter(
+      (a) =>
+        a.tipo === 'placa_solar' ||
+        (a.tipo as string) === 'modulo_fv' ||
+        a.fabricante?.toLowerCase().includes('sunova') ||
+        a.fabricante?.toLowerCase().includes('canadian') ||
+        a.fabricante?.toLowerCase().includes('ja solar') ||
+        a.fabricante?.toLowerCase().includes('trina') ||
+        a.modelo?.toLowerCase().includes('placa') ||
+        a.modelo?.toLowerCase().includes('modulo'),
+    )
+
+    const temItensModulos = vinculosModulos.length > 0 || ativosModulos.length > 0
+
+    if (!temItensModulos) {
+      // Fallback para valores cadastrados na usina quando não há vínculos ou ativos
+      const potFallback = Number(usina.potencia_kwp) || 0
+      const qtdFallback = Number(usina.qtd_modulos || usina.quantidade_placas) || 0
+      return {
+        potenciaTotalCalculada: potFallback,
+        qtdModulosCalculada: qtdFallback,
+      }
+    }
+
+    // Soma dos vínculos: (potencia_w / 1000) * quantidade
+    let potVinculosKw = 0
+    let qtdVinculos = 0
+    for (const v of vinculosModulos) {
+      const q = v.quantidade && v.quantidade > 0 ? v.quantidade : 1
+      const potW = Number(v.expand?.equipamento_id?.potencia_w) || 0
+      qtdVinculos += q
+      potVinculosKw += (potW / 1000) * q
+    }
+
+    // Soma dos ativos individuais de módulo (cada um conta 1 un, potencia se houver ou 0)
+    let potAtivosKw = 0
+    const qtdAtivos = ativosModulos.length
+    for (const a of ativosModulos) {
+      const potW = Number((a as any).potencia_w || (a as any).potencia) || 0
+      if (potW > 0) {
+        potAtivosKw += potW / 1000
+      }
+    }
+
+    const totalQtd = qtdVinculos + qtdAtivos
+    const totalPotKw = Number((potVinculosKw + potAtivosKw).toFixed(2))
+
+    return {
+      potenciaTotalCalculada: totalPotKw,
+      qtdModulosCalculada: totalQtd,
+    }
+  }, [vinculos, ativosIndividuais, usina.potencia_kwp, usina.qtd_modulos, usina.quantidade_placas])
+
+  // Sincronização silenciosa no banco (sem loop, sem toast)
+  const lastSyncedRef = React.useRef<{ potencia_kwp?: number; qtd_modulos?: number }>({})
+  useEffect(() => {
+    if (!usina?.id) return
+
+    const vinculosModulos = vinculos.filter((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
+    const ativosModulos = ativosIndividuais.filter(
+      (a) =>
+        a.tipo === 'placa_solar' ||
+        (a.tipo as string) === 'modulo_fv' ||
+        a.fabricante?.toLowerCase().includes('sunova') ||
+        a.fabricante?.toLowerCase().includes('canadian') ||
+        a.fabricante?.toLowerCase().includes('ja solar') ||
+        a.fabricante?.toLowerCase().includes('trina') ||
+        a.modelo?.toLowerCase().includes('placa') ||
+        a.modelo?.toLowerCase().includes('modulo'),
+    )
+    const temItens = vinculosModulos.length > 0 || ativosModulos.length > 0
+    if (!temItens) return // não sobrescreve se derivou do próprio fallback da usina
+
+    const potAtualBanco = Number(usina.potencia_kwp) || 0
+    const qtdAtualBanco = Number(usina.qtd_modulos) || 0
+
+    const mudouPot = Math.abs(potAtualBanco - potenciaTotalCalculada) > 0.001
+    const mudouQtd = qtdAtualBanco !== qtdModulosCalculada
+
+    const jaSincronizouPot = lastSyncedRef.current.potencia_kwp === potenciaTotalCalculada
+    const jaSincronizouQtd = lastSyncedRef.current.qtd_modulos === qtdModulosCalculada
+
+    if (mudouPot && !jaSincronizouPot) {
+      lastSyncedRef.current.potencia_kwp = potenciaTotalCalculada
+      onUpdateUsinaField('potencia_kwp', potenciaTotalCalculada).catch((err) => {
+        console.warn('[BlocoAtivosDaUsina] Erro na sincronização silenciosa de potencia_kwp:', err)
+      })
+    }
+
+    if (mudouQtd && !jaSincronizouQtd) {
+      lastSyncedRef.current.qtd_modulos = qtdModulosCalculada
+      onUpdateUsinaField('qtd_modulos', qtdModulosCalculada).catch((err) => {
+        console.warn('[BlocoAtivosDaUsina] Erro na sincronização silenciosa de qtd_modulos:', err)
+      })
+    }
+  }, [
+    potenciaTotalCalculada,
+    qtdModulosCalculada,
+    usina?.id,
+    usina.potencia_kwp,
+    usina.qtd_modulos,
+    vinculos,
+    ativosIndividuais,
+    onUpdateUsinaField,
+  ])
 
   // Contagem do badge: vínculos + ativos individuais (filtrando redundâncias com vínculos) + declarados residuais
   const totalAtivos = useMemo(() => {
@@ -993,7 +1138,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
 
             {/* Grid 3 colunas de indicadores do resumo enxuto */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              {/* Indicador Potência */}
+              {/* Indicador Potência (Calculada a partir dos módulos da usina) */}
               <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
                 <div className="w-7 h-7 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200/60">
                   <Zap className="w-3.5 h-3.5 text-amber-600" />
@@ -1002,24 +1147,14 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                   <span className="text-[10px] font-semibold text-slate-400 block leading-tight">
                     Potência Total
                   </span>
-                  <InlineEditField
-                    value={usina.potencia_kwp ?? 0}
-                    displayValue={
-                      <span className="font-black text-emerald-700 text-sm">
-                        {usina.potencia_kwp || 0} kWp
-                      </span>
-                    }
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    unit="kWp"
-                    placeholder="0"
-                    onSave={async (val) => onUpdateUsinaField('potencia_kwp', Number(val) || 0)}
-                  />
+                  <span className="font-black text-emerald-700 text-sm block">
+                    {potenciaTotalCalculada.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}{' '}
+                    kWp
+                  </span>
                 </div>
               </div>
 
-              {/* Indicador Módulos */}
+              {/* Indicador Módulos (Calculada a partir dos módulos da usina) */}
               <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
                 <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200/60">
                   <Sun className="w-3.5 h-3.5 text-blue-600" />
@@ -1028,20 +1163,9 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                   <span className="text-[10px] font-semibold text-slate-400 block leading-tight">
                     Quantidade de Módulos
                   </span>
-                  <InlineEditField
-                    value={usina.qtd_modulos ?? 0}
-                    displayValue={
-                      <span className="font-black text-blue-700 text-sm">
-                        {usina.qtd_modulos || 0} un
-                      </span>
-                    }
-                    type="number"
-                    step="1"
-                    min={0}
-                    unit="un"
-                    placeholder="0"
-                    onSave={async (val) => onUpdateUsinaField('qtd_modulos', Number(val) || 0)}
-                  />
+                  <span className="font-black text-blue-700 text-sm block">
+                    {qtdModulosCalculada} un
+                  </span>
                 </div>
               </div>
 
@@ -1161,10 +1285,26 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           </span>
                         )}
 
-                        {/* Quantidade SEMPRE visível (mesmo 1) */}
-                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                          {item.quantidade || 1} un
-                        </span>
+                        {/* Quantidade SEMPRE visível (mesmo 1) e editável inline silenciosa */}
+                        <InlineEditField
+                          value={item.quantidade || 1}
+                          displayValue={
+                            <span
+                              className="font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px] cursor-pointer"
+                              title="Clique para editar a quantidade"
+                            >
+                              {item.quantidade || 1} un
+                            </span>
+                          }
+                          type="number"
+                          step="1"
+                          min={1}
+                          unit="un"
+                          placeholder="1"
+                          onSave={async (val) =>
+                            handleUpdateQuantidadeVinculo(item.id, Number(val) || 1)
+                          }
+                        />
 
                         {(item.numero_serie || telefoneSuporte || fornecedor) && (
                           <button
@@ -1579,10 +1719,26 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                           </span>
                         )}
 
-                        {/* Quantidade SEMPRE visível (mesmo 1) */}
-                        <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                          {item.quantidade || 1} un
-                        </span>
+                        {/* Quantidade SEMPRE visível (mesmo 1) e editável inline silenciosa */}
+                        <InlineEditField
+                          value={item.quantidade || 1}
+                          displayValue={
+                            <span
+                              className="font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px] cursor-pointer"
+                              title="Clique para editar a quantidade"
+                            >
+                              {item.quantidade || 1} un
+                            </span>
+                          }
+                          type="number"
+                          step="1"
+                          min={1}
+                          unit="un"
+                          placeholder="1"
+                          onSave={async (val) =>
+                            handleUpdateQuantidadeVinculo(item.id, Number(val) || 1)
+                          }
+                        />
 
                         {(item.numero_serie || telefoneSuporte || fornecedor || dataloggerUrl) && (
                           <button
