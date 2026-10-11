@@ -149,7 +149,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       location.pathname === '/clientes-pos-vendas' ||
       location.pathname === '/pos-vendas'
     ) {
-      return { id: 'manutencoes', label: 'O&M / Manutenções', isFunil: false }
+      return { id: 'manutencoes', label: 'O&M', isFunil: false }
     }
     if (location.pathname === '/central-atendimento') {
       return { id: 'central-atendimento', label: 'Central WhatsApp', isFunil: false }
@@ -343,7 +343,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
               path: '/servicos-campo',
               icon: Wrench,
             },
-            { label: 'O&M / Manutenções', path: '/manutencoes', icon: ShieldCheck },
+            { label: 'O&M', path: '/manutencoes', icon: ShieldCheck },
             {
               label: 'Central WhatsApp',
               path: '/central-atendimento',
@@ -500,7 +500,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-purple-600" />
-                    <span>O&M / Manutenções</span>
+                    <span>O&M</span>
                   </div>
                   {location.pathname === '/manutencoes' && (
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />

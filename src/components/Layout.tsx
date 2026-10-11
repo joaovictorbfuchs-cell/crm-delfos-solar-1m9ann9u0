@@ -182,7 +182,7 @@ export default function Layout() {
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Serviços de Campo', path: '/servicos-campo', icon: Wrench },
         {
-          name: 'O&M / Manutenções',
+          name: 'O&M',
           path: '/manutencoes',
           icon: ShieldCheck,
         },
