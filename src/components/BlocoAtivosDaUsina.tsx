@@ -927,422 +927,450 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
         </div>
       </div>
 
-      {/* ================================================================ */}
-      {/* LINHA RESUMO / PARÂMETROS FOTOVOLTAICOS DA USINA (Edição Inline)  */}
-      {/* Dados consolidados: Potência kWp, Módulos, Geração, Módulos/Inv.  */}
-      {/* ================================================================ */}
-      <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-          <div className="text-[11px] uppercase font-bold text-[#0F2038] tracking-wider flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-emerald-600" />
-            Resumo dos Equipamentos da Usina (Módulos & Inversores)
-          </div>
-          <span className="text-[10px] text-slate-400 font-medium">Edição inline nos campos</span>
-        </div>
-
-        {/* Grid 3 colunas: Potência total kWp, Qtd de Módulos e Geração Estimada */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-          <div className="flex items-center gap-2 p-2 bg-slate-50/80 rounded-lg border border-slate-100">
-            <Zap className="w-4 h-4 text-amber-500 shrink-0" />
-            <span className="text-slate-500 w-20 shrink-0 font-medium">Potência:</span>
-            <InlineEditField
-              value={usina.potencia_kwp ?? 0}
-              displayValue={
-                <span className="font-black text-emerald-700 text-sm">
-                  {usina.potencia_kwp || 0} kWp
-                </span>
-              }
-              type="number"
-              step="0.01"
-              min={0}
-              unit="kWp"
-              placeholder="0"
-              onSave={async (val) => onUpdateUsinaField('potencia_kwp', Number(val) || 0)}
-            />
-          </div>
-
-          <div className="flex items-center gap-2 p-2 bg-slate-50/80 rounded-lg border border-slate-100">
-            <Layers className="w-4 h-4 text-blue-600 shrink-0" />
-            <span className="text-slate-500 w-20 shrink-0 font-medium">Módulos:</span>
-            <InlineEditField
-              value={usina.qtd_modulos ?? 0}
-              displayValue={
-                <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
-                  {usina.qtd_modulos || 0} un
-                </span>
-              }
-              type="number"
-              step="1"
-              min={0}
-              unit="un"
-              placeholder="0"
-              onSave={async (val) => onUpdateUsinaField('qtd_modulos', Number(val) || 0)}
-            />
-          </div>
-
-          <div className="flex items-center gap-2 p-2 bg-slate-50/80 rounded-lg border border-slate-100">
-            <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="text-slate-500 w-20 shrink-0 font-medium">Geração:</span>
-            <InlineEditField
-              value={usina.geracao_estimada_kwh ?? 0}
-              displayValue={
-                <span className="font-bold text-emerald-800 text-xs">
-                  {usina.geracao_estimada_kwh
-                    ? `${usina.geracao_estimada_kwh} kWh/mês`
-                    : 'Não inf.'}
-                </span>
-              }
-              type="number"
-              step="1"
-              min={0}
-              unit="kWh/mês"
-              placeholder="Ex: 1150"
-              onSave={async (val) => onUpdateUsinaField('geracao_estimada_kwh', Number(val) || 0)}
-            />
-          </div>
-        </div>
-
-        {/* Fabricante e Modelo dos Módulos com Datasheet (Deduplicação quando já vinculado ao catálogo: omitido para evitar redundância com os cards de ativos abaixo) */}
-        {!temEquipamentoCatalogoModulo && (
-          <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
-                <Sun className="w-3.5 h-3.5 text-amber-500" />
-                Módulos Fotovoltaicos
-              </span>
-              {(usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos) && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleRemoverEquipamentoDeclarado(
-                      'modulo_fv',
-                      `${usina.fabricante_modulos || usina.marca_placas || 'Módulos'} ${usina.modelo_modulos || ''}`.trim(),
-                    )
-                  }
-                  className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1 text-[11px] font-bold"
-                  aria-label="Excluir equipamento da usina"
-                  title="Excluir equipamento da usina"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Excluir</span>
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500 w-24 shrink-0 font-medium">Fabricante:</span>
-                <InlineEditField
-                  value={usina.fabricante_modulos || usina.marca_placas || ''}
-                  displayValue={
-                    <span className="font-medium text-slate-800">
-                      {usina.fabricante_modulos || usina.marca_placas || 'Não inf.'}
-                    </span>
-                  }
-                  type="text"
-                  placeholder="Canadian Solar, JA Solar, Trina..."
-                  onSave={async (val) => {
-                    const s = String(val).trim()
-                    await onUpdateUsinaMultipleFields({
-                      fabricante_modulos: s,
-                      marca_placas: s,
-                    })
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500 w-20 shrink-0 font-medium">Modelo:</span>
-                <InlineEditField
-                  value={usina.modelo_modulos || ''}
-                  displayValue={
-                    <span className="font-mono text-slate-800 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200">
-                      {usina.modelo_modulos || 'Não inf.'}
-                    </span>
-                  }
-                  type="text"
-                  placeholder="Modelo do módulo"
-                  className="flex-1"
-                  onSave={async (val) => onUpdateUsinaField('modelo_modulos', String(val).trim())}
-                />
-              </div>
-            </div>
-
-            {/* Datasheet Badge do Módulo */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 flex-wrap text-xs">
-              <span className="text-slate-500 text-[11px] font-medium">Datasheet do Módulo:</span>
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const eqModulo = encontrarDatasheetModuloUsina(usina)
-                  if (eqModulo && eqModulo.datasheet_pdf) {
-                    const url = getDatasheetEquipamentoUrl(eqModulo)
-                    if (url) {
-                      return (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0 shadow-2xs"
-                          title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
-                        >
-                          <FileText className="w-3 h-3 text-emerald-600" />
-                          <span>Datasheet PDF ({eqModulo.marca})</span>
-                          <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                        </a>
-                      )
-                    }
-                  }
-                  return null
-                })()}
-                <DatasheetBadge
-                  marca={usina.fabricante_modulos || usina.marca_placas || ''}
-                  modelo={usina.modelo_modulos || ''}
-                  tipo="modulo_fv"
-                  mostrarLinkBusca={true}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Inversor(es): Marca / Modelo / Potência + Datasheet (Deduplicação quando já vinculado ao catálogo) */}
-        {!temEquipamentoCatalogoInversor && (
-          <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
-                <Cpu className="w-3.5 h-3.5 text-purple-600" />
-                Inversor(es) da Usina (Marca / Modelo / Potência)
-              </span>
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
-                  if (eq && eq.datasheet_pdf) {
-                    const url = getDatasheetEquipamentoUrl(eq)
-                    if (url) {
-                      return (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
-                          title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
-                        >
-                          <FileText className="w-3 h-3 text-emerald-600" />
-                          <span>Ver Datasheet (PDF)</span>
-                          <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                        </a>
-                      )
-                    }
-                  }
-                  return null
-                })()}
-                {(usina.inversores_info ||
-                  usina.fabricante_inversores ||
-                  usina.modelo_inversores) && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleRemoverEquipamentoDeclarado(
-                        'inversor',
-                        usina.inversores_info ||
-                          `${usina.fabricante_inversores || 'Inversor'} ${usina.modelo_inversores || ''}`.trim(),
-                      )
-                    }
-                    className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1 text-[11px] font-bold"
-                    aria-label="Excluir equipamento da usina"
-                    title="Excluir equipamento da usina"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Excluir</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <InlineEditField
-                value={usina.inversores_info || ''}
-                displayValue={
-                  <span className="font-semibold text-slate-800 text-xs">
-                    {usina.inversores_info || 'Não inf.'}
-                  </span>
-                }
-                type="text"
-                placeholder="Ex: Solis SOLIS - 75K - 5G - PRO ou Growatt MIN 8000TL-X"
-                className="w-full"
-                onSave={async (val) => onUpdateUsinaField('inversores_info', String(val).trim())}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ================================================================ */}
-      {/* LISTA CONSOLIDADA DE ATIVOS VINCULADOS E CADASTRADOS             */}
-      {/* ================================================================ */}
       {loading ? (
         <div className="py-5 text-center text-xs text-emerald-800 flex items-center justify-center gap-2 bg-white rounded-xl border border-dashed border-emerald-300">
           <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
           <span>Carregando ativos da usina...</span>
         </div>
-      ) : totalAtivos === 0 ? (
-        /* Estado vazio real: nenhum ativo cadastrado na usina nem no banco */
-        <div className="p-5 bg-white rounded-xl border border-dashed border-emerald-300 text-xs text-slate-600 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-center sm:text-left">
-            <p className="font-bold text-slate-900 text-sm">
-              Nenhum ativo vinculado ou cadastrado nesta usina ainda.
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1 max-w-xl">
-              Utilize os botões do cabeçalho acima para adicionar ativos do catálogo ou cadastrar
-              inversores e módulos com número de série e garantia.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleAbrirModalAdicionarAtivo()
-              }}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 rounded-xl shadow-xs transition-colors cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Vincular Equipamento</span>
-            </button>
-          </div>
-        </div>
       ) : expandido ? (
-        <div className="space-y-2.5">
-          {/* Se não houver vínculos na tabela usina_equipamentos/ativos, mas houver equipamentos no cadastro da usina */}
-          {exibindoDeclarados && (
-            <div className="p-3.5 bg-emerald-100/60 rounded-xl border border-emerald-300 text-xs space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <div>
-                    <span className="font-bold text-emerald-950 text-xs">
-                      Equipamentos identificados no cadastro técnico desta usina (
-                      {equipamentosDeclarados.length})
-                    </span>
-                    <p className="text-[11px] text-emerald-800 mt-0.5">
-                      Estes equipamentos constam nas especificações da usina. Efetive o vínculo no
-                      catálogo para associar números de série, dataloggers e relatórios técnicos.
-                    </p>
-                  </div>
-                </div>
+        /* ================================================================ */
+        /* QUADRO PRINCIPAL: RESUMO, MÓDULOS E INVERSORES                   */
+        /* 3 seções organizadas, cada uma em sua linha, separadas por card   */
+        /* dentro de um mesmo quadro com padrão visual moderno e limpo      */
+        /* ================================================================ */
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3.5">
+          {/* Cabeçalho interno do quadro */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
+                Equipamentos Principais da Usina
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium">
+              Resumo • Módulos • Inversores
+            </span>
+          </div>
 
-                <button
-                  type="button"
-                  disabled={efetivandoVinculos}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleEfetivarVinculosDeclarados()
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 px-3.5 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0"
-                  title="Persistir vínculos destes equipamentos na tabela de ativos da usina"
-                >
-                  {efetivandoVinculos ? (
-                    <div className="contents">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Efetivando Vínculos...</span>
-                    </div>
-                  ) : (
-                    <div className="contents">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Efetivar Vínculo no Catálogo</span>
-                    </div>
-                  )}
-                </button>
+          {/* -------------------------------------------------------------- */}
+          {/* LINHA 1: CARD RESUMO DA USINA                                  */}
+          {/* -------------------------------------------------------------- */}
+          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 transition-colors space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-emerald-100/80 text-emerald-800">
+                  <Layers className="w-3.5 h-3.5 text-emerald-700" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900">
+                    Resumo dos Parâmetros Fotovoltaicos
+                  </span>
+                  <span className="text-[10px] text-slate-500 ml-2 font-normal hidden sm:inline">
+                    Valores consolidados da usina (clique para editar inline)
+                  </span>
+                </div>
+              </div>
+              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Geral da Usina
+              </span>
+            </div>
+
+            {/* Grid 3 colunas de indicadores do resumo */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              {/* Indicador Potência */}
+              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/90 shadow-2xs">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200/70">
+                  <Zap className="w-4 h-4 text-amber-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
+                    Potência Total
+                  </span>
+                  <InlineEditField
+                    value={usina.potencia_kwp ?? 0}
+                    displayValue={
+                      <span className="font-black text-emerald-700 text-sm">
+                        {usina.potencia_kwp || 0} kWp
+                      </span>
+                    }
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    unit="kWp"
+                    placeholder="0"
+                    onSave={async (val) => onUpdateUsinaField('potencia_kwp', Number(val) || 0)}
+                  />
+                </div>
               </div>
 
-              {/* Cards dos equipamentos declarados */}
-              <div className="space-y-2 pt-1">
-                {equipamentosDeclarados.map((item, idx) => {
-                  const isInversor = item.tipo === 'inversor'
+              {/* Indicador Módulos */}
+              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/90 shadow-2xs">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200/70">
+                  <Sun className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
+                    Qtd de Módulos
+                  </span>
+                  <InlineEditField
+                    value={usina.qtd_modulos ?? 0}
+                    displayValue={
+                      <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200 inline-block">
+                        {usina.qtd_modulos || 0} un
+                      </span>
+                    }
+                    type="number"
+                    step="1"
+                    min={0}
+                    unit="un"
+                    placeholder="0"
+                    onSave={async (val) => onUpdateUsinaField('qtd_modulos', Number(val) || 0)}
+                  />
+                </div>
+              </div>
+
+              {/* Indicador Geração */}
+              <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/90 shadow-2xs">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200/70">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
+                    Geração Estimada
+                  </span>
+                  <InlineEditField
+                    value={usina.geracao_estimada_kwh ?? 0}
+                    displayValue={
+                      <span className="font-bold text-emerald-800 text-xs">
+                        {usina.geracao_estimada_kwh
+                          ? `${usina.geracao_estimada_kwh} kWh/mês`
+                          : 'Não inf.'}
+                      </span>
+                    }
+                    type="number"
+                    step="1"
+                    min={0}
+                    unit="kWh/mês"
+                    placeholder="Ex: 1150"
+                    onSave={async (val) =>
+                      onUpdateUsinaField('geracao_estimada_kwh', Number(val) || 0)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* -------------------------------------------------------------- */}
+          {/* LINHA 2: CARD MÓDULOS FOTOVOLTAICOS                            */}
+          {/* -------------------------------------------------------------- */}
+          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 transition-colors space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-100/80 text-amber-800">
+                  <Sun className="w-3.5 h-3.5 text-amber-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      Módulos Fotovoltaicos (Placas)
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] bg-amber-50 text-amber-800 border-amber-300 font-semibold"
+                    >
+                      Linha de Módulos
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Especificação, quantidade instalada, fabricante, modelo e datasheets
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleAbrirModalAdicionarAtivo()
+                    setFiltroTipo('modulo_fv')
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                  title="Vincular módulo fotovoltaico do catálogo"
+                >
+                  <Plus className="w-3 h-3 text-amber-700" />
+                  <span>Adicionar Módulo</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo de Módulos: Vinculados do catálogo, declarados e ativos individuais */}
+            <div className="space-y-2">
+              {/* 1. Módulos vinculados via catálogo (usina_equipamentos) */}
+              {vinculos
+                .filter((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
+                .map((item) => {
+                  const eq = item.expand?.equipamento_id
+                  if (!eq) return null
+                  const datasheetUrl = getDatasheetEquipamentoUrl(eq)
+                  const fornecedor = eq.expand?.fornecedor_id
+                  const telefoneSuporte =
+                    eq.telefone_suporte_fornecedor ||
+                    fornecedor?.telefone_suporte ||
+                    fornecedor?.whatsapp ||
+                    fornecedor?.telefone ||
+                    ''
+
                   return (
                     <div
-                      key={`declarado-${idx}`}
-                      className="p-3 bg-white rounded-xl border border-emerald-200 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                      key={item.id}
+                      className="p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition-all flex flex-col gap-2.5"
                     >
-                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                            isInversor ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {isInversor ? <Cpu className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
-                          {isInversor ? 'Inversor' : 'Módulo FV'}
-                        </span>
-
-                        <span className="font-bold text-slate-900 text-xs">
-                          {item.marca} {item.modelo}
-                        </span>
-
-                        {item.potenciaW && item.potenciaW > 0 ? (
-                          <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
-                            {formatarPotenciaEquipamento(item.potenciaW, item.tipo)}
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800">
+                            <Sun className="w-3 h-3" />
+                            Módulo FV
                           </span>
-                        ) : null}
 
-                        <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
-                          Qtd: {item.quantidade}
-                        </span>
+                          <span className="font-bold text-slate-900 text-xs truncate">
+                            {eq.marca} {eq.modelo}
+                          </span>
 
-                        {item.equipamentoCatalogo ? (
+                          {eq.potencia_w > 0 && (
+                            <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                              {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
+                            </span>
+                          )}
+
+                          {/* Controle numérico interativo de quantidade com +/- */}
+                          <div
+                            className="inline-flex items-center gap-1 bg-amber-50/90 border border-amber-300 rounded-lg px-1.5 py-0.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-[10px] font-bold text-amber-900 shrink-0">
+                              Qtd:
+                            </span>
+                            <button
+                              type="button"
+                              disabled={
+                                salvandoQtdVinculoId === item.id || (item.quantidade || 1) <= 1
+                              }
+                              onClick={() =>
+                                handleUpdateQuantidadeVinculo(
+                                  item.id,
+                                  Math.max(1, (Number(item.quantidade) || 1) - 1),
+                                )
+                              }
+                              className="w-5 h-5 rounded flex items-center justify-center bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 disabled:opacity-40 cursor-pointer shadow-2xs transition-colors"
+                              title="Diminuir quantidade de módulos"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              defaultValue={item.quantidade || 1}
+                              key={`qtd-input-${item.id}-${item.quantidade}`}
+                              disabled={salvandoQtdVinculoId === item.id}
+                              className="w-14 text-center font-bold text-xs text-amber-950 bg-white border border-amber-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const val = parseInt((e.target as HTMLInputElement).value, 10)
+                                  if (!isNaN(val) && val > 0 && val !== item.quantidade) {
+                                    handleUpdateQuantidadeVinculo(item.id, val)
+                                  }
+                                  ;(e.target as HTMLInputElement).blur()
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value, 10)
+                                if (!isNaN(val) && val > 0 && val !== item.quantidade) {
+                                  handleUpdateQuantidadeVinculo(item.id, val)
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              disabled={salvandoQtdVinculoId === item.id}
+                              onClick={() =>
+                                handleUpdateQuantidadeVinculo(
+                                  item.id,
+                                  (Number(item.quantidade) || 1) + 1,
+                                )
+                              }
+                              className="w-5 h-5 rounded flex items-center justify-center bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 disabled:opacity-40 cursor-pointer shadow-2xs transition-colors"
+                              title="Aumentar quantidade de módulos"
+                            >
+                              +
+                            </button>
+                            {salvandoQtdVinculoId === item.id && (
+                              <RefreshCw className="w-3 h-3 animate-spin text-amber-700 ml-0.5" />
+                            )}
+                          </div>
+
                           <Badge
                             variant="outline"
-                            className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold"
+                            className="text-[10px] bg-slate-50 text-slate-600 border-slate-200"
                           >
-                            Catálogo Correspondente
+                            Catálogo
                           </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-amber-50 text-amber-800 border-amber-300"
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)
+                            }
+                            className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                            aria-label="Excluir equipamento da usina"
+                            title="Excluir equipamento da usina"
                           >
-                            Declarado na Usina
-                          </Badge>
-                        )}
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        {item.datasheetUrl && (
-                          <a
-                            href={item.datasheetUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 transition-colors text-[11px]"
-                            title="Abrir Datasheet PDF correspondente"
-                          >
-                            <FileText className="w-3 h-3 text-emerald-700" />
-                            <span>Datasheet</span>
-                            <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
-                          </a>
+                      {/* S/N */}
+                      {item.numero_serie && (
+                        <div className="text-[11px] text-slate-600 flex items-center gap-3 flex-wrap bg-slate-50/80 p-2 rounded-lg border border-slate-100">
+                          <span className="flex items-center gap-1 font-mono">
+                            <Hash className="w-3 h-3 text-slate-400" />
+                            <span>
+                              S/N: <strong>{item.numero_serie}</strong>
+                            </span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Datasheet e Fornecedor */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-slate-100 text-[11px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {datasheetUrl ? (
+                            <a
+                              href={datasheetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 transition-colors"
+                              title="Abrir Datasheet do Módulo"
+                            >
+                              <FileText className="w-3 h-3 text-emerald-700" />
+                              <span>Datasheet</span>
+                              <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 text-[10px] italic">Sem datasheet</span>
+                          )}
+                        </div>
+
+                        {(fornecedor || eq.telefone_suporte_fornecedor) && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 text-slate-700">
+                              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                              <span className="font-semibold">
+                                {fornecedor?.nome_empresa || 'Fornecedor Cadastrado'}
+                              </span>
+                            </div>
+
+                            {telefoneSuporte && (
+                              <button
+                                type="button"
+                                onClick={() => handleWhatsAppSuporte(telefoneSuporte)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px] shadow-2xs transition-colors"
+                                title={`Contatar suporte: ${telefoneSuporte}`}
+                              >
+                                <Phone className="w-2.5 h-2.5" />
+                                <span>{telefoneSuporte}</span>
+                              </button>
+                            )}
+                          </div>
                         )}
-                        {/* Configuração de Monitoramento para inversor declarado */}
-                        {isInversor &&
-                          (() => {
-                            const cfg = encontrarConfigMonitoramentoInversor(
-                              item.equipamentoCatalogo,
-                              item.marca,
-                            )
-                            if (!cfg) return null
-                            return (
-                              <MonitoramentoConfigBadge
-                                configuracao={cfg}
-                                rotulo="Config. de Monitoramento"
-                                mostrarTipo
-                              />
-                            )
-                          })()}
+                      </div>
+                    </div>
+                  )
+                })}
+
+              {/* 2. Ativos individuais de módulos */}
+              {ativosIndividuais
+                .filter(
+                  (a) =>
+                    a.tipo === 'placa_solar' ||
+                    (a.tipo as string) === 'modulo_fv' ||
+                    a.fabricante?.toLowerCase().includes('sunova') ||
+                    a.fabricante?.toLowerCase().includes('canadian') ||
+                    a.fabricante?.toLowerCase().includes('ja solar') ||
+                    a.fabricante?.toLowerCase().includes('trina') ||
+                    a.modelo?.toLowerCase().includes('placa') ||
+                    a.modelo?.toLowerCase().includes('modulo'),
+                )
+                .map((ativo) => {
+                  const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
+                  return (
+                    <div
+                      key={ativo.id}
+                      className="p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition-all flex items-center justify-between gap-3 flex-wrap"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-slate-900 text-xs">
+                            {ativo.fabricante} {ativo.modelo}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-50 text-[10px] text-amber-800 border-amber-200 font-bold"
+                          >
+                            Individual / Serial
+                          </Badge>
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
+                          {ativo.numero_serie && (
+                            <span className="flex items-center gap-1 font-mono">
+                              <Hash className="w-3 h-3 text-slate-400" />
+                              <span>
+                                S/N:{' '}
+                                <strong className="text-slate-800">{ativo.numero_serie}</strong>
+                              </span>
+                            </span>
+                          )}
+                          {ativo.data_instalacao && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              <span>Instalado: {formatDate(ativo.data_instalacao)}</span>
+                            </span>
+                          )}
+                          {ativo.observacoes && (
+                            <span className="italic text-slate-500 truncate max-w-xs">
+                              "{ativo.observacoes}"
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <Badge
+                            variant={garantia.badgeVariant}
+                            className={`text-[10px] ${garantia.badgeClasses}`}
+                          >
+                            {garantia.label}
+                          </Badge>
+                          {ativo.data_fim_garantia && (
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Garantia até {formatDate(ativo.data_fim_garantia)}
+                            </span>
+                          )}
+                        </div>
+
                         <button
                           type="button"
                           onClick={() =>
-                            handleRemoverEquipamentoDeclarado(
-                              item.tipo,
-                              `${item.marca} ${item.modelo}`,
+                            handleRemoverAtivoIndividual(
+                              ativo.id,
+                              `${ativo.fabricante} ${ativo.modelo}`,
                             )
                           }
                           className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
@@ -1355,320 +1383,634 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                     </div>
                   )
                 })}
-              </div>
-            </div>
-          )}
 
-          {/* 1. Ativos Vinculados do Catálogo (UsinaEquipamentoAtivo) */}
-          {vinculos.map((item) => {
-            const eq = item.expand?.equipamento_id
-            if (!eq) return null
-
-            const isInversor = eq.tipo === 'inversor'
-            const isModulo = eq.tipo === 'modulo_fv'
-            const datasheetUrl = getDatasheetEquipamentoUrl(eq)
-            const dataloggerUrl = getDataloggerEquipamentoUrl(eq)
-            const fornecedor = eq.expand?.fornecedor_id
-            const telefoneSuporte =
-              eq.telefone_suporte_fornecedor ||
-              fornecedor?.telefone_suporte ||
-              fornecedor?.whatsapp ||
-              fornecedor?.telefone ||
-              ''
-
-            return (
-              <div
-                key={item.id}
-                className="p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-emerald-300 transition-all flex flex-col gap-2.5"
-              >
-                <div className="flex items-start justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        isInversor
-                          ? 'bg-blue-100 text-blue-800'
-                          : isModulo
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-purple-100 text-purple-800'
-                      }`}
-                    >
-                      {isInversor ? (
-                        <Cpu className="w-3 h-3" />
-                      ) : isModulo ? (
-                        <Sun className="w-3 h-3" />
-                      ) : (
-                        <Wrench className="w-3 h-3" />
-                      )}
-                      {isInversor ? 'Inversor' : isModulo ? 'Módulo FV' : 'Outro'}
+              {/* 3. Módulos declarados no cadastro técnico da usina */}
+              {!temEquipamentoCatalogoModulo && (
+                <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
+                      <Sun className="w-3.5 h-3.5 text-amber-500" />
+                      Módulos Fotovoltaicos Declarados na Usina
                     </span>
-
-                    <span className="font-bold text-slate-900 text-xs truncate">
-                      {eq.marca} {eq.modelo}
-                    </span>
-
-                    {eq.potencia_w > 0 && (
-                      <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
-                        {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
-                      </span>
-                    )}
-
-                    {/* Para Módulos: Controle numérico interativo de quantidade com +/- e onBlur/Enter */}
-                    {isModulo ? (
-                      <div
-                        className="inline-flex items-center gap-1 bg-amber-50/90 border border-amber-300 rounded-lg px-1.5 py-0.5"
-                        onClick={(e) => e.stopPropagation()}
+                    {(usina.fabricante_modulos || usina.marca_placas || usina.modelo_modulos) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRemoverEquipamentoDeclarado(
+                            'modulo_fv',
+                            `${usina.fabricante_modulos || usina.marca_placas || 'Módulos'} ${usina.modelo_modulos || ''}`.trim(),
+                          )
+                        }
+                        className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1 text-[11px] font-bold"
+                        aria-label="Excluir equipamento da usina"
+                        title="Excluir equipamento da usina"
                       >
-                        <span className="text-[10px] font-bold text-amber-900 shrink-0">Qtd:</span>
-                        <button
-                          type="button"
-                          disabled={salvandoQtdVinculoId === item.id || (item.quantidade || 1) <= 1}
-                          onClick={() =>
-                            handleUpdateQuantidadeVinculo(
-                              item.id,
-                              Math.max(1, (Number(item.quantidade) || 1) - 1),
-                            )
-                          }
-                          className="w-5 h-5 rounded flex items-center justify-center bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 disabled:opacity-40 cursor-pointer shadow-2xs transition-colors"
-                          title="Diminuir quantidade de módulos"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          min={1}
-                          step={1}
-                          defaultValue={item.quantidade || 1}
-                          key={`qtd-input-${item.id}-${item.quantidade}`}
-                          disabled={salvandoQtdVinculoId === item.id}
-                          className="w-14 text-center font-bold text-xs text-amber-950 bg-white border border-amber-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              const val = parseInt((e.target as HTMLInputElement).value, 10)
-                              if (!isNaN(val) && val > 0 && val !== item.quantidade) {
-                                handleUpdateQuantidadeVinculo(item.id, val)
-                              }
-                              ;(e.target as HTMLInputElement).blur()
-                            }
-                          }}
-                          onBlur={(e) => {
-                            const val = parseInt(e.target.value, 10)
-                            if (!isNaN(val) && val > 0 && val !== item.quantidade) {
-                              handleUpdateQuantidadeVinculo(item.id, val)
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          disabled={salvandoQtdVinculoId === item.id}
-                          onClick={() =>
-                            handleUpdateQuantidadeVinculo(
-                              item.id,
-                              (Number(item.quantidade) || 1) + 1,
-                            )
-                          }
-                          className="w-5 h-5 rounded flex items-center justify-center bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 disabled:opacity-40 cursor-pointer shadow-2xs transition-colors"
-                          title="Aumentar quantidade de módulos"
-                        >
-                          +
-                        </button>
-                        {salvandoQtdVinculoId === item.id && (
-                          <RefreshCw className="w-3 h-3 animate-spin text-amber-700 ml-0.5" />
-                        )}
-                      </div>
-                    ) : item.quantidade && item.quantidade > 1 ? (
-                      <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
-                        Qtd: {item.quantidade}
-                      </span>
-                    ) : null}
-
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] bg-slate-50 text-slate-600 border-slate-200"
-                    >
-                      Catálogo
-                    </Badge>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)}
-                      className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                      aria-label="Excluir equipamento da usina"
-                      title="Excluir equipamento da usina"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 w-24 shrink-0 font-medium">Fabricante:</span>
+                      <InlineEditField
+                        value={usina.fabricante_modulos || usina.marca_placas || ''}
+                        displayValue={
+                          <span className="font-medium text-slate-800">
+                            {usina.fabricante_modulos || usina.marca_placas || 'Não inf.'}
+                          </span>
+                        }
+                        type="text"
+                        placeholder="Canadian Solar, JA Solar, Trina..."
+                        onSave={async (val) => {
+                          const s = String(val).trim()
+                          await onUpdateUsinaMultipleFields({
+                            fabricante_modulos: s,
+                            marca_placas: s,
+                          })
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 w-20 shrink-0 font-medium">Modelo:</span>
+                      <InlineEditField
+                        value={usina.modelo_modulos || ''}
+                        displayValue={
+                          <span className="font-mono text-slate-800 text-[11px] bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                            {usina.modelo_modulos || 'Não inf.'}
+                          </span>
+                        }
+                        type="text"
+                        placeholder="Modelo do módulo"
+                        className="flex-1"
+                        onSave={async (val) =>
+                          onUpdateUsinaField('modelo_modulos', String(val).trim())
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Datasheet Badge do Módulo Declarado */}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 flex-wrap text-xs">
+                    <span className="text-slate-500 text-[11px] font-medium">
+                      Datasheet do Módulo:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const eqModulo = encontrarDatasheetModuloUsina(usina)
+                        if (eqModulo && eqModulo.datasheet_pdf) {
+                          const url = getDatasheetEquipamentoUrl(eqModulo)
+                          if (url) {
+                            return (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0 shadow-2xs"
+                                title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
+                              >
+                                <FileText className="w-3 h-3 text-emerald-600" />
+                                <span>Datasheet PDF ({eqModulo.marca})</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                              </a>
+                            )
+                          }
+                        }
+                        return null
+                      })()}
+                      <DatasheetBadge
+                        marca={usina.fabricante_modulos || usina.marca_placas || ''}
+                        modelo={usina.modelo_modulos || ''}
+                        tipo="modulo_fv"
+                        mostrarLinkBusca={true}
+                      />
+                    </div>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
 
-                {/* S/N */}
-                {item.numero_serie && (
-                  <div className="text-[11px] text-slate-600 flex items-center gap-3 flex-wrap bg-slate-50/80 p-2 rounded-lg border border-slate-100">
-                    <span className="flex items-center gap-1 font-mono">
-                      <Hash className="w-3 h-3 text-slate-400" />
-                      <span>
-                        S/N: <strong>{item.numero_serie}</strong>
-                      </span>
+          {/* -------------------------------------------------------------- */}
+          {/* LINHA 3: CARD INVERSORES                                       */}
+          {/* -------------------------------------------------------------- */}
+          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 transition-colors space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-blue-100/80 text-blue-800">
+                  <Cpu className="w-3.5 h-3.5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      Inversores Fotovoltaicos
                     </span>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] bg-blue-50 text-blue-800 border-blue-300 font-semibold"
+                    >
+                      Linha de Inversores
+                    </Badge>
                   </div>
-                )}
+                  <p className="text-[11px] text-slate-500">
+                    Marca, modelo, potência, configuração de monitoramento e datalogger
+                  </p>
+                </div>
+              </div>
 
-                {/* Datasheet, Configuração de Monitoramento, Datalogger e Fornecedor com Suporte */}
-                <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-slate-100 text-[11px]">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {datasheetUrl ? (
-                      <a
-                        href={datasheetUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 transition-colors"
-                        title="Abrir Datasheet do Equipamento"
-                      >
-                        <FileText className="w-3 h-3 text-emerald-700" />
-                        <span>Datasheet</span>
-                        <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
-                      </a>
-                    ) : (
-                      <span className="text-slate-400 text-[10px] italic">Sem datasheet</span>
-                    )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleAbrirModalAdicionarAtivo()
+                    setFiltroTipo('inversor')
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                  title="Vincular inversor do catálogo"
+                >
+                  <Plus className="w-3 h-3 text-blue-700" />
+                  <span>Adicionar Inversor</span>
+                </button>
+              </div>
+            </div>
 
-                    {/* Configuração de Monitoramento vinculada ao inversor (no mesmo formato do Datasheet) */}
-                    {isInversor &&
-                      (() => {
-                        const cfg = encontrarConfigMonitoramentoInversor(eq, eq.marca)
-                        if (!cfg) return null
-                        return (
-                          <MonitoramentoConfigBadge
-                            configuracao={cfg}
-                            rotulo="Config. de Monitoramento"
-                            mostrarTipo
-                          />
-                        )
-                      })()}
+            {/* Conteúdo de Inversores: Vinculados do catálogo, declarados e individuais */}
+            <div className="space-y-2">
+              {/* 1. Inversores vinculados via catálogo (usina_equipamentos) */}
+              {vinculos
+                .filter((v) => v.expand?.equipamento_id?.tipo === 'inversor')
+                .map((item) => {
+                  const eq = item.expand?.equipamento_id
+                  if (!eq) return null
+                  const datasheetUrl = getDatasheetEquipamentoUrl(eq)
+                  const dataloggerUrl = getDataloggerEquipamentoUrl(eq)
+                  const fornecedor = eq.expand?.fornecedor_id
+                  const telefoneSuporte =
+                    eq.telefone_suporte_fornecedor ||
+                    fornecedor?.telefone_suporte ||
+                    fornecedor?.whatsapp ||
+                    fornecedor?.telefone ||
+                    ''
 
-                    {/* Link direto legado de datalogger caso exista e não tenha cfg vinculada */}
-                    {dataloggerUrl && !eq.configuracao_monitoramento_id && (
-                      <a
-                        href={dataloggerUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold rounded-lg border border-blue-300 transition-colors"
-                        title="Abrir Configuração do Datalogger"
-                      >
-                        <Settings className="w-3 h-3 text-blue-700" />
-                        <span>Configurar Datalogger</span>
-                        <ExternalLink className="w-2.5 h-2.5 text-blue-600 ml-0.5" />
-                      </a>
-                    )}
-                  </div>
-                  {(fornecedor || eq.telefone_suporte_fornecedor) && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 text-slate-700">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="font-semibold">
-                          {fornecedor?.nome_empresa || 'Fornecedor Cadastrado'}
-                        </span>
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex flex-col gap-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800">
+                            <Cpu className="w-3 h-3" />
+                            Inversor
+                          </span>
+
+                          <span className="font-bold text-slate-900 text-xs truncate">
+                            {eq.marca} {eq.modelo}
+                          </span>
+
+                          {eq.potencia_w > 0 && (
+                            <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                              {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
+                            </span>
+                          )}
+
+                          {item.quantidade && item.quantidade > 1 ? (
+                            <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
+                              Qtd: {item.quantidade}
+                            </span>
+                          ) : null}
+
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-slate-50 text-slate-600 border-slate-200"
+                          >
+                            Catálogo
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)
+                            }
+                            className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                            aria-label="Excluir equipamento da usina"
+                            title="Excluir equipamento da usina"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      {telefoneSuporte && (
+                      {/* S/N */}
+                      {item.numero_serie && (
+                        <div className="text-[11px] text-slate-600 flex items-center gap-3 flex-wrap bg-slate-50/80 p-2 rounded-lg border border-slate-100">
+                          <span className="flex items-center gap-1 font-mono">
+                            <Hash className="w-3 h-3 text-slate-400" />
+                            <span>
+                              S/N: <strong>{item.numero_serie}</strong>
+                            </span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Datasheet, Configuração de Monitoramento, Datalogger e Fornecedor com Suporte */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-slate-100 text-[11px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {datasheetUrl ? (
+                            <a
+                              href={datasheetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 transition-colors"
+                              title="Abrir Datasheet do Inversor"
+                            >
+                              <FileText className="w-3 h-3 text-emerald-700" />
+                              <span>Datasheet</span>
+                              <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 text-[10px] italic">Sem datasheet</span>
+                          )}
+
+                          {/* Configuração de Monitoramento vinculada ao inversor */}
+                          {(() => {
+                            const cfg = encontrarConfigMonitoramentoInversor(eq, eq.marca)
+                            if (!cfg) return null
+                            return (
+                              <MonitoramentoConfigBadge
+                                configuracao={cfg}
+                                rotulo="Config. de Monitoramento"
+                                mostrarTipo
+                              />
+                            )
+                          })()}
+
+                          {/* Link direto legado de datalogger caso exista e não tenha cfg vinculada */}
+                          {dataloggerUrl && !eq.configuracao_monitoramento_id && (
+                            <a
+                              href={dataloggerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold rounded-lg border border-blue-300 transition-colors"
+                              title="Abrir Configuração do Datalogger"
+                            >
+                              <Settings className="w-3 h-3 text-blue-700" />
+                              <span>Configurar Datalogger</span>
+                              <ExternalLink className="w-2.5 h-2.5 text-blue-600 ml-0.5" />
+                            </a>
+                          )}
+                        </div>
+
+                        {(fornecedor || eq.telefone_suporte_fornecedor) && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 text-slate-700">
+                              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                              <span className="font-semibold">
+                                {fornecedor?.nome_empresa || 'Fornecedor Cadastrado'}
+                              </span>
+                            </div>
+
+                            {telefoneSuporte && (
+                              <button
+                                type="button"
+                                onClick={() => handleWhatsAppSuporte(telefoneSuporte)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px] shadow-2xs transition-colors"
+                                title={`Contatar suporte: ${telefoneSuporte}`}
+                              >
+                                <Phone className="w-2.5 h-2.5" />
+                                <span>{telefoneSuporte}</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+
+              {/* 2. Ativos individuais de inversores */}
+              {ativosIndividuais
+                .filter(
+                  (a) =>
+                    a.tipo === 'inversor' ||
+                    a.fabricante?.toLowerCase().includes('solis') ||
+                    a.fabricante?.toLowerCase().includes('growatt') ||
+                    a.fabricante?.toLowerCase().includes('deye') ||
+                    a.modelo?.toLowerCase().includes('solis') ||
+                    a.modelo?.toLowerCase().includes('inversor'),
+                )
+                .map((ativo) => {
+                  const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
+                  return (
+                    <div
+                      key={ativo.id}
+                      className="p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-blue-300 transition-all flex items-center justify-between gap-3 flex-wrap"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-slate-900 text-xs">
+                            {ativo.fabricante} {ativo.modelo}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="bg-blue-50 text-[10px] text-blue-800 border-blue-200 font-bold"
+                          >
+                            Individual / Serial
+                          </Badge>
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
+                          {ativo.numero_serie && (
+                            <span className="flex items-center gap-1 font-mono">
+                              <Hash className="w-3 h-3 text-slate-400" />
+                              <span>
+                                S/N:{' '}
+                                <strong className="text-slate-800">{ativo.numero_serie}</strong>
+                              </span>
+                            </span>
+                          )}
+                          {ativo.data_instalacao && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              <span>Instalado: {formatDate(ativo.data_instalacao)}</span>
+                            </span>
+                          )}
+                          {ativo.observacoes && (
+                            <span className="italic text-slate-500 truncate max-w-xs">
+                              "{ativo.observacoes}"
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <Badge
+                            variant={garantia.badgeVariant}
+                            className={`text-[10px] ${garantia.badgeClasses}`}
+                          >
+                            {garantia.label}
+                          </Badge>
+                          {ativo.data_fim_garantia && (
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Garantia até {formatDate(ativo.data_fim_garantia)}
+                            </span>
+                          )}
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() => handleWhatsAppSuporte(telefoneSuporte)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px] shadow-2xs transition-colors"
-                          title={`Contatar suporte: ${telefoneSuporte}`}
+                          onClick={() =>
+                            handleRemoverAtivoIndividual(
+                              ativo.id,
+                              `${ativo.fabricante} ${ativo.modelo}`,
+                            )
+                          }
+                          className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+                          aria-label="Excluir equipamento da usina"
+                          title="Excluir equipamento da usina"
                         >
-                          <Phone className="w-2.5 h-2.5" />
-                          <span>{telefoneSuporte}</span>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+
+              {/* 3. Inversor declarado no cadastro da usina */}
+              {!temEquipamentoCatalogoInversor && (
+                <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
+                      <Cpu className="w-3.5 h-3.5 text-purple-600" />
+                      Inversor(es) Declarados na Usina (Marca / Modelo / Potência)
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
+                        if (eq && eq.datasheet_pdf) {
+                          const url = getDatasheetEquipamentoUrl(eq)
+                          if (url) {
+                            return (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
+                                title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
+                              >
+                                <FileText className="w-3 h-3 text-emerald-600" />
+                                <span>Ver Datasheet (PDF)</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                              </a>
+                            )
+                          }
+                        }
+                        return null
+                      })()}
+                      {(usina.inversores_info ||
+                        usina.fabricante_inversores ||
+                        usina.modelo_inversores) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemoverEquipamentoDeclarado(
+                              'inversor',
+                              usina.inversores_info ||
+                                `${usina.fabricante_inversores || 'Inversor'} ${usina.modelo_inversores || ''}`.trim(),
+                            )
+                          }
+                          className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1 text-[11px] font-bold"
+                          aria-label="Excluir equipamento da usina"
+                          title="Excluir equipamento da usina"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Excluir</span>
                         </button>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-
-          {/* 2. Ativos Individuais Estruturados (AtivoUsina com S/N e Garantia) */}
-          {ativosIndividuais.map((ativo) => {
-            const garantia = calcularStatusGarantia(ativo.data_fim_garantia)
-            return (
-              <div
-                key={ativo.id}
-                className="p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs hover:border-emerald-300 transition-all flex items-center justify-between gap-3 flex-wrap"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-slate-900 text-xs">
-                      {ativo.fabricante} {ativo.modelo}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className="bg-slate-50 text-[10px] text-slate-600 border-slate-200 font-medium"
-                    >
-                      {getLabelTipoAtivo(ativo.tipo, ativo.tipo_outro_descricao)}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="bg-amber-50 text-[10px] text-amber-800 border-amber-200 font-bold"
-                    >
-                      Individual / Serial
-                    </Badge>
                   </div>
 
-                  <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
-                    {ativo.numero_serie && (
-                      <span className="flex items-center gap-1 font-mono">
-                        <Hash className="w-3 h-3 text-slate-400" />
-                        <span>
-                          S/N: <strong className="text-slate-800">{ativo.numero_serie}</strong>
+                  <div className="flex items-center gap-2">
+                    <InlineEditField
+                      value={usina.inversores_info || ''}
+                      displayValue={
+                        <span className="font-semibold text-slate-800 text-xs">
+                          {usina.inversores_info || 'Não inf.'}
                         </span>
-                      </span>
-                    )}
-                    {ativo.data_instalacao && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-slate-400" />
-                        <span>Instalado: {formatDate(ativo.data_instalacao)}</span>
-                      </span>
-                    )}
-                    {ativo.observacoes && (
-                      <span className="italic text-slate-500 truncate max-w-xs">
-                        "{ativo.observacoes}"
-                      </span>
-                    )}
+                      }
+                      type="text"
+                      placeholder="Ex: Solis SOLIS - 75K - 5G - PRO ou Growatt MIN 8000TL-X"
+                      className="w-full"
+                      onSave={async (val) =>
+                        onUpdateUsinaField('inversores_info', String(val).trim())
+                      }
+                    />
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <Badge
-                      variant={garantia.badgeVariant}
-                      className={`text-[10px] ${garantia.badgeClasses}`}
+          {/* -------------------------------------------------------------- */}
+          {/* OUTROS ATIVOS (Baterias, medidores, transformadores etc.)       */}
+          {/* Mantidos com integridade 100% aditiva caso existam no cadastro */}
+          {/* -------------------------------------------------------------- */}
+          {(() => {
+            const outrosVinculos = vinculos.filter(
+              (v) =>
+                v.expand?.equipamento_id?.tipo !== 'inversor' &&
+                v.expand?.equipamento_id?.tipo !== 'modulo_fv',
+            )
+            const outrosIndividuais = ativosIndividuais.filter(
+              (a) =>
+                a.tipo !== 'inversor' &&
+                a.tipo !== 'placa_solar' &&
+                (a.tipo as string) !== 'modulo_fv' &&
+                !a.fabricante?.toLowerCase().includes('solis') &&
+                !a.fabricante?.toLowerCase().includes('growatt') &&
+                !a.fabricante?.toLowerCase().includes('deye') &&
+                !a.modelo?.toLowerCase().includes('solis') &&
+                !a.modelo?.toLowerCase().includes('inversor') &&
+                !a.fabricante?.toLowerCase().includes('sunova') &&
+                !a.fabricante?.toLowerCase().includes('canadian') &&
+                !a.fabricante?.toLowerCase().includes('ja solar') &&
+                !a.fabricante?.toLowerCase().includes('trina') &&
+                !a.modelo?.toLowerCase().includes('placa') &&
+                !a.modelo?.toLowerCase().includes('modulo'),
+            )
+
+            if (outrosVinculos.length === 0 && outrosIndividuais.length === 0) return null
+
+            return (
+              <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/80 space-y-2">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Wrench className="w-3.5 h-3.5 text-purple-600" />
+                  Outros Ativos e Equipamentos da Usina
+                </span>
+                <div className="space-y-2">
+                  {outrosVinculos.map((item) => {
+                    const eq = item.expand?.equipamento_id
+                    if (!eq) return null
+                    const datasheetUrl = getDatasheetEquipamentoUrl(eq)
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs flex items-center justify-between gap-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-bold text-slate-900 truncate">
+                            {eq.marca} {eq.modelo}
+                          </span>
+                          {item.quantidade && item.quantidade > 1 ? (
+                            <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
+                              Qtd: {item.quantidade}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {datasheetUrl && (
+                            <a
+                              href={datasheetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-emerald-700 font-bold hover:underline"
+                            >
+                              Datasheet
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRemoverVinculo(item.id, `${eq.marca} ${eq.modelo}`)
+                            }
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            title="Excluir da usina"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {outrosIndividuais.map((ativo) => (
+                    <div
+                      key={ativo.id}
+                      className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs flex items-center justify-between gap-2"
                     >
-                      {garantia.label}
-                    </Badge>
-                    {ativo.data_fim_garantia && (
-                      <span className="text-[10px] text-slate-400 block mt-0.5">
-                        Garantia até {formatDate(ativo.data_fim_garantia)}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleRemoverAtivoIndividual(ativo.id, `${ativo.fabricante} ${ativo.modelo}`)
-                    }
-                    className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-                    aria-label="Excluir equipamento da usina"
-                    title="Excluir equipamento da usina"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 truncate">
+                          {ativo.fabricante} {ativo.modelo}
+                        </span>
+                        <span className="text-[10px] text-slate-500 ml-2">
+                          {getLabelTipoAtivo(ativo.tipo, ativo.tipo_outro_descricao)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRemoverAtivoIndividual(
+                            ativo.id,
+                            `${ativo.fabricante} ${ativo.modelo}`,
+                          )
+                        }
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        title="Excluir da usina"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )
-          })}
+          })()}
+
+          {/* Informação e ação de efetivar equipamentos declarados quando existirem */}
+          {exibindoDeclarados && (
+            <div className="p-3 bg-emerald-100/60 rounded-xl border border-emerald-300 text-xs flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
+                <div>
+                  <span className="font-bold text-emerald-950 text-xs">
+                    Equipamentos declarados identificados ({equipamentosDeclarados.length})
+                  </span>
+                  <p className="text-[11px] text-emerald-800">
+                    Efetive o vínculo no catálogo para associar números de série, dataloggers e
+                    suporte técnico.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={efetivandoVinculos}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleEfetivarVinculosDeclarados()
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 px-3.5 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0"
+                title="Persistir vínculos destes equipamentos na tabela de ativos da usina"
+              >
+                {efetivandoVinculos ? (
+                  <div className="contents">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Efetivando Vínculos...</span>
+                  </div>
+                ) : (
+                  <div className="contents">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Efetivar Vínculo no Catálogo</span>
+                  </div>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -1716,7 +2058,7 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {listaConsolidadaDocumentos.map((doc) => {
               const categoriaLabel =
                 doc.categoria === 'datasheet_inversor'
@@ -1743,78 +2085,82 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
               return (
                 <div
                   key={doc.id}
-                  className="p-3 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap transition-colors"
+                  className="px-3 py-1.5 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-2.5 transition-colors text-xs"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="p-2 bg-white rounded-lg border border-slate-200 shadow-2xs shrink-0">
-                      <FileText className="w-4 h-4 text-slate-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-slate-900 text-xs truncate max-w-sm">
-                          {doc.nome_arquivo}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-semibold border ${categoriaCor}`}
-                        >
-                          {categoriaLabel}
-                        </Badge>
-                        {doc.origem?.includes('legado') && (
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] bg-slate-100 text-slate-600 border-slate-300"
-                          >
-                            Legado
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                        {doc.criado_em && <span>Anexado em {formatDate(doc.criado_em)}</span>}
-                        {doc.tamanho && doc.tamanho > 0 && (
-                          <span>• {(doc.tamanho / 1024).toFixed(0)} KB</span>
-                        )}
-                        {doc.observacoes && (
-                          <span className="italic text-slate-400 truncate max-w-xs">
-                            "{doc.observacoes}"
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span
+                      className="font-bold text-slate-900 truncate max-w-[240px] sm:max-w-xs shrink-0"
+                      title={doc.nome_arquivo}
+                    >
+                      {doc.nome_arquivo}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] px-1.5 py-0 h-4 font-semibold border shrink-0 ${categoriaCor}`}
+                    >
+                      {categoriaLabel}
+                    </Badge>
+                    {doc.origem?.includes('legado') && (
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] px-1.5 py-0 h-4 bg-slate-100 text-slate-600 border-slate-300 shrink-0 hidden sm:inline-flex"
+                      >
+                        Legado
+                      </Badge>
+                    )}
+                    {doc.criado_em && (
+                      <span className="text-[10px] text-slate-400 shrink-0 hidden md:inline">
+                        {formatDate(doc.criado_em)}
+                      </span>
+                    )}
+                    {doc.tamanho && doc.tamanho > 0 && (
+                      <span className="text-[10px] text-slate-400 shrink-0 hidden lg:inline">
+                        • {(doc.tamanho / 1024).toFixed(0)} KB
+                      </span>
+                    )}
+                    {doc.observacoes && (
+                      <span
+                        className="text-[10px] text-slate-400 italic truncate max-w-xs hidden xl:inline"
+                        title={doc.observacoes}
+                      >
+                        • "{doc.observacoes}"
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     {doc.url ? (
                       <div className="contents">
                         <a
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
                           title="Visualizar documento em nova aba"
                         >
-                          <Eye className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Visualizar</span>
+                          <Eye className="w-3 h-3 text-slate-500" />
+                          <span className="hidden sm:inline">Visualizar</span>
                         </a>
 
                         <a
                           href={doc.url}
                           download={doc.nome_arquivo || 'documento_usina'}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
                           title="Baixar arquivo"
                         >
-                          <Download className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Download</span>
+                          <Download className="w-3 h-3 text-slate-500" />
+                          <span className="hidden sm:inline">Download</span>
                         </a>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-slate-400 italic">Sem URL disponível</span>
+                      <span className="text-[10px] text-slate-400 italic">Sem URL</span>
                     )}
 
                     <button
                       type="button"
                       onClick={() => setDocParaExcluir(doc)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                      className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
                       title="Excluir documento"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

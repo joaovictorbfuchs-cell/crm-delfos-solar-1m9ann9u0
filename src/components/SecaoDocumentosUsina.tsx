@@ -416,7 +416,7 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {documentos.map((doc) => {
             const ehImg = isArquivoImagem(doc.nome_original || doc.arquivo)
             const ehPdf = isArquivoPdf(doc.nome_original || doc.arquivo)
@@ -428,17 +428,17 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
             return (
               <div
                 key={doc.id}
-                className="p-3 bg-white hover:bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 transition-colors shadow-2xs"
+                className="px-3 py-1.5 bg-white hover:bg-slate-50/80 rounded-xl border border-slate-200 flex items-center justify-between gap-2.5 transition-colors shadow-2xs text-xs"
               >
-                {/* Thumbnail / Ícone do arquivo + Nome original */}
-                <div className="flex items-center gap-3 min-w-0 md:w-1/3">
+                {/* Thumbnail / Ícone do arquivo + Nome original + Badges em linha única */}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div
                     onClick={() => {
                       if (ehImg && urlArquivo) {
                         setPreviewImagem({ url: urlArquivo, nome: nomeExibicao })
                       }
                     }}
-                    className={`w-11 h-11 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs ${
+                    className={`w-7 h-7 rounded border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0 ${
                       ehImg ? 'cursor-pointer hover:opacity-90' : ''
                     }`}
                     title={ehImg ? 'Clique para ampliar imagem' : 'Arquivo PDF'}
@@ -450,116 +450,98 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <FileText className="w-5 h-5 text-rose-600" />
+                      <FileText className="w-4 h-4 text-rose-600" />
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="font-bold text-slate-900 text-xs truncate max-w-sm"
-                      title={nomeExibicao}
-                    >
-                      {nomeExibicao}
-                    </p>
-                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      <Badge
-                        variant="outline"
-                        className={`text-[9px] font-semibold ${
-                          ehImg
-                            ? 'bg-blue-50 text-blue-800 border-blue-200'
-                            : ehPdf
-                              ? 'bg-rose-50 text-rose-800 border-rose-200'
-                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                  <span
+                    className="font-bold text-slate-900 truncate max-w-[200px] sm:max-w-xs shrink-0"
+                    title={nomeExibicao}
+                  >
+                    {nomeExibicao}
+                  </span>
+
+                  <Badge
+                    variant="outline"
+                    className={`text-[9px] px-1.5 py-0 h-4 font-semibold shrink-0 ${
+                      ehImg
+                        ? 'bg-blue-50 text-blue-800 border-blue-200'
+                        : ehPdf
+                          ? 'bg-rose-50 text-rose-800 border-rose-200'
+                          : 'bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {ehImg ? 'Foto' : ehPdf ? 'PDF' : 'Arquivo'}
+                  </Badge>
+
+                  {doc.created && (
+                    <span className="text-[10px] text-slate-400 shrink-0 hidden md:inline">
+                      {new Date(doc.created).toLocaleDateString('pt-BR')}
+                    </span>
+                  )}
+
+                  {/* Campo de Descrição em linha única */}
+                  <div className="min-w-0 flex-1 hidden sm:block">
+                    {estaEditando ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="text"
+                          autoFocus
+                          value={editandoDescricao}
+                          onChange={(e) => setEditandoDescricao(e.target.value)}
+                          placeholder="Descrição (laudo, medição...)"
+                          className="text-xs h-6 bg-white py-0 px-2"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSalvarEdicaoDescricao(doc.id)
+                            if (e.key === 'Escape') handleCancelarEdicaoDescricao()
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={salvandoEdicao}
+                          onClick={() => handleSalvarEdicaoDescricao(doc.id)}
+                          className="h-6 px-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-[11px] font-bold shrink-0"
+                        >
+                          {salvandoEdicao ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Check className="w-3 h-3" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={salvandoEdicao}
+                          onClick={handleCancelarEdicaoDescricao}
+                          className="h-6 px-1 text-slate-500 hover:text-slate-700 shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => handleIniciarEdicaoDescricao(doc)}
+                        className={`text-[11px] truncate cursor-pointer rounded px-1.5 py-0.5 border transition-colors ${
+                          doc.descricao && doc.descricao.trim()
+                            ? 'text-slate-700 border-transparent hover:border-slate-200 hover:bg-slate-100/50'
+                            : 'text-slate-400 italic border-dashed border-slate-200 hover:border-emerald-300'
                         }`}
+                        title={!readOnly ? 'Clique para editar a descrição' : undefined}
                       >
-                        {ehImg ? 'Foto / Imagem' : ehPdf ? 'PDF' : 'Arquivo'}
-                      </Badge>
-                      {doc.created && (
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(doc.created).toLocaleDateString('pt-BR')}
-                        </span>
-                      )}
-                    </div>
+                        {doc.descricao && doc.descricao.trim() ? (
+                          <span>"{doc.descricao}"</span>
+                        ) : (
+                          <span>{!readOnly ? '+ descrição' : ''}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Campo de Descrição (Visualização ou Edição Inline) */}
-                <div className="flex-1 w-full md:w-auto px-1">
-                  {estaEditando ? (
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        type="text"
-                        autoFocus
-                        value={editandoDescricao}
-                        onChange={(e) => setEditandoDescricao(e.target.value)}
-                        placeholder="Informe a descrição (ex: laudo, projeto, medição...)"
-                        className="text-xs h-7 bg-white"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSalvarEdicaoDescricao(doc.id)
-                          if (e.key === 'Escape') handleCancelarEdicaoDescricao()
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={salvandoEdicao}
-                        onClick={() => handleSalvarEdicaoDescricao(doc.id)}
-                        className="h-7 px-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shrink-0"
-                      >
-                        {salvandoEdicao ? (
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Check className="w-3 h-3" />
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={salvandoEdicao}
-                        onClick={handleCancelarEdicaoDescricao}
-                        className="h-7 px-2 text-slate-500 hover:text-slate-700 shrink-0"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => handleIniciarEdicaoDescricao(doc)}
-                      className={`text-xs rounded-lg px-2.5 py-1.5 border transition-colors ${
-                        !readOnly
-                          ? 'cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/40'
-                          : ''
-                      } ${
-                        doc.descricao && doc.descricao.trim()
-                          ? 'bg-slate-50/70 border-slate-200 text-slate-800'
-                          : 'bg-slate-50/40 border-dashed border-slate-200 text-slate-400 italic'
-                      }`}
-                      title={!readOnly ? 'Clique para editar a descrição' : undefined}
-                    >
-                      {doc.descricao && doc.descricao.trim() ? (
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="truncate">{doc.descricao}</span>
-                          {!readOnly && (
-                            <span className="text-[10px] text-slate-400 shrink-0 font-normal ml-1">
-                              (editar)
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span>
-                          {readOnly
-                            ? 'Sem descrição informada'
-                            : '+ Adicionar descrição (laudo, projeto, medição, foto...)'}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Ações: Visualizar/Abrir, Download e Excluir */}
-                <div className="flex items-center gap-1.5 shrink-0 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
-                  {/* Abrir / Visualizar */}
+                {/* Ações compactas em linha única: Visualizar/Abrir, Download e Excluir */}
+                <div className="flex items-center gap-1 shrink-0">
                   {urlArquivo && (
                     <div className="contents">
                       {ehImg ? (
@@ -568,10 +550,10 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                           variant="outline"
                           size="sm"
                           onClick={() => setPreviewImagem({ url: urlArquivo, nome: nomeExibicao })}
-                          className="h-7 px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 border-slate-200"
+                          className="h-6 px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 border-slate-200"
                           title="Visualizar imagem"
                         >
-                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <Eye className="w-3 h-3 text-slate-500" />
                           <span className="hidden sm:inline">Visualizar</span>
                         </Button>
                       ) : (
@@ -579,36 +561,34 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
                           href={urlArquivo}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 h-7 px-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-md transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1 h-6 px-2 text-[11px] font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-md transition-colors shadow-2xs"
                           title="Abrir PDF em nova aba"
                         >
-                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <Eye className="w-3 h-3 text-slate-500" />
                           <span className="hidden sm:inline">Visualizar</span>
-                          <ExternalLink className="w-2.5 h-2.5 opacity-60 ml-0.5" />
+                          <ExternalLink className="w-2 h-2 opacity-60 ml-0.5" />
                         </a>
                       )}
 
-                      {/* Download */}
                       <a
                         href={urlArquivo}
                         download={nomeExibicao}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 h-7 px-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-md transition-colors shadow-2xs"
+                        className="inline-flex items-center gap-1 h-6 px-2 text-[11px] font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-md transition-colors shadow-2xs"
                         title="Baixar arquivo"
                       >
-                        <Download className="w-3.5 h-3.5 text-slate-500" />
+                        <Download className="w-3 h-3 text-slate-500" />
                         <span className="hidden sm:inline">Baixar</span>
                       </a>
                     </div>
                   )}
 
-                  {/* Excluir (apenas quando não é readOnly) */}
                   {!readOnly && (
                     <button
                       type="button"
                       onClick={() => setDocParaExcluir(doc)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
                       title="Excluir documento"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
