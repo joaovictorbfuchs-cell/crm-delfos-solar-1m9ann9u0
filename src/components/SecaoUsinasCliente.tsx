@@ -758,7 +758,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
             className="bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold text-xs shadow-xs rounded-xl flex items-center gap-2 border border-slate-700"
           >
             <Plus className="w-4 h-4 text-[#E0A838]" />
-            <span>+ Nova Usina</span>
+            <span>Nova Usina</span>
           </Button>
         </div>
       </div>
