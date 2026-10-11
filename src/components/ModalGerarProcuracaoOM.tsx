@@ -34,10 +34,12 @@ import {
   DADOS_FIXOS_CONTRATADA_PROCURACAO,
   formatarDataExtenso,
   normalizarDadosProcuracao,
-  baixarProcuracaoPDF,
   abrirProcuracaoImpressao,
   gerarBase64Procuracao,
 } from '@/lib/procuracaoGenerator'
+import { PDFDownloadLink } from '@react-pdf/renderer'
+import { ProcuracaoPDFDocument } from '@/components/ProcuracaoPDFDocument'
+
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { sendWhatsAppDocumento, createAtividade } from '@/services/crmService'
@@ -179,7 +181,6 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
   // Estado para garantir que a atividade é registrada uma única vez por emissão
   const [atividadeRegistrada, setAtividadeRegistrada] = useState(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
-  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
 
   // Submodal de conferência e envio do WhatsApp
   const [modalConferenciaWhatsAppOpen, setModalConferenciaWhatsAppOpen] = useState(false)
@@ -203,21 +204,10 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
     registrarAtividadeEmissao(dadosConsolidados)
   }
 
-  // 1. Baixar Documento (PDF A4 canônico com margens idênticas ao Imprimir)
-  const handleBaixarPDF = async () => {
-    setIsDownloadingPDF(true)
-    try {
-      await baixarProcuracaoPDF(dadosConsolidados)
-      registrarAtividadeEmissao(dadosConsolidados)
-      toast.success('Download do PDF da procuração iniciado com sucesso!')
-    } catch (err) {
-      console.error('Erro ao baixar PDF:', err)
-      // Fallback abre tela de impressão nativa
-      abrirProcuracaoImpressao(dadosConsolidados, true)
-      registrarAtividadeEmissao(dadosConsolidados)
-    } finally {
-      setIsDownloadingPDF(false)
-    }
+  // 1. Baixar Documento (PDF A4 canônico com @react-pdf/renderer via PDFDownloadLink como procuracao.pdf)
+  const handleDownloadPDFClick = () => {
+    registrarAtividadeEmissao(dadosConsolidados)
+    toast.success('Download do PDF da procuração iniciado com sucesso!')
   }
 
   // 2. Abrir Modal de Conferência de WhatsApp ao clicar no botão "Enviar pelo WhatsApp"
@@ -562,20 +552,28 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                   <span>Imprimir</span>
                 </Button>
                 {/* BOTÃO OBRIGATÓRIO 1: BAIXAR COMO PDF */}
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleBaixarPDF}
-                  disabled={isDownloadingPDF}
-                  className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02]"
+                <PDFDownloadLink
+                  document={<ProcuracaoPDFDocument dados={dadosConsolidados} />}
+                  fileName="procuracao.pdf"
+                  onClick={handleDownloadPDFClick}
+                  className="inline-flex"
                 >
-                  {isDownloadingPDF ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4" />
+                  {({ loading }) => (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={loading}
+                      className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02] cursor-pointer"
+                    >
+                      {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      <span>{loading ? 'Preparando PDF...' : 'Baixar como PDF'}</span>
+                    </Button>
                   )}
-                  <span>{isDownloadingPDF ? 'Baixando PDF...' : 'Baixar como PDF'}</span>
-                </Button>
+                </PDFDownloadLink>
                 {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP (abre modal de conferência) */}
                 <Button
                   type="button"

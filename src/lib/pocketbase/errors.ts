@@ -30,22 +30,18 @@ export function getErrorMessage(error: unknown): string {
 
 export function isAuthSessionError(err: unknown): boolean {
   if (!err) return false
-  if (err instanceof ClientResponseError) {
-    if (err.status === 401 || err.status === 403) return true
-  }
   if (typeof err === 'object') {
-    const obj = err as Record<string, unknown>
-    if (obj.status === 401 || obj.status === 403) return true
-    if (obj.statusCode === 401 || obj.statusCode === 403) return true
-    if (typeof obj.message === 'string') {
-      const msg = obj.message.toLowerCase()
+    const errorObj = err as Record<string, unknown>
+    if (errorObj.status === 401 || errorObj.status === 403) return true
+    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
+    if (typeof errorObj.message === 'string') {
+      const msg = errorObj.message.toLowerCase()
       if (
         msg.includes('token is expired') ||
         msg.includes('token expired') ||
-        msg.includes('invalid token') ||
-        msg.includes('missing or invalid token') ||
-        msg.includes('unauthorized') ||
-        msg.includes('the request requires valid record authorization token')
+        msg.includes('failed to authenticate') ||
+        msg.includes('user not authenticated') ||
+        msg.includes('the request requires valid user authorization')
       ) {
         return true
       }
