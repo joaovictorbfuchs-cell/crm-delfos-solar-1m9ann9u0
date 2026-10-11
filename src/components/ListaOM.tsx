@@ -81,6 +81,7 @@ export type AbaPrincipalOM = 'com_plano' | 'pos_vendas'
 interface ListaOMProps {
   onOpenFichaOM: (clienteId: string) => void
   onOpenNovoContrato?: () => void
+  onOpenNovaProposta?: () => void
   activeSubTab?: AbaPrincipalOM
   onSubTabChange?: (tab: AbaPrincipalOM) => void
   metricCards?: React.ReactNode
@@ -89,6 +90,7 @@ interface ListaOMProps {
 export const ListaOM: React.FC<ListaOMProps> = ({
   onOpenFichaOM,
   onOpenNovoContrato,
+  onOpenNovaProposta,
   activeSubTab: externalActiveSubTab,
   onSubTabChange,
   metricCards,
@@ -475,8 +477,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Navegação por Sub-Abas Compactas de 2º Nível: Planos O&M vs Clientes Pós-Vendas + Cards Compactos de Métricas */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
+      {/* Navegação por Sub-Abas Compactas de 2º Nível: Planos O&M vs Clientes Pós-Vendas + Ações na mesma faixa */}
+      <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-2.5 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
         {/* Seletor de sub-abas compacto à esquerda */}
         <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 self-stretch sm:self-start lg:self-auto shrink-0">
           <button
@@ -523,15 +525,15 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           </button>
         </div>
 
-        {/* Lado direito: Cards de Métricas e Botão Filtros (extrema direita) */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 self-stretch lg:self-auto">
+        {/* Lado direito: Cards de Métricas, Filtros, Mensagem em Massa, Nova Proposta O&M e Novo Contrato O&M na MESMA faixa */}
+        <div className="flex flex-wrap items-center justify-end gap-2 self-stretch lg:self-auto shrink-0">
           {metricCards && (
-            <div className="flex items-center self-stretch sm:self-auto justify-end">
+            <div className="hidden lg:flex items-center self-stretch sm:self-auto justify-end">
               {metricCards}
             </div>
           )}
 
-          {/* Botão retrátil de Filtros na extrema direita (quando na sub-aba Planos O&M) */}
+          {/* Botão retrátil de Filtros (quando na sub-aba Planos O&M) */}
           {currentSubTab === 'com_plano' && (
             <button
               type="button"
@@ -558,6 +560,43 @@ export const ListaOM: React.FC<ListaOMProps> = ({
               />
             </button>
           )}
+
+          {/* Botão Enviar mensagem em massa */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsModalMensagemOpen(true)
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0284C7] hover:bg-[#0369a1] text-white rounded-xl transition-colors text-xs font-bold shadow-xs shrink-0"
+            title="Disparar mensagens em massa via WhatsApp para clientes com contrato O&M"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Enviar mensagem em massa</span>
+          </button>
+
+          {/* Botão Nova Proposta O&M */}
+          {onOpenNovaProposta && (
+            <button
+              type="button"
+              onClick={onOpenNovaProposta}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer shrink-0"
+              title="Criar proposta O&M com PDF"
+            >
+              <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Nova Proposta O&M</span>
+            </button>
+          )}
+
+          {/* Botão Novo Contrato O&M */}
+          {onOpenNovoContrato && (
+            <button
+              type="button"
+              onClick={onOpenNovoContrato}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+            >
+              <span>Novo Contrato O&M</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -570,21 +609,6 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         titulo="Disparar Mensagens para Clientes O&M"
         descricao="Envie mensagens individuais no WhatsApp via Z-API para os clientes de O&M e pós-vendas com tags dinâmicas."
       />
-
-      {/* Botão topo Enviar mensagem em massa para O&M */}
-      <div className="flex items-center justify-end pt-1 pb-2">
-        <button
-          type="button"
-          onClick={() => {
-            setIsModalMensagemOpen(true)
-          }}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0284C7] hover:bg-[#0369a1] text-white rounded-xl transition-colors text-xs font-bold shadow-xs"
-          title="Disparar mensagens em massa via WhatsApp para clientes com contrato O&M"
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          <span>Enviar mensagem em massa</span>
-        </button>
-      </div>
 
       {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
       {currentSubTab === 'pos_vendas' && (
