@@ -1276,7 +1276,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                       Configuração da Auto Leitura RGE
                     </h3>
                     <p className="text-[11px] text-gray-500">
-                      Gera automaticamente atividades filhas com lembrete 2 dias antes às 08:00
+                      Gera automaticamente atividades filhas com lembrete 2 dias antes às 09:00
                     </p>
                   </div>
                 </div>
@@ -1349,7 +1349,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
                 <p className="text-[11px] text-gray-500">
                   Adicione as datas previstas de leitura da concessionária. Para cada data, uma
-                  atividade "Lembrete de Auto Leitura" será criada com aviso 2 dias antes às 08:00.
+                  atividade "Lembrete de Auto Leitura" será criada com aviso 2 dias antes às 09:00.
                 </p>
 
                 {/* Input para digitar/selecionar nova data e botão Adicionar */}
@@ -1398,7 +1398,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                             {formatarDataParaDDMMAAAA(dt)}
                           </span>
                           <span className="text-[10px] text-gray-400 hidden sm:inline">
-                            (lembrete 2 dias antes às 08:00)
+                            (lembrete 2 dias antes às 09:00)
                           </span>
                         </div>
                         <button

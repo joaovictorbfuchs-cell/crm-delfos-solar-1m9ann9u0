@@ -367,7 +367,7 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
     // REGRA 4: envio liberado APENAS para auto leitura (independe de MENSAGENS_CLIENTE_ATIVAS).
     // -------------------------------------------------------------
     try {
-      // Helper para obter 'YYYY-MM-DD' em horário de Brasília (UTC-3)
+      // Helper para obter data e hora em horário de Brasília (UTC-3)
       function getSaoPauloDateStr(d) {
         const utcMs = d.getTime()
         const spOffsetMs = -3 * 60 * 60 * 1000
@@ -385,334 +385,356 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
         return spDate.getUTCDay() // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
       }
 
-      const hojeSpStr = getSaoPauloDateStr(now)
-      const diaSemanaHojeSp = getSaoPauloDayOfWeek(now)
+      function getSaoPauloHour(d) {
+        const utcMs = d.getTime()
+        const spOffsetMs = -3 * 60 * 60 * 1000
+        const spDate = new Date(utcMs + spOffsetMs)
+        return spDate.getUTCHours()
+      }
 
-      // Regra: NUNCA disparar no fim de semana (sábado ou domingo)
-      const isFimDeSemanaHoje = diaSemanaHojeSp === 0 || diaSemanaHojeSp === 6
+      const horaHojeSp = getSaoPauloHour(now)
 
-      if (!isFimDeSemanaHoje) {
-        // Buscar atividades pendentes do tipo lembrete_auto_leitura sem lembrete_whatsapp_enviado_em
-        // Observação: filhas têm tipo = 'lembrete_auto_leitura' e parent_id preenchido
-        const filtroAutoLeitura =
-          "tipo = 'lembrete_auto_leitura' && status != 'concluida' && status != 'cancelada' && lembrete_whatsapp_enviado_em = '' && data_leitura != ''"
-        let lembretesPendentes = []
-        try {
-          lembretesPendentes = $app.findRecordsByFilter(
-            'atividades',
-            filtroAutoLeitura,
-            'data_leitura',
-            100,
-            0,
-          )
-        } catch (eBusca) {
-          console.log('[AUTO LEITURA CRON] Erro ao buscar lembretes pendentes:', eBusca)
-        }
+      // Só permitir disparo quando a hora de Brasília for >= 09:00.
+      // Se < 9, pular a rodada sem marcar nada — a idempotência garante que envia na rodada seguinte após as 9h.
+      if (horaHojeSp < 9) {
+        // Horário comercial ainda não atingido em Brasília (< 09:00). Pula rodada sem marcar nada.
+      } else {
+        const hojeSpStr = getSaoPauloDateStr(now)
+        const diaSemanaHojeSp = getSaoPauloDayOfWeek(now)
 
-        // Template padrão do banco (se existir)
-        let tplAutoLeitura = null
-        try {
-          tplAutoLeitura = $app.findFirstRecordByData(
-            'whatsapp_templates',
-            'slug',
-            'lembrete_auto_leitura_rge',
-          )
-        } catch (_) {}
+        // Regra: NUNCA disparar no fim de semana (sábado ou domingo)
+        const isFimDeSemanaHoje = diaSemanaHojeSp === 0 || diaSemanaHojeSp === 6
 
-        for (let l = 0; l < lembretesPendentes.length; l++) {
-          const atvFilha = lembretesPendentes[l]
-
-          // Dupla verificação de idempotência
-          const jaEnviado = atvFilha.getString('lembrete_whatsapp_enviado_em')
-          if (jaEnviado) continue
-
-          // Extrair a data da leitura (YYYY-MM-DD)
-          const rawDataLeitura = atvFilha.getString('data_leitura')
-          if (!rawDataLeitura) continue
-          const dataLeituraYmd = rawDataLeitura.substring(0, 10)
-          const partesLeitura = dataLeituraYmd.split('-').map(Number)
-          if (
-            partesLeitura.length !== 3 ||
-            !partesLeitura[0] ||
-            !partesLeitura[1] ||
-            !partesLeitura[2]
-          ) {
-            continue
-          }
-
-          // Data da leitura como Date (meio-dia UTC para evitar trocas de fuso)
-          const dtLeitura = new Date(
-            Date.UTC(partesLeitura[0], partesLeitura[1] - 1, partesLeitura[2], 12, 0, 0),
-          )
-
-          // Calcular data prevista do envio: 2 dias antes
-          // Se 2 dias antes cair em sábado (dia 6) ou domingo (dia 0), recuar para sexta-feira anterior
-          const dtEnvioAlvo = new Date(dtLeitura.getTime() - 2 * 24 * 60 * 60 * 1000)
-          const dowAlvo = dtEnvioAlvo.getUTCDay()
-          if (dowAlvo === 0) {
-            // Domingo -> recua 2 dias para Sexta
-            dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 2)
-          } else if (dowAlvo === 6) {
-            // Sábado -> recua 1 dia para Sexta
-            dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 1)
-          }
-
-          const envioAlvoYmd = dtEnvioAlvo.toISOString().substring(0, 10)
-
-          // Só envia se hoje for >= a data alvo de envio (se já passou ou é hoje, e leitura ainda futura ou hoje)
-          if (hojeSpStr < envioAlvoYmd) {
-            // Ainda não chegou o dia do envio
-            continue
-          }
-
-          // Se a data da leitura já passou há dias, não faz sentido enviar aviso de auto leitura futuro
-          if (hojeSpStr > dataLeituraYmd) {
-            continue
-          }
-
-          // Atividade mãe vinculada
-          let atvMae = null
-          const parentId = atvFilha.getString('parent_id')
-          if (parentId) {
-            try {
-              atvMae = $app.findRecordById('atividades', parentId)
-            } catch (_) {}
-          }
-
-          // Cliente vinculado
-          const clienteId =
-            atvFilha.getString('cliente_id') || (atvMae ? atvMae.getString('cliente_id') : '')
-          if (!clienteId) continue
-
-          let clienteRec = null
+        if (!isFimDeSemanaHoje) {
+          // Buscar atividades pendentes do tipo lembrete_auto_leitura sem lembrete_whatsapp_enviado_em
+          // Observação: filhas têm tipo = 'lembrete_auto_leitura' e parent_id preenchido
+          const filtroAutoLeitura =
+            "tipo = 'lembrete_auto_leitura' && status != 'concluida' && status != 'cancelada' && lembrete_whatsapp_enviado_em = '' && data_leitura != ''"
+          let lembretesPendentes = []
           try {
-            clienteRec = $app.findRecordById('clientes', clienteId)
-          } catch (_) {}
-          if (!clienteRec) continue
-
-          // Resolver telefone/whatsapp do cliente
-          let rawTelefone = (clienteRec.getString('whatsapp') || '').trim()
-          if (!rawTelefone || rawTelefone.replace(/\D/g, '').length < 10) {
-            // Buscar em contatos adicionais com is_whatsapp = true
-            try {
-              const contatos = $app.findRecordsByFilter(
-                'contatos_adicionais',
-                `cliente = '${clienteRec.id}' && is_whatsapp = true`,
-                '-created',
-                5,
-                0,
-              )
-              for (let c = 0; c < contatos.length; c++) {
-                const telC = (contatos[c].getString('telefone') || '').trim()
-                if (telC.replace(/\D/g, '').length >= 10) {
-                  rawTelefone = telC
-                  break
-                }
-              }
-            } catch (_) {}
-          }
-          if (!rawTelefone || rawTelefone.replace(/\D/g, '').length < 10) {
-            const telCli = (
-              clienteRec.getString('telefone') ||
-              clienteRec.getString('telefone_secundario') ||
-              ''
-            ).trim()
-            if (telCli && telCli.replace(/\D/g, '').length >= 10) {
-              rawTelefone = telCli
-            }
-          }
-          if (!rawTelefone || rawTelefone.replace(/\D/g, '').length < 10) {
-            console.log(
-              `[AUTO LEITURA CRON] Cliente ${clienteRec.id} sem telefone válido para lembrete da atividade ${atvFilha.id}`,
+            lembretesPendentes = $app.findRecordsByFilter(
+              'atividades',
+              filtroAutoLeitura,
+              'data_leitura',
+              100,
+              0,
             )
-            continue
+          } catch (eBusca) {
+            console.log('[AUTO LEITURA CRON] Erro ao buscar lembretes pendentes:', eBusca)
           }
 
-          let cleanPhone = rawTelefone.replace(/\D/g, '')
-          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
-            cleanPhone = '55' + cleanPhone
-          }
-
-          // Montar data e dia anterior formatados em DD/MM/AAAA
-          const diaLeituraStr =
-            String(partesLeitura[2]).padStart(2, '0') +
-            '/' +
-            String(partesLeitura[1]).padStart(2, '0') +
-            '/' +
-            partesLeitura[0]
-
-          const dtDiaAnterior = new Date(dtLeitura.getTime() - 1 * 24 * 60 * 60 * 1000)
-          const diaAntY = dtDiaAnterior.getUTCFullYear()
-          const diaAntM = String(dtDiaAnterior.getUTCMonth() + 1).padStart(2, '0')
-          const diaAntD = String(dtDiaAnterior.getUTCDate()).padStart(2, '0')
-          const diaAnteriorStr = `${diaAntD}/${diaAntM}/${diaAntY}`
-
-          const nomeCliente = (clienteRec.getString('nome') || 'Cliente').trim()
-
-          // Obter texto base:
-          // 1. mensagem_cliente da filha
-          // 2. mensagem_cliente da mãe
-          // 3. template salvo no banco (qvmkpl0mj2pun1i ou slug lembrete_auto_leitura_rge)
-          // 4. texto padrão inicial da Regra 2
-          const textoBase =
-            atvFilha.getString('mensagem_cliente') ||
-            (atvMae ? atvMae.getString('mensagem_cliente') : '') ||
-            (tplAutoLeitura ? tplAutoLeitura.getString('conteudo') : '') ||
-            'Olá, [nome do cliente]! Sua usina está com a auto leitura do medidor agendada para [data]. Pedimos, gentilmente, que nos envie pelo WhatsApp a leitura do medidor até [dia anterior], para mantermos o acompanhamento da sua geração em dia. Qualquer dúvida, estamos à disposição. Atenciosamente, equipe Delfos Engenharia.'
-
-          // Substituições de variáveis: [nome do cliente], [data], [dia anterior]
-          let textoFinal = textoBase
-            .replace(/\[nome do cliente\]/gi, nomeCliente)
-            .replace(/\[data\]/gi, diaLeituraStr)
-            .replace(/\[dia anterior\]/gi, diaAnteriorStr)
-            // Compatibilidade com possíveis sintaxes de chaves do template do banco
-            .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
-            .replace(/\{\{data\}\}/g, diaLeituraStr)
-            .replace(/\{\{dia_anterior\}\}/g, diaAnteriorStr)
-
-          // Conversa de WhatsApp (CRM)
-          let conversaId = ''
+          // Template padrão do banco (se existir)
+          let tplAutoLeitura = null
           try {
-            const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
-            const conv = helper.ensureConversaForMessage(
-              $app,
-              clienteId,
-              cleanPhone,
-              textoFinal,
-              null,
+            tplAutoLeitura = $app.findFirstRecordByData(
+              'whatsapp_templates',
+              'slug',
+              'lembrete_auto_leitura_rge',
             )
-            if (conv) conversaId = conv.id
           } catch (_) {}
 
-          // Registrar na coleção whatsapp_mensagens
-          const msgRecord = new Record(msgsCol)
-          msgRecord.set('cliente_id', clienteId)
-          if (conversaId) msgRecord.set('conversa_id', conversaId)
-          msgRecord.set('telefone_destino', cleanPhone)
-          msgRecord.set('conteudo_final', textoFinal)
-          msgRecord.set('tipo_disparo', 'lembrete_auto_leitura')
-          msgRecord.set('direcao', 'enviada')
-          msgRecord.set('referencia_id', atvFilha.id)
+          for (let l = 0; l < lembretesPendentes.length; l++) {
+            const atvFilha = lembretesPendentes[l]
 
-          if (!rawApiUrl) {
-            msgRecord.set('status', 'falha')
-            msgRecord.set(
-              'log_erro',
-              'Z-API não configurada nos Secrets (WHATSAPP_API_URL/WHATSAPP_API_KEY)',
+            // Dupla verificação de idempotência
+            const jaEnviado = atvFilha.getString('lembrete_whatsapp_enviado_em')
+            if (jaEnviado) continue
+
+            // Extrair a data da leitura (YYYY-MM-DD)
+            const rawDataLeitura = atvFilha.getString('data_leitura')
+            if (!rawDataLeitura) continue
+            const dataLeituraYmd = rawDataLeitura.substring(0, 10)
+            const partesLeitura = dataLeituraYmd.split('-').map(Number)
+            if (
+              partesLeitura.length !== 3 ||
+              !partesLeitura[0] ||
+              !partesLeitura[1] ||
+              !partesLeitura[2]
+            ) {
+              continue
+            }
+
+            // Data da leitura como Date (meio-dia UTC para evitar trocas de fuso)
+            const dtLeitura = new Date(
+              Date.UTC(partesLeitura[0], partesLeitura[1] - 1, partesLeitura[2], 12, 0, 0),
             )
-            $app.save(msgRecord)
-            continue
-          }
 
-          // Disparo Z-API
-          let cleanUrl = rawApiUrl.replace(/\/+$/, '')
-          if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-            cleanUrl = 'https://' + cleanUrl
-          }
-          const lowerUrl = cleanUrl.toLowerCase()
-          const isZApi = lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
+            // Calcular data prevista do envio: 2 dias antes
+            // Se 2 dias antes cair em sábado (dia 6) ou domingo (dia 0), recuar para sexta-feira anterior
+            const dtEnvioAlvo = new Date(dtLeitura.getTime() - 2 * 24 * 60 * 60 * 1000)
+            const dowAlvo = dtEnvioAlvo.getUTCDay()
+            if (dowAlvo === 0) {
+              // Domingo -> recua 2 dias para Sexta
+              dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 2)
+            } else if (dowAlvo === 6) {
+              // Sábado -> recua 1 dia para Sexta
+              dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 1)
+            }
 
-          let targetUrl = cleanUrl
-          let payloadGateway = {}
-          const headersGateway = { 'Content-Type': 'application/json' }
+            const envioAlvoYmd = dtEnvioAlvo.toISOString().substring(0, 10)
 
-          if (isZApi) {
-            const baseWithoutSuffix = cleanUrl.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
-            const zapiMatch = baseWithoutSuffix.match(
-              /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
-            )
-            if (zapiMatch) {
-              targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
-            } else {
-              targetUrl = baseWithoutSuffix + '/send-text'
+            // Só envia se hoje for >= a data alvo de envio (se já passou ou é hoje, e leitura ainda futura ou hoje)
+            if (hojeSpStr < envioAlvoYmd) {
+              // Ainda não chegou o dia do envio
+              continue
             }
-            if (apiKey) {
-              headersGateway['Client-Token'] = apiKey
-            }
-            payloadGateway = {
-              phone: cleanPhone,
-              message: textoFinal,
-            }
-          } else {
-            if (apiKey) {
-              headersGateway['apikey'] = apiKey
-              headersGateway['Authorization'] = 'Bearer ' + apiKey
-            }
-            payloadGateway = {
-              phone: cleanPhone,
-              message: textoFinal,
-            }
-          }
 
-          let envioOk = false
-          let erroGateway = ''
-          try {
-            const resZ = $http.send({
-              url: targetUrl,
-              method: 'POST',
-              headers: headersGateway,
-              body: JSON.stringify(payloadGateway),
-              timeout: 15,
-            })
+            // Se a data da leitura já passou há dias, não faz sentido enviar aviso de auto leitura futuro
+            if (hojeSpStr > dataLeituraYmd) {
+              continue
+            }
 
-            if (resZ.statusCode >= 200 && resZ.statusCode < 300) {
-              envioOk = true
-              let extId = ''
+            // Atividade mãe vinculada
+            let atvMae = null
+            const parentId = atvFilha.getString('parent_id')
+            if (parentId) {
               try {
-                if (resZ.json) {
-                  extId = resZ.json.messageId || resZ.json.id || resZ.json.zaapId || ''
+                atvMae = $app.findRecordById('atividades', parentId)
+              } catch (_) {}
+            }
+
+            // Cliente vinculado
+            const clienteId =
+              atvFilha.getString('cliente_id') || (atvMae ? atvMae.getString('cliente_id') : '')
+            if (!clienteId) continue
+
+            let clienteRec = null
+            try {
+              clienteRec = $app.findRecordById('clientes', clienteId)
+            } catch (_) {}
+            if (!clienteRec) continue
+
+            // Resolver telefone/whatsapp do cliente
+            let rawTelefone = (clienteRec.getString('whatsapp') || '').trim()
+            if (!rawTelefone || rawTelefone.replace(/\D/g, '').length < 10) {
+              // Buscar em contatos adicionais com is_whatsapp = true
+              try {
+                const contatos = $app.findRecordsByFilter(
+                  'contatos_adicionais',
+                  `cliente = '${clienteRec.id}' && is_whatsapp = true`,
+                  '-created',
+                  5,
+                  0,
+                )
+                for (let c = 0; c < contatos.length; c++) {
+                  const telC = (contatos[c].getString('telefone') || '').trim()
+                  if (telC.replace(/\D/g, '').length >= 10) {
+                    rawTelefone = telC
+                    break
+                  }
                 }
               } catch (_) {}
-
-              msgRecord.set('status', 'enviada')
-              msgRecord.set('enviado_em', new Date().toISOString())
-              if (extId) msgRecord.set('id_externo_gateway', String(extId))
-              msgRecord.set('log_erro', '')
-              $app.save(msgRecord)
-            } else {
-              erroGateway = resZ.raw ? resZ.raw.substring(0, 300) : `HTTP ${resZ.statusCode}`
-              msgRecord.set('status', 'falha')
-              msgRecord.set('log_erro', `Gateway HTTP ${resZ.statusCode}: ${erroGateway}`)
-              $app.save(msgRecord)
             }
-          } catch (httpErr) {
-            erroGateway = String(httpErr && httpErr.message ? httpErr.message : httpErr)
-            msgRecord.set('status', 'falha')
-            msgRecord.set('log_erro', erroGateway)
-            $app.save(msgRecord)
-          }
-
-          // Se sucesso, atualizar a atividade filha gravando lembrete_whatsapp_enviado_em = now
-          if (envioOk) {
-            const agoraIso = new Date().toISOString()
-            atvFilha.set('lembrete_whatsapp_enviado_em', agoraIso)
-            atvFilha.set('status', 'enviado')
-
-            // Atualiza em auto_leitura_dados para redundância
-            try {
-              let ald = atvFilha.get('auto_leitura_dados') || {}
-              if (typeof ald === 'string') {
-                try {
-                  ald = JSON.parse(ald)
-                } catch (_) {
-                  ald = {}
-                }
+            if (!rawTelefone || rawTelefone.replace(/\D/g, '').length < 10) {
+              const telCli = (
+                clienteRec.getString('telefone') ||
+                clienteRec.getString('telefone_secundario') ||
+                ''
+              ).trim()
+              if (telCli && telCli.replace(/\D/g, '').length >= 10) {
+                rawTelefone = telCli
               }
-              ald.lembrete_whatsapp_enviado_em = agoraIso
-              atvFilha.set('auto_leitura_dados', ald)
+            }
+            if (!rawTelefone || rawTelefone.replace(/\D/g, '').length < 10) {
+              console.log(
+                `[AUTO LEITURA CRON] Cliente ${clienteRec.id} sem telefone válido para lembrete da atividade ${atvFilha.id}`,
+              )
+              continue
+            }
+
+            let cleanPhone = rawTelefone.replace(/\D/g, '')
+            if (
+              cleanPhone.length >= 10 &&
+              cleanPhone.length <= 11 &&
+              !cleanPhone.startsWith('55')
+            ) {
+              cleanPhone = '55' + cleanPhone
+            }
+
+            // Montar data e dia anterior formatados em DD/MM/AAAA
+            const diaLeituraStr =
+              String(partesLeitura[2]).padStart(2, '0') +
+              '/' +
+              String(partesLeitura[1]).padStart(2, '0') +
+              '/' +
+              partesLeitura[0]
+
+            const dtDiaAnterior = new Date(dtLeitura.getTime() - 1 * 24 * 60 * 60 * 1000)
+            const diaAntY = dtDiaAnterior.getUTCFullYear()
+            const diaAntM = String(dtDiaAnterior.getUTCMonth() + 1).padStart(2, '0')
+            const diaAntD = String(dtDiaAnterior.getUTCDate()).padStart(2, '0')
+            const diaAnteriorStr = `${diaAntD}/${diaAntM}/${diaAntY}`
+
+            const nomeCliente = (clienteRec.getString('nome') || 'Cliente').trim()
+
+            // Obter texto base:
+            // 1. mensagem_cliente da filha
+            // 2. mensagem_cliente da mãe
+            // 3. template salvo no banco (qvmkpl0mj2pun1i ou slug lembrete_auto_leitura_rge)
+            // 4. texto padrão inicial da Regra 2
+            const textoBase =
+              atvFilha.getString('mensagem_cliente') ||
+              (atvMae ? atvMae.getString('mensagem_cliente') : '') ||
+              (tplAutoLeitura ? tplAutoLeitura.getString('conteudo') : '') ||
+              'Olá, [nome do cliente]! Sua usina está com a auto leitura do medidor agendada para [data]. Pedimos, gentilmente, que nos envie pelo WhatsApp a leitura do medidor até [dia anterior], para mantermos o acompanhamento da sua geração em dia. Qualquer dúvida, estamos à disposição. Atenciosamente, equipe Delfos Engenharia.'
+
+            // Substituições de variáveis: [nome do cliente], [data], [dia anterior]
+            let textoFinal = textoBase
+              .replace(/\[nome do cliente\]/gi, nomeCliente)
+              .replace(/\[data\]/gi, diaLeituraStr)
+              .replace(/\[dia anterior\]/gi, diaAnteriorStr)
+              // Compatibilidade com possíveis sintaxes de chaves do template do banco
+              .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
+              .replace(/\{\{data\}\}/g, diaLeituraStr)
+              .replace(/\{\{dia_anterior\}\}/g, diaAnteriorStr)
+
+            // Conversa de WhatsApp (CRM)
+            let conversaId = ''
+            try {
+              const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+              const conv = helper.ensureConversaForMessage(
+                $app,
+                clienteId,
+                cleanPhone,
+                textoFinal,
+                null,
+              )
+              if (conv) conversaId = conv.id
             } catch (_) {}
 
-            $app.save(atvFilha)
-            console.log(
-              `[AUTO LEITURA CRON] Lembrete enviado com sucesso para ${cleanPhone} (atividade ${atvFilha.id})`,
-            )
-          } else {
-            console.log(
-              `[AUTO LEITURA CRON] Falha no envio para ${cleanPhone} (atividade ${atvFilha.id}): ${erroGateway}`,
-            )
+            // Registrar na coleção whatsapp_mensagens
+            const msgRecord = new Record(msgsCol)
+            msgRecord.set('cliente_id', clienteId)
+            if (conversaId) msgRecord.set('conversa_id', conversaId)
+            msgRecord.set('telefone_destino', cleanPhone)
+            msgRecord.set('conteudo_final', textoFinal)
+            msgRecord.set('tipo_disparo', 'lembrete_auto_leitura')
+            msgRecord.set('direcao', 'enviada')
+            msgRecord.set('referencia_id', atvFilha.id)
+
+            if (!rawApiUrl) {
+              msgRecord.set('status', 'falha')
+              msgRecord.set(
+                'log_erro',
+                'Z-API não configurada nos Secrets (WHATSAPP_API_URL/WHATSAPP_API_KEY)',
+              )
+              $app.save(msgRecord)
+              continue
+            }
+
+            // Disparo Z-API
+            let cleanUrl = rawApiUrl.replace(/\/+$/, '')
+            if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+              cleanUrl = 'https://' + cleanUrl
+            }
+            const lowerUrl = cleanUrl.toLowerCase()
+            const isZApi =
+              lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
+
+            let targetUrl = cleanUrl
+            let payloadGateway = {}
+            const headersGateway = { 'Content-Type': 'application/json' }
+
+            if (isZApi) {
+              const baseWithoutSuffix = cleanUrl
+                .replace(/\/+send-text\/?$/i, '')
+                .replace(/\/+$/, '')
+              const zapiMatch = baseWithoutSuffix.match(
+                /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+              )
+              if (zapiMatch) {
+                targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
+              } else {
+                targetUrl = baseWithoutSuffix + '/send-text'
+              }
+              if (apiKey) {
+                headersGateway['Client-Token'] = apiKey
+              }
+              payloadGateway = {
+                phone: cleanPhone,
+                message: textoFinal,
+              }
+            } else {
+              if (apiKey) {
+                headersGateway['apikey'] = apiKey
+                headersGateway['Authorization'] = 'Bearer ' + apiKey
+              }
+              payloadGateway = {
+                phone: cleanPhone,
+                message: textoFinal,
+              }
+            }
+
+            let envioOk = false
+            let erroGateway = ''
+            try {
+              const resZ = $http.send({
+                url: targetUrl,
+                method: 'POST',
+                headers: headersGateway,
+                body: JSON.stringify(payloadGateway),
+                timeout: 15,
+              })
+
+              if (resZ.statusCode >= 200 && resZ.statusCode < 300) {
+                envioOk = true
+                let extId = ''
+                try {
+                  if (resZ.json) {
+                    extId = resZ.json.messageId || resZ.json.id || resZ.json.zaapId || ''
+                  }
+                } catch (_) {}
+
+                msgRecord.set('status', 'enviada')
+                msgRecord.set('enviado_em', new Date().toISOString())
+                if (extId) msgRecord.set('id_externo_gateway', String(extId))
+                msgRecord.set('log_erro', '')
+                $app.save(msgRecord)
+              } else {
+                erroGateway = resZ.raw ? resZ.raw.substring(0, 300) : `HTTP ${resZ.statusCode}`
+                msgRecord.set('status', 'falha')
+                msgRecord.set('log_erro', `Gateway HTTP ${resZ.statusCode}: ${erroGateway}`)
+                $app.save(msgRecord)
+              }
+            } catch (httpErr) {
+              erroGateway = String(httpErr && httpErr.message ? httpErr.message : httpErr)
+              msgRecord.set('status', 'falha')
+              msgRecord.set('log_erro', erroGateway)
+              $app.save(msgRecord)
+            }
+
+            // Se sucesso, atualizar a atividade filha gravando lembrete_whatsapp_enviado_em = now
+            if (envioOk) {
+              const agoraIso = new Date().toISOString()
+              atvFilha.set('lembrete_whatsapp_enviado_em', agoraIso)
+              atvFilha.set('status', 'enviado')
+
+              // Atualiza em auto_leitura_dados para redundância
+              try {
+                let ald = atvFilha.get('auto_leitura_dados') || {}
+                if (typeof ald === 'string') {
+                  try {
+                    ald = JSON.parse(ald)
+                  } catch (_) {
+                    ald = {}
+                  }
+                }
+                ald.lembrete_whatsapp_enviado_em = agoraIso
+                atvFilha.set('auto_leitura_dados', ald)
+              } catch (_) {}
+
+              $app.save(atvFilha)
+              console.log(
+                `[AUTO LEITURA CRON] Lembrete enviado com sucesso para ${cleanPhone} (atividade ${atvFilha.id})`,
+              )
+            } else {
+              console.log(
+                `[AUTO LEITURA CRON] Falha no envio para ${cleanPhone} (atividade ${atvFilha.id}): ${erroGateway}`,
+              )
+            }
           }
-        }
-      } // fim if (!isFimDeSemanaHoje)
+        } // fim if (!isFimDeSemanaHoje)
+      } // fim if (horaHojeSp >= 9)
     } catch (errAutoLeitura) {
       console.log('[AUTO LEITURA CRON] Erro geral no disparo de auto leitura:', errAutoLeitura)
     }
