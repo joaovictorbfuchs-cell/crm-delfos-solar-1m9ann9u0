@@ -16,7 +16,6 @@ import {
   DownloadCloud,
   Sparkles,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ModalVincularCliente } from '@/components/ModalVincularCliente'
@@ -72,7 +71,6 @@ import {
 import { exportarPlanilhaCentralAtendimento } from '@/lib/exportCentralAtendimentoXlsx'
 
 export const CentralAtendimento: React.FC = () => {
-  const navigate = useNavigate()
   const {
     whatsAppConversas,
     whatsAppMensagens,
@@ -117,7 +115,6 @@ export const CentralAtendimento: React.FC = () => {
   const [motivoBloqueio, setMotivoBloqueio] = useState('')
   const [isBloqueando, setIsBloqueando] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
   const [isStartingConversa, setIsStartingConversa] = useState(false)
   const [isExportingPlanilha, setIsExportingPlanilha] = useState(false)
@@ -253,15 +250,6 @@ export const CentralAtendimento: React.FC = () => {
       })
     }
   }, [whatsAppMensagens, whatsAppConversas, clientes, notificacoesAtivas])
-
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      await refreshConversas()
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
 
   // Exportar planilha Excel (.xlsx) da Central de Atendimento
   const handleExportarPlanilha = async () => {
@@ -520,34 +508,107 @@ export const CentralAtendimento: React.FC = () => {
     }
   }
 
-  // Vincular ação
+  // Vincular ação base
+  const executarVinculoConversa = async (
+    conversaId: string,
+    clienteId: string,
+    nomeContatoAdicional?: string,
+    silencioso = false,
+  ) => {
+    try {
+      const atendenteNome = user?.name || user?.email || 'João Silva'
+      await vincularConversa(conversaId, clienteId, atendenteNome, nomeContatoAdicional)
+      setSelectedConversaId(conversaId)
+      if (!silencioso) {
+        toast({
+          title: 'Conversa vinculada com sucesso',
+          description: nomeContatoAdicional
+            ? `A conversa foi associada ao cliente com o contato adicional "${nomeContatoAdicional}".`
+            : 'A conversa foi associada ao cliente e movida para "Em Atendimento".',
+        })
+      }
+    } catch (err: unknown) {
+      console.error('Erro ao vincular conversa:', err)
+      if (!silencioso) {
+        toast({
+          title: 'Erro ao vincular conversa',
+          description: err instanceof Error ? err.message : 'Não foi possível vincular a conversa.',
+          variant: 'destructive',
+        })
+      }
+      throw err
+    }
+  }
+
+  // Vincular ação acionada pelo modal ou clique manual
   const handleVincularCliente = async (clienteId: string, nomeContatoAdicional?: string) => {
     if (!conversaParaVincular) return
     try {
-      const atendenteNome = user?.name || user?.email || 'João Silva'
-      await vincularConversa(
-        conversaParaVincular.id,
-        clienteId,
-        atendenteNome,
-        nomeContatoAdicional,
-      )
-      setSelectedConversaId(conversaParaVincular.id)
+      await executarVinculoConversa(conversaParaVincular.id, clienteId, nomeContatoAdicional, false)
       setConversaParaVincular(null)
-      toast({
-        title: 'Conversa vinculada com sucesso',
-        description: nomeContatoAdicional
-          ? `A conversa foi associada ao cliente com o contato adicional "${nomeContatoAdicional}".`
-          : 'A conversa foi associada ao cliente e movida para "Em Atendimento".',
-      })
-    } catch (err: unknown) {
-      console.error('Erro ao vincular conversa:', err)
-      toast({
-        title: 'Erro ao vincular conversa',
-        description: err instanceof Error ? err.message : 'Não foi possível vincular a conversa.',
-        variant: 'destructive',
-      })
+    } catch {
+      /* feedback tratado em executarVinculoConversa */
     }
   }
+
+  // Rastreamento para evitar auto-vinculação concorrente ou duplicada na mesma conversa
+  const autoVincularProcessadasRef = useRef<Set<string>>(new Set())
+
+  // Vinculação automática de número sem o 9º dígito (ou com match exato único) para a Fila de Novos:
+  // quando alguém entra em contato pelo WhatsApp e na base o contato existe com match 'exato_unico'
+  // (incluindo tolerância de 8 vs 9 dígitos ou match direto), vincular automaticamente sem confirmação manual.
+  // Casos ambíguos (2+ contatos distintos) NÃO são auto-vinculados — mantêm o aviso âmbar na tela.
+  useEffect(() => {
+    if (!Array.isArray(whatsAppConversas) || !Array.isArray(clientes) || clientes.length === 0) {
+      return
+    }
+
+    const conversasNovasSemCliente = whatsAppConversas.filter(
+      (c) =>
+        c &&
+        c.status === 'novo' &&
+        !c.cliente_id &&
+        c.numero &&
+        !isNumeroBloqueado(c.numero) &&
+        !autoVincularProcessadasRef.current.has(c.id),
+    )
+
+    if (conversasNovasSemCliente.length === 0) return
+
+    for (const conv of conversasNovasSemCliente) {
+      const match = casarRemetenteComContatos(
+        conv.numero,
+        clientes as any,
+        contatosAdicionais as any,
+      )
+
+      if (match.status === 'exato_unico' && match.contatoPrincipal?.clienteId) {
+        const clienteId = match.contatoPrincipal.clienteId
+        const nomeAdicional =
+          match.contatoPrincipal.origem === 'contato_adicional'
+            ? match.contatoPrincipal.contatoNome
+            : undefined
+
+        // Marcar imediatamente no ref para evitar reentrância
+        autoVincularProcessadasRef.current.add(conv.id)
+
+        executarVinculoConversa(conv.id, clienteId, nomeAdicional, true)
+          .then(() => {
+            const clienteAlvo = clientesMap.get(clienteId)
+            const nomeCli = clienteAlvo?.nome || match.contatoPrincipal?.clienteNome || 'Cliente'
+            toast({
+              title: 'Contato vinculado automaticamente',
+              description: `A conversa de ${formatWhatsAppPhone(conv.numero)} foi reconhecida e vinculada a "${nomeCli}" (Em Atendimento).`,
+            })
+          })
+          .catch((err) => {
+            console.warn('Falha na auto-vinculação da conversa:', conv.id, err)
+            // Libera para poder tentar novamente se falhou
+            autoVincularProcessadasRef.current.delete(conv.id)
+          })
+      }
+    }
+  }, [whatsAppConversas, clientes, contatosAdicionais, isNumeroBloqueado, clientesMap, toast])
 
   // Mapa de conversas existentes por telefone e por clienteId (qualquer status, inclusive ativas)
   // Permite verificar se o cliente/contato encontrado já tem conversa aberta e qual é
@@ -1132,11 +1193,11 @@ export const CentralAtendimento: React.FC = () => {
 
         {/* Ações da Barra de Ferramentas alinhadas à direita */}
         <div className="flex items-center gap-2 justify-end flex-wrap">
-          {/* Toggle de Notificações Sonoras e Desktop */}
+          {/* Toggle de Notificações Sonoras e Desktop - apenas ícone com bolinha e tooltip */}
           <button
             type="button"
             onClick={handleToggleNotificacoes}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all shadow-2xs cursor-pointer ${
+            className={`relative inline-flex items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all shadow-2xs cursor-pointer ${
               notificacoesAtivas
                 ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
                 : 'bg-gray-50 hover:bg-gray-100 text-gray-500 border-gray-200'
@@ -1154,75 +1215,39 @@ export const CentralAtendimento: React.FC = () => {
           >
             {notificacoesAtivas ? (
               <>
-                <Bell className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="hidden sm:inline">Notificações</span>
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <Bell className="w-4 h-4 text-emerald-600" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
               </>
             ) : (
-              <>
-                <BellOff className="w-3.5 h-3.5 text-gray-400" />
-                <span className="hidden sm:inline">Silenciado</span>
-              </>
+              <BellOff className="w-4 h-4 text-gray-400" />
             )}
           </button>
 
-          {/* Botão Recarregar Conversas */}
-          <button
-            type="button"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200/80 rounded-xl transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Atualizar lista de conversas agora"
-            aria-label="Atualizar lista de conversas"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`}
-            />
-            <span className="hidden md:inline">
-              {isRefreshing ? 'Atualizando...' : 'Atualizar'}
-            </span>
-          </button>
-
-          {/* Botão de Exportação de Planilha Excel (.xlsx) */}
+          {/* Botão de Exportação de Planilha Excel (.xlsx) - apenas ícone com tooltip */}
           <button
             type="button"
             onClick={handleExportarPlanilha}
             disabled={isExportingPlanilha}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white active:scale-[0.98] text-xs font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer disabled:opacity-50"
-            title="Exportar planilha completa (.xlsx) com abas de Base Completa, Repetidos, Erros de digitação, Testes e Sem telefone"
-            aria-label="Exportar planilha da Central de Atendimento"
+            className="inline-flex items-center justify-center p-2.5 bg-emerald-700 hover:bg-emerald-800 text-white active:scale-[0.98] rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer disabled:opacity-50"
+            title="Exportar Planilha"
+            aria-label="Exportar Planilha"
           >
             {isExportingPlanilha ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <RefreshCw className="w-4 h-4 animate-spin" />
             ) : (
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-4 h-4" />
             )}
-            <span className="hidden sm:inline">
-              {isExportingPlanilha ? 'Exportando...' : 'Exportar Planilha'}
-            </span>
-            <span className="sm:hidden">{isExportingPlanilha ? '...' : 'Planilha'}</span>
           </button>
 
-          {/* Botão de Visão Consolidada de Contatos */}
-          <button
-            type="button"
-            onClick={() => navigate('/contatos')}
-            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 active:scale-[0.98] text-xs font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer"
-            title="Abrir a visão consolidada de todos os contatos (principais e adicionais) por cliente"
-          >
-            <Users className="w-3.5 h-3.5 text-emerald-700 stroke-[2.5]" />
-            <span>Visão de Contatos</span>
-          </button>
-
-          {/* Botão de Templates & Configurações de WhatsApp no padrão verde Delfos */}
+          {/* Botão de Templates & Configurações de WhatsApp no padrão verde Delfos - apenas ícone com tooltip */}
           <button
             type="button"
             onClick={() => setModalTemplatesOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
-            title="Gerenciar templates e credenciais de integração"
+            className="inline-flex items-center justify-center p-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+            title="Templates & Gateway"
+            aria-label="Templates & Gateway"
           >
-            <Settings className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Templates & Gateway</span>
+            <Settings className="w-4 h-4 stroke-[2.5]" />
           </button>
         </div>
       </div>
