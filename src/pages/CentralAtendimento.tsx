@@ -1228,10 +1228,10 @@ export const CentralAtendimento: React.FC = () => {
       </div>
 
       {/* Main Grid: Navegação por 3 colunas e Área de Chat */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 w-full min-w-0 overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-0 w-full min-w-0 overflow-hidden">
         {/* Coluna de Atendimentos / Listas */}
         <div
-          className={`${selectedConversa ? 'hidden lg:flex lg:col-span-5 xl:col-span-4' : 'col-span-12 lg:col-span-5 xl:col-span-4 flex'} flex-col min-h-0 h-full space-y-3 overflow-hidden min-w-0 relative z-10`}
+          className={`${selectedConversa ? 'hidden lg:flex' : 'flex'} lg:w-[380px] xl:w-[420px] shrink-0 flex-col min-h-0 h-full space-y-3 overflow-hidden min-w-0 relative`}
         >
           {/* Tabs Mobile */}
           <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl lg:hidden shrink-0">
@@ -1646,7 +1646,7 @@ export const CentralAtendimento: React.FC = () => {
 
         {/* Coluna Principal: Tela de Chat da Conversa */}
         <div
-          className={`${!selectedConversa ? 'hidden lg:flex lg:col-span-7 xl:col-span-8' : 'col-span-12 lg:col-span-7 xl:col-span-8 flex'} flex-col min-h-0 h-full overflow-hidden min-w-0 relative z-0`}
+          className={`${!selectedConversa ? 'hidden lg:flex' : 'flex'} flex-1 min-w-0 flex-col min-h-0 h-full overflow-hidden relative`}
         >
           {selectedConversa ? (
             <ConversaChatView
