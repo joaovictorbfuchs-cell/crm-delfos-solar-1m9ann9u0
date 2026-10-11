@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
-  Clock,
   ExternalLink,
   Plus,
   Trash2,
@@ -63,7 +62,6 @@ import {
   Copy,
   UploadCloud,
   Navigation,
-  AlertTriangle,
   Globe,
   Lock,
   Eye,
@@ -171,7 +169,6 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [editTipoUsina, setEditTipoUsina] = useState<string>('residencial')
   const [editObservacoes, setEditObservacoes] = useState('')
   const [editDadosAtualizados, setEditDadosAtualizados] = useState<boolean>(true)
-  const [isUpdatingStatusCadastral, setIsUpdatingStatusCadastral] = useState(false)
 
   // Unidades Beneficiárias na Edição da Ficha
   const [editBeneficiariasHabilitado, setEditBeneficiariasHabilitado] = useState(false)
@@ -317,24 +314,6 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     }
 
     setIsEditingDetalhes(false)
-  }
-
-  // Ação rápida para marcar/desmarcar dados como atualizados
-  const handleToggleDadosAtualizados = async (novoValor: boolean) => {
-    if (!usinaDetalhes) return
-    setIsUpdatingStatusCadastral(true)
-    try {
-      if (onUpdateUsina) {
-        await onUpdateUsina(usinaDetalhes.id, { dados_atualizados: novoValor })
-      }
-      setUsinaDetalhes((prev) => (prev ? { ...prev, dados_atualizados: novoValor } : null))
-      setEditDadosAtualizados(novoValor)
-    } catch (err) {
-      console.error('Erro ao atualizar status cadastral da usina:', err)
-      alert('Erro ao atualizar status cadastral da usina.')
-    } finally {
-      setIsUpdatingStatusCadastral(false)
-    }
   }
 
   // Atualização atômica inline de campos da usina atualmente aberta na ficha
@@ -1326,89 +1305,6 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       <Badge variant="outline" className="capitalize text-xs font-semibold">
                         Estrutura {usinaDetalhes.tipo_estrutura || 'telhado'}
                       </Badge>
-                    </div>
-                  </div>
-
-                  {/* Banner / Card de Verificação e Atualização de Dados da Usina */}
-                  <div
-                    className={`p-3.5 rounded-xl border transition-all ${
-                      usinaDetalhes.dados_atualizados !== false
-                        ? 'bg-emerald-50/60 border-emerald-200 text-emerald-900'
-                        : 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-xs'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-start gap-2.5">
-                        <div
-                          className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                            usinaDetalhes.dados_atualizados !== false
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-amber-200 text-amber-800'
-                          }`}
-                        >
-                          {usinaDetalhes.dados_atualizados !== false ? (
-                            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                          ) : (
-                            <AlertTriangle className="w-5 h-5 text-amber-700" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-xs uppercase tracking-wider">
-                              Verificação Cadastral da Usina
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] font-bold ${
-                                usinaDetalhes.dados_atualizados !== false
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                  : 'bg-amber-100 text-amber-900 border-amber-400 font-extrabold'
-                              }`}
-                            >
-                              {usinaDetalhes.dados_atualizados !== false
-                                ? 'Dados Atualizados'
-                                : 'Dados Desatualizados'}
-                            </Badge>
-                          </div>
-                          <p className="text-xs mt-1 text-slate-600 leading-relaxed">
-                            {usinaDetalhes.dados_atualizados !== false
-                              ? 'Os dados cadastrais, técnicos e elétricos desta usina estão validados e liberados para abertura de atividades de manutenção.'
-                              : 'Os dados desta usina estão marcados como desatualizados. Revise os campos técnicos/cadastrais abaixo e marque como atualizada para permitir a criação de atividades de manutenção.'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {usinaDetalhes.dados_atualizados === false ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={isUpdatingStatusCadastral}
-                            onClick={() => handleToggleDadosAtualizados(true)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs gap-1.5"
-                          >
-                            <CheckCircle2 className="w-4 h-4 text-emerald-100" />
-                            <span>
-                              {isUpdatingStatusCadastral
-                                ? 'Atualizando...'
-                                : 'Marcar como Dados Atualizados'}
-                            </span>
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={isUpdatingStatusCadastral}
-                            onClick={() => handleToggleDadosAtualizados(false)}
-                            className="border-slate-300 text-slate-600 hover:text-amber-800 hover:bg-amber-50 hover:border-amber-300 text-xs gap-1.5"
-                            title="Marcar que os dados da usina precisam de revisão"
-                          >
-                            <Clock className="w-3.5 h-3.5 text-slate-500" />
-                            <span>Marcar como Desatualizado</span>
-                          </Button>
-                        )}
-                      </div>
                     </div>
                   </div>
 

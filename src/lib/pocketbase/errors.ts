@@ -20,14 +20,6 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function getErrorMessage(error: unknown): string {
-  if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'An unexpected error occurred.'
-  }
-  const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
@@ -38,14 +30,23 @@ export function isAuthSessionError(error: unknown): boolean {
       const msg = errObj.message.toLowerCase()
       if (
         msg.includes('token is expired') ||
-        msg.includes('token expired') ||
+        msg.includes('token is invalid') ||
         msg.includes('failed to authenticate') ||
-        msg.includes('the request requires valid user authorization token') ||
-        msg.includes('unauthorized')
+        msg.includes('requires admin or auth') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
       ) {
         return true
       }
     }
   }
   return false
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+  }
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
