@@ -430,7 +430,17 @@ export const CentralAtendimento: React.FC = () => {
         (c) =>
           c && (c.status === 'em_atendimento' || c.status === 'aguardando_cliente') && filterFn(c),
       )
-      .sort((a, b) => safeTime(b.updated || b.created) - safeTime(a.updated || a.created))
+      .sort((a, b) => {
+        const aTemNova = Boolean(a.reaberta_em || (a.nao_lidas && a.nao_lidas > 0))
+        const bTemNova = Boolean(b.reaberta_em || (b.nao_lidas && b.nao_lidas > 0))
+
+        if (aTemNova && !bTemNova) return -1
+        if (!aTemNova && bTemNova) return 1
+
+        const timeA = safeTime(a.ultima_mensagem_em || a.updated || a.created)
+        const timeB = safeTime(b.ultima_mensagem_em || b.updated || b.created)
+        return timeB - timeA
+      })
 
     const resolvidos = conversasVisiveis
       .filter((c) => {
@@ -1299,11 +1309,13 @@ export const CentralAtendimento: React.FC = () => {
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 pb-2 lg:pb-0">
             {/* 1. FILA DE NOVOS */}
             <div
-              className={`space-y-2.5 min-h-0 lg:flex-none ${activeMobileTab !== 'novos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
+              className={`${conversasClassificadas.novos.length === 0 ? 'space-y-0' : 'space-y-2.5'} min-h-0 lg:flex-none ${activeMobileTab !== 'novos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full ${conversasClassificadas.novos.length === 0 ? 'bg-amber-400' : 'bg-amber-500 animate-pulse'}`}
+                  />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
                     Fila de Novos
                   </h3>
@@ -1315,7 +1327,7 @@ export const CentralAtendimento: React.FC = () => {
               </div>
 
               {conversasClassificadas.novos.length === 0 ? (
-                <div className="p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
+                <div className="lg:hidden p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
                   Nenhuma mensagem nova pendente na fila.
                 </div>
               ) : (
@@ -1503,7 +1515,7 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 2. EM ATENDIMENTO */}
             <div
-              className={`space-y-2.5 min-h-0 lg:flex-none ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
+              className={`${conversasClassificadas.emAtendimento.length === 0 ? 'space-y-0' : 'space-y-2.5'} min-h-0 lg:flex-none ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1519,7 +1531,7 @@ export const CentralAtendimento: React.FC = () => {
               </div>
 
               {conversasClassificadas.emAtendimento.length === 0 ? (
-                <div className="p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
+                <div className="lg:hidden p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
                   Nenhum atendimento em andamento no momento.
                 </div>
               ) : (
@@ -1606,7 +1618,7 @@ export const CentralAtendimento: React.FC = () => {
 
             {/* 3. RESOLVIDOS (ÚLTIMAS 24H) */}
             <div
-              className={`space-y-2.5 min-h-0 lg:flex-none ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
+              className={`${conversasClassificadas.resolvidos.length === 0 ? 'space-y-0' : 'space-y-2.5'} min-h-0 lg:flex-none ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : 'flex flex-col flex-1 h-full lg:block'}`}
             >
               <div className="flex items-center justify-between px-1 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1622,7 +1634,7 @@ export const CentralAtendimento: React.FC = () => {
               </div>
 
               {conversasClassificadas.resolvidos.length === 0 ? (
-                <div className="p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
+                <div className="lg:hidden p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
                   Nenhuma conversa finalizada nas últimas 24 horas.
                 </div>
               ) : (
