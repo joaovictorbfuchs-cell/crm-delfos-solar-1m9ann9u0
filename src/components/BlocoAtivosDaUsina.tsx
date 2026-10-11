@@ -1113,17 +1113,6 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
         /* ================================================================ */
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3.5">
           {/* Cabeçalho interno do quadro */}
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
-                Equipamentos Principais da Usina
-              </span>
-            </div>
-            <span className="text-[10px] text-slate-400 font-medium">
-              Resumo • Módulos • Inversores
-            </span>
-          </div>
 
           {/* -------------------------------------------------------------- */}
           {/* LINHA 1: CARD RESUMO DA USINA                                  */}
