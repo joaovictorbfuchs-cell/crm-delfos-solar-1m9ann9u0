@@ -394,13 +394,9 @@ export const BlocoAnotacoesUsina: React.FC<BlocoAnotacoesUsinaProps> = ({
           <span>Carregando anotações da usina...</span>
         </div>
       ) : anotacoes.length === 0 ? (
-        <div className="py-7 text-center text-xs text-slate-500 bg-white/70 rounded-xl border border-dashed border-slate-200 space-y-1.5 p-4">
+        <div className="py-7 text-center text-slate-500 bg-white/70 rounded-xl border border-dashed border-slate-200 space-y-1.5 p-4 text-[0.75rem]">
           <FileText className="w-6 h-6 text-slate-400 mx-auto" />
           <p className="font-bold text-slate-700">Nenhuma anotação registrada para esta usina.</p>
-          <p className="text-[11px] text-slate-400 max-w-md mx-auto">
-            Clique no botão acima para adicionar observações, histórico de campo ou lembretes
-            técnicos sobre esta unidade geradora.
-          </p>
         </div>
       ) : (
         <div className="space-y-2 max-h-96 overflow-y-auto pr-0.5">

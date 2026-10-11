@@ -27,27 +27,3 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
-
-/**
- * Identifica se o erro é decorrente de sessão de autenticação inválida ou expirada (401 / 403).
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const errorObj = err as Record<string, unknown>
-    if (errorObj.status === 401 || errorObj.status === 403) return true
-    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
-    if (typeof errorObj.message === 'string') {
-      const msg = errorObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('the request requires valid user authorization') ||
-        msg.includes('the request requires valid administrator authorization')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
-}
