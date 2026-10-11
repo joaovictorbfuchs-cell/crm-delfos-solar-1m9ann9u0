@@ -1502,20 +1502,15 @@ const BlocoAtivosDaUsinaInterno: React.FC<BlocoAtivosDaUsinaProps> = ({
                   </div>
                 </div>
 
-                {/* S/N ou Observações */}
-                {(item.numero_serie || item.observacoes) && (
+                {/* S/N */}
+                {item.numero_serie && (
                   <div className="text-[11px] text-slate-600 flex items-center gap-3 flex-wrap bg-slate-50/80 p-2 rounded-lg border border-slate-100">
-                    {item.numero_serie && (
-                      <span className="flex items-center gap-1 font-mono">
-                        <Hash className="w-3 h-3 text-slate-400" />
-                        <span>
-                          S/N: <strong>{item.numero_serie}</strong>
-                        </span>
+                    <span className="flex items-center gap-1 font-mono">
+                      <Hash className="w-3 h-3 text-slate-400" />
+                      <span>
+                        S/N: <strong>{item.numero_serie}</strong>
                       </span>
-                    )}
-                    {item.observacoes && (
-                      <span className="italic text-slate-500">{item.observacoes}</span>
-                    )}
+                    </span>
                   </div>
                 )}
 
