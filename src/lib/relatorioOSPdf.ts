@@ -1,6 +1,5 @@
 import { OrdemServico, Cliente, Sistema, OSChecklistItem } from '@/types/crm'
 import { otimizarImagemParaImpressao } from '@/lib/propostaImageOptimizer'
-import { renderizarHTMLParaPdfBase64 } from '@/lib/pdfWhatsAppService'
 import {
   getRodapeComercialRelatorioOS,
   getRodapeComercialCacheSync,
@@ -1309,42 +1308,29 @@ export async function gerarPdfRelatorioOS(
     rodapeComercial: rodape,
   })
 
-  // 4. Renderização canônica via @react-pdf/renderer (mesmo gerador para Download e WhatsApp)
-  let base64 = ''
-  try {
-    const [{ pdf }, { RelatorioOSPDFDocument }, { blobParaDataUriBase64 }, React] =
-      await Promise.all([
-        import('@react-pdf/renderer'),
-        import('@/components/RelatorioOSPDFDocument'),
-        import('@/components/BotaoBaixarProcuracaoPDF'),
-        import('react'),
-      ])
+  // 4. Renderização canônica 100% via @react-pdf/renderer (mesmo gerador para Download e WhatsApp)
+  const [{ pdf }, { RelatorioOSPDFDocument }, { blobParaDataUriBase64 }, React] = await Promise.all(
+    [
+      import('@react-pdf/renderer'),
+      import('@/components/RelatorioOSPDFDocument'),
+      import('@/components/BotaoBaixarProcuracaoPDF'),
+      import('react'),
+    ],
+  )
 
-    const docElement = React.createElement(RelatorioOSPDFDocument, {
-      dados: {
-        os,
-        cliente: opcoes.cliente || os.expand?.cliente_id,
-        sistema: opcoes.sistema,
-        fotosDataUrls,
-        inversoresInfo: opcoes.inversoresInfo,
-        rodapeComercial: rodape,
-      },
-    })
-    const instance = pdf(docElement)
-    const blob = await instance.toBlob()
-    base64 = await blobParaDataUriBase64(blob)
-  } catch (reactPdfErr) {
-    console.warn(
-      'Falha na geração via @react-pdf/renderer, acionando fallback html2pdf:',
-      reactPdfErr,
-    )
-    base64 = await renderizarHTMLParaPdfBase64(html, fileName, {
-      scale: 1.5,
-      imageQuality: 0.8,
-      compressJsPdf: true,
-      timeoutMs: 25000,
-    })
-  }
+  const docElement = React.createElement(RelatorioOSPDFDocument, {
+    dados: {
+      os,
+      cliente: opcoes.cliente || os.expand?.cliente_id,
+      sistema: opcoes.sistema,
+      fotosDataUrls,
+      inversoresInfo: opcoes.inversoresInfo,
+      rodapeComercial: rodape,
+    },
+  })
+  const instance = pdf(docElement)
+  const blob = await instance.toBlob()
+  const base64 = await blobParaDataUriBase64(blob)
 
   if (!base64) {
     throw new Error('Falha na renderização do PDF do relatório técnico.')

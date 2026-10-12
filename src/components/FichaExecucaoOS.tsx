@@ -57,7 +57,9 @@ import {
   Send,
   Trash2,
 } from 'lucide-react'
-import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
+const LazyModalEnviarRelatorioCliente = React.lazy(
+  () => import('@/components/ModalEnviarRelatorioCliente'),
+)
 import { RelatorioOSConteudo } from '@/components/RelatorioOSConteudo'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import {
@@ -2408,16 +2410,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
       {/* Modal de Envio Completo do Relatório ao Cliente (E-mail + WhatsApp) */}
       {modalEnviarRelatorioClienteAberto && (
-        <ModalEnviarRelatorioCliente
-          isOpen={modalEnviarRelatorioClienteAberto}
-          onClose={() => setModalEnviarRelatorioClienteAberto(false)}
-          os={os}
-          cliente={cliente}
-          sistema={sistema}
-          onSuccess={() => {
-            if (onOSUpdated) onOSUpdated(os)
-          }}
-        />
+        <React.Suspense fallback={null}>
+          <LazyModalEnviarRelatorioCliente
+            isOpen={modalEnviarRelatorioClienteAberto}
+            onClose={() => setModalEnviarRelatorioClienteAberto(false)}
+            os={os}
+            cliente={cliente}
+            sistema={sistema}
+            onSuccess={() => {
+              if (onOSUpdated) onOSUpdated(os)
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* AlertDialog de Confirmação para Remover Foto Salva */}

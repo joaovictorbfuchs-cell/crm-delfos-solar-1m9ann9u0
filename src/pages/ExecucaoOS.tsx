@@ -10,8 +10,12 @@ import {
 } from '@/components/CalendarioExecucaoOS'
 import VisaoInstaladorMobileOS from '@/components/VisaoInstaladorMobileOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
-import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
-import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
+const LazyModalEnviarRelatorioOSWhatsApp = React.lazy(
+  () => import('@/components/ModalEnviarRelatorioOSWhatsApp'),
+)
+const LazyModalEnviarRelatorioCliente = React.lazy(
+  () => import('@/components/ModalEnviarRelatorioCliente'),
+)
 import { RelatorioOSConteudo } from '@/components/RelatorioOSConteudo'
 import { PainelEdicaoRodapeComercial } from '@/components/PainelEdicaoRodapeComercial'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -918,24 +922,28 @@ function ExecucaoOSContent() {
 
         {/* Modal Enviar Relatório ao Cliente (E-mail e WhatsApp com confirmação) */}
         {osParaEnviarCliente && (
-          <ModalEnviarRelatorioCliente
-            isOpen={Boolean(osParaEnviarCliente)}
-            onClose={() => setOsParaEnviarCliente(null)}
-            os={osParaEnviarCliente}
-            cliente={osParaEnviarCliente.expand?.cliente_id}
-            onSuccess={() => carregarDados(true)}
-          />
+          <React.Suspense fallback={null}>
+            <LazyModalEnviarRelatorioCliente
+              isOpen={Boolean(osParaEnviarCliente)}
+              onClose={() => setOsParaEnviarCliente(null)}
+              os={osParaEnviarCliente}
+              cliente={osParaEnviarCliente.expand?.cliente_id}
+              onSuccess={() => carregarDados(true)}
+            />
+          </React.Suspense>
         )}
 
         {/* Modal WhatsApp no modo visualização de Ficha */}
         {osParaWhatsApp && (
-          <ModalEnviarRelatorioOSWhatsApp
-            isOpen={Boolean(osParaWhatsApp)}
-            onClose={() => setOsParaWhatsApp(null)}
-            os={osParaWhatsApp}
-            cliente={osParaWhatsApp.expand?.cliente_id}
-            onSuccess={() => carregarDados()}
-          />
+          <React.Suspense fallback={null}>
+            <LazyModalEnviarRelatorioOSWhatsApp
+              isOpen={Boolean(osParaWhatsApp)}
+              onClose={() => setOsParaWhatsApp(null)}
+              os={osParaWhatsApp}
+              cliente={osParaWhatsApp.expand?.cliente_id}
+              onSuccess={() => carregarDados()}
+            />
+          </React.Suspense>
         )}
       </div>
     )
@@ -1810,15 +1818,17 @@ function ExecucaoOSContent() {
       )}
       {/* Modal de Envio do Relatório em PDF por WhatsApp ao Cliente (Apenas Admin) */}
       {osParaWhatsApp && (
-        <ModalEnviarRelatorioOSWhatsApp
-          isOpen={Boolean(osParaWhatsApp)}
-          onClose={() => setOsParaWhatsApp(null)}
-          os={osParaWhatsApp}
-          cliente={osParaWhatsApp.expand?.cliente_id}
-          onSuccess={() => {
-            carregarDados()
-          }}
-        />
+        <React.Suspense fallback={null}>
+          <LazyModalEnviarRelatorioOSWhatsApp
+            isOpen={Boolean(osParaWhatsApp)}
+            onClose={() => setOsParaWhatsApp(null)}
+            os={osParaWhatsApp}
+            cliente={osParaWhatsApp.expand?.cliente_id}
+            onSuccess={() => {
+              carregarDados()
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* Modal Amplo de Visualização Web do Relatório Técnico na Própria Tela */}
@@ -1869,15 +1879,17 @@ function ExecucaoOSContent() {
 
       {/* Modal Enviar Relatório ao Cliente (E-mail + WhatsApp com feedback por item) */}
       {osParaEnviarCliente && (
-        <ModalEnviarRelatorioCliente
-          isOpen={Boolean(osParaEnviarCliente)}
-          onClose={() => setOsParaEnviarCliente(null)}
-          os={osParaEnviarCliente}
-          cliente={osParaEnviarCliente.expand?.cliente_id}
-          onSuccess={() => {
-            carregarDados(true)
-          }}
-        />
+        <React.Suspense fallback={null}>
+          <LazyModalEnviarRelatorioCliente
+            isOpen={Boolean(osParaEnviarCliente)}
+            onClose={() => setOsParaEnviarCliente(null)}
+            os={osParaEnviarCliente}
+            cliente={osParaEnviarCliente.expand?.cliente_id}
+            onSuccess={() => {
+              carregarDados(true)
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* Confirmação de Exclusão de OS (Apenas Admin) */}

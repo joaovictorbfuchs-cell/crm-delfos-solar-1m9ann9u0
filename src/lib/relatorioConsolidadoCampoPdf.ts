@@ -1,6 +1,5 @@
 import { OrdemServico } from '@/types/crm'
 import { renderizarHTMLParaPdfBase64 } from '@/lib/pdfWhatsAppService'
-import { dataUriToFile } from '@/lib/relatorioOSPdf'
 
 export interface ItemConsolidadoMensal {
   id: string
@@ -444,6 +443,7 @@ export async function gerarPdfRelatorioConsolidadoMensal(
     throw new Error('Falha ao renderizar PDF consolidado mensal.')
   }
 
+  const { dataUriToFile } = await import('@/lib/relatorioOSPdf')
   const file = dataUriToFile(base64, fileName)
   return { base64, file, fileName, html }
 }

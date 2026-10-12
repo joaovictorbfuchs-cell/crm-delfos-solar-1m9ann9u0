@@ -9,7 +9,13 @@ import {
   type DocumentProps,
 } from '@react-pdf/renderer'
 import type { OrdemServico, Cliente, Sistema, OSChecklistItem } from '@/types/crm'
-import type { RelatorioOSRodapeComercial } from '@/lib/relatorioOSPdf'
+
+export interface RelatorioOSRodapeComercial {
+  titulo?: string
+  descricao?: string
+  indicacao?: string
+  contato?: string
+}
 
 // Margem interna de 25mm em pontos: 25 * 72 / 25.4 = ~70.87pt (idêntico à Procuração e Contrato O&M)
 const MARGIN_25MM = 70.87

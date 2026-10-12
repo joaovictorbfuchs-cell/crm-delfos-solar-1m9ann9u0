@@ -21,8 +21,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Send } from 'lucide-react'
-import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
-import { ModalEnviarRelatorioCliente } from '@/components/ModalEnviarRelatorioCliente'
+const LazyModalEnviarRelatorioOSWhatsApp = React.lazy(
+  () => import('@/components/ModalEnviarRelatorioOSWhatsApp'),
+)
+const LazyModalEnviarRelatorioCliente = React.lazy(
+  () => import('@/components/ModalEnviarRelatorioCliente'),
+)
 import { gerarPdfRelatorioConsolidadoMensal } from '@/lib/relatorioConsolidadoCampoPdf'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -869,22 +873,26 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
 
       {/* Modal de Envio por WhatsApp no Relatório */}
       {osParaWhatsApp && (
-        <ModalEnviarRelatorioOSWhatsApp
-          isOpen={Boolean(osParaWhatsApp)}
-          onClose={() => setOsParaWhatsApp(null)}
-          os={osParaWhatsApp}
-          cliente={osParaWhatsApp.expand?.cliente_id}
-        />
+        <React.Suspense fallback={null}>
+          <LazyModalEnviarRelatorioOSWhatsApp
+            isOpen={Boolean(osParaWhatsApp)}
+            onClose={() => setOsParaWhatsApp(null)}
+            os={osParaWhatsApp}
+            cliente={osParaWhatsApp.expand?.cliente_id}
+          />
+        </React.Suspense>
       )}
 
       {/* Modal Enviar Relatório ao Cliente (E-mail + WhatsApp) */}
       {osParaEnviarCliente && (
-        <ModalEnviarRelatorioCliente
-          isOpen={Boolean(osParaEnviarCliente)}
-          onClose={() => setOsParaEnviarCliente(null)}
-          os={osParaEnviarCliente}
-          cliente={osParaEnviarCliente.expand?.cliente_id}
-        />
+        <React.Suspense fallback={null}>
+          <LazyModalEnviarRelatorioCliente
+            isOpen={Boolean(osParaEnviarCliente)}
+            onClose={() => setOsParaEnviarCliente(null)}
+            os={osParaEnviarCliente}
+            cliente={osParaEnviarCliente.expand?.cliente_id}
+          />
+        </React.Suspense>
       )}
     </div>
   )

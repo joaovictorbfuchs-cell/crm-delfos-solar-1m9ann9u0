@@ -16,7 +16,6 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { OrdemServico, Cliente, Sistema } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
-import { gerarPdfRelatorioOS } from '@/lib/relatorioOSPdf'
 import pb from '@/lib/pocketbase/client'
 
 export interface ModalEnviarRelatorioOSWhatsAppProps {
@@ -100,7 +99,8 @@ export const ModalEnviarRelatorioOSWhatsApp: React.FC<ModalEnviarRelatorioOSWhat
     async function prepararRelatorio() {
       try {
         // Sempre gera via pipeline oficial @react-pdf/renderer para garantir exatidão
-        // com o padrão do documento e fidelidade idêntica ao download
+        // com o padrão do documento e fidelidade idêntica ao download (import dinâmico para isolar chunk)
+        const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
         const res = await gerarPdfRelatorioOS(os, {
           cliente,
           sistema,
