@@ -1,5 +1,16 @@
 import React, { useState } from 'react'
-import { X, UserPlus, AlertCircle, Loader2, Sparkles, FileText, Zap, Building2 } from 'lucide-react'
+import {
+  X,
+  UserPlus,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  UploadCloud,
+  Zap,
+  Building2,
+  Landmark,
+} from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import type { Cliente } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -38,14 +49,6 @@ interface NovoLeadModalProps {
 }
 
 const ORIGENS: OrigemLeadTipo[] = ['Facebook', 'Instagram', 'Indicação', 'Site', 'Outro']
-
-const PRODUTOS: ProdutoTipo[] = [
-  'Energia Solar',
-  'Plano de O&M',
-  'Sistemas Híbridos',
-  'Carregadores veiculares',
-  'Manutenção avulsa',
-]
 
 export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose }) => {
   const { addCliente, clientes, refreshData } = useClientes()
@@ -673,42 +676,21 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
                 ) : null}
               </div>
 
-              {/* Card 2: Importação de Fatura de Energia */}
-              <div className="p-4 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex flex-col justify-between gap-3">
-                <div className="flex items-start gap-2.5">
-                  <div className="p-2 bg-emerald-600 text-white rounded-lg shrink-0 shadow-xs">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-bold text-emerald-950">
-                        Tem a fatura de energia em mãos?
-                      </span>
-                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                        RGE / Gemini
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-emerald-800/80 leading-snug mt-0.5">
-                      Anexe a conta ou tire foto para preencher titular, CPF/CNPJ, endereço, UC e
-                      consumo automaticamente.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                  {dadosFaturaArmazenados ? (
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-900">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="text-[11px]">
-                        Conta importada: <strong>UC {dadosFaturaArmazenados.uc || '—'}</strong>
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[11px] text-emerald-700/70">
-                      Preenchimento com IA do documento
+              {/* Card 2: Importação de Fatura de Energia (quadro verde com botão de upload minimalista) */}
+              <div className="p-4 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => setModalImportarContaOpen(true)}
+                  className="w-full h-full min-h-[72px] flex items-center justify-center gap-2.5 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl shadow-xs hover:shadow transition-all font-semibold text-xs cursor-pointer active:scale-[0.99]"
+                >
+                  <UploadCloud className="w-5 h-5 shrink-0" />
+                  <span>Anexar conta de energia</span>
+                  {dadosFaturaArmazenados?.uc && (
+                    <span className="ml-1 text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full">
+                      UC {dadosFaturaArmazenados.uc}
                     </span>
                   )}
-                </div>
+                </button>
               </div>
             </div>
 
@@ -781,57 +763,88 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
             {/* SEÇÃO 3: CAMPOS DO LEAD OU CLIENTE EXISTENTE (GRID DE 2 COLUNAS NO DESKTOP) */}
             {modoCliente === 'novo' ? (
               <div className="space-y-4">
-                {/* Bloco CNPJ com consulta automática na Receita Federal */}
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
-                  <CnpjInputWithLookup
-                    value={cnpj}
-                    onChange={(val) => {
-                      setCnpj(val)
-                      if (conflitosCnpj.length > 0) setConflitosCnpj([])
-                    }}
-                    onBlur={handleCnpjBlur}
-                    onLookupClick={() =>
-                      lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
-                    }
-                    status={cnpjStatus}
-                    errorMessage={cnpjErrorMessage}
-                    isLoading={isCnpjLoading}
-                    label="CNPJ (Empresa / PJ) - Consulta Automática"
-                    helperText="Preencha os 14 dígitos e saia do campo para buscar dados da Receita Federal"
-                  />
-
-                  <CnpjConflictBanner
-                    conflitos={conflitosCnpj}
-                    onManterMeusDados={() => {
-                      setConflitosCnpj([])
-                      setPendenteDadosReceita(null)
-                    }}
-                    onUsarDadosReceita={() => {
-                      if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
-                    }}
-                  />
-
-                  {situacaoCadastral && (
-                    <div className="flex items-center gap-2 pt-1 text-xs text-gray-600 flex-wrap">
-                      <span className="font-semibold text-gray-700">Situação:</span>
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                        {situacaoCadastral}
-                      </span>
-                      {cnaePrincipal && (
-                        <span className="text-[11px] text-gray-500 truncate" title={cnaePrincipal}>
-                          • CNAE: {cnaePrincipal}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
                 {/* Grid 2 colunas: Identificação e Dados de Contato */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Coluna 1: Dados do Lead / Razão Social */}
+                  {/* Coluna 1: Dados do Lead / Razão Social com CNPJ */}
                   <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-3">
                     <div className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
                       Identificação do Lead
+                    </div>
+
+                    {/* Campo CNPJ dentro do quadro Identificação do Lead */}
+                    <div className="space-y-2">
+                      <TooltipProvider delayDuration={150}>
+                        <CnpjInputWithLookup
+                          value={cnpj}
+                          onChange={(val) => {
+                            setCnpj(val)
+                            if (conflitosCnpj.length > 0) setConflitosCnpj([])
+                          }}
+                          onBlur={handleCnpjBlur}
+                          onLookupClick={() =>
+                            lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
+                          }
+                          status={cnpjStatus}
+                          errorMessage={cnpjErrorMessage}
+                          isLoading={isCnpjLoading}
+                          label="CNPJ"
+                          hideDefaultAction
+                          customEndAdornment={
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    lookupCnpj(cnpj, true).then(
+                                      (r) => r && aplicarDadosReceita(r, true),
+                                    )
+                                  }
+                                  disabled={isCnpjLoading}
+                                  aria-label="Carregar dados da Receita Federal"
+                                  className="p-1 rounded text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {isCnpjLoading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                                  ) : (
+                                    <Landmark className="w-4 h-4 text-emerald-700" />
+                                  )}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs font-medium z-50">
+                                Carregar dados da Receita Federal
+                              </TooltipContent>
+                            </Tooltip>
+                          }
+                        />
+                      </TooltipProvider>
+
+                      <CnpjConflictBanner
+                        conflitos={conflitosCnpj}
+                        onManterMeusDados={() => {
+                          setConflitosCnpj([])
+                          setPendenteDadosReceita(null)
+                        }}
+                        onUsarDadosReceita={() => {
+                          if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
+                        }}
+                      />
+
+                      {situacaoCadastral && (
+                        <div className="flex items-center gap-2 pt-0.5 text-xs text-gray-600 flex-wrap">
+                          <span className="font-semibold text-gray-700">Situação:</span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                            {situacaoCadastral}
+                          </span>
+                          {cnaePrincipal && (
+                            <span
+                              className="text-[11px] text-gray-500 truncate"
+                              title={cnaePrincipal}
+                            >
+                              • CNAE: {cnaePrincipal}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -932,7 +945,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
                 </div>
 
                 {/* Grid 2 colunas: Detalhes da Oportunidade e Origem */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Consumo */}
                   <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
@@ -977,25 +990,6 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
                       ))}
                     </select>
                     <p className="text-[11px] text-gray-400">Canal de captação comercial.</p>
-                  </div>
-
-                  {/* Produto / Serviço Secundário */}
-                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
-                      Produto / Serviço
-                    </label>
-                    <select
-                      value={produto}
-                      onChange={(e) => setProduto(e.target.value as ProdutoTipo)}
-                      className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                    >
-                      {PRODUTOS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[11px] text-gray-400">Subcategoria do portfólio.</p>
                   </div>
                 </div>
               </div>
