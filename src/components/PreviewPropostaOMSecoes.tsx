@@ -383,11 +383,11 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
           </div>
         </div>
 
-        {/* 4. Comparativo Completo dos 3 Planos */}
+        {/* 4. Comparativo Completo dos 3 Planos — Cards de Planos (idênticos à seção de parâmetros) */}
         <div
           id="preview-om-planos"
           onClick={() => handleSelect('comparativo-planos')}
-          className={`cursor-pointer transition-all space-y-3 ${
+          className={`cursor-pointer transition-all space-y-4 ${
             secaoAtiva === 'comparativo-planos'
               ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-xl p-2'
               : ''
@@ -403,66 +403,103 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
             </span>
           </div>
 
-          <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-2xs">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-gray-100 text-gray-700 uppercase font-bold text-[11px]">
-                <tr>
-                  <th className="p-3 border-b border-gray-200 w-[42%]">
-                    Escopo do Serviço de O&amp;M
-                  </th>
-                  <th className="p-3 border-b border-gray-200 text-center w-[18%]">Essencial</th>
-                  <th className="p-3 border-b border-gray-200 text-center w-[18%]">Prevenção</th>
-                  <th className="p-3 border-b border-emerald-300 text-center w-[22%] bg-emerald-100/70 text-emerald-950">
-                    <div>Completo</div>
-                    <span className="text-[9px] font-extrabold bg-emerald-600 text-white px-1.5 py-0.2 rounded uppercase tracking-wider">
-                      Recomendado
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {itensTabela.map((item, idx) => (
-                  <tr key={idx} className={idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}>
-                    <td className="p-2.5 font-medium text-gray-900 border-r border-gray-100">
-                      {item.escopo}
-                    </td>
-                    <td className="p-2.5 text-center text-gray-600 border-r border-gray-100">
-                      {item.essencial}
-                    </td>
-                    <td className="p-2.5 text-center text-gray-600 border-r border-gray-100">
-                      {item.prevencao}
-                    </td>
-                    <td className="p-2.5 text-center font-bold text-emerald-800 bg-emerald-50/40">
-                      {item.completo}
-                    </td>
-                  </tr>
-                ))}
-                {/* Linha Final de Valores */}
-                <tr className="bg-emerald-100/60 font-bold border-t-2 border-emerald-500">
-                  <td className="p-3 font-black text-emerald-950 uppercase">Investimento Mensal</td>
-                  <td className="p-3 text-center">
-                    <div className="text-sm font-black text-emerald-900">{formatBRL(49.9)}/mês</div>
-                    <div className="text-[10px] text-emerald-700 font-semibold">
-                      ({formatBRL(49.9 * 12)}/ano)
-                    </div>
-                  </td>
-                  <td className="p-3 text-center">
-                    <div className="text-sm font-black text-emerald-900">{formatBRL(74.9)}/mês</div>
-                    <div className="text-[10px] text-emerald-700 font-semibold">
-                      ({formatBRL(74.9 * 12)}/ano)
-                    </div>
-                  </td>
-                  <td className="p-3 text-center bg-emerald-200/60 border-l border-emerald-300">
-                    <div className="text-base font-black text-emerald-950">
-                      {formatBRL(99.9)}/mês
-                    </div>
-                    <div className="text-[10px] text-emerald-800 font-bold">
-                      ({formatBRL(99.9 * 12)}/ano)
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+            {/* Card 1: Plano Essencial */}
+            <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="text-sm font-bold text-gray-900 tracking-tight">
+                  Plano Essencial
+                </div>
+                <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
+                  R$ 49,90<span className="text-base font-bold">/mês</span>
+                </div>
+                <div className="text-xs text-gray-500 font-normal mt-0.5">
+                  Faturamento Anual: R$ 598,80/ano
+                </div>
+                <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Monitoramento comercial</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Relatório mensal analítico</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Suporte técnico e RGE</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Card 2: Plano Prevenção */}
+            <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="text-sm font-bold text-gray-900 tracking-tight">
+                  Plano Prevenção
+                </div>
+                <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
+                  R$ 74,90<span className="text-base font-bold">/mês</span>
+                </div>
+                <div className="text-xs text-gray-500 font-normal mt-0.5">
+                  Faturamento Anual: R$ 898,80/ano
+                </div>
+                <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Tudo do plano Essencial</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>1x Inspeção preventiva anual</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>1x Limpeza de placas anual</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Reaperto geral de conexões</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Card 3: Plano Completo (Destacado com RECOMENDADO DELFOS) */}
+            <div className="p-4 rounded-2xl border-2 border-[#16A34A] bg-white shadow-xs relative flex flex-col justify-between">
+              {/* Badge RECOMENDADO DELFOS no topo direito */}
+              <span className="absolute -top-3.5 right-6 bg-[#047857] text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                RECOMENDADO DELFOS
+              </span>
+              <div>
+                <div className="text-sm font-bold text-gray-900 tracking-tight">Plano Completo</div>
+                <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
+                  R$ 99,90<span className="text-base font-bold">/mês</span>
+                </div>
+                <div className="text-xs text-gray-500 font-normal mt-0.5">
+                  Faturamento Anual: R$ 1.198,80/ano
+                </div>
+                <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Tudo do plano Prevenção</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>2x Limpezas de placas ao ano</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Verificação semestral de anomalias</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-gray-400 select-none">•</span>
+                    <span>Suporte técnico ilimitado VIP</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 

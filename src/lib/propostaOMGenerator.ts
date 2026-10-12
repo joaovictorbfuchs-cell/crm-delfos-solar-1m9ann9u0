@@ -358,122 +358,82 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
     .scenario-item.success .scenario-value {
       color: #15803D;
     }
-    /* Comparative Table */
-    .plans-table {
-      width: 100%;
-      border-collapse: collapse;
+    /* Plan Cards Grid (3 cards side-by-side) */
+    .plans-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 8px;
       margin-bottom: 14px;
-      font-size: 9.5px;
     }
-    .plans-table th {
-      background: #F3F4F6;
+    .plan-card {
+      background: #FFFFFF;
       border: 1px solid #E5E7EB;
-      padding: 7px 6px;
-      font-weight: 700;
-      color: #374151;
-      text-align: center;
-    }
-    .plans-table th:first-child {
-      text-align: left;
-      width: 46%;
-    }
-    .plans-table th.col-rec {
-      background: #DCFCE7;
-      color: #14532D;
-      border-color: #86EFAC;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
       position: relative;
     }
-    .plans-table th.col-chosen {
-      background: #EFF6FF;
-      color: #1E40AF;
-      border-color: #BFDBFE;
+    .plan-card.recommended {
+      border: 2px solid #16A34A;
     }
-    .plans-table td {
-      border: 1px solid #E5E7EB;
-      padding: 6px 6px;
-      text-align: center;
-      color: #4B5563;
-    }
-    .plans-table td:first-child {
-      text-align: left;
-      font-weight: 500;
-      color: #1F2937;
-    }
-    .plans-table tr:nth-child(even) td {
-      background: #FAFAFA;
-    }
-    .plans-table td.col-rec {
-      background: #F0FDF4;
-      font-weight: 600;
-    }
-    .plans-table td.col-chosen {
-      background: #F8FAFC;
-    }
-    .check-yes {
-      color: #16A34A;
-      font-weight: 800;
-      font-size: 12px;
-    }
-    .check-no {
-      color: #9CA3AF;
-      font-size: 11px;
-    }
-    .badge-tag {
-      display: inline-block;
+    .plan-badge-recommended {
+      position: absolute;
+      top: -10px;
+      right: 14px;
+      background: #047857;
+      color: #FFFFFF;
       font-size: 8px;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-top: 2px;
-    }
-    .tag-rec {
-      background: #16A34A;
-      color: #FFFFFF;
-    }
-    .tag-chosen {
-      background: #2563EB;
-      color: #FFFFFF;
-    }
-    /* Row de Destaque Final da Tabela de Planos */
-    .plans-table tr.row-total td {
-      background: #DCFCE7 !important;
-      border-top: 2px solid #16A34A;
-      border-bottom: 2px solid #16A34A;
-      color: #14532D;
-      padding: 9px 6px;
-      vertical-align: middle;
-    }
-    .plans-table tr.row-total td:first-child {
-      font-size: 10.5px;
-      font-weight: 800;
-      color: #064E3B;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-    .plans-table tr.row-total td.col-rec {
-      background: #BBF7D0 !important;
-      border-left: 2px solid #16A34A;
-      border-right: 2px solid #16A34A;
-    }
-    .plans-table tr.row-total .price-val {
-      font-size: 12px;
-      font-weight: 800;
-      color: #14532D;
-      line-height: 1.2;
-    }
-    .plans-table tr.row-total .price-val-rec {
-      font-size: 13px;
       font-weight: 900;
-      color: #064E3B;
+      padding: 3px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    .plan-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 2px;
+    }
+    .plan-price {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0D7A3E;
       line-height: 1.2;
     }
-    .plans-table tr.row-total .price-annual {
-      font-size: 8.5px;
-      font-weight: 600;
-      color: #047857;
+    .plan-price-unit {
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .plan-annual {
+      font-size: 9px;
+      color: #6B7280;
       margin-top: 2px;
+      margin-bottom: 8px;
+    }
+    .plan-bullets {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 0 0;
+      font-size: 9.5px;
+      color: #4B5563;
+      line-height: 1.45;
+    }
+    .plan-bullets li {
+      margin-bottom: 4px;
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+    }
+    .plan-bullet-dot {
+      color: #9CA3AF;
+      font-weight: bold;
+      line-height: 1;
     }
     /* Condições Gerais e Vigência */
     .terms-card {
@@ -729,97 +689,55 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </div>
     </div>
 
-    <!-- Tabela Comparativa de Planos O&M -->
+    <!-- Comparativo de Planos de Gestão e Manutenção (Cards de Planos) -->
     <div class="section-title">3. Comparativo de Planos de Gestão e Manutenção</div>
 
-    <table class="plans-table">
-      <thead>
-        <tr>
-          <th>Escopo do Serviço de O&M</th>
-          <th style="width: 18%;">
-            Essencial
-          </th>
-          <th style="width: 18%;">
-            Prevenção
-          </th>
-          <th class="col-rec" style="width: 18%;">
-            Completo
-            <br /><span class="badge-tag tag-rec">Recomendado</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Monitoramento diário da geração em horários comerciais</td>
-          <td><span class="check-yes">✓</span></td>
-          <td><span class="check-yes">✓</span></td>
-          <td class="col-rec"><span class="check-yes">✓</span></td>
-        </tr>
-        <tr>
-          <td>Relatório mensal analítico de desempenho e compensação</td>
-          <td><span class="check-yes">✓</span></td>
-          <td><span class="check-yes">✓</span></td>
-          <td class="col-rec"><span class="check-yes">✓</span></td>
-        </tr>
-        <tr>
-          <td>Suporte técnico especializado direto com engenharia</td>
-          <td><span class="check-yes">✓</span></td>
-          <td><span class="check-yes">✓</span></td>
-          <td class="col-rec"><span class="check-yes">✓ Ilimitado</span></td>
-        </tr>
-        <tr>
-          <td>Intermediação e suporte com a concessionária (RGE)</td>
-          <td><span class="check-yes">✓</span></td>
-          <td><span class="check-yes">✓</span></td>
-          <td class="col-rec"><span class="check-yes">✓ Prioritário</span></td>
-        </tr>
-        <tr>
-          <td>Configuração e suporte remoto ao datalogger/Wi-Fi</td>
-          <td><span class="check-yes">✓</span></td>
-          <td><span class="check-yes">✓</span></td>
-          <td class="col-rec"><span class="check-yes">✓</span></td>
-        </tr>
-        <tr>
-          <td>Inspeção preventiva anual in loco e ensaios elétricos</td>
-          <td><span class="check-no">Sob demanda</span></td>
-          <td><span class="check-yes">✓ 1x ao ano</span></td>
-          <td class="col-rec"><span class="check-yes">✓ 1x ao ano</span></td>
-        </tr>
-        <tr>
-          <td>Reaperto de conexões, quadros e integridade dos grampos</td>
-          <td><span class="check-no">—</span></td>
-          <td><span class="check-yes">✓ Incluso</span></td>
-          <td class="col-rec"><span class="check-yes">✓ Incluso</span></td>
-        </tr>
-        <tr>
-          <td>Verificação de desempenho, detecção de sombreamento e falhas</td>
-          <td><span class="check-no">—</span></td>
-          <td><span class="check-yes">✓ Anual</span></td>
-          <td class="col-rec"><span class="check-yes">✓ Semestral</span></td>
-        </tr>
-        <tr>
-          <td>Limpeza técnica dos módulos solares com produto homologado</td>
-          <td><span class="check-no">Avulso</span></td>
-          <td><span class="check-yes">✓ 1x ao ano</span></td>
-          <td class="col-rec"><span class="check-yes">✓ 2x ao ano</span></td>
-        </tr>
-        <tr class="row-total">
-          <td>Investimento Mensal</td>
-          <td>
-            <div class="price-val">${formatBRL(49.9)}/mês</div>
-            <div class="price-annual">(${formatBRL(49.9 * 12)}/ano)</div>
-          </td>
-          <td>
-            <div class="price-val">${formatBRL(74.9)}/mês</div>
-            <div class="price-annual">(${formatBRL(74.9 * 12)}/ano)</div>
-          </td>
-          <td class="col-rec">
-            <div class="price-val-rec">${formatBRL(99.9)}/mês</div>
-            <div class="price-annual">(${formatBRL(99.9 * 12)}/ano)</div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="plans-cards-grid">
+      <!-- 1. Plano Essencial -->
+      <div class="plan-card">
+        <div>
+          <div class="plan-name">Plano Essencial</div>
+          <div class="plan-price">R$ 49,90<span class="plan-price-unit">/mês</span></div>
+          <div class="plan-annual">Faturamento Anual: R$ 598,80/ano</div>
+          <ul class="plan-bullets">
+            <li><span class="plan-bullet-dot">•</span> <span>Monitoramento comercial</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>Relatório mensal analítico</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>Suporte técnico e RGE</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2. Plano Prevenção -->
+      <div class="plan-card">
+        <div>
+          <div class="plan-name">Plano Prevenção</div>
+          <div class="plan-price">R$ 74,90<span class="plan-price-unit">/mês</span></div>
+          <div class="plan-annual">Faturamento Anual: R$ 898,80/ano</div>
+          <ul class="plan-bullets">
+            <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Essencial</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>1x Inspeção preventiva anual</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>1x Limpeza de placas anual</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>Reaperto geral de conexões</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. Plano Completo (Recomendado Delfos) -->
+      <div class="plan-card recommended">
+        <span class="plan-badge-recommended">RECOMENDADO DELFOS</span>
+        <div>
+          <div class="plan-name">Plano Completo</div>
+          <div class="plan-price">R$ 99,90<span class="plan-price-unit">/mês</span></div>
+          <div class="plan-annual">Faturamento Anual: R$ 1.198,80/ano</div>
+          <ul class="plan-bullets">
+            <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Prevenção</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>2x Limpezas de placas ao ano</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>Verificação semestral de anomalias</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>Suporte técnico ilimitado VIP</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
     <!-- Condições Gerais e Vigência -->
     <div class="terms-card">

@@ -235,137 +235,87 @@ const styles = StyleSheet.create({
     borderBottomColor: '#d1d5db',
     paddingBottom: 2,
   },
-  // Tabela Comparativa de Planos O&M
-  tabela: {
-    width: '100%',
+  // Grid de Cards de Planos (3 cards lado a lado)
+  planCardsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 7,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  planCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#9ca3af',
-    borderStyle: 'solid',
-    marginTop: 4,
-    marginBottom: 8,
+    borderColor: '#e5e7eb',
+    borderRadius: 6,
+    padding: 7,
+    position: 'relative',
   },
-  tabelaLinhaHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#9ca3af',
-    borderBottomStyle: 'solid',
-    alignItems: 'center',
+  planCardRec: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#16a34a',
+    borderRadius: 6,
+    padding: 7,
+    position: 'relative',
   },
-  tabelaLinha: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#e5e7eb',
-    borderBottomStyle: 'solid',
-    alignItems: 'center',
+  planBadgeRec: {
+    position: 'absolute',
+    top: -6,
+    right: 8,
+    backgroundColor: '#047857',
+    borderRadius: 4,
+    paddingVertical: 1.5,
+    paddingHorizontal: 5,
   },
-  tabelaLinhaZebra: {
-    backgroundColor: '#fafafa',
-  },
-  tabelaLinhaDestaqueTotal: {
-    flexDirection: 'row',
-    backgroundColor: '#dcfce7',
-    borderTopWidth: 1.5,
-    borderTopColor: '#16a34a',
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#16a34a',
-    borderBottomStyle: 'solid',
-    alignItems: 'center',
-  },
-  colEscopoHeader: {
-    width: '46%',
-    padding: 4,
-    fontSize: 8,
+  planBadgeRecText: {
     fontFamily: 'Times-Bold',
-    color: '#1f2937',
-    borderRightWidth: 0.5,
-    borderRightColor: '#9ca3af',
-  },
-  colPlanoHeader: {
-    width: '18%',
-    padding: 4,
-    fontSize: 8,
-    fontFamily: 'Times-Bold',
-    color: '#1f2937',
-    textAlign: 'center',
-    borderRightWidth: 0.5,
-    borderRightColor: '#9ca3af',
-  },
-  colPlanoHeaderRec: {
-    width: '18%',
-    padding: 4,
-    fontSize: 8,
-    fontFamily: 'Times-Bold',
-    color: '#14532d',
-    backgroundColor: '#dcfce7',
-    textAlign: 'center',
-  },
-  colEscopoCell: {
-    width: '46%',
-    padding: 3.5,
-    fontSize: 7.5,
-    fontFamily: 'Times-Roman',
-    color: '#1f2937',
-    borderRightWidth: 0.5,
-    borderRightColor: '#e5e7eb',
-  },
-  colPlanoCell: {
-    width: '18%',
-    padding: 3.5,
-    fontSize: 7.5,
-    fontFamily: 'Times-Roman',
-    color: '#374151',
-    textAlign: 'center',
-    borderRightWidth: 0.5,
-    borderRightColor: '#e5e7eb',
-  },
-  colPlanoCellRec: {
-    width: '18%',
-    padding: 3.5,
-    fontSize: 7.5,
-    fontFamily: 'Times-Bold',
-    color: '#166534',
-    backgroundColor: '#f0fdf4',
-    textAlign: 'center',
-  },
-  colEscopoTotal: {
-    width: '46%',
-    padding: 5,
-    fontSize: 8.5,
-    fontFamily: 'Times-Bold',
-    color: '#064e3b',
+    fontSize: 6,
+    color: '#ffffff',
     textTransform: 'uppercase',
-    borderRightWidth: 0.5,
-    borderRightColor: '#16a34a',
   },
-  colPlanoTotal: {
-    width: '18%',
-    padding: 4,
-    textAlign: 'center',
-    borderRightWidth: 0.5,
-    borderRightColor: '#16a34a',
-  },
-  colPlanoTotalRec: {
-    width: '18%',
-    padding: 4,
-    textAlign: 'center',
-    backgroundColor: '#bbf7d0',
-  },
-  precoMensal: {
+  planNome: {
     fontFamily: 'Times-Bold',
     fontSize: 8.5,
-    color: '#14532d',
+    color: '#111827',
+    marginBottom: 2,
   },
-  precoMensalRec: {
+  planPreco: {
     fontFamily: 'Times-Bold',
-    fontSize: 9,
-    color: '#064e3b',
+    fontSize: 12,
+    color: '#0d7a3e',
   },
-  precoAnual: {
+  planPrecoUnidade: {
+    fontFamily: 'Times-Bold',
+    fontSize: 8,
+    color: '#0d7a3e',
+  },
+  planFaturamentoAnual: {
+    fontFamily: 'Times-Roman',
+    fontSize: 6.8,
+    color: '#6b7280',
+    marginTop: 1,
+    marginBottom: 5,
+  },
+  planBulletItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 2.5,
+  },
+  planBulletDot: {
+    fontFamily: 'Times-Bold',
+    fontSize: 7,
+    color: '#9ca3af',
+    width: 8,
+  },
+  planBulletTexto: {
     fontFamily: 'Times-Roman',
     fontSize: 7,
-    color: '#047857',
-    marginTop: 1,
+    color: '#4b5563',
+    flex: 1,
+    lineHeight: 1.25,
   },
   // Condições Gerais / Vigência
   condicoesBox: {
@@ -457,64 +407,6 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
     : new Date().toLocaleDateString('pt-BR')
 
   const formatBRL = (val: number) => formatCurrency(val || 0)
-
-  // Itens da tabela comparativa dos 3 planos O&M
-  const itensTabela = [
-    {
-      escopo: 'Monitoramento diário da geração em horários comerciais',
-      essencial: '✓ Sim',
-      prevencao: '✓ Sim',
-      completo: '✓ Sim',
-    },
-    {
-      escopo: 'Relatório mensal analítico de desempenho e compensação',
-      essencial: '✓ Sim',
-      prevencao: '✓ Sim',
-      completo: '✓ Sim',
-    },
-    {
-      escopo: 'Suporte técnico especializado direto com engenharia',
-      essencial: '✓ Sim',
-      prevencao: '✓ Sim',
-      completo: '✓ Ilimitado VIP',
-    },
-    {
-      escopo: 'Intermediação e suporte com a concessionária (RGE)',
-      essencial: '✓ Sim',
-      prevencao: '✓ Sim',
-      completo: '✓ Prioritário',
-    },
-    {
-      escopo: 'Configuração e suporte remoto ao datalogger/Wi-Fi',
-      essencial: '✓ Sim',
-      prevencao: '✓ Sim',
-      completo: '✓ Sim',
-    },
-    {
-      escopo: 'Inspeção preventiva anual in loco e ensaios elétricos',
-      essencial: 'Sob demanda',
-      prevencao: '✓ 1x ao ano',
-      completo: '✓ 1x ao ano',
-    },
-    {
-      escopo: 'Reaperto de conexões, quadros e integridade dos grampos',
-      essencial: '—',
-      prevencao: '✓ Incluso',
-      completo: '✓ Incluso',
-    },
-    {
-      escopo: 'Verificação de desempenho, detecção de sombreamento e falhas',
-      essencial: '—',
-      prevencao: '✓ Anual',
-      completo: '✓ Semestral',
-    },
-    {
-      escopo: 'Limpeza técnica dos módulos solares com produto homologado',
-      essencial: 'Avulso',
-      prevencao: '✓ 1x ao ano',
-      completo: '✓ 2x ao ano',
-    },
-  ]
 
   return (
     <Document
@@ -667,47 +559,82 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
           </Text>
         </View>
 
-        {/* 3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO (Tabela com wrap={false}) */}
+        {/* 3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO (Cards com wrap={false}) */}
         <View wrap={false}>
           <Text style={styles.secaoTitulo}>3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO</Text>
 
-          <View style={styles.tabela}>
-            {/* Header da Tabela */}
-            <View style={styles.tabelaLinhaHeader} wrap={false}>
-              <Text style={styles.colEscopoHeader}>Escopo do Serviço de O&amp;M</Text>
-              <Text style={styles.colPlanoHeader}>Essencial</Text>
-              <Text style={styles.colPlanoHeader}>Prevenção</Text>
-              <Text style={styles.colPlanoHeaderRec}>Completo{'\n'}(Recomendado)</Text>
+          <View style={styles.planCardsGrid}>
+            {/* Card 1: Plano Essencial */}
+            <View style={styles.planCard}>
+              <Text style={styles.planNome}>Plano Essencial</Text>
+              <Text style={styles.planPreco}>
+                R$ 49,90<Text style={styles.planPrecoUnidade}>/mês</Text>
+              </Text>
+              <Text style={styles.planFaturamentoAnual}>Faturamento Anual: R$ 598,80/ano</Text>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Monitoramento comercial</Text>
+              </View>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Relatório mensal analítico</Text>
+              </View>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Suporte técnico e RGE</Text>
+              </View>
             </View>
 
-            {/* Linhas de Escopo */}
-            {itensTabela.map((item, idx) => (
-              <View
-                key={idx}
-                style={[styles.tabelaLinha, idx % 2 === 1 ? styles.tabelaLinhaZebra : {}]}
-                wrap={false}
-              >
-                <Text style={styles.colEscopoCell}>{item.escopo}</Text>
-                <Text style={styles.colPlanoCell}>{item.essencial}</Text>
-                <Text style={styles.colPlanoCell}>{item.prevencao}</Text>
-                <Text style={styles.colPlanoCellRec}>{item.completo}</Text>
+            {/* Card 2: Plano Prevenção */}
+            <View style={styles.planCard}>
+              <Text style={styles.planNome}>Plano Prevenção</Text>
+              <Text style={styles.planPreco}>
+                R$ 74,90<Text style={styles.planPrecoUnidade}>/mês</Text>
+              </Text>
+              <Text style={styles.planFaturamentoAnual}>Faturamento Anual: R$ 898,80/ano</Text>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Tudo do plano Essencial</Text>
               </View>
-            ))}
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>1x Inspeção preventiva anual</Text>
+              </View>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>1x Limpeza de placas anual</Text>
+              </View>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Reaperto geral de conexões</Text>
+              </View>
+            </View>
 
-            {/* Linha Final de Valores de Investimento */}
-            <View style={styles.tabelaLinhaDestaqueTotal} wrap={false}>
-              <Text style={styles.colEscopoTotal}>Investimento Mensal</Text>
-              <View style={styles.colPlanoTotal}>
-                <Text style={styles.precoMensal}>{formatBRL(49.9)}/mês</Text>
-                <Text style={styles.precoAnual}>({formatBRL(49.9 * 12)}/ano)</Text>
+            {/* Card 3: Plano Completo (Recomendado Delfos) */}
+            <View style={styles.planCardRec}>
+              <View style={styles.planBadgeRec}>
+                <Text style={styles.planBadgeRecText}>RECOMENDADO DELFOS</Text>
               </View>
-              <View style={styles.colPlanoTotal}>
-                <Text style={styles.precoMensal}>{formatBRL(74.9)}/mês</Text>
-                <Text style={styles.precoAnual}>({formatBRL(74.9 * 12)}/ano)</Text>
+              <Text style={styles.planNome}>Plano Completo</Text>
+              <Text style={styles.planPreco}>
+                R$ 99,90<Text style={styles.planPrecoUnidade}>/mês</Text>
+              </Text>
+              <Text style={styles.planFaturamentoAnual}>Faturamento Anual: R$ 1.198,80/ano</Text>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Tudo do plano Prevenção</Text>
               </View>
-              <View style={styles.colPlanoTotalRec}>
-                <Text style={styles.precoMensalRec}>{formatBRL(99.9)}/mês</Text>
-                <Text style={styles.precoAnual}>({formatBRL(99.9 * 12)}/ano)</Text>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>2x Limpezas de placas ao ano</Text>
+              </View>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Verificação semestral de anomalias</Text>
+              </View>
+              <View style={styles.planBulletItem}>
+                <Text style={styles.planBulletDot}>•</Text>
+                <Text style={styles.planBulletTexto}>Suporte técnico ilimitado VIP</Text>
               </View>
             </View>
           </View>

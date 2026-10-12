@@ -84,7 +84,10 @@ describe('Proposta O&M - Preview e PDF', () => {
     expect(screen.getByText(/Cliente Solar Teste Ltda/i)).toBeTruthy()
     expect(screen.getByText(/12,5 kWp/i)).toBeTruthy()
     expect(screen.getByText(/Deye 12kW/i)).toBeTruthy()
-    expect(screen.getByText(/Essencial/i)).toBeTruthy()
+    expect(screen.getByText(/Plano Essencial/i)).toBeTruthy()
+    expect(screen.getByText(/Plano Prevenção/i)).toBeTruthy()
+    expect(screen.getByText(/Plano Completo/i)).toBeTruthy()
+    expect(screen.getByText(/RECOMENDADO DELFOS/i)).toBeTruthy()
     expect(screen.getByText(/Primeiro mês bonificado/i)).toBeTruthy()
   })
 

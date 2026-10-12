@@ -632,48 +632,104 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
                 {/* Plano Essencial */}
-                <div className="p-3.5 rounded-xl border border-gray-200 bg-white">
-                  <div className="text-xs font-bold text-gray-800">Plano Essencial</div>
-                  <div className="text-lg font-black text-emerald-700 mt-1">R$ 49,90/mês</div>
-                  <div className="text-[10px] text-gray-500">Faturamento Anual: R$ 598,80/ano</div>
-                  <ul className="text-[10px] text-gray-600 mt-2 space-y-1">
-                    <li>• Monitoramento comercial</li>
-                    <li>• Relatório mensal analítico</li>
-                    <li>• Suporte técnico e RGE</li>
-                  </ul>
+                <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-gray-900 tracking-tight">
+                      Plano Essencial
+                    </div>
+                    <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
+                      R$ 49,90<span className="text-base font-bold">/mês</span>
+                    </div>
+                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                      Faturamento Anual: R$ 598,80/ano
+                    </div>
+                    <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Monitoramento comercial</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Relatório mensal analítico</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Suporte técnico e RGE</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
                 {/* Plano Prevenção */}
-                <div className="p-3.5 rounded-xl border border-gray-200 bg-white">
-                  <div className="text-xs font-bold text-gray-800">Plano Prevenção</div>
-                  <div className="text-lg font-black text-emerald-700 mt-1">R$ 74,90/mês</div>
-                  <div className="text-[10px] text-gray-500">Faturamento Anual: R$ 898,80/ano</div>
-                  <ul className="text-[10px] text-gray-600 mt-2 space-y-1">
-                    <li>• Tudo do plano Essencial</li>
-                    <li>• 1x Inspeção preventiva anual</li>
-                    <li>• 1x Limpeza de placas anual</li>
-                    <li>• Reaperto geral de conexões</li>
-                  </ul>
+                <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-gray-900 tracking-tight">
+                      Plano Prevenção
+                    </div>
+                    <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
+                      R$ 74,90<span className="text-base font-bold">/mês</span>
+                    </div>
+                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                      Faturamento Anual: R$ 898,80/ano
+                    </div>
+                    <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Tudo do plano Essencial</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>1x Inspeção preventiva anual</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>1x Limpeza de placas anual</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Reaperto geral de conexões</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
                 {/* Plano Completo (Recomendado) */}
-                <div className="p-3.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/40 relative">
-                  <span className="absolute -top-2 left-3 bg-emerald-600 text-white text-[9px] font-extrabold px-2 py-0.2 rounded-full uppercase tracking-wider">
-                    Recomendado Delfos
+                <div className="p-4 rounded-2xl border-2 border-[#16A34A] bg-white shadow-xs relative flex flex-col justify-between">
+                  {/* Badge RECOMENDADO DELFOS no topo direito */}
+                  <span className="absolute -top-3.5 right-6 bg-[#047857] text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                    RECOMENDADO DELFOS
                   </span>
-                  <div className="text-xs font-bold text-gray-800 pt-0.5">Plano Completo</div>
-                  <div className="text-lg font-black text-emerald-700 mt-1">R$ 99,90/mês</div>
-                  <div className="text-[10px] text-gray-500">
-                    Faturamento Anual: R$ 1.198,80/ano
+                  <div>
+                    <div className="text-sm font-bold text-gray-900 tracking-tight">
+                      Plano Completo
+                    </div>
+                    <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
+                      R$ 99,90<span className="text-base font-bold">/mês</span>
+                    </div>
+                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                      Faturamento Anual: R$ 1.198,80/ano
+                    </div>
+                    <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Tudo do plano Prevenção</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>2x Limpezas de placas ao ano</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Verificação semestral de anomalias</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-gray-400 select-none">•</span>
+                        <span>Suporte técnico ilimitado VIP</span>
+                      </li>
+                    </ul>
                   </div>
-                  <ul className="text-[10px] text-gray-600 mt-2 space-y-1">
-                    <li>• Tudo do plano Prevenção</li>
-                    <li>• 2x Limpezas de placas ao ano</li>
-                    <li>• Verificação semestral de anomalias</li>
-                    <li>• Suporte técnico ilimitado VIP</li>
-                  </ul>
                 </div>
               </div>
 
