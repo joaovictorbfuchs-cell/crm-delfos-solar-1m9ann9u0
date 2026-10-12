@@ -634,7 +634,7 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               </View>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Suporte técnico ilimitado VIP</Text>
+                <Text style={styles.planBulletTexto}>Suporte técnico limitado VIP</Text>
               </View>
             </View>
           </View>

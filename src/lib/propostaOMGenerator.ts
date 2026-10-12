@@ -733,7 +733,7 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
             <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Prevenção</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>2x Limpezas de placas ao ano</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>Verificação semestral de anomalias</span></li>
-            <li><span class="plan-bullet-dot">•</span> <span>Suporte técnico ilimitado VIP</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>Suporte técnico limitado VIP</span></li>
           </ul>
         </div>
       </div>
