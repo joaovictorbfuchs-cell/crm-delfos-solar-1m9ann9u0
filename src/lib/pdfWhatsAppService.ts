@@ -13,11 +13,7 @@
  * o documento enviado por WhatsApp seja exatamente o mesmo gerado pelo botão "Gerar PDF".
  */
 
-import {
-  converterInputParaTemplateComercial,
-  type PropostaSolarPDFInput,
-} from '@/lib/propostaSolarGenerator'
-import { prepararDadosPropostaParaPDF } from '@/lib/propostaImageOptimizer'
+import { gerarHTMLPropostaSolar, type PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
 import {
   gerarHTMLPropostaTecnicoComercial,
   type PropostaTecnicoComercialDados,
@@ -167,21 +163,29 @@ async function executarHtml2PdfPipeline<T>(
           .querySelectorAll('.no-print-bar, .preview-page-break-marker, .action-bar')
           .forEach((el) => el.remove())
 
+        // Normalização de margens e padding residuais no body e contêineres para não vazar altura extra
+        if (doc.body) {
+          doc.body.style.backgroundColor = '#ffffff'
+          doc.body.style.margin = '0'
+          doc.body.style.padding = '0'
+        }
+
         // Seletor canônico: suporta proposta técnica (.proposta-container) e procuração (.page-a4)
-        const targetElement = doc.querySelector('.proposta-container, .page-a4') || doc.body
+        const targetElement = (doc.querySelector('.proposta-container, .page-a4') ||
+          doc.body) as HTMLElement
+
+        // Normalização específica para proposta comercial (.proposta-container)
+        if (targetElement.classList.contains('proposta-container')) {
+          targetElement.style.paddingBottom = '0'
+          targetElement.style.marginBottom = '0'
+        }
 
         // Para documentos com estrutura .page-a4 (ex: Procuração), normaliza estilos de tela
         if (targetElement.classList.contains('page-a4')) {
-          const el = targetElement as HTMLElement
-          el.style.margin = '0'
-          el.style.boxShadow = 'none'
-          el.style.width = '100%'
-          el.style.minHeight = 'auto'
-          if (doc.body) {
-            doc.body.style.backgroundColor = '#ffffff'
-            doc.body.style.margin = '0'
-            doc.body.style.padding = '0'
-          }
+          targetElement.style.margin = '0'
+          targetElement.style.boxShadow = 'none'
+          targetElement.style.width = '100%'
+          targetElement.style.minHeight = 'auto'
         }
 
         // Aguarda todas as imagens do documento terminarem de carregar para não renderizar imagens vazias/quebradas
@@ -199,6 +203,25 @@ async function executarHtml2PdfPipeline<T>(
 
         // Espera de estabilização (~300ms) antes da captura para renderização perfeita do layout e fontes
         await new Promise<void>((r) => setTimeout(r, 300))
+
+        // Altura de uma página A4 a 96 DPI: 297mm / 25.4 * 96 ≈ 1122.5196px
+        // Ajusta a altura mínima capturada para múltiplo exato de 1122.5px, eliminando fatiamento residual em folha em branco
+        try {
+          const a4PageHeightPx = 1122.5
+          const measuredHeight = targetElement.scrollHeight || targetElement.offsetHeight || 0
+          if (measuredHeight > 0) {
+            const totalPages = Math.max(1, Math.ceil((measuredHeight - 2) / a4PageHeightPx))
+            const exactA4HeightPx = totalPages * a4PageHeightPx
+            // Se o excesso passar por poucos pixels (padding/margem residual), fixa a altura para fechar na página anterior
+            // Caso contrário, ajusta a altura total para o múltiplo exato de página A4
+            targetElement.style.minHeight = `${exactA4HeightPx}px`
+            targetElement.style.maxHeight = `${exactA4HeightPx}px`
+            targetElement.style.boxSizing = 'border-box'
+            targetElement.style.overflow = 'hidden'
+          }
+        } catch {
+          /* fail-safe */
+        }
 
         const opt = {
           margin: 0,
@@ -220,8 +243,7 @@ async function executarHtml2PdfPipeline<T>(
             compress: compressJsPdf,
           },
           pagebreak: {
-            mode: ['css', 'legacy'],
-            before: '.proposta-secao-page',
+            mode: ['css', 'avoid-all'],
             avoid: [
               '.doc-header',
               '.doc-footer',
@@ -332,11 +354,9 @@ export async function baixarHTMLParaPdf(
 /**
  * Gera o PDF oficial do Orçamento Solar como Data URI Base64.
  *
- * Segue estritamente os 4 passos canônicos da proposta oficial:
- * (a) converter os dados do orçamento para o formato comercial com converterInputParaTemplateComercial;
- * (b) otimizar imagens com prepararDadosPropostaParaPDF;
- * (c) gerar o HTML oficial com gerarHTMLPropostaTecnicoComercial;
- * (d) renderizar o HTML em PDF A4 base64 via html2pdf.js (.outputPdf('datauristring')).
+ * Rota canônica unificada: gera o base64 a partir de `gerarHTMLPropostaSolar(dados)`
+ * via `renderizarHTMLParaPdfBase64`, desativando qualquer rota legada com `otimizarParaWhatsApp`.
+ * Um único caminho, sem fallback divergente, garantindo resultado 100% idêntico a Imprimir/Gerar PDF.
  */
 export async function gerarBase64OrcamentoSolar(
   dados: PropostaSolarPDFInput,
@@ -357,13 +377,8 @@ Validade da proposta: ${dados?.validadeDias || 5} dias corridos.
 Responsável Técnico: João Victor Bagetti Fuchs (CREA RS151894).`
 
   try {
-    // Pipeline canônico unificado: MESMO HTML oficial do botão Imprimir via html2pdf.js
-    const dadosConvertidos: PropostaTecnicoComercialDados =
-      converterInputParaTemplateComercial(dados)
-    const dadosOtimizados = await prepararDadosPropostaParaPDF(dadosConvertidos, {
-      otimizarParaWhatsApp: true,
-    })
-    const htmlOficial = gerarHTMLPropostaTecnicoComercial(dadosOtimizados)
+    // Pipeline canônico 100% unificado: gera a partir de gerarHTMLPropostaSolar(dados)
+    const htmlOficial = gerarHTMLPropostaSolar(dados)
     const base64 = await renderizarHTMLParaPdfBase64(htmlOficial, fileName, {
       scale: 1.5,
       imageQuality: 0.82,

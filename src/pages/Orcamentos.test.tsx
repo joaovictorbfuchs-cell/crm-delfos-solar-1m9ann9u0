@@ -130,4 +130,20 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
     // Não contém texto "WhatsApp" dentro do botão
     expect(btnWhats.textContent?.trim()).toBe('')
   })
+
+  it('ao abrir WhatsApp a partir de /propostas, constrói dadosProposta e htmlProposta canônicos', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    render(
+      <MemoryRouter>
+        <Orcamentos />
+      </MemoryRouter>,
+    )
+
+    const btnWhats = screen.getByLabelText('Enviar proposta por WhatsApp')
+    fireEvent.click(btnWhats)
+
+    // Modal deve ser exibido com cabeçalho de envio
+    expect(screen.getByText('Enviar Proposta por WhatsApp')).toBeDefined()
+    expect(screen.getByText('Fazenda Santa Rita')).toBeDefined()
+  })
 })

@@ -26,6 +26,8 @@ import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalOrcamentoSolar } from '@/components/ModalOrcamentoSolar'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { construirPropostaSolarPDFInput } from '@/lib/propostaWhatsAppService'
+import { gerarHTMLPropostaSolar } from '@/lib/propostaSolarGenerator'
 import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -189,6 +191,17 @@ export const Orcamentos: React.FC = () => {
   const [propostaParaWhatsApp, setPropostaParaWhatsApp] = useState<OrcamentoSolar | null>(null)
   const [clientePropostaWhatsApp, setClientePropostaWhatsApp] = useState<Cliente | null>(null)
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
+
+  // Construção do input oficial e do HTML canônico da proposta para envio por WhatsApp
+  const dadosPropostaWhatsApp = useMemo(() => {
+    if (!propostaParaWhatsApp) return null
+    return construirPropostaSolarPDFInput(propostaParaWhatsApp, clientePropostaWhatsApp)
+  }, [propostaParaWhatsApp, clientePropostaWhatsApp])
+
+  const htmlPropostaWhatsApp = useMemo(() => {
+    if (!dadosPropostaWhatsApp) return null
+    return gerarHTMLPropostaSolar(dadosPropostaWhatsApp)
+  }, [dadosPropostaWhatsApp])
 
   const handleAbrirWhatsApp = (
     orc: OrcamentoSolar,
@@ -1186,6 +1199,8 @@ export const Orcamentos: React.FC = () => {
             }}
             orcamento={propostaParaWhatsApp}
             cliente={clientePropostaWhatsApp}
+            dadosProposta={dadosPropostaWhatsApp}
+            htmlProposta={htmlPropostaWhatsApp}
             onSuccess={() => {
               // Atualizar status da proposta para "Enviado ao cliente" se ainda estiver "Em elaboração"
               if (propostaParaWhatsApp.status === 'Em elaboração') {

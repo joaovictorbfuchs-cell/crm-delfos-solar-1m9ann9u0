@@ -111,13 +111,9 @@ describe('pdfWhatsAppService — pipeline oficial da proposta', () => {
     vi.restoreAllMocks()
   })
 
-  it('gerarBase64OrcamentoSolar invoca os 4 passos canônicos da proposta oficial', async () => {
-    const spyConverter = vi.spyOn(propostaSolarGenerator, 'converterInputParaTemplateComercial')
+  it('gerarBase64OrcamentoSolar unificado invoca gerarHTMLPropostaSolar e html2pdf sem rota divergente com otimizarParaWhatsApp', async () => {
+    const spyGerarHTMLSolar = vi.spyOn(propostaSolarGenerator, 'gerarHTMLPropostaSolar')
     const spyOtimizar = vi.spyOn(propostaImageOptimizer, 'prepararDadosPropostaParaPDF')
-    const spyGerarHTML = vi.spyOn(
-      propostaTecnicoComercialGenerator,
-      'gerarHTMLPropostaTecnicoComercial',
-    )
 
     // Mock do html2pdf no window
     const mockOutputPdf = vi
@@ -152,25 +148,25 @@ describe('pdfWhatsAppService — pipeline oficial da proposta', () => {
     const inputPdf = construirPropostaSolarPDFInput(orc as OrcamentoSolar)
     const resultado = await gerarBase64OrcamentoSolar(inputPdf)
 
-    // Passo 1: converterInputParaTemplateComercial
-    expect(spyConverter).toHaveBeenCalledWith(inputPdf)
+    // Pipeline unificado: gera direto a partir de gerarHTMLPropostaSolar
+    expect(spyGerarHTMLSolar).toHaveBeenCalledWith(inputPdf)
 
-    // Passo 2: prepararDadosPropostaParaPDF chamado com otimizarParaWhatsApp: true
-    expect(spyOtimizar).toHaveBeenCalledWith(expect.anything(), {
+    // A rota legada divergente com otimizarParaWhatsApp não deve mais ser chamada
+    expect(spyOtimizar).not.toHaveBeenCalledWith(expect.anything(), {
       otimizarParaWhatsApp: true,
     })
 
-    // Passo 3: gerarHTMLPropostaTecnicoComercial
-    expect(spyGerarHTML).toHaveBeenCalled()
-
-    // Passo 4: html2pdf outputPdf datauristring
+    // html2pdf outputPdf datauristring chamado
     expect(mockOutputPdf).toHaveBeenCalledWith('datauristring')
 
-    // Opções de otimização passadas ao html2pdf
+    // Opções do pipeline (pagebreak com mode: ['css', 'avoid-all'], scale: 1.5, compress: true)
     expect(mockWorker.set).toHaveBeenCalledWith(
       expect.objectContaining({
         html2canvas: expect.objectContaining({ scale: 1.5 }),
         jsPDF: expect.objectContaining({ compress: true }),
+        pagebreak: expect.objectContaining({
+          mode: ['css', 'avoid-all'],
+        }),
       }),
     )
 
