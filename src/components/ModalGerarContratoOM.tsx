@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +30,8 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  FileCheck,
+  Phone,
 } from 'lucide-react'
 import type { Cliente, PropostaOM } from '@/types/crm'
 import {
@@ -45,9 +48,13 @@ import {
   baixarContratoPDF,
   abrirContratoImpressao,
 } from '@/lib/contratoGenerator'
+import {
+  BotaoBaixarContratoOMPDF,
+  gerarContratoOMPdfBlobBase64,
+} from '@/components/BotaoBaixarContratoOMPDF'
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
-import { sendWhatsAppMensagem } from '@/services/crmService'
+import { sendWhatsAppDocumento, createAtividade } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
 import {
@@ -340,55 +347,92 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     registrarAtividadeEmissao(dadosConsolidados)
   }
 
-  // 1. Baixar Contrato como PDF binário
-  const handleBaixarPDF = () => {
-    try {
-      baixarContratoPDF(dadosConsolidados)
-      registrarAtividadeEmissao(dadosConsolidados)
-      toast.success('Download do PDF do contrato iniciado com sucesso!')
-    } catch (err) {
-      console.error('Erro ao baixar PDF:', err)
-      abrirContratoImpressao(dadosConsolidados, true)
-      registrarAtividadeEmissao(dadosConsolidados)
-    }
+  // Submodal de conferência e envio do WhatsApp com PDF anexo (mesmo padrão da Procuração)
+  const [modalConferenciaWhatsAppOpen, setModalConferenciaWhatsAppOpen] = useState(false)
+  const [whatsappTelefoneEditado, setWhatsappTelefoneEditado] = useState('')
+  const [whatsappMensagemEditada, setWhatsappMensagemEditada] = useState('')
+
+  // 1. Callback de download com @react-pdf/renderer
+  const handleDownloadPDFClick = () => {
+    registrarAtividadeEmissao(dadosConsolidados)
+    toast.success('Download do PDF do contrato iniciado com sucesso!')
   }
 
-  // 2. Enviar pelo WhatsApp diretamente via Z-API
-  const handleEnviarWhatsApp = async () => {
-    if (!temTelefoneValido) {
-      toast.error(MENSAGEM_ALERTA_SEM_NUMERO)
+  // 2. Abrir Modal de Conferência de WhatsApp ao clicar no botão "Enviar pelo WhatsApp"
+  const handleAbrirConferenciaWhatsApp = () => {
+    const primeiroNome = (dadosConsolidados.nomeRazaoSocial || 'Cliente').split(' ')[0]
+    const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo o Contrato de Prestação de Serviços de Operação e Manutenção (O&M) da Delfos Solar no ${dadosConsolidados.planoSelecionado} para sua conferência e assinatura. O valor mensal é de ${formatCurrency(dadosConsolidados.valorMensal)} (${dadosConsolidados.valorEscritoMensal}). Ficamos à total disposição para qualquer dúvida!`
+
+    setWhatsappTelefoneEditado(formTelefone || '')
+    setWhatsappMensagemEditada(mensagemTexto)
+    setModalConferenciaWhatsAppOpen(true)
+  }
+
+  // 3. Confirmar e Enviar Documento via WhatsApp com PDF oficial gerado (@react-pdf/renderer) e legenda
+  const handleConfirmarEnvioWhatsApp = async () => {
+    const telLimpo = (whatsappTelefoneEditado || '').replace(/\D/g, '')
+    if (telLimpo.length < 10) {
+      toast.error('Informe um número de telefone WhatsApp válido com DDD (mínimo 10 dígitos).')
       return
     }
 
-    try {
-      baixarContratoPDF(dadosConsolidados)
-    } catch {
-      /* intentionally ignored */
+    const mensagemLimpa = whatsappMensagemEditada.trim()
+    if (!mensagemLimpa) {
+      toast.error('Por favor, informe a mensagem a ser enviada junto ao contrato.')
+      return
     }
-
-    const primeiroNome = (dadosConsolidados.nomeRazaoSocial || 'Cliente').split(' ')[0]
-    const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo o Contrato de Prestação de Serviços de Operação e Manutenção (O&M) da Delfos Solar no ${dadosConsolidados.planoSelecionado} para sua conferência e assinatura. O valor mensal é de ${formatCurrency(dadosConsolidados.valorMensal)} (${dadosConsolidados.valorEscritoMensal}). Ficamos à total disposição para qualquer dúvida!`
-    const mensagemComPrefixo = aplicarPrefixoMensagemManual(mensagemTexto)
 
     setIsSendingWhatsApp(true)
     try {
-      const res = await sendWhatsAppMensagem({
-        clienteId: cliente.id,
-        telefone: telefoneApenasDigitos,
-        mensagem: mensagemComPrefixo,
-        origem: 'modal_contrato_om',
+      // 1. Gera o PDF oficial em Base64 Data URI via @react-pdf/renderer (mesmo documento do botão "Baixar como PDF")
+      const { base64, fileName } = await gerarContratoOMPdfBlobBase64(dadosConsolidados)
+      if (!base64) {
+        toast.error('Não foi possível gerar o PDF oficial do contrato para envio.')
+        setIsSendingWhatsApp(false)
+        return
+      }
+
+      const legendaComPrefixo = aplicarPrefixoMensagemManual(mensagemLimpa)
+
+      // 2. Envia documento de fato via endpoint oficial de documentos do WhatsApp (Z-API)
+      const res = await sendWhatsAppDocumento({
+        cliente_id: cliente.id,
+        telefone_destino: telLimpo,
+        tipo: 'documento',
+        legenda: legendaComPrefixo,
+        nome_arquivo:
+          fileName ||
+          `Contrato_OM_Delfos_${dadosConsolidados.planoSelecionado}_${(dadosConsolidados.nomeRazaoSocial || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+        base64: base64,
       })
 
-      if (res.ok && res.sent) {
-        toast.success('Mensagem enviada via WhatsApp com sucesso!')
+      if (res.sent || res.ok) {
+        toast.success('Contrato O&M em PDF enviado com sucesso pelo WhatsApp!')
         registrarAtividadeEmissao(dadosConsolidados)
+
+        // Registrar atividade no histórico/timeline do cliente
+        try {
+          await createAtividade({
+            cliente_id: cliente.id,
+            tipo: 'gerar_contrato',
+            titulo: `Contrato O&M (${dadosConsolidados.planoSelecionado}) Enviado via WhatsApp`,
+            descricao: `Contrato O&M em PDF enviado para ${dadosConsolidados.nomeRazaoSocial} no número ${formatWhatsAppPhone(telLimpo)} com documento anexo.`,
+            data: new Date().toISOString(),
+            status: 'concluida',
+            autor: 'CRM Delfos Solar',
+          })
+        } catch (atvErr) {
+          console.warn('Falha ao registrar atividade de envio de contrato no histórico:', atvErr)
+        }
+
+        setModalConferenciaWhatsAppOpen(false)
       } else {
         const errorMsg = getFriendlyWhatsAppErrorMessage(res)
-        toast.error(errorMsg)
+        toast.error(errorMsg || 'Falha ao enviar documento via WhatsApp.')
       }
     } catch (err: any) {
-      console.error('Erro ao disparar WhatsApp de contrato O&M:', err)
-      toast.error(err?.message || 'Falha na conexão ao enviar mensagem via WhatsApp.')
+      console.error('Erro ao disparar WhatsApp de contrato O&M com PDF anexo:', err)
+      toast.error(err?.message || 'Falha na conexão ao enviar documento via WhatsApp.')
     } finally {
       setIsSendingWhatsApp(false)
     }
@@ -1040,22 +1084,17 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                   <span>Imprimir</span>
                 </Button>
 
-                {/* BOTÃO OBRIGATÓRIO 1: BAIXAR COMO PDF */}
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleBaixarPDF}
-                  className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02]"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Baixar como PDF</span>
-                </Button>
+                {/* BOTÃO OBRIGATÓRIO 1: BAIXAR COMO PDF (@react-pdf/renderer com download contrato-om.pdf) */}
+                <BotaoBaixarContratoOMPDF
+                  dados={dadosConsolidados}
+                  onClick={handleDownloadPDFClick}
+                />
 
-                {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP */}
+                {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP (com conferência e envio Z-API do PDF oficial) */}
                 <Button
                   type="button"
                   size="sm"
-                  onClick={handleEnviarWhatsApp}
+                  onClick={handleAbrirConferenciaWhatsApp}
                   disabled={!temTelefoneValido || isSendingWhatsApp}
                   className={`text-xs font-bold gap-1.5 shadow-xs transition-transform ${
                     temTelefoneValido && !isSendingWhatsApp
@@ -1064,16 +1103,12 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                   }`}
                   title={
                     temTelefoneValido
-                      ? `Enviar direto via WhatsApp para ${dadosConsolidados.telefone || 'cliente'}`
+                      ? `Conferir número e enviar contrato em PDF via WhatsApp para ${dadosConsolidados.telefone || 'cliente'}`
                       : 'Cliente sem telefone de contato cadastrado na ficha'
                   }
                 >
-                  {isSendingWhatsApp ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  <span>{isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar pelo WhatsApp'}</span>
+                  <Send className="w-4 h-4" />
+                  <span>Enviar pelo WhatsApp</span>
                 </Button>
               </div>
             </div>
@@ -1639,8 +1674,8 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
             <div className="p-3 bg-gray-100 rounded-xl text-[11px] text-gray-600 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-gray-500" />
-                Ao clicar em "Enviar pelo WhatsApp", o PDF é baixado e a conversa é aberta no
-                WhatsApp com o cliente.
+                O download e o envio WhatsApp utilizam o mesmo gerador oficial de PDF
+                (@react-pdf/renderer).
               </span>
               <button
                 type="button"
@@ -1648,12 +1683,106 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                 className="text-emerald-700 hover:text-emerald-900 font-semibold underline flex items-center gap-1 text-[11px]"
               >
                 <ExternalLink className="w-3 h-3" />
-                Abrir em nova aba
+                Abrir versão HTML
               </button>
             </div>
           </div>
         )}
       </DialogContent>
+
+      {/* ========================================================================= */}
+      {/* SUBMODAL: CONFERÊNCIA DE TELEFONE E MENSAGEM ANTES DO DISPARO WHATSAPP    */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={modalConferenciaWhatsAppOpen}
+        onOpenChange={(v) => {
+          if (!isSendingWhatsApp) setModalConferenciaWhatsAppOpen(v)
+        }}
+      >
+        <DialogContent className="max-w-md p-6 bg-white space-y-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-gray-900">
+              <Send className="w-4 h-4 text-emerald-600" />
+              Enviar Contrato O&M via WhatsApp
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              O contrato gerado em PDF com o layout oficial Delfos será anexado como documento junto
+              à mensagem abaixo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 text-xs">
+            <div>
+              <Label className="text-[11px] font-semibold text-gray-700 flex items-center gap-1 mb-1">
+                <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                Número de Destino (WhatsApp)
+              </Label>
+              <Input
+                value={whatsappTelefoneEditado}
+                onChange={(e) => setWhatsappTelefoneEditado(formatWhatsAppPhone(e.target.value))}
+                placeholder="(00) 00000-0000"
+                className="h-9 text-xs font-mono font-medium"
+                disabled={isSendingWhatsApp}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                Confira o DDD e número antes de disparar via Z-API.
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-[11px] font-semibold text-gray-700 mb-1 block">
+                Mensagem / Legenda do Documento
+              </Label>
+              <textarea
+                value={whatsappMensagemEditada}
+                onChange={(e) => setWhatsappMensagemEditada(e.target.value)}
+                rows={5}
+                className="w-full text-xs p-2.5 rounded-lg border border-gray-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 leading-relaxed font-sans"
+                placeholder="Escreva a mensagem..."
+                disabled={isSendingWhatsApp}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                Prefixo institucional padrão Delfos Solar é anexado automaticamente.
+              </p>
+            </div>
+
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 flex items-center gap-2">
+              <FileCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <div>
+                <strong>Anexo garantido:</strong> O PDF é gerado pelo mesmo motor oficial
+                (@react-pdf/renderer) e enviado em base64 direto na conversa.
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModalConferenciaWhatsAppOpen(false)}
+              disabled={isSendingWhatsApp}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmarEnvioWhatsApp}
+              disabled={isSendingWhatsApp}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5"
+            >
+              {isSendingWhatsApp ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              <span>{isSendingWhatsApp ? 'Enviando PDF...' : 'Confirmar e Enviar'}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
