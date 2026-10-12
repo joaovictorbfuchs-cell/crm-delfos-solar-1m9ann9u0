@@ -27,7 +27,6 @@ const LazyModalEnviarRelatorioOSWhatsApp = React.lazy(
 const LazyModalEnviarRelatorioCliente = React.lazy(
   () => import('@/components/ModalEnviarRelatorioCliente'),
 )
-import { gerarPdfRelatorioConsolidadoMensal } from '@/lib/relatorioConsolidadoCampoPdf'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -201,6 +200,8 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
       description: `Compilando atividades e métricas de ${MESES[mesAtual]} de ${anoAtual}.`,
     })
     try {
+      const { gerarPdfRelatorioConsolidadoMensal } =
+        await import('@/lib/relatorioConsolidadoCampoPdf')
       const res = await gerarPdfRelatorioConsolidadoMensal(
         osConcluidasMes,
         MESES[mesAtual] || 'Mes',

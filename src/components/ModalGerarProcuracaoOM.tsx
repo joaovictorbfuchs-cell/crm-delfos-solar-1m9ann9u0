@@ -37,10 +37,9 @@ import {
   abrirProcuracaoImpressao,
 } from '@/lib/procuracaoGenerator'
 
-import {
-  BotaoBaixarProcuracaoPDF,
-  gerarProcuracaoPdfBlobBase64,
-} from '@/components/BotaoBaixarProcuracaoPDF'
+const LazyBotaoBaixarProcuracaoPDF = React.lazy(
+  () => import('@/components/BotaoBaixarProcuracaoPDF'),
+)
 
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
@@ -239,6 +238,7 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
     setIsSendingWhatsApp(true)
     try {
       // 1. Gera o PDF oficial em Base64 Data URI via @react-pdf/renderer (mesmo documento do botão "Baixar como PDF")
+      const { gerarProcuracaoPdfBlobBase64 } = await import('@/components/BotaoBaixarProcuracaoPDF')
       const { base64, fileName } = await gerarProcuracaoPdfBlobBase64(dadosConsolidados)
       if (!base64) {
         toast.error('Não foi possível gerar o PDF oficial da procuração para envio.')
@@ -554,10 +554,24 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                   <span>Imprimir</span>
                 </Button>
                 {/* BOTÃO OBRIGATÓRIO 1: BAIXAR COMO PDF */}
-                <BotaoBaixarProcuracaoPDF
-                  dados={dadosConsolidados}
-                  onClick={handleDownloadPDFClick}
-                />
+                <React.Suspense
+                  fallback={
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled
+                      className="bg-[#16A34A]/80 text-white text-xs font-bold gap-1.5 shadow-xs"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Baixar como PDF</span>
+                    </Button>
+                  }
+                >
+                  <LazyBotaoBaixarProcuracaoPDF
+                    dados={dadosConsolidados}
+                    onClick={handleDownloadPDFClick}
+                  />
+                </React.Suspense>
                 {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP (abre modal de conferência) */}
                 <Button
                   type="button"

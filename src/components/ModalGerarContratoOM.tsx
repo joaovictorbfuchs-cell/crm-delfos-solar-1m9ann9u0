@@ -48,10 +48,9 @@ import {
   baixarContratoPDF,
   abrirContratoImpressao,
 } from '@/lib/contratoGenerator'
-import {
-  BotaoBaixarContratoOMPDF,
-  gerarContratoOMPdfBlobBase64,
-} from '@/components/BotaoBaixarContratoOMPDF'
+const LazyBotaoBaixarContratoOMPDF = React.lazy(
+  () => import('@/components/BotaoBaixarContratoOMPDF'),
+)
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { sendWhatsAppDocumento, createAtividade } from '@/services/crmService'
@@ -385,6 +384,7 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     setIsSendingWhatsApp(true)
     try {
       // 1. Gera o PDF oficial em Base64 Data URI via @react-pdf/renderer (mesmo documento do botão "Baixar como PDF")
+      const { gerarContratoOMPdfBlobBase64 } = await import('@/components/BotaoBaixarContratoOMPDF')
       const { base64, fileName } = await gerarContratoOMPdfBlobBase64(dadosConsolidados)
       if (!base64) {
         toast.error('Não foi possível gerar o PDF oficial do contrato para envio.')
@@ -1085,10 +1085,24 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                 </Button>
 
                 {/* BOTÃO OBRIGATÓRIO 1: BAIXAR COMO PDF (@react-pdf/renderer com download contrato-om.pdf) */}
-                <BotaoBaixarContratoOMPDF
-                  dados={dadosConsolidados}
-                  onClick={handleDownloadPDFClick}
-                />
+                <React.Suspense
+                  fallback={
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled
+                      className="bg-[#16A34A]/80 text-white text-xs font-bold gap-1.5 shadow-xs"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Baixar como PDF</span>
+                    </Button>
+                  }
+                >
+                  <LazyBotaoBaixarContratoOMPDF
+                    dados={dadosConsolidados}
+                    onClick={handleDownloadPDFClick}
+                  />
+                </React.Suspense>
 
                 {/* BOTÃO OBRIGATÓRIO 2: ENVIAR PELO WHATSAPP (com conferência e envio Z-API do PDF oficial) */}
                 <Button

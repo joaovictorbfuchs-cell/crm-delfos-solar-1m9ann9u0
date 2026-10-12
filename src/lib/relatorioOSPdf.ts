@@ -1313,7 +1313,7 @@ export async function gerarPdfRelatorioOS(
     [
       import('@react-pdf/renderer'),
       import('@/components/RelatorioOSPDFDocument'),
-      import('@/components/BotaoBaixarProcuracaoPDF'),
+      import('@/lib/pdfBlobUtils'),
       import('react'),
     ],
   )

@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, Loader2 } from 'lucide-react'
 import type { DadosContratoOM } from '@/lib/contratoGenerator'
-import { blobParaDataUriBase64 } from '@/components/BotaoBaixarProcuracaoPDF'
+import { blobParaDataUriBase64 } from '@/lib/pdfBlobUtils'
 
 export interface BotaoBaixarContratoOMPDFProps {
   dados: DadosContratoOM

@@ -12,23 +12,7 @@ export interface BotaoBaixarProcuracaoPDFProps {
  * Converte um Blob de PDF gerado pelo @react-pdf/renderer em uma Data URI Base64.
  * Formato retornado: data:application/pdf;base64,...
  */
-export function blobParaDataUriBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const res = reader.result
-      if (typeof res === 'string') {
-        resolve(res)
-      } else {
-        reject(new Error('Falha ao converter Blob para string base64.'))
-      }
-    }
-    reader.onerror = () => {
-      reject(reader.error || new Error('Erro ao ler Blob do PDF.'))
-    }
-    reader.readAsDataURL(blob)
-  })
-}
+export { blobParaDataUriBase64 } from '@/lib/pdfBlobUtils'
 
 /**
  * Gera o PDF oficial da Procuração Particular como Data URI Base64 usando a API do @react-pdf/renderer
