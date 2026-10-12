@@ -1,9 +1,12 @@
 import React from 'react'
 import type { PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
+import type { PropostaTecnicoComercialDados } from '@/lib/propostaTecnicoComercialGenerator'
 import { logoOficialPngAsset } from '@/lib/propostaIlustracoesAssets'
 
+export type PropostaSecaoDados = PropostaSolarPDFInput | PropostaTecnicoComercialDados | any
+
 export interface PropostaSecaoHeaderProps {
-  propostaData: PropostaSolarPDFInput
+  propostaData: PropostaSecaoDados
   onEdit?: () => void
 }
 

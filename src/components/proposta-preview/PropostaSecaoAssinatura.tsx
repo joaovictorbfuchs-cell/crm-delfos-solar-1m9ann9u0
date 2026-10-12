@@ -1,9 +1,12 @@
 import React from 'react'
 import type { PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
+import type { PropostaTecnicoComercialDados } from '@/lib/propostaTecnicoComercialGenerator'
 import { FileSignature, ShieldCheck, CheckSquare } from 'lucide-react'
 
+export type PropostaSecaoDados = PropostaSolarPDFInput | PropostaTecnicoComercialDados | any
+
 export interface PropostaSecaoAssinaturaProps {
-  propostaData: PropostaSolarPDFInput
+  propostaData: PropostaSecaoDados
   onEdit?: () => void
 }
 
@@ -16,7 +19,7 @@ export const PropostaSecaoAssinatura: React.FC<PropostaSecaoAssinaturaProps> = (
   onEdit,
 }) => {
   const cliente = propostaData.cliente
-  const empresa = propostaData.empresa
+  const empresa = (propostaData as any)?.empresa
   const conteudo = propostaData.conteudo
 
   const nomeCliente = cliente?.nome || 'Cliente Selecionado'

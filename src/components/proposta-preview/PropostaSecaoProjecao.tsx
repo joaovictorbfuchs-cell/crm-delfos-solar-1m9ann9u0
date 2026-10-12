@@ -1,9 +1,12 @@
 import React from 'react'
 import type { PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
+import type { PropostaTecnicoComercialDados } from '@/lib/propostaTecnicoComercialGenerator'
 import { TrendingUp, Award, Calendar, AlertTriangle } from 'lucide-react'
 
+export type PropostaSecaoDados = PropostaSolarPDFInput | PropostaTecnicoComercialDados | any
+
 export interface PropostaSecaoProjecaoProps {
-  propostaData: PropostaSolarPDFInput
+  propostaData: PropostaSecaoDados
   onEdit?: () => void
 }
 

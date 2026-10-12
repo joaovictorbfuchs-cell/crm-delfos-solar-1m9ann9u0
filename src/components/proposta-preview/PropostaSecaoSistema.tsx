@@ -1,9 +1,12 @@
 import React from 'react'
 import type { PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
+import type { PropostaTecnicoComercialDados } from '@/lib/propostaTecnicoComercialGenerator'
 import { Zap, Sun, ShieldCheck, Box, Maximize2 } from 'lucide-react'
 
+export type PropostaSecaoDados = PropostaSolarPDFInput | PropostaTecnicoComercialDados | any
+
 export interface PropostaSecaoSistemaProps {
-  propostaData: PropostaSolarPDFInput
+  propostaData: PropostaSecaoDados
   onEdit?: () => void
 }
 
@@ -16,7 +19,7 @@ export const PropostaSecaoSistema: React.FC<PropostaSecaoSistemaProps> = ({
   onEdit,
 }) => {
   const sistema = propostaData.sistema
-  const producao = propostaData.producao
+  const producao = (propostaData as any)?.producao
   const conteudo = propostaData.conteudo
 
   const sistemaAny = sistema as any
