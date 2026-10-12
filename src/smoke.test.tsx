@@ -2221,4 +2221,96 @@ describe('Login e App Smoke Tests', () => {
     const nativoLimpezaAindaPresente = deduplicados.some((d) => d.id === 'limpeza')
     expect(nativoLimpezaAindaPresente).toBe(false)
   })
+
+  it('gerarHTMLPropostaSolar gera HTML consumível pelo preview e idêntico ao fluxo do botão Imprimir / Gerar PDF', async () => {
+    const { gerarHTMLPropostaSolar } = await import('@/lib/propostaSolarGenerator')
+    const sampleInput: any = {
+      cliente: {
+        nome: 'Cliente Teste Solar',
+        cpfOuCnpj: '00.000.000/0001-91',
+        endereco: 'Rua das Flores, 123',
+        municipio: 'Erechim / RS',
+        email: 'cliente@teste.com',
+        telefone: '(54) 99999-9999',
+        tipoCliente: 'residencial',
+      },
+      representanteComercial: 'Consultor Delfos',
+      sistema: {
+        potenciaKwp: 7.5,
+        consumoKwhMes: 600,
+        numeroPlacas: 14,
+        potenciaPlacaWp: 550,
+        marcaPlacas: 'Canadian Solar',
+        marcaInversor: 'Growatt',
+        quantidadeInversores: 1,
+        tipoEstrutura: 'Cerâmico',
+        orientacaoTelhado: 'Norte',
+        areaNecessariaM2: 32,
+        prazoEntregaDias: 30,
+        garantiaModulosAnos: 25,
+        garantiaModulosFabricacaoAnos: 12,
+        garantiaInversorAnos: 10,
+        garantiaInstalacaoTexto: '12 meses',
+      },
+      calculos: {
+        potenciaKwp: 7.5,
+        geracaoAnualEstimadaKwh: 10500,
+        geracaoMediaMensalKwh: 875,
+        economia1Mes: 800,
+        economia1Ano: 9600,
+        economia5Anos: 48000,
+        economia10Anos: 96000,
+        economia25Anos: 240000,
+        gastoSemSolar1Ano: 11000,
+        gastoSemSolar5Anos: 55000,
+        gastoSemSolar10Anos: 110000,
+        gastoSemSolar25Anos: 275000,
+        contaPrimeiroMesComSolar: 75,
+        contaSemSolar4AnosComReajuste: 1000,
+        contaSemSolar10AnosComReajuste: 1500,
+        paybackMeses: 36,
+        custoPorKwpInstalado: 3800,
+        valorFinalInvestimento: 28500,
+        fioBKwh: 0.28,
+        fatorSimultaneidade: 0.3,
+        gdEcoLiquidaKwh: 0.75,
+        parcelamentos: {
+          aVista: { valorTotal: 28500 },
+          cartao18x: { parcelas: 18, valorParcela: 1800, valorTotal: 32400 },
+          financiamentoBanco1: {
+            parcelas: 60,
+            valorParcela: 750,
+            valorTotal: 45000,
+            valorIof: 200,
+          },
+          financiamentoBanco2: {
+            parcelas: 72,
+            valorParcela: 680,
+            valorTotal: 48960,
+            valorIof: 250,
+          },
+        },
+      },
+      fotosInstalacoes: [],
+      dataEmissao: new Date().toISOString(),
+      validadeDias: 5,
+      observacoes: 'Instalação padrão',
+      ajusteSolergoAtivo: false,
+      layoutTelhadoHabilitado: false,
+      secoesHabilitadas: {
+        layoutTelhado: false,
+        fotosProjeto: true,
+        sazonalidadeSolar: true,
+        portfolioUsinas: true,
+      },
+    }
+
+    const html = gerarHTMLPropostaSolar(sampleInput)
+    expect(typeof html).toBe('string')
+    expect(html).toContain('<!DOCTYPE html>')
+    expect(html).toContain('Cliente Teste Solar')
+    expect(html).toContain('Canadian Solar')
+    expect(html).toContain('Growatt')
+    expect(html).toContain('proposta-secao-page')
+  })
 })
