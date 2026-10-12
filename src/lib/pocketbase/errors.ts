@@ -25,43 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-
-  // ClientResponseError do PocketBase
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-  }
-
-  // Objeto genérico / estruturado
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    const status =
-      errObj.status ??
-      errObj.statusCode ??
-      (errObj.response as Record<string, unknown> | undefined)?.status
-    if (status === 401 || status === 403) return true
-
-    const rawMsg =
-      errObj.message || (errObj.response as Record<string, unknown> | undefined)?.message
-    if (typeof rawMsg === 'string') {
-      const msg = rawMsg.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('token expired') ||
-        msg.includes('auth_required') ||
-        msg.includes('invalid token') ||
-        msg.includes('unauthorized') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('missing or invalid auth token')
-      ) {
-        return true
-      }
-    }
-  }
-
-  return false
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
