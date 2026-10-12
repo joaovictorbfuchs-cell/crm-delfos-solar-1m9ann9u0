@@ -1816,3 +1816,5 @@ export const CentralAtendimento: React.FC = () => {
     </div>
   )
 }
+
+export default CentralAtendimento

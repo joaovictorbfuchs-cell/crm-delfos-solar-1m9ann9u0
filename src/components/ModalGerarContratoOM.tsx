@@ -55,6 +55,7 @@ import { formatarCPF } from '@/lib/cpfValidator'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { sendWhatsAppDocumento, createAtividade } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
+import { blobParaDataUriBase64 } from '@/lib/pdfBlobUtils'
 import { toast } from 'sonner'
 import {
   resolverNumeroDestinoCliente,

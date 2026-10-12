@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, Loader2 } from 'lucide-react'
 import type { DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
+import { blobParaDataUriBase64 } from '@/lib/pdfBlobUtils'
 
 export interface BotaoBaixarProcuracaoPDFProps {
   dados: DadosProcuracaoOM
@@ -12,7 +13,7 @@ export interface BotaoBaixarProcuracaoPDFProps {
  * Converte um Blob de PDF gerado pelo @react-pdf/renderer em uma Data URI Base64.
  * Formato retornado: data:application/pdf;base64,...
  */
-export { blobParaDataUriBase64 } from '@/lib/pdfBlobUtils'
+export { blobParaDataUriBase64 }
 
 /**
  * Gera o PDF oficial da Procuração Particular como Data URI Base64 usando a API do @react-pdf/renderer
@@ -111,3 +112,5 @@ export const BotaoBaixarProcuracaoPDF: React.FC<BotaoBaixarProcuracaoPDFProps> =
     </Suspense>
   )
 }
+
+export default BotaoBaixarProcuracaoPDF

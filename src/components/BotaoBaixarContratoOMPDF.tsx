@@ -9,6 +9,8 @@ export interface BotaoBaixarContratoOMPDFProps {
   onClick?: () => void
 }
 
+export { blobParaDataUriBase64 }
+
 /**
  * Gera o PDF oficial do Contrato O&M como Data URI Base64 usando a API do @react-pdf/renderer
  * (pdf(<Document/>).toBlob()), reutilizando o mesmo documento ContratoOMPDFDocument.
@@ -111,3 +113,5 @@ export const BotaoBaixarContratoOMPDF: React.FC<BotaoBaixarContratoOMPDFProps> =
     </Suspense>
   )
 }
+
+export default BotaoBaixarContratoOMPDF
