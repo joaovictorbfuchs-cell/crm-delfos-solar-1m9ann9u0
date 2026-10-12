@@ -670,12 +670,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
                       </div>
                     )}
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    Cadastrar um <strong>novo lead</strong> criará o registro de cliente e a
-                    oportunidade vinculada diretamente na coluna "1 - Novo Lead".
-                  </p>
-                )}
+                ) : null}
               </div>
 
               {/* Card 2: Importação de Fatura de Energia */}
@@ -713,15 +708,6 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
                       Preenchimento com IA do documento
                     </span>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => setModalImportarContaOpen(true)}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer ml-auto"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    {dadosFaturaArmazenados ? 'Revisar fatura' : 'Importar dados da conta'}
-                  </button>
                 </div>
               </div>
             </div>
