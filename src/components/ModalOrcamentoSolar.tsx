@@ -3712,9 +3712,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800">
                         Proposta Técnico-Comercial da Delfos Solar
                       </h3>
-                      <p className="text-[11px] text-gray-500">
-                        Pronta para emissão em PDF no padrão técnico com ART, portfólio e tabelas
-                      </p>
                     </div>
                   </div>
 
@@ -3782,9 +3779,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       <MessageCircle className="w-3.5 h-3.5" />
                       <span>Enviar por WhatsApp</span>
                     </button>
-                    <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                      Validade: 5 dias
-                    </span>
                   </div>
                 </div>
 
@@ -3805,9 +3799,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full self-start sm:self-auto">
-                      Atualização em tempo real
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">

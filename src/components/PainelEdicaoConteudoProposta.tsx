@@ -519,14 +519,7 @@ export const PainelEdicaoConteudoProposta: React.FC<PainelEdicaoConteudoProposta
               <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
                 Personalização do Conteúdo da Proposta
               </h4>
-              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.2 rounded-full">
-                100% Editável
-              </span>
             </div>
-            <p className="text-[11px] text-gray-500">
-              Edite textos, títulos, avisos, checklists e selecione cores para cada seção da
-              proposta. As alterações refletem imediatamente no preview abaixo.
-            </p>
           </div>
         </div>
 

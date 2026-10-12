@@ -998,21 +998,6 @@ export const Orcamentos: React.FC = () => {
             )}
 
             {/* Linha 3: Contador de Resultados e Status da Ordenação */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-black text-gray-900 text-sm">
-                  {orcamentosFiltrados.length === 1
-                    ? '1 proposta encontrada'
-                    : `${orcamentosFiltrados.length} propostas encontradas`}
-                </span>
-                <span className="text-gray-400">•</span>
-                <span className="text-gray-500 font-medium">
-                  Total da base: {orcamentosSolar.length}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-[11px] text-gray-500"></div>
-            </div>
           </div>
 
           {/* Lista / Tabela de Propostas (Modo Lista Exclusivo) */}
