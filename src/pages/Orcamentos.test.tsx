@@ -33,11 +33,47 @@ const mockOrcamentos = [
   },
 ]
 
+const mockPropostasOM = [
+  {
+    id: 'prop-om-1',
+    cliente_id: 'cli-om-1',
+    autor: 'Equipe Comercial Delfos Solar',
+    potencia_kwp: 12.5,
+    numero_modulos: 24,
+    valor_kwh: 0.92,
+    distancia_km: 15,
+    valor_km: 2.5,
+    valor_por_placa: 9,
+    valor_ativo_protegido: 58000,
+    geracao_mensal_kwh: 1400,
+    valor_plano_essencial: 76.67,
+    valor_plano_inspecao: 426.67,
+    valor_plano_completo: 776.67,
+    plano_escolhido: 'Inspeção',
+    status: 'Proposta Enviada',
+    data_proposta: '2026-10-01T10:00:00Z',
+    created: '2026-10-01T10:00:00Z',
+    expand: {
+      cliente_id: {
+        id: 'cli-om-1',
+        nome: 'Indústria Metalúrgica Sul',
+        cidade: 'Barão de Cotegipe',
+      },
+    },
+  },
+]
+
 vi.mock('@/contexts/ClientesContext', () => ({
   useClientes: () => ({
     isSessionExpired: false,
     authError: null,
     orcamentosSolar: mockOrcamentos,
+    propostasOM: mockPropostasOM,
+    sistemas: [],
+    contratosOM: [],
+    anomaliasOM: [],
+    servicosAdicionaisOM: [],
+    servicosAvulsos: [],
     clientes: [
       {
         id: 'cli-1',
@@ -45,11 +81,18 @@ vi.mock('@/contexts/ClientesContext', () => ({
         cidade: 'Erechim',
         tipo_cliente: 'Rural',
       },
+      {
+        id: 'cli-om-1',
+        nome: 'Indústria Metalúrgica Sul',
+        cidade: 'Barão de Cotegipe',
+      },
     ],
     usuarios: [{ id: 'usr-1', name: 'João Victor', email: 'jv@delfos.com.br' }],
     updateOrcamentoSolar: vi.fn(),
     removeOrcamentoSolar: vi.fn(),
+    removePropostaOM: vi.fn(),
     openFichaCliente: vi.fn(),
+    openFichaOM: vi.fn(),
     isLoading: false,
     error: null,
     refreshData: vi.fn(),
@@ -145,5 +188,72 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
     // Modal deve ser exibido com cabeçalho de envio
     expect(screen.getByText('Enviar Proposta por WhatsApp')).toBeDefined()
     expect(screen.getByText('Fazenda Santa Rita')).toBeDefined()
+  })
+
+  it('exibe o Hub de Propostas com abas: Energia Solar, O&M, Baterias (Em breve) e Carregadores Veiculares (Em breve)', () => {
+    render(
+      <MemoryRouter initialEntries={['/propostas']}>
+        <Orcamentos />
+      </MemoryRouter>,
+    )
+
+    // Título do Hub
+    expect(screen.getByRole('heading', { name: 'Propostas' })).toBeDefined()
+    expect(screen.getByText('Hub Unificado')).toBeDefined()
+
+    // Abas visíveis
+    expect(screen.getByRole('button', { name: /Energia Solar/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /O&M/i })).toBeDefined()
+    expect(screen.getByText('Baterias')).toBeDefined()
+    expect(screen.getByText('Carregadores Veiculares')).toBeDefined()
+
+    // Badges 'Em breve' nas abas desabilitadas
+    const badgesEmBreve = screen.getAllByText('Em breve')
+    expect(badgesEmBreve.length).toBe(2)
+  })
+
+  it('abre na aba O&M quando acessado via ?aba=om e exibe lista isolada de O&M sem misturar com solar', () => {
+    render(
+      <MemoryRouter initialEntries={['/propostas?aba=om']}>
+        <Orcamentos />
+      </MemoryRouter>,
+    )
+
+    // Na aba O&M, deve exibir o botão de Nova Proposta O&M e o cliente da proposta O&M
+    expect(screen.getByRole('button', { name: /Nova Proposta O&M/i })).toBeDefined()
+    expect(screen.getByText('Indústria Metalúrgica Sul')).toBeDefined()
+    expect(screen.getByText('Módulo O&M Delfos Solar')).toBeDefined()
+
+    // O cliente solar NÃO deve ser renderizado na lista O&M
+    expect(screen.queryByText('Fazenda Santa Rita')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Nova Proposta Solar/i })).toBeNull()
+  })
+
+  it('permite alternar entre as abas Energia Solar e O&M pelo clique', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    render(
+      <MemoryRouter initialEntries={['/propostas']}>
+        <Orcamentos />
+      </MemoryRouter>,
+    )
+
+    // Inicialmente na aba solar
+    expect(screen.getByText('Fazenda Santa Rita')).toBeDefined()
+
+    // Clica na aba O&M
+    const abaOM = screen.getByRole('button', { name: /O&M/i })
+    fireEvent.click(abaOM)
+
+    // Agora está na aba O&M
+    expect(screen.getByText('Indústria Metalúrgica Sul')).toBeDefined()
+    expect(screen.queryByText('Fazenda Santa Rita')).toBeNull()
+
+    // Clica de volta na aba Solar
+    const abaSolar = screen.getByRole('button', { name: /Energia Solar/i })
+    fireEvent.click(abaSolar)
+
+    // De volta na aba Solar
+    expect(screen.getByText('Fazenda Santa Rita')).toBeDefined()
+    expect(screen.queryByText('Indústria Metalúrgica Sul')).toBeNull()
   })
 })

@@ -91,7 +91,7 @@ export default function Layout() {
         return 'Funil Comercial'
       case '/orcamentos':
       case '/propostas':
-        return 'Propostas & Orçamentos Solares'
+        return 'Propostas'
       case '/projetos':
         return 'Projetos & Pós-Venda'
       case '/central-atividades':

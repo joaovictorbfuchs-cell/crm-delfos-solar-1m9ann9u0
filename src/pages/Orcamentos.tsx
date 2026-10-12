@@ -3,6 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Sun,
   Plus,
+  Battery,
+  Zap,
+  FileCheck,
   Search,
   Filter,
   RefreshCw,
@@ -31,6 +34,7 @@ import { gerarHTMLPropostaSolar } from '@/lib/propostaSolarGenerator'
 import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { AbaPropostasOM } from '@/components/AbaPropostasOM'
 import type { OrcamentoSolar, OrcamentoSolarStatus, Cliente } from '@/types/crm'
 
 export const Orcamentos: React.FC = () => {
@@ -165,6 +169,26 @@ export const Orcamentos: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [editingOrcamento, setEditingOrcamento] = useState<OrcamentoSolar | null>(null)
   const [clienteParaNovoOrcamento, setClienteParaNovoOrcamento] = useState<string>('')
+
+  // Aba do Hub de Propostas: 'solar' | 'om' | 'baterias' | 'carregadores'
+  // Sincronizada com o query param ?aba=om, ?aba=solar, etc.
+  const abaParam = searchParams.get('aba')
+  const abaAtivaHub = useMemo<'solar' | 'om'>(() => {
+    if (abaParam === 'om') return 'om'
+    return 'solar'
+  }, [abaParam])
+
+  const handleMudarAbaHub = (novaAba: 'solar' | 'om') => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (novaAba === 'om') {
+        next.set('aba', 'om')
+      } else {
+        next.delete('aba')
+      }
+      return next
+    })
+  }
 
   // Suporte a abrir proposta via query param (?propostaId=... ou ?clienteId=...)
   useEffect(() => {
@@ -470,747 +494,842 @@ export const Orcamentos: React.FC = () => {
 
   return (
     <div className="space-y-5 w-full">
-      {/* Header da Página */}
+      {/* Header Unificado do Hub de Propostas */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center shadow-xs">
-              <Sun className="w-5 h-5 text-white" />
+              {abaAtivaHub === 'solar' ? (
+                <Sun className="w-5 h-5 text-white" />
+              ) : (
+                <FileCheck className="w-5 h-5 text-white" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                  Propostas &amp; Orçamentos
+                  Propostas
                 </h1>
+                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Hub Unificado
+                </span>
               </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Central unificada de geração e acompanhamento de propostas comerciais
+              </p>
             </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isRefreshing || isLoading}
-            className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
-            title="Atualizar dados"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-
-          <button
-            onClick={() => handleNovoOrcamento()}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nova Proposta Solar</span>
-          </button>
         </div>
       </div>
-      {/* Alerta de Sessão Expirada exibido no topo quando o token expira */}
-      {isSessionExpired && (
-        <SessaoExpiradaAlert
-          mensagem={
-            authError ||
-            'Por motivos de segurança, sua sessão foi encerrada após um período de inatividade ou o token de acesso tornou-se inválido. Por favor, faça login novamente para continuar.'
-          }
-        />
-      )}
 
-      {/* Banner de erro quando houver falha ao carregar dados do CRM (oculto se sessão expirada) */}
-      {!isSessionExpired && error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
-          <div className="flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Erro ao carregar propostas e dados do CRM</p>
-              <p className="text-red-700 mt-0.5">{error}</p>
+      {/* Navegador de Abas por Produto (Design System Verde Solar) */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-1.5 flex items-center gap-1.5 overflow-x-auto select-none">
+        {/* Aba 1: Energia Solar (Ativa por padrão) */}
+        <button
+          type="button"
+          onClick={() => handleMudarAbaHub('solar')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            abaAtivaHub === 'solar'
+              ? 'bg-[#16A34A] text-white shadow-sm'
+              : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
+          }`}
+        >
+          <Sun className="w-4 h-4" />
+          <span>Energia Solar</span>
+          <span
+            className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+              abaAtivaHub === 'solar' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {orcamentosSolar.length}
+          </span>
+        </button>
+
+        {/* Aba 2: O&M (Ativa) */}
+        <button
+          type="button"
+          onClick={() => handleMudarAbaHub('om')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            abaAtivaHub === 'om'
+              ? 'bg-[#16A34A] text-white shadow-sm'
+              : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
+          }`}
+        >
+          <FileCheck className="w-4 h-4" />
+          <span>O&amp;M</span>
+          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+            Operação &amp; Manutenção
+          </span>
+        </button>
+
+        {/* Aba 3: Baterias (Desabilitada / Em breve) */}
+        <div
+          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
+          title="Módulo de Baterias em desenvolvimento"
+          aria-disabled="true"
+        >
+          <Battery className="w-4 h-4 text-gray-400" />
+          <span>Baterias</span>
+          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+            Em breve
+          </span>
+        </div>
+
+        {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
+        <div
+          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
+          title="Módulo de Carregadores Veiculares em desenvolvimento"
+          aria-disabled="true"
+        >
+          <Zap className="w-4 h-4 text-gray-400" />
+          <span>Carregadores Veiculares</span>
+          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+            Em breve
+          </span>
+        </div>
+      </div>
+
+      {/* Conteúdo Dinâmico por Aba */}
+      {abaAtivaHub === 'om' ? (
+        <AbaPropostasOM />
+      ) : (
+        <div className="space-y-5 w-full">
+          {/* Barra de Ações Rápidas Energia Solar */}
+          <div className="flex items-center justify-between gap-3 flex-wrap bg-white p-3.5 rounded-2xl border border-gray-200 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-800">
+                Propostas &amp; Orçamentos de Energia Solar Fotovoltaica
+              </span>
+              <span className="text-[11px] text-gray-400 hidden sm:inline">
+                • Lista com histórico de revisões, fornecedores e 4 formatos de saída
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isRefreshing || isLoading}
+                className="h-9 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
+                title="Atualizar dados de Energia Solar"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+
+              <button
+                onClick={() => handleNovoOrcamento()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nova Proposta Solar</span>
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shrink-0 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Recarregar dados</span>
-          </button>
-        </div>
-      )}
-
-      {/* Alerta defensivo quando a lista de orçamentos estiver vazia */}
-      {!isSessionExpired && !isLoading && !error && orcamentosSolar.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
-          <div>
-            <p className="font-bold">Nenhum orçamento solar carregado na tela.</p>
-            <p className="text-amber-700">
-              Se você já possui orçamentos cadastrados no sistema, clique no botão para recarregar
-              os dados.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Recarregar dados</span>
-          </button>
-        </div>
-      )}
-
-      {/* Barra de Filtros Avançados e Busca Rápida */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 sm:p-5 space-y-4">
-        {/* Linha 1: Busca rápida, Alternância de Ordem, Botão do Painel e Contadores */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Busca rápida */}
-          <div className="relative flex-1 max-w-xl">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={buscaRapida}
-              onChange={(e) => setBuscaRapida(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleAplicarFiltros()
-                }
-              }}
-              placeholder="Busca rápida: cliente, número da proposta (#1, ID) ou cidade..."
-              className="w-full text-xs pl-9 pr-8 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+          {/* Alerta de Sessão Expirada exibido no topo quando o token expira */}
+          {isSessionExpired && (
+            <SessaoExpiradaAlert
+              mensagem={
+                authError ||
+                'Por motivos de segurança, sua sessão foi encerrada após um período de inatividade ou o token de acesso tornou-se inválido. Por favor, faça login novamente para continuar.'
+              }
             />
-            {buscaRapida && (
+          )}
+
+          {/* Banner de erro quando houver falha ao carregar dados do CRM (oculto se sessão expirada) */}
+          {!isSessionExpired && error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Erro ao carregar propostas e dados do CRM</p>
+                  <p className="text-red-700 mt-0.5">{error}</p>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  setBuscaRapida('')
-                  setFiltrosAtivos((prev) => ({ ...prev, busca: '' }))
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
-                title="Limpar busca rápida"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shrink-0 transition-colors"
               >
-                <X className="w-3.5 h-3.5" />
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>Recarregar dados</span>
               </button>
-            )}
-          </div>
-
-          {/* Controles de Ordenação e Ações Rápidas */}
-          <div className="flex items-center gap-2 flex-wrap justify-between md:justify-end">
-            {/* Botão de alternar ordem crescente/decrescente */}
-            <button
-              type="button"
-              onClick={handleToggleOrdem}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-emerald-50/50 border border-gray-200 hover:border-emerald-300 text-gray-700 text-xs font-bold rounded-xl shadow-2xs transition-all"
-              title={`Alternar para ordem ${ordemDirecao === 'desc' ? 'crescente (mais antigas primeiro)' : 'decrescente (mais recentes primeiro)'}`}
-            >
-              {ordemDirecao === 'desc' ? (
-                <>
-                  <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Mais recentes primeiro</span>
-                </>
-              ) : (
-                <>
-                  <ArrowUp className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Mais antigas primeiro</span>
-                </>
-              )}
-            </button>
-
-            {/* Alternar visibilidade do painel de filtros avançados */}
-            <button
-              type="button"
-              onClick={() => setPainelFiltrosAberto((prev) => !prev)}
-              aria-expanded={painelFiltrosAberto}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
-                painelFiltrosAberto
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs ring-2 ring-emerald-500/20'
-                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-2xs'
-              }`}
-              title={painelFiltrosAberto ? 'Recolher filtros' : 'Expandir filtros'}
-            >
-              <Filter className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Filtros</span>
-              {totalFiltrosAtivos > 0 && (
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">
-                  {totalFiltrosAtivos}
-                </span>
-              )}
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${
-                  painelFiltrosAberto ? 'rotate-180 text-emerald-700' : ''
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Linha 2: Grade de Filtros Avançados (Campos Solicitados) */}
-        {painelFiltrosAberto && (
-          <form
-            onSubmit={handleAplicarFiltros}
-            className="pt-3 border-t border-gray-100 space-y-3.5 animate-in fade-in duration-200"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-              {/* 1. Potência do Sistema (kWp) */}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Potência (kWp)
-                </label>
-                <select
-                  value={formFaixaPotencia}
-                  onChange={(e) => setFormFaixaPotencia(e.target.value)}
-                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="todos">Todas as potências</option>
-                  <option value="ate-5">Até 5 kWp</option>
-                  <option value="5-10">5 a 10 kWp</option>
-                  <option value="10-20">10 a 20 kWp</option>
-                  <option value="20-50">20 a 50 kWp</option>
-                  <option value="acima-50">Acima de 50 kWp</option>
-                </select>
-              </div>
-
-              {/* 2. Status: Em Negociação, Aprovada, Recusada, Expirada, Arquivada */}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Status
-                </label>
-                <select
-                  value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value)}
-                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="todos">Todos os status</option>
-                  <option value="Em Negociação">Em Negociação</option>
-                  <option value="Aprovada">Aprovada</option>
-                  <option value="Recusada">Recusada</option>
-                  <option value="Expirada">Expirada</option>
-                  <option value="Arquivada">Arquivada</option>
-                </select>
-              </div>
-
-              {/* 3. Consultor: dropdown com os consultores cadastrados */}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Consultor
-                </label>
-                <select
-                  value={formConsultor}
-                  onChange={(e) => setFormConsultor(e.target.value)}
-                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="todos">Todos os consultores</option>
-                  {listaConsultores.map((cons) => (
-                    <option key={cons} value={cons}>
-                      {cons}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 4. Período: seletor de data inicial e data final */}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Período (De)
-                </label>
-                <input
-                  type="date"
-                  value={formDataInicio}
-                  onChange={(e) => setFormDataInicio(e.target.value)}
-                  className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Período (Até)
-                </label>
-                <input
-                  type="date"
-                  value={formDataFim}
-                  onChange={(e) => setFormDataFim(e.target.value)}
-                  className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                />
-              </div>
-
-              {/* 5. Faixa de valor: campo "de" e "até" */}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Faixa de Valor (R$)
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    placeholder="De (mín)"
-                    value={formValorDe}
-                    onChange={(e) => setFormValorDe(e.target.value)}
-                    className="w-full text-xs py-1.5 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    placeholder="Até (máx)"
-                    value={formValorAte}
-                    onChange={(e) => setFormValorAte(e.target.value)}
-                    className="w-full text-xs py-1.5 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* 6. Tipo de cliente & 7. Status de fechamento */}
-              <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-2 xl:col-span-1">
-                <div>
-                  <label
-                    className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1 truncate"
-                    title="Tipo de Cliente"
-                  >
-                    Tipo
-                  </label>
-                  <select
-                    value={formTipoCliente}
-                    onChange={(e) => setFormTipoCliente(e.target.value)}
-                    className="w-full text-xs py-2 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                  >
-                    <option value="todos">Todos</option>
-                    <option value="residencial">Residencial</option>
-                    <option value="comercial">Comercial</option>
-                    <option value="industrial">Industrial</option>
-                    <option value="rural">Rural</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1 truncate"
-                    title="Status Fechamento"
-                  >
-                    Fechamento
-                  </label>
-                  <select
-                    value={formStatusFechamento}
-                    onChange={(e) => setFormStatusFechamento(e.target.value)}
-                    className="w-full text-xs py-2 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                  >
-                    <option value="todos">Todos</option>
-                    <option value="Pendente">Pendente</option>
-                    <option value="Ganho">Ganho</option>
-                    <option value="Perdido">Perdido</option>
-                  </select>
-                </div>
-              </div>
             </div>
+          )}
 
-            {/* Botões de Ação dos Filtros: Aplicar e Limpar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  <span>Aplicar filtros</span>
-                </button>
+          {/* Alerta defensivo quando a lista de orçamentos estiver vazia */}
+          {!isSessionExpired && !isLoading && !error && orcamentosSolar.length === 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
+              <div>
+                <p className="font-bold">Nenhum orçamento solar carregado na tela.</p>
+                <p className="text-amber-700">
+                  Se você já possui orçamentos cadastrados no sistema, clique no botão para
+                  recarregar os dados.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>Recarregar dados</span>
+              </button>
+            </div>
+          )}
 
+          {/* Barra de Filtros Avançados e Busca Rápida */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 sm:p-5 space-y-4">
+            {/* Linha 1: Busca rápida, Alternância de Ordem, Botão do Painel e Contadores */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              {/* Busca rápida */}
+              <div className="relative flex-1 max-w-xl">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={buscaRapida}
+                  onChange={(e) => setBuscaRapida(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAplicarFiltros()
+                    }
+                  }}
+                  placeholder="Busca rápida: cliente, número da proposta (#1, ID) ou cidade..."
+                  className="w-full text-xs pl-9 pr-8 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                {buscaRapida && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBuscaRapida('')
+                      setFiltrosAtivos((prev) => ({ ...prev, busca: '' }))
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                    title="Limpar busca rápida"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Controles de Ordenação e Ações Rápidas */}
+              <div className="flex items-center gap-2 flex-wrap justify-between md:justify-end">
+                {/* Botão de alternar ordem crescente/decrescente */}
                 <button
                   type="button"
-                  onClick={handleLimparFiltros}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors"
+                  onClick={handleToggleOrdem}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-emerald-50/50 border border-gray-200 hover:border-emerald-300 text-gray-700 text-xs font-bold rounded-xl shadow-2xs transition-all"
+                  title={`Alternar para ordem ${ordemDirecao === 'desc' ? 'crescente (mais antigas primeiro)' : 'decrescente (mais recentes primeiro)'}`}
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
-                  <span>Limpar filtros</span>
+                  {ordemDirecao === 'desc' ? (
+                    <>
+                      <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Mais recentes primeiro</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUp className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Mais antigas primeiro</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Alternar visibilidade do painel de filtros avançados */}
+                <button
+                  type="button"
+                  onClick={() => setPainelFiltrosAberto((prev) => !prev)}
+                  aria-expanded={painelFiltrosAberto}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    painelFiltrosAberto
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs ring-2 ring-emerald-500/20'
+                      : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-2xs'
+                  }`}
+                  title={painelFiltrosAberto ? 'Recolher filtros' : 'Expandir filtros'}
+                >
+                  <Filter className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Filtros</span>
+                  {totalFiltrosAtivos > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">
+                      {totalFiltrosAtivos}
+                    </span>
+                  )}
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${
+                      painelFiltrosAberto ? 'rotate-180 text-emerald-700' : ''
+                    }`}
+                  />
                 </button>
               </div>
-
-              {/* Tags de filtros ativos */}
-              {totalFiltrosAtivos > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500">
-                  <span className="font-semibold text-gray-700">Filtros ativos:</span>
-                  {filtrosAtivos.busca && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Busca: "{filtrosAtivos.busca}"
-                    </span>
-                  )}
-                  {filtrosAtivos.faixaPotencia !== 'todos' && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Potência: {filtrosAtivos.faixaPotencia === 'ate-5' && 'Até 5 kWp'}
-                      {filtrosAtivos.faixaPotencia === '5-10' && '5 a 10 kWp'}
-                      {filtrosAtivos.faixaPotencia === '10-20' && '10 a 20 kWp'}
-                      {filtrosAtivos.faixaPotencia === '20-50' && '20 a 50 kWp'}
-                      {filtrosAtivos.faixaPotencia === 'acima-50' && '> 50 kWp'}
-                    </span>
-                  )}
-                  {filtrosAtivos.status !== 'todos' && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Status: {filtrosAtivos.status}
-                    </span>
-                  )}
-                  {filtrosAtivos.consultor !== 'todos' && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Consultor: {filtrosAtivos.consultor.split(' ')[0]}
-                    </span>
-                  )}
-                  {(filtrosAtivos.dataInicio || filtrosAtivos.dataFim) && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Período
-                    </span>
-                  )}
-                  {(filtrosAtivos.valorDe || filtrosAtivos.valorAte) && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Valor
-                    </span>
-                  )}
-                  {filtrosAtivos.tipoCliente !== 'todos' && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 capitalize">
-                      {filtrosAtivos.tipoCliente}
-                    </span>
-                  )}
-                  {filtrosAtivos.statusFechamento !== 'todos' && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Fechamento: {filtrosAtivos.statusFechamento}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
-          </form>
-        )}
 
-        {/* Linha 3: Contador de Resultados e Status da Ordenação */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-gray-900 text-sm">
-              {orcamentosFiltrados.length === 1
-                ? '1 proposta encontrada'
-                : `${orcamentosFiltrados.length} propostas encontradas`}
-            </span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-500 font-medium">
-              Total da base: {orcamentosSolar.length}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-[11px] text-gray-500"></div>
-        </div>
-      </div>
-
-      {/* Lista / Tabela de Propostas (Modo Lista Exclusivo) */}
-      {isSessionExpired ? null : error &&
-        orcamentosSolar.length === 0 ? null : orcamentosFiltrados.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
-          <Sun className="w-12 h-12 text-emerald-400 mx-auto mb-3 stroke-[1.5]" />
-          <h3 className="text-base font-bold text-gray-800">Nenhuma proposta encontrada</h3>
-          <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 mb-4">
-            {totalFiltrosAtivos > 0
-              ? 'Nenhum resultado corresponde aos filtros selecionados. Tente ajustar os parâmetros ou limpar os filtros.'
-              : 'Gere sua primeira proposta técnica de energia solar fotovoltaica para os clientes.'}
-          </p>
-          <div className="flex items-center justify-center gap-2 flex-wrap">
-            {totalFiltrosAtivos > 0 && (
-              <button
-                type="button"
-                onClick={handleLimparFiltros}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl transition-colors"
+            {/* Linha 2: Grade de Filtros Avançados (Campos Solicitados) */}
+            {painelFiltrosAberto && (
+              <form
+                onSubmit={handleAplicarFiltros}
+                className="pt-3 border-t border-gray-100 space-y-3.5 animate-in fade-in duration-200"
               >
-                <RotateCcw className="w-4 h-4 text-emerald-600" />
-                <span>Limpar filtros</span>
-              </button>
-            )}
-            <button
-              onClick={() => handleNovoOrcamento()}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D] transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Criar Nova Proposta</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* VISUALIZAÇÃO EM TABELA COM FOTO E CONSULTOR */
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden w-full">
-          <div className="overflow-x-auto">
-            <TooltipProvider delayDuration={150}>
-              <table className="w-full text-left text-xs">
-                <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Cliente & Cidade</th>
-                    <th className="py-3 px-3 whitespace-nowrap">Consultor</th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">Potência</th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">Investimento</th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">Geração Média</th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">Payback</th>
-                    <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
-                    <th className="py-3 px-3 text-center whitespace-nowrap">Data</th>
-                    <th className="py-3 px-4 text-right whitespace-nowrap">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {orcamentosFiltrados.map((orc) => {
-                    const cliente =
-                      orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
-                    const nomeCliente = cliente?.nome || 'Cliente não identificado'
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+                  {/* 1. Potência do Sistema (kWp) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                      Potência (kWp)
+                    </label>
+                    <select
+                      value={formFaixaPotencia}
+                      onChange={(e) => setFormFaixaPotencia(e.target.value)}
+                      className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                    >
+                      <option value="todos">Todas as potências</option>
+                      <option value="ate-5">Até 5 kWp</option>
+                      <option value="5-10">5 a 10 kWp</option>
+                      <option value="10-20">10 a 20 kWp</option>
+                      <option value="20-50">20 a 50 kWp</option>
+                      <option value="acima-50">Acima de 50 kWp</option>
+                    </select>
+                  </div>
 
-                    // Formatação de Potência em 1 linha só: "30,80 kWp · 56 placas (550W)"
-                    const kwpNum = Number(orc.potencia_kwp)
-                    const kwpStr =
-                      Number.isFinite(kwpNum) && kwpNum > 0
-                        ? `${kwpNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp`
-                        : ''
-                    const placasNum = Number(orc.numero_placas)
-                    const potenciaWpNum = Number(orc.potencia_placa_wp)
-                    const placasWpDetalhes = (() => {
-                      if (Number.isFinite(placasNum) && placasNum > 0) {
-                        const wpPart =
-                          Number.isFinite(potenciaWpNum) && potenciaWpNum > 0
-                            ? ` (${potenciaWpNum}W)`
-                            : ''
-                        return `${placasNum} placas${wpPart}`
-                      }
-                      if (Number.isFinite(potenciaWpNum) && potenciaWpNum > 0) {
-                        return `${potenciaWpNum}W`
-                      }
-                      return ''
-                    })()
-                    const potenciaLinhaUnica =
-                      [kwpStr, placasWpDetalhes].filter(Boolean).join(' · ') || '—'
+                  {/* 2. Status: Em Negociação, Aprovada, Recusada, Expirada, Arquivada */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={formStatus}
+                      onChange={(e) => setFormStatus(e.target.value)}
+                      className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                    >
+                      <option value="todos">Todos os status</option>
+                      <option value="Em Negociação">Em Negociação</option>
+                      <option value="Aprovada">Aprovada</option>
+                      <option value="Recusada">Recusada</option>
+                      <option value="Expirada">Expirada</option>
+                      <option value="Arquivada">Arquivada</option>
+                    </select>
+                  </div>
 
-                    // Investimento
-                    const valInvestimento = Number(orc.valor_investimento)
-                    const custoKwp = Number(orc.custo_por_kwp)
+                  {/* 3. Consultor: dropdown com os consultores cadastrados */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                      Consultor
+                    </label>
+                    <select
+                      value={formConsultor}
+                      onChange={(e) => setFormConsultor(e.target.value)}
+                      className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                    >
+                      <option value="todos">Todos os consultores</option>
+                      {listaConsultores.map((cons) => (
+                        <option key={cons} value={cons}>
+                          {cons}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                    // Geração em no máximo 2 linhas:
-                    // Linha 1: "2.827 kWh/mês"
-                    // Linha 2 (menor/abaixo): "Eco: R$ 3.128,59/mês"
-                    const geracaoNum = Number(orc.geracao_mensal_kwh)
-                    const ecoNum = Number(orc.economia_1_mes)
+                  {/* 4. Período: seletor de data inicial e data final */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                      Período (De)
+                    </label>
+                    <input
+                      type="date"
+                      value={formDataInicio}
+                      onChange={(e) => setFormDataInicio(e.target.value)}
+                      className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                    />
+                  </div>
 
-                    // Payback em uma linha: "20 meses"
-                    const paybackNum = Number(orc.payback_meses)
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                      Período (Até)
+                    </label>
+                    <input
+                      type="date"
+                      value={formDataFim}
+                      onChange={(e) => setFormDataFim(e.target.value)}
+                      className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                    />
+                  </div>
 
-                    return (
-                      <tr
-                        key={orc.id}
-                        onClick={() => handleEditarOrcamento(orc)}
-                        className="hover:bg-emerald-50/30 cursor-pointer transition-colors group"
+                  {/* 5. Faixa de valor: campo "de" e "até" */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                      Faixa de Valor (R$)
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1000"
+                        placeholder="De (mín)"
+                        value={formValorDe}
+                        onChange={(e) => setFormValorDe(e.target.value)}
+                        className="w-full text-xs py-1.5 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="1000"
+                        placeholder="Até (máx)"
+                        value={formValorAte}
+                        onChange={(e) => setFormValorAte(e.target.value)}
+                        className="w-full text-xs py-1.5 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 6. Tipo de cliente & 7. Status de fechamento */}
+                  <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-2 xl:col-span-1">
+                    <div>
+                      <label
+                        className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1 truncate"
+                        title="Tipo de Cliente"
                       >
-                        {/* Cliente & Cidade (coluna de texto ganha largura livre restante) */}
-                        <td className="py-3 px-4 min-w-[200px]">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                              {nomeCliente}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
-                              Rev. {orc.numero_revisao || 1}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 flex-wrap">
-                            <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                            <span>{cliente?.cidade || '—'}</span>
-                            <span className="text-gray-300">•</span>
-                            <span className="capitalize">
-                              {orc.tipo_cliente || cliente?.tipo_cliente || 'Residencial'}
-                            </span>
-                          </div>
-                        </td>
+                        Tipo
+                      </label>
+                      <select
+                        value={formTipoCliente}
+                        onChange={(e) => setFormTipoCliente(e.target.value)}
+                        className="w-full text-xs py-2 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                      >
+                        <option value="todos">Todos</option>
+                        <option value="residencial">Residencial</option>
+                        <option value="comercial">Comercial</option>
+                        <option value="industrial">Industrial</option>
+                        <option value="rural">Rural</option>
+                      </select>
+                    </div>
 
-                        {/* Consultor responsável */}
-                        <td className="py-3 px-3 whitespace-nowrap">
-                          <div className="font-semibold text-gray-800 text-[11px] flex items-center gap-1">
-                            <User className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span className="truncate max-w-[140px]">
-                              {orc.autor || 'João Victor'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Potência em uma linha só: "30,80 kWp · 56 placas (550W)", alinhado à direita */}
-                        <td className="py-3 px-3 text-right whitespace-nowrap">
-                          <span className="font-bold text-gray-900 text-xs tabular-nums">
-                            {potenciaLinhaUnica}
-                          </span>
-                        </td>
-
-                        {/* Investimento, alinhado à direita */}
-                        <td className="py-3 px-3 text-right whitespace-nowrap">
-                          <div className="font-black text-emerald-700 text-sm tabular-nums leading-tight">
-                            {Number.isFinite(valInvestimento) && valInvestimento > 0
-                              ? formatCurrency(valInvestimento)
-                              : '—'}
-                          </div>
-                          {Number.isFinite(custoKwp) && custoKwp > 0 && (
-                            <div className="text-[10px] text-gray-400 tabular-nums leading-tight mt-0.5">
-                              {formatCurrency(custoKwp)}/kWp
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Geração em no máximo 2 linhas: "2.827 kWh/mês" e "Eco: R$ 3.128,59/mês", alinhado à direita */}
-                        <td className="py-3 px-3 text-right whitespace-nowrap">
-                          <div className="font-bold text-gray-800 text-xs tabular-nums leading-tight">
-                            {Number.isFinite(geracaoNum) && geracaoNum > 0
-                              ? `${geracaoNum.toLocaleString('pt-BR')} kWh/mês`
-                              : '—'}
-                          </div>
-                          {Number.isFinite(ecoNum) && ecoNum > 0 && (
-                            <div className="text-[10px] text-emerald-600 font-semibold tabular-nums leading-tight mt-0.5">
-                              Eco: {formatCurrency(ecoNum)}/mês
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Payback em uma linha: "20 meses", alinhado à direita */}
-                        <td className="py-3 px-3 text-right whitespace-nowrap">
-                          <span className="font-semibold text-gray-800 text-xs tabular-nums">
-                            {Number.isFinite(paybackNum) && paybackNum > 0
-                              ? `${paybackNum} meses`
-                              : '—'}
-                          </span>
-                        </td>
-
-                        {/* Status sem quebra de linha */}
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <div className="inline-flex justify-center">
-                            {renderStatusBadge(orc.status)}
-                          </div>
-                        </td>
-
-                        {/* Data curta em 2 dígitos de ano (ex.: "30/09/26") */}
-                        <td className="py-3 px-3 text-center text-gray-500 text-[11px] whitespace-nowrap font-medium tabular-nums">
-                          {formatDateShort(orc.data_orcamento || orc.created)}
-                        </td>
-
-                        {/* Ações */}
-                        <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <div
-                            className="flex items-center justify-end gap-1.5"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {/* Botão WhatsApp compactado: ícone com tooltip no lugar do texto */}
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleAbrirWhatsApp(orc, cliente, e)}
-                                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all shadow-2xs group shrink-0"
-                                  aria-label="Enviar proposta por WhatsApp"
-                                >
-                                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600 group-hover:text-white transition-colors" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                <span>Enviar proposta por WhatsApp</span>
-                              </TooltipContent>
-                            </Tooltip>
-
-                            {/* Seletor Rápido de Status */}
-                            <select
-                              value={orc.status}
-                              onChange={(e) =>
-                                handleAlterarStatus(
-                                  orc,
-                                  e.target.value as OrcamentoSolarStatus,
-                                  e as unknown as React.MouseEvent,
-                                )
-                              }
-                              className="text-[11px] font-semibold py-1 px-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:border-gray-300 focus:outline-none shrink-0"
-                              title="Mudar status rapidamente"
-                            >
-                              <option value="Em elaboração">Em elaboração</option>
-                              <option value="Enviado ao cliente">Enviado</option>
-                              <option value="Aprovado">Aprovado</option>
-                              <option value="Rejeitado">Rejeitado</option>
-                            </select>
-
-                            {/* Excluir */}
-                            <button
-                              type="button"
-                              onClick={(e) => handleExcluir(orc.id, e)}
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
-                              title="Excluir orçamento"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </TooltipProvider>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Novo / Editar Orçamento */}
-      <ModalOrcamentoSolar
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setEditingOrcamento(null)
-          setClienteParaNovoOrcamento('')
-        }}
-        initialClienteId={clienteParaNovoOrcamento}
-        initialOrcamento={editingOrcamento}
-      />
-
-      {/* Modal de Enviar Proposta por WhatsApp protegido por ErrorBoundary local */}
-      {propostaParaWhatsApp && (
-        <ErrorBoundary
-          errorMessage="Não foi possível carregar a janela de envio por WhatsApp."
-          fallback={
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-              <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full text-center space-y-3">
-                <AlertCircle className="w-10 h-10 text-amber-600 mx-auto" />
-                <h3 className="text-base font-bold text-gray-900">
-                  Ocorreu um erro ao carregar o envio por WhatsApp
-                </h3>
-                <p className="text-xs text-gray-600">
-                  A página de propostas continua funcionando normalmente. Você pode tentar reabrir o
-                  envio ou verificar a conexão com o WhatsApp.
-                </p>
-                <div className="flex justify-center gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setModalWhatsAppOpen(false)
-                      setPropostaParaWhatsApp(null)
-                      setClientePropostaWhatsApp(null)
-                    }}
-                  >
-                    Fechar
-                  </Button>
+                    <div>
+                      <label
+                        className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1 truncate"
+                        title="Status Fechamento"
+                      >
+                        Fechamento
+                      </label>
+                      <select
+                        value={formStatusFechamento}
+                        onChange={(e) => setFormStatusFechamento(e.target.value)}
+                        className="w-full text-xs py-2 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                      >
+                        <option value="todos">Todos</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Ganho">Ganho</option>
+                        <option value="Perdido">Perdido</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Botões de Ação dos Filtros: Aplicar e Limpar */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+                    >
+                      <Filter className="w-3.5 h-3.5" />
+                      <span>Aplicar filtros</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLimparFiltros}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
+                      <span>Limpar filtros</span>
+                    </button>
+                  </div>
+
+                  {/* Tags de filtros ativos */}
+                  {totalFiltrosAtivos > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500">
+                      <span className="font-semibold text-gray-700">Filtros ativos:</span>
+                      {filtrosAtivos.busca && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Busca: "{filtrosAtivos.busca}"
+                        </span>
+                      )}
+                      {filtrosAtivos.faixaPotencia !== 'todos' && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Potência: {filtrosAtivos.faixaPotencia === 'ate-5' && 'Até 5 kWp'}
+                          {filtrosAtivos.faixaPotencia === '5-10' && '5 a 10 kWp'}
+                          {filtrosAtivos.faixaPotencia === '10-20' && '10 a 20 kWp'}
+                          {filtrosAtivos.faixaPotencia === '20-50' && '20 a 50 kWp'}
+                          {filtrosAtivos.faixaPotencia === 'acima-50' && '> 50 kWp'}
+                        </span>
+                      )}
+                      {filtrosAtivos.status !== 'todos' && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Status: {filtrosAtivos.status}
+                        </span>
+                      )}
+                      {filtrosAtivos.consultor !== 'todos' && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Consultor: {filtrosAtivos.consultor.split(' ')[0]}
+                        </span>
+                      )}
+                      {(filtrosAtivos.dataInicio || filtrosAtivos.dataFim) && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Período
+                        </span>
+                      )}
+                      {(filtrosAtivos.valorDe || filtrosAtivos.valorAte) && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Valor
+                        </span>
+                      )}
+                      {filtrosAtivos.tipoCliente !== 'todos' && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 capitalize">
+                          {filtrosAtivos.tipoCliente}
+                        </span>
+                      )}
+                      {filtrosAtivos.statusFechamento !== 'todos' && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Fechamento: {filtrosAtivos.statusFechamento}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </form>
+            )}
+
+            {/* Linha 3: Contador de Resultados e Status da Ordenação */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-gray-900 text-sm">
+                  {orcamentosFiltrados.length === 1
+                    ? '1 proposta encontrada'
+                    : `${orcamentosFiltrados.length} propostas encontradas`}
+                </span>
+                <span className="text-gray-400">•</span>
+                <span className="text-gray-500 font-medium">
+                  Total da base: {orcamentosSolar.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] text-gray-500"></div>
+            </div>
+          </div>
+
+          {/* Lista / Tabela de Propostas (Modo Lista Exclusivo) */}
+          {isSessionExpired ? null : error &&
+            orcamentosSolar.length === 0 ? null : orcamentosFiltrados.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+              <Sun className="w-12 h-12 text-emerald-400 mx-auto mb-3 stroke-[1.5]" />
+              <h3 className="text-base font-bold text-gray-800">Nenhuma proposta encontrada</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 mb-4">
+                {totalFiltrosAtivos > 0
+                  ? 'Nenhum resultado corresponde aos filtros selecionados. Tente ajustar os parâmetros ou limpar os filtros.'
+                  : 'Gere sua primeira proposta técnica de energia solar fotovoltaica para os clientes.'}
+              </p>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                {totalFiltrosAtivos > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleLimparFiltros}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4 text-emerald-600" />
+                    <span>Limpar filtros</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleNovoOrcamento()}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D] transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Criar Nova Proposta</span>
+                </button>
               </div>
             </div>
-          }
-        >
-          <ModalEnviarPropostaWhatsApp
-            isOpen={modalWhatsAppOpen}
+          ) : (
+            /* VISUALIZAÇÃO EM TABELA COM FOTO E CONSULTOR */
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden w-full">
+              <div className="overflow-x-auto">
+                <TooltipProvider delayDuration={150}>
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold tracking-wider">
+                      <tr>
+                        <th className="py-3 px-4">Cliente & Cidade</th>
+                        <th className="py-3 px-3 whitespace-nowrap">Consultor</th>
+                        <th className="py-3 px-3 text-right whitespace-nowrap">Potência</th>
+                        <th className="py-3 px-3 text-right whitespace-nowrap">Investimento</th>
+                        <th className="py-3 px-3 text-right whitespace-nowrap">Geração Média</th>
+                        <th className="py-3 px-3 text-right whitespace-nowrap">Payback</th>
+                        <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                        <th className="py-3 px-3 text-center whitespace-nowrap">Data</th>
+                        <th className="py-3 px-4 text-right whitespace-nowrap">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {orcamentosFiltrados.map((orc) => {
+                        const cliente =
+                          orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
+                        const nomeCliente = cliente?.nome || 'Cliente não identificado'
+
+                        // Formatação de Potência em 1 linha só: "30,80 kWp · 56 placas (550W)"
+                        const kwpNum = Number(orc.potencia_kwp)
+                        const kwpStr =
+                          Number.isFinite(kwpNum) && kwpNum > 0
+                            ? `${kwpNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp`
+                            : ''
+                        const placasNum = Number(orc.numero_placas)
+                        const potenciaWpNum = Number(orc.potencia_placa_wp)
+                        const placasWpDetalhes = (() => {
+                          if (Number.isFinite(placasNum) && placasNum > 0) {
+                            const wpPart =
+                              Number.isFinite(potenciaWpNum) && potenciaWpNum > 0
+                                ? ` (${potenciaWpNum}W)`
+                                : ''
+                            return `${placasNum} placas${wpPart}`
+                          }
+                          if (Number.isFinite(potenciaWpNum) && potenciaWpNum > 0) {
+                            return `${potenciaWpNum}W`
+                          }
+                          return ''
+                        })()
+                        const potenciaLinhaUnica =
+                          [kwpStr, placasWpDetalhes].filter(Boolean).join(' · ') || '—'
+
+                        // Investimento
+                        const valInvestimento = Number(orc.valor_investimento)
+                        const custoKwp = Number(orc.custo_por_kwp)
+
+                        // Geração em no máximo 2 linhas:
+                        // Linha 1: "2.827 kWh/mês"
+                        // Linha 2 (menor/abaixo): "Eco: R$ 3.128,59/mês"
+                        const geracaoNum = Number(orc.geracao_mensal_kwh)
+                        const ecoNum = Number(orc.economia_1_mes)
+
+                        // Payback em uma linha: "20 meses"
+                        const paybackNum = Number(orc.payback_meses)
+
+                        return (
+                          <tr
+                            key={orc.id}
+                            onClick={() => handleEditarOrcamento(orc)}
+                            className="hover:bg-emerald-50/30 cursor-pointer transition-colors group"
+                          >
+                            {/* Cliente & Cidade (coluna de texto ganha largura livre restante) */}
+                            <td className="py-3 px-4 min-w-[200px]">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                                  {nomeCliente}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                                  Rev. {orc.numero_revisao || 1}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 flex-wrap">
+                                <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span>{cliente?.cidade || '—'}</span>
+                                <span className="text-gray-300">•</span>
+                                <span className="capitalize">
+                                  {orc.tipo_cliente || cliente?.tipo_cliente || 'Residencial'}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Consultor responsável */}
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <div className="font-semibold text-gray-800 text-[11px] flex items-center gap-1">
+                                <User className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span className="truncate max-w-[140px]">
+                                  {orc.autor || 'João Victor'}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Potência em uma linha só: "30,80 kWp · 56 placas (550W)", alinhado à direita */}
+                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                              <span className="font-bold text-gray-900 text-xs tabular-nums">
+                                {potenciaLinhaUnica}
+                              </span>
+                            </td>
+
+                            {/* Investimento, alinhado à direita */}
+                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                              <div className="font-black text-emerald-700 text-sm tabular-nums leading-tight">
+                                {Number.isFinite(valInvestimento) && valInvestimento > 0
+                                  ? formatCurrency(valInvestimento)
+                                  : '—'}
+                              </div>
+                              {Number.isFinite(custoKwp) && custoKwp > 0 && (
+                                <div className="text-[10px] text-gray-400 tabular-nums leading-tight mt-0.5">
+                                  {formatCurrency(custoKwp)}/kWp
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Geração em no máximo 2 linhas: "2.827 kWh/mês" e "Eco: R$ 3.128,59/mês", alinhado à direita */}
+                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                              <div className="font-bold text-gray-800 text-xs tabular-nums leading-tight">
+                                {Number.isFinite(geracaoNum) && geracaoNum > 0
+                                  ? `${geracaoNum.toLocaleString('pt-BR')} kWh/mês`
+                                  : '—'}
+                              </div>
+                              {Number.isFinite(ecoNum) && ecoNum > 0 && (
+                                <div className="text-[10px] text-emerald-600 font-semibold tabular-nums leading-tight mt-0.5">
+                                  Eco: {formatCurrency(ecoNum)}/mês
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Payback em uma linha: "20 meses", alinhado à direita */}
+                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                              <span className="font-semibold text-gray-800 text-xs tabular-nums">
+                                {Number.isFinite(paybackNum) && paybackNum > 0
+                                  ? `${paybackNum} meses`
+                                  : '—'}
+                              </span>
+                            </td>
+
+                            {/* Status sem quebra de linha */}
+                            <td className="py-3 px-3 text-center whitespace-nowrap">
+                              <div className="inline-flex justify-center">
+                                {renderStatusBadge(orc.status)}
+                              </div>
+                            </td>
+
+                            {/* Data curta em 2 dígitos de ano (ex.: "30/09/26") */}
+                            <td className="py-3 px-3 text-center text-gray-500 text-[11px] whitespace-nowrap font-medium tabular-nums">
+                              {formatDateShort(orc.data_orcamento || orc.created)}
+                            </td>
+
+                            {/* Ações */}
+                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                              <div
+                                className="flex items-center justify-end gap-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {/* Botão WhatsApp compactado: ícone com tooltip no lugar do texto */}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleAbrirWhatsApp(orc, cliente, e)}
+                                      className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all shadow-2xs group shrink-0"
+                                      aria-label="Enviar proposta por WhatsApp"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600 group-hover:text-white transition-colors" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <span>Enviar proposta por WhatsApp</span>
+                                  </TooltipContent>
+                                </Tooltip>
+
+                                {/* Seletor Rápido de Status */}
+                                <select
+                                  value={orc.status}
+                                  onChange={(e) =>
+                                    handleAlterarStatus(
+                                      orc,
+                                      e.target.value as OrcamentoSolarStatus,
+                                      e as unknown as React.MouseEvent,
+                                    )
+                                  }
+                                  className="text-[11px] font-semibold py-1 px-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:border-gray-300 focus:outline-none shrink-0"
+                                  title="Mudar status rapidamente"
+                                >
+                                  <option value="Em elaboração">Em elaboração</option>
+                                  <option value="Enviado ao cliente">Enviado</option>
+                                  <option value="Aprovado">Aprovado</option>
+                                  <option value="Rejeitado">Rejeitado</option>
+                                </select>
+
+                                {/* Excluir */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleExcluir(orc.id, e)}
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+                                  title="Excluir orçamento"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </TooltipProvider>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Novo / Editar Orçamento */}
+          <ModalOrcamentoSolar
+            isOpen={isModalOpen}
             onClose={() => {
-              setModalWhatsAppOpen(false)
-              setPropostaParaWhatsApp(null)
-              setClientePropostaWhatsApp(null)
+              setIsModalOpen(false)
+              setEditingOrcamento(null)
+              setClienteParaNovoOrcamento('')
             }}
-            orcamento={propostaParaWhatsApp}
-            cliente={clientePropostaWhatsApp}
-            dadosProposta={dadosPropostaWhatsApp}
-            htmlProposta={htmlPropostaWhatsApp}
-            onSuccess={() => {
-              // Atualizar status da proposta para "Enviado ao cliente" se ainda estiver "Em elaboração"
-              if (propostaParaWhatsApp.status === 'Em elaboração') {
-                updateOrcamentoSolar(propostaParaWhatsApp.id, {
-                  status: 'Enviado ao cliente',
-                }).catch((e) => console.warn('Erro ao atualizar status após WhatsApp:', e))
-              }
-            }}
+            initialClienteId={clienteParaNovoOrcamento}
+            initialOrcamento={editingOrcamento}
           />
-        </ErrorBoundary>
+
+          {/* Modal de Enviar Proposta por WhatsApp protegido por ErrorBoundary local */}
+          {propostaParaWhatsApp && (
+            <ErrorBoundary
+              errorMessage="Não foi possível carregar a janela de envio por WhatsApp."
+              fallback={
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+                  <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full text-center space-y-3">
+                    <AlertCircle className="w-10 h-10 text-amber-600 mx-auto" />
+                    <h3 className="text-base font-bold text-gray-900">
+                      Ocorreu um erro ao carregar o envio por WhatsApp
+                    </h3>
+                    <p className="text-xs text-gray-600">
+                      A página de propostas continua funcionando normalmente. Você pode tentar
+                      reabrir o envio ou verificar a conexão com o WhatsApp.
+                    </p>
+                    <div className="flex justify-center gap-2 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setModalWhatsAppOpen(false)
+                          setPropostaParaWhatsApp(null)
+                          setClientePropostaWhatsApp(null)
+                        }}
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              }
+            >
+              <ModalEnviarPropostaWhatsApp
+                isOpen={modalWhatsAppOpen}
+                onClose={() => {
+                  setModalWhatsAppOpen(false)
+                  setPropostaParaWhatsApp(null)
+                  setClientePropostaWhatsApp(null)
+                }}
+                orcamento={propostaParaWhatsApp}
+                cliente={clientePropostaWhatsApp}
+                dadosProposta={dadosPropostaWhatsApp}
+                htmlProposta={htmlPropostaWhatsApp}
+                onSuccess={() => {
+                  // Atualizar status da proposta para "Enviado ao cliente" se ainda estiver "Em elaboração"
+                  if (propostaParaWhatsApp.status === 'Em elaboração') {
+                    updateOrcamentoSolar(propostaParaWhatsApp.id, {
+                      status: 'Enviado ao cliente',
+                    }).catch((e) => console.warn('Erro ao atualizar status após WhatsApp:', e))
+                  }
+                }}
+              />
+            </ErrorBoundary>
+          )}
+        </div>
       )}
     </div>
   )

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ListaOM, type AbaPrincipalOM } from '@/components/ListaOM'
@@ -20,6 +20,7 @@ export default function Manutencoes() {
   } = useClientes()
 
   const location = useLocation()
+  const navigate = useNavigate()
   const [activeSubTab, setActiveSubTab] = useState<AbaPrincipalOM>('com_plano')
   const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
   const [isNovaPropostaOpen, setIsNovaPropostaOpen] = useState(false)
@@ -61,7 +62,7 @@ export default function Manutencoes() {
       <ListaOM
         onOpenFichaOM={openFichaOM}
         onOpenNovoContrato={() => setIsNovoContratoOpen(true)}
-        onOpenNovaProposta={() => setIsNovaPropostaOpen(true)}
+        onOpenNovaProposta={() => navigate('/propostas?aba=om')}
         activeSubTab={activeSubTab}
         onSubTabChange={setActiveSubTab}
       />

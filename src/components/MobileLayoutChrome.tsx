@@ -142,7 +142,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       return { id: 'dashboard', label: 'Dashboard', isFunil: false }
     }
     if (location.pathname === '/propostas' || location.pathname === '/orcamentos') {
-      return { id: 'propostas', label: 'Propostas & Orçamentos', isFunil: false }
+      return { id: 'propostas', label: 'Propostas', isFunil: false }
     }
     if (
       location.pathname === '/manutencoes' ||
@@ -328,7 +328,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
             { label: 'Dashboard', path: '/', icon: LayoutDashboard },
             { label: 'Funil Comercial', path: '/comercial', icon: KanbanSquare },
             { label: 'Funil de Projetos', path: '/projetos', icon: FolderKanban },
-            { label: 'Propostas & Orçamentos', path: '/propostas', icon: Sun },
+            { label: 'Propostas', path: '/propostas', icon: Sun },
             { label: 'Central de Atividades', path: '/central-atividades', icon: Layers },
             { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
             { label: 'Contatos', path: '/contatos', icon: Contact },
