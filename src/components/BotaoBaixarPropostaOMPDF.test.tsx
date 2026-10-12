@@ -4,7 +4,11 @@ import { render, screen } from '@testing-library/react'
 import { BotaoBaixarPropostaOMPDF, gerarPropostaOMPdfBlobBase64 } from './BotaoBaixarPropostaOMPDF'
 import { PropostaOMPDFDocument } from './PropostaOMPDFDocument'
 import { PreviewPropostaOMSecoes } from './PreviewPropostaOMSecoes'
-import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
+import {
+  calcularPropostaOM,
+  gerarHTMLPropostaOM,
+  type PropostaPDFInput,
+} from '@/lib/propostaOMGenerator'
 
 vi.mock('@react-pdf/renderer', () => ({
   PDFDownloadLink: ({
@@ -102,5 +106,25 @@ describe('Proposta O&M - Preview e PDF', () => {
     expect(container).toBeTruthy()
     expect(screen.getByText(/Proposta válida por 5 dias\./i)).toBeTruthy()
     expect(screen.getByText(/CNPJ 21\.379\.952\/0001-38/i)).toBeTruthy()
+  })
+
+  it('gera HTML da proposta O&M com rodapé fixo no @media print, reserva de espaço e page-break-inside avoid', () => {
+    const html = gerarHTMLPropostaOM(propostaPDFDataMock)
+    // 1. Footer fixo na base para impressão
+    expect(html).toContain('position: fixed !important;')
+    expect(html).toContain('bottom: 0 !important;')
+    expect(html).toContain('left: 0 !important;')
+    expect(html).toContain('right: 0 !important;')
+    // 2. Reserva de espaço no .page-container para nunca sobrepor o conteúdo
+    expect(html).toContain('padding-bottom: 28mm !important;')
+    // 3. page-break-inside avoid para não cortar o rodapé
+    expect(html).toContain('page-break-inside: avoid')
+    // 4. Conteúdo do bloco cinza intacto
+    expect(html).toContain('Delfos Engenharia Solar')
+    expect(html).toContain('CNPJ 21.379.952/0001-38')
+    expect(html).toContain('(54) 99129-2121')
+    expect(html).toContain('www.delfos.eng.br')
+    expect(html).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
+    expect(html).toContain('Proposta válida por 5 dias.')
   })
 })
