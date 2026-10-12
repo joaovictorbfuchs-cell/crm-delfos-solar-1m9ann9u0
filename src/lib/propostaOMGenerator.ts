@@ -612,38 +612,10 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
         display: none !important;
       }
       body {
-        background: #FFFFFF !important;
-        margin: 0 !important;
-        padding: 0 !important;
+        background: #FFFFFF;
       }
       .page-container {
-        max-width: 100% !important;
-        padding-bottom: 28mm !important;
-        box-sizing: border-box !important;
-      }
-      .doc-footer {
-        display: block !important;
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-        margin: 0 !important;
-        padding-top: 0 !important;
-        border-top: none !important;
-        z-index: 9999 !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      .doc-footer-box {
-        margin: 0 auto !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        max-width: 100%;
       }
     }
   </style>

@@ -114,16 +114,14 @@ describe('Proposta O&M - Preview e PDF', () => {
     expect(screen.queryByText(/Faturamento Anual/i)).toBeNull()
   })
 
-  it('gera HTML da proposta O&M com rodapé fixo no @media print, reserva de espaço e page-break-inside avoid', () => {
+  it('gera HTML da proposta O&M com rodapé em fluxo natural no fim do documento e @media print enxuto', () => {
     const html = gerarHTMLPropostaOM(propostaPDFDataMock)
-    // 1. Footer fixo na base para impressão
-    expect(html).toContain('position: fixed !important;')
-    expect(html).toContain('bottom: 0 !important;')
-    expect(html).toContain('left: 0 !important;')
-    expect(html).toContain('right: 0 !important;')
-    // 2. Reserva de espaço no .page-container para nunca sobrepor o conteúdo
-    expect(html).toContain('padding-bottom: 28mm !important;')
-    // 3. page-break-inside avoid para não cortar o rodapé
+    // 1. Footer em fluxo natural no fim do documento (sem regras que fixam o rodapé na tela/página)
+    expect(html).not.toContain('position: fixed !important;')
+    expect(html).not.toContain('padding-bottom: 28mm !important;')
+    // 2. @media print enxuto (apenas .no-print, body e .page-container)
+    expect(html).toContain('.no-print {\n        display: none !important;\n      }')
+    // 3. page-break-inside avoid no fluxo base para não cortar o rodapé
     expect(html).toContain('page-break-inside: avoid')
     // 4. Conteúdo do bloco cinza intacto
     expect(html).toContain('Delfos Engenharia Solar')
