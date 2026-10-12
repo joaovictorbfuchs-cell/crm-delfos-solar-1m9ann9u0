@@ -900,7 +900,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                 <div className="p-4 rounded-2xl border-2 border-[#16A34A] bg-white shadow-xs relative flex flex-col justify-between">
                   {/* Badge RECOMENDADO DELFOS no topo direito */}
                   <span className="absolute -top-3.5 right-6 bg-[#047857] text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                    RECOMENDADO DELFOS
+                    RECOMENDADO
                   </span>
                   <div>
                     <div className="flex items-center justify-between">
