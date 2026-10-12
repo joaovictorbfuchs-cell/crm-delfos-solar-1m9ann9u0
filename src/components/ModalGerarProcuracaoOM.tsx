@@ -35,9 +35,12 @@ import {
   formatarDataExtenso,
   normalizarDadosProcuracao,
   abrirProcuracaoImpressao,
-  gerarBase64Procuracao,
 } from '@/lib/procuracaoGenerator'
-import { BotaoBaixarProcuracaoPDF } from '@/components/BotaoBaixarProcuracaoPDF'
+
+import {
+  BotaoBaixarProcuracaoPDF,
+  gerarProcuracaoPdfBlobBase64,
+} from '@/components/BotaoBaixarProcuracaoPDF'
 
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
@@ -235,8 +238,8 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
 
     setIsSendingWhatsApp(true)
     try {
-      // 1. Gera o PDF oficial em Base64 Data URI pelo HTML canônico
-      const { base64, fileName } = await gerarBase64Procuracao(dadosConsolidados)
+      // 1. Gera o PDF oficial em Base64 Data URI via @react-pdf/renderer (mesmo documento do botão "Baixar como PDF")
+      const { base64, fileName } = await gerarProcuracaoPdfBlobBase64(dadosConsolidados)
       if (!base64) {
         toast.error('Não foi possível gerar o PDF oficial da procuração para envio.')
         setIsSendingWhatsApp(false)

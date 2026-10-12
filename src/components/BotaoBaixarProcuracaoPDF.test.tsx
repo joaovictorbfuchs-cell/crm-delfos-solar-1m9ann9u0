@@ -28,4 +28,16 @@ describe('BotaoBaixarProcuracaoPDF — Integração do Botão Baixar como PDF co
     expect(mod.Document).toBeDefined()
     expect(mod.Page).toBeDefined()
   })
+
+  it('deve gerar PDF em Blob e Base64 compatível com WhatsApp/Z-API via gerarProcuracaoPdfBlobBase64', async () => {
+    const { gerarProcuracaoPdfBlobBase64 } = await import('./BotaoBaixarProcuracaoPDF')
+    const res = await gerarProcuracaoPdfBlobBase64(dadosMock)
+
+    expect(res).toBeDefined()
+    expect(res.blob).toBeInstanceOf(Blob)
+    expect(res.blob.type).toBe('application/pdf')
+    expect(res.blob.size).toBeGreaterThan(100)
+    expect(res.base64).toMatch(/^data:application\/pdf;base64,/)
+    expect(res.fileName).toBe('Procuracao_Delfos_Marcelo_Becker.pdf')
+  })
 })

@@ -8,6 +8,58 @@ export interface BotaoBaixarProcuracaoPDFProps {
   onClick?: () => void
 }
 
+/**
+ * Converte um Blob de PDF gerado pelo @react-pdf/renderer em uma Data URI Base64.
+ * Formato retornado: data:application/pdf;base64,...
+ */
+export function blobParaDataUriBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const res = reader.result
+      if (typeof res === 'string') {
+        resolve(res)
+      } else {
+        reject(new Error('Falha ao converter Blob para string base64.'))
+      }
+    }
+    reader.onerror = () => {
+      reject(reader.error || new Error('Erro ao ler Blob do PDF.'))
+    }
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Gera o PDF oficial da Procuração Particular como Data URI Base64 usando a API do @react-pdf/renderer
+ * (pdf(<Document/>).toBlob()), reutilizando o mesmo documento ProcuracaoPDFDocument.
+ * Carrega o @react-pdf/renderer sob demanda dentro do mesmo chunk dinâmico do botão de download.
+ */
+export async function gerarProcuracaoPdfBlobBase64(dados: Partial<DadosProcuracaoOM>): Promise<{
+  blob: Blob
+  base64: string
+  fileName: string
+}> {
+  const safeName = (dados.nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
+  const fileName = `Procuracao_Delfos_${safeName}.pdf`
+
+  const [{ pdf }, { ProcuracaoPDFDocument }] = await Promise.all([
+    import('@react-pdf/renderer'),
+    import('@/components/ProcuracaoPDFDocument'),
+  ])
+
+  const docElement = React.createElement(ProcuracaoPDFDocument, { dados })
+  const instance = pdf(docElement)
+  const blob = await instance.toBlob()
+  const base64 = await blobParaDataUriBase64(blob)
+
+  return {
+    blob,
+    base64,
+    fileName,
+  }
+}
+
 // Carregamento preguiçoso dinâmico do módulo @react-pdf/renderer e do documento ProcuracaoPDFDocument
 // Isso isola completamente a árvore de dependências do @react-pdf/renderer em um chunk separado (code-splitting),
 // prevenindo que o Vite/Rollup exceda o limite de memória (OOM / exit code 137) no bundle principal.

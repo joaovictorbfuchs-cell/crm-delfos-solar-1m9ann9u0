@@ -4,7 +4,6 @@ import {
   formatarDataExtenso,
   gerarHTMLProcuracao,
   gerarPDFBinarioProcuracao,
-  gerarBase64Procuracao,
   baixarProcuracaoPDF,
   abrirProcuracaoImpressao,
   DADOS_FIXOS_CONTRATADA_PROCURACAO,
@@ -182,64 +181,7 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     spyOpen.mockRestore()
   })
 
-  it('deve gerar Base64 da procuração usando o HTML canônico A4 com renderizador oficial', async () => {
-    const mockOutputPdf = vi
-      .fn()
-      .mockResolvedValue('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
-    const mockWorker = {
-      set: vi.fn().mockReturnThis(),
-      from: vi.fn().mockReturnThis(),
-      outputPdf: mockOutputPdf,
-    }
-    ;(window as any).html2pdf = vi.fn(() => mockWorker)
-
-    const res = await gerarBase64Procuracao(dadosMarceloBecker)
-
-    expect(res.base64).toBe('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
-    expect(res.fileName).toBe('Procuracao_Delfos_Marcelo_Becker.pdf')
-    expect(res.fallbackText).toContain('Marcelo')
-    expect(res.fallbackText).toContain('procuração da Delfos Solar')
-    expect(mockWorker.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        jsPDF: expect.objectContaining({ format: 'a4', orientation: 'portrait' }),
-      }),
-    )
-  })
-
-  it('deve realizar download direto do PDF oficial via baixarProcuracaoPDF a partir do gerador A4', async () => {
-    const mockOutputPdf = vi
-      .fn()
-      .mockResolvedValue('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
-    const mockWorker = {
-      set: vi.fn().mockReturnThis(),
-      from: vi.fn().mockReturnThis(),
-      outputPdf: mockOutputPdf,
-    }
-    ;(window as any).html2pdf = vi.fn(() => mockWorker)
-
-    const clickSpy = vi.fn()
-    const originalCreateElement = document.createElement.bind(document)
-    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-      const el = originalCreateElement(tagName)
-      if (tagName === 'a') {
-        el.click = clickSpy
-      }
-      return el
-    })
-
-    await baixarProcuracaoPDF(dadosMarceloBecker)
-    expect(clickSpy).toHaveBeenCalled()
-
-    vi.restoreAllMocks()
-  })
-
-  it('deve acionar abrirProcuracaoImpressao como fallback seguro quando a geração assíncrona falha', async () => {
-    // Simula falha do módulo pdfWhatsAppService (ex: erro de rede/CDN)
-    const originalHtml2pdf = (window as any).html2pdf
-    ;(window as any).html2pdf = vi.fn(() => {
-      throw new Error('Falha simulada de CDN/adblock')
-    })
-
+  it('deve acionar abrirProcuracaoImpressao via baixarProcuracaoPDF', async () => {
     const spyOpen = vi.spyOn(window, 'open').mockReturnValue({
       addEventListener: vi.fn(),
       print: vi.fn(),
@@ -249,33 +191,5 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
 
     expect(spyOpen).toHaveBeenCalled()
     spyOpen.mockRestore()
-    ;(window as any).html2pdf = originalHtml2pdf
-  })
-
-  it('deve selecionar .page-a4 e zerar estilos de tela ao renderizar procuração para PDF Base64', async () => {
-    let capturedElement: any = null
-    const mockOutputPdf = vi
-      .fn()
-      .mockResolvedValue('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
-    const mockWorker = {
-      set: vi.fn().mockReturnThis(),
-      from: vi.fn().mockImplementation((el: any) => {
-        capturedElement = el
-        return mockWorker
-      }),
-      outputPdf: mockOutputPdf,
-    }
-    ;(window as any).html2pdf = vi.fn(() => mockWorker)
-
-    const res = await gerarBase64Procuracao(dadosMarceloBecker)
-
-    expect(res.base64).toBe('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
-    expect(capturedElement).not.toBeNull()
-    // O elemento capturado deve ser a folha .page-a4 (não o body com fundo cinza)
-    expect(capturedElement?.classList?.contains('page-a4')).toBe(true)
-    // Os estilos de tela devem ter sido normalizados para margem zero e sem box-shadow
-    expect(capturedElement?.style?.margin).toBe('0px')
-    expect(capturedElement?.style?.boxShadow).toBe('none')
-    expect(capturedElement?.style?.width).toBe('100%')
   })
 })

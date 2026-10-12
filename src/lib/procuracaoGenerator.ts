@@ -617,61 +617,10 @@ export function gerarPDFBinarioProcuracao(dadosInput: Partial<DadosProcuracaoOM>
 }
 
 /**
- * Helper para gerar o PDF da procuração em Base64 Data URI a partir do HTML canônico A4.
- * Garante saída 100% idêntica ao botão Imprimir e ao preview A4.
- */
-export async function gerarBase64Procuracao(
-  dadosInput: Partial<DadosProcuracaoOM>,
-): Promise<{ base64: string; fallbackText: string; fileName: string }> {
-  const { gerarBase64Procuracao: gerarBase64 } = await import('@/lib/pdfWhatsAppService')
-  return gerarBase64(dadosInput)
-}
-
-/**
  * Realiza o download direto do arquivo PDF oficial da procuração no navegador.
- *
- * Utiliza o HTML canônico da procuração (`gerarHTMLProcuracao`) renderizado via html2pdf
- * para garantir exatamente a mesma formatação visual da tela de Impressão (A4, margens de 25mm,
- * corpo justificado, título centralizado e bloco de assinatura à direita).
- * Em caso de ambiente sem suporte ou falha, faz fallback automático para o PDF binário ou janela de impressão.
+ * Dispara diretamente a visualização/impressão canônica A4 com autoPrint=true.
  */
 export async function baixarProcuracaoPDF(dadosInput: Partial<DadosProcuracaoOM>): Promise<void> {
   const dados = normalizarDadosProcuracao(dadosInput)
-  const safeName = dados.nome.replace(/[^a-zA-Z0-9]/g, '_')
-  const fileName = `Procuracao_Delfos_${safeName}.pdf`
-
-  try {
-    const { gerarBase64Procuracao: gerarBase64 } = await import('@/lib/pdfWhatsAppService')
-    const res = await gerarBase64(dados)
-    if (res.base64 && res.base64.includes('base64,')) {
-      const parts = res.base64.split(',')
-      const mimeMatch = parts[0].match(/:(.*?);/)
-      const mime = mimeMatch ? mimeMatch[1] : 'application/pdf'
-      const bstr = atob(parts[1])
-      let n = bstr.length
-      const u8arr = new Uint8Array(n)
-      while (n--) {
-        u8arr[n] = bstr.charCodeAt(n)
-      }
-      const blob = new Blob([u8arr], { type: mime })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      return
-    }
-  } catch (err) {
-    console.warn(
-      'Falha ao renderizar PDF da procuração via html2pdf, acionando fallback para impressão canônica:',
-      err,
-    )
-  }
-
-  // Fallback: NUNCA usar o gerador binário legado (que produz PDF desconfigurado).
-  // Dispara diretamente a visualização/impressão canônica A4 com autoPrint=true.
   abrirProcuracaoImpressao(dados, true)
 }
