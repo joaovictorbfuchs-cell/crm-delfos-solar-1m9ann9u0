@@ -28,47 +28,35 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Detecta se um erro é originado de falha de autenticação / sessão expirada ou inválida.
- * Utilizado por ErrorBoundary, AuthContext e componentes de tela para tratar 401, 403,
- * tokens expirados ou revogados sem quebrar a renderização da aplicação.
- */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-    const msg = (error.message || '').toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('token expired') ||
-      msg.includes('invalid token') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('auth_required')
-    ) {
-      return true
-    }
-  }
-
   if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    const status = Number(errObj.status || errObj.statusCode || 0)
-    if (status === 401 || status === 403) return true
-
-    const message = String(errObj.message || '').toLowerCase()
-    const code = String(errObj.code || '').toLowerCase()
+    const anyErr = error as {
+      status?: unknown
+      statusCode?: unknown
+      message?: unknown
+      isAbort?: unknown
+    }
+    if (anyErr.isAbort) return false
     if (
-      message.includes('token is expired') ||
-      message.includes('token expired') ||
-      message.includes('invalid token') ||
-      message.includes('failed to authenticate') ||
-      message.includes('auth_required') ||
-      code.includes('auth_required') ||
-      code.includes('token_expired')
+      anyErr.status === 401 ||
+      anyErr.status === 403 ||
+      anyErr.statusCode === 401 ||
+      anyErr.statusCode === 403
     ) {
       return true
     }
+    if (typeof anyErr.message === 'string') {
+      const msg = anyErr.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('the request requires valid user authorization') ||
+        msg.includes('something went wrong while processing your request')
+      ) {
+        return true
+      }
+    }
   }
-
   return false
 }

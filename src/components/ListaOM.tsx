@@ -583,7 +583,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
               title="Criar proposta O&M com PDF"
             >
               <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Nova Proposta O&M</span>
+              <span>+ Proposta O&amp;M</span>
             </button>
           )}
 
