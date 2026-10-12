@@ -67,6 +67,7 @@ import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 import { PainelEdicaoConteudoProposta } from '@/components/PainelEdicaoConteudoProposta'
 import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
+import { PreviewPropostaSecoes } from '@/components/proposta-preview/PreviewPropostaSecoes'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
@@ -1438,7 +1439,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     }))
   }
 
-  // Gerar PDF direto da visualização através do iframe (ou nova aba como fallback seguro)
+  // Gerar PDF direto da visualização através do iframe de impressão (ou nova aba como fallback seguro)
   const handleGerarPDF = () => {
     if (!propostaPDFData) {
       alert('Selecione um cliente para gerar o PDF da proposta.')
@@ -4186,28 +4187,60 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   )}
                 </div>
 
-                {/* Preview fiel do PDF gerado (HTML idêntico ao do PDF impresso/baixado) */}
+                {/* Preview Estruturado da Proposta em Seções Editáveis (data-section acessível pelo Selecionar Elementos) */}
                 <div className="bg-white border border-amber-200/80 shadow-xs rounded-2xl overflow-hidden">
                   <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
                       <Eye className="w-4 h-4 text-amber-700" />
-                      <span>Preview da Proposta</span>
+                      <span>Preview da Proposta • Seções Editáveis</span>
                     </div>
                     <span className="text-[11px] text-amber-800/80 font-medium">
-                      Visualização idêntica ao PDF final • atualiza em tempo real
+                      Clique em qualquer seção ou elemento para editar • Impressão fiel preservada
                     </span>
                   </div>
-                  <div className="p-2 sm:p-4 bg-slate-200/75 flex justify-center overflow-x-auto">
-                    <div className="w-[210mm] max-w-full px-[7mm] box-border flex justify-center">
-                      <iframe
-                        ref={previewIframeRef}
-                        title="Preview da Proposta"
-                        srcDoc={htmlPropostaPreview}
-                        sandbox="allow-same-origin allow-modals allow-scripts"
-                        className="w-[210mm] max-w-full h-[85vh] min-h-[750px] bg-white border border-gray-300 rounded-xl shadow-lg"
-                      />
+                  <div className="p-3 sm:p-5 bg-slate-100/80 flex justify-center overflow-x-auto">
+                    <div className="w-full max-w-4xl">
+                      {propostaPDFData ? (
+                        <PreviewPropostaSecoes
+                          propostaData={propostaPDFData}
+                          onSelectSecao={(secaoId) => {
+                            if (secaoId === 'investimento-condicoes') {
+                              // Seção de investimento
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="p-8 text-center text-xs text-gray-500 bg-white rounded-xl border border-gray-200">
+                          Selecione um cliente para carregar a proposta e visualizar as seções
+                          editáveis.
+                        </div>
+                      )}
                     </div>
                   </div>
+                </div>
+
+                {/* Iframe oculto exclusivamente para impressão/PDF fiel (previewIframeRef.contentWindow.print()) */}
+                {/* Mantido visually hidden (não display:none) para permitir print() estável entre navegadores */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'fixed',
+                    top: -99999,
+                    left: -99999,
+                    width: '1px',
+                    height: '1px',
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <iframe
+                    ref={previewIframeRef}
+                    title="Impressão da Proposta Solar"
+                    srcDoc={htmlPropostaPreview}
+                    sandbox="allow-same-origin allow-modals allow-scripts"
+                    style={{ width: '210mm', height: '297mm', border: 0 }}
+                  />
                 </div>
 
                 {/* Observações e Prazo */}
