@@ -22,6 +22,7 @@ vi.mock('@react-pdf/renderer', () => ({
   Page: ({ children }: any) => <div data-testid="page">{children}</div>,
   Text: ({ children }: any) => <span>{children}</span>,
   View: ({ children }: any) => <div>{children}</div>,
+  Image: ({ src }: any) => <img data-testid="pdf-image" src={src} alt="pdf-img" />,
   StyleSheet: { create: (s: any) => s },
   pdf: () => ({
     toBlob: async () => new Blob(['pdf-mock'], { type: 'application/pdf' }),
@@ -89,12 +90,17 @@ describe('Proposta O&M - Preview e PDF', () => {
     expect(screen.getByText(/Plano Completo/i)).toBeTruthy()
     expect(screen.getByText(/RECOMENDADO DELFOS/i)).toBeTruthy()
     expect(screen.getByText(/Primeiro mês bonificado/i)).toBeTruthy()
+    // Rodapé e cabeçalho alinhados com o anexo do usuário
+    expect(screen.getByText(/Proposta válida por 5 dias\./i)).toBeTruthy()
+    expect(screen.getByText(/Rua Espírito Santo, 275 – Centro, Erechim\/RS/i)).toBeTruthy()
   })
 
-  it('renderiza PropostaOMPDFDocument sem erros', () => {
+  it('renderiza PropostaOMPDFDocument sem erros e com dados do rodapé oficial', () => {
     const { container } = render(
       <PropostaOMPDFDocument dados={propostaPDFDataMock} observacoesAdicionais="Obs teste" />,
     )
     expect(container).toBeTruthy()
+    expect(screen.getByText(/Proposta válida por 5 dias\./i)).toBeTruthy()
+    expect(screen.getByText(/CNPJ 21\.379\.952\/0001-38/i)).toBeTruthy()
   })
 })

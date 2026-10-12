@@ -150,90 +150,58 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       max-width: 800px;
       margin: 0 auto;
     }
-    /* Header */
-    .header-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 2.5px solid #0B5AA8;
-      border-image: linear-gradient(to right, #0B5AA8 0%, #2E9E43 50%, #FCD200 100%) 1;
-      padding-bottom: 12px;
-      margin-bottom: 14px;
-    }
-    .brand-section {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .logo-badge-official {
-      width: 76px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .logo-badge-official svg {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    .company-title {
-      font-size: 18px;
-      font-weight: 900;
-      color: #0A539E;
-      letter-spacing: -0.01em;
-      margin: 0;
-      line-height: 1.1;
-    }
-    .company-subtitle {
-      font-size: 10px;
-      font-weight: 700;
-      color: #2E9E43;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-top: 2px;
-    }
-    .header-contact {
-      text-align: right;
-      font-size: 9.5px;
-      color: #4B5563;
-      line-height: 1.35;
-    }
-    .header-contact strong {
-      color: #111827;
-      font-weight: 700;
-    }
-    /* Main Document Title */
+    /* Main Document Title & Header unificado com Logo da Delfos ao lado do Título */
     .doc-hero {
       background: #F0FDF4;
       border: 1px solid #BBF7D0;
       border-left: 4px solid #16A34A;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 10px 14px;
       margin-bottom: 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
     }
-    .doc-hero-left h1 {
-      font-size: 15px;
-      font-weight: 800;
-      color: #065F46;
+    .doc-hero-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1;
+    }
+    .doc-hero-logo {
+      width: 72px;
+      height: 42px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .doc-hero-logo svg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .doc-hero-text h1 {
+      font-size: 14.5px;
+      font-weight: 900;
+      color: #064E3B;
       margin: 0 0 2px 0;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
     }
-    .doc-hero-left p {
+    .doc-hero-text p {
       margin: 0;
-      font-size: 10.5px;
+      font-size: 10px;
       color: #047857;
+      font-weight: 500;
     }
     .doc-badge-date {
       font-size: 10px;
       font-weight: 700;
       color: #065F46;
-      background: #DCFCE7;
+      background: #FFFFFF;
       padding: 4px 10px;
       border-radius: 6px;
       border: 1px solid #86EFAC;
@@ -453,24 +421,61 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
     .terms-card li {
       margin-bottom: 2px;
     }
-    /* Footer */
+    /* Footer Oficial Faixa Cinza Clara */
     .doc-footer {
       border-top: 1px solid #E5E7EB;
       padding-top: 10px;
       margin-top: 14px;
+    }
+    .doc-footer-box {
+      background: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: #334155;
+    }
+    .doc-footer-line1 {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      font-size: 9px;
-      color: #6B7280;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
     }
-    .doc-footer-company strong {
-      color: #111827;
+    .doc-footer-logo-small {
+      width: 24px;
+      height: 14px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 2px;
+    }
+    .doc-footer-logo-small svg {
+      width: 100%;
+      height: 100%;
+    }
+    .doc-footer-company-name {
+      font-weight: 800;
+      color: #0F172A;
+    }
+    .doc-footer-link {
+      font-weight: 700;
+      color: #047857;
+      text-decoration: none;
+    }
+    .doc-footer-line2 {
+      font-size: 9.5px;
+      color: #475569;
     }
     .doc-footer-validade {
-      text-align: right;
-      font-weight: 600;
-      color: #059669;
+      font-weight: 800;
+      color: #0D7A3E;
+      font-size: 10px;
+      margin-top: 2px;
     }
     /* Print Button & Controls for Browser Preview */
     .no-print {
@@ -530,13 +535,13 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </button>
     </div>
 
-    <!-- Header Delfos Oficial -->
-    <div class="header-bar">
-      <div class="brand-section">
-        <div class="logo-badge-official">
+    <!-- Hero Title com Logo da Delfos correta ao lado do Título (cabeçalho antigo removido) -->
+    <div class="doc-hero">
+      <div class="doc-hero-left">
+        <div class="doc-hero-logo">
           <svg viewBox="0 0 520 280" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <linearGradient id="om-grad-top" x1="0%" y1="100%" x2="100%" y2="0%">
+              <linearGradient id="om-hero-grad-top" x1="0%" y1="100%" x2="100%" y2="0%">
                 <stop offset="0%" stop-color="#0B5AA8" />
                 <stop offset="18%" stop-color="#12789E" />
                 <stop offset="42%" stop-color="#2E9E43" />
@@ -544,7 +549,7 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
                 <stop offset="88%" stop-color="#DECA09" />
                 <stop offset="100%" stop-color="#FCD200" />
               </linearGradient>
-              <linearGradient id="om-grad-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="om-hero-grad-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#FCD200" />
                 <stop offset="14%" stop-color="#DECA09" />
                 <stop offset="36%" stop-color="#7EBE32" />
@@ -553,34 +558,20 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
                 <stop offset="100%" stop-color="#0B5AA8" />
               </linearGradient>
             </defs>
-            <path d="M 10 96 C 45 42, 135 12, 260 12 C 390 12, 475 46, 514 88 C 450 42, 360 26, 260 26 C 145 26, 55 56, 10 96 Z" fill="url(#om-grad-top)" />
-            <path d="M 12 96 C 40 48, 130 16, 260 16 C 395 16, 480 50, 514 88 C 455 42, 365 28, 260 28 C 145 28, 55 58, 12 96 Z" fill="url(#om-grad-top)" opacity="0.95" />
-            <path d="M 10 184 C 55 226, 145 258, 260 258 C 375 258, 465 228, 514 192 C 480 228, 395 268, 260 268 C 130 268, 45 232, 10 184 Z" fill="url(#om-grad-bottom)" />
-            <path d="M 12 184 C 52 214, 135 246, 260 246 C 385 246, 470 224, 514 192 C 480 226, 390 264, 260 264 C 105 264, 35 218, 12 184 Z" fill="url(#om-grad-bottom)" opacity="0.95" />
+            <path d="M 10 96 C 45 42, 135 12, 260 12 C 390 12, 475 46, 514 88 C 450 42, 360 26, 260 26 C 145 26, 55 56, 10 96 Z" fill="url(#om-hero-grad-top)" />
+            <path d="M 12 96 C 40 48, 130 16, 260 16 C 395 16, 480 50, 514 88 C 455 42, 365 28, 260 28 C 145 28, 55 58, 12 96 Z" fill="url(#om-hero-grad-top)" opacity="0.95" />
+            <path d="M 10 184 C 55 226, 145 258, 260 258 C 375 258, 465 228, 514 192 C 480 228, 395 268, 260 268 C 130 268, 45 232, 10 184 Z" fill="url(#om-hero-grad-bottom)" />
+            <path d="M 12 184 C 52 214, 135 246, 260 246 C 385 246, 470 224, 514 192 C 480 226, 390 264, 260 264 C 105 264, 35 218, 12 184 Z" fill="url(#om-hero-grad-bottom)" opacity="0.95" />
             <g fill="#0A539E">
               <text x="260" y="160" text-anchor="middle" font-family="Arial, -apple-system, BlinkMacSystemFont, sans-serif" font-size="94" font-weight="900" letter-spacing="0.22em">delfos</text>
               <text x="264" y="200" text-anchor="middle" font-family="Arial, -apple-system, BlinkMacSystemFont, sans-serif" font-size="25" font-weight="800" letter-spacing="0.68em">solar</text>
             </g>
           </svg>
         </div>
-        <div>
-          <div class="company-title">DELFOS SOLAR</div>
-          <div class="company-subtitle">Engenharia e Gestão de Usinas Solares</div>
+        <div class="doc-hero-text">
+          <h1>Proposta de Gestão e Manutenção de Usinas (O&M)</h1>
+          <p>Prevenção ativa, aumento de geração e proteção integral do seu investimento solar fotovoltaico</p>
         </div>
-      </div>
-      <div class="header-contact">
-        <strong>${DADOS_EMPRESA_DELFOS.razaoSocial}</strong> • CNPJ ${DADOS_EMPRESA_DELFOS.cnpj}<br />
-        ${DADOS_EMPRESA_DELFOS.endereco}<br />
-        Tel: <strong>${DADOS_EMPRESA_DELFOS.telefone}</strong> • Email: ${DADOS_EMPRESA_DELFOS.email}<br />
-        <strong>${DADOS_EMPRESA_DELFOS.site}</strong>
-      </div>
-    </div>
-
-    <!-- Hero Title -->
-    <div class="doc-hero">
-      <div class="doc-hero-left">
-        <h1>Proposta de Gestão e Manutenção de Usinas (O&M)</h1>
-        <p>Prevenção ativa, aumento de geração e proteção integral do seu investimento solar fotovoltaico</p>
       </div>
       <div class="doc-badge-date">
         Emissão: ${formatDateBR(dados.dataEmissao)}
@@ -751,15 +742,46 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </ul>
     </div>
 
-    <!-- Footer da Proposta -->
+    <!-- Footer da Proposta conforme modelo anexo -->
     <div class="doc-footer">
-      <div class="doc-footer-company">
-        <strong>${DADOS_EMPRESA_DELFOS.razaoSocial}</strong> • CNPJ ${DADOS_EMPRESA_DELFOS.cnpj}<br />
-        ${DADOS_EMPRESA_DELFOS.endereco} • ${DADOS_EMPRESA_DELFOS.site}
-      </div>
-      <div class="doc-footer-validade">
-        Proposta válida por 15 dias corridos.<br />
-        Responsável: <strong>${dados.autor || 'Equipe Comercial Delfos Solar'}</strong>
+      <div class="doc-footer-box">
+        <div class="doc-footer-line1">
+          <span class="doc-footer-logo-small">
+            <svg viewBox="0 0 520 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="om-footer-grad-top" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#0B5AA8" />
+                  <stop offset="50%" stop-color="#2E9E43" />
+                  <stop offset="100%" stop-color="#FCD200" />
+                </linearGradient>
+                <linearGradient id="om-footer-grad-bot" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#FCD200" />
+                  <stop offset="50%" stop-color="#2E9E43" />
+                  <stop offset="100%" stop-color="#0B5AA8" />
+                </linearGradient>
+              </defs>
+              <path d="M 10 96 C 45 42, 135 12, 260 12 C 390 12, 475 46, 514 88 C 450 42, 360 26, 260 26 C 145 26, 55 56, 10 96 Z" fill="url(#om-footer-grad-top)" />
+              <path d="M 10 184 C 55 226, 145 258, 260 258 C 375 258, 465 228, 514 192 C 480 228, 395 268, 260 268 C 130 268, 45 232, 10 184 Z" fill="url(#om-footer-grad-bot)" />
+              <g fill="#0A539E">
+                <text x="260" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="94" font-weight="900" letter-spacing="0.22em">delfos</text>
+                <text x="264" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="800" letter-spacing="0.68em">solar</text>
+              </g>
+            </svg>
+          </span>
+          <span class="doc-footer-company-name">Delfos Engenharia Solar</span>
+          <span style="color: #94A3B8;">|</span>
+          <span>CNPJ 21.379.952/0001-38</span>
+          <span style="color: #16A34A; font-weight: bold;">•</span>
+          <span>📞 (54) 99129-2121</span>
+          <span style="color: #16A34A; font-weight: bold;">•</span>
+          <span class="doc-footer-link">🌐 www.delfos.eng.br</span>
+        </div>
+        <div class="doc-footer-line2">
+          📍 Rua Espírito Santo, 275 – Centro, Erechim/RS
+        </div>
+        <div class="doc-footer-validade">
+          Proposta válida por 5 dias.
+        </div>
       </div>
     </div>
   </div>

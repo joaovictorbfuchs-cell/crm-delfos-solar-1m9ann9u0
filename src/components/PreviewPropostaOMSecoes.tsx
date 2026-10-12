@@ -6,6 +6,7 @@ import React, { useState } from 'react'
 import type { PropostaPDFInput } from '@/lib/propostaOMGenerator'
 import { DADOS_EMPRESA_DELFOS } from '@/lib/propostaOMGenerator'
 import { formatCurrency } from '@/lib/formatters'
+import logoDelfosCorreta from '@/assets/delfos-solar-1368d.png'
 import {
   Layers,
   MousePointerClick,
@@ -13,7 +14,9 @@ import {
   ShieldAlert,
   Award,
   FileText,
-  CheckCircle2,
+  Phone,
+  Globe,
+  MapPin,
 } from 'lucide-react'
 
 export interface PreviewPropostaOMSecoesProps {
@@ -43,7 +46,7 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
     : new Date().toLocaleDateString('pt-BR')
 
   const secoes = [
-    { id: 'cabecalho-empresa', nome: 'Cabeçalho / Delfos', targetId: 'preview-om-cabecalho' },
+    { id: 'titulo-proposta', nome: 'Título & Logo', targetId: 'preview-om-cabecalho' },
     { id: 'dados-cliente-usina', nome: 'Cliente & Usina', targetId: 'preview-om-cliente-usina' },
     { id: 'cenarios-exposicao', nome: 'Cenários de Exposição', targetId: 'preview-om-cenarios' },
     { id: 'comparativo-planos', nome: 'Comparativo de Planos', targetId: 'preview-om-planos' },
@@ -154,49 +157,32 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
 
       {/* DOCUMENTO: PÁGINA EMULADA ESTILO A4 */}
       <div className="bg-white border border-gray-300 rounded-2xl shadow-md p-6 sm:p-8 space-y-6 max-w-4xl mx-auto text-gray-900 font-sans">
-        {/* 1. Cabeçalho Institucional Delfos */}
+        {/* Cabeçalho com Logo correta da Delfos ao lado do Título */}
         <div
           id="preview-om-cabecalho"
-          onClick={() => handleSelect('cabecalho-empresa')}
-          className={`cursor-pointer transition-all pb-4 border-b-2 border-emerald-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-            secaoAtiva === 'cabecalho-empresa'
-              ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-xl p-2'
-              : ''
+          onClick={() => handleSelect('titulo-proposta')}
+          className={`cursor-pointer transition-all bg-emerald-50/70 border border-emerald-200 border-l-4 border-l-emerald-600 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+            secaoAtiva === 'titulo-proposta' ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
           }`}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-800 to-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-sm shrink-0">
-              DS
-            </div>
-            <div>
-              <div className="text-xl font-black text-emerald-800 tracking-tight">DELFOS SOLAR</div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                Engenharia e Gestão de Usinas Solares • O&amp;M Fotovoltaico
-              </div>
-            </div>
-          </div>
-          <div className="text-left sm:text-right text-xs text-gray-600 space-y-0.5">
-            <div className="font-bold text-gray-900">{DADOS_EMPRESA_DELFOS.razaoSocial}</div>
-            <div>CNPJ: {DADOS_EMPRESA_DELFOS.cnpj}</div>
-            <div>{DADOS_EMPRESA_DELFOS.endereco}</div>
-            <div className="text-emerald-700 font-medium">
-              Tel: {DADOS_EMPRESA_DELFOS.telefone} • {DADOS_EMPRESA_DELFOS.site}
+          <div className="flex items-center gap-3.5 flex-1 min-w-0">
+            {/* Logo correta da Delfos ("delfos solar" colorida listrada) ao lado do título */}
+            <img
+              src={logoDelfosCorreta}
+              alt="Delfos Solar"
+              className="h-12 w-auto max-w-[140px] object-contain shrink-0"
+            />
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-black text-emerald-950 uppercase tracking-tight leading-snug">
+                Proposta de Gestão e Manutenção de Usinas (O&amp;M)
+              </h1>
+              <p className="text-xs text-emerald-800 font-medium mt-0.5">
+                Prevenção ativa, aumento de geração e proteção integral do seu investimento solar
+                fotovoltaico
+              </p>
             </div>
           </div>
-        </div>
-
-        {/* Título Principal & Data */}
-        <div className="bg-emerald-50/70 border border-emerald-200 border-l-4 border-l-emerald-600 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-base sm:text-lg font-black text-emerald-950 uppercase tracking-tight">
-              Proposta de Gestão e Manutenção de Usinas (O&amp;M)
-            </h1>
-            <p className="text-xs text-emerald-800 font-medium mt-0.5">
-              Prevenção ativa, aumento de geração e proteção integral do seu investimento solar
-              fotovoltaico
-            </p>
-          </div>
-          <div className="px-3 py-1 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-emerald-800 shrink-0 shadow-2xs">
+          <div className="px-3 py-1 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-emerald-800 shrink-0 shadow-2xs self-start sm:self-center">
             Emissão: {dataFormatada}
           </div>
         </div>
@@ -546,24 +532,45 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
             </div>
           )}
 
-          {/* Rodapé da Proposta */}
-          <div className="pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-gray-500">
-            <div>
-              <span className="font-bold text-gray-800">{DADOS_EMPRESA_DELFOS.razaoSocial}</span> •
-              CNPJ {DADOS_EMPRESA_DELFOS.cnpj}
-              <br />
-              {DADOS_EMPRESA_DELFOS.endereco} • {DADOS_EMPRESA_DELFOS.site}
-            </div>
-            <div className="text-left sm:text-right font-medium">
-              <span className="text-emerald-700 font-bold block">
-                Proposta válida por 15 dias corridos.
-              </span>
-              <span>
-                Responsável:{' '}
-                <strong className="text-gray-900">
-                  {propostaData.autor || 'Equipe Comercial Delfos Solar'}
-                </strong>
-              </span>
+          {/* Rodapé da Proposta conforme imagem de referência:
+              Faixa cinza clara com as informações centralizadas em duas linhas:
+              Linha 1: logo pequena + "Delfos Engenharia Solar | CNPJ 21.379.952/0001-38 • (54) 99129-2121 • www.delfos.eng.br" (com ícones)
+              Linha 2: "Rua Espírito Santo, 275 – Centro, Erechim/RS" (com ícone de localização)
+              Abaixo: "Proposta válida por 5 dias." em verde escuro */}
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="bg-[#f3f4f6] border border-gray-200/80 rounded-xl py-3 px-4 flex flex-col items-center justify-center text-center space-y-1 text-slate-700">
+              {/* Linha 1 */}
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] sm:text-xs">
+                <img
+                  src={logoDelfosCorreta}
+                  alt="Delfos"
+                  className="h-4 w-auto object-contain inline-block"
+                />
+                <span className="font-extrabold text-slate-900">Delfos Engenharia Solar</span>
+                <span className="text-slate-400">|</span>
+                <span className="font-bold text-slate-800">CNPJ 21.379.952/0001-38</span>
+                <span className="text-emerald-600 font-bold">•</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
+                  <Phone className="w-3 h-3 text-emerald-600" />
+                  <span>(54) 99129-2121</span>
+                </span>
+                <span className="text-emerald-600 font-bold">•</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                  <Globe className="w-3 h-3 text-emerald-600" />
+                  <span>www.delfos.eng.br</span>
+                </span>
+              </div>
+
+              {/* Linha 2 */}
+              <div className="flex items-center justify-center gap-1 text-[11px] text-slate-600">
+                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>Rua Espírito Santo, 275 – Centro, Erechim/RS</span>
+              </div>
+
+              {/* Linha 3: Proposta válida por 5 dias. (Verde escuro de destaque) */}
+              <div className="pt-1 text-[11px] font-bold text-[#0D7A3E]">
+                Proposta válida por 5 dias.
+              </div>
             </div>
           </div>
         </div>

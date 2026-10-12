@@ -1,187 +1,186 @@
 // Componente de documento de Proposta O&M para renderização via @react-pdf/renderer
-// Utiliza a tipografia serifada Times-Roman/Times-Bold padrão das propostas e contratos Delfos,
-// com margens laterais de 0,07cm e 25mm superior/inferior, wrap={false} para evitar quebras
-// indesejadas em blocos técnicos, cenários e tabelas.
+// Utiliza estética limpa com margens alinhadas com o preview, fontes serif/sans harmônicas,
+// cabeçalho com a logo correta da Delfos ao lado do título (sem cabeçalho antigo) e rodapé
+// com faixa cinza clara centralizada em duas linhas + validade de 5 dias em verde.
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet, type DocumentProps } from '@react-pdf/renderer'
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  Image,
+  StyleSheet,
+  type DocumentProps,
+} from '@react-pdf/renderer'
 import { type PropostaPDFInput, DADOS_EMPRESA_DELFOS } from '@/lib/propostaOMGenerator'
 import { formatCurrency } from '@/lib/formatters'
+import logoDelfosCorreta from '@/assets/delfos-solar-1368d.png'
 
-// Margens do documento:
-// Superior e inferior: 25mm em pontos: 25 * 72 / 25.4 = ~70.87pt
-// Laterais: 0,07cm (0.7mm) em pontos: 0.7 * 72 / 25.4 = ~1.98pt
-export const MARGIN_VERTICAL_25MM = 70.87
-export const MARGIN_HORIZONTAL_007CM = 1.98
+// Margens alinhadas com a visualização/preview da proposta O&M em tela (sem excesso de estreiteza)
+export const MARGIN_VERTICAL_PROPOSTA = 24
+export const MARGIN_HORIZONTAL_PROPOSTA = 26
+
+// Compatibilidade retroativa para imports externos existentes
+export const MARGIN_VERTICAL_25MM = MARGIN_VERTICAL_PROPOSTA
+export const MARGIN_HORIZONTAL_007CM = MARGIN_HORIZONTAL_PROPOSTA
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: MARGIN_VERTICAL_25MM,
-    paddingBottom: MARGIN_VERTICAL_25MM,
-    paddingLeft: MARGIN_HORIZONTAL_007CM,
-    paddingRight: MARGIN_HORIZONTAL_007CM,
-    fontFamily: 'Times-Roman',
-    fontSize: 9.5,
-    lineHeight: 1.45,
-    color: '#000000',
+    paddingTop: MARGIN_VERTICAL_PROPOSTA,
+    paddingBottom: MARGIN_VERTICAL_PROPOSTA,
+    paddingLeft: MARGIN_HORIZONTAL_PROPOSTA,
+    paddingRight: MARGIN_HORIZONTAL_PROPOSTA,
+    fontFamily: 'Helvetica',
+    fontSize: 8.5,
+    lineHeight: 1.35,
+    color: '#1f2937',
     backgroundColor: '#ffffff',
   },
-  headerInstitucional: {
+  // Título e Cabeçalho: logo da Delfos correta ao lado do título
+  headerBanner: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#16a34a',
-    borderBottomStyle: 'solid',
-    paddingBottom: 8,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#16a34a',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 8,
   },
-  headerLogo: {
-    fontFamily: 'Times-Bold',
-    fontSize: 12,
-    color: '#15803d',
-    letterSpacing: 0.5,
+  headerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
   },
-  headerSubLogo: {
-    fontFamily: 'Times-Roman',
-    fontSize: 7.5,
-    color: '#4b5563',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 2,
+  logoDelfos: {
+    width: 64,
+    height: 38,
+    objectFit: 'contain',
   },
-  headerRight: {
-    textAlign: 'right',
-    fontSize: 7.5,
-    color: '#4b5563',
-    lineHeight: 1.3,
+  tituloBox: {
+    flex: 1,
   },
   tituloPrincipal: {
-    fontFamily: 'Times-Bold',
-    fontSize: 12.5,
-    textAlign: 'center',
-    marginTop: 2,
-    marginBottom: 3,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 10.5,
+    color: '#064e3b',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    marginBottom: 2,
   },
   subtituloPrincipal: {
-    fontFamily: 'Times-Bold',
-    fontSize: 9.5,
-    textAlign: 'center',
-    color: '#374151',
-    marginBottom: 10,
+    fontFamily: 'Helvetica',
+    fontSize: 7.2,
+    color: '#047857',
+    lineHeight: 1.25,
   },
   badgeDataEmissao: {
-    fontFamily: 'Times-Roman',
-    fontSize: 8.5,
-    textAlign: 'center',
-    color: '#166534',
-    marginBottom: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 5,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    alignSelf: 'center',
   },
-  paragrafo: {
-    fontFamily: 'Times-Roman',
-    fontSize: 9.5,
-    lineHeight: 1.5,
-    textAlign: 'justify',
-    marginBottom: 6,
-    color: '#000000',
+  badgeDataTexto: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    color: '#166534',
   },
   bold: {
-    fontFamily: 'Times-Bold',
-  },
-  italic: {
-    fontFamily: 'Times-Italic',
+    fontFamily: 'Helvetica-Bold',
   },
   // Blocos 2 colunas: Cliente e Usina
   cardsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   cardColuna: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderLeftWidth: 3,
-    borderLeftColor: '#16a34a',
-    borderStyle: 'solid',
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
     padding: 7,
   },
   cardTitulo: {
-    fontFamily: 'Times-Bold',
-    fontSize: 9,
-    color: '#166534',
-    marginBottom: 5,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 8,
+    color: '#065f46',
+    marginBottom: 4,
     textTransform: 'uppercase',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#d1d5db',
+    borderBottomColor: '#cbd5e1',
     paddingBottom: 2,
   },
   cardLinha: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 2.5,
-    fontSize: 8.5,
+    marginBottom: 2,
+    fontSize: 7.5,
   },
   cardLabel: {
-    fontFamily: 'Times-Roman',
-    color: '#4b5563',
-    width: '42%',
+    fontFamily: 'Helvetica',
+    color: '#64748b',
+    width: '38%',
   },
   cardValor: {
-    fontFamily: 'Times-Bold',
-    color: '#111827',
+    fontFamily: 'Helvetica-Bold',
+    color: '#0f172a',
     textAlign: 'right',
-    width: '58%',
+    width: '62%',
   },
   cardValorDestaque: {
-    fontFamily: 'Times-Bold',
-    color: '#15803d',
+    fontFamily: 'Helvetica-Bold',
+    color: '#047857',
     textAlign: 'right',
-    width: '58%',
+    width: '62%',
   },
   // Box de Cenários de Exposição Financeira
   scenariosBox: {
     backgroundColor: '#fffbeb',
     borderWidth: 1,
     borderColor: '#fde68a',
-    borderLeftWidth: 3,
-    borderLeftColor: '#d97706',
-    borderStyle: 'solid',
-    padding: 8,
-    marginBottom: 10,
+    borderRadius: 6,
+    padding: 7,
+    marginBottom: 8,
   },
   scenariosHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   scenariosTitulo: {
-    fontFamily: 'Times-Bold',
-    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.8,
     color: '#92400e',
     textTransform: 'uppercase',
   },
   scenariosSub: {
-    fontFamily: 'Times-Roman',
-    fontSize: 8,
+    fontFamily: 'Helvetica',
+    fontSize: 7,
     color: '#b45309',
   },
   scenariosGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 5,
   },
   scenarioItem: {
     flex: 1,
     backgroundColor: '#ffffff',
     borderWidth: 0.8,
     borderColor: '#fcd34d',
-    borderRadius: 3,
-    padding: 5,
+    borderRadius: 5,
+    padding: 4.5,
     alignItems: 'center',
     textAlign: 'center',
   },
@@ -194,54 +193,69 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef2f2',
   },
   scenarioLabel: {
-    fontFamily: 'Times-Bold',
-    fontSize: 7.5,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
     color: '#78350f',
     textAlign: 'center',
-    marginBottom: 3,
-    height: 18,
+    marginBottom: 2,
+    height: 15,
   },
   scenarioValor: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
     color: '#b45309',
   },
   scenarioValorVerde: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
     color: '#15803d',
   },
   scenarioValorVermelho: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
     color: '#dc2626',
   },
   scenarioNota: {
-    fontFamily: 'Times-Italic',
-    fontSize: 7.5,
+    fontFamily: 'Helvetica',
+    fontSize: 6.8,
     color: '#78350f',
-    marginTop: 5,
-    lineHeight: 1.3,
+    marginTop: 4,
+    lineHeight: 1.25,
   },
   // Título da Seção
+  secaoTituloRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+    marginBottom: 4,
+  },
   secaoTitulo: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 8.5,
     textTransform: 'uppercase',
-    marginTop: 8,
-    marginBottom: 5,
-    color: '#166534',
-    borderBottomWidth: 0.8,
-    borderBottomColor: '#d1d5db',
-    paddingBottom: 2,
+    color: '#1f2937',
+  },
+  secaoBadgePlanos: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 0.5,
+    borderColor: '#a7f3d0',
+    borderRadius: 3,
+    paddingVertical: 1,
+    paddingHorizontal: 4,
+  },
+  secaoBadgePlanosText: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
+    color: '#047857',
   },
   // Grid de Cards de Planos (3 cards lado a lado)
   planCardsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 7,
-    marginTop: 6,
-    marginBottom: 10,
+    marginTop: 2,
+    marginBottom: 8,
   },
   planCard: {
     flex: 1,
@@ -271,122 +285,165 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   planBadgeRecText: {
-    fontFamily: 'Times-Bold',
-    fontSize: 6,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 5.8,
     color: '#ffffff',
     textTransform: 'uppercase',
   },
   planNome: {
-    fontFamily: 'Times-Bold',
+    fontFamily: 'Helvetica-Bold',
     fontSize: 8.5,
     color: '#111827',
     marginBottom: 2,
   },
   planPreco: {
-    fontFamily: 'Times-Bold',
-    fontSize: 12,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 11.5,
     color: '#0d7a3e',
   },
   planPrecoUnidade: {
-    fontFamily: 'Times-Bold',
-    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
     color: '#0d7a3e',
   },
   planFaturamentoAnual: {
-    fontFamily: 'Times-Roman',
-    fontSize: 6.8,
+    fontFamily: 'Helvetica',
+    fontSize: 6.5,
     color: '#6b7280',
     marginTop: 1,
-    marginBottom: 5,
+    marginBottom: 4,
   },
   planBulletItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 2.5,
+    marginBottom: 2,
   },
   planBulletDot: {
-    fontFamily: 'Times-Bold',
-    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
     color: '#9ca3af',
-    width: 8,
+    width: 7,
   },
   planBulletTexto: {
-    fontFamily: 'Times-Roman',
-    fontSize: 7,
+    fontFamily: 'Helvetica',
+    fontSize: 6.8,
     color: '#4b5563',
     flex: 1,
     lineHeight: 1.25,
   },
   // Condições Gerais / Vigência
   condicoesBox: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
     borderLeftWidth: 3,
     borderLeftColor: '#16a34a',
-    borderStyle: 'solid',
+    borderRadius: 5,
     padding: 6,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   condicoesTitulo: {
-    fontFamily: 'Times-Bold',
-    fontSize: 8.5,
-    color: '#111827',
-    marginBottom: 3,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    color: '#0f172a',
+    marginBottom: 2.5,
     textTransform: 'uppercase',
   },
   condicoesItem: {
-    fontFamily: 'Times-Roman',
-    fontSize: 7.5,
-    color: '#374151',
-    lineHeight: 1.35,
-    marginBottom: 1.5,
+    fontFamily: 'Helvetica',
+    fontSize: 6.8,
+    color: '#334155',
+    lineHeight: 1.3,
+    marginBottom: 1,
   },
   // Observações adicionais
   observacoesBox: {
     backgroundColor: '#f0fdf4',
     borderWidth: 0.8,
     borderColor: '#86efac',
-    borderRadius: 3,
-    padding: 6,
-    marginBottom: 8,
+    borderRadius: 5,
+    padding: 5,
+    marginBottom: 6,
   },
   observacoesTitulo: {
-    fontFamily: 'Times-Bold',
-    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.2,
     color: '#166534',
-    marginBottom: 2,
+    marginBottom: 1.5,
     textTransform: 'uppercase',
   },
   observacoesTexto: {
-    fontFamily: 'Times-Roman',
-    fontSize: 7.5,
+    fontFamily: 'Helvetica',
+    fontSize: 6.8,
     color: '#14532d',
-    lineHeight: 1.3,
+    lineHeight: 1.25,
   },
-  // Rodapé do Documento
-  docFooter: {
-    borderTopWidth: 1,
+  // Rodapé Oficial conforme modelo anexo
+  footerContainer: {
+    borderTopWidth: 0.8,
     borderTopColor: '#e5e7eb',
-    borderTopStyle: 'solid',
-    paddingTop: 6,
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    paddingTop: 4,
+    marginTop: 4,
+  },
+  footerStrip: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 0.8,
+    borderColor: '#e5e7eb',
+    borderRadius: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  docFooterCompany: {
-    fontFamily: 'Times-Roman',
-    fontSize: 7.5,
-    color: '#4b5563',
-    lineHeight: 1.3,
+  footerLinha1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+    gap: 4,
   },
-  docFooterValidade: {
-    fontFamily: 'Times-Bold',
-    fontSize: 7.5,
-    color: '#059669',
-    textAlign: 'right',
-    lineHeight: 1.3,
+  footerLogoSmall: {
+    width: 22,
+    height: 12,
+    objectFit: 'contain',
+    marginRight: 2,
+  },
+  footerTextoEmpresa: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7,
+    color: '#0f172a',
+  },
+  footerTextoDivisor: {
+    fontFamily: 'Helvetica',
+    fontSize: 6.5,
+    color: '#94a3b8',
+  },
+  footerTextoDados: {
+    fontFamily: 'Helvetica',
+    fontSize: 6.8,
+    color: '#334155',
+  },
+  footerTextoLink: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.8,
+    color: '#047857',
+  },
+  footerLinha2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  footerEndereco: {
+    fontFamily: 'Helvetica',
+    fontSize: 6.6,
+    color: '#475569',
+  },
+  footerValidade: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.8,
+    color: '#0d7a3e',
+    marginTop: 1,
   },
 })
 
@@ -416,36 +473,23 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
       {...docProps}
     >
       <Page size="A4" style={styles.page}>
-        {/* Cabeçalho Institucional Delfos */}
-        <View style={styles.headerInstitucional} wrap={false}>
-          <View>
-            <Text style={styles.headerLogo}>DELFOS SOLAR</Text>
-            <Text style={styles.headerSubLogo}>
-              Engenharia e Gestão de Usinas Solares • O&amp;M Fotovoltaico
-            </Text>
+        {/* Cabeçalho com a logo correta da Delfos ao lado do Título (cabeçalho antigo removido) */}
+        <View style={styles.headerBanner} wrap={false}>
+          <View style={styles.headerLeftGroup}>
+            <Image src={logoDelfosCorreta} style={styles.logoDelfos} />
+            <View style={styles.tituloBox}>
+              <Text style={styles.tituloPrincipal}>
+                PROPOSTA DE GESTÃO E MANUTENÇÃO DE USINAS (O&amp;M)
+              </Text>
+              <Text style={styles.subtituloPrincipal}>
+                Prevenção ativa, aumento de geração e proteção integral do seu investimento solar
+                fotovoltaico
+              </Text>
+            </View>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.bold}>{DADOS_EMPRESA_DELFOS.razaoSocial}</Text>
-            <Text>CNPJ: {DADOS_EMPRESA_DELFOS.cnpj}</Text>
-            <Text>{DADOS_EMPRESA_DELFOS.endereco}</Text>
-            <Text>
-              Tel: {DADOS_EMPRESA_DELFOS.telefone} • {DADOS_EMPRESA_DELFOS.site}
-            </Text>
+          <View style={styles.badgeDataEmissao}>
+            <Text style={styles.badgeDataTexto}>Emissão: {dataFormatada}</Text>
           </View>
-        </View>
-
-        {/* Título Principal do Documento */}
-        <View wrap={false}>
-          <Text style={styles.tituloPrincipal}>
-            PROPOSTA DE GESTÃO E MANUTENÇÃO DE USINAS (O&amp;M)
-          </Text>
-          <Text style={styles.subtituloPrincipal}>
-            Prevenção ativa, aumento de geração e proteção integral do seu investimento solar
-            fotovoltaico
-          </Text>
-          <Text style={styles.badgeDataEmissao}>
-            Data de Emissão: {dataFormatada} • Válida por 15 dias corridos
-          </Text>
         </View>
 
         {/* 1. DADOS DO CLIENTE & DADOS TÉCNICOS DA USINA (2 colunas protegidas) */}
@@ -539,15 +583,15 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               </Text>
             </View>
             <View style={styles.scenarioItem}>
-              <Text style={styles.scenarioLabel}>Perda 15% ao ano (Sujidade/Poeira)</Text>
+              <Text style={styles.scenarioLabel}>Perda 15% ao ano (Sujidade)</Text>
               <Text style={styles.scenarioValor}>{formatBRL(calculos.perda15Ano)}</Text>
             </View>
             <View style={styles.scenarioItem}>
-              <Text style={styles.scenarioLabel}>Perda 20% ao ano (Sem Preventiva)</Text>
+              <Text style={styles.scenarioLabel}>Perda 20% ao ano (Sem Prev.)</Text>
               <Text style={styles.scenarioValor}>{formatBRL(calculos.perda20Ano)}</Text>
             </View>
             <View style={[styles.scenarioItem, styles.scenarioItemPerigo]}>
-              <Text style={styles.scenarioLabel}>Prejuízo 30 dias (Falha não vista)</Text>
+              <Text style={styles.scenarioLabel}>Prejuízo 30 dias (Falha)</Text>
               <Text style={styles.scenarioValorVermelho}>{formatBRL(calculos.prejuizo30Dias)}</Text>
             </View>
           </View>
@@ -561,7 +605,12 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
 
         {/* 3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO (Cards com wrap={false}) */}
         <View wrap={false}>
-          <Text style={styles.secaoTitulo}>3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO</Text>
+          <View style={styles.secaoTituloRow}>
+            <Text style={styles.secaoTitulo}>3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO</Text>
+            <View style={styles.secaoBadgePlanos}>
+              <Text style={styles.secaoBadgePlanosText}>3 Modalidades Inclusas</Text>
+            </View>
+          </View>
 
           <View style={styles.planCardsGrid}>
             {/* Card 1: Plano Essencial */}
@@ -657,7 +706,7 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
           </Text>
           <Text style={styles.condicoesItem}>
             • <Text style={styles.bold}>Equipe técnica qualificada:</Text> Técnicos certificados
-            NR-10 e NR-35 com equipamentos e instrumentos de medição calibrados.
+            NR-10 e NR-35 com equipamentos e instrumentos calibrados.
           </Text>
           <Text style={styles.condicoesItem}>
             • <Text style={styles.bold}>Garantia de segurança:</Text> Produtos específicos e água
@@ -673,21 +722,34 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
           </View>
         )}
 
-        {/* Rodapé da Proposta */}
-        <View style={styles.docFooter} wrap={false}>
-          <View style={styles.docFooterCompany}>
-            <Text style={styles.bold}>{DADOS_EMPRESA_DELFOS.razaoSocial}</Text>
-            <Text>
-              CNPJ {DADOS_EMPRESA_DELFOS.cnpj} • {DADOS_EMPRESA_DELFOS.endereco}
-            </Text>
-            <Text>{DADOS_EMPRESA_DELFOS.site}</Text>
-          </View>
-          <View style={styles.docFooterValidade}>
-            <Text>Proposta válida por 15 dias corridos.</Text>
-            <Text>
-              Responsável:{' '}
-              <Text style={styles.bold}>{dados.autor || 'Equipe Comercial Delfos Solar'}</Text>
-            </Text>
+        {/* Rodapé Oficial conforme modelo anexo:
+            Faixa cinza clara com as informações centradas em duas linhas:
+            Linha 1: logo pequena Delfos + Delfos Engenharia Solar | CNPJ 21.379.952/0001-38 • (54) 99129-2121 • www.delfos.eng.br
+            Linha 2: Rua Espírito Santo, 275 – Centro, Erechim/RS
+            Abaixo: Proposta válida por 5 dias. (em verde escuro) */}
+        <View style={styles.footerContainer} wrap={false}>
+          <View style={styles.footerStrip}>
+            {/* Linha 1 */}
+            <View style={styles.footerLinha1}>
+              <Image src={logoDelfosCorreta} style={styles.footerLogoSmall} />
+              <Text style={styles.footerTextoEmpresa}>Delfos Engenharia Solar</Text>
+              <Text style={styles.footerTextoDivisor}>|</Text>
+              <Text style={styles.footerTextoDados}>CNPJ 21.379.952/0001-38</Text>
+              <Text style={styles.footerTextoDivisor}>•</Text>
+              <Text style={styles.footerTextoDados}>☎ (54) 99129-2121</Text>
+              <Text style={styles.footerTextoDivisor}>•</Text>
+              <Text style={styles.footerTextoLink}>🌐 www.delfos.eng.br</Text>
+            </View>
+
+            {/* Linha 2 */}
+            <View style={styles.footerLinha2}>
+              <Text style={styles.footerEndereco}>
+                📍 Rua Espírito Santo, 275 – Centro, Erechim/RS
+              </Text>
+            </View>
+
+            {/* Linha 3: Proposta válida por 5 dias. */}
+            <Text style={styles.footerValidade}>Proposta válida por 5 dias.</Text>
           </View>
         </View>
       </Page>
