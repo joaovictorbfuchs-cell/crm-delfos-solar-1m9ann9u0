@@ -849,7 +849,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(htmlPreview).toBe(htmlPDF)
       expect(htmlPreview).toContain('Veja como ficará sua usina no telhado')
       expect(htmlPreview).not.toContain('Inc. IOF')
-      expect(htmlPreview).toContain('preview-page-break-marker')
+      expect(htmlPreview).not.toContain('preview-page-break-marker')
     })
 
     it('controla a visibilidade de seções opcionais via secoesHabilitadas', () => {
