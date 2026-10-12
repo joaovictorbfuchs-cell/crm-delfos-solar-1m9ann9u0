@@ -1,0 +1,538 @@
+// Componente de pré-visualização das seções da Proposta O&M diretamente no DOM (sem iframe srcDoc).
+// Segue o padrão de PreviewPropostaSecoes, permitindo visualizar com clareza o documento oficial:
+// Cabeçalho institucional Delfos, Dados do Cliente, Dados Técnicos da Usina, Cenários de Exposição
+// Financeira, Tabela Comparativa dos 3 Planos (Essencial, Prevenção, Completo), Condições Gerais e Observações.
+import React, { useState } from 'react'
+import type { PropostaPDFInput } from '@/lib/propostaOMGenerator'
+import { DADOS_EMPRESA_DELFOS } from '@/lib/propostaOMGenerator'
+import { formatCurrency } from '@/lib/formatters'
+import {
+  Layers,
+  MousePointerClick,
+  Check,
+  ShieldAlert,
+  Award,
+  FileText,
+  CheckCircle2,
+} from 'lucide-react'
+
+export interface PreviewPropostaOMSecoesProps {
+  propostaData: PropostaPDFInput
+  observacoesAdicionais?: string
+  onSelectSecao?: (secaoId: string) => void
+}
+
+export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = ({
+  propostaData,
+  observacoesAdicionais,
+  onSelectSecao,
+}) => {
+  const [secaoAtiva, setSecaoAtiva] = useState<string | null>(null)
+
+  const { cliente, tecnico, parametros, calculos } = propostaData
+
+  const handleSelect = (secaoId: string) => {
+    setSecaoAtiva(secaoId)
+    onSelectSecao?.(secaoId)
+  }
+
+  const formatBRL = (val: number) => formatCurrency(val || 0)
+
+  const dataFormatada = propostaData.dataEmissao
+    ? new Date(propostaData.dataEmissao).toLocaleDateString('pt-BR')
+    : new Date().toLocaleDateString('pt-BR')
+
+  const secoes = [
+    { id: 'cabecalho-empresa', nome: 'Cabeçalho / Delfos', targetId: 'preview-om-cabecalho' },
+    { id: 'dados-cliente-usina', nome: 'Cliente & Usina', targetId: 'preview-om-cliente-usina' },
+    { id: 'cenarios-exposicao', nome: 'Cenários de Exposição', targetId: 'preview-om-cenarios' },
+    { id: 'comparativo-planos', nome: 'Comparativo de Planos', targetId: 'preview-om-planos' },
+    { id: 'condicoes-gerais', nome: 'Condições & Validade', targetId: 'preview-om-condicoes' },
+  ]
+
+  const itensTabela = [
+    {
+      escopo: 'Monitoramento diário da geração em horários comerciais',
+      essencial: '✓ Sim',
+      prevencao: '✓ Sim',
+      completo: '✓ Sim',
+    },
+    {
+      escopo: 'Relatório mensal analítico de desempenho e compensação',
+      essencial: '✓ Sim',
+      prevencao: '✓ Sim',
+      completo: '✓ Sim',
+    },
+    {
+      escopo: 'Suporte técnico especializado direto com engenharia',
+      essencial: '✓ Sim',
+      prevencao: '✓ Sim',
+      completo: '✓ Ilimitado VIP',
+    },
+    {
+      escopo: 'Intermediação e suporte com a concessionária (RGE)',
+      essencial: '✓ Sim',
+      prevencao: '✓ Sim',
+      completo: '✓ Prioritário',
+    },
+    {
+      escopo: 'Configuração e suporte remoto ao datalogger/Wi-Fi',
+      essencial: '✓ Sim',
+      prevencao: '✓ Sim',
+      completo: '✓ Sim',
+    },
+    {
+      escopo: 'Inspeção preventiva anual in loco e ensaios elétricos',
+      essencial: 'Sob demanda',
+      prevencao: '✓ 1x ao ano',
+      completo: '✓ 1x ao ano',
+    },
+    {
+      escopo: 'Reaperto de conexões, quadros e integridade dos grampos',
+      essencial: '—',
+      prevencao: '✓ Incluso',
+      completo: '✓ Incluso',
+    },
+    {
+      escopo: 'Verificação de desempenho, detecção de sombreamento e falhas',
+      essencial: '—',
+      prevencao: '✓ Anual',
+      completo: '✓ Semestral',
+    },
+    {
+      escopo: 'Limpeza técnica dos módulos solares com produto homologado',
+      essencial: 'Avulso',
+      prevencao: '✓ 1x ao ano',
+      completo: '✓ 2x ao ano',
+    },
+  ]
+
+  return (
+    <div
+      id="container-preview-proposta-om-secoes"
+      data-testid="preview-proposta-om-secoes"
+      className="w-full space-y-4"
+    >
+      {/* Barra de navegação rápida por seções */}
+      <div className="bg-white border border-emerald-200/80 rounded-xl p-3 shadow-2xs flex flex-wrap items-center justify-between gap-2.5 text-xs">
+        <div className="flex items-center gap-2 text-slate-700 font-semibold">
+          <Layers className="w-4 h-4 text-emerald-600" />
+          <span>Seções do Documento da Proposta O&M:</span>
+          <span className="text-[11px] font-normal text-slate-500 hidden sm:inline">
+            Visualização fiel pronta para geração do PDF oficial
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {secoes.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => {
+                handleSelect(s.id)
+                const el = document.getElementById(s.targetId)
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+              }}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                secaoAtiva === s.id
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                  : 'bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border-slate-200 hover:border-emerald-300'
+              }`}
+            >
+              {secaoAtiva === s.id ? (
+                <Check className="w-3 h-3 text-white" />
+              ) : (
+                <MousePointerClick className="w-3 h-3 text-slate-400" />
+              )}
+              <span>{s.nome}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* DOCUMENTO: PÁGINA EMULADA ESTILO A4 */}
+      <div className="bg-white border border-gray-300 rounded-2xl shadow-md p-6 sm:p-8 space-y-6 max-w-4xl mx-auto text-gray-900 font-sans">
+        {/* 1. Cabeçalho Institucional Delfos */}
+        <div
+          id="preview-om-cabecalho"
+          onClick={() => handleSelect('cabecalho-empresa')}
+          className={`cursor-pointer transition-all pb-4 border-b-2 border-emerald-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+            secaoAtiva === 'cabecalho-empresa'
+              ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-xl p-2'
+              : ''
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-800 to-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-sm shrink-0">
+              DS
+            </div>
+            <div>
+              <div className="text-xl font-black text-emerald-800 tracking-tight">DELFOS SOLAR</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                Engenharia e Gestão de Usinas Solares • O&amp;M Fotovoltaico
+              </div>
+            </div>
+          </div>
+          <div className="text-left sm:text-right text-xs text-gray-600 space-y-0.5">
+            <div className="font-bold text-gray-900">{DADOS_EMPRESA_DELFOS.razaoSocial}</div>
+            <div>CNPJ: {DADOS_EMPRESA_DELFOS.cnpj}</div>
+            <div>{DADOS_EMPRESA_DELFOS.endereco}</div>
+            <div className="text-emerald-700 font-medium">
+              Tel: {DADOS_EMPRESA_DELFOS.telefone} • {DADOS_EMPRESA_DELFOS.site}
+            </div>
+          </div>
+        </div>
+
+        {/* Título Principal & Data */}
+        <div className="bg-emerald-50/70 border border-emerald-200 border-l-4 border-l-emerald-600 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-base sm:text-lg font-black text-emerald-950 uppercase tracking-tight">
+              Proposta de Gestão e Manutenção de Usinas (O&amp;M)
+            </h1>
+            <p className="text-xs text-emerald-800 font-medium mt-0.5">
+              Prevenção ativa, aumento de geração e proteção integral do seu investimento solar
+              fotovoltaico
+            </p>
+          </div>
+          <div className="px-3 py-1 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-emerald-800 shrink-0 shadow-2xs">
+            Emissão: {dataFormatada}
+          </div>
+        </div>
+
+        {/* 2. Dados do Cliente & Dados Técnicos da Usina */}
+        <div
+          id="preview-om-cliente-usina"
+          onClick={() => handleSelect('dados-cliente-usina')}
+          className={`cursor-pointer transition-all grid grid-cols-1 md:grid-cols-2 gap-4 ${
+            secaoAtiva === 'dados-cliente-usina'
+              ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-xl p-2'
+              : ''
+          }`}
+        >
+          {/* Card Cliente */}
+          <div className="bg-slate-50 border border-gray-200 rounded-xl p-4 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                1. Dados do Cliente
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                Cadastrado
+              </span>
+            </div>
+            <div className="text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Nome / Razão:</span>
+                <span className="font-bold text-gray-900 text-right">{cliente.nome}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">CPF / CNPJ:</span>
+                <span className="font-semibold text-gray-800">
+                  {cliente.cpfOuCnpj || 'Não informado'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Município:</span>
+                <span className="font-semibold text-gray-800">
+                  {cliente.municipio || 'Erechim / RS'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Endereço:</span>
+                <span className="font-semibold text-gray-800 text-right">
+                  {cliente.endereco || 'Endereço da usina'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Telefone:</span>
+                <span className="font-semibold text-gray-800">
+                  {cliente.telefone || '(54) 99129-2121'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">E-mail:</span>
+                <span className="font-semibold text-gray-800 text-right">
+                  {cliente.email || 'contato@cliente.com'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card Técnico da Usina */}
+          <div className="bg-slate-50 border border-gray-200 rounded-xl p-4 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5 text-emerald-600" />
+                2. Dados Técnicos da Usina
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                Sistema Ativo
+              </span>
+            </div>
+            <div className="text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Potência Instalada:</span>
+                <span className="font-extrabold text-emerald-700">
+                  {tecnico.potenciaKwp > 0
+                    ? `${tecnico.potenciaKwp.toLocaleString('pt-BR')} kWp`
+                    : '5,00 kWp'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Geração Estimada:</span>
+                <span className="font-bold text-gray-900">
+                  {tecnico.geracaoMediaKwh.toLocaleString('pt-BR')} kWh/mês
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Inversor(es):</span>
+                <span className="font-semibold text-gray-800 text-right">
+                  {tecnico.marcaInversores || 'Inversores homologados'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Módulos:</span>
+                <span className="font-semibold text-gray-800">
+                  {tecnico.numeroModulos ? `${tecnico.numeroModulos} unidades` : 'Conforme projeto'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Tipo de Instalação:</span>
+                <span className="font-semibold text-gray-800">
+                  {tecnico.tipoInstalacao || 'Telhado'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-medium">Tarifa Base (RGE):</span>
+                <span className="font-extrabold text-emerald-700">
+                  {formatBRL(parametros.valorKwh)} / kWh
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Cenários de Exposição Financeira */}
+        <div
+          id="preview-om-cenarios"
+          onClick={() => handleSelect('cenarios-exposicao')}
+          className={`cursor-pointer transition-all bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 sm:p-5 space-y-3.5 ${
+            secaoAtiva === 'cenarios-exposicao' ? 'ring-2 ring-amber-500 ring-offset-2' : ''
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-amber-950 font-extrabold text-xs uppercase tracking-wider">
+              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Cenários de Exposição Financeira sem O&amp;M Especializado</span>
+            </div>
+            <div className="text-[11px] font-bold text-amber-800 bg-white/80 px-2.5 py-0.5 rounded border border-amber-300">
+              Produção mensal: {tecnico.geracaoMediaKwh.toLocaleString('pt-BR')} kWh ×{' '}
+              {formatBRL(parametros.valorKwh)}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-white border border-emerald-200 rounded-xl p-3 shadow-2xs">
+              <div className="text-[10px] font-bold text-emerald-800 uppercase leading-tight min-h-[22px]">
+                Ativo Protegido (Mês)
+              </div>
+              <div className="text-base font-black text-emerald-700 mt-1">
+                {formatBRL(calculos.valorAtivoProtegido)}
+              </div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Geração integral</div>
+            </div>
+
+            <div className="bg-white border border-amber-200 rounded-xl p-3 shadow-2xs">
+              <div className="text-[10px] font-bold text-amber-900 uppercase leading-tight min-h-[22px]">
+                Perda 15% / ano (Sujidade)
+              </div>
+              <div className="text-base font-black text-amber-600 mt-1">
+                {formatBRL(calculos.perda15Ano)}
+              </div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Poeira acumulada</div>
+            </div>
+
+            <div className="bg-white border border-orange-200 rounded-xl p-3 shadow-2xs">
+              <div className="text-[10px] font-bold text-orange-900 uppercase leading-tight min-h-[22px]">
+                Perda 20% / ano (Sem Preventiva)
+              </div>
+              <div className="text-base font-black text-orange-600 mt-1">
+                {formatBRL(calculos.perda20Ano)}
+              </div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Degradação térmica</div>
+            </div>
+
+            <div className="bg-white border border-rose-200 rounded-xl p-3 shadow-2xs">
+              <div className="text-[10px] font-bold text-rose-900 uppercase leading-tight min-h-[22px]">
+                Prejuízo 30 dias (Inversor Parado)
+              </div>
+              <div className="text-base font-black text-rose-600 mt-1">
+                {formatBRL(calculos.prejuizo30Dias)}
+              </div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Falha sem alerta</div>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-amber-900 bg-white/70 border border-amber-200 rounded-lg p-2.5">
+            * Prejuízo por 20 dias de falha ou inversor desarmado sem alerta de monitoramento:{' '}
+            <strong className="text-amber-950">{formatBRL(calculos.prejuizo20Dias)}</strong>. Um
+            plano de O&amp;M se paga integralmente ao evitar apenas alguns dias de perda de geração
+            ao ano.
+          </div>
+        </div>
+
+        {/* 4. Comparativo Completo dos 3 Planos */}
+        <div
+          id="preview-om-planos"
+          onClick={() => handleSelect('comparativo-planos')}
+          className={`cursor-pointer transition-all space-y-3 ${
+            secaoAtiva === 'comparativo-planos'
+              ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-xl p-2'
+              : ''
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
+              3. Comparativo de Planos de Gestão e Manutenção
+            </h2>
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              3 Modalidades Inclusas
+            </span>
+          </div>
+
+          <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-2xs">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-gray-100 text-gray-700 uppercase font-bold text-[11px]">
+                <tr>
+                  <th className="p-3 border-b border-gray-200 w-[42%]">
+                    Escopo do Serviço de O&amp;M
+                  </th>
+                  <th className="p-3 border-b border-gray-200 text-center w-[18%]">Essencial</th>
+                  <th className="p-3 border-b border-gray-200 text-center w-[18%]">Prevenção</th>
+                  <th className="p-3 border-b border-emerald-300 text-center w-[22%] bg-emerald-100/70 text-emerald-950">
+                    <div>Completo</div>
+                    <span className="text-[9px] font-extrabold bg-emerald-600 text-white px-1.5 py-0.2 rounded uppercase tracking-wider">
+                      Recomendado
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-gray-700">
+                {itensTabela.map((item, idx) => (
+                  <tr key={idx} className={idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}>
+                    <td className="p-2.5 font-medium text-gray-900 border-r border-gray-100">
+                      {item.escopo}
+                    </td>
+                    <td className="p-2.5 text-center text-gray-600 border-r border-gray-100">
+                      {item.essencial}
+                    </td>
+                    <td className="p-2.5 text-center text-gray-600 border-r border-gray-100">
+                      {item.prevencao}
+                    </td>
+                    <td className="p-2.5 text-center font-bold text-emerald-800 bg-emerald-50/40">
+                      {item.completo}
+                    </td>
+                  </tr>
+                ))}
+                {/* Linha Final de Valores */}
+                <tr className="bg-emerald-100/60 font-bold border-t-2 border-emerald-500">
+                  <td className="p-3 font-black text-emerald-950 uppercase">Investimento Mensal</td>
+                  <td className="p-3 text-center">
+                    <div className="text-sm font-black text-emerald-900">{formatBRL(49.9)}/mês</div>
+                    <div className="text-[10px] text-emerald-700 font-semibold">
+                      ({formatBRL(49.9 * 12)}/ano)
+                    </div>
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="text-sm font-black text-emerald-900">{formatBRL(74.9)}/mês</div>
+                    <div className="text-[10px] text-emerald-700 font-semibold">
+                      ({formatBRL(74.9 * 12)}/ano)
+                    </div>
+                  </td>
+                  <td className="p-3 text-center bg-emerald-200/60 border-l border-emerald-300">
+                    <div className="text-base font-black text-emerald-950">
+                      {formatBRL(99.9)}/mês
+                    </div>
+                    <div className="text-[10px] text-emerald-800 font-bold">
+                      ({formatBRL(99.9 * 12)}/ano)
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 5. Condições Gerais e Observações */}
+        <div
+          id="preview-om-condicoes"
+          onClick={() => handleSelect('condicoes-gerais')}
+          className={`cursor-pointer transition-all space-y-3 ${
+            secaoAtiva === 'condicoes-gerais'
+              ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-xl p-2'
+              : ''
+          }`}
+        >
+          <div className="bg-slate-50 border border-gray-200 border-l-4 border-l-emerald-600 rounded-xl p-4 text-xs space-y-1.5 text-gray-700">
+            <div className="font-bold text-gray-900 uppercase text-[11px] mb-1">
+              Condições Gerais e Vigência:
+            </div>
+            <p>
+              • <strong>Escolha flexível:</strong> O cliente escolhe livremente a modalidade mais
+              adequada após a apresentação dos cenários de proteção.
+            </p>
+            <p>
+              • <strong>Vigência contratual:</strong> 12 meses renováveis, garantindo atendimento
+              contínuo, preventivo e laudos periódicos da usina.
+            </p>
+            <p>
+              • <strong>Forma de pagamento:</strong> Mensalidades via boleto bancário ou PIX
+              corporativo Delfos Engenharia.
+            </p>
+            <p>
+              • <strong>Equipe técnica qualificada:</strong> Técnicos certificados NR-10 e NR-35 com
+              equipamentos e instrumentos calibrados.
+            </p>
+            <p>
+              • <strong>Garantia de segurança:</strong> Produtos específicos e homologados,
+              preservando as garantias dos fabricantes de inversores e painéis.
+            </p>
+          </div>
+
+          {observacoesAdicionais && (
+            <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-950">
+              <span className="font-bold block mb-1">Observações Complementares da Proposta:</span>
+              <p className="text-emerald-900">{observacoesAdicionais}</p>
+            </div>
+          )}
+
+          {/* Rodapé da Proposta */}
+          <div className="pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-gray-500">
+            <div>
+              <span className="font-bold text-gray-800">{DADOS_EMPRESA_DELFOS.razaoSocial}</span> •
+              CNPJ {DADOS_EMPRESA_DELFOS.cnpj}
+              <br />
+              {DADOS_EMPRESA_DELFOS.endereco} • {DADOS_EMPRESA_DELFOS.site}
+            </div>
+            <div className="text-left sm:text-right font-medium">
+              <span className="text-emerald-700 font-bold block">
+                Proposta válida por 15 dias corridos.
+              </span>
+              <span>
+                Responsável:{' '}
+                <strong className="text-gray-900">
+                  {propostaData.autor || 'Equipe Comercial Delfos Solar'}
+                </strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default PreviewPropostaOMSecoes
