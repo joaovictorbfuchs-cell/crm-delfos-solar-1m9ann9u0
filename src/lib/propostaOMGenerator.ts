@@ -812,7 +812,7 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
     </div>
 
     <!-- Comparativo de Planos de Gestão e Manutenção (Cards de Planos) -->
-    <div class="section-title">3. Comparativo de Planos de Gestão e Manutenção</div>
+    <div class="section-title">PLANOS DE GESTÃO E MANUTENÇÃO (Contrato Anual)</div>
 
     <div class="plans-cards-grid">
       <!-- 1. Plano Essencial -->
@@ -823,7 +823,6 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
             ${calculos.planos.Essencial.isNegociado ? '<span class="badge-negociado">Negociado</span>' : ''}
           </div>
           <div class="plan-price">${formatBRL(calculos.planos.Essencial.mensal)}<span class="plan-price-unit">/mês</span></div>
-          <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Essencial.anual)}/ano</div>
           <ul class="plan-bullets">
             <li><span class="plan-bullet-dot">•</span> <span>Monitoramento comercial</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>Relatório mensal analítico</span></li>
@@ -840,7 +839,6 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
             ${calculos.planos.Inspeção.isNegociado ? '<span class="badge-negociado">Negociado</span>' : ''}
           </div>
           <div class="plan-price">${formatBRL(calculos.planos.Inspeção.mensal)}<span class="plan-price-unit">/mês</span></div>
-          <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Inspeção.anual)}/ano</div>
           <ul class="plan-bullets">
             <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Essencial</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>1x Inspeção preventiva anual</span></li>
@@ -859,7 +857,6 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
             ${calculos.planos.Completo.isNegociado ? '<span class="badge-negociado">Negociado</span>' : ''}
           </div>
           <div class="plan-price">${formatBRL(calculos.planos.Completo.mensal)}<span class="plan-price-unit">/mês</span></div>
-          <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Completo.anual)}/ano</div>
           <ul class="plan-bullets">
             <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Inspeção</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>2x Limpezas de placas ao ano</span></li>

@@ -382,7 +382,7 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
-              3. Comparativo de Planos de Gestão e Manutenção
+              PLANOS DE GESTÃO E MANUTENÇÃO (Contrato Anual)
             </h2>
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
               3 Modalidades Inclusas
@@ -406,9 +406,6 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                   {formatCurrency(calculos.planos.Essencial.mensal)}
                   <span className="text-base font-bold">/mês</span>
-                </div>
-                <div className="text-xs text-gray-500 font-normal mt-0.5">
-                  Faturamento Anual: {formatCurrency(calculos.planos.Essencial.anual)}/ano
                 </div>
                 <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                   <li className="flex items-start gap-1.5">
@@ -442,9 +439,6 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                   {formatCurrency(calculos.planos.Inspeção.mensal)}
                   <span className="text-base font-bold">/mês</span>
-                </div>
-                <div className="text-xs text-gray-500 font-normal mt-0.5">
-                  Faturamento Anual: {formatCurrency(calculos.planos.Inspeção.anual)}/ano
                 </div>
                 <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                   <li className="flex items-start gap-1.5">
@@ -486,9 +480,6 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                   {formatCurrency(calculos.planos.Completo.mensal)}
                   <span className="text-base font-bold">/mês</span>
-                </div>
-                <div className="text-xs text-gray-500 font-normal mt-0.5">
-                  Faturamento Anual: {formatCurrency(calculos.planos.Completo.anual)}/ano
                 </div>
                 <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                   <li className="flex items-start gap-1.5">

@@ -603,10 +603,10 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
           </Text>
         </View>
 
-        {/* 3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO (Cards com wrap={false}) */}
+        {/* 3. PLANOS DE GESTÃO E MANUTENÇÃO (Contrato Anual) (Cards com wrap={false}) */}
         <View wrap={false}>
           <View style={styles.secaoTituloRow}>
-            <Text style={styles.secaoTitulo}>3. COMPARATIVO DE PLANOS DE GESTÃO E MANUTENÇÃO</Text>
+            <Text style={styles.secaoTitulo}>PLANOS DE GESTÃO E MANUTENÇÃO (Contrato Anual)</Text>
             <View style={styles.secaoBadgePlanos}>
               <Text style={styles.secaoBadgePlanosText}>3 Modalidades Inclusas</Text>
             </View>
@@ -619,9 +619,6 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               <Text style={styles.planPreco}>
                 {formatBRL(calculos.planos.Essencial.mensal)}
                 <Text style={styles.planPrecoUnidade}>/mês</Text>
-              </Text>
-              <Text style={styles.planFaturamentoAnual}>
-                Faturamento Anual: {formatBRL(calculos.planos.Essencial.anual)}/ano
               </Text>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>
@@ -643,9 +640,6 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               <Text style={styles.planPreco}>
                 {formatBRL(calculos.planos.Inspeção.mensal)}
                 <Text style={styles.planPrecoUnidade}>/mês</Text>
-              </Text>
-              <Text style={styles.planFaturamentoAnual}>
-                Faturamento Anual: {formatBRL(calculos.planos.Inspeção.anual)}/ano
               </Text>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>
@@ -674,9 +668,6 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               <Text style={styles.planPreco}>
                 {formatBRL(calculos.planos.Completo.mensal)}
                 <Text style={styles.planPrecoUnidade}>/mês</Text>
-              </Text>
-              <Text style={styles.planFaturamentoAnual}>
-                Faturamento Anual: {formatBRL(calculos.planos.Completo.anual)}/ano
               </Text>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>

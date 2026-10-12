@@ -94,6 +94,10 @@ describe('Proposta O&M - Preview e PDF', () => {
     expect(screen.getByText(/Plano Completo/i)).toBeTruthy()
     expect(screen.getByText(/RECOMENDADO DELFOS/i)).toBeTruthy()
     expect(screen.getByText(/Primeiro mês bonificado/i)).toBeTruthy()
+    // Título da seção 3 ajustado conforme pedido do usuário
+    expect(screen.getByText(/PLANOS DE GESTÃO E MANUTENÇÃO \(Contrato Anual\)/i)).toBeTruthy()
+    // Faturamento Anual removido dos cards dos planos
+    expect(screen.queryByText(/Faturamento Anual/i)).toBeNull()
     // Rodapé e cabeçalho alinhados com o anexo do usuário
     expect(screen.getByText(/Proposta válida por 5 dias\./i)).toBeTruthy()
     expect(screen.getByText(/Rua Espírito Santo, 275 – Centro, Erechim\/RS/i)).toBeTruthy()
@@ -106,6 +110,8 @@ describe('Proposta O&M - Preview e PDF', () => {
     expect(container).toBeTruthy()
     expect(screen.getByText(/Proposta válida por 5 dias\./i)).toBeTruthy()
     expect(screen.getByText(/CNPJ 21\.379\.952\/0001-38/i)).toBeTruthy()
+    expect(screen.getByText(/PLANOS DE GESTÃO E MANUTENÇÃO \(Contrato Anual\)/i)).toBeTruthy()
+    expect(screen.queryByText(/Faturamento Anual/i)).toBeNull()
   })
 
   it('gera HTML da proposta O&M com rodapé fixo no @media print, reserva de espaço e page-break-inside avoid', () => {
@@ -126,5 +132,8 @@ describe('Proposta O&M - Preview e PDF', () => {
     expect(html).toContain('www.delfos.eng.br')
     expect(html).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
     expect(html).toContain('Proposta válida por 5 dias.')
+    // Validação dos ajustes no gerador HTML
+    expect(html).toContain('PLANOS DE GESTÃO E MANUTENÇÃO (Contrato Anual)')
+    expect(html).not.toContain('Faturamento Anual')
   })
 })

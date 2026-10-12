@@ -769,9 +769,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                       {formatCurrency(calculos.planos.Essencial.mensal)}
                       <span className="text-base font-bold">/mês</span>
                     </div>
-                    <div className="text-xs text-gray-500 font-normal mt-0.5">
-                      Faturamento Anual: {formatCurrency(calculos.planos.Essencial.anual)}/ano
-                    </div>
 
                     {/* Campo de edição manual do valor para negociação */}
                     <div className="mt-3 pt-2.5 border-t border-gray-100">
@@ -842,9 +839,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                       {formatCurrency(calculos.planos.Inspeção.mensal)}
                       <span className="text-base font-bold">/mês</span>
-                    </div>
-                    <div className="text-xs text-gray-500 font-normal mt-0.5">
-                      Faturamento Anual: {formatCurrency(calculos.planos.Inspeção.anual)}/ano
                     </div>
 
                     {/* Campo de edição manual do valor para negociação */}
@@ -922,9 +916,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                       {formatCurrency(calculos.planos.Completo.mensal)}
                       <span className="text-base font-bold">/mês</span>
-                    </div>
-                    <div className="text-xs text-gray-500 font-normal mt-0.5">
-                      Faturamento Anual: {formatCurrency(calculos.planos.Completo.anual)}/ano
                     </div>
 
                     {/* Campo de edição manual do valor para negociação */}
