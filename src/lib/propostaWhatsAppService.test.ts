@@ -159,10 +159,16 @@ describe('pdfWhatsAppService — pipeline oficial da proposta', () => {
     // html2pdf outputPdf datauristring chamado
     expect(mockOutputPdf).toHaveBeenCalledWith('datauristring')
 
-    // Opções do pipeline (pagebreak com mode: ['css', 'avoid-all'], scale: 1.5, compress: true)
+    // Opções do pipeline (pagebreak com mode: ['css', 'avoid-all'], scale: 1.5, compress: true, useCORS: true)
     expect(mockWorker.set).toHaveBeenCalledWith(
       expect.objectContaining({
-        html2canvas: expect.objectContaining({ scale: 1.5 }),
+        html2canvas: expect.objectContaining({
+          scale: 1.5,
+          useCORS: true,
+          scrollY: 0,
+          scrollX: 0,
+          windowWidth: 794,
+        }),
         jsPDF: expect.objectContaining({ compress: true }),
         pagebreak: expect.objectContaining({
           mode: ['css', 'avoid-all'],

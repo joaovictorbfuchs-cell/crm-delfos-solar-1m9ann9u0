@@ -135,13 +135,15 @@ async function executarHtml2PdfPipeline<T>(
         }
 
         // Cria iframe isolado no DOM para garantir aplicação fiel de todos os estilos da proposta
+        // Largura calibrada para 794px (210mm a 96 DPI padrão A4).
+        // Altura inicial flexível auto/grande para que todo o documento se expanda naturalmente.
         iframe = document.createElement('iframe')
         iframe.style.position = 'fixed'
         iframe.style.left = '-9999px'
         iframe.style.top = '0'
-        iframe.style.width = '800px'
-        iframe.style.minHeight = '1120px'
-        iframe.style.height = '1120px'
+        iframe.style.width = '794px'
+        iframe.style.height = 'auto'
+        iframe.style.minHeight = '1123px'
         iframe.style.border = 'none'
         iframe.style.visibility = 'visible'
         iframe.style.opacity = '0.01'
@@ -149,7 +151,8 @@ async function executarHtml2PdfPipeline<T>(
         iframe.style.zIndex = '-9999'
         document.body.appendChild(iframe)
 
-        const doc = iframe.contentDocument || iframe.contentWindow?.document
+        const win = iframe.contentWindow
+        const doc = iframe.contentDocument || win?.document
         if (!doc) {
           throw new Error('Falha ao inicializar contexto de documento para renderização do PDF.')
         }
@@ -158,19 +161,30 @@ async function executarHtml2PdfPipeline<T>(
         doc.write(html)
         doc.close()
 
-        // Remove barras e marcadores de tela do preview que não devem sair no PDF impresso
+        // Remove barras de preview e botões que não devem sair no PDF impresso
         doc
-          .querySelectorAll('.no-print-bar, .preview-page-break-marker, .action-bar')
+          .querySelectorAll(
+            '.no-print-bar, .preview-page-break-marker, .action-bar, .btn-action-print',
+          )
           .forEach((el) => el.remove())
 
-        // Normalização de margens e padding residuais no body e contêineres para não vazar altura extra
+        // Normalização de margens e padding no body e html do iframe para não vazar scroll residual
+        if (doc.documentElement) {
+          doc.documentElement.style.margin = '0'
+          doc.documentElement.style.padding = '0'
+          doc.documentElement.style.backgroundColor = '#ffffff'
+          doc.documentElement.style.overflow = 'visible'
+        }
         if (doc.body) {
           doc.body.style.backgroundColor = '#ffffff'
           doc.body.style.margin = '0'
           doc.body.style.padding = '0'
+          doc.body.style.overflow = 'visible'
+          doc.body.style.height = 'auto'
+          doc.body.style.minHeight = 'auto'
         }
 
-        // Seletor canônico: suporta proposta técnica (.proposta-container) e procuração (.page-a4)
+        // Seletor canônico: suporta proposta técnica (.proposta-container) e outros documentos (.page-a4)
         const targetElement = (doc.querySelector('.proposta-container, .page-a4') ||
           doc.body) as HTMLElement
 
@@ -178,6 +192,8 @@ async function executarHtml2PdfPipeline<T>(
         if (targetElement.classList.contains('proposta-container')) {
           targetElement.style.paddingBottom = '0'
           targetElement.style.marginBottom = '0'
+          targetElement.style.overflow = 'visible'
+          targetElement.style.height = 'auto'
         }
 
         // Para documentos com estrutura .page-a4 (ex: Procuração), normaliza estilos de tela
@@ -188,40 +204,76 @@ async function executarHtml2PdfPipeline<T>(
           targetElement.style.minHeight = 'auto'
         }
 
-        // Aguarda todas as imagens do documento terminarem de carregar para não renderizar imagens vazias/quebradas
+        // 1. Aguarda todas as imagens do documento terminarem de carregar (com timeout seguro)
         const images = Array.from(doc.images || [])
         await Promise.all(
           images.map((img) => {
-            if (img.complete) return Promise.resolve()
+            if (img.complete && img.naturalWidth > 0) return Promise.resolve()
             return new Promise<void>((res) => {
-              img.onload = () => res()
-              img.onerror = () => res()
-              setTimeout(res, 3000)
+              const finalizar = () => res()
+              img.onload = finalizar
+              img.onerror = finalizar
+              setTimeout(finalizar, 4000)
             })
           }),
         )
 
-        // Espera de estabilização (~300ms) antes da captura para renderização perfeita do layout e fontes
-        await new Promise<void>((r) => setTimeout(r, 300))
-
-        // Altura de uma página A4 a 96 DPI: 297mm / 25.4 * 96 ≈ 1122.5196px
-        // Ajusta a altura mínima capturada para múltiplo exato de 1122.5px, eliminando fatiamento residual em folha em branco
+        // 2. Aguarda carregamento de fontes personalizadas dentro do documento do iframe
         try {
-          const a4PageHeightPx = 1122.5
-          const measuredHeight = targetElement.scrollHeight || targetElement.offsetHeight || 0
-          if (measuredHeight > 0) {
-            const totalPages = Math.max(1, Math.ceil((measuredHeight - 2) / a4PageHeightPx))
-            const exactA4HeightPx = totalPages * a4PageHeightPx
-            // Se o excesso passar por poucos pixels (padding/margem residual), fixa a altura para fechar na página anterior
-            // Caso contrário, ajusta a altura total para o múltiplo exato de página A4
-            targetElement.style.minHeight = `${exactA4HeightPx}px`
-            targetElement.style.maxHeight = `${exactA4HeightPx}px`
-            targetElement.style.boxSizing = 'border-box'
-            targetElement.style.overflow = 'hidden'
+          if (doc.fonts && typeof doc.fonts.ready !== 'undefined') {
+            await Promise.race([doc.fonts.ready, new Promise<void>((r) => setTimeout(r, 2000))])
           }
         } catch {
           /* fail-safe */
         }
+
+        // 3. Aguarda carregamento de stylesheets externos / links CSS do iframe
+        try {
+          const links = Array.from(
+            doc.querySelectorAll('link[rel="stylesheet"]') as NodeListOf<HTMLLinkElement>,
+          )
+          await Promise.all(
+            links.map((link) => {
+              if ((link as any).sheet) return Promise.resolve()
+              return new Promise<void>((res) => {
+                link.onload = () => res()
+                link.onerror = () => res()
+                setTimeout(res, 2000)
+              })
+            }),
+          )
+        } catch {
+          /* fail-safe */
+        }
+
+        // 4. Espera de estabilização do layout renderizado
+        await new Promise<void>((r) => setTimeout(r, 400))
+
+        // 5. Mede a altura real de todo o conteúdo (todas as seções da capa à assinatura)
+        const a4PageHeightPx = 1122.5 // 297mm a 96 DPI
+        const measuredHeight = Math.max(
+          targetElement.scrollHeight || 0,
+          targetElement.offsetHeight || 0,
+          doc.body ? doc.body.scrollHeight || 0 : 0,
+          doc.documentElement ? doc.documentElement.scrollHeight || 0 : 0,
+          1123,
+        )
+
+        // Calibra a altura para o múltiplo exato de página A4, evitando quebras residuais e folhas em branco
+        let totalContentHeightPx = measuredHeight
+        if (measuredHeight > 0) {
+          const totalPages = Math.max(1, Math.ceil((measuredHeight - 2) / a4PageHeightPx))
+          const exactA4HeightPx = totalPages * a4PageHeightPx
+          totalContentHeightPx = exactA4HeightPx
+          targetElement.style.minHeight = `${exactA4HeightPx}px`
+          targetElement.style.height = `${exactA4HeightPx}px`
+          targetElement.style.boxSizing = 'border-box'
+          targetElement.style.overflow = 'visible'
+        }
+
+        // Ajusta a altura do próprio iframe para acomodar todo o documento verticalmente
+        iframe.style.height = `${totalContentHeightPx + 50}px`
+        iframe.style.minHeight = `${totalContentHeightPx + 50}px`
 
         const opt = {
           margin: 0,
@@ -230,10 +282,13 @@ async function executarHtml2PdfPipeline<T>(
           html2canvas: {
             scale,
             useCORS: true,
+            allowTaint: true,
             letterRendering: true,
             scrollY: 0,
             scrollX: 0,
             windowWidth: 794,
+            windowHeight: totalContentHeightPx,
+            height: totalContentHeightPx,
             logging: false,
           },
           jsPDF: {

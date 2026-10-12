@@ -28,35 +28,23 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Identifica se um erro lançado por chamada à API do PocketBase é de sessão expirada / não autorizada (401/403).
- */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-    if (error.response?.code === 401 || error.response?.code === 403) return true
-  }
-  const errObj = error as {
-    status?: unknown
-    statusCode?: unknown
-    code?: unknown
-    message?: unknown
-    response?: { code?: unknown }
-  }
-  if (errObj.status === 401 || errObj.status === 403) return true
-  if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-  if (errObj.code === 401 || errObj.code === 403) return true
-  if (errObj.response?.code === 401 || errObj.response?.code === 403) return true
-  if (typeof errObj.message === 'string') {
-    const msg = errObj.message.toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('the request requires valid user authorization token') ||
-      msg.includes('the request requires valid admin authorization token') ||
-      msg.includes('failed to authenticate')
-    ) {
-      return true
+  if (typeof error === 'object') {
+    const errObj = error as { status?: number; statusCode?: number; message?: string }
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const lower = errObj.message.toLowerCase()
+      if (
+        lower.includes('token is expired') ||
+        lower.includes('failed to authenticate') ||
+        lower.includes('the request requires valid') ||
+        lower.includes('unauthorized') ||
+        lower.includes('forbidden')
+      ) {
+        return true
+      }
     }
   }
   return false
