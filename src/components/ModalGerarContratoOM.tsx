@@ -209,28 +209,32 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
       const telhadoTipo = (cliente.telhado_tipo || '').toLowerCase()
       const localEfetivo: 'Telhado' | 'Solo' = telhadoTipo.includes('solo') ? 'Solo' : 'Telhado'
 
-      // Plano e valores da proposta aprovada quando houver
+      // Plano e valores da proposta aprovada quando houver (utilizando valores salvos/ajustados da proposta)
       let planoDef: PlanoContratoOM = 'Essencial'
       let valorMensalDef = 190
       let valorTotalDef = 2280
 
       if (propostaOM) {
         const planoTexto = (propostaOM.plano_escolhido || '').toLowerCase()
-        if (planoTexto.includes('preven')) {
+        if (planoTexto.includes('preven') || planoTexto.includes('inspec')) {
           planoDef = 'Prevenção'
-          valorMensalDef = propostaOM.valor_mensal_plano || 450
-          valorTotalDef = propostaOM.valor_anual_plano || valorMensalDef * 12
+          valorMensalDef = propostaOM.valor_plano_inspecao || propostaOM.valor_mensal_plano || 450
+          valorTotalDef =
+            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
         } else if (propostaOM.plano_escolhido === 'Completo') {
           planoDef = 'Completo'
-          valorMensalDef = propostaOM.valor_mensal_plano || 1450
-          valorTotalDef = propostaOM.valor_anual_plano || valorMensalDef * 12
+          valorMensalDef = propostaOM.valor_plano_completo || propostaOM.valor_mensal_plano || 1450
+          valorTotalDef =
+            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
         } else if (propostaOM.plano_escolhido === 'Essencial') {
           planoDef = 'Essencial'
-          valorMensalDef = propostaOM.valor_mensal_plano || 190
-          valorTotalDef = propostaOM.valor_anual_plano || valorMensalDef * 12
+          valorMensalDef = propostaOM.valor_plano_essencial || propostaOM.valor_mensal_plano || 190
+          valorTotalDef =
+            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
         } else if (propostaOM.valor_mensal_plano) {
           valorMensalDef = propostaOM.valor_mensal_plano
-          valorTotalDef = propostaOM.valor_anual_plano || valorMensalDef * 12
+          valorTotalDef =
+            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
         }
       }
 
@@ -258,17 +262,21 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   }, [open, cliente, propostaOM, initialDados, modoVisualizacaoDireta])
 
   // Altera valores quando o plano for mudado na etapa de revisão se o usuário não inseriu custom
+  // (prioriza valores salvos da proposta O&M quando disponíveis)
   const handlePlanoChange = (novoPlano: PlanoContratoOM) => {
     setFormPlano(novoPlano)
     if (novoPlano === 'Essencial') {
-      setFormValorMensal(190)
-      setFormValorTotal(190 * 12)
+      const v = propostaOM?.valor_plano_essencial || 190
+      setFormValorMensal(v)
+      setFormValorTotal(Math.round(v * 12 * 100) / 100)
     } else if (novoPlano === 'Prevenção') {
-      setFormValorMensal(450)
-      setFormValorTotal(450 * 12)
+      const v = propostaOM?.valor_plano_inspecao || 450
+      setFormValorMensal(v)
+      setFormValorTotal(Math.round(v * 12 * 100) / 100)
     } else if (novoPlano === 'Completo') {
-      setFormValorMensal(1450)
-      setFormValorTotal(1450 * 12)
+      const v = propostaOM?.valor_plano_completo || 1450
+      setFormValorMensal(v)
+      setFormValorTotal(Math.round(v * 12 * 100) / 100)
     }
   }
 

@@ -38,6 +38,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [valorKwh, setValorKwh] = useState<number>(0.92)
   const [distanciaKm, setDistanciaKm] = useState<number>(15)
   const [valorKm, setValorKm] = useState<number>(2.5)
+  const [valorPorPlaca, setValorPorPlaca] = useState<number>(9.0)
+  // Valores manuais de negociação por plano (editáveis na tela)
+  const [valorManualEssencial, setValorManualEssencial] = useState<string>('')
+  const [valorManualInspecao, setValorManualInspecao] = useState<string>('')
+  const [valorManualCompleto, setValorManualCompleto] = useState<string>('')
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   // Aba ativa do modal: 'parametros' (edição/cálculo) ou 'preview' (visualização do documento)
@@ -59,6 +64,21 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       setValorKwh(initialProposta.valor_kwh || 0.92)
       setDistanciaKm(initialProposta.distancia_km ?? 15)
       setValorKm(initialProposta.valor_km ?? 2.5)
+      if (
+        initialProposta.valor_por_placa !== undefined &&
+        initialProposta.valor_por_placa !== null
+      ) {
+        setValorPorPlaca(Number(initialProposta.valor_por_placa))
+      }
+      if (initialProposta.valor_plano_essencial) {
+        setValorManualEssencial(String(initialProposta.valor_plano_essencial))
+      }
+      if (initialProposta.valor_plano_inspecao) {
+        setValorManualInspecao(String(initialProposta.valor_plano_inspecao))
+      }
+      if (initialProposta.valor_plano_completo) {
+        setValorManualCompleto(String(initialProposta.valor_plano_completo))
+      }
       setObservacoes(initialProposta.observacoes || '')
     }
   }, [initialProposta])
@@ -110,6 +130,20 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     )
   }, [sistemaAtual, clienteAtual, potenciaKwp])
 
+  // Mapa de valores negociados digitados pelo consultor
+  const valoresNegociados = useMemo(() => {
+    const parseValor = (v: string) => {
+      const trimmed = v.trim().replace(',', '.')
+      const n = Number(trimmed)
+      return !isNaN(n) && n > 0 ? n : null
+    }
+    return {
+      Essencial: parseValor(valorManualEssencial),
+      Inspeção: parseValor(valorManualInspecao),
+      Completo: parseValor(valorManualCompleto),
+    }
+  }, [valorManualEssencial, valorManualInspecao, valorManualCompleto])
+
   // Cálculos em tempo real
   const calculos = useMemo(() => {
     return calcularPropostaOM({
@@ -118,8 +152,19 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       distanciaKm,
       valorKm,
       numeroModulos,
+      valorPorPlaca,
+      valoresNegociados,
     })
-  }, [geracaoMensalKwh, valorKwh, distanciaKm, valorKm, numeroModulos])
+  }, [
+    geracaoMensalKwh,
+    valorKwh,
+    distanciaKm,
+    valorKm,
+    numeroModulos,
+    valorPorPlaca,
+    valoresNegociados,
+  ])
+
   // Montar objeto de proposta para PDF
   const propostaPDFData = useMemo<PropostaPDFInput | null>(() => {
     if (!clienteAtual) return null
@@ -152,6 +197,8 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         valorKwh,
         distanciaKm,
         valorKm,
+        valorPorPlaca,
+        valoresNegociados,
       },
       calculos,
       dataEmissao: new Date().toISOString(),
@@ -167,6 +214,8 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     valorKwh,
     distanciaKm,
     valorKm,
+    valorPorPlaca,
+    valoresNegociados,
     calculos,
     user,
   ])
@@ -182,7 +231,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     setIsSubmitting(true)
 
     try {
-      // 1. Gravar registro em propostas_om
+      // 1. Gravar registro em propostas_om com os valores calculados / ajustados salvos
+      const valorEssencialFinal = calculos.planos.Essencial.mensal
+      const valorInspecaoFinal = calculos.planos.Inspeção.mensal
+      const valorCompletoFinal = calculos.planos.Completo.mensal
+
       const dadosProposta = {
         cliente_id: clienteAtual.id,
         potencia_kwp: potenciaKwp,
@@ -193,11 +246,23 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         valor_kwh: valorKwh,
         distancia_km: distanciaKm,
         valor_km: valorKm,
+        valor_por_placa: valorPorPlaca,
         valor_ativo_protegido: calculos.valorAtivoProtegido,
         perda_15_ano: calculos.perda15Ano,
         perda_20_ano: calculos.perda20Ano,
         prejuizo_20_dias: calculos.prejuizo20Dias,
         prejuizo_30_dias: calculos.prejuizo30Dias,
+        // Salvar valores ajustados/finais de cada plano para alimentar futuros contratos O&M
+        valor_plano_essencial: valorEssencialFinal,
+        valor_plano_inspecao: valorInspecaoFinal,
+        valor_plano_completo: valorCompletoFinal,
+        valor_mensal_plano: valorInspecaoFinal, // fallback canônico plano recomendado/padrão
+        valor_anual_plano: Math.round(valorInspecaoFinal * 12 * 100) / 100,
+        valores_negociados_json: {
+          Essencial: valoresNegociados.Essencial,
+          Inspeção: valoresNegociados.Inspeção,
+          Completo: valoresNegociados.Completo,
+        },
         data_proposta: new Date().toISOString(),
         autor: user?.name || 'Equipe Comercial Delfos Solar',
         status: 'Proposta Enviada',
@@ -513,7 +578,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                 <div>
                   <label className="text-[11px] font-semibold text-gray-700 mb-1 flex items-center justify-between">
                     <span>Distância Deslocamento</span>
-                    <span className="text-[10px] text-gray-400">Ida e volta</span>
+                    <span className="text-[10px] text-gray-400">Delfos → Usina</span>
                   </label>
                   <div className="relative">
                     <input
@@ -529,6 +594,9 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                       km
                     </span>
                   </div>
+                  <span className="text-[10px] text-gray-500 block mt-1 leading-tight">
+                    O valor será multiplicado por 2 vezes o valor do km rodado (ida e volta).
+                  </span>
                 </div>
 
                 <div>
@@ -553,6 +621,55 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                       /km
                     </span>
                   </div>
+                </div>
+              </div>
+
+              {/* Campo ajustável de R$/placa quando ≥ 35 placas ou regra de placas < 35 */}
+              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2 text-xs">
+                {numeroModulos >= 35 ? (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
+                        ≥ 35 Placas ({numeroModulos} placas)
+                      </span>
+                      <span>Ajuste por placa:</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-medium text-gray-600">R$/placa:</span>
+                      <div className="relative w-28">
+                        <span className="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">
+                          R$
+                        </span>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={valorPorPlaca}
+                          onChange={(e) => setValorPorPlaca(Number(e.target.value) || 0)}
+                          className="w-full text-xs font-bold pl-8 pr-2 py-1 rounded-md border border-emerald-300 bg-emerald-50/40 text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="9,00"
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-400">
+                        Total placas: {formatCurrency(numeroModulos * valorPorPlaca)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-[11px] text-gray-600">
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded font-bold">
+                      &lt; 35 Placas ({numeroModulos || 0} placas)
+                    </span>
+                    <span>
+                      Ajuste fixo de <strong>R$ 350,00</strong> aplicado automaticamente pela
+                      fórmula.
+                    </span>
+                  </div>
+                )}
+
+                <div className="text-[10px] text-gray-500">
+                  Deslocamento ida e volta:{' '}
+                  <strong>{formatCurrency(distanciaKm * 2 * valorKm)}</strong>
                 </div>
               </div>
             </div>
@@ -638,8 +755,15 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                 {/* Plano Essencial */}
                 <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
                   <div>
-                    <div className="text-sm font-bold text-gray-900 tracking-tight">
-                      Plano Essencial
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-gray-900 tracking-tight">
+                        Plano Essencial
+                      </span>
+                      {calculos.planos.Essencial.isNegociado && (
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">
+                          Negociado
+                        </span>
+                      )}
                     </div>
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                       {formatCurrency(calculos.planos.Essencial.mensal)}
@@ -648,6 +772,44 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     <div className="text-xs text-gray-500 font-normal mt-0.5">
                       Faturamento Anual: {formatCurrency(calculos.planos.Essencial.anual)}/ano
                     </div>
+
+                    {/* Campo de edição manual do valor para negociação */}
+                    <div className="mt-3 pt-2.5 border-t border-gray-100">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">
+                        Ajuste de Negociação (R$/mês)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">
+                            R$
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={valorManualEssencial}
+                            onChange={(e) => setValorManualEssencial(e.target.value)}
+                            placeholder={calculos.planos.Essencial.mensalCalculadoFormula.toFixed(
+                              2,
+                            )}
+                            className="w-full text-xs font-bold pl-8 pr-2 py-1 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        {valorManualEssencial && (
+                          <button
+                            type="button"
+                            onClick={() => setValorManualEssencial('')}
+                            className="text-[10px] text-gray-400 hover:text-gray-600 px-1.5 py-1 border border-gray-200 rounded"
+                            title="Restaurar valor da fórmula"
+                          >
+                            Auto
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-gray-400 block mt-0.5">
+                        Fórmula: {formatCurrency(calculos.planos.Essencial.mensalCalculadoFormula)}
+                      </span>
+                    </div>
+
                     <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                       <li className="flex items-start gap-1.5">
                         <span className="text-gray-400 select-none">•</span>
@@ -667,8 +829,15 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                 {/* Plano Inspeção */}
                 <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
                   <div>
-                    <div className="text-sm font-bold text-gray-900 tracking-tight">
-                      Plano Inspeção
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-gray-900 tracking-tight">
+                        Plano Inspeção
+                      </span>
+                      {calculos.planos.Inspeção.isNegociado && (
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">
+                          Negociado
+                        </span>
+                      )}
                     </div>
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                       {formatCurrency(calculos.planos.Inspeção.mensal)}
@@ -677,6 +846,42 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     <div className="text-xs text-gray-500 font-normal mt-0.5">
                       Faturamento Anual: {formatCurrency(calculos.planos.Inspeção.anual)}/ano
                     </div>
+
+                    {/* Campo de edição manual do valor para negociação */}
+                    <div className="mt-3 pt-2.5 border-t border-gray-100">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">
+                        Ajuste de Negociação (R$/mês)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">
+                            R$
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={valorManualInspecao}
+                            onChange={(e) => setValorManualInspecao(e.target.value)}
+                            placeholder={calculos.planos.Inspeção.mensalCalculadoFormula.toFixed(2)}
+                            className="w-full text-xs font-bold pl-8 pr-2 py-1 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        {valorManualInspecao && (
+                          <button
+                            type="button"
+                            onClick={() => setValorManualInspecao('')}
+                            className="text-[10px] text-gray-400 hover:text-gray-600 px-1.5 py-1 border border-gray-200 rounded"
+                            title="Restaurar valor da fórmula"
+                          >
+                            Auto
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-gray-400 block mt-0.5">
+                        Fórmula: {formatCurrency(calculos.planos.Inspeção.mensalCalculadoFormula)}
+                      </span>
+                    </div>
+
                     <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                       <li className="flex items-start gap-1.5">
                         <span className="text-gray-400 select-none">•</span>
@@ -704,8 +909,15 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     RECOMENDADO DELFOS
                   </span>
                   <div>
-                    <div className="text-sm font-bold text-gray-900 tracking-tight">
-                      Plano Completo
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-gray-900 tracking-tight">
+                        Plano Completo
+                      </span>
+                      {calculos.planos.Completo.isNegociado && (
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">
+                          Negociado
+                        </span>
+                      )}
                     </div>
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                       {formatCurrency(calculos.planos.Completo.mensal)}
@@ -714,6 +926,42 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     <div className="text-xs text-gray-500 font-normal mt-0.5">
                       Faturamento Anual: {formatCurrency(calculos.planos.Completo.anual)}/ano
                     </div>
+
+                    {/* Campo de edição manual do valor para negociação */}
+                    <div className="mt-3 pt-2.5 border-t border-gray-100">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">
+                        Ajuste de Negociação (R$/mês)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1.5 text-xs font-bold text-gray-400">
+                            R$
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={valorManualCompleto}
+                            onChange={(e) => setValorManualCompleto(e.target.value)}
+                            placeholder={calculos.planos.Completo.mensalCalculadoFormula.toFixed(2)}
+                            className="w-full text-xs font-bold pl-8 pr-2 py-1 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        {valorManualCompleto && (
+                          <button
+                            type="button"
+                            onClick={() => setValorManualCompleto('')}
+                            className="text-[10px] text-gray-400 hover:text-gray-600 px-1.5 py-1 border border-gray-200 rounded"
+                            title="Restaurar valor da fórmula"
+                          >
+                            Auto
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-gray-400 block mt-0.5">
+                        Fórmula: {formatCurrency(calculos.planos.Completo.mensalCalculadoFormula)}
+                      </span>
+                    </div>
+
                     <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                       <li className="flex items-start gap-1.5">
                         <span className="text-gray-400 select-none">•</span>

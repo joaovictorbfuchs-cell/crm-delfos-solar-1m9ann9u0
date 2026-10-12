@@ -1445,6 +1445,7 @@ export interface PropostaOM extends RecordModel {
   valor_kwh: number
   distancia_km?: number
   valor_km?: number
+  valor_por_placa?: number
   valor_ativo_protegido: number
   perda_15_ano: number
   perda_20_ano: number
@@ -1452,6 +1453,11 @@ export interface PropostaOM extends RecordModel {
   prejuizo_30_dias: number
   valor_mensal_plano?: number
   valor_anual_plano?: number
+  // Valores salvos por plano (ajustados para negociação ou calculados pela fórmula)
+  valor_plano_essencial?: number
+  valor_plano_inspecao?: number
+  valor_plano_completo?: number
+  valores_negociados_json?: Partial<Record<string, number | null>> | string
   data_proposta: string
   autor?: string
   status?: string

@@ -220,6 +220,10 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
         const calc = calcularPropostaOM({
           geracaoMensalKwh: prop.geracao_mensal_kwh,
           valorKwh: prop.valor_kwh,
+          distanciaKm: prop.distancia_km,
+          valorKm: prop.valor_km,
+          numeroModulos: prop.numero_modulos,
+          valorPorPlaca: prop.valor_por_placa,
           planoEscolhido: planoNome as any,
         })
         if (!ativoProtegido && calc.valorAtivoProtegido) {

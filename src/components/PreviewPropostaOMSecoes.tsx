@@ -393,8 +393,15 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
             {/* Card 1: Plano Essencial */}
             <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
               <div>
-                <div className="text-sm font-bold text-gray-900 tracking-tight">
-                  Plano Essencial
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-gray-900 tracking-tight">
+                    Plano Essencial
+                  </span>
+                  {calculos.planos.Essencial.isNegociado && (
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">
+                      Negociado
+                    </span>
+                  )}
                 </div>
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                   {formatCurrency(calculos.planos.Essencial.mensal)}
@@ -422,7 +429,16 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
             {/* Card 2: Plano Inspeção */}
             <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
               <div>
-                <div className="text-sm font-bold text-gray-900 tracking-tight">Plano Inspeção</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-gray-900 tracking-tight">
+                    Plano Inspeção
+                  </span>
+                  {calculos.planos.Inspeção.isNegociado && (
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">
+                      Negociado
+                    </span>
+                  )}
+                </div>
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                   {formatCurrency(calculos.planos.Inspeção.mensal)}
                   <span className="text-base font-bold">/mês</span>
@@ -457,7 +473,16 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                 RECOMENDADO DELFOS
               </span>
               <div>
-                <div className="text-sm font-bold text-gray-900 tracking-tight">Plano Completo</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-gray-900 tracking-tight">
+                    Plano Completo
+                  </span>
+                  {calculos.planos.Completo.isNegociado && (
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">
+                      Negociado
+                    </span>
+                  )}
+                </div>
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
                   {formatCurrency(calculos.planos.Completo.mensal)}
                   <span className="text-base font-bold">/mês</span>

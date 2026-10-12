@@ -14,11 +14,35 @@ export interface PropostaCalculos {
   prejuizo20Dias: number
   prejuizo30Dias: number
   planos: {
-    Essencial: { mensal: number; anual: number }
-    Inspeção: { mensal: number; anual: number }
-    Completo: { mensal: number; anual: number }
+    Essencial: {
+      mensal: number
+      anual: number
+      mensalCalculadoFormula?: number
+      anualCalculadoFormula?: number
+      isNegociado?: boolean
+    }
+    Inspeção: {
+      mensal: number
+      anual: number
+      mensalCalculadoFormula?: number
+      anualCalculadoFormula?: number
+      isNegociado?: boolean
+    }
+    Completo: {
+      mensal: number
+      anual: number
+      mensalCalculadoFormula?: number
+      anualCalculadoFormula?: number
+      isNegociado?: boolean
+    }
     /** Alias de compatibilidade com versões anteriores */
-    Prevenção?: { mensal: number; anual: number }
+    Prevenção?: {
+      mensal: number
+      anual: number
+      mensalCalculadoFormula?: number
+      anualCalculadoFormula?: number
+      isNegociado?: boolean
+    }
   }
   detalhesPlanos?: Record<PlanoOMChave, ValoresCalculadosPlanoOM>
   planoEscolhido?: OMPlanoTipo
@@ -43,7 +67,9 @@ export function calcularPropostaOM(params: {
   distanciaKm?: number
   valorKm?: number
   numeroModulos?: number
+  valorPorPlaca?: number
   planoEscolhido?: OMPlanoTipo
+  valoresNegociados?: Partial<Record<PlanoOMChave, number | null>>
 }): PropostaCalculos {
   const geracao = Math.max(0, Number(params.geracaoMensalKwh) || 0)
   const tarifa = Math.max(0, Number(params.valorKwh) || 0)
@@ -55,21 +81,47 @@ export function calcularPropostaOM(params: {
   const prejuizo20Dias = (valorAtivoProtegido * 20) / 30
   const prejuizo30Dias = (valorAtivoProtegido * 30) / 30 // equivalente a 1 mês
 
-  // Cálculo dinâmico dos 3 planos com base nas variáveis informadas
+  // Cálculo dinâmico dos 3 planos com base nas variáveis informadas e eventuais valores negociados
   const detalhesPlanos = calcularTodosPlanosOM({
     distanciaKm: params.distanciaKm,
     valorKm: params.valorKm,
     numeroModulos: params.numeroModulos,
     geracaoMensalKwh: geracao,
     valorKwh: tarifa,
+    valorPorPlaca: params.valorPorPlaca,
+    valoresNegociados: params.valoresNegociados,
   })
 
   const planos = {
-    Essencial: { mensal: detalhesPlanos.Essencial.mensal, anual: detalhesPlanos.Essencial.anual },
-    Inspeção: { mensal: detalhesPlanos.Inspeção.mensal, anual: detalhesPlanos.Inspeção.anual },
-    Completo: { mensal: detalhesPlanos.Completo.mensal, anual: detalhesPlanos.Completo.anual },
+    Essencial: {
+      mensal: detalhesPlanos.Essencial.mensal,
+      anual: detalhesPlanos.Essencial.anual,
+      mensalCalculadoFormula: detalhesPlanos.Essencial.mensalCalculadoFormula,
+      anualCalculadoFormula: detalhesPlanos.Essencial.anualCalculadoFormula,
+      isNegociado: detalhesPlanos.Essencial.isNegociado,
+    },
+    Inspeção: {
+      mensal: detalhesPlanos.Inspeção.mensal,
+      anual: detalhesPlanos.Inspeção.anual,
+      mensalCalculadoFormula: detalhesPlanos.Inspeção.mensalCalculadoFormula,
+      anualCalculadoFormula: detalhesPlanos.Inspeção.anualCalculadoFormula,
+      isNegociado: detalhesPlanos.Inspeção.isNegociado,
+    },
+    Completo: {
+      mensal: detalhesPlanos.Completo.mensal,
+      anual: detalhesPlanos.Completo.anual,
+      mensalCalculadoFormula: detalhesPlanos.Completo.mensalCalculadoFormula,
+      anualCalculadoFormula: detalhesPlanos.Completo.anualCalculadoFormula,
+      isNegociado: detalhesPlanos.Completo.isNegociado,
+    },
     // Alias para manter compatibilidade com leituras antigas de planos.Prevenção
-    Prevenção: { mensal: detalhesPlanos.Inspeção.mensal, anual: detalhesPlanos.Inspeção.anual },
+    Prevenção: {
+      mensal: detalhesPlanos.Inspeção.mensal,
+      anual: detalhesPlanos.Inspeção.anual,
+      mensalCalculadoFormula: detalhesPlanos.Inspeção.mensalCalculadoFormula,
+      anualCalculadoFormula: detalhesPlanos.Inspeção.anualCalculadoFormula,
+      isNegociado: detalhesPlanos.Inspeção.isNegociado,
+    },
   }
 
   const planoRaw = params.planoEscolhido
@@ -131,6 +183,9 @@ export interface PropostaPDFInput {
     valorKwh: number
     distanciaKm?: number
     valorKm?: number
+    valorPorPlaca?: number
+    planoEscolhido?: OMPlanoTipo
+    valoresNegociados?: Partial<Record<PlanoOMChave, number | null>>
   }
   calculos: PropostaCalculos
   dataEmissao?: string
@@ -393,11 +448,26 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       letter-spacing: 0.06em;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
+    .plan-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
     .plan-name {
       font-size: 12px;
       font-weight: 700;
       color: #111827;
-      margin-bottom: 2px;
+    }
+    .badge-negociado {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      background: #FEF3C7;
+      color: #92400E;
+      border: 1px solid #FCD34D;
+      padding: 1px 5px;
+      border-radius: 4px;
     }
     .plan-price {
       font-size: 18px;
@@ -718,7 +788,10 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       <!-- 1. Plano Essencial -->
       <div class="plan-card">
         <div>
-          <div class="plan-name">Plano Essencial</div>
+          <div class="plan-header">
+            <span class="plan-name">Plano Essencial</span>
+            ${calculos.planos.Essencial.isNegociado ? '<span class="badge-negociado">Negociado</span>' : ''}
+          </div>
           <div class="plan-price">${formatBRL(calculos.planos.Essencial.mensal)}<span class="plan-price-unit">/mês</span></div>
           <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Essencial.anual)}/ano</div>
           <ul class="plan-bullets">
@@ -732,7 +805,10 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       <!-- 2. Plano Inspeção -->
       <div class="plan-card">
         <div>
-          <div class="plan-name">Plano Inspeção</div>
+          <div class="plan-header">
+            <span class="plan-name">Plano Inspeção</span>
+            ${calculos.planos.Inspeção.isNegociado ? '<span class="badge-negociado">Negociado</span>' : ''}
+          </div>
           <div class="plan-price">${formatBRL(calculos.planos.Inspeção.mensal)}<span class="plan-price-unit">/mês</span></div>
           <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Inspeção.anual)}/ano</div>
           <ul class="plan-bullets">
@@ -748,7 +824,10 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       <div class="plan-card recommended">
         <span class="plan-badge-recommended">RECOMENDADO DELFOS</span>
         <div>
-          <div class="plan-name">Plano Completo</div>
+          <div class="plan-header">
+            <span class="plan-name">Plano Completo</span>
+            ${calculos.planos.Completo.isNegociado ? '<span class="badge-negociado">Negociado</span>' : ''}
+          </div>
           <div class="plan-price">${formatBRL(calculos.planos.Completo.mensal)}<span class="plan-price-unit">/mês</span></div>
           <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Completo.anual)}/ano</div>
           <ul class="plan-bullets">
