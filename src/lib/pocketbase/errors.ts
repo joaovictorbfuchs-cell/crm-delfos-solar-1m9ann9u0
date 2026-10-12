@@ -29,16 +29,26 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Verifica se um erro retornado pelo PocketBase indica sessão de autenticação expirada ou inválida.
- * Salvaguarda permanente contra regressão recorrente de build/imports.
+ * Identifica se um erro retornado pelo PocketBase decorre de sessão expirada,
+ * token inválido ou não autorizado (401 / 403).
  */
 export function isAuthSessionError(error: unknown): boolean {
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
+  if (!error) return false
+  if (typeof error !== 'object') return false
+
+  const err = error as Record<string, unknown>
+  const status = Number(err.status ?? err.statusCode)
+  if (status === 401 || status === 403) return true
+
+  const message = String(err.message || '').toLowerCase()
+  if (
+    message.includes('token is expired') ||
+    message.includes('failed to authenticate') ||
+    message.includes('unauthorized') ||
+    message.includes('forbidden')
+  ) {
+    return true
   }
-  if (error && typeof error === 'object' && 'status' in error) {
-    const status = (error as { status: unknown }).status
-    return status === 401 || status === 403
-  }
+
   return false
 }

@@ -87,15 +87,17 @@ describe('Planos O&M - Módulo Centralizado e Fórmulas Exatas do Usuário', () 
       expect(editavel.valorPorPlacaEfetivo).toBe(8.5)
     })
 
-    it('3, 4 e 5. Planos Essencial, Inspeção e Completo (dobra parcela inteira de visita)', () => {
+    it('3, 4 e 5. Planos Essencial, Inspeção e Completo (rateia lavagens anuais em 12 meses)', () => {
       // Exemplo: Usina residencial comum
       // Geração: 1000 kWh, Tarifa: R$ 0,92 (Base = R$ 49,90 pelo piso)
       // Placas: 20 (< 35 -> Ajuste = 350)
       // Distância: 15 km, R$/km: 2,50 -> Deslocamento = 15 * 2 * 2,5 = 75
-      // Parcela de visita = 350 + 75 = 425
+      // Parcela de visita (1 lavagem) = 350 + 75 = 425
+      // Rateio mensal Inspeção (1 lavagem ÷ 12) = 425 / 12 = 35.4166... -> 35,42
+      // Rateio mensal Completo (2 lavagens ÷ 12) = 850 / 12 = 70.8333... -> 70,83
       // Essencial = 49,90
-      // Inspeção = 49,90 + 425 = 474,90
-      // Completo = 49,90 + 425 * 2 = 899,90
+      // Inspeção = 49,90 + 35,42 = 85,32
+      // Completo = 49,90 + 70,83 = 120,73
       const planos = calcularTodosPlanosOM({
         geracaoMensalKwh: 1000,
         valorKwh: 0.92,
@@ -105,22 +107,24 @@ describe('Planos O&M - Módulo Centralizado e Fórmulas Exatas do Usuário', () 
       })
 
       expect(planos.Essencial.mensal).toBe(49.9)
-      expect(planos.Inspeção.mensal).toBe(474.9)
-      expect(planos.Completo.mensal).toBe(899.9)
+      expect(planos.Inspeção.mensal).toBe(85.32)
+      expect(planos.Completo.mensal).toBe(120.73)
       expect(planos.Essencial.anual).toBe(598.8)
-      expect(planos.Inspeção.anual).toBe(5698.8)
-      expect(planos.Completo.anual).toBe(10798.8)
+      expect(planos.Inspeção.anual).toBeCloseTo(85.32 * 12, 2)
+      expect(planos.Completo.anual).toBeCloseTo(120.73 * 12, 2)
     })
 
-    it('Caso Delfos Engenharia (201 placas ≥ 35): calcula conforme fórmula', () => {
+    it('Caso Delfos Engenharia (201 placas ≥ 35): calcula com rateio em 12 meses', () => {
       // Geração: 15933 kWh, Tarifa: 0,92
       // Base bruta = (15933 * 0.92) / 60 = 244.306 -> 244.31 (acima do piso 49,90)
       // Ajuste placas = 201 * 9 = 1809
       // Deslocamento: 15 km, 2.50 R$/km -> 15 * 2 * 2.5 = 75
-      // Parcela visita = 1809 + 75 = 1884
+      // Parcela visita (1 lavagem anual) = 1809 + 75 = 1884
+      // Rateio Inspeção = 1884 / 12 = 157.00
+      // Rateio Completo = (1884 * 2) / 12 = 314.00
       // Essencial = 244.31
-      // Inspeção = 244.31 + 1884 = 2128.31
-      // Completo = 244.31 + 1884 * 2 = 4012.31
+      // Inspeção = 244.31 + 157 = 401.31
+      // Completo = 244.31 + 314 = 558.31
       const planos = calcularTodosPlanosOM({
         geracaoMensalKwh: 15933,
         valorKwh: 0.92,
@@ -131,8 +135,8 @@ describe('Planos O&M - Módulo Centralizado e Fórmulas Exatas do Usuário', () 
       })
 
       expect(planos.Essencial.mensal).toBeCloseTo(244.31, 2)
-      expect(planos.Inspeção.mensal).toBeCloseTo(2128.31, 2)
-      expect(planos.Completo.mensal).toBeCloseTo(4012.31, 2)
+      expect(planos.Inspeção.mensal).toBeCloseTo(401.31, 2)
+      expect(planos.Completo.mensal).toBeCloseTo(558.31, 2)
     })
 
     it('Permite edição manual para negociação (valoresNegociados)', () => {
@@ -143,8 +147,8 @@ describe('Planos O&M - Módulo Centralizado e Fórmulas Exatas do Usuário', () 
         distanciaKm: 15,
         valorKm: 2.5,
         valoresNegociados: {
-          Inspeção: 450.0,
-          Completo: 850.0,
+          Inspeção: 95.0,
+          Completo: 130.0,
         },
       })
 
@@ -152,16 +156,16 @@ describe('Planos O&M - Módulo Centralizado e Fórmulas Exatas do Usuário', () 
       expect(planos.Essencial.isNegociado).toBeFalsy()
 
       // Inspeção negociado
-      expect(planos.Inspeção.mensal).toBe(450.0)
-      expect(planos.Inspeção.anual).toBe(5400.0)
+      expect(planos.Inspeção.mensal).toBe(95.0)
+      expect(planos.Inspeção.anual).toBe(1140.0)
       expect(planos.Inspeção.isNegociado).toBe(true)
-      expect(planos.Inspeção.mensalCalculadoFormula).toBe(474.9)
+      expect(planos.Inspeção.mensalCalculadoFormula).toBe(85.32)
 
       // Completo negociado
-      expect(planos.Completo.mensal).toBe(850.0)
-      expect(planos.Completo.anual).toBe(10200.0)
+      expect(planos.Completo.mensal).toBe(130.0)
+      expect(planos.Completo.anual).toBe(1560.0)
       expect(planos.Completo.isNegociado).toBe(true)
-      expect(planos.Completo.mensalCalculadoFormula).toBe(899.9)
+      expect(planos.Completo.mensalCalculadoFormula).toBe(120.73)
     })
   })
 
@@ -184,17 +188,19 @@ describe('Planos O&M - Módulo Centralizado e Fórmulas Exatas do Usuário', () 
     // Base = 1000 / 60 = 16,67 -> piso 49,90
     // Placas 15 (<35) -> 350
     // Deslocamento 0 -> 0
-    // Parcela visita = 350
+    // Parcela visita (1 lavagem) = 350
+    // Rateio Inspeção = 350 / 12 = 29.166... -> 29,17
+    // Rateio Completo = 700 / 12 = 58.333... -> 58,33
     // Essencial = 49,90
-    // Inspeção = 49,90 + 350 = 399,90
-    // Completo = 49,90 + 700 = 749,90
+    // Inspeção = 49,90 + 29,17 = 79,07
+    // Completo = 49,90 + 58,33 = 108,23
     expect(res.planos.Essencial.mensal).toBe(49.9)
-    expect(res.planos.Inspeção.mensal).toBe(399.9)
-    expect(res.planos.Completo.mensal).toBe(749.9)
+    expect(res.planos.Inspeção.mensal).toBe(79.07)
+    expect(res.planos.Completo.mensal).toBe(108.23)
     // Alias de compatibilidade
-    expect(res.planos.Prevenção?.mensal).toBe(399.9)
+    expect(res.planos.Prevenção?.mensal).toBe(79.07)
 
-    expect(res.valorMensalEscolhido).toBe(399.9)
-    expect(res.valorAnualEscolhido).toBeCloseTo(4798.8, 1)
+    expect(res.valorMensalEscolhido).toBe(79.07)
+    expect(res.valorAnualEscolhido).toBeCloseTo(79.07 * 12, 2)
   })
 })

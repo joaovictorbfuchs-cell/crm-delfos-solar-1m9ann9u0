@@ -189,7 +189,7 @@ export function calcularAjustePlacasOM(
  * 2. Piso: se Base < R$ 49,90 → Base = R$ 49,90
  * 3. Deslocamento = Distância × 2 × valor do R$/km (ida e volta)
  * 4. Ajuste de placas: < 35 placas = R$ 350 fixos; ≥ 35 placas = nº placas × R$/placa (R$ 9 padrão editável)
- * 5. Parcela de visita = Ajuste de placas + Deslocamento
+ * 5. Parcela de visita = Ajuste de placas + Deslocamento (custo de 1 visita/lavagem)
  */
 export function calcularDetalhesBaseOM(params?: ParametrosCalculoPlanoOM): DetalheCalculoBaseOM {
   const { baseBruta, baseComPiso, pisoAplicado } = calcularBasePlanoOM(
@@ -219,10 +219,11 @@ export function calcularDetalhesBaseOM(params?: ParametrosCalculoPlanoOM): Detal
  *
  * 1. Base (comum aos 3 planos) = (Geração média mensal em kWh × valor do kWh) ÷ 60.
  * 2. Piso: se Base < R$ 49,90 → Base = R$ 49,90. O piso vale nos 3 planos (sobre a Base).
- * 3. Essencial = Base (com piso). Nada mais.
- * 4. Inspeção = Base (com piso) + ajuste de placas + deslocamento.
- * 5. Completo = Base (com piso) + (ajuste de placas + deslocamento) × 2.
- *    (duas lavagens/visitas — a parte de ajuste+deslocamento inteira dobra).
+ * 3. Essencial = Base (com piso). Permanece exatamente como está.
+ * 4. Inspeção = Base (com piso) + (ajuste de placas + deslocamento) ÷ 12.
+ *    (O custo de 1 lavagem/inspeção anual é rateado em 12 meses para compor a mensalidade).
+ * 5. Completo = Base (com piso) + ((ajuste de placas + deslocamento) × 2) ÷ 12.
+ *    (O custo de 2 lavagens anuais é rateado em 12 meses para compor a mensalidade).
  *
  * Além do valor calculado, se houver um valor negociado para a chave (valoresNegociados[chave]),
  * este é assumido como o valor mensal final (persistido no banco e repassado ao contrato).
@@ -238,9 +239,9 @@ export function calcularValorPlanoOM(
   if (chave === 'Essencial') {
     valorMensalFormula = detalhes.baseComPiso
   } else if (chave === 'Inspeção') {
-    valorMensalFormula = detalhes.baseComPiso + detalhes.parcelaVisita
+    valorMensalFormula = detalhes.baseComPiso + detalhes.parcelaVisita / 12
   } else if (chave === 'Completo') {
-    valorMensalFormula = detalhes.baseComPiso + detalhes.parcelaVisita * 2
+    valorMensalFormula = detalhes.baseComPiso + (detalhes.parcelaVisita * 2) / 12
   }
 
   const mensalCalculadoFormula = Math.round(valorMensalFormula * 100) / 100
