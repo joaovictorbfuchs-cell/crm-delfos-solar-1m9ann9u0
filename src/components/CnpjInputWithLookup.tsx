@@ -34,6 +34,8 @@ interface CnpjInputWithLookupProps {
   required?: boolean
   helperText?: string
   origemApi?: 'brasilapi' | 'publicacnpj'
+  customEndAdornment?: React.ReactNode
+  hideDefaultAction?: boolean
 }
 
 export const CnpjInputWithLookup: React.FC<CnpjInputWithLookupProps> = ({
@@ -52,6 +54,8 @@ export const CnpjInputWithLookup: React.FC<CnpjInputWithLookupProps> = ({
   required = false,
   helperText,
   origemApi,
+  customEndAdornment,
+  hideDefaultAction = false,
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value
@@ -69,16 +73,20 @@ export const CnpjInputWithLookup: React.FC<CnpjInputWithLookupProps> = ({
           <label htmlFor={id} className="font-semibold text-gray-700 text-xs block">
             {label} {required && <span className="text-red-500">*</span>}
           </label>
-          {isComplete && !isLoading && status !== 'success' && onLookupClick && (
-            <button
-              type="button"
-              onClick={onLookupClick}
-              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1 transition-colors"
-            >
-              <RotateCw className="w-3 h-3" />
-              <span>Consultar Receita</span>
-            </button>
-          )}
+          {!hideDefaultAction &&
+            isComplete &&
+            !isLoading &&
+            status !== 'success' &&
+            onLookupClick && (
+              <button
+                type="button"
+                onClick={onLookupClick}
+                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1 transition-colors"
+              >
+                <RotateCw className="w-3 h-3" />
+                <span>Consultar Receita</span>
+              </button>
+            )}
         </div>
       )}
 
@@ -92,7 +100,9 @@ export const CnpjInputWithLookup: React.FC<CnpjInputWithLookupProps> = ({
           maxLength={18}
           placeholder={placeholder}
           disabled={disabled || isLoading}
-          className={`w-full px-3 py-2 text-xs font-mono rounded-lg border transition-all pr-9 ${
+          className={`w-full px-3 py-2 text-xs font-mono rounded-lg border transition-all ${
+            customEndAdornment ? 'pr-11' : 'pr-9'
+          } ${
             status === 'error' || (errorMessage && status !== 'loading')
               ? 'border-red-400 bg-red-50/20 focus:ring-red-400'
               : status === 'success'
@@ -101,9 +111,11 @@ export const CnpjInputWithLookup: React.FC<CnpjInputWithLookupProps> = ({
           } focus:outline-none focus:ring-2 ${className}`}
         />
 
-        {/* Ícone de status à direita */}
-        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {isLoading ? (
+        {/* Adorno à direita: customEndAdornment prioritário ou ícone padrão de status */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {customEndAdornment ? (
+            customEndAdornment
+          ) : isLoading ? (
             <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
           ) : status === 'success' ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
