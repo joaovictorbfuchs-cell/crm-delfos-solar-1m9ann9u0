@@ -106,12 +106,8 @@ export const PropostaSecaoAssinatura: React.FC<PropostaSecaoAssinaturaProps> = (
 
             {/* Linha de Assinatura */}
             <div className="mt-8 pt-2 border-t-2 border-slate-400 text-center">
-              <div className="text-xs font-black text-slate-900 uppercase">
-                {nomeCliente}
-              </div>
-              <div className="text-[11px] font-semibold text-blue-800">
-                {avisoLegal}
-              </div>
+              <div className="text-xs font-black text-slate-900 uppercase">{nomeCliente}</div>
+              <div className="text-[11px] font-semibold text-blue-800">{avisoLegal}</div>
             </div>
           </div>
 

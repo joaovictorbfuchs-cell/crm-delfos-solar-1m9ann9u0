@@ -18,14 +18,20 @@ export const PropostaSecaoCliente: React.FC<PropostaSecaoClienteProps> = ({
   const cliente = propostaData.cliente
   const consultor = propostaData.consultor
   const conteudo = propostaData.conteudo
-  const rotuloPrep = conteudo?.capa?.rotuloPreparadaPara || 'Proposta preparada exclusivamente para:'
+  const rotuloPrep =
+    conteudo?.capa?.rotuloPreparadaPara || 'Proposta preparada exclusivamente para:'
   const rotuloConsultor = conteudo?.capa?.rotuloConsultor || 'Consultor Técnico Delfos:'
 
   const nomeCliente = cliente?.nome || 'Cliente Selecionado'
-  const cidadeCliente = cliente?.cidade || 'Erechim'
-  const estadoCliente = cliente?.estado || 'RS'
+  const municipioOuCidade = (cliente as any)?.municipio || (cliente as any)?.cidade || 'Erechim'
+  const cidadeCliente = (cliente as any)?.cidade || (cliente as any)?.municipio || 'Erechim'
+  const estadoCliente = (cliente as any)?.estado || 'RS'
   const enderecoCliente = cliente?.endereco
-  const tipoCliente = cliente?.tipo || 'Residencial'
+  const tipoCliente =
+    (cliente as any)?.tipo ||
+    (cliente as any)?.tipoImovel ||
+    (cliente as any)?.tipoCliente ||
+    'Residencial'
 
   return (
     <section
@@ -64,14 +70,14 @@ export const PropostaSecaoCliente: React.FC<PropostaSecaoClienteProps> = ({
           <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
             Destinatário / Titular da Usina
           </div>
-          <div className="text-sm sm:text-base font-extrabold text-slate-900">
-            {nomeCliente}
-          </div>
+          <div className="text-sm sm:text-base font-extrabold text-slate-900">{nomeCliente}</div>
           <div className="flex items-center gap-1.5 text-xs text-slate-600">
             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>
               {enderecoCliente ? `${enderecoCliente} • ` : ''}
-              {cidadeCliente} / {estadoCliente}
+              {municipioOuCidade.includes('/')
+                ? municipioOuCidade
+                : `${cidadeCliente} / ${estadoCliente}`}
             </span>
           </div>
           <div className="text-[11px] text-slate-500 font-medium">
@@ -88,12 +94,15 @@ export const PropostaSecaoCliente: React.FC<PropostaSecaoClienteProps> = ({
               <span>{rotuloConsultor}</span>
             </div>
             <div className="text-xs sm:text-sm font-bold text-slate-900 mt-1">
-              {consultor?.nome || 'Equipe Delfos Engenharia'}
+              {consultor?.nome ||
+                (propostaData as any)?.representanteComercial ||
+                (propostaData as any)?.representante?.nome ||
+                'Equipe Delfos Engenharia'}
             </div>
-            {consultor?.telefone && (
+            {(consultor?.telefone || (propostaData as any)?.representante?.contato) && (
               <div className="flex items-center gap-1 text-xs text-slate-600 mt-0.5">
                 <Phone className="w-3 h-3 text-slate-400" />
-                <span>{consultor.telefone}</span>
+                <span>{consultor?.telefone || (propostaData as any)?.representante?.contato}</span>
               </div>
             )}
             {consultor?.email && (

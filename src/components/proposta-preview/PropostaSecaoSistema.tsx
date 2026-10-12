@@ -19,18 +19,35 @@ export const PropostaSecaoSistema: React.FC<PropostaSecaoSistemaProps> = ({
   const producao = propostaData.producao
   const conteudo = propostaData.conteudo
 
+  const sistemaAny = sistema as any
+  const producaoAny = producao as any
+  const garantiasAny = (propostaData as any)?.garantias
+
   const potenciaKwp = sistema?.potenciaKwp || 0
   const mediaMensalKwh = producao?.mediaMensalKwh || 0
-  const qtdPaineis = sistema?.qtdPaineis || 0
+  const qtdPaineis = sistemaAny?.qtdPaineis || sistemaAny?.numeroPlacas || 0
   const potenciaPlacaWp = sistema?.potenciaPlacaWp || 0
-  const descPaineis = sistema?.descricaoPaineis || `${qtdPaineis}x Módulos Fotovoltaicos Tier-1`
-  const qtdInversores = sistema?.qtdInversores || 1
-  const descInversores = sistema?.descricaoInversores || 'Inversor Solar Homologado'
-  const areaM2 = sistema?.areaNecessariaM2 || (qtdPaineis > 0 ? Number((qtdPaineis * 2.2).toFixed(1)) : 0)
+  const descPaineis =
+    sistemaAny?.descricaoPaineis ||
+    (sistemaAny?.marcaPlacas
+      ? `${qtdPaineis}x ${sistemaAny.marcaPlacas} Tier-1`
+      : `${qtdPaineis}x Módulos Fotovoltaicos Tier-1`)
+  const qtdInversores = sistemaAny?.qtdInversores || sistemaAny?.quantidadeInversores || 1
+  const descInversores =
+    sistemaAny?.descricaoInversores || sistemaAny?.marcaInversor || 'Inversor Solar Homologado'
+  const areaM2 =
+    sistema?.areaNecessariaM2 || (qtdPaineis > 0 ? Number((qtdPaineis * 2.2).toFixed(1)) : 0)
 
-  const garantiaModulos = sistema?.garantiaPaineisAnos || 25
-  const garantiaInversor = sistema?.garantiaInversorAnos || 10
-  const garantiaInstalacao = sistema?.garantiaInstalacaoAnos || 5
+  const garantiaModulos =
+    garantiasAny?.paineisAnosDesempenho ||
+    garantiasAny?.paineisAnosFabricacao ||
+    sistemaAny?.garantiaPaineisAnos ||
+    sistemaAny?.garantiaModulosAnos ||
+    sistemaAny?.garantiaModulosFabricacaoAnos ||
+    25
+  const garantiaInversor =
+    garantiasAny?.inversorAnosFabricacao || sistemaAny?.garantiaInversorAnos || 10
+  const garantiaInstalacao = garantiasAny?.instalacaoAnos || sistemaAny?.garantiaInstalacaoAnos || 1
 
   const tituloSecao = conteudo?.secaoSeuSistema?.titulo || 'Seu Sistema Fotovoltaico'
   const subtituloSecao =
@@ -78,7 +95,10 @@ export const PropostaSecaoSistema: React.FC<PropostaSecaoSistemaProps> = ({
           </div>
           <div className="mt-2">
             <span className="text-xl font-extrabold text-amber-950">
-              {potenciaKwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {potenciaKwp.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </span>
             <span className="text-xs font-bold text-amber-800 ml-1">kWp</span>
           </div>
@@ -94,9 +114,7 @@ export const PropostaSecaoSistema: React.FC<PropostaSecaoSistemaProps> = ({
             <Sun className="w-3.5 h-3.5 text-amber-500" />
           </div>
           <div className="mt-2">
-            <span className="text-xl font-extrabold text-slate-900">
-              {qtdPaineis}
-            </span>
+            <span className="text-xl font-extrabold text-slate-900">{qtdPaineis}</span>
             <span className="text-xs font-bold text-slate-600 ml-1">
               unidades {potenciaPlacaWp ? `(${potenciaPlacaWp}W)` : ''}
             </span>
@@ -116,9 +134,7 @@ export const PropostaSecaoSistema: React.FC<PropostaSecaoSistemaProps> = ({
             <Box className="w-3.5 h-3.5 text-teal-600" />
           </div>
           <div className="mt-2">
-            <span className="text-xl font-extrabold text-slate-900">
-              {qtdInversores}
-            </span>
+            <span className="text-xl font-extrabold text-slate-900">{qtdInversores}</span>
             <span className="text-xs font-bold text-slate-600 ml-1">
               {qtdInversores > 1 ? 'unidades' : 'unidade'}
             </span>
@@ -138,9 +154,7 @@ export const PropostaSecaoSistema: React.FC<PropostaSecaoSistemaProps> = ({
             <Maximize2 className="w-3.5 h-3.5 text-blue-600" />
           </div>
           <div className="mt-2">
-            <span className="text-xl font-extrabold text-slate-900">
-              {areaM2}
-            </span>
+            <span className="text-xl font-extrabold text-slate-900">{areaM2}</span>
             <span className="text-xs font-bold text-slate-600 ml-1">m² estimados</span>
           </div>
           <div className="text-[11px] text-slate-600 mt-1">

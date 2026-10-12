@@ -9,7 +9,7 @@ import { PropostaSecaoAssinatura } from './PropostaSecaoAssinatura'
 import { Layers, MousePointerClick, Check } from 'lucide-react'
 
 export interface PreviewPropostaSecoesProps {
-  propostaData: PropostaSolarPDFInput
+  propostaData: PropostaSolarPDFInput | any
   onSelectSecao?: (secaoId: string) => void
 }
 
@@ -29,12 +29,28 @@ export const PreviewPropostaSecoes: React.FC<PreviewPropostaSecoesProps> = ({
   }
 
   const secoes = [
-    { id: 'cabecalho-logo', nome: 'Cabeçalho / Logo' },
-    { id: 'dados-cliente', nome: 'Dados do Cliente' },
-    { id: 'descricao-sistema', nome: 'Descrição do Sistema' },
-    { id: 'investimento-condicoes', nome: 'Investimento e Condições' },
-    { id: 'projecao-economia', nome: 'Projeção de Economia' },
-    { id: 'bloco-assinatura', nome: 'Bloco de Assinatura' },
+    { id: 'cabecalho-logo', nome: 'Cabeçalho / Logo', targetId: 'preview-secao-cabecalho-logo' },
+    { id: 'dados-cliente', nome: 'Dados do Cliente', targetId: 'preview-secao-dados-cliente' },
+    {
+      id: 'descricao-sistema',
+      nome: 'Descrição do Sistema',
+      targetId: 'preview-secao-descricao-sistema',
+    },
+    {
+      id: 'investimento-condicoes',
+      nome: 'Investimento e Condições',
+      targetId: 'preview-secao-investimento-condicoes',
+    },
+    {
+      id: 'projecao-economia',
+      nome: 'Projeção de Economia',
+      targetId: 'preview-secao-projecao-economia',
+    },
+    {
+      id: 'bloco-assinatura',
+      nome: 'Bloco de Assinatura',
+      targetId: 'preview-secao-bloco-assinatura',
+    },
   ]
 
   return (
@@ -60,7 +76,7 @@ export const PreviewPropostaSecoes: React.FC<PreviewPropostaSecoesProps> = ({
               type="button"
               onClick={() => {
                 handleSelect(s.id)
-                const el = document.getElementById(`preview-secao-${s.id}`)
+                const el = document.getElementById(s.targetId || `preview-secao-${s.id}`)
                 if (el) {
                   el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }

@@ -69,9 +69,7 @@ export const PropostaSecaoHeader: React.FC<PropostaSecaoHeaderProps> = ({
       </div>
 
       <div className="pt-4">
-        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
-          {titulo}
-        </h2>
+        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">{titulo}</h2>
         <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
           {subtitulo}
         </p>

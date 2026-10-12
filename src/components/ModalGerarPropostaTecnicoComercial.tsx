@@ -29,6 +29,7 @@ import {
   baixarPropostaTecnicoComercialHTML,
 } from '@/lib/propostaTecnicoComercialGenerator'
 import { GeracaoMensalItem, DADOS_CLIMATICOS_ERECHIM } from '@/lib/energiaSolar'
+import { PreviewPropostaSecoes } from '@/components/proposta-preview/PreviewPropostaSecoes'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
   orcamento: OrcamentoSolarCalculado & {
@@ -1042,31 +1043,32 @@ export function ModalGerarPropostaTecnicoComercial({
                 </div>
               </div>
 
-              {/* Preview fiel do PDF gerado com iframe e banner âmbar oficial */}
+              {/* Preview estruturado em seções editáveis individuais */}
               <div className="bg-white border border-amber-200/80 shadow-xs rounded-2xl overflow-hidden">
                 <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
                     <Eye className="w-4 h-4 text-amber-700" />
-                    <span>Preview da Proposta</span>
+                    <span>Preview da Proposta (Seções Editáveis)</span>
                   </div>
                   <span className="text-[11px] text-amber-800/80 font-medium">
-                    Visualização idêntica ao PDF final • atualiza em tempo real
+                    Visualização estruturada em componentes • atualiza em tempo real
                   </span>
                 </div>
-                <div className="p-2 sm:p-4 bg-slate-200/75 flex justify-center overflow-x-auto">
-                  <div className="w-[210mm] max-w-full px-[7mm] box-border flex justify-center">
-                    <iframe
-                      title="Preview da Proposta"
-                      srcDoc={htmlPreview}
-                      sandbox="allow-same-origin"
-                      className="w-[210mm] max-w-full h-[85vh] min-h-[750px] bg-white border border-gray-300 rounded-xl shadow-lg"
-                    />
+                <div className="p-2 sm:p-4 bg-slate-100 flex justify-center overflow-x-auto">
+                  <div className="w-[210mm] max-w-full box-border">
+                    {dadosAtuais ? (
+                      <PreviewPropostaSecoes propostaData={dadosAtuais} />
+                    ) : (
+                      <div className="p-6 text-center text-xs text-gray-500">
+                        Carregando preview da proposta...
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            /* ETAPA DE PREVIEW COM O MESMO PADRÃO DE IFRAME E BANNER ÂMBAR */
+            /* ETAPA DE PREVIEW COM O MESMO PADRÃO DE SEÇÕES EDITÁVEIS */
             <div className="p-3 sm:p-5 max-w-5xl mx-auto">
               <div className="bg-white border border-amber-200/80 shadow-xs rounded-2xl overflow-hidden">
                 <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between">
@@ -1075,17 +1077,18 @@ export function ModalGerarPropostaTecnicoComercial({
                     <span>Preview da Proposta</span>
                   </div>
                   <span className="text-[11px] text-amber-800/80 font-medium">
-                    Visualização idêntica ao PDF final • atualiza em tempo real
+                    Visualização em seções editáveis • atualiza em tempo real
                   </span>
                 </div>
-                <div className="p-2 sm:p-4 bg-slate-200/75 flex justify-center overflow-x-auto">
-                  <div className="w-[210mm] max-w-full px-[7mm] box-border flex justify-center">
-                    <iframe
-                      title="Preview da Proposta"
-                      srcDoc={htmlPreview}
-                      sandbox="allow-same-origin"
-                      className="w-[210mm] max-w-full h-[85vh] min-h-[750px] bg-white border border-gray-300 rounded-xl shadow-lg"
-                    />
+                <div className="p-2 sm:p-4 bg-slate-100 flex justify-center overflow-x-auto">
+                  <div className="w-[210mm] max-w-full box-border">
+                    {dadosAtuais ? (
+                      <PreviewPropostaSecoes propostaData={dadosAtuais} />
+                    ) : (
+                      <div className="p-6 text-center text-xs text-gray-500">
+                        Carregando preview da proposta...
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

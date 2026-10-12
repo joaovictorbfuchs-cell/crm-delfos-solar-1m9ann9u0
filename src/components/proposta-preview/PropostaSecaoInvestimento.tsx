@@ -15,20 +15,45 @@ export const PropostaSecaoInvestimento: React.FC<PropostaSecaoInvestimentoProps>
   propostaData,
   onEdit,
 }) => {
-  const investimento = propostaData.investimento
-  const parcelamento = propostaData.parcelamento
+  const investimentoAny = (propostaData as any)?.investimento
+  const economiaAny = (propostaData as any)?.economia
+  const calculosAny = (propostaData as any)?.calculos
+  const parcelamentoAny = (propostaData as any)?.parcelamento
   const conteudo = propostaData.conteudo
 
-  const valorTotal = investimento?.valorTotal || 0
-  const tituloSecao =
-    conteudo?.secaoInvestimento?.titulo || 'Investimento e Condições de Pagamento'
+  const valorTotal =
+    investimentoAny?.valorTotal ||
+    economiaAny?.investimentoTotal ||
+    calculosAny?.valorInvestimento ||
+    parcelamentoAny?.aVista?.valorTotal ||
+    0
+  const tituloSecao = conteudo?.secaoInvestimento?.titulo || 'Investimento e Condições de Pagamento'
   const subtituloCondicoes =
     conteudo?.secaoInvestimento?.subtituloCondicoes || 'FORMAS DE PAGAMENTO FACILITADAS'
 
-  const aVista = parcelamento?.aVista
-  const cartao = parcelamento?.cartao
-  const finanA = parcelamento?.financiamentoA
-  const finanB = parcelamento?.financiamentoB
+  const aVista = parcelamentoAny?.aVista
+  const cartao = parcelamentoAny?.cartao || parcelamentoAny?.cartao18x
+  const finanA = parcelamentoAny?.financiamentoA || parcelamentoAny?.financiamentoBanco1
+  const finanB = parcelamentoAny?.financiamentoB || parcelamentoAny?.financiamentoBanco2
+
+  const cartaoParcelas = cartao?.parcelas || cartao?.numeroParcelas || 18
+  const cartaoValorParcela =
+    cartao?.valorParcela || (cartaoParcelas > 0 ? valorTotal / cartaoParcelas : 0)
+  const cartaoEntrada = cartao?.entrada ?? cartao?.valorEntrada ?? 0
+
+  const finanANome = finanA?.nomeBanco || finanA?.nome || finanA?.titulo || 'Financiamento 60x'
+  const finanAParcelas = finanA?.parcelas || finanA?.numeroParcelas || 60
+  const finanAValorParcela = finanA?.valorParcela || 0
+
+  const finanBNome = finanB?.nomeBanco || finanB?.nome || finanB?.titulo || 'Financiamento 120x'
+  const finanBParcelas = finanB?.parcelas || finanB?.numeroParcelas || 60
+  const finanBValorParcela = finanB?.valorParcela || 0
+
+  const prazoEntrega =
+    (propostaData as any)?.prazoEntregaDias ||
+    economiaAny?.prazoEntregaDias ||
+    (propostaData as any)?.sistema?.prazoEntregaDias ||
+    30
 
   const formatarMoeda = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -122,15 +147,15 @@ export const PropostaSecaoInvestimento: React.FC<PropostaSecaoInvestimentoProps>
                 <span>Cartão</span>
               </span>
               <span className="bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded text-[9px]">
-                {cartao?.parcelas || 12}x
+                {cartaoParcelas}x
               </span>
             </div>
             <div className="text-lg font-black text-slate-900 mt-2">
-              {formatarMoeda(cartao?.valorParcela || (valorTotal / 12))}
+              {formatarMoeda(cartaoValorParcela)}
             </div>
             <div className="text-[11px] text-slate-600 mt-1">
-              {cartao?.entrada && cartao.entrada > 0 ? `Entrada: ${formatarMoeda(cartao.entrada)} • ` : ''}
-              {cartao?.parcelas || 12} parcelas mensais
+              {cartaoEntrada > 0 ? `Entrada: ${formatarMoeda(cartaoEntrada)} • ` : ''}
+              {cartaoParcelas} parcelas mensais
             </div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-200 text-[10px] text-slate-500">
@@ -144,18 +169,16 @@ export const PropostaSecaoInvestimento: React.FC<PropostaSecaoInvestimentoProps>
             <div className="flex items-center justify-between text-[10px] font-bold uppercase text-blue-900">
               <span className="flex items-center gap-1">
                 <Landmark className="w-3 h-3 text-blue-600" />
-                <span className="truncate max-w-[120px]">{finanA?.nomeBanco || 'Financiamento'}</span>
+                <span className="truncate max-w-[120px]">{finanANome}</span>
               </span>
               <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[9px]">
-                {finanA?.parcelas || 60}x
+                {finanAParcelas}x
               </span>
             </div>
             <div className="text-lg font-black text-blue-950 mt-2">
-              {formatarMoeda(finanA?.valorParcela || 0)}
+              {formatarMoeda(finanAValorParcela)}
             </div>
-            <div className="text-[11px] text-blue-800 mt-1">
-              Parcela aproximada com carência
-            </div>
+            <div className="text-[11px] text-blue-800 mt-1">Parcela aproximada com carência</div>
           </div>
           <div className="mt-3 pt-2 border-t border-blue-100 text-[10px] text-blue-700 font-medium">
             A parcela é paga com a própria economia
@@ -168,17 +191,17 @@ export const PropostaSecaoInvestimento: React.FC<PropostaSecaoInvestimentoProps>
             <div className="flex items-center justify-between text-[10px] font-bold uppercase text-blue-900">
               <span className="flex items-center gap-1">
                 <Landmark className="w-3 h-3 text-blue-600" />
-                <span className="truncate max-w-[120px]">{finanB?.nomeBanco || 'Opção Bancária'}</span>
+                <span className="truncate max-w-[120px]">{finanBNome}</span>
               </span>
               <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[9px]">
-                {finanB?.parcelas || 84}x
+                {finanBParcelas}x
               </span>
             </div>
             <div className="text-lg font-black text-blue-950 mt-2">
-              {formatarMoeda(finanB?.valorParcela || 0)}
+              {formatarMoeda(finanBValorParcela)}
             </div>
             <div className="text-[11px] text-blue-800 mt-1">
-              Prazo estendido em até {finanB?.parcelas || 84} meses
+              Prazo estendido em até {finanBParcelas} meses
             </div>
           </div>
           <div className="mt-3 pt-2 border-t border-blue-100 text-[10px] text-blue-700 font-medium">
@@ -192,7 +215,7 @@ export const PropostaSecaoInvestimento: React.FC<PropostaSecaoInvestimentoProps>
         <span className="flex items-center gap-1.5">
           <Clock className="w-4 h-4 text-slate-500" />
           <span>Prazo de entrega e comissionamento:</span>
-          <strong className="text-slate-900">{propostaData.prazoEntregaDias || 30} dias úteis</strong>
+          <strong className="text-slate-900">{prazoEntrega} dias úteis</strong>
         </span>
         <span className="text-[11px] text-slate-500">
           Após aprovação do projeto pela concessionária

@@ -15,20 +15,39 @@ export const PropostaSecaoProjecao: React.FC<PropostaSecaoProjecaoProps> = ({
   propostaData,
   onEdit,
 }) => {
-  const producao = propostaData.producao
-  const financeiro = propostaData.financeiro
+  const producaoAny = (propostaData as any)?.producao
+  const financeiroAny = (propostaData as any)?.financeiro
+  const projecaoAny = (propostaData as any)?.projecao
+  const economiaAny = (propostaData as any)?.economia
+  const calculosAny = (propostaData as any)?.calculos
   const conteudo = propostaData.conteudo
 
-  const economiaMensal = producao?.economiaMensalEstimada || 0
-  const paybackMeses = financeiro?.paybackMeses || 36
+  const economiaMensal =
+    producaoAny?.economiaMensalEstimada ||
+    projecaoAny?.economia1Mes ||
+    calculosAny?.economia1Mes ||
+    0
+  const paybackMeses =
+    financeiroAny?.paybackMeses || economiaAny?.paybackMeses || calculosAny?.paybackMeses || 36
   const paybackAnos = (paybackMeses / 12).toFixed(1).replace('.', ',')
 
-  const eco1Ano = financeiro?.economia1Ano || Math.round(economiaMensal * 12)
-  const eco5Anos = financeiro?.economia5Anos || Math.round(economiaMensal * 60 * 1.08)
-  const eco25Anos = financeiro?.economia25Anos || Math.round(economiaMensal * 300 * 1.25)
+  const eco1Ano =
+    projecaoAny?.economia1Ano ||
+    financeiroAny?.economia1Ano ||
+    calculosAny?.economia1Ano ||
+    Math.round(economiaMensal * 12)
+  const eco5Anos =
+    projecaoAny?.economia5Anos ||
+    financeiroAny?.economia5Anos ||
+    calculosAny?.economia5Anos ||
+    Math.round(economiaMensal * 60 * 1.08)
+  const eco25Anos =
+    projecaoAny?.economia25Anos ||
+    financeiroAny?.economia25Anos ||
+    calculosAny?.economia25Anos ||
+    Math.round(economiaMensal * 300 * 1.25)
 
-  const tituloSecao =
-    conteudo?.secaoProjecao25Anos?.titulo || 'Projeção de Economia em 25 Anos'
+  const tituloSecao = conteudo?.secaoProjecao25Anos?.titulo || 'Projeção de Economia em 25 Anos'
   const subtituloSecao =
     conteudo?.secaoProjecao25Anos?.subtitulo ||
     'Retorno financeiro sólido e previsível gerado pelo seu próprio sistema.'
@@ -76,9 +95,7 @@ export const PropostaSecaoProjecao: React.FC<PropostaSecaoProjecaoProps> = ({
             <Calendar className="w-3.5 h-3.5" />
           </div>
           <div className="text-xs font-bold text-emerald-900 mt-1">Economia em 1 Ano</div>
-          <div className="text-xl font-black text-emerald-950 mt-1.5">
-            {formatarMoeda(eco1Ano)}
-          </div>
+          <div className="text-xl font-black text-emerald-950 mt-1.5">{formatarMoeda(eco1Ano)}</div>
           <p className="text-[11px] text-emerald-800/80 mt-1">
             Redução direta nas 12 primeiras faturas
           </p>
@@ -91,9 +108,7 @@ export const PropostaSecaoProjecao: React.FC<PropostaSecaoProjecaoProps> = ({
             <Award className="w-3.5 h-3.5" />
           </div>
           <div className="text-xs font-bold text-amber-900 mt-1">Economia em 5 Anos</div>
-          <div className="text-xl font-black text-amber-950 mt-1.5">
-            {formatarMoeda(eco5Anos)}
-          </div>
+          <div className="text-xl font-black text-amber-950 mt-1.5">{formatarMoeda(eco5Anos)}</div>
           <p className="text-[11px] text-amber-800/80 mt-1">
             Payback estimado em ≈ <strong className="text-amber-950">{paybackAnos} anos</strong>
           </p>
@@ -106,9 +121,7 @@ export const PropostaSecaoProjecao: React.FC<PropostaSecaoProjecaoProps> = ({
             <TrendingUp className="w-3.5 h-3.5" />
           </div>
           <div className="text-xs font-bold text-blue-900 mt-1">Economia em 25 Anos</div>
-          <div className="text-xl font-black text-blue-950 mt-1.5">
-            {formatarMoeda(eco25Anos)}
-          </div>
+          <div className="text-xl font-black text-blue-950 mt-1.5">{formatarMoeda(eco25Anos)}</div>
           <p className="text-[11px] text-blue-800/80 mt-1">
             Patrimônio acumulado com reajuste tarifário
           </p>
