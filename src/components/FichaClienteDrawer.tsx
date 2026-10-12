@@ -1587,6 +1587,19 @@ export const FichaClienteDrawer: React.FC = () => {
                   <FichaClienteOM
                     clienteId={selectedCliente.id}
                     onNavigateToTab={(tab) => setActiveClientTab(tab)}
+                    onDispararGerarContrato={(proposta, plano, valorMensal, valorTotal) => {
+                      if (proposta || plano || valorMensal) {
+                        setContratoOMDetalhesDados({
+                          planoSelecionado: (plano as any) || 'Inspeção',
+                          valorMensal: valorMensal,
+                          valorTotal: valorTotal,
+                        })
+                      }
+                      handleDispararGerarContrato()
+                    }}
+                    onDispararGerarProcuracao={() => {
+                      handleDispararGerarProcuracao()
+                    }}
                   />
                 </div>
               )}

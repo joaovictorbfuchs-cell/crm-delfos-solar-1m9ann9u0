@@ -8,7 +8,24 @@ import {
   X,
   Loader2,
   FileText,
+  FileCheck,
+  ArrowRight,
+  ExternalLink,
+  Plus,
+  Eye,
+  ScrollText,
+  AlertCircle,
+  CheckCircle2,
+  FileSignature,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   formatCurrency,
@@ -18,9 +35,11 @@ import {
   formatCurrencyBRL,
 } from '@/lib/formatters'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
+import { calcularTodosPlanosOM } from '@/lib/planosOM'
 import type { OMPlanoTipo, OMStatusPlano, PropostaOM } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
+import { BotaoBaixarPropostaOMPDF } from './BotaoBaixarPropostaOMPDF'
 import { InlineEditField } from './InlineEditField'
 import { SecaoContratoUsinas } from './SecaoContratoUsinas'
 import { BlocoDocumentosContratoOM } from './BlocoDocumentosContratoOM'
@@ -29,9 +48,21 @@ import { toast } from 'sonner'
 interface FichaClienteOMProps {
   clienteId: string
   onNavigateToTab?: (tab: 'historico' | 'projeto' | 'om' | 'usinas' | 'whatsapp') => void
+  onDispararGerarContrato?: (
+    proposta?: PropostaOM | null,
+    plano?: string,
+    valorMensal?: number,
+    valorTotal?: number,
+  ) => void
+  onDispararGerarProcuracao?: (proposta?: PropostaOM | null) => void
 }
 
-export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNavigateToTab }) => {
+export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
+  clienteId,
+  onNavigateToTab,
+  onDispararGerarContrato,
+  onDispararGerarProcuracao,
+}) => {
   const {
     clientes,
     sistemas,
@@ -129,6 +160,48 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
   const [novoPlanoValorMensal, setNovoPlanoValorMensal] = useState<number>(190)
   const [novoPlanoObs, setNovoPlanoObs] = useState('')
 
+  // Modal Seletor de Contratação O&M a partir da Proposta do Cliente
+  const [modalContratarPropostaOpen, setModalContratarPropostaOpen] = useState(false)
+  const [planoContratacaoEscolhido, setPlanoContratacaoEscolhido] = useState<
+    'Essencial' | 'Inspeção' | 'Completo'
+  >('Inspeção')
+  const [modalAvisoSemPropostaOpen, setModalAvisoSemPropostaOpen] = useState(false)
+
+  // Disparar Gerar Contrato preenchido com a proposta e o plano selecionado
+  const handleAcaoGerarContrato = () => {
+    if (!ultimaPropostaOM || !opcoesPlanosUltimaProposta) {
+      if (onDispararGerarContrato) {
+        onDispararGerarContrato()
+      } else {
+        setModalContratoOpen(true)
+      }
+      setModalContratarPropostaOpen(false)
+      return
+    }
+
+    const infoPlano = opcoesPlanosUltimaProposta[planoContratacaoEscolhido]
+    const valorMensal = infoPlano?.mensal || 190
+    const valorTotal = infoPlano?.anual || valorMensal * 12
+
+    if (onDispararGerarContrato) {
+      onDispararGerarContrato(ultimaPropostaOM, planoContratacaoEscolhido, valorMensal, valorTotal)
+    } else {
+      setModalContratoOpen(true)
+    }
+
+    setModalContratarPropostaOpen(false)
+  }
+
+  // Disparar Gerar Procuração preenchida com os dados da proposta/cliente
+  const handleAcaoGerarProcuracao = () => {
+    if (onDispararGerarProcuracao) {
+      onDispararGerarProcuracao(ultimaPropostaOM)
+    } else {
+      setModalProcuracaoOpen(true)
+    }
+    setModalContratarPropostaOpen(false)
+  }
+
   const cliente = useMemo(() => {
     return clientes.find((c) => c.id === clienteId) || null
   }, [clientes, clienteId])
@@ -147,10 +220,68 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
       .filter((p) => p.cliente_id === clienteId)
       .sort(
         (a, b) =>
-          new Date(b.data_proposta || b.created).getTime() -
-          new Date(a.data_proposta || a.created).getTime(),
+          new Date(b.data_emissao || b.data_proposta || b.created).getTime() -
+          new Date(a.data_emissao || a.data_proposta || a.created).getTime(),
       )
   }, [propostasOM, clienteId])
+
+  // Última proposta O&M do cliente (referência para contratação)
+  const ultimaPropostaOM = useMemo(() => {
+    return propostasCliente[0] || null
+  }, [propostasCliente])
+
+  // Detalhes calculados dos 3 planos da última proposta O&M (com valores negociados se houver)
+  const opcoesPlanosUltimaProposta = useMemo(() => {
+    if (!ultimaPropostaOM) return null
+
+    let negociados: Record<string, number | null> | undefined = undefined
+    if (ultimaPropostaOM.valores_negociados_json) {
+      try {
+        negociados =
+          typeof ultimaPropostaOM.valores_negociados_json === 'string'
+            ? JSON.parse(ultimaPropostaOM.valores_negociados_json)
+            : ultimaPropostaOM.valores_negociados_json
+      } catch (e) {
+        console.warn('Erro ao decodificar valores_negociados_json na FichaClienteOM:', e)
+      }
+    }
+
+    const res = calcularTodosPlanosOM({
+      distanciaKm: Number(ultimaPropostaOM.distancia_km || 0),
+      valorKm: Number(ultimaPropostaOM.valor_km || 0),
+      numeroModulos: Number(ultimaPropostaOM.numero_modulos || 0),
+      geracaoMensalKwh: Number(ultimaPropostaOM.geracao_mensal_kwh || 0),
+      valorKwh: Number(ultimaPropostaOM.valor_kwh || 0),
+      valorPorPlaca: Number(ultimaPropostaOM.valor_por_placa || 9),
+      valoresNegociados: negociados as any,
+    })
+
+    return res
+  }, [ultimaPropostaOM])
+
+  // Handler de clique em "Contratar Plano O&M"
+  const handleIniciarContratacaoPlano = () => {
+    if (!propostasCliente || propostasCliente.length === 0) {
+      setModalAvisoSemPropostaOpen(true)
+      return
+    }
+
+    // Se a proposta já tem um plano sugerido/escolhido, inicia com ele selecionado
+    if (
+      ultimaPropostaOM?.plano_escolhido &&
+      (ultimaPropostaOM.plano_escolhido === 'Essencial' ||
+        ultimaPropostaOM.plano_escolhido === 'Inspeção' ||
+        ultimaPropostaOM.plano_escolhido === 'Completo')
+    ) {
+      setPlanoContratacaoEscolhido(
+        ultimaPropostaOM.plano_escolhido as 'Essencial' | 'Inspeção' | 'Completo',
+      )
+    } else {
+      setPlanoContratacaoEscolhido('Inspeção')
+    }
+
+    setModalContratarPropostaOpen(true)
+  }
 
   // Proposta O&M aprovada / fechada
   const propostaAprovada = useMemo<PropostaOM | null>(() => {
@@ -462,14 +593,25 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2 border-t border-amber-200/60">
+          <div className="flex items-center gap-3 pt-2 border-t border-amber-200/60 flex-wrap">
             <button
               type="button"
-              onClick={() => setModalOferecerPlano(true)}
-              className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-2"
+              onClick={handleIniciarContratacaoPlano}
+              className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-2 cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4" />
               <span>Contratar Plano O&M</span>
+            </button>
+
+            {/* Acesso rápido alternativo mantido para flexibilidade operacional */}
+            <button
+              type="button"
+              onClick={() => setModalOferecerPlano(true)}
+              className="px-3 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors inline-flex items-center gap-1.5"
+              title="Cadastro manual direto de contrato"
+            >
+              <Plus className="w-3.5 h-3.5 text-gray-500" />
+              <span>Inserir Manualmente</span>
             </button>
           </div>
         </div>
@@ -756,6 +898,144 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
         </div>
       )}
 
+      {/* HISTÓRICO DE PROPOSTAS O&M DO CLIENTE (ADITIVO E ACIONÁVEL) */}
+      <div className="p-4 sm:p-5 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/30 space-y-3.5 shadow-2xs">
+        <div className="flex items-center justify-between pb-2 border-b border-blue-100 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-100 text-blue-700 rounded-lg">
+              <ScrollText className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-gray-900 uppercase tracking-wider block">
+                Histórico de Propostas O&M ({propostasCliente.length})
+              </span>
+              <span className="text-[11px] text-gray-500 font-normal">
+                Orçamentos gerados, status e ações de contratação
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <a
+              href="/propostas?aba=om"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:text-blue-900 hover:bg-blue-100/60 rounded-lg transition-colors border border-blue-200"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nova Proposta</span>
+            </a>
+          </div>
+        </div>
+
+        {propostasCliente.length === 0 ? (
+          <div className="p-4 bg-white/80 rounded-xl border border-dashed border-gray-300 text-center space-y-2">
+            <p className="text-xs text-gray-600">
+              Nenhuma proposta O&M gerada para este cliente até o momento.
+            </p>
+            <a
+              href="/propostas?aba=om"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              <span>Criar a primeira Proposta O&M no Hub</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {propostasCliente.map((p, idx) => {
+              const dataExibicao = p.data_emissao || p.data_proposta || p.created
+              const statusCor =
+                p.status === 'aprovada'
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                  : p.status === 'rejeitada'
+                    ? 'bg-rose-100 text-rose-800 border-rose-200'
+                    : 'bg-amber-100 text-amber-800 border-amber-200'
+
+              return (
+                <div
+                  key={p.id}
+                  className={`p-3.5 bg-white rounded-xl border transition-all ${
+                    idx === 0
+                      ? 'border-blue-300 shadow-xs ring-1 ring-blue-100'
+                      : 'border-gray-200 shadow-2xs hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-gray-900 text-xs">
+                          {p.titulo || `Proposta O&M #${p.id.slice(-6)}`}
+                        </span>
+                        {idx === 0 && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-blue-600 text-white tracking-wide">
+                            Última / Ativa
+                          </span>
+                        )}
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusCor}`}
+                        >
+                          {p.status || 'Pendente'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+                        <span>Emissão: {dataExibicao ? formatDate(dataExibicao) : 'Data n/d'}</span>
+                        {p.plano_escolhido && (
+                          <span>
+                            Plano indicado:{' '}
+                            <strong className="text-gray-800 font-semibold">
+                              {p.plano_escolhido}
+                            </strong>
+                          </span>
+                        )}
+                        {p.valor_mensal_plano ? (
+                          <span className="text-emerald-700 font-bold">
+                            {formatCurrency(p.valor_mensal_plano)}/mês
+                          </span>
+                        ) : null}
+                        {p.numero_modulos ? <span>{p.numero_modulos} placas</span> : null}
+                        {p.potencia_kwp ? <span>{p.potencia_kwp} kWp</span> : null}
+                      </div>
+                    </div>
+
+                    {/* Ações da proposta */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            p.plano_escolhido === 'Essencial' ||
+                            p.plano_escolhido === 'Inspeção' ||
+                            p.plano_escolhido === 'Completo'
+                          ) {
+                            setPlanoContratacaoEscolhido(p.plano_escolhido)
+                          } else {
+                            setPlanoContratacaoEscolhido('Inspeção')
+                          }
+                          setModalContratarPropostaOpen(true)
+                        }}
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-2xs transition-colors inline-flex items-center gap-1"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Contratar</span>
+                      </button>
+
+                      <a
+                        href={`/propostas?aba=om&id=${p.id}`}
+                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-semibold rounded-lg transition-colors inline-flex items-center gap-1"
+                        title="Ver ou editar proposta no Hub"
+                      >
+                        <ExternalLink className="w-3 h-3 text-gray-500" />
+                        <span>Abrir</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       {/* 2.1 HISTÓRICO DE CONTRATOS ANTERIORES / ENCERRADOS */}
       {contratosHistorico.length > 0 && (
         <div className="p-4 sm:p-5 rounded-2xl border border-gray-200 bg-gray-50/60 space-y-3">
@@ -996,6 +1276,203 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
           }}
         />
       )}
+
+      {/* MODAL 1: AVISO EDUCATIVO QUANDO NÃO HÁ PROPOSTA O&M */}
+      <Dialog open={modalAvisoSemPropostaOpen} onOpenChange={setModalAvisoSemPropostaOpen}>
+        <DialogContent className="max-w-md p-6 bg-white rounded-2xl border border-amber-200">
+          <DialogHeader className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-amber-700" />
+              </div>
+              <DialogTitle className="text-base font-bold text-gray-900">
+                Nenhuma Proposta O&M Encontrada
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-gray-600 leading-relaxed pt-1">
+              Para contratar um Plano O&M com os valores dimensionados (potência, número de módulos
+              e deslocamento calculados pela fórmula ou negociados), é recomendado primeiro gerar
+              uma Proposta O&M no Hub de Propostas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-1.5 text-amber-900">
+            <p className="font-semibold flex items-center gap-1.5">
+              <span>Como você prefere prosseguir?</span>
+            </p>
+            <p className="text-[11px] text-amber-800">
+              Você pode criar a proposta agora no Hub de Propostas ou gerar o contrato O&M
+              diretamente com preenchimento manual dos valores.
+            </p>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setModalAvisoSemPropostaOpen(false)
+                if (onDispararGerarContrato) {
+                  onDispararGerarContrato()
+                } else {
+                  setModalContratoOpen(true)
+                }
+              }}
+              className="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+            >
+              Gerar Contrato Direto
+            </button>
+            <a
+              href="/propostas?aba=om"
+              className="px-4 py-2 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Ir para Hub de Propostas O&M</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 2: SELETOR DE CONTRATAÇÃO COM AS 3 OPÇÕES DA PROPOSTA O&M */}
+      <Dialog open={modalContratarPropostaOpen} onOpenChange={setModalContratarPropostaOpen}>
+        <DialogContent className="max-w-2xl p-6 bg-[#F9FAFB] rounded-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="space-y-1.5">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+                <ShieldCheck className="w-5 h-5 text-emerald-700" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-bold text-gray-900">
+                  Contratar Plano O&M — {cliente?.nome}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-500">
+                  {ultimaPropostaOM
+                    ? `Opções baseadas na proposta mais recente (#${ultimaPropostaOM.id.slice(-6)} - ${
+                        ultimaPropostaOM.data_emissao
+                          ? formatDate(ultimaPropostaOM.data_emissao)
+                          : 'recente'
+                      })`
+                    : 'Selecione o plano desejado para gerar contrato e procuração'}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Cards dos 3 Planos com valores efetivos */}
+          {opcoesPlanosUltimaProposta && (
+            <div className="space-y-3 py-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 block">
+                Selecione um dos 3 Planos Calculados:
+              </span>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {(['Essencial', 'Inspeção', 'Completo'] as const).map((planoKey) => {
+                  const info = opcoesPlanosUltimaProposta[planoKey]
+                  const isSelected = planoContratacaoEscolhido === planoKey
+
+                  return (
+                    <div
+                      key={planoKey}
+                      onClick={() => setPlanoContratacaoEscolhido(planoKey)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500 shadow-xs'
+                          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-extrabold text-gray-900 uppercase">
+                            {planoKey}
+                          </span>
+                          {isSelected ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border border-gray-300" />
+                          )}
+                        </div>
+
+                        <div className="text-base font-extrabold text-emerald-800">
+                          {formatCurrency(info.mensal)}
+                          <span className="text-[10px] font-medium text-gray-500">/mês</span>
+                        </div>
+
+                        <div className="text-[11px] text-gray-600 mt-0.5">
+                          Total anual: <strong>{formatCurrency(info.anual)}</strong>
+                        </div>
+
+                        {info.isNegociado && (
+                          <span className="inline-block mt-1.5 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 bg-amber-100 rounded border border-amber-200">
+                            Valor Negociado
+                          </span>
+                        )}
+
+                        <p className="text-[10px] text-gray-500 mt-2 line-clamp-3 leading-relaxed">
+                          {planoKey === 'Essencial' &&
+                            'Monitoramento contínuo, suporte técnico prioritário e acompanhamento de geração.'}
+                          {planoKey === 'Inspeção' &&
+                            'Monitoramento completo + 1 visita anual de inspeção técnica termográfica e conferência preventiva.'}
+                          {planoKey === 'Completo' &&
+                            'Plano integral com limpeza semestral de módulos, vistorias técnicas e relatórios detalhados.'}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-gray-100 text-[10px] text-gray-400 font-medium">
+                        {planoKey === 'Inspeção' ? 'Recomendado Delfos' : 'Opção disponível'}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Resumo da seleção */}
+              <div className="p-3 bg-white rounded-xl border border-gray-200 text-xs flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">Plano Selecionado:</span>
+                  <span className="font-bold text-gray-900">{planoContratacaoEscolhido}</span>
+                  <span className="font-extrabold text-emerald-700">
+                    {formatCurrency(opcoesPlanosUltimaProposta[planoContratacaoEscolhido].mensal)}
+                    /mês
+                  </span>
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  {ultimaPropostaOM?.numero_modulos
+                    ? `${ultimaPropostaOM.numero_modulos} placas`
+                    : ''}{' '}
+                  {ultimaPropostaOM?.potencia_kwp ? `• ${ultimaPropostaOM.potencia_kwp} kWp` : ''}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => setModalContratarPropostaOpen(false)}
+              className="px-3.5 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              onClick={handleAcaoGerarProcuracao}
+              className="px-3.5 py-2 text-xs font-semibold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <FileSignature className="w-4 h-4 text-blue-600" />
+              <span>Gerar Procuração</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleAcaoGerarContrato}
+              className="px-4 py-2 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <FileCheck className="w-4 h-4" />
+              <span>Gerar Contrato O&M</span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
