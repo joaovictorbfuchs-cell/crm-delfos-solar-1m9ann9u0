@@ -22,7 +22,7 @@ export const BotaoBaixarPropostaSolarPDF: React.FC<BotaoBaixarPropostaSolarPDFPr
   nomeArquivo = 'proposta-energia-solar.pdf',
   variante = 'outline',
   tamanho = 'default',
-  rotulo = 'Baixar PDF',
+  rotulo = 'Baixar PDF (@react-pdf)',
   desabilitado = false,
   className,
 }) => {
@@ -58,8 +58,8 @@ export const BotaoBaixarPropostaSolarPDF: React.FC<BotaoBaixarPropostaSolarPDFPr
   if (carregando) {
     return (
       <Button variant={variante} size={tamanho} disabled className={className}>
-        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        Preparando PDF...
+        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+        <span>Preparando PDF...</span>
       </Button>
     )
   }
@@ -72,12 +72,11 @@ export const BotaoBaixarPropostaSolarPDF: React.FC<BotaoBaixarPropostaSolarPDFPr
         disabled={desabilitado}
         className={className}
         onClick={() => {
-          // Fallback caso o renderer falhe
           alert(erro || 'Carregando motor de PDF. Tente novamente em instantes.')
         }}
       >
-        <Download className="w-4 h-4 mr-2" />
-        {rotulo}
+        <Download className="w-3.5 h-3.5 mr-1.5" />
+        <span>{rotulo}</span>
       </Button>
     )
   }
@@ -88,7 +87,7 @@ export const BotaoBaixarPropostaSolarPDF: React.FC<BotaoBaixarPropostaSolarPDFPr
     <PDFDownloadLinkComp
       document={Documento}
       fileName={nomeArquivo}
-      style={{ textDecoration: 'none' }}
+      style={{ textDecoration: 'none', display: 'inline-flex' }}
     >
       {({ loading }: { loading: boolean }) => (
         <Button
@@ -99,13 +98,13 @@ export const BotaoBaixarPropostaSolarPDF: React.FC<BotaoBaixarPropostaSolarPDFPr
         >
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Gerando PDF...
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              <span>Gerando PDF...</span>
             </>
           ) : (
             <>
-              <Download className="w-4 h-4 mr-2" />
-              {rotulo}
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              <span>{rotulo}</span>
             </>
           )}
         </Button>

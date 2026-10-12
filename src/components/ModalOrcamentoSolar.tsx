@@ -68,6 +68,7 @@ import { PainelEdicaoConteudoProposta } from '@/components/PainelEdicaoConteudoP
 import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 import { PreviewPropostaSecoes } from '@/components/proposta-preview/PreviewPropostaSecoes'
+import { BotaoBaixarPropostaSolarPDF } from '@/components/BotaoBaixarPropostaSolarPDF'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
@@ -3719,15 +3720,34 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
+                    {propostaPDFData ? (
+                      <BotaoBaixarPropostaSolarPDF
+                        dados={propostaPDFData}
+                        nomeArquivo="proposta-energia-solar.pdf"
+                        rotulo="Baixar PDF"
+                        desabilitado={!clienteAtual}
+                        className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs h-auto"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600/50 text-white flex items-center gap-1.5 transition-colors shadow-2xs cursor-not-allowed"
+                        title="Selecione um cliente para gerar o PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Baixar PDF</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleGerarPDF}
                       disabled={!clienteAtual || !propostaPDFData}
-                      className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs"
-                      title="Imprimir ou salvar PDF da proposta oficial"
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-600 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1.5 transition-colors shadow-2xs"
+                      title="Imprimir visualização via navegador ou abrir em nova aba"
                     >
                       <Printer className="w-3.5 h-3.5" />
-                      <span>Gerar PDF</span>
+                      <span>Imprimir / Gerar PDF</span>
                     </button>
                     <button
                       type="button"

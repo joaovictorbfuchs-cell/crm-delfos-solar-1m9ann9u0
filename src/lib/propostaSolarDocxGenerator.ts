@@ -3503,6 +3503,12 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     docChildren.push(...blocosParaProcessar[i])
   }
 
+  // Margens da página:
+  // Superior e inferior: 25mm = 1417 dxa
+  // Laterais: 0,07cm (0.7mm) = 40 dxa
+  const MARGIN_VERTICAL_25MM_DXA = 1417
+  const MARGIN_HORIZONTAL_007CM_DXA = 40
+
   // Criar o Document completo
   return new Document({
     creator: DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial,
@@ -3513,10 +3519,10 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         properties: {
           page: {
             margin: {
-              top: 1000,
-              bottom: 1000,
-              left: 1000,
-              right: 1000,
+              top: MARGIN_VERTICAL_25MM_DXA,
+              bottom: MARGIN_VERTICAL_25MM_DXA,
+              left: MARGIN_HORIZONTAL_007CM_DXA,
+              right: MARGIN_HORIZONTAL_007CM_DXA,
             },
           },
         },
@@ -3550,10 +3556,10 @@ export async function gerarBlobPropostaSolarDocx(dados: PropostaSolarPDFInput): 
 export async function baixarPropostaSolarDocx(
   dados: PropostaSolarPDFInput,
   blobPreGerado?: Blob,
+  nomeArquivo?: string,
 ): Promise<void> {
   const blob = blobPreGerado || (await gerarBlobPropostaSolarDocx(dados))
-  const safeName = dados.cliente.nome.replace(/[^a-zA-Z0-9]/g, '_')
-  const fileName = `Proposta_Solar_Delfos_${safeName}.docx`
+  const fileName = nomeArquivo || 'proposta-energia-solar.docx'
 
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

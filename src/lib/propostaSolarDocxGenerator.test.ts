@@ -196,6 +196,16 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('GASTO EM 25 ANOS')
   })
 
+  it('aplica margens de 0,07cm (40 dxa) laterais e 25mm (1417 dxa) verticais na página do DOCX', async () => {
+    const doc = await gerarPropostaSolarDocx(dadosExemploMarceloBecker)
+    const jsonStr = JSON.stringify(doc)
+    // Margens laterais de 40 dxa (0,07cm) e superior/inferior de 1417 dxa (25mm)
+    expect(jsonStr).toContain('"left":40')
+    expect(jsonStr).toContain('"right":40')
+    expect(jsonStr).toContain('"top":1417')
+    expect(jsonStr).toContain('"bottom":1417')
+  })
+
   it('respeita secoesHabilitadas.portfolioUsinas: false omitindo o portfólio no docx', async () => {
     const dadosSemPortfolio: PropostaSolarPDFInput = {
       ...dadosExemploMarceloBecker,
