@@ -1024,13 +1024,6 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
             )}
 
             {/* Aviso Informativo do Estágio Inicial */}
-            <div className="p-3.5 bg-emerald-50/70 rounded-xl border border-emerald-100 flex items-start gap-2.5 text-xs text-emerald-900">
-              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <span>
-                O negócio será criado diretamente na etapa <strong>"1 - Novo Lead"</strong> do funil
-                comercial com a categoria <strong>"{tipoVenda}"</strong> e vínculo automático.
-              </span>
-            </div>
           </div>
 
           {/* Footer Fixo */}
