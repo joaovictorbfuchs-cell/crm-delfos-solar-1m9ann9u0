@@ -297,31 +297,30 @@ Validade da proposta: ${dados?.validadeDias || 5} dias corridos.
 Responsável Técnico: João Victor Bagetti Fuchs (CREA RS151894).`
 
   try {
-    // (a) Converter input do orçamento para o formato comercial oficial (6 seções)
-    const dadosConvertidos: PropostaTecnicoComercialDados =
-      converterInputParaTemplateComercial(dados)
-
-    // (b) Otimizar imagens com perfil especial para WhatsApp:
-    // compressão e re-encode eficiente para reduzir drásticamente o tamanho final mantendo visual 100% idêntico
-    const dadosOtimizados = await prepararDadosPropostaParaPDF(dadosConvertidos, {
-      otimizarParaWhatsApp: true,
-    })
-
-    // (c) Gerar o HTML oficial da proposta comercial Delfos Solar (idêntico ao botão "Gerar PDF")
-    const htmlOficial = gerarHTMLPropostaTecnicoComercial(dadosOtimizados)
-
-    // (d) Renderizar em PDF A4 base64 via html2pdf.js com compress: true e scale calibrado
-    const base64 = await renderizarHTMLParaPdfBase64(htmlOficial, fileName, {
-      scale: 1.5,
-      imageQuality: 0.82,
-      compressJsPdf: true,
-      timeoutMs: 25000,
-    })
-
+    // Migrado para @react-pdf/renderer (mesmo padrão da procuração, contrato O&M e relatório técnico)
+    const { gerarPropostaSolarPdfBase64 } = await import('@/components/BotaoBaixarPropostaSolarPDF')
+    const base64 = await gerarPropostaSolarPdfBase64(dados)
     return { base64, fallbackText, fileName }
   } catch (err) {
-    console.error('Erro ao gerar PDF oficial solar para WhatsApp:', err)
-    return { base64: '', fallbackText, fileName }
+    console.warn('Tentativa com @react-pdf/renderer falhou, tentando fallback:', err)
+    try {
+      const dadosConvertidos: PropostaTecnicoComercialDados =
+        converterInputParaTemplateComercial(dados)
+      const dadosOtimizados = await prepararDadosPropostaParaPDF(dadosConvertidos, {
+        otimizarParaWhatsApp: true,
+      })
+      const htmlOficial = gerarHTMLPropostaTecnicoComercial(dadosOtimizados)
+      const base64 = await renderizarHTMLParaPdfBase64(htmlOficial, fileName, {
+        scale: 1.5,
+        imageQuality: 0.82,
+        compressJsPdf: true,
+        timeoutMs: 25000,
+      })
+      return { base64, fallbackText, fileName }
+    } catch (fallbackErr) {
+      console.error('Erro ao gerar PDF oficial solar para WhatsApp:', fallbackErr)
+      return { base64: '', fallbackText, fileName }
+    }
   }
 }
 
