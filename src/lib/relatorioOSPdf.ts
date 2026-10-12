@@ -1271,8 +1271,10 @@ export async function prepararFotosRelatorio(
 /**
  * Pipeline completo de geração do PDF de Relatório da OS:
  * 1. Otimiza fotos
- * 2. Monta HTML oficial premium
- * 3. Renderiza via html2pdf.js com scale 1.5, imageQuality 0.80 e compressJsPdf: true
+ * 2. Renderiza via @react-pdf/renderer (RelatorioOSPDFDocument) para garantir
+ *    formatação perfeita, tipografia institucional, margem interna de 25mm e
+ *    mesmo binário/base64 tanto para o download quanto para o WhatsApp.
+ * 3. Fallback transparente com HTML oficial caso ambiente não suporte canvas/@react-pdf.
  * 4. Retorna { base64, file, fileName, html }
  */
 export async function gerarPdfRelatorioOS(
@@ -1297,7 +1299,7 @@ export async function gerarPdfRelatorioOS(
   // 2. Otimização de fotos
   const fotosDataUrls = await prepararFotosRelatorio(os, opcoes.newPhotos)
 
-  // 3. Montagem do HTML
+  // 3. Montagem do HTML oficial (mantido para compatibilidade e visualização web)
   const html = gerarHTMLRelatorioOS({
     os,
     cliente: opcoes.cliente || os.expand?.cliente_id,
@@ -1307,19 +1309,48 @@ export async function gerarPdfRelatorioOS(
     rodapeComercial: rodape,
   })
 
-  // 3. Renderização para PDF A4 Base64
-  const base64 = await renderizarHTMLParaPdfBase64(html, fileName, {
-    scale: 1.5,
-    imageQuality: 0.8,
-    compressJsPdf: true,
-    timeoutMs: 25000,
-  })
+  // 4. Renderização canônica via @react-pdf/renderer (mesmo gerador para Download e WhatsApp)
+  let base64 = ''
+  try {
+    const [{ pdf }, { RelatorioOSPDFDocument }, { blobParaDataUriBase64 }, React] =
+      await Promise.all([
+        import('@react-pdf/renderer'),
+        import('@/components/RelatorioOSPDFDocument'),
+        import('@/components/BotaoBaixarProcuracaoPDF'),
+        import('react'),
+      ])
 
-  if (!base64) {
-    throw new Error('Falha na renderização do PDF pelo html2pdf.')
+    const docElement = React.createElement(RelatorioOSPDFDocument, {
+      dados: {
+        os,
+        cliente: opcoes.cliente || os.expand?.cliente_id,
+        sistema: opcoes.sistema,
+        fotosDataUrls,
+        inversoresInfo: opcoes.inversoresInfo,
+        rodapeComercial: rodape,
+      },
+    })
+    const instance = pdf(docElement)
+    const blob = await instance.toBlob()
+    base64 = await blobParaDataUriBase64(blob)
+  } catch (reactPdfErr) {
+    console.warn(
+      'Falha na geração via @react-pdf/renderer, acionando fallback html2pdf:',
+      reactPdfErr,
+    )
+    base64 = await renderizarHTMLParaPdfBase64(html, fileName, {
+      scale: 1.5,
+      imageQuality: 0.8,
+      compressJsPdf: true,
+      timeoutMs: 25000,
+    })
   }
 
-  // 4. Criação do objeto File
+  if (!base64) {
+    throw new Error('Falha na renderização do PDF do relatório técnico.')
+  }
+
+  // 5. Criação do objeto File
   const file = dataUriToFile(base64, fileName)
 
   return { base64, file, fileName, html }

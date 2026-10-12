@@ -91,7 +91,7 @@ export const ModalEnviarRelatorioOSWhatsApp: React.FC<ModalEnviarRelatorioOSWhat
 
     const clientePrimeiroNome = cliente?.nome ? cliente.nome.split(' ')[0] : 'Cliente'
     const osIdCurto = os.id.slice(-6).toUpperCase()
-    const defaultFileName = `Relatorio_OS_${osIdCurto}.pdf`
+    const defaultFileName = 'relatorio-tecnico-os.pdf'
     setNomeArquivo(defaultFileName)
 
     const msgSugerida = `Olá ${clientePrimeiroNome}! Segue o Relatório Técnico de Execução da Ordem de Serviço #${osIdCurto} (${os.tipo_servico || 'Serviço em Campo'}) realizada pela equipe da Delfos Solar. Qualquer dúvida, estamos à disposição!`
@@ -99,43 +99,14 @@ export const ModalEnviarRelatorioOSWhatsApp: React.FC<ModalEnviarRelatorioOSWhat
 
     async function prepararRelatorio() {
       try {
-        // Se a OS já possui arquivo gravado no PocketBase, podemos usar a URL ou carregar o base64
-        let url = ''
-        if (os.relatorio_pdf) {
-          try {
-            url = pb.files.getURL(os, os.relatorio_pdf)
-            setPdfUrlExistente(url)
-          } catch {
-            url = ''
-          }
-        }
-
-        // Se já tiver URL direta, tentar obter base64 via fetch ou gerar sob demanda
-        let base64Pronto = ''
-        if (url) {
-          try {
-            const resp = await fetch(url)
-            const blob = await resp.blob()
-            base64Pronto = await new Promise<string>((resolve) => {
-              const reader = new FileReader()
-              reader.onload = () => resolve(String(reader.result || ''))
-              reader.onerror = () => resolve('')
-              reader.readAsDataURL(blob)
-            })
-          } catch (e) {
-            console.warn('Falha ao baixar PDF existente da OS para base64, gerando sob demanda:', e)
-          }
-        }
-
-        // Se não conseguiu base64 (não tinha PDF salvo ou falha no download), gera sob demanda
-        if (!base64Pronto) {
-          const res = await gerarPdfRelatorioOS(os, {
-            cliente,
-            sistema,
-          })
-          base64Pronto = res.base64
-          setNomeArquivo(res.fileName || defaultFileName)
-        }
+        // Sempre gera via pipeline oficial @react-pdf/renderer para garantir exatidão
+        // com o padrão do documento e fidelidade idêntica ao download
+        const res = await gerarPdfRelatorioOS(os, {
+          cliente,
+          sistema,
+        })
+        let base64Pronto = res.base64
+        setNomeArquivo(res.fileName || defaultFileName)
 
         setBase64Doc(base64Pronto)
         if (!base64Pronto) {

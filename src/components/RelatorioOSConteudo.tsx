@@ -16,10 +16,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 import { getRodapeComercialRelatorioOS } from '@/services/configuracoesService'
-import pb from '@/lib/pocketbase/client'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
+import pb from '@/lib/pocketbase/client'
+
+const LazyBotaoBaixarRelatorio = React.lazy(() => import('@/components/BotaoBaixarRelatorioOSPDF'))
 import type { OSChecklistItem } from '@/types/crm'
 
 export interface RelatorioOSConteudoProps {
@@ -388,13 +390,28 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
                 onClick={handleImprimir}
-                className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-2xs"
+                className="h-8 text-xs font-semibold gap-1.5"
+                title="Imprimir documento via navegador"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>Imprimir / Baixar PDF</span>
+                <span className="hidden sm:inline">Imprimir</span>
               </Button>
+
+              <React.Suspense fallback={null}>
+                <LazyBotaoBaixarRelatorio
+                  dados={{
+                    os,
+                    cliente,
+                    sistema: usina,
+                    fotosDataUrls: fotosUrls,
+                    rodapeComercial,
+                  }}
+                  rotulo="Baixar como PDF"
+                />
+              </React.Suspense>
             </div>
           </div>
         </header>

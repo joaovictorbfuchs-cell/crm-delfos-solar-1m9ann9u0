@@ -23,6 +23,10 @@ import {
 import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
 import { SecaoDocumentosUsina } from '@/components/SecaoDocumentosUsina'
 import pb from '@/lib/pocketbase/client'
+
+const LazyBotaoBaixarRelatorioFicha = React.lazy(
+  () => import('@/components/BotaoBaixarRelatorioOSPDF'),
+)
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -2297,6 +2301,19 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   <FileText className="w-3.5 h-3.5 text-slate-600" />
                   <span>Visualizar relatório (web)</span>
                 </Button>
+
+                {/* Botão Oficial Baixar como PDF usando @react-pdf/renderer */}
+                <React.Suspense fallback={null}>
+                  <LazyBotaoBaixarRelatorioFicha
+                    dados={{
+                      os,
+                      cliente,
+                      sistema,
+                    }}
+                    className="rounded-xl h-9 px-3 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5 shrink-0"
+                    rotulo="Baixar PDF"
+                  />
+                </React.Suspense>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">

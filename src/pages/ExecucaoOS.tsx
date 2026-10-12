@@ -714,26 +714,12 @@ function ExecucaoOSContent() {
     isInstalador,
   ])
 
-  // Ação de admin para visualizar o PDF do relatório (se não existir, gera na hora e salva no PocketBase)
+  // Ação de admin para visualizar o PDF do relatório usando o gerador canônico @react-pdf/renderer
   const handleVerRelatorioPdf = async (os: OrdemServico) => {
-    // 1. Se a OS já tiver o arquivo salvo no PocketBase, abre diretamente em nova aba
-    if (os.relatorio_pdf) {
-      try {
-        const fileUrl = pb.files.getURL(os, os.relatorio_pdf)
-        if (fileUrl) {
-          window.open(fileUrl, '_blank')
-          return
-        }
-      } catch (e) {
-        console.warn('Erro ao abrir URL do PDF da OS:', e)
-      }
-    }
-
-    // 2. Fallback sob demanda: gera o PDF a partir dos dados registrados
     setGerandoPdfOsId(os.id)
     toast({
       title: 'Gerando Relatório Técnico...',
-      description: 'Compilando os dados e fotografias da OS em PDF.',
+      description: 'Compilando o PDF oficial com o padrão @react-pdf/renderer.',
     })
     try {
       const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
@@ -759,7 +745,7 @@ function ExecucaoOSContent() {
       window.open(pdfBlobUrl, '_blank')
       toast({
         title: 'Relatório Gerado!',
-        description: 'O PDF da Ordem de Serviço foi aberto com sucesso.',
+        description: 'O PDF oficial da Ordem de Serviço foi aberto com sucesso.',
       })
     } catch (err) {
       console.error('Erro ao gerar relatório em PDF sob demanda:', err)

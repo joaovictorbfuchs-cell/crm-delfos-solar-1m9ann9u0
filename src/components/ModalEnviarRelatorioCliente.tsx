@@ -120,7 +120,7 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
 
     const clientePrimeiroNome = cliente?.nome ? cliente.nome.split(' ')[0] : 'Cliente'
     const osIdCurto = os.id.slice(-6).toUpperCase()
-    const defaultFileName = `Relatorio_OS_${osIdCurto}.pdf`
+    const defaultFileName = 'relatorio-tecnico-os.pdf'
     setNomeArquivo(defaultFileName)
 
     setAssuntoEmail(`Delfos Solar - Relatório Técnico de Execução • OS #${osIdCurto}`)
@@ -135,39 +135,13 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
 
     async function prepararRelatorio() {
       try {
-        let url = ''
-        if (os.relatorio_pdf) {
-          try {
-            url = pb.files.getURL(os, os.relatorio_pdf)
-          } catch {
-            url = ''
-          }
-        }
-
-        let base64Pronto = ''
-        if (url) {
-          try {
-            const resp = await fetch(url)
-            const blob = await resp.blob()
-            base64Pronto = await new Promise<string>((resolve) => {
-              const reader = new FileReader()
-              reader.onload = () => resolve(String(reader.result || ''))
-              reader.onerror = () => resolve('')
-              reader.readAsDataURL(blob)
-            })
-          } catch (e) {
-            console.warn('Falha ao baixar PDF existente para base64:', e)
-          }
-        }
-
-        if (!base64Pronto) {
-          const res = await gerarPdfRelatorioOS(os, {
-            cliente,
-            sistema,
-          })
-          base64Pronto = res.base64
-          setNomeArquivo(res.fileName || defaultFileName)
-        }
+        // Pipeline canônico @react-pdf/renderer
+        const res = await gerarPdfRelatorioOS(os, {
+          cliente,
+          sistema,
+        })
+        let base64Pronto = res.base64
+        setNomeArquivo(res.fileName || defaultFileName)
 
         setBase64Doc(base64Pronto)
       } catch (err) {
