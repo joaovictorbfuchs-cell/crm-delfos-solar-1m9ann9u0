@@ -1,7 +1,7 @@
 // Componente de pré-visualização das seções da Proposta O&M diretamente no DOM (sem iframe srcDoc).
 // Segue o padrão de PreviewPropostaSecoes, permitindo visualizar com clareza o documento oficial:
 // Cabeçalho institucional Delfos, Dados do Cliente, Dados Técnicos da Usina, Cenários de Exposição
-// Financeira, Tabela Comparativa dos 3 Planos (Essencial, Prevenção, Completo), Condições Gerais e Observações.
+// Financeira, Tabela Comparativa dos 3 Planos (Essencial, Inspeção, Completo), Condições Gerais e Observações.
 import React, { useState } from 'react'
 import type { PropostaPDFInput } from '@/lib/propostaOMGenerator'
 import { DADOS_EMPRESA_DELFOS } from '@/lib/propostaOMGenerator'
@@ -397,10 +397,11 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                   Plano Essencial
                 </div>
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
-                  R$ 49,90<span className="text-base font-bold">/mês</span>
+                  {formatCurrency(calculos.planos.Essencial.mensal)}
+                  <span className="text-base font-bold">/mês</span>
                 </div>
                 <div className="text-xs text-gray-500 font-normal mt-0.5">
-                  Faturamento Anual: R$ 598,80/ano
+                  Faturamento Anual: {formatCurrency(calculos.planos.Essencial.anual)}/ano
                 </div>
                 <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                   <li className="flex items-start gap-1.5">
@@ -418,18 +419,16 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                 </ul>
               </div>
             </div>
-
-            {/* Card 2: Plano Prevenção */}
+            {/* Card 2: Plano Inspeção */}
             <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
               <div>
-                <div className="text-sm font-bold text-gray-900 tracking-tight">
-                  Plano Prevenção
-                </div>
+                <div className="text-sm font-bold text-gray-900 tracking-tight">Plano Inspeção</div>
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
-                  R$ 74,90<span className="text-base font-bold">/mês</span>
+                  {formatCurrency(calculos.planos.Inspeção.mensal)}
+                  <span className="text-base font-bold">/mês</span>
                 </div>
                 <div className="text-xs text-gray-500 font-normal mt-0.5">
-                  Faturamento Anual: R$ 898,80/ano
+                  Faturamento Anual: {formatCurrency(calculos.planos.Inspeção.anual)}/ano
                 </div>
                 <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                   <li className="flex items-start gap-1.5">
@@ -451,7 +450,6 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                 </ul>
               </div>
             </div>
-
             {/* Card 3: Plano Completo (Destacado com RECOMENDADO DELFOS) */}
             <div className="p-4 rounded-2xl border-2 border-[#16A34A] bg-white shadow-xs relative flex flex-col justify-between">
               {/* Badge RECOMENDADO DELFOS no topo direito */}
@@ -461,15 +459,16 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
               <div>
                 <div className="text-sm font-bold text-gray-900 tracking-tight">Plano Completo</div>
                 <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
-                  R$ 99,90<span className="text-base font-bold">/mês</span>
+                  {formatCurrency(calculos.planos.Completo.mensal)}
+                  <span className="text-base font-bold">/mês</span>
                 </div>
                 <div className="text-xs text-gray-500 font-normal mt-0.5">
-                  Faturamento Anual: R$ 1.198,80/ano
+                  Faturamento Anual: {formatCurrency(calculos.planos.Completo.anual)}/ano
                 </div>
                 <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                   <li className="flex items-start gap-1.5">
                     <span className="text-gray-400 select-none">•</span>
-                    <span>Tudo do plano Prevenção</span>
+                    <span>Tudo do plano Inspeção</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <span className="text-gray-400 select-none">•</span>
@@ -485,7 +484,7 @@ export const PreviewPropostaOMSecoes: React.FC<PreviewPropostaOMSecoesProps> = (
                   </li>
                 </ul>
               </div>
-            </div>
+            </div>{' '}
           </div>
         </div>
 

@@ -115,9 +115,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     return calcularPropostaOM({
       geracaoMensalKwh,
       valorKwh,
+      distanciaKm,
+      valorKm,
+      numeroModulos,
     })
-  }, [geracaoMensalKwh, valorKwh])
-
+  }, [geracaoMensalKwh, valorKwh, distanciaKm, valorKm, numeroModulos])
   // Montar objeto de proposta para PDF
   const propostaPDFData = useMemo<PropostaPDFInput | null>(() => {
     if (!clienteAtual) return null
@@ -215,7 +217,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           cliente_id: clienteAtual.id,
           tipo: 'interacao',
           titulo: 'Proposta O&M Registrada',
-          descricao: `Proposta O&M salva no sistema para o cliente com os cenários de perda e comparativo dos 3 planos (Essencial, Prevenção e Completo). Status: Proposta Enviada.`,
+          descricao: `Proposta O&M salva no sistema para o cliente com os cenários de perda e comparativo dos 3 planos (Essencial, Inspeção e Completo). Status: Proposta Enviada.`,
           data: new Date().toISOString(),
           autor: user?.name || 'Equipe Comercial Delfos Solar',
           status_tag: 'Proposta Enviada',
@@ -640,10 +642,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                       Plano Essencial
                     </div>
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
-                      R$ 49,90<span className="text-base font-bold">/mês</span>
+                      {formatCurrency(calculos.planos.Essencial.mensal)}
+                      <span className="text-base font-bold">/mês</span>
                     </div>
                     <div className="text-xs text-gray-500 font-normal mt-0.5">
-                      Faturamento Anual: R$ 598,80/ano
+                      Faturamento Anual: {formatCurrency(calculos.planos.Essencial.anual)}/ano
                     </div>
                     <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                       <li className="flex items-start gap-1.5">
@@ -661,18 +664,18 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     </ul>
                   </div>
                 </div>
-
-                {/* Plano Prevenção */}
+                {/* Plano Inspeção */}
                 <div className="p-4 rounded-2xl border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between">
                   <div>
                     <div className="text-sm font-bold text-gray-900 tracking-tight">
-                      Plano Prevenção
+                      Plano Inspeção
                     </div>
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
-                      R$ 74,90<span className="text-base font-bold">/mês</span>
+                      {formatCurrency(calculos.planos.Inspeção.mensal)}
+                      <span className="text-base font-bold">/mês</span>
                     </div>
                     <div className="text-xs text-gray-500 font-normal mt-0.5">
-                      Faturamento Anual: R$ 898,80/ano
+                      Faturamento Anual: {formatCurrency(calculos.planos.Inspeção.anual)}/ano
                     </div>
                     <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                       <li className="flex items-start gap-1.5">
@@ -694,7 +697,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                     </ul>
                   </div>
                 </div>
-
                 {/* Plano Completo (Recomendado) */}
                 <div className="p-4 rounded-2xl border-2 border-[#16A34A] bg-white shadow-xs relative flex flex-col justify-between">
                   {/* Badge RECOMENDADO DELFOS no topo direito */}
@@ -706,15 +708,16 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                       Plano Completo
                     </div>
                     <div className="text-2xl font-extrabold text-[#0D7A3E] mt-1.5 tracking-tight">
-                      R$ 99,90<span className="text-base font-bold">/mês</span>
+                      {formatCurrency(calculos.planos.Completo.mensal)}
+                      <span className="text-base font-bold">/mês</span>
                     </div>
                     <div className="text-xs text-gray-500 font-normal mt-0.5">
-                      Faturamento Anual: R$ 1.198,80/ano
+                      Faturamento Anual: {formatCurrency(calculos.planos.Completo.anual)}/ano
                     </div>
                     <ul className="text-xs text-gray-600 mt-3.5 space-y-2">
                       <li className="flex items-start gap-1.5">
                         <span className="text-gray-400 select-none">•</span>
-                        <span>Tudo do plano Prevenção</span>
+                        <span>Tudo do plano Inspeção</span>
                       </li>
                       <li className="flex items-start gap-1.5">
                         <span className="text-gray-400 select-none">•</span>
@@ -730,7 +733,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                       </li>
                     </ul>
                   </div>
-                </div>
+                </div>{' '}
               </div>
 
               {/* Aviso informativo de escolha posterior pelo cliente */}

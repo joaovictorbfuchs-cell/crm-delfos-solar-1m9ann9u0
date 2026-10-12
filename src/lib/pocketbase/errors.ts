@@ -2,28 +2,6 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
-/**
- * Verifica se um erro corresponde a falha de autenticação/sessão expirada (401, 403, token inválido).
- * Salvaguarda crítica do sistema para tratamento unificado de sessão expirada.
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  const anyErr = err as any
-  const status = anyErr?.status ?? anyErr?.statusCode ?? anyErr?.response?.status
-  if (status === 401 || status === 403) return true
-  const msg = String(anyErr?.message || anyErr?.response?.message || '').toLowerCase()
-  if (
-    msg.includes('token') &&
-    (msg.includes('expired') || msg.includes('invalid') || msg.includes('revoked'))
-  ) {
-    return true
-  }
-  if (msg.includes('failed to authenticate') || msg.includes('the request requires valid user')) {
-    return true
-  }
-  return false
-}
-
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -48,4 +26,24 @@ export function getErrorMessage(error: unknown): string {
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const anyErr = err as Record<string, unknown>
+    if (anyErr.status === 401 || anyErr.status === 403) return true
+    if (anyErr.statusCode === 401 || anyErr.statusCode === 403) return true
+    const msg = String(anyErr.message || '').toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('unauthorized') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('invalid token')
+    ) {
+      return true
+    }
+  }
+  return false
 }

@@ -617,9 +617,12 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
             <View style={styles.planCard}>
               <Text style={styles.planNome}>Plano Essencial</Text>
               <Text style={styles.planPreco}>
-                R$ 49,90<Text style={styles.planPrecoUnidade}>/mês</Text>
+                {formatBRL(calculos.planos.Essencial.mensal)}
+                <Text style={styles.planPrecoUnidade}>/mês</Text>
               </Text>
-              <Text style={styles.planFaturamentoAnual}>Faturamento Anual: R$ 598,80/ano</Text>
+              <Text style={styles.planFaturamentoAnual}>
+                Faturamento Anual: {formatBRL(calculos.planos.Essencial.anual)}/ano
+              </Text>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>
                 <Text style={styles.planBulletTexto}>Monitoramento comercial</Text>
@@ -634,13 +637,16 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               </View>
             </View>
 
-            {/* Card 2: Plano Prevenção */}
+            {/* Card 2: Plano Inspeção */}
             <View style={styles.planCard}>
-              <Text style={styles.planNome}>Plano Prevenção</Text>
+              <Text style={styles.planNome}>Plano Inspeção</Text>
               <Text style={styles.planPreco}>
-                R$ 74,90<Text style={styles.planPrecoUnidade}>/mês</Text>
+                {formatBRL(calculos.planos.Inspeção.mensal)}
+                <Text style={styles.planPrecoUnidade}>/mês</Text>
               </Text>
-              <Text style={styles.planFaturamentoAnual}>Faturamento Anual: R$ 898,80/ano</Text>
+              <Text style={styles.planFaturamentoAnual}>
+                Faturamento Anual: {formatBRL(calculos.planos.Inspeção.anual)}/ano
+              </Text>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>
                 <Text style={styles.planBulletTexto}>Tudo do plano Essencial</Text>
@@ -666,12 +672,15 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               </View>
               <Text style={styles.planNome}>Plano Completo</Text>
               <Text style={styles.planPreco}>
-                R$ 99,90<Text style={styles.planPrecoUnidade}>/mês</Text>
+                {formatBRL(calculos.planos.Completo.mensal)}
+                <Text style={styles.planPrecoUnidade}>/mês</Text>
               </Text>
-              <Text style={styles.planFaturamentoAnual}>Faturamento Anual: R$ 1.198,80/ano</Text>
+              <Text style={styles.planFaturamentoAnual}>
+                Faturamento Anual: {formatBRL(calculos.planos.Completo.anual)}/ano
+              </Text>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Tudo do plano Prevenção</Text>
+                <Text style={styles.planBulletTexto}>Tudo do plano Inspeção</Text>
               </View>
               <View style={styles.planBulletItem}>
                 <Text style={styles.planBulletDot}>•</Text>

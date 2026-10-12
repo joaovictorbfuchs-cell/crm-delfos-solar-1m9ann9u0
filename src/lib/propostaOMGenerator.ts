@@ -1,4 +1,11 @@
 import type { Cliente, Sistema, OMPlanoTipo } from '@/types/crm'
+import {
+  calcularTodosPlanosOM,
+  normalizarNomePlanoOM,
+  PLANOS_OM_VALORES_BASE,
+  type PlanoOMChave,
+  type ValoresCalculadosPlanoOM,
+} from '@/lib/planosOM'
 
 export interface PropostaCalculos {
   valorAtivoProtegido: number
@@ -8,23 +15,34 @@ export interface PropostaCalculos {
   prejuizo30Dias: number
   planos: {
     Essencial: { mensal: number; anual: number }
-    Prevenção: { mensal: number; anual: number }
+    Inspeção: { mensal: number; anual: number }
     Completo: { mensal: number; anual: number }
+    /** Alias de compatibilidade com versões anteriores */
+    Prevenção?: { mensal: number; anual: number }
   }
+  detalhesPlanos?: Record<PlanoOMChave, ValoresCalculadosPlanoOM>
   planoEscolhido?: OMPlanoTipo
   valorMensalEscolhido?: number
   valorAnualEscolhido?: number
 }
 
-export const PLANOS_OM_VALORES: Record<OMPlanoTipo, { mensal: number; anual: number }> = {
-  Essencial: { mensal: 49.9, anual: 49.9 * 12 },
-  Prevenção: { mensal: 74.9, anual: 74.9 * 12 },
-  Completo: { mensal: 99.9, anual: 99.9 * 12 },
+/**
+ * Fonte canônica de valores base (compatibilidade retroativa).
+ * Novos códigos devem preferir o cálculo dinâmico via calcularPropostaOM ou calcularTodosPlanosOM.
+ */
+export const PLANOS_OM_VALORES: Record<string, { mensal: number; anual: number }> = {
+  Essencial: { ...PLANOS_OM_VALORES_BASE.Essencial },
+  Inspeção: { ...PLANOS_OM_VALORES_BASE.Inspeção },
+  Prevenção: { ...PLANOS_OM_VALORES_BASE.Inspeção },
+  Completo: { ...PLANOS_OM_VALORES_BASE.Completo },
 }
 
 export function calcularPropostaOM(params: {
   geracaoMensalKwh: number
   valorKwh: number
+  distanciaKm?: number
+  valorKm?: number
+  numeroModulos?: number
   planoEscolhido?: OMPlanoTipo
 }): PropostaCalculos {
   const geracao = Math.max(0, Number(params.geracaoMensalKwh) || 0)
@@ -37,15 +55,27 @@ export function calcularPropostaOM(params: {
   const prejuizo20Dias = (valorAtivoProtegido * 20) / 30
   const prejuizo30Dias = (valorAtivoProtegido * 30) / 30 // equivalente a 1 mês
 
+  // Cálculo dinâmico dos 3 planos com base nas variáveis informadas
+  const detalhesPlanos = calcularTodosPlanosOM({
+    distanciaKm: params.distanciaKm,
+    valorKm: params.valorKm,
+    numeroModulos: params.numeroModulos,
+    geracaoMensalKwh: geracao,
+    valorKwh: tarifa,
+  })
+
   const planos = {
-    Essencial: { ...PLANOS_OM_VALORES.Essencial },
-    Prevenção: { ...PLANOS_OM_VALORES.Prevenção },
-    Completo: { ...PLANOS_OM_VALORES.Completo },
+    Essencial: { mensal: detalhesPlanos.Essencial.mensal, anual: detalhesPlanos.Essencial.anual },
+    Inspeção: { mensal: detalhesPlanos.Inspeção.mensal, anual: detalhesPlanos.Inspeção.anual },
+    Completo: { mensal: detalhesPlanos.Completo.mensal, anual: detalhesPlanos.Completo.anual },
+    // Alias para manter compatibilidade com leituras antigas de planos.Prevenção
+    Prevenção: { mensal: detalhesPlanos.Inspeção.mensal, anual: detalhesPlanos.Inspeção.anual },
   }
 
-  const plano = params.planoEscolhido
-  const valorMensalEscolhido = plano ? planos[plano]?.mensal : undefined
-  const valorAnualEscolhido = plano ? planos[plano]?.anual : undefined
+  const planoRaw = params.planoEscolhido
+  const chaveNormalizada = planoRaw ? normalizarNomePlanoOM(planoRaw) : undefined
+  const valorMensalEscolhido = chaveNormalizada ? planos[chaveNormalizada]?.mensal : undefined
+  const valorAnualEscolhido = chaveNormalizada ? planos[chaveNormalizada]?.anual : undefined
 
   return {
     valorAtivoProtegido,
@@ -54,7 +84,8 @@ export function calcularPropostaOM(params: {
     prejuizo20Dias,
     prejuizo30Dias,
     planos,
-    planoEscolhido: plano,
+    detalhesPlanos,
+    planoEscolhido: planoRaw,
     valorMensalEscolhido,
     valorAnualEscolhido,
   }
@@ -688,8 +719,8 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       <div class="plan-card">
         <div>
           <div class="plan-name">Plano Essencial</div>
-          <div class="plan-price">R$ 49,90<span class="plan-price-unit">/mês</span></div>
-          <div class="plan-annual">Faturamento Anual: R$ 598,80/ano</div>
+          <div class="plan-price">${formatBRL(calculos.planos.Essencial.mensal)}<span class="plan-price-unit">/mês</span></div>
+          <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Essencial.anual)}/ano</div>
           <ul class="plan-bullets">
             <li><span class="plan-bullet-dot">•</span> <span>Monitoramento comercial</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>Relatório mensal analítico</span></li>
@@ -698,12 +729,12 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
         </div>
       </div>
 
-      <!-- 2. Plano Prevenção -->
+      <!-- 2. Plano Inspeção -->
       <div class="plan-card">
         <div>
-          <div class="plan-name">Plano Prevenção</div>
-          <div class="plan-price">R$ 74,90<span class="plan-price-unit">/mês</span></div>
-          <div class="plan-annual">Faturamento Anual: R$ 898,80/ano</div>
+          <div class="plan-name">Plano Inspeção</div>
+          <div class="plan-price">${formatBRL(calculos.planos.Inspeção.mensal)}<span class="plan-price-unit">/mês</span></div>
+          <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Inspeção.anual)}/ano</div>
           <ul class="plan-bullets">
             <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Essencial</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>1x Inspeção preventiva anual</span></li>
@@ -718,10 +749,10 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
         <span class="plan-badge-recommended">RECOMENDADO DELFOS</span>
         <div>
           <div class="plan-name">Plano Completo</div>
-          <div class="plan-price">R$ 99,90<span class="plan-price-unit">/mês</span></div>
-          <div class="plan-annual">Faturamento Anual: R$ 1.198,80/ano</div>
+          <div class="plan-price">${formatBRL(calculos.planos.Completo.mensal)}<span class="plan-price-unit">/mês</span></div>
+          <div class="plan-annual">Faturamento Anual: ${formatBRL(calculos.planos.Completo.anual)}/ano</div>
           <ul class="plan-bullets">
-            <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Prevenção</span></li>
+            <li><span class="plan-bullet-dot">•</span> <span>Tudo do plano Inspeção</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>2x Limpezas de placas ao ano</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>Verificação semestral de anomalias</span></li>
             <li><span class="plan-bullet-dot">•</span> <span>Suporte técnico limitado VIP</span></li>

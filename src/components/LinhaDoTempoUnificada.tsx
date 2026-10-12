@@ -260,7 +260,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
         subtitulo: equipDesc || 'Operação & Manutenção Preventiva • 3 Planos Comparados',
         descricao:
           prop.observacoes ||
-          `Proposta formal de gestão e manutenção continuada para sistema solar de ${prop.potencia_kwp || 0} kWp. Inclui vistorias técnicas periódicas, ativo protegido de ${formatCurrency(ativoProtegido)}/mês e comparativo dos planos Essencial, Prevenção e Completo.`,
+          `Proposta formal de gestão e manutenção continuada para sistema solar de ${prop.potencia_kwp || 0} kWp. Inclui vistorias técnicas periódicas, ativo protegido de ${formatCurrency(ativoProtegido)}/mês e comparativo dos planos Essencial, Inspeção e Completo.`,
         data: dataIso,
         autor: prop.autor || 'Equipe O&M Delfos',
         responsavelNome: prop.autor || 'Equipe O&M Delfos',

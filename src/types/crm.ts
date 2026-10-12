@@ -1176,7 +1176,7 @@ export interface ProjetoEvento extends RecordModel {
 // Tipos para Gestão de O&M (Operação e Manutenção)
 // -------------------------------------------------------------
 
-export type OMPlanoTipo = 'Essencial' | 'Prevenção' | 'Completo'
+export type OMPlanoTipo = 'Essencial' | 'Inspeção' | 'Prevenção' | 'Completo'
 
 export type OMStatusPlano = 'Ativo' | 'Vencendo em 30 dias' | 'Vencido' | 'Cancelado' | 'Encerrado'
 
