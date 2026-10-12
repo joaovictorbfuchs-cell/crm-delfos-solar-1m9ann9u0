@@ -3722,7 +3722,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     {propostaPDFData ? (
                       <BotaoBaixarPropostaSolarPDF
                         dados={propostaPDFData}
-                        nomeArquivo="proposta-energia-solar.pdf"
+                        htmlProposta={htmlPropostaPreview}
+                        nomeArquivo={`proposta-solar-${(clienteAtual?.nome || 'cliente').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`}
                         rotulo="Baixar PDF"
                         desabilitado={!clienteAtual}
                         className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs h-auto"
@@ -4381,6 +4382,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 }) as OrcamentoSolar
           }
           cliente={clienteAtual}
+          dadosProposta={propostaPDFData}
+          htmlProposta={htmlPropostaPreview}
           onSuccess={() => {
             toast.success('Proposta enviada com sucesso por WhatsApp!')
           }}

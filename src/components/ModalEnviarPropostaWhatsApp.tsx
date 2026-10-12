@@ -25,7 +25,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { Cliente, OrcamentoSolar } from '@/types/crm'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
-import { gerarBase64OrcamentoSolar } from '@/lib/pdfWhatsAppService'
+import { gerarBase64OrcamentoSolar, renderizarHTMLParaPdfBase64 } from '@/lib/pdfWhatsAppService'
 import {
   TEMPLATES_PROPOSTA_WHATSAPP,
   validarNumeroWhatsApp,
@@ -33,6 +33,7 @@ import {
   extrairContextoProposta,
   construirPropostaSolarPDFInput,
 } from '@/lib/propostaWhatsAppService'
+import { gerarHTMLPropostaSolar, type PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
 import {
   resolverNumeroDestinoCliente,
   MENSAGEM_ALERTA_SEM_NUMERO,
@@ -44,6 +45,8 @@ export interface ModalEnviarPropostaWhatsAppProps {
   orcamento: OrcamentoSolar
   cliente?: Cliente | null
   onSuccess?: () => void
+  dadosProposta?: PropostaSolarPDFInput | null
+  htmlProposta?: string | null
 }
 
 export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppProps> = ({
@@ -52,6 +55,8 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   orcamento,
   cliente,
   onSuccess,
+  dadosProposta,
+  htmlProposta,
 }) => {
   const {
     sendWhatsAppDocument,
@@ -381,7 +386,11 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
 
     async function prepararPdf() {
       try {
-        const inputPdf = construirPropostaSolarPDFInput(orcamento, cliente)
+        // Fonte de dados única: prioriza os dados vivos da tela (dadosProposta) e o HTML unificado (htmlProposta)
+        const inputPdf = dadosProposta || construirPropostaSolarPDFInput(orcamento, cliente)
+        const safeName = (cliente?.nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
+        const fileNameGerado = `Proposta_Solar_Delfos_${safeName}.pdf`
+
         // Timeout de segurança no nível do modal (35s)
         const timeoutPromise = new Promise<{
           base64: string
@@ -399,7 +408,36 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           )
         })
 
-        const res = await Promise.race([gerarBase64OrcamentoSolar(inputPdf), timeoutPromise])
+        const gerarPdfUnificado = async (): Promise<{
+          base64: string
+          fallbackText: string
+          fileName: string
+        }> => {
+          const fallbackText = `*Delfos Solar — Orçamento de Energia Solar Fotovoltaica*
+Cliente: ${inputPdf?.cliente?.nome || cliente?.nome || 'Cliente'}
+Potência: ${inputPdf?.sistema?.potenciaKwp ? inputPdf.sistema.potenciaKwp.toFixed(2) : '0.00'} kWp
+Economia estimada: ${formatCurrency(inputPdf?.calculos?.economia1Mes || 0)}/mês
+Investimento Turnkey: ${formatCurrency(inputPdf?.calculos?.valorInvestimento || 0)}
+Payback estimado: ~${inputPdf?.calculos?.paybackMeses || 0} meses
+Validade da proposta: ${inputPdf?.validadeDias || 5} dias corridos.`
+
+          // Usa o HTML canônico pré-gerado do preview ou gera a partir do inputPdf
+          const htmlOficial =
+            htmlProposta && htmlProposta.trim().length > 0
+              ? htmlProposta
+              : gerarHTMLPropostaSolar(inputPdf)
+
+          const base64 = await renderizarHTMLParaPdfBase64(htmlOficial, fileNameGerado, {
+            scale: 1.5,
+            imageQuality: 0.82,
+            compressJsPdf: true,
+            timeoutMs: 25000,
+          })
+
+          return { base64, fallbackText, fileName: fileNameGerado }
+        }
+
+        const res = await Promise.race([gerarPdfUnificado(), timeoutPromise])
 
         if (!isCancelled && isMountedRef.current) {
           setBase64Doc(res.base64 || '')
@@ -442,7 +480,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
         pdfTimeoutHandle = null
       }
     }
-  }, [isOpen, orcamento, cliente, contexto])
+  }, [isOpen, orcamento, cliente, contexto, dadosProposta, htmlProposta])
 
   // Lista unificada de templates: templates do sistema (whatsapp_templates) + templates de proposta locais
   const listaTemplates = useMemo(() => {

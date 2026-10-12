@@ -100,28 +100,22 @@ export interface RenderizarPdfOptions {
 }
 
 /**
- * Renderiza uma string HTML em PDF A4 Data URI base64 usando html2pdf.js
- * dentro de um container/iframe isolado.
- *
- * Inclui compressão jsPDF ativada (compress: true), scale 1.5 calibrado para A4 (~150 DPI)
- * e qualidade de imagem JPEG 0.85, reduzindo drasticamente o tamanho do PDF (de 30+ MB para < 5 MB)
- * mantendo fidelidade visual 100% idêntica.
- *
- * Possui timeout de segurança (padrão 25s) para nunca travar indefinitivamente.
+ * Executa a conversão de HTML para PDF A4 via html2pdf.js em um iframe isolado
+ * e invoca a ação desejada no worker ('datauristring', 'blob', 'save').
  */
-export async function renderizarHTMLParaPdfBase64(
+async function executarHtml2PdfPipeline<T>(
   html: string,
-  fileName: string = 'Proposta_Solar_Delfos.pdf',
-  options: RenderizarPdfOptions = {},
-): Promise<string> {
+  fileName: string,
+  options: RenderizarPdfOptions,
+  acao: (worker: any) => Promise<T>,
+): Promise<T> {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return ''
+    throw new Error('Ambiente de navegador com window e document necessário.')
   }
 
   const { timeoutMs = 25000, scale = 1.5, imageQuality = 0.85, compressJsPdf = true } = options
 
-  // Envolve a renderização completa com um timeout de segurança rígido
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout> | null = null
     let completed = false
 
@@ -177,7 +171,6 @@ export async function renderizarHTMLParaPdfBase64(
         const targetElement = doc.querySelector('.proposta-container, .page-a4') || doc.body
 
         // Para documentos com estrutura .page-a4 (ex: Procuração), normaliza estilos de tela
-        // para captura de alta fidelidade idêntica ao @media print (A4, sem margens externas cinzas ou sombras)
         if (targetElement.classList.contains('page-a4')) {
           const el = targetElement as HTMLElement
           el.style.margin = '0'
@@ -245,12 +238,12 @@ export async function renderizarHTMLParaPdfBase64(
         }
 
         const worker = html2pdf().set(opt).from(targetElement)
-        const dataUri = await worker.outputPdf('datauristring')
+        const resultado = await acao(worker)
 
         if (!completed) {
           completed = true
           if (timer) clearTimeout(timer)
-          resolve(typeof dataUri === 'string' ? dataUri : '')
+          resolve(resultado)
         }
       } catch (err) {
         if (!completed) {
@@ -266,6 +259,73 @@ export async function renderizarHTMLParaPdfBase64(
     }
 
     executar()
+  })
+}
+
+/**
+ * Renderiza uma string HTML em PDF A4 Data URI base64 usando html2pdf.js
+ * dentro de um container/iframe isolado.
+ *
+ * Inclui compressão jsPDF ativada (compress: true), scale 1.5 calibrado para A4 (~150 DPI)
+ * e qualidade de imagem JPEG 0.85, reduzindo drasticamente o tamanho do PDF (de 30+ MB para < 5 MB)
+ * mantendo fidelidade visual 100% idêntica.
+ *
+ * Possui timeout de segurança (padrão 25s) para nunca travar indefinitivamente.
+ */
+export async function renderizarHTMLParaPdfBase64(
+  html: string,
+  fileName: string = 'Proposta_Solar_Delfos.pdf',
+  options: RenderizarPdfOptions = {},
+): Promise<string> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return ''
+  }
+  const dataUri = await executarHtml2PdfPipeline<string>(
+    html,
+    fileName,
+    options,
+    async (worker) => {
+      const res = await worker.outputPdf('datauristring')
+      return typeof res === 'string' ? res : ''
+    },
+  )
+  return dataUri || ''
+}
+
+/**
+ * Renderiza uma string HTML em PDF A4 e salva o arquivo (.pdf) diretamente no navegador do usuário,
+ * garantindo a mesma diagramação A4 e margens do botão Imprimir / Gerar PDF.
+ */
+export async function baixarHTMLParaPdf(
+  html: string,
+  fileName: string = 'Proposta_Solar_Delfos.pdf',
+  options: RenderizarPdfOptions = {},
+): Promise<void> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return
+  }
+  await executarHtml2PdfPipeline<void>(html, fileName, options, async (worker) => {
+    // Tenta primeiro via worker.save() nativo do html2pdf.js, com fallback para blob
+    try {
+      if (typeof worker.save === 'function') {
+        await worker.save()
+        return
+      }
+    } catch (saveErr) {
+      console.warn('worker.save falhou, usando outputPdf(blob):', saveErr)
+    }
+
+    const blob = await worker.outputPdf('blob')
+    if (blob instanceof Blob) {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
   })
 }
 
@@ -297,30 +357,23 @@ Validade da proposta: ${dados?.validadeDias || 5} dias corridos.
 Responsável Técnico: João Victor Bagetti Fuchs (CREA RS151894).`
 
   try {
-    // Migrado para @react-pdf/renderer (mesmo padrão da procuração, contrato O&M e relatório técnico)
-    const { gerarPropostaSolarPdfBase64 } = await import('@/components/BotaoBaixarPropostaSolarPDF')
-    const base64 = await gerarPropostaSolarPdfBase64(dados)
+    // Pipeline canônico unificado: MESMO HTML oficial do botão Imprimir via html2pdf.js
+    const dadosConvertidos: PropostaTecnicoComercialDados =
+      converterInputParaTemplateComercial(dados)
+    const dadosOtimizados = await prepararDadosPropostaParaPDF(dadosConvertidos, {
+      otimizarParaWhatsApp: true,
+    })
+    const htmlOficial = gerarHTMLPropostaTecnicoComercial(dadosOtimizados)
+    const base64 = await renderizarHTMLParaPdfBase64(htmlOficial, fileName, {
+      scale: 1.5,
+      imageQuality: 0.82,
+      compressJsPdf: true,
+      timeoutMs: 25000,
+    })
     return { base64, fallbackText, fileName }
   } catch (err) {
-    console.warn('Tentativa com @react-pdf/renderer falhou, tentando fallback:', err)
-    try {
-      const dadosConvertidos: PropostaTecnicoComercialDados =
-        converterInputParaTemplateComercial(dados)
-      const dadosOtimizados = await prepararDadosPropostaParaPDF(dadosConvertidos, {
-        otimizarParaWhatsApp: true,
-      })
-      const htmlOficial = gerarHTMLPropostaTecnicoComercial(dadosOtimizados)
-      const base64 = await renderizarHTMLParaPdfBase64(htmlOficial, fileName, {
-        scale: 1.5,
-        imageQuality: 0.82,
-        compressJsPdf: true,
-        timeoutMs: 25000,
-      })
-      return { base64, fallbackText, fileName }
-    } catch (fallbackErr) {
-      console.error('Erro ao gerar PDF oficial solar para WhatsApp:', fallbackErr)
-      return { base64: '', fallbackText, fileName }
-    }
+    console.error('Erro ao gerar PDF oficial solar para WhatsApp via HTML unificado:', err)
+    return { base64: '', fallbackText, fileName }
   }
 }
 

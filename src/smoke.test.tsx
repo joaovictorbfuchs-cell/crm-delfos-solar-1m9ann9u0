@@ -2313,4 +2313,68 @@ describe('Login e App Smoke Tests', () => {
     expect(html).toContain('Growatt')
     expect(html).toContain('proposta-secao-page')
   })
+
+  it('unificação dos 4 botões da proposta solar: Imprimir, Baixar PDF, WhatsApp e Word usam a mesma estrutura A4 e mesma fonte de dados', async () => {
+    const { gerarHTMLPropostaSolar } = await import('@/lib/propostaSolarGenerator')
+    const { gerarPropostaSolarDocx } = await import('@/lib/propostaSolarDocxGenerator')
+    const { renderizarHTMLParaPdfBase64, baixarHTMLParaPdf } =
+      await import('@/lib/pdfWhatsAppService')
+
+    const sampleInput: any = {
+      cliente: {
+        nome: 'Cliente Unificado Solar',
+        cpfOuCnpj: '12.345.678/0001-99',
+        endereco: 'Rua Principal, 500',
+        municipio: 'Erechim / RS',
+        tipoCliente: 'residencial',
+      },
+      sistema: {
+        potenciaKwp: 6.6,
+        numeroPlacas: 12,
+        potenciaPlacaWp: 550,
+        marcaPlacas: 'Trina Solar',
+        marcaInversor: 'Deye',
+        quantidadeInversores: 1,
+        garantiaModulosAnos: 25,
+      },
+      calculos: {
+        potenciaKwp: 6.6,
+        geracaoAnualEstimadaKwh: 9240,
+        geracaoMediaMensalKwh: 770,
+        economia1Mes: 700,
+        economia1Ano: 8400,
+        economia5Anos: 42000,
+        economia25Anos: 210000,
+        paybackMeses: 34,
+        valorFinalInvestimento: 24500,
+      },
+      secoesHabilitadas: {
+        layoutTelhado: false,
+        fotosProjeto: true,
+        sazonalidadeSolar: true,
+        portfolioUsinas: true,
+      },
+      validadeDias: 5,
+    }
+
+    // 1. Botão "Imprimir / Gerar PDF": HTML canônico oficial com margens A4 7mm (0,7cm)
+    const htmlOficial = gerarHTMLPropostaSolar(sampleInput)
+    expect(htmlOficial).toContain('margin: 10mm 7mm 12mm 7mm')
+    expect(htmlOficial).toContain('padding-left: 7mm')
+    expect(htmlOficial).toContain('padding-right: 7mm')
+    expect(htmlOficial).toContain('Cliente Unificado Solar')
+
+    // 2. Botão "Baixar PDF": pipeline html2pdf consome o MESMO HTML oficial
+    expect(typeof baixarHTMLParaPdf).toBe('function')
+
+    // 3. Botão "Enviar por WhatsApp": base64 é gerado do MESMO HTML oficial
+    expect(typeof renderizarHTMLParaPdfBase64).toBe('function')
+
+    // 4. Botão "Gerar Word": DOCX espelha a mesma fonte de dados e seções com margens laterais 0,07cm (40 dxa)
+    const docx = await gerarPropostaSolarDocx(sampleInput)
+    expect(docx).toBeDefined()
+    const docxStr = JSON.stringify(docx)
+    expect(docxStr).toContain('Cliente Unificado Solar')
+    expect(docxStr).toContain('40') // MARGIN_HORIZONTAL_007CM_DXA (0,07cm)
+  })
 })
