@@ -2541,46 +2541,48 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         padding-bottom: 22mm !important;
       }
 
-      /* Fluxo contínuo sem containers A4 de altura fixa e sem quebras forçadas entre seções */
+      /* Cada seção .proposta-secao-page como página A4 discreta com margens e padding interno preservados */
       .proposta-secao-page {
         width: 100% !important;
         max-width: 100% !important;
         min-height: auto !important;
         box-sizing: border-box !important;
-        display: block !important;
-        page-break-after: auto !important;
-        break-after: auto !important;
-        margin: 0 0 16px 0 !important;
-        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin: 0 auto !important;
+        padding: 7mm !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         overflow: visible !important;
       }
+      .proposta-secao-page:last-of-type,
+      #secao-5-investimento-pagamento {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
       .secao-body {
         width: 100% !important;
-        display: block !important;
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
       }
 
-      /* A capa mantém sua própria página inicial se couber como capa visual */
+      /* A capa mantém sua própria página inicial discreta */
       #secao-1-capa {
         page-break-after: always !important;
         break-after: page !important;
         min-height: auto !important;
       }
 
-      /* Seções internas fluem continuamente sem quebra forçada, exceto Seção 5 que inicia em nova página */
-      #secao-apresentacao-empresa,
-      #secao-2-custo-inercia,
-      #secao-3-seu-sistema,
-      #secao-4-projecao-25anos {
-        page-break-after: auto !important;
-        break-after: auto !important;
-      }
+      /* Seção 5 de investimento e pagamento inicia em página própria */
       #secao-5-investimento-pagamento {
         page-break-before: always !important;
         break-before: page !important;
-        page-break-after: auto !important;
-        break-after: auto !important;
       }
 
       /* Oculta os rodapés intermediários no fluxo de impressão (substituídos pelo rodapé fixo) */
@@ -2647,8 +2649,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         gap: 10px !important;
         align-items: stretch !important;
         width: 100% !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
       }
       .col-como-funciona-70 {
         flex: 7 !important;
@@ -2666,28 +2666,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         min-width: 0 !important;
       }
 
-      /* page-break-inside: avoid em cada BLOCO INDIVIDUAL (cards, quadros de economia, caixas de destaque, assinaturas) */
-      .card-marco-inercia,
-      .quadro-resumo-economia,
-      .card-projecao,
-      .card-portfolio-usina,
-      .card-pagamento,
-      .card-condicoes-comerciais,
-      .card-sistema,
-      .card-situacao,
-      .card-metrica-destaque,
-      .card-diferencial,
+      /* page-break-inside restrito apenas aos blocos indivisíveis necessários (evita corte ao meio) */
       .bloco-assinaturas,
-      .assinaturas-grid-final,
-      .destaque-verde,
       .assinatura-bloco,
-      .tabela-equipamentos,
-      .badge-urgencia-validade,
-      .box-barras-inercia,
-      .grafico-curvas-box,
-      .grid-sistema-duas-colunas,
-      .card-sistema-col,
-      table, tr, td, th {
+      .badge-urgencia-validade {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
