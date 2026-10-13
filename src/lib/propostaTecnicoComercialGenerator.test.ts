@@ -1477,31 +1477,19 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
         /\.card-marco-inercia\s*\{[^}]*page-break-inside:\s*avoid/i,
       )
 
-      // 6. Trava contra quebra da 1ª folha: capa sem break-before na impressão e altura contida na 1ª folha A4
-      expect(mediaPrintContent).toMatch(
+      // 6. A capa NÃO recebe regras de corte/limitação no @media print (capa inteira na página 1)
+      expect(mediaPrintContent).not.toMatch(/#secao-1-capa[^}]*min-height:\s*0\s*!important;/)
+      expect(mediaPrintContent).not.toMatch(/#secao-1-capa[^}]*max-height:\s*250mm\s*!important;/)
+      expect(mediaPrintContent).not.toMatch(/\.capa-wrapper[^}]*min-height:\s*0\s*!important;/)
+      expect(mediaPrintContent).not.toMatch(/\.capa-wrapper[^}]*max-height:\s*250mm\s*!important;/)
+      expect(mediaPrintContent).not.toMatch(
         /#secao-1-capa[^}]*page-break-before:\s*avoid\s*!important;/,
       )
-      expect(mediaPrintContent).toMatch(/#secao-1-capa[^}]*break-before:\s*avoid\s*!important;/)
-      expect(mediaPrintContent).toMatch(
+      expect(mediaPrintContent).not.toMatch(
         /\.capa-wrapper[^}]*page-break-before:\s*avoid\s*!important;/,
       )
-      expect(mediaPrintContent).toMatch(/\.capa-wrapper[^}]*break-before:\s*avoid\s*!important;/)
-
-      // Neutralização de min-height na capa no print para não estourar os ~253mm úteis da 1ª folha
-      expect(mediaPrintContent).toMatch(/#secao-1-capa[^}]*min-height:\s*0\s*!important;/)
-      expect(mediaPrintContent).toMatch(/\.capa-wrapper[^}]*min-height:\s*0\s*!important;/)
-
-      // Garante que não há min-height > área útil (ex: 265mm ou 297mm) para capa no print
-      expect(mediaPrintContent).not.toMatch(
-        /#secao-1-capa\s*\{[^}]*min-height:\s*(26[0-9]|27[0-9]|28[0-9]|29[0-9]|3[0-9]{2})mm/i,
-      )
-      expect(mediaPrintContent).not.toMatch(
-        /\.capa-wrapper\s*\{[^}]*min-height:\s*(26[0-9]|27[0-9]|28[0-9]|29[0-9]|3[0-9]{2})mm/i,
-      )
-
-      // Garante margens zeradas no topo da capa para prevenir página fantasma
-      expect(mediaPrintContent).toMatch(/#secao-1-capa[^}]*margin-top:\s*0/i)
-      expect(mediaPrintContent).toMatch(/\.capa-wrapper[^}]*margin-top:\s*0/i)
+      expect(mediaPrintContent).not.toMatch(/#secao-1-capa[^}]*margin-top:\s*0\s*!important;/)
+      expect(mediaPrintContent).not.toMatch(/#secao-1-capa[^}]*padding-top:\s*0\s*!important;/)
     })
   })
 })

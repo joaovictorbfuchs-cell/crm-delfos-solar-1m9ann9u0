@@ -2581,27 +2581,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         flex-direction: column !important;
       }
 
-      /* A capa mantém sua própria página inicial discreta e NUNCA quebra antes */
-      #secao-1-capa,
-      .capa-wrapper,
-      .proposta-secao-page:first-child,
-      .proposta-secao-page:first-of-type {
-        page-break-before: avoid !important;
-        break-before: avoid !important;
-        margin-top: 0 !important;
-      }
       #secao-1-capa {
-        page-break-after: always !important;
-        break-after: page !important;
-        min-height: 0 !important;
-        max-height: 250mm !important;
-        padding-top: 0 !important;
-        margin-top: 0 !important;
+        page-break-after: always;
       }
       .capa-wrapper {
-        min-height: 0 !important;
-        max-height: 250mm !important;
-        box-shadow: none !important;
+        box-shadow: none;
       }
 
       /* Seção 5 de investimento e pagamento inicia em página própria */
