@@ -3746,16 +3746,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       <Printer className="w-3.5 h-3.5" />
                       <span>Imprimir / Gerar PDF</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleGerarPropostaWord}
-                      disabled={isGeneratingWord || !clienteAtual || !propostaPDFData}
-                      className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 border border-blue-700 flex items-center gap-1.5 transition-colors shadow-2xs disabled:opacity-50"
-                      title="Gerar e baixar proposta oficial em Word (.docx)"
-                    >
-                      <FileDown className="w-3.5 h-3.5" />
-                      <span>{isGeneratingWord ? 'Gerando Word...' : 'Gerar Word'}</span>
-                    </button>
+
                     <button
                       type="button"
                       onClick={async () => {
