@@ -737,10 +737,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                 </p>
               )}
               {rodapeComercial.indicacao && (
-                <div className="pt-2 text-xs font-bold text-white flex items-center gap-2">
-                  <span>🎁</span>
-                  <span>{rodapeComercial.indicacao}</span>
-                </div>
+                <div className="pt-2 text-xs font-bold text-white flex items-center gap-2"></div>
               )}
               {rodapeComercial.contato && (
                 <p className="text-[11px] text-emerald-200 pt-1">{rodapeComercial.contato}</p>
@@ -753,8 +750,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         <footer className="bg-white rounded-2xl p-5 border border-slate-200 text-xs text-slate-500 space-y-2 print:border-t-2">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
-              <strong className="text-slate-800">Delfos Engenharia Solar</strong> • Excelência em
-              Energia Fotovoltaica
+              <strong className="text-slate-800">Delfos Solar</strong> • Excelência em Energia
+              Fotovoltaica
             </div>
             <div className="text-[11px] text-emerald-700 font-bold">
               ✓ Documento Oficial de Atendimento
@@ -762,7 +759,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px]">
             <span>Rua Espírito Santo, 275 – Erechim/RS, CEP 99709-296 • (54) 99129-2121</span>
-            <span>www.delfos.eng.br • solar@updates.delfos.eng.br</span>
+            <span>www.delfos.eng.br • contato@delfos.eng.br</span>
           </div>
         </footer>
       </main>
