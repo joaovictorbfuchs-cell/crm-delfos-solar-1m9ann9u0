@@ -30,12 +30,48 @@ export function getErrorMessage(error: unknown): string {
 
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
+
+  // Objeto de erro com status HTTP 401 ou 403
+  const errObj = error as {
+    status?: unknown
+    statusCode?: unknown
+    code?: unknown
+    message?: unknown
+    response?: { status?: unknown; code?: unknown; message?: unknown }
   }
-  if (typeof error === 'object' && error !== null && 'status' in error) {
-    const status = (error as { status?: unknown }).status
-    return status === 401 || status === 403
+
+  const status = errObj.status ?? errObj.statusCode ?? errObj.response?.status
+  if (status === 401 || status === 403) {
+    return true
   }
+
+  const code = errObj.code ?? errObj.response?.code
+  if (code === 401 || code === 403) {
+    return true
+  }
+
+  // Verificação por mensagem textual de token / autenticação
+  const message =
+    typeof errObj.message === 'string'
+      ? errObj.message
+      : typeof errObj.response?.message === 'string'
+        ? errObj.response.message
+        : ''
+
+  if (message) {
+    const lower = message.toLowerCase()
+    if (
+      lower.includes('token is expired') ||
+      lower.includes('token expired') ||
+      lower.includes('failed to authenticate') ||
+      lower.includes('the request requires valid') ||
+      lower.includes('token is invalid') ||
+      lower.includes('invalid token') ||
+      lower.includes('invalid or expired')
+    ) {
+      return true
+    }
+  }
+
   return false
 }
