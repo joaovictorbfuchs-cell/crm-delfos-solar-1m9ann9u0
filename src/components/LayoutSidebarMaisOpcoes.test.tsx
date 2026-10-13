@@ -53,6 +53,9 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     )
 
     // Itens principais fixos
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Comercial').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Propostas').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Atividades').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Projetos').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Serviços').length).toBeGreaterThan(0)
@@ -91,6 +94,7 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     expect(screen.getByText('Importar Clientes')).not.toBeNull()
     expect(screen.getByText('Gerenciar usuários')).not.toBeNull()
     expect(screen.getByText('Base de Conhecimento')).not.toBeNull()
+    expect(screen.getByText('Configurações')).not.toBeNull()
 
     // Fecha pelo botão de fechar (X)
     const botaoFechar = screen.getByRole('button', { name: /Fechar/i })

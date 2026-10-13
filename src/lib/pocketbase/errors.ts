@@ -28,27 +28,14 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const errorObj = err as Record<string, unknown>
-    if (errorObj.status === 401 || errorObj.status === 403) return true
-    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
-    if (typeof errorObj.message === 'string') {
-      const msg = errorObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('token expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('the request requires valid user authorization') ||
-        msg.includes('something went wrong while processing your request')
-      ) {
-        return true
-      }
-    }
-    if (errorObj.originalError && isAuthSessionError(errorObj.originalError)) {
-      return true
-    }
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const status = (error as { status?: unknown }).status
+    return status === 401 || status === 403
   }
   return false
 }

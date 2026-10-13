@@ -238,6 +238,12 @@ export default function Layout() {
       icon: BookOpen,
       description: 'Documentos e procedimentos',
     },
+    {
+      name: 'Configurações',
+      path: '/equipamentos',
+      icon: Settings,
+      description: 'Logotipo, WhatsApp, notificações e tarifas',
+    },
   ]
 
   const isMaisOpcoesActive = maisOpcoesItems.some((sub) => location.pathname === sub.path)
@@ -285,24 +291,26 @@ export default function Layout() {
 
       {/* Sidebar for Desktop: sempre expandida, estreita e fixa (~88px), ícone em cima + texto embaixo */}
       <aside className="hidden lg:flex flex-col w-[88px] bg-white border-r border-[#E5E7EB] shrink-0 sticky top-0 h-screen z-30 select-none">
-        {/* Brand Logo */}
-        <div className="h-16 px-2 border-b border-[#E5E7EB] flex items-center justify-center bg-white shrink-0">
+        {/* Brand Logo - compacto (h-14 / 56px) para maximizar área útil da navegação desktop */}
+        <div className="h-14 px-2 border-b border-[#E5E7EB] flex items-center justify-center bg-white shrink-0">
           <NavLink
             to={isInstalador ? '/servicos-campo' : '/'}
-            className="flex items-center justify-center group overflow-hidden py-1"
+            className="flex items-center justify-center group overflow-hidden py-0.5"
             title="Delfos Solar - Ir para o início"
           >
             <DelfosLogo
-              height={38}
+              height={34}
               collapsed
               className="transition-transform duration-200 group-hover:scale-105 drop-shadow-xs"
             />
           </NavLink>
         </div>
 
-        {/* Navigation Links: sem rolagem vertical desnecessária */}
-        <nav className="flex-1 px-1.5 py-2 space-y-1 overflow-hidden flex flex-col justify-between">
-          <div className="space-y-1">
+        {/* Navigation Links: lista com densidade ultra otimizada para todos os 9 itens principais
+            cabem integralmente sem corte vertical (Dashboard e Comercial 100% visíveis no topo),
+            com overflow-y-auto e scrollbar oculta como salvaguarda preventiva */}
+        <nav className="flex-1 px-1 py-1 min-h-0 flex flex-col justify-between overflow-hidden">
+          <div className="flex-1 flex flex-col justify-start min-h-0 overflow-y-auto overscroll-contain pr-0.5 space-y-[2px] scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {navItems.map((item) => {
               const Icon = item.icon
               const itemPath = item.path
@@ -319,19 +327,19 @@ export default function Layout() {
                     location.pathname === '/planos-monitoramento'))
 
               return (
-                <div key={itemPath} className="space-y-0.5">
+                <div key={itemPath} className="w-full">
                   <NavLink
                     to={itemPath}
                     title={item.name}
-                    className={`flex flex-col items-center justify-center text-center rounded-xl p-1.5 w-full transition-all duration-150 relative group ${
+                    className={`flex flex-col items-center justify-center text-center rounded-md px-1 py-1 w-full transition-all duration-150 relative group ${
                       isActive
-                        ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
+                        ? 'bg-[#DCFCE7] text-[#166534] font-bold shadow-xs'
                         : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
                     }`}
                   >
                     <div className="relative flex items-center justify-center">
                       <Icon
-                        className={`w-5 h-5 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
+                        className={`w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
                           isActive ? 'text-[#16A34A]' : 'text-gray-500 group-hover:text-[#16A34A]'
                         }`}
                       />
@@ -341,7 +349,7 @@ export default function Layout() {
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-1">
+                    <span className="text-[10px] font-medium leading-none mt-1 px-0.5 truncate max-w-full">
                       {item.name}
                     </span>
                   </NavLink>
@@ -350,9 +358,12 @@ export default function Layout() {
             })}
           </div>
 
-          {/* Botão "Mais Opções" com Flyout Flutuante à direita (apenas admin tem itens extras) */}
+          {/* Botão "Mais Opções" FIXO na base da lista (shrink-0), com Flyout Flutuante à direita abrindo ACIMA do botão */}
           {isAdmin && (
-            <div ref={maisOpcoesRef} className="relative pt-1 border-t border-gray-100">
+            <div
+              ref={maisOpcoesRef}
+              className="relative pt-1 border-t border-gray-100 shrink-0 mt-0.5"
+            >
               <button
                 type="button"
                 onClick={() => setMaisOpcoesOpen((prev) => !prev)}
@@ -360,15 +371,15 @@ export default function Layout() {
                 aria-label="Mais Opções"
                 aria-haspopup="dialog"
                 aria-expanded={maisOpcoesOpen}
-                className={`flex flex-col items-center justify-center text-center rounded-xl p-1.5 w-full transition-all duration-150 relative group cursor-pointer ${
+                className={`flex flex-col items-center justify-center text-center rounded-md px-1 py-1 w-full transition-all duration-150 relative group cursor-pointer ${
                   maisOpcoesOpen || isMaisOpcoesActive
-                    ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
+                    ? 'bg-[#DCFCE7] text-[#166534] font-bold shadow-xs'
                     : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
                 }`}
               >
                 <div className="relative flex items-center justify-center">
                   <Settings
-                    className={`w-5 h-5 shrink-0 transition-transform duration-200 ${
+                    className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                       maisOpcoesOpen ? 'rotate-45' : 'group-hover:scale-110'
                     } ${
                       maisOpcoesOpen || isMaisOpcoesActive
@@ -384,7 +395,7 @@ export default function Layout() {
                     }`}
                   />
                 </div>
-                <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-1">
+                <span className="text-[10px] font-medium leading-none mt-1 px-0.5 truncate max-w-full">
                   Mais Opções
                 </span>
               </button>
@@ -395,22 +406,23 @@ export default function Layout() {
                   - Borda sutil (border border-gray-200)
                   - Cabeçalho "Configurar" ou "Mais Opções"
                   - Linhas com ícone à esquerda + rótulo (+ subtítulo sutil opcional)
-                  - Posicionado fixo/absoluto à direita da sidebar (left-[92px])
+                  - Posicionado flutuante à direita da sidebar (left-[84px] bottom-0)
+                  - max-h-[75vh] para abrir acima do botão sem ser cortado pela janela
               */}
               {maisOpcoesOpen && (
                 <div
                   role="dialog"
                   aria-label="Menu Mais Opções"
-                  className="absolute left-[84px] bottom-0 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 py-2.5 z-50 animate-in fade-in-0 zoom-in-95 duration-150 origin-bottom-left"
+                  className="absolute left-[84px] bottom-0 w-72 max-h-[85vh] flex flex-col bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 animate-in fade-in-0 zoom-in-95 duration-150 origin-bottom-left"
                 >
                   {/* Pequena seta indicadora estilizada apontando para o botão da sidebar */}
                   <div
                     aria-hidden="true"
-                    className="absolute -left-2 bottom-4 w-3.5 h-3.5 bg-white border-l border-b border-gray-200 rotate-45"
+                    className="absolute -left-2 bottom-3.5 w-3.5 h-3.5 bg-white border-l border-b border-gray-200 rotate-45 pointer-events-none"
                   />
 
-                  {/* Cabeçalho do Card Popover estilo exemplo */}
-                  <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                  {/* Cabeçalho do Card Popover */}
+                  <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-md bg-emerald-50 text-[#16A34A] flex items-center justify-center">
                         <Settings className="w-3.5 h-3.5" />
@@ -429,17 +441,17 @@ export default function Layout() {
                   </div>
 
                   {/* Lista de Itens no Flyout com ícone à esquerda + rótulo */}
-                  <div className="py-1 max-h-[70vh] overflow-y-auto">
+                  <div className="py-1 overflow-y-auto flex-1 overscroll-contain">
                     {maisOpcoesItems.map((sub) => {
                       const SubIcon = sub.icon
                       const isSubActive = location.pathname === sub.path
 
                       return (
                         <NavLink
-                          key={sub.path}
+                          key={sub.name}
                           to={sub.path}
                           onClick={() => setMaisOpcoesOpen(false)}
-                          className={`flex items-center gap-3 px-4 py-2.5 text-xs transition-colors duration-150 group ${
+                          className={`flex items-center gap-3 px-4 py-2 text-xs transition-colors duration-150 group ${
                             isSubActive
                               ? 'bg-emerald-50 text-[#166534] font-semibold border-l-3 border-[#16A34A]'
                               : 'text-gray-700 hover:bg-gray-50 hover:text-emerald-800'
@@ -477,38 +489,42 @@ export default function Layout() {
           )}
         </nav>
 
-        {/* User Card in Sidebar bottom */}
-        <div className="border-t border-[#E5E7EB] bg-gray-50/60 p-2 flex flex-col items-center gap-1.5 shrink-0">
-          <div
-            className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
-              isAdmin ? 'bg-[#16A34A]' : 'bg-blue-600'
-            }`}
-            title={`${displayName} (${displayEmail}) - ${isAdmin ? 'Admin' : 'Instalador'}`}
-          >
-            {userInitial}
+        {/* User Card in Sidebar bottom - altura reduzida e layout compacto */}
+        <div className="border-t border-[#E5E7EB] bg-gray-50/60 p-1.5 flex flex-col items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1">
+            <div
+              className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
+                isAdmin ? 'bg-[#16A34A]' : 'bg-blue-600'
+              }`}
+              title={`${displayName} (${displayEmail}) - ${isAdmin ? 'Admin' : 'Instalador'}`}
+            >
+              {userInitial}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors flex items-center justify-center"
+              title="Sair do sistema"
+              aria-label="Sair do sistema"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center"
-            title="Sair do sistema"
-            aria-label="Sair do sistema"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-          <a
-            href="/schema-delfos-solar.xlsx"
-            download="schema-delfos-solar.xlsx"
-            className="p-1 text-gray-400 hover:text-[#166534] hover:bg-emerald-50 rounded-md transition-colors flex items-center justify-center"
-            title="Exportar Schema do Banco (XLSX)"
-            aria-label="Exportar Schema (XLSX)"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-          </a>
-          <div
-            className="text-[9px] font-mono text-gray-400 text-center select-none pt-0.5 cursor-default leading-none"
-            title={`Delfos Solar v${APP_VERSION}`}
-          >
-            v{APP_VERSION}
+          <div className="flex items-center gap-1.5 select-none pt-0.5 leading-none">
+            <a
+              href="/schema-delfos-solar.xlsx"
+              download="schema-delfos-solar.xlsx"
+              className="p-0.5 text-gray-400 hover:text-[#166534] hover:bg-emerald-50 rounded transition-colors flex items-center justify-center"
+              title="Exportar Schema do Banco (XLSX)"
+              aria-label="Exportar Schema (XLSX)"
+            >
+              <FileSpreadsheet className="w-3 h-3" />
+            </a>
+            <span
+              className="text-[9px] font-mono text-gray-400 text-center cursor-default"
+              title={`Delfos Solar v${APP_VERSION}`}
+            >
+              v{APP_VERSION}
+            </span>
           </div>
         </div>
       </aside>
