@@ -192,7 +192,6 @@ export default function Index() {
                   Total de Clientes
                 </p>
                 <h3 className="text-2xl font-bold text-gray-900 mt-1">{totalClientes}</h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Base cadastrada no sistema</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 text-[#16A34A] flex items-center justify-center">
                 <Users className="w-6 h-6" />
@@ -208,7 +207,6 @@ export default function Index() {
                   Negócios em Aberto
                 </p>
                 <h3 className="text-2xl font-bold text-gray-900 mt-1">{totalNegociosEmAberto}</h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Leads, levantamentos e propostas</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
                 <TrendingUp className="w-6 h-6" />
@@ -226,7 +224,6 @@ export default function Index() {
                 <h3 className="text-2xl font-bold text-gray-900 mt-1">
                   {formatCurrency(valorTotalFunil)}
                 </h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Soma de negócios em aberto</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
                 <DollarSign className="w-6 h-6" />
