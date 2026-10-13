@@ -351,7 +351,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     return Math.round((valorServico + valorDeslocamentoCalculado) * 100) / 100
   }, [valorServico, valorDeslocamentoCalculado])
 
-  // Carrega a configuração durável do valor por placa ao abrir o modal
+  // Carrega a configuração durável e inicializa o modal APENAS na abertura (quando open passa a true)
   useEffect(() => {
     if (!open) {
       setProgressoEnvio(null)
@@ -396,15 +396,17 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
 
     const precoBasePlaca = getValorLimpezaPorPlacaCacheSync()
 
-    if (modoIndividual && (clienteAtualIndividual || clienteContexto || initialClienteId)) {
-      const cliId =
-        clienteAtualIndividual?.cliente.id || clienteContexto?.id || (initialClienteId as string)
-      setSelectedIds([cliId])
-      setClienteFocadoId(cliId)
+    if (modoIndividual) {
+      const cli =
+        clienteContexto ||
+        (initialClienteId ? clientes.find((c) => c.id === initialClienteId) : null)
+      const cliId = cli?.id || (initialClienteId as string) || ''
+      if (cliId) {
+        setSelectedIds([cliId])
+        setClienteFocadoId(cliId)
+      }
 
       // Calcula valor sugerido automático
-      const cli =
-        clienteAtualIndividual?.cliente || clienteContexto || clientes.find((c) => c.id === cliId)
       const nPlacas = cli
         ? extrairNumeroPlacas(
             cli,
@@ -436,10 +438,14 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
           setValorServico(VALOR_BASE_LIMPEZA_PADRAO)
         }
       } else {
-        const comWhats = clientesProcessados.filter((c) => c.temWhatsAppValido)
-        const idsIniciais = comWhats.slice(0, 3).map((c) => c.cliente.id)
+        const comWhats = clientes.filter((c) => {
+          const resolucao = resolverNumeroDestinoClienteSync(c, [])
+          const tel = resolucao.numero || c.whatsapp || c.telefone || ''
+          return validarNumeroWhatsApp(tel).valido
+        })
+        const idsIniciais = comWhats.slice(0, 3).map((c) => c.id)
         setSelectedIds(idsIniciais)
-        setClienteFocadoId(idsIniciais[0] || clientesProcessados[0]?.cliente.id || null)
+        setClienteFocadoId(idsIniciais[0] || clientes[0]?.id || null)
         setValorServico(VALOR_BASE_LIMPEZA_PADRAO)
       }
       setIncluirDeslocamento(false)
@@ -448,18 +454,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     return () => {
       ativo = false
     }
-  }, [
-    open,
-    modoIndividual,
-    initialClienteId,
-    clienteContexto,
-    clienteAtualIndividual,
-    clientes,
-    sistemas,
-    usinasContexto,
-    sistemaContexto,
-    clientesProcessados,
-  ])
+  }, [open]) // Executa APENAS quando o modal abre/fecha, nunca sobrescreve edição do usuário por recálculos de useMemo
 
   // Handler para alteração do valor por placa e persistência como novo padrão
   const handleAlterarValorPorPlaca = async (novoValor: number) => {
@@ -1067,13 +1062,29 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                       <Input
                         id="percentual-perda-input"
                         type="number"
-                        min="5"
-                        max="100"
-                        step="5"
-                        value={percentualPerda}
+                        min={5}
+                        max={100}
+                        step={5}
+                        value={percentualPerda === 0 ? '' : percentualPerda}
                         onChange={(e) => {
-                          const val = Number(e.target.value)
-                          setPercentualPerda(Math.max(1, Math.min(100, isNaN(val) ? 0 : val)))
+                          const raw = e.target.value
+                          if (raw === '') {
+                            setPercentualPerda(0)
+                            return
+                          }
+                          const val = Number(raw)
+                          if (!isNaN(val)) {
+                            // Limita entre 0 e 100 durante a digitação
+                            setPercentualPerda(Math.max(0, Math.min(100, val)))
+                          }
+                        }}
+                        onBlur={() => {
+                          // Ao sair do campo, garante a faixa válida de 5% a 100%
+                          if (percentualPerda < 5) {
+                            setPercentualPerda(5)
+                          } else if (percentualPerda > 100) {
+                            setPercentualPerda(100)
+                          }
                         }}
                         className="h-7 w-18 text-right text-xs font-bold bg-white text-rose-700 px-2"
                       />

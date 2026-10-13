@@ -20,40 +20,43 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-/**
- * Detecta se um erro é de autenticação/sessão expirada do PocketBase (401/403 ou token expirado)
- */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (typeof errObj.message === 'string') {
-      const msg = errObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('invalid token') ||
-        msg.includes('unauthorized') ||
-        msg.includes('forbidden')
-      ) {
-        return true
-      }
-    }
-    if (errObj.response && typeof errObj.response === 'object') {
-      const resp = errObj.response as Record<string, unknown>
-      if (resp.status === 401 || resp.status === 403) return true
-      if (resp.code === 401 || resp.code === 403) return true
-    }
-  }
-  return false
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // ClientResponseError do PocketBase ou objeto com status/statusCode
+  const status =
+    typeof error === 'object' && error !== null
+      ? ((error as any).status ?? (error as any).statusCode ?? (error as any).response?.status)
+      : undefined
+
+  if (status === 401 || status === 403) return true
+
+  // Verificação por mensagem de erro comum de sessão expirada / inválida
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as any).message)
+        : ''
+
+  const msgLower = message.toLowerCase()
+  if (
+    msgLower.includes('token is expired') ||
+    msgLower.includes('failed to authenticate') ||
+    msgLower.includes('the request requires valid record authorization') ||
+    msgLower.includes('sessão expirada') ||
+    msgLower.includes('unauthorized')
+  ) {
+    return true
+  }
+
+  return false
 }

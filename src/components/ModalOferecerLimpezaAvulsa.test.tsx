@@ -190,6 +190,17 @@ describe('ModalOferecerLimpezaAvulsa - Cálculo de Limpeza com Valor Editável p
     await waitFor(() => {
       expect(screen.getByText(/Perda Anual \(20%\)/i)).toBeDefined()
     })
+
+    // Permite apagar temporariamente e normaliza no blur se for menor que 5%
+    fireEvent.change(inputPercentual, { target: { value: '' } })
+    expect(inputPercentual.value).toBe('')
+    fireEvent.blur(inputPercentual)
+    expect(inputPercentual.value).toBe('5')
+
+    // Normaliza valores acima de 100% no blur
+    fireEvent.change(inputPercentual, { target: { value: '120' } })
+    fireEvent.blur(inputPercentual)
+    expect(inputPercentual.value).toBe('100')
   })
 
   it('salva mensagem e percentual de perda como padrão ao clicar em "Salvar como padrão"', async () => {
