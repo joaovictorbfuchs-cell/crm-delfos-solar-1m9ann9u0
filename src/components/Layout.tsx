@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -28,6 +28,7 @@ import {
   Contact,
   Layers,
   RefreshCw,
+  MoreHorizontal,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -49,7 +50,8 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
-  const [configuracoesExpanded, setConfiguracoesExpanded] = useState(false)
+  const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false)
+  const maisOpcoesRef = useRef<HTMLDivElement>(null)
   const [isRefreshingGlobal, setIsRefreshingGlobal] = useState(false)
 
   const handleGlobalRefresh = async () => {
@@ -142,37 +144,107 @@ export default function Layout() {
     }
   }
 
-  // Se o usuário for prestador/instalador, mostra APENAS "Minhas OS"
-  // Se for admin/proprietário, mostra todos os itens incluindo "Serviços de Campo"
+  // Fechar o popover "Mais Opções" ao clicar fora ou navegar
+  useEffect(() => {
+    setMaisOpcoesOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!maisOpcoesOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (maisOpcoesRef.current && !maisOpcoesRef.current.contains(event.target as Node)) {
+        setMaisOpcoesOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMaisOpcoesOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [maisOpcoesOpen])
+
   interface NavSubItem {
+    name: string
+    path: string
+    icon: React.ElementType
+    badge?: number
+    description?: string
+  }
+
+  interface NavItem {
     name: string
     path: string
     icon: React.ElementType
     badge?: number
   }
 
-  interface NavItem {
-    name: string
-    path?: string
-    icon: React.ElementType
-    badge?: number
-    subItems?: NavSubItem[]
-    isGroup?: boolean
-  }
-
-  const configuracoesSubItems: NavSubItem[] = [
-    { name: 'Automações', path: '/automacoes', icon: Zap },
-    { name: 'Cadastro de equipamentos', path: '/equipamentos', icon: Cpu },
-    { name: 'Ativos das usinas', path: '/ativos', icon: Cpu },
-    { name: 'Galeria de usinas', path: '/instalacoes-galeria', icon: Images },
-    { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
-    { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
-    { name: 'Gerenciar usuários', path: '/gerenciar-usuarios', icon: UserCog },
-    { name: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
+  // Itens secundários agrupados no painel flutuante (flyout) "Mais Opções"
+  // Conforme solicitação do usuário para eliminar a barra de rolagem da sidebar
+  const maisOpcoesItems: NavSubItem[] = [
+    {
+      name: 'Automações',
+      path: '/automacoes',
+      icon: Zap,
+      description: 'Fluxos automáticos e gatilhos',
+    },
+    {
+      name: 'Cadastro de equipamentos',
+      path: '/equipamentos',
+      icon: Cpu,
+      description: 'Módulos, inversores e estruturas',
+    },
+    {
+      name: 'Ativos das usinas',
+      path: '/ativos',
+      icon: Cpu,
+      description: 'Inversores instalados e seriais',
+    },
+    {
+      name: 'Galeria de usinas',
+      path: '/instalacoes-galeria',
+      icon: Images,
+      description: 'Fotos das obras finalizadas',
+    },
+    {
+      name: 'Fornecedores',
+      path: '/fornecedores',
+      icon: Truck,
+      description: 'Distribuidores e parceiros solares',
+    },
+    {
+      name: 'Importar Clientes',
+      path: '/importar-clientes',
+      icon: FileSpreadsheet,
+      description: 'Pipedrive, Conta Azul e CSV',
+    },
+    {
+      name: 'Gerenciar usuários',
+      path: '/gerenciar-usuarios',
+      icon: UserCog,
+      description: 'Perfis de acesso e equipe',
+    },
+    {
+      name: 'Base de Conhecimento',
+      path: '/base-conhecimento',
+      icon: BookOpen,
+      description: 'Documentos e procedimentos',
+    },
   ]
 
-  const isConfiguracoesActive = configuracoesSubItems.some((sub) => location.pathname === sub.path)
+  const isMaisOpcoesActive = maisOpcoesItems.some((sub) => location.pathname === sub.path)
 
+  // Itens principais fixos visíveis na sidebar desktop
+  // Para instalador: apenas "Serviços"
+  // Para admin: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços, O&M, Clientes, Contatos
   const navItems: NavItem[] = isInstalador
     ? [{ name: 'Serviços', path: '/servicos-campo', icon: Wrench }]
     : [
@@ -182,19 +254,9 @@ export default function Layout() {
         { name: 'Atividades', path: '/central-atividades', icon: Layers },
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Serviços', path: '/servicos-campo', icon: Wrench },
-        {
-          name: 'O&M',
-          path: '/manutencoes',
-          icon: ShieldCheck,
-        },
+        { name: 'O&M', path: '/manutencoes', icon: ShieldCheck },
         { name: 'Clientes', path: '/clientes', icon: Users },
         { name: 'Contatos', path: '/contatos', icon: Contact },
-        {
-          name: 'Configurações',
-          icon: Settings,
-          isGroup: true,
-          subItems: configuracoesSubItems,
-        },
       ]
 
   const isManutencoesSectionActive =
@@ -238,24 +300,30 @@ export default function Layout() {
           </NavLink>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 px-1.5 py-3 space-y-1.5 overflow-y-auto overflow-x-hidden">
-          {navItems.map((item) => {
-            const Icon = item.icon
-
-            // Se for item de agrupamento (Configurações)
-            if (item.isGroup && item.subItems) {
-              const isActive = isConfiguracoesActive
-              const isExpanded = configuracoesExpanded
+        {/* Navigation Links: sem rolagem vertical desnecessária */}
+        <nav className="flex-1 px-1.5 py-2 space-y-1 overflow-hidden flex flex-col justify-between">
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const itemPath = item.path
+              const isActive =
+                location.pathname === itemPath ||
+                (itemPath === '/propostas' && location.pathname === '/orcamentos') ||
+                (itemPath === '/orcamentos' && location.pathname === '/propostas') ||
+                (itemPath === '/servicos-campo' &&
+                  (location.pathname === '/servicos-campo' ||
+                    location.pathname === '/execucao-os')) ||
+                (itemPath === '/minhas-os' && location.pathname === '/minhas-os') ||
+                (itemPath === '/planos-om' &&
+                  (location.pathname === '/planos-om' ||
+                    location.pathname === '/planos-monitoramento'))
 
               return (
-                <div key={item.name} className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => setConfiguracoesExpanded((prev) => !prev)}
+                <div key={itemPath} className="space-y-0.5">
+                  <NavLink
+                    to={itemPath}
                     title={item.name}
-                    aria-expanded={isExpanded}
-                    className={`flex flex-col items-center justify-center text-center rounded-xl p-2 w-full transition-all duration-150 relative group cursor-pointer ${
+                    className={`flex flex-col items-center justify-center text-center rounded-xl p-1.5 w-full transition-all duration-150 relative group ${
                       isActive
                         ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
                         : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
@@ -267,100 +335,146 @@ export default function Layout() {
                           isActive ? 'text-[#16A34A]' : 'text-gray-500 group-hover:text-[#16A34A]'
                         }`}
                       />
-                      {/* Indicador de expansão sutil */}
-                      <span
-                        className={`absolute -bottom-1 -right-2 text-[9px] ${
-                          isActive ? 'text-[#16A34A]' : 'text-gray-400 group-hover:text-[#16A34A]'
-                        }`}
-                      >
-                        {isExpanded ? '▲' : '▼'}
-                      </span>
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="absolute -top-1.5 -right-3 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-600 text-white shadow-2xs">
+                          {item.badge}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-2">
+                    <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-1">
                       {item.name}
                     </span>
-                  </button>
-
-                  {/* Subitens de Configurações */}
-                  {isExpanded && (
-                    <div className="space-y-1 pt-1 pb-1 border-y border-emerald-100 bg-emerald-50/40 rounded-lg my-1">
-                      {item.subItems.map((sub) => {
-                        const SubIcon = sub.icon
-                        const isSubActive = location.pathname === sub.path
-
-                        return (
-                          <NavLink
-                            key={sub.path}
-                            to={sub.path}
-                            title={sub.name}
-                            className={`flex flex-col items-center justify-center text-center rounded-lg p-1.5 transition-all duration-150 relative group ${
-                              isSubActive
-                                ? 'bg-emerald-200/80 text-[#166534] font-bold shadow-2xs'
-                                : 'text-gray-600 hover:bg-white hover:text-[#166534]'
-                            }`}
-                          >
-                            <SubIcon
-                              className={`w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
-                                isSubActive
-                                  ? 'text-[#16A34A]'
-                                  : 'text-gray-500 group-hover:text-[#16A34A]'
-                              }`}
-                            />
-                            <span className="text-[10px] font-medium leading-tight mt-1 px-0.5 line-clamp-2">
-                              {sub.name}
-                            </span>
-                          </NavLink>
-                        )
-                      })}
-                    </div>
-                  )}
+                  </NavLink>
                 </div>
               )
-            }
+            })}
+          </div>
 
-            const itemPath = item.path || '/'
-            const isActive =
-              location.pathname === itemPath ||
-              (itemPath === '/propostas' && location.pathname === '/orcamentos') ||
-              (itemPath === '/orcamentos' && location.pathname === '/propostas') ||
-              (itemPath === '/servicos-campo' &&
-                (location.pathname === '/servicos-campo' ||
-                  location.pathname === '/execucao-os')) ||
-              (itemPath === '/minhas-os' && location.pathname === '/minhas-os') ||
-              (itemPath === '/planos-om' &&
-                (location.pathname === '/planos-om' ||
-                  location.pathname === '/planos-monitoramento'))
+          {/* Botão "Mais Opções" com Flyout Flutuante à direita (apenas admin tem itens extras) */}
+          {isAdmin && (
+            <div ref={maisOpcoesRef} className="relative pt-1 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setMaisOpcoesOpen((prev) => !prev)}
+                title="Mais Opções de Configuração e Gestão"
+                aria-label="Mais Opções"
+                aria-haspopup="dialog"
+                aria-expanded={maisOpcoesOpen}
+                className={`flex flex-col items-center justify-center text-center rounded-xl p-1.5 w-full transition-all duration-150 relative group cursor-pointer ${
+                  maisOpcoesOpen || isMaisOpcoesActive
+                    ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
+                    : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
+                }`}
+              >
+                <div className="relative flex items-center justify-center">
+                  <Settings
+                    className={`w-5 h-5 shrink-0 transition-transform duration-200 ${
+                      maisOpcoesOpen ? 'rotate-45' : 'group-hover:scale-110'
+                    } ${
+                      maisOpcoesOpen || isMaisOpcoesActive
+                        ? 'text-[#16A34A]'
+                        : 'text-gray-500 group-hover:text-[#16A34A]'
+                    }`}
+                  />
+                  <ChevronRight
+                    className={`absolute -right-2.5 w-3 h-3 transition-transform duration-150 ${
+                      maisOpcoesOpen
+                        ? 'rotate-90 text-[#16A34A]'
+                        : 'text-gray-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5'
+                    }`}
+                  />
+                </div>
+                <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-1">
+                  Mais Opções
+                </span>
+              </button>
 
-            return (
-              <div key={itemPath} className="space-y-1">
-                <NavLink
-                  to={itemPath}
-                  title={item.name}
-                  className={`flex flex-col items-center justify-center text-center rounded-xl p-2 w-full transition-all duration-150 relative group ${
-                    isActive
-                      ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
-                      : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
-                  }`}
+              {/* Flyout Popover flutuante no estilo do exemplo anexado pelo usuário:
+                  - Card branco com cantos arredondados (rounded-xl)
+                  - Sombra projetada elegante (shadow-xl)
+                  - Borda sutil (border border-gray-200)
+                  - Cabeçalho "Configurar" ou "Mais Opções"
+                  - Linhas com ícone à esquerda + rótulo (+ subtítulo sutil opcional)
+                  - Posicionado fixo/absoluto à direita da sidebar (left-[92px])
+              */}
+              {maisOpcoesOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Menu Mais Opções"
+                  className="absolute left-[84px] bottom-0 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 py-2.5 z-50 animate-in fade-in-0 zoom-in-95 duration-150 origin-bottom-left"
                 >
-                  <div className="relative flex items-center justify-center">
-                    <Icon
-                      className={`w-5 h-5 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
-                        isActive ? 'text-[#16A34A]' : 'text-gray-500 group-hover:text-[#16A34A]'
-                      }`}
-                    />
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <span className="absolute -top-1.5 -right-3 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-600 text-white shadow-2xs">
-                        {item.badge}
-                      </span>
-                    )}
+                  {/* Pequena seta indicadora estilizada apontando para o botão da sidebar */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute -left-2 bottom-4 w-3.5 h-3.5 bg-white border-l border-b border-gray-200 rotate-45"
+                  />
+
+                  {/* Cabeçalho do Card Popover estilo exemplo */}
+                  <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-md bg-emerald-50 text-[#16A34A] flex items-center justify-center">
+                        <Settings className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-sm font-semibold text-gray-800">Mais Opções</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMaisOpcoesOpen(false)}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                      title="Fechar menu"
+                      aria-label="Fechar"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-2">
-                    {item.name}
-                  </span>
-                </NavLink>
-              </div>
-            )
-          })}
+
+                  {/* Lista de Itens no Flyout com ícone à esquerda + rótulo */}
+                  <div className="py-1 max-h-[70vh] overflow-y-auto">
+                    {maisOpcoesItems.map((sub) => {
+                      const SubIcon = sub.icon
+                      const isSubActive = location.pathname === sub.path
+
+                      return (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          onClick={() => setMaisOpcoesOpen(false)}
+                          className={`flex items-center gap-3 px-4 py-2.5 text-xs transition-colors duration-150 group ${
+                            isSubActive
+                              ? 'bg-emerald-50 text-[#166534] font-semibold border-l-3 border-[#16A34A]'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-emerald-800'
+                          }`}
+                        >
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                              isSubActive
+                                ? 'bg-emerald-100 text-[#16A34A]'
+                                : 'bg-gray-100 text-gray-500 group-hover:bg-emerald-50 group-hover:text-[#16A34A]'
+                            }`}
+                          >
+                            <SubIcon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[13px] font-medium leading-snug truncate">
+                              {sub.name}
+                            </div>
+                            {sub.description && (
+                              <div className="text-[11px] text-gray-400 font-normal truncate">
+                                {sub.description}
+                              </div>
+                            )}
+                          </div>
+                          {isSubActive && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] shrink-0" />
+                          )}
+                        </NavLink>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </nav>
 
         {/* User Card in Sidebar bottom */}
