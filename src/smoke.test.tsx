@@ -352,7 +352,7 @@ describe('Login e App Smoke Tests', () => {
     expect(textContent).not.toContain('Ocorreu um problema ao carregar a página inicial do CRM')
     expect(textContent).not.toContain('Ops! Algo deu errado')
     expect(textContent).not.toContain('Erro inesperado na aplicação')
-    expect(textContent).toContain('Serviços de Campo')
+    expect(textContent).toContain('Serviços')
   })
 
   it('montagem REAL no DOM na rota "/comercial" com perfil admin NÃO cai no ErrorBoundary e renderiza conteúdo', async () => {

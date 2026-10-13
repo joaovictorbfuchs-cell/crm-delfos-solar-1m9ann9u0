@@ -262,12 +262,12 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     (clientesStatus !== 'todos' && location.pathname === '/clientes' ? 1 : 0) +
     (projetosProfissional !== 'todos' && location.pathname === '/projetos' ? 1 : 0)
 
-  // Itens da bottom bar enxuta: se instalador, apenas Serviços de Campo
+  // Itens da bottom bar enxuta: se instalador, apenas Serviços
   const bottomBarTabs = isInstalador
     ? [
         {
           id: 'servicos-campo',
-          label: 'Serviços de Campo',
+          label: 'Serviços',
           path: '/servicos-campo',
           icon: Wrench,
           isActive: true,
@@ -297,7 +297,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         },
         {
           id: 'servicos-campo',
-          label: 'Serviços de campo',
+          label: 'Serviços',
           path: '/servicos-campo',
           icon: Wrench,
           isActive:
@@ -307,14 +307,14 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         },
       ]
 
-  // Menu Mais com todas as rotas existentes (se instalador, apenas Serviços de Campo)
+  // Menu Mais com todas as rotas existentes (se instalador, apenas Serviços)
   const menuMaisSections = isInstalador
     ? [
         {
           title: 'Operação',
           items: [
             {
-              label: 'Serviços de Campo',
+              label: 'Serviços',
               path: '/servicos-campo',
               icon: Wrench,
             },
@@ -329,17 +329,16 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
             { label: 'Funil Comercial', path: '/comercial', icon: KanbanSquare },
             { label: 'Funil de Projetos', path: '/projetos', icon: FolderKanban },
             { label: 'Propostas', path: '/propostas', icon: Sun },
-            { label: 'Central de Atividades', path: '/central-atividades', icon: Layers },
+            { label: 'Atividades', path: '/central-atividades', icon: Layers },
             { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
             { label: 'Contatos', path: '/contatos', icon: Contact },
-            { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
           ],
         },
         {
           title: 'Operação e Serviços',
           items: [
             {
-              label: 'Serviços de Campo',
+              label: 'Serviços',
               path: '/servicos-campo',
               icon: Wrench,
             },
@@ -364,6 +363,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
             ...(isAdmin
               ? [{ label: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog }]
               : []),
+            { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
           ],
         },
       ]

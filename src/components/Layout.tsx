@@ -168,19 +168,20 @@ export default function Layout() {
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
     { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
     { name: 'Gerenciar usuários', path: '/gerenciar-usuarios', icon: UserCog },
+    { name: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
   ]
 
   const isConfiguracoesActive = configuracoesSubItems.some((sub) => location.pathname === sub.path)
 
   const navItems: NavItem[] = isInstalador
-    ? [{ name: 'Serviços de Campo', path: '/servicos-campo', icon: Wrench }]
+    ? [{ name: 'Serviços', path: '/servicos-campo', icon: Wrench }]
     : [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
         { name: 'Propostas', path: '/propostas', icon: Sun },
-        { name: 'Central de Atividades', path: '/central-atividades', icon: Layers },
+        { name: 'Atividades', path: '/central-atividades', icon: Layers },
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
-        { name: 'Serviços de Campo', path: '/servicos-campo', icon: Wrench },
+        { name: 'Serviços', path: '/servicos-campo', icon: Wrench },
         {
           name: 'O&M',
           path: '/manutencoes',
@@ -188,7 +189,6 @@ export default function Layout() {
         },
         { name: 'Clientes', path: '/clientes', icon: Users },
         { name: 'Contatos', path: '/contatos', icon: Contact },
-        { name: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
         {
           name: 'Configurações',
           icon: Settings,
