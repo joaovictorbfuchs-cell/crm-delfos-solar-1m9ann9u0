@@ -45,7 +45,7 @@ vi.mock('@/components/ModalGerenciarWhatsAppTemplates', () => ({
 }))
 
 describe('Layout Desktop - Sidebar com Mais Opções', () => {
-  it('renderiza os itens principais fixos na sidebar desktop', () => {
+  it('renderiza os itens principais fixos na sidebar desktop e NÃO renderiza botão Mais Opções', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Layout />
@@ -63,30 +63,33 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     expect(screen.getAllByText('Clientes').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Contatos').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Configurações').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Mais Opções').length).toBeGreaterThan(0)
+
+    // Botão de três pontinhos / Mais Opções removido completamente
+    expect(screen.queryByText('Mais Opções')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Mais Opções/i })).toBeNull()
   })
 
-  it('abre o flyout Mais Opções ao clicar no botão e lista itens secundários sem Configurações no flyout', () => {
+  it('ao clicar em Configurações abre menu flutuante ao lado com as 8 opções exatas', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Layout />
       </MemoryRouter>,
     )
 
-    const botaoMaisOpcoes = screen.getByRole('button', { name: /Mais Opções/i })
-    expect(botaoMaisOpcoes).not.toBeNull()
+    const botaoConfiguracoes = screen.getByRole('button', { name: /Configurações/i })
+    expect(botaoConfiguracoes).not.toBeNull()
 
     // Inicialmente o popover não deve estar aberto
-    expect(screen.queryByRole('dialog', { name: /Menu Mais Opções/i })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
 
-    // Clica para abrir
-    fireEvent.click(botaoMaisOpcoes)
+    // Clica para abrir o flyout
+    fireEvent.click(botaoConfiguracoes)
 
-    // O popover abre
-    const dialog = screen.getByRole('dialog', { name: /Menu Mais Opções/i })
+    // O flyout abre
+    const dialog = screen.getByRole('dialog', { name: /Menu Configurações/i })
     expect(dialog).not.toBeNull()
 
-    // Verifica itens do flyout
+    // Verifica exatamente as 8 opções do flyout
     expect(screen.getByText('Automações')).not.toBeNull()
     expect(screen.getByText('Cadastro de equipamentos')).not.toBeNull()
     expect(screen.getByText('Ativos das usinas')).not.toBeNull()
@@ -100,21 +103,47 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     const botaoFechar = screen.getByRole('button', { name: /Fechar/i })
     fireEvent.click(botaoFechar)
 
-    expect(screen.queryByRole('dialog', { name: /Menu Mais Opções/i })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
   })
 
-  it('fecha o flyout Mais Opções com a tecla Escape', () => {
+  it('fecha o flyout Configurações com a tecla Escape', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Layout />
       </MemoryRouter>,
     )
 
-    const botaoMaisOpcoes = screen.getByRole('button', { name: /Mais Opções/i })
-    fireEvent.click(botaoMaisOpcoes)
-    expect(screen.getByRole('dialog', { name: /Menu Mais Opções/i })).not.toBeNull()
+    const botaoConfiguracoes = screen.getByRole('button', { name: /Configurações/i })
+    fireEvent.click(botaoConfiguracoes)
+    expect(screen.getByRole('dialog', { name: /Menu Configurações/i })).not.toBeNull()
 
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: /Menu Mais Opções/i })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
+  })
+
+  it('instalador vê APENAS Serviços (sem Configurações, sem flyout e sem três pontinhos)', async () => {
+    // Sobrescrever mock para perfil instalador
+    const authModule = vi.spyOn(await import('@/contexts/AuthContext'), 'useAuth')
+    authModule.mockReturnValue({
+      user: { id: 'usr-inst', name: 'Instalador Teste', email: 'instalador@delfos.eng.br' },
+      userProfile: { name: 'Instalador Teste', role: 'instalador' },
+      isAdmin: false,
+      isInstalador: true,
+      logout: vi.fn(),
+    } as any)
+
+    render(
+      <MemoryRouter initialEntries={['/servicos-campo']}>
+        <Layout />
+      </MemoryRouter>,
+    )
+
+    // Instalador vê apenas Serviços
+    expect(screen.getAllByText('Serviços').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Configurações')).toBeNull()
+    expect(screen.queryByText('Mais Opções')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Configurações/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Mais Opções/i })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
   })
 })

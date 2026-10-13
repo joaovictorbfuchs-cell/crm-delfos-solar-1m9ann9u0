@@ -28,7 +28,6 @@ import {
   Contact,
   Layers,
   RefreshCw,
-  MoreHorizontal,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -50,8 +49,8 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
-  const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false)
-  const maisOpcoesRef = useRef<HTMLDivElement>(null)
+  const [configuracoesOpen, setConfiguracoesOpen] = useState(false)
+  const configuracoesRef = useRef<HTMLDivElement>(null)
   const [isRefreshingGlobal, setIsRefreshingGlobal] = useState(false)
 
   const handleGlobalRefresh = async () => {
@@ -144,23 +143,23 @@ export default function Layout() {
     }
   }
 
-  // Fechar o popover "Mais Opções" ao clicar fora ou navegar
+  // Fechar o menu flutuante "Configurações" ao navegar ou clicar fora
   useEffect(() => {
-    setMaisOpcoesOpen(false)
+    setConfiguracoesOpen(false)
   }, [location.pathname])
 
   useEffect(() => {
-    if (!maisOpcoesOpen) return
+    if (!configuracoesOpen) return
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (maisOpcoesRef.current && !maisOpcoesRef.current.contains(event.target as Node)) {
-        setMaisOpcoesOpen(false)
+      if (configuracoesRef.current && !configuracoesRef.current.contains(event.target as Node)) {
+        setConfiguracoesOpen(false)
       }
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setMaisOpcoesOpen(false)
+        setConfiguracoesOpen(false)
       }
     }
 
@@ -170,7 +169,7 @@ export default function Layout() {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [maisOpcoesOpen])
+  }, [configuracoesOpen])
 
   interface NavSubItem {
     name: string
@@ -187,9 +186,8 @@ export default function Layout() {
     badge?: number
   }
 
-  // Itens secundários agrupados no painel flutuante (flyout) "Mais Opções"
-  // Conforme solicitação do usuário, Configurações subiu para a sequência principal da sidebar
-  const maisOpcoesItems: NavSubItem[] = [
+  // 8 opções exatas solicitadas no menu flutuante ao lado do item Configurações
+  const configuracoesItems: NavSubItem[] = [
     {
       name: 'Automações',
       path: '/automacoes',
@@ -240,11 +238,12 @@ export default function Layout() {
     },
   ]
 
-  const isMaisOpcoesActive = maisOpcoesItems.some((sub) => location.pathname === sub.path)
+  const isConfiguracoesActive = configuracoesItems.some((sub) => location.pathname === sub.path)
 
   // Itens principais fixos visíveis na sidebar desktop
   // Para instalador: apenas "Serviços"
-  // Para admin: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços, O&M, Clientes, Contatos e Configurações (logo abaixo na sequência)
+  // Para admin: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços, O&M, Clientes, Contatos
+  // (Configurações fica na sequência logo abaixo de Contatos, controlado como item com menu flutuante)
   const navItems: NavItem[] = isInstalador
     ? [{ name: 'Serviços', path: '/servicos-campo', icon: Wrench }]
     : [
@@ -257,7 +256,6 @@ export default function Layout() {
         { name: 'O&M', path: '/manutencoes', icon: ShieldCheck },
         { name: 'Clientes', path: '/clientes', icon: Users },
         { name: 'Contatos', path: '/contatos', icon: Contact },
-        { name: 'Configurações', path: '/equipamentos', icon: Settings },
       ]
 
   const isManutencoesSectionActive =
@@ -303,7 +301,7 @@ export default function Layout() {
 
         {/* Navigation Links: lista com todos os itens principais visíveis (Dashboard até Contatos, seguido de Configurações),
             cabem integralmente sem rolagem e sem corte vertical. overflow-y-auto habilitado como garantia para telas menores */}
-        <nav className="flex-1 px-1 py-1 min-h-0 flex flex-col justify-between overflow-y-auto overflow-x-visible scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="flex-1 px-1 py-1 min-h-0 flex flex-col justify-start overflow-y-auto overflow-x-visible scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex flex-col justify-start space-y-[2px]">
             {navItems.map((item) => {
               const Icon = item.icon
@@ -350,137 +348,127 @@ export default function Layout() {
                 </div>
               )
             })}
-          </div>
 
-          {/* Botão "Mais Opções" FIXO na base da lista (shrink-0), com Flyout Flutuante à direita abrindo ACIMA do botão */}
-          {isAdmin && (
-            <div
-              ref={maisOpcoesRef}
-              className="relative pt-1 border-t border-gray-100 shrink-0 mt-0.5"
-            >
-              <button
-                type="button"
-                onClick={() => setMaisOpcoesOpen((prev) => !prev)}
-                title="Mais Opções de Configuração e Gestão"
-                aria-label="Mais Opções"
-                aria-haspopup="dialog"
-                aria-expanded={maisOpcoesOpen}
-                className={`flex flex-col items-center justify-center text-center rounded-md px-1 py-1 w-full transition-all duration-150 relative group cursor-pointer ${
-                  maisOpcoesOpen || isMaisOpcoesActive
-                    ? 'bg-[#DCFCE7] text-[#166534] font-bold shadow-xs'
-                    : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
-                }`}
-              >
-                <div className="relative flex items-center justify-center">
-                  <MoreHorizontal
-                    className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
-                      maisOpcoesOpen ? 'rotate-90' : 'group-hover:scale-110'
-                    } ${
-                      maisOpcoesOpen || isMaisOpcoesActive
-                        ? 'text-[#16A34A]'
-                        : 'text-gray-500 group-hover:text-[#16A34A]'
-                    }`}
-                  />
-                  <ChevronRight
-                    className={`absolute -right-2.5 w-3 h-3 transition-transform duration-150 ${
-                      maisOpcoesOpen
-                        ? 'rotate-90 text-[#16A34A]'
-                        : 'text-gray-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5'
-                    }`}
-                  />
-                </div>
-                <span className="text-[10px] font-medium leading-none mt-1 px-0.5 truncate max-w-full">
-                  Mais Opções
-                </span>
-              </button>
-
-              {/* Flyout Popover flutuante no estilo do exemplo anexado pelo usuário:
-                  - Card branco com cantos arredondados (rounded-xl)
-                  - Sombra projetada elegante (shadow-xl)
-                  - Borda sutil (border border-gray-200)
-                  - Cabeçalho "Mais Opções"
-                  - Linhas com ícone à esquerda + rótulo (+ subtítulo sutil opcional)
-                  - Posicionado flutuante à direita da sidebar (left-[84px] bottom-0)
-                  - max-h-[75vh] para abrir acima do botão sem ser cortado pela janela
-              */}
-              {maisOpcoesOpen && (
-                <div
-                  role="dialog"
-                  aria-label="Menu Mais Opções"
-                  className="absolute left-[84px] bottom-0 w-72 max-h-[85vh] flex flex-col bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 animate-in fade-in-0 zoom-in-95 duration-150 origin-bottom-left"
+            {/* Item "Configurações" na sequência principal abaixo de "Contatos" (apenas para Admin) */}
+            {/* Ao clicar, abre menu flutuante (flyout) ao lado do item com as 8 opções */}
+            {isAdmin && (
+              <div ref={configuracoesRef} className="w-full relative">
+                <button
+                  type="button"
+                  onClick={() => setConfiguracoesOpen((prev) => !prev)}
+                  title="Configurações e Gestão"
+                  aria-label="Configurações"
+                  aria-haspopup="dialog"
+                  aria-expanded={configuracoesOpen}
+                  className={`flex flex-col items-center justify-center text-center rounded-md px-1 py-1 w-full transition-all duration-150 relative group cursor-pointer ${
+                    configuracoesOpen || isConfiguracoesActive
+                      ? 'bg-[#DCFCE7] text-[#166534] font-bold shadow-xs'
+                      : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
+                  }`}
                 >
-                  {/* Pequena seta indicadora estilizada apontando para o botão da sidebar */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute -left-2 bottom-3.5 w-3.5 h-3.5 bg-white border-l border-b border-gray-200 rotate-45 pointer-events-none"
-                  />
-
-                  {/* Cabeçalho do Card Popover */}
-                  <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-md bg-emerald-50 text-[#16A34A] flex items-center justify-center">
-                        <MoreHorizontal className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-sm font-semibold text-gray-800">Mais Opções</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setMaisOpcoesOpen(false)}
-                      className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
-                      title="Fechar menu"
-                      aria-label="Fechar"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="relative flex items-center justify-center">
+                    <Settings
+                      className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                        configuracoesOpen ? 'rotate-45' : 'group-hover:scale-110'
+                      } ${
+                        configuracoesOpen || isConfiguracoesActive
+                          ? 'text-[#16A34A]'
+                          : 'text-gray-500 group-hover:text-[#16A34A]'
+                      }`}
+                    />
                   </div>
+                  <span className="text-[10px] font-medium leading-none mt-1 px-0.5 truncate max-w-full">
+                    Configurações
+                  </span>
+                </button>
 
-                  {/* Lista de Itens no Flyout com ícone à esquerda + rótulo */}
-                  <div className="py-1 overflow-y-auto flex-1 overscroll-contain">
-                    {maisOpcoesItems.map((sub) => {
-                      const SubIcon = sub.icon
-                      const isSubActive = location.pathname === sub.path
+                {/* Flyout Popover flutuante AO LADO do item Configurações:
+                    - Card branco, cantos arredondados (rounded-xl)
+                    - Sombra projetada (shadow-2xl)
+                    - Borda sutil (border border-gray-200)
+                    - Cabeçalho "Configurações"
+                    - 8 opções em linhas com ícone à esquerda, destaque verde na rota ativa
+                    - Posicionado flutuante ao lado do item (left-[84px] -top-12)
+                */}
+                {configuracoesOpen && (
+                  <div
+                    role="dialog"
+                    aria-label="Menu Configurações"
+                    className="absolute left-[84px] -top-12 w-72 max-h-[85vh] flex flex-col bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 animate-in fade-in-0 zoom-in-95 duration-150 origin-top-left"
+                  >
+                    {/* Pequena seta indicadora estilizada apontando para o botão Configurações */}
+                    <div
+                      aria-hidden="true"
+                      className="absolute -left-2 top-14 w-3.5 h-3.5 bg-white border-l border-b border-gray-200 rotate-45 pointer-events-none"
+                    />
 
-                      return (
-                        <NavLink
-                          key={sub.name}
-                          to={sub.path}
-                          onClick={() => setMaisOpcoesOpen(false)}
-                          className={`flex items-center gap-3 px-4 py-2 text-xs transition-colors duration-150 group ${
-                            isSubActive
-                              ? 'bg-emerald-50 text-[#166534] font-semibold border-l-3 border-[#16A34A]'
-                              : 'text-gray-700 hover:bg-gray-50 hover:text-emerald-800'
-                          }`}
-                        >
-                          <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                    {/* Cabeçalho do Card Popover */}
+                    <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-emerald-50 text-[#16A34A] flex items-center justify-center">
+                          <Settings className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800">Configurações</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setConfiguracoesOpen(false)}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                        title="Fechar menu"
+                        aria-label="Fechar"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Lista das 8 opções no Flyout com ícone à esquerda + rótulo + destaque verde na ativa */}
+                    <div className="py-1 overflow-y-auto flex-1 overscroll-contain">
+                      {configuracoesItems.map((sub) => {
+                        const SubIcon = sub.icon
+                        const isSubActive = location.pathname === sub.path
+
+                        return (
+                          <NavLink
+                            key={sub.name}
+                            to={sub.path}
+                            onClick={() => setConfiguracoesOpen(false)}
+                            className={`flex items-center gap-3 px-4 py-2 text-xs transition-colors duration-150 group ${
                               isSubActive
-                                ? 'bg-emerald-100 text-[#16A34A]'
-                                : 'bg-gray-100 text-gray-500 group-hover:bg-emerald-50 group-hover:text-[#16A34A]'
+                                ? 'bg-emerald-50 text-[#166534] font-semibold border-l-3 border-[#16A34A]'
+                                : 'text-gray-700 hover:bg-gray-50 hover:text-emerald-800'
                             }`}
                           >
-                            <SubIcon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[13px] font-medium leading-snug truncate">
-                              {sub.name}
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                                isSubActive
+                                  ? 'bg-emerald-100 text-[#16A34A]'
+                                  : 'bg-gray-100 text-gray-500 group-hover:bg-emerald-50 group-hover:text-[#16A34A]'
+                              }`}
+                            >
+                              <SubIcon className="w-4 h-4" />
                             </div>
-                            {sub.description && (
-                              <div className="text-[11px] text-gray-400 font-normal truncate">
-                                {sub.description}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-medium leading-snug truncate">
+                                {sub.name}
                               </div>
+                              {sub.description && (
+                                <div className="text-[11px] text-gray-400 font-normal truncate">
+                                  {sub.description}
+                                </div>
+                              )}
+                            </div>
+                            {isSubActive && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] shrink-0" />
                             )}
-                          </div>
-                          {isSubActive && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] shrink-0" />
-                          )}
-                        </NavLink>
-                      )
-                    })}
+                          </NavLink>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* User Card in Sidebar bottom - altura reduzida e layout compacto */}
