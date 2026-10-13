@@ -742,6 +742,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin: 10mm 7mm 12mm 7mm;
     }
 
+    @page:first {
+      margin-top: 0;
+    }
+
     * {
       box-sizing: border-box;
       -webkit-print-color-adjust: exact !important;
@@ -807,6 +811,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       max-width: 100%;
       box-sizing: border-box;
       margin: 0 auto;
+      padding-top: 0;
       padding-left: 7mm;
       padding-right: 7mm;
       padding-bottom: 24px;
@@ -832,9 +837,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       page-break-before: auto;
       break-before: auto;
     }
-    .proposta-secao-page:first-child {
-      page-break-before: avoid;
-      break-before: avoid;
+    .proposta-secao-page:first-child,
+    .proposta-secao-page:first-of-type,
+    #secao-1-capa {
+      page-break-before: avoid !important;
+      break-before: avoid !important;
     }
     #secao-1-capa {
       page-break-after: always;
@@ -2538,6 +2545,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       .proposta-container {
         max-width: 100% !important;
         box-sizing: border-box !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
         padding-bottom: 22mm !important;
       }
 
@@ -2572,7 +2581,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         flex-direction: column !important;
       }
 
-      /* A capa mantém sua própria página inicial discreta */
+      /* A capa mantém sua própria página inicial discreta e NUNCA quebra antes */
+      #secao-1-capa,
+      .proposta-secao-page:first-child,
+      .proposta-secao-page:first-of-type {
+        page-break-before: avoid !important;
+        break-before: avoid !important;
+      }
       #secao-1-capa {
         page-break-after: always !important;
         break-after: page !important;
