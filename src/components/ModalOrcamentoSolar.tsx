@@ -66,6 +66,7 @@ import { baixarPropostaSolarDocx } from '@/lib/propostaSolarDocxGenerator'
 import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 import { PainelEdicaoConteudoProposta } from '@/components/PainelEdicaoConteudoProposta'
 import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
+import { injetarEdicaoNoPreview, setCaminhoConteudo } from '@/lib/propostaEdicaoPreview'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 import { BotaoBaixarPropostaSolarPDF } from '@/components/BotaoBaixarPropostaSolarPDF'
 
@@ -302,6 +303,26 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [conteudoProposta, setConteudoProposta] = useState<ConteudoProposta>(() =>
     normalizarConteudoProposta(initialOrcamento?.conteudo_proposta),
   )
+
+  // Edição por elemento DIRETO NO PREVIEW: o iframe (com script de edição) envia
+  // mudanças via postMessage e aqui elas entram no conteudo_proposta — que já
+  // alimenta o PDF, o Word, o WhatsApp e o salvamento do orçamento.
+  useEffect(() => {
+    const onMessage = (ev: MessageEvent) => {
+      const d = ev.data as { tipo?: string; caminho?: string; valor?: string }
+      if (!d || d.tipo !== 'proposta-edicao' || !d.caminho) return
+      setConteudoProposta(
+        (prev) =>
+          setCaminhoConteudo(
+            prev as unknown as Record<string, any>,
+            d.caminho!,
+            String(d.valor ?? ''),
+          ) as ConteudoProposta,
+      )
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
 
   // Seções habilitadas na proposta (toggles opcionais)
   const [secoesHabilitadas, setSecoesHabilitadas] = useState<PropostaSecoesHabilitadas>({
@@ -1199,7 +1220,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   ])
 
   // HTML fiel e atualizado em tempo real da proposta técnico-comercial
-  const htmlPropostaPreview = useMemo<string>(() => {
+  // HTML LIMPO: usado por Baixar PDF e WhatsApp (NUNCA leva o script de edição)
+  const htmlPropostaLimpo = useMemo<string>(() => {
     if (!propostaPDFData) return ''
     try {
       return gerarHTMLPropostaSolar(propostaPDFData)
@@ -1208,6 +1230,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       return '<div style="padding:20px;color:#b91c1c;font-family:sans-serif;">Não foi possível carregar o preview da proposta. Verifique os dados preenchidos.</div>'
     }
   }, [propostaPDFData])
+
+  // HTML DO PREVIEW: mesmo HTML + camada de edição por elemento (só no iframe)
+  const htmlPropostaPreview = useMemo<string>(
+    () => injetarEdicaoNoPreview(htmlPropostaLimpo),
+    [htmlPropostaLimpo],
+  )
 
   if (!isOpen) return null
 
@@ -3719,7 +3747,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     {propostaPDFData ? (
                       <BotaoBaixarPropostaSolarPDF
                         dados={propostaPDFData}
-                        htmlProposta={htmlPropostaPreview}
+                        htmlProposta={htmlPropostaLimpo}
                         nomeArquivo={`proposta-solar-${(clienteAtual?.nome || 'cliente').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`}
                         rotulo="Baixar PDF"
                         desabilitado={!clienteAtual}
@@ -4365,7 +4393,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           }
           cliente={clienteAtual}
           dadosProposta={propostaPDFData}
-          htmlProposta={htmlPropostaPreview}
+          htmlProposta={htmlPropostaLimpo}
           onSuccess={() => {
             toast.success('Proposta enviada com sucesso por WhatsApp!')
           }}
