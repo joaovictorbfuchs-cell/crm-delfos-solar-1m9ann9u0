@@ -6,7 +6,8 @@ import type { Cliente, UsinaCliente } from '@/types/crm'
  */
 
 export const TARIFA_ENERGIA_PADRAO = 1.198
-export const PERCENTUAL_PERDA_SUJEIRA = 0.3
+export const PERCENTUAL_PERDA_SUJEIRA = 0.3 // 30% padrão
+export const PERCENTUAL_PERDA_PADRAO_INT = 30 // 30% em formato inteiro (5 a 100)
 export const VALOR_BASE_LIMPEZA_PADRAO = 350.0
 export const VALOR_LIMPEZA_MINIMO_ATE_30 = 300.0 // Menos de 30 placas = R$ 300,00
 export const VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS = 8.0 // 30 placas ou mais = R$ 8,00 por placa (padrão)
@@ -14,7 +15,7 @@ export const VALOR_KM_DESLOCAMENTO_LIMPEZA = 1.5 // R$ 1,50 por KM
 export const MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA = 2 // Ida e volta
 
 export const MENSAGEM_OFERTA_LIMPEZA_PADRAO =
-  'Olá, [nome do cliente]! Aqui é da Delfos Solar. Passando para lembrar que a limpeza periódica das placas solares é essencial para manter a geração de energia no máximo. Sujeira e poeira podem reduzir o desempenho em até 30%. Ou seja, como sua usina gera em média [geração média] kWh e o valor da fatura é R$ 1,198, são aproximadamente R$ [valor calculado] que são perdidos devido à sujeira. Temos disponibilidade para fazer a limpeza da sua usina de [potência] em [cidade]. O investimento é de [valor] e inclui inspeção visual completa do sistema. Posso agendar para você?'
+  'Olá, [nome do cliente]! Aqui é da Delfos Solar. Passando para lembrar que a limpeza periódica das placas solares é essencial para manter a geração de energia no máximo. Sujeira e poeira podem reduzir o desempenho em até [perda percentual]%. Ou seja, como sua usina gera em média [geração média] kWh e o valor da fatura é R$ 1,198, são aproximadamente R$ [valor calculado] que são perdidos devido à sujeira. Temos disponibilidade para fazer a limpeza da sua usina de [potência] em [cidade]. O investimento é de [valor] e inclui inspeção visual completa do sistema. Posso agendar para você?'
 
 /**
  * Extrai o número de placas / módulos fotovoltaicos do cliente a partir da ficha do cliente e usinas vinculadas.
@@ -176,12 +177,16 @@ export function calcularPerdaAnualPorSujeira(
   geracaoMensalKwh: number,
   tarifa: number = TARIFA_ENERGIA_PADRAO,
   percentualPerda: number = PERCENTUAL_PERDA_SUJEIRA,
-): { geracaoAnualKwh: number; valorPerda: number } {
+): { geracaoAnualKwh: number; valorPerda: number; perdaAnualKwh: number } {
+  // Trata se o percentual for passado na escala 0–1 (ex: 0.3) ou 1–100 (ex: 30)
+  const frac = percentualPerda > 1 ? percentualPerda / 100 : percentualPerda
   const geracaoAnualKwh = Math.round(geracaoMensalKwh * 12)
-  const valorPerda = geracaoAnualKwh * tarifa * percentualPerda
+  const perdaAnualKwh = Math.round(geracaoAnualKwh * frac)
+  const valorPerda = geracaoAnualKwh * tarifa * frac
   return {
     geracaoAnualKwh,
     valorPerda,
+    perdaAnualKwh,
   }
 }
 
@@ -190,6 +195,8 @@ export function calcularPerdaAnualPorSujeira(
  * - [nome do cliente]
  * - [geração média]
  * - [valor calculado]
+ * - [perda percentual]
+ * - [perda kwh]
  * - [potência]
  * - [cidade]
  * - [valor]
@@ -200,6 +207,7 @@ export function resolverPlaceholdersOfertaLimpeza(params: {
   usinasDoCliente?: UsinaCliente[]
   valorServico?: number
   tarifa?: number
+  percentualPerda?: number
 }): string {
   const {
     template,
@@ -207,10 +215,14 @@ export function resolverPlaceholdersOfertaLimpeza(params: {
     usinasDoCliente = [],
     valorServico = VALOR_BASE_LIMPEZA_PADRAO,
     tarifa = TARIFA_ENERGIA_PADRAO,
+    percentualPerda = PERCENTUAL_PERDA_PADRAO_INT,
   } = params
 
   const geracaoMensal = extrairGeracaoMediaMensal(cliente, usinasDoCliente)
-  const { valorPerda } = calcularPerdaAnualPorSujeira(geracaoMensal, tarifa)
+  const frac = percentualPerda > 1 ? percentualPerda / 100 : percentualPerda
+  const percentualInt = Math.round(percentualPerda <= 1 ? percentualPerda * 100 : percentualPerda)
+
+  const { valorPerda, perdaAnualKwh } = calcularPerdaAnualPorSujeira(geracaoMensal, tarifa, frac)
 
   // Extrai primeiro nome ou nome completo
   const nomeCompleto = (cliente.nome || 'Cliente').trim()
@@ -222,11 +234,20 @@ export function resolverPlaceholdersOfertaLimpeza(params: {
   const potenciaTexto = extrairPotenciaUsinaTexto(cliente, usinasDoCliente)
   const cidadeTexto = (cliente.cidade || usinasDoCliente[0]?.endereco || 'sua região').trim()
 
+  const perdaKwhTexto = Math.round(perdaAnualKwh).toLocaleString('pt-BR')
+  const percentualTexto = String(percentualInt)
+
   return template
     .replace(/\[nome do cliente\]/gi, primeiroNome)
     .replace(/\[geração média\]/gi, geracaoTexto)
     .replace(/\[geracao media\]/gi, geracaoTexto)
     .replace(/\[valor calculado\]/gi, perdaTexto)
+    .replace(/\[perda percentual\]/gi, percentualTexto)
+    .replace(/\[perda_percentual\]/gi, percentualTexto)
+    .replace(/\[percentual perda\]/gi, percentualTexto)
+    .replace(/\[percentual\]/gi, percentualTexto)
+    .replace(/\[perda kwh\]/gi, perdaKwhTexto)
+    .replace(/\[perda_kwh\]/gi, perdaKwhTexto)
     .replace(/\[potência\]/gi, potenciaTexto)
     .replace(/\[potencia\]/gi, potenciaTexto)
     .replace(/\[cidade\]/gi, cidadeTexto)

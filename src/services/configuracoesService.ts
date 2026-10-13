@@ -4,6 +4,9 @@ export const STORAGE_KEY_VALOR_POR_PLACA = 'delfos_valor_limpeza_por_placa'
 export const VALOR_POR_PLACA_PADRAO_SISTEMA = 8.0
 export const CHAVE_RODAPE_COMERCIAL_RELATORIO_OS = 'rodape_comercial_relatorio_os'
 export const STORAGE_KEY_RODAPE_COMERCIAL = 'delfos_rodape_comercial_relatorio_os'
+export const STORAGE_KEY_OFERTA_LIMPEZA_MENSAGEM = 'delfos_oferta_limpeza_mensagem_padrao'
+export const STORAGE_KEY_OFERTA_LIMPEZA_PERCENTUAL = 'delfos_oferta_limpeza_percentual_perda_padrao'
+export const CHAVE_OFERTA_LIMPEZA_PADRAO = 'oferta_limpeza_config_padrao'
 
 export interface RodapeComercialConfig {
   titulo: string
@@ -259,6 +262,142 @@ export async function setRodapeComercialRelatorioOS(
     }
   } catch (err) {
     console.error('[configuracoesService] Erro ao persistir rodape_comercial no PocketBase:', err)
+  }
+
+  return finalConfig
+}
+
+export interface OfertaLimpezaConfigPadrao {
+  mensagem: string
+  percentualPerda: number
+}
+
+/**
+ * Obtém o modelo de mensagem e percentual padrão para Oferta de Limpeza Avulsa.
+ * Prioridade: PocketBase ('oferta_limpeza_config_padrao') -> localStorage -> fallback padrão.
+ */
+export async function getOfertaLimpezaConfigPadrao(
+  fallbackMensagem: string,
+  fallbackPercentual: number = 30,
+): Promise<OfertaLimpezaConfigPadrao> {
+  // 1. Tenta PocketBase
+  try {
+    const record = await pb
+      .collection('configuracoes')
+      .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_OFERTA_LIMPEZA_PADRAO}"`)
+
+    if (record) {
+      const msg = (record.dados?.mensagem as string) || (record.valor as string) || fallbackMensagem
+      const perc =
+        typeof record.dados?.percentual_perda === 'number'
+          ? record.dados.percentual_perda
+          : fallbackPercentual
+
+      if (msg) {
+        try {
+          localStorage.setItem(STORAGE_KEY_OFERTA_LIMPEZA_MENSAGEM, msg)
+          localStorage.setItem(STORAGE_KEY_OFERTA_LIMPEZA_PERCENTUAL, perc.toString())
+        } catch {
+          /* ignore */
+        }
+        return { mensagem: msg, percentualPerda: perc }
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '[configuracoesService] Falha ao ler oferta_limpeza_config_padrao do backend:',
+      err,
+    )
+  }
+
+  // 2. Fallback síncrono local
+  return getOfertaLimpezaConfigCacheSync(fallbackMensagem, fallbackPercentual)
+}
+
+/**
+ * Leitura síncrona do cache local da configuração de oferta de limpeza.
+ */
+export function getOfertaLimpezaConfigCacheSync(
+  fallbackMensagem: string,
+  fallbackPercentual: number = 30,
+): OfertaLimpezaConfigPadrao {
+  let mensagem = fallbackMensagem
+  let percentualPerda = fallbackPercentual
+
+  try {
+    const cachedMsg = localStorage.getItem(STORAGE_KEY_OFERTA_LIMPEZA_MENSAGEM)
+    if (cachedMsg && cachedMsg.trim().length > 0) {
+      mensagem = cachedMsg
+    }
+    const cachedPerc = localStorage.getItem(STORAGE_KEY_OFERTA_LIMPEZA_PERCENTUAL)
+    if (cachedPerc) {
+      const num = parseFloat(cachedPerc)
+      if (!isNaN(num) && num > 0) {
+        percentualPerda = num
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return { mensagem, percentualPerda }
+}
+
+/**
+ * Salva a mensagem e percentual de perda como novo padrão durável de oferta de limpeza.
+ * Persiste imediatamente em localStorage e assincronamente no PocketBase.
+ */
+export async function setOfertaLimpezaConfigPadrao(config: {
+  mensagem: string
+  percentualPerda: number
+}): Promise<OfertaLimpezaConfigPadrao> {
+  const finalConfig: OfertaLimpezaConfigPadrao = {
+    mensagem: config.mensagem.trim(),
+    percentualPerda: Math.max(1, Math.min(100, Math.round(config.percentualPerda))),
+  }
+
+  // 1. Grava no localStorage para carregamento imediato
+  try {
+    localStorage.setItem(STORAGE_KEY_OFERTA_LIMPEZA_MENSAGEM, finalConfig.mensagem)
+    localStorage.setItem(
+      STORAGE_KEY_OFERTA_LIMPEZA_PERCENTUAL,
+      finalConfig.percentualPerda.toString(),
+    )
+  } catch {
+    /* ignore */
+  }
+
+  // 2. Persiste no PocketBase
+  try {
+    let recordExistente: ConfiguracaoItem | null = null
+    try {
+      recordExistente = await pb
+        .collection('configuracoes')
+        .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_OFERTA_LIMPEZA_PADRAO}"`)
+    } catch {
+      recordExistente = null
+    }
+
+    const payload = {
+      chave: CHAVE_OFERTA_LIMPEZA_PADRAO,
+      valor: finalConfig.mensagem,
+      dados: {
+        mensagem: finalConfig.mensagem,
+        percentual_perda: finalConfig.percentualPerda,
+      },
+      descricao: 'Modelo de mensagem e percentual padrão da oferta de limpeza avulsa',
+    }
+
+    if (recordExistente?.id) {
+      await pb.collection('configuracoes').update(recordExistente.id, payload)
+    } else {
+      await pb.collection('configuracoes').create(payload)
+    }
+  } catch (err) {
+    console.error(
+      '[configuracoesService] Erro ao persistir oferta_limpeza_config_padrao no PocketBase:',
+      err,
+    )
   }
 
   return finalConfig

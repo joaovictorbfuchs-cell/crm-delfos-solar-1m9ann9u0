@@ -185,8 +185,44 @@ describe('ofertaLimpeza constants and helpers', () => {
     expect(msg).toContain('7,1 kWp')
     expect(msg).toContain('Erechim')
     expect(msg).toContain('R$ 350,00')
+    expect(msg).toContain('em até 30%')
     expect(msg).not.toContain('[nome do cliente]')
     expect(msg).not.toContain('[geração média]')
     expect(msg).not.toContain('[valor calculado]')
+    expect(msg).not.toContain('[perda percentual]')
+  })
+
+  it('permite passar percentual customizado de perda (ex: 15% ou 40%) e recalcula perda e mensagem dinamicamente', () => {
+    const mockCliente: Partial<Cliente> = {
+      id: 'c5',
+      nome: 'Carlos Eduardo',
+      cidade: 'Erechim',
+    }
+
+    const mockUsina: Partial<UsinaCliente> = {
+      id: 'u5',
+      cliente_id: 'c5',
+      geracao_media_mensal_kwh: 1000, // 12.000 kWh/ano
+      potencia_kwp: 10.0,
+    }
+
+    // Com 20%: 12.000 * 1.198 * 0.20 = 2.875,20
+    const calc20 = calcularPerdaAnualPorSujeira(1000, 1.198, 20)
+    expect(calc20.geracaoAnualKwh).toBe(12000)
+    expect(calc20.perdaAnualKwh).toBe(2400)
+    expect(calc20.valorPerda).toBeCloseTo(2875.2, 2)
+
+    const msg20 = resolverPlaceholdersOfertaLimpeza({
+      template: MENSAGEM_OFERTA_LIMPEZA_PADRAO,
+      cliente: mockCliente as Cliente,
+      usinasDoCliente: [mockUsina as UsinaCliente],
+      valorServico: 500.0,
+      tarifa: 1.198,
+      percentualPerda: 20,
+    })
+
+    expect(msg20).toContain('em até 20%')
+    expect(msg20).toContain('2.875,20')
+    expect(msg20).not.toContain('30%')
   })
 })

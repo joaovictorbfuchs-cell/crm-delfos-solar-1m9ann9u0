@@ -49,6 +49,7 @@ import {
   MENSAGEM_OFERTA_LIMPEZA_PADRAO,
   VALOR_BASE_LIMPEZA_PADRAO,
   VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS,
+  PERCENTUAL_PERDA_PADRAO_INT,
   TARIFA_ENERGIA_PADRAO,
   VALOR_KM_DESLOCAMENTO_LIMPEZA,
   MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA,
@@ -64,6 +65,9 @@ import {
   getValorLimpezaPorPlacaPadrao,
   getValorLimpezaPorPlacaCacheSync,
   setValorLimpezaPorPlacaPadrao,
+  getOfertaLimpezaConfigPadrao,
+  getOfertaLimpezaConfigCacheSync,
+  setOfertaLimpezaConfigPadrao,
 } from '@/services/configuracoesService'
 import { estimarDistanciaDelfosCliente } from '@/lib/calculoDeslocamentoAtividades'
 import type { Cliente, UsinaCliente, Sistema } from '@/types/crm'
@@ -121,8 +125,19 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     isSessionExpired,
   } = useClientes()
 
-  // Estado da mensagem e do valor comercial
-  const [templateTexto, setTemplateTexto] = useState(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
+  // Cache síncrono inicial da mensagem e do percentual padrão
+  const configInicial = useMemo(
+    () =>
+      getOfertaLimpezaConfigCacheSync(MENSAGEM_OFERTA_LIMPEZA_PADRAO, PERCENTUAL_PERDA_PADRAO_INT),
+    [],
+  )
+
+  // Estado da mensagem e do percentual de perda estimado
+  const [templateTexto, setTemplateTexto] = useState<string>(configInicial.mensagem)
+  const [percentualPerda, setPercentualPerda] = useState<number>(configInicial.percentualPerda)
+  const [salvandoMensagemPadrao, setSalvandoMensagemPadrao] = useState(false)
+
+  // Estado do valor comercial
   const [valorServico, setValorServico] = useState<number>(VALOR_BASE_LIMPEZA_PADRAO)
   const [valorPorPlaca, setValorPorPlaca] = useState<number>(getValorLimpezaPorPlacaCacheSync)
   const [salvandoValorPadrao, setSalvandoValorPadrao] = useState(false)
@@ -173,6 +188,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       const { geracaoAnualKwh, valorPerda } = calcularPerdaAnualPorSujeira(
         geracaoMensal,
         TARIFA_ENERGIA_PADRAO,
+        percentualPerda,
       )
       const potenciaTexto = extrairPotenciaUsinaTexto(
         cli,
@@ -203,7 +219,15 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         numeroLimpo: validacao.numeroLimpo || resolucao.numeroLimpo || '',
       }
     })
-  }, [clientes, contatosAdicionais, clienteContexto, sistemaContexto, sistemas, usinasContexto])
+  }, [
+    clientes,
+    contatosAdicionais,
+    clienteContexto,
+    sistemaContexto,
+    sistemas,
+    usinasContexto,
+    percentualPerda,
+  ])
 
   // Filtragem pela busca
   const clientesFiltrados = useMemo(() => {
@@ -236,6 +260,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       const { geracaoAnualKwh, valorPerda } = calcularPerdaAnualPorSujeira(
         geracaoMensal,
         TARIFA_ENERGIA_PADRAO,
+        percentualPerda,
       )
       const potenciaTexto = extrairPotenciaUsinaTexto(
         clienteContexto,
@@ -282,6 +307,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     usinasContexto,
     sistemaContexto,
     sistemas,
+    percentualPerda,
   ])
 
   // Número de placas do cliente focado/atual (requisito 2)
@@ -337,13 +363,31 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       return
     }
 
-    setTemplateTexto(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
+    // Carrega a configuração padrão salva (mensagem e percentual de perda)
+    const confCache = getOfertaLimpezaConfigCacheSync(
+      MENSAGEM_OFERTA_LIMPEZA_PADRAO,
+      PERCENTUAL_PERDA_PADRAO_INT,
+    )
+    setTemplateTexto(confCache.mensagem)
+    setPercentualPerda(confCache.percentualPerda)
+
     setValorPorKm(VALOR_KM_DESLOCAMENTO_LIMPEZA)
     setAuthErrorCapturado(false)
     setProgressoEnvio(null)
 
-    // Sincroniza com o valor persistido no PocketBase ou cache
+    // Sincroniza com os valores persistidos no PocketBase
     let ativo = true
+    getOfertaLimpezaConfigPadrao(MENSAGEM_OFERTA_LIMPEZA_PADRAO, PERCENTUAL_PERDA_PADRAO_INT).then(
+      (cfg) => {
+        if (ativo && cfg) {
+          if (cfg.mensagem) setTemplateTexto(cfg.mensagem)
+          if (typeof cfg.percentualPerda === 'number' && cfg.percentualPerda > 0) {
+            setPercentualPerda(cfg.percentualPerda)
+          }
+        }
+      },
+    )
+
     getValorLimpezaPorPlacaPadrao().then((v) => {
       if (ativo && v > 0) {
         setValorPorPlaca(v)
@@ -464,8 +508,33 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       usinasDoCliente: clienteFocado.usina ? ([clienteFocado.usina as any] as UsinaCliente[]) : [],
       valorServico: valorTotalCalculado,
       tarifa: TARIFA_ENERGIA_PADRAO,
+      percentualPerda,
     })
-  }, [templateTexto, clienteFocado, valorTotalCalculado])
+  }, [templateTexto, clienteFocado, valorTotalCalculado, percentualPerda])
+
+  // Handler para salvar a mensagem atual e percentual de perda como padrão
+  const handleSalvarComoPadrao = async () => {
+    if (!templateTexto.trim()) {
+      toast.error('O modelo da mensagem não pode ficar vazio.')
+      return
+    }
+
+    setSalvandoMensagemPadrao(true)
+    try {
+      await setOfertaLimpezaConfigPadrao({
+        mensagem: templateTexto,
+        percentualPerda,
+      })
+      toast.success('Modelo salvo como padrão!', {
+        description: `Mensagem e perda estimada de ${percentualPerda}% gravadas para as próximas ofertas.`,
+      })
+    } catch (err) {
+      console.error('Erro ao salvar mensagem padrão:', err)
+      toast.error('Erro ao salvar mensagem padrão.')
+    } finally {
+      setSalvandoMensagemPadrao(false)
+    }
+  }
 
   // Handlers de seleção
   const handleToggleCliente = (clienteId: string) => {
@@ -564,7 +633,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         const detalheDeslocamento = incluirDeslocamento
           ? ` (inclui ${distanciaKm} km de deslocamento ida/volta: ${formatCurrency(valorDeslocamentoCalculado)})`
           : ''
-        const descHistorico = `Oferta de limpeza avulsa enviada via WhatsApp para ${item.cliente.nome}. Placas: ${numeroPlacasCalculado} un. Valor do serviço: ${formatCurrency(valorServico)}${detalheDeslocamento}. Total: ${formatCurrency(valorTotalCalculado)}. Perda estimada por sujeira: ${formatCurrency(item.valorPerdaAnual)}/ano.`
+        const descHistorico = `Oferta de limpeza avulsa enviada via WhatsApp para ${item.cliente.nome}. Placas: ${numeroPlacasCalculado} un. Valor do serviço: ${formatCurrency(valorServico)}${detalheDeslocamento}. Total: ${formatCurrency(valorTotalCalculado)}. Perda estimada por sujeira (${percentualPerda}%): ${formatCurrency(item.valorPerdaAnual)}/ano.`
 
         await addAtividade({
           cliente_id: item.cliente.id,
@@ -647,6 +716,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         usinasDoCliente: item.usina ? ([item.usina as any] as UsinaCliente[]) : [],
         valorServico: valorTotalCalculado,
         tarifa: TARIFA_ENERGIA_PADRAO,
+        percentualPerda,
       })
       const mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
 
@@ -666,7 +736,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
           usina_id: item.usina?.id,
           tipo: 'oferecer_limpeza_avulsa',
           titulo: 'Oferecer Limpeza Avulsa',
-          descricao: `Oferta enviada via WhatsApp: investimento de ${formatCurrency(valorTotalCalculado)}, perda estimada por sujeira de ${formatCurrency(item.valorPerdaAnual)}/ano.`,
+          descricao: `Oferta enviada via WhatsApp: investimento de ${formatCurrency(valorTotalCalculado)}, perda estimada por sujeira (${percentualPerda}%): ${formatCurrency(item.valorPerdaAnual)}/ano.`,
           data: agora,
           status: 'concluida',
           autor: 'CRM Delfos Solar',
@@ -983,19 +1053,49 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                   </div>
                 </div>
 
-                {/* Informações da Usina e Perda Financeira por Sujeira */}
-                <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
-                  <div className="p-2 bg-white rounded-lg border border-gray-200">
-                    <span className="text-gray-400 block font-medium">Geração Estimada</span>
-                    <span className="font-bold text-gray-800 text-xs">
-                      {Math.round(clienteFocado.geracaoMensal)} kWh/mês
-                    </span>
+                {/* Informações da Usina e Perda Financeira por Sujeira com Percentual Editável */}
+                <div className="space-y-2 bg-white p-3 rounded-lg border border-emerald-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label
+                      htmlFor="percentual-perda-input"
+                      className="text-xs font-bold text-gray-800 flex items-center gap-1.5"
+                    >
+                      <TrendingDown className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Perda Estimada</span>
+                    </Label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        id="percentual-perda-input"
+                        type="number"
+                        min="5"
+                        max="100"
+                        step="5"
+                        value={percentualPerda}
+                        onChange={(e) => {
+                          const val = Number(e.target.value)
+                          setPercentualPerda(Math.max(1, Math.min(100, isNaN(val) ? 0 : val)))
+                        }}
+                        className="h-7 w-18 text-right text-xs font-bold bg-white text-rose-700 px-2"
+                      />
+                      <span className="text-xs font-bold text-rose-700">%</span>
+                    </div>
                   </div>
-                  <div className="p-2 bg-white rounded-lg border border-gray-200">
-                    <span className="text-gray-400 block font-medium">Perda Estimada 30%</span>
-                    <span className="font-bold text-rose-700 text-xs">
-                      {formatCurrency(clienteFocado.valorPerdaAnual)}/ano
-                    </span>
+
+                  <div className="grid grid-cols-2 gap-2 text-center text-[10px] pt-1 border-t border-gray-100">
+                    <div className="p-1.5 bg-slate-50 rounded border border-gray-200">
+                      <span className="text-gray-400 block font-medium">Geração Estimada</span>
+                      <span className="font-bold text-gray-800 text-xs">
+                        {Math.round(clienteFocado.geracaoMensal)} kWh/mês
+                      </span>
+                    </div>
+                    <div className="p-1.5 bg-rose-50/60 rounded border border-rose-200">
+                      <span className="text-rose-900 block font-medium">
+                        Perda Anual ({percentualPerda}%)
+                      </span>
+                      <span className="font-bold text-rose-700 text-xs">
+                        {formatCurrency(clienteFocado.valorPerdaAnual)}/ano
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1103,7 +1203,8 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                                 <span>•</span>
                                 <span className="text-rose-700 font-semibold flex items-center gap-0.5">
                                   <TrendingDown className="w-3 h-3" />
-                                  Perda: {formatCurrency(item.valorPerdaAnual)}/ano
+                                  Perda ({percentualPerda}%): {formatCurrency(item.valorPerdaAnual)}
+                                  /ano
                                 </span>
                               </div>
                             </div>
@@ -1349,19 +1450,40 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
               </div>
             </div>
 
-            {/* Editor de Texto com Placeholders */}
+            {/* Editor de Texto com Placeholders e Ações de Salvar como Padrão */}
             <div className="space-y-1.5 flex-1 flex flex-col">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
                   Modelo da Mensagem (com placeholders)
                 </Label>
-                <button
-                  type="button"
-                  onClick={() => setTemplateTexto(MENSAGEM_OFERTA_LIMPEZA_PADRAO)}
-                  className="text-[11px] text-gray-500 hover:text-emerald-700 underline"
-                >
-                  Restaurar padrão
-                </button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={salvandoMensagemPadrao}
+                    onClick={handleSalvarComoPadrao}
+                    className="h-7 text-[11px] px-2.5 bg-white hover:bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-2xs"
+                    title="Salvar texto atual e percentual de perda como modelo padrão para as próximas ofertas"
+                  >
+                    {salvandoMensagemPadrao ? (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    ) : (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-1" />
+                    )}
+                    <span>Salvar como padrão</span>
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateTexto(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
+                      setPercentualPerda(PERCENTUAL_PERDA_PADRAO_INT)
+                    }}
+                    className="text-[11px] text-gray-500 hover:text-emerald-700 underline"
+                  >
+                    Restaurar original
+                  </button>
+                </div>
               </div>
 
               <Textarea
@@ -1380,6 +1502,9 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                 </span>
                 <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">
                   [geração média]
+                </span>
+                <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">
+                  [perda percentual]
                 </span>
                 <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">
                   [valor calculado]
@@ -1432,7 +1557,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                     </span>
                   </div>
                   <div className="p-1.5 bg-white rounded border border-gray-200">
-                    <span className="text-gray-400 block">Perda Estimada 30%</span>
+                    <span className="text-gray-400 block">Perda Estimada {percentualPerda}%</span>
                     <span className="font-bold text-rose-700">
                       {formatCurrency(clienteFocado.valorPerdaAnual)}/ano
                     </span>

@@ -165,4 +165,61 @@ describe('ModalOferecerLimpezaAvulsa - Cálculo de Limpeza com Valor Editável p
       expect(inputServico.value).toBe('1600')
     })
   })
+
+  it('permite editar o percentual de perda estimada (ex: 25%) e atualiza valores e mensagem em tempo real', async () => {
+    render(
+      <ModalOferecerLimpezaAvulsa
+        open={true}
+        onOpenChange={vi.fn()}
+        initialClienteId={clienteMock.id}
+        modoIndividual={true}
+        clienteContexto={clienteMock as any}
+      />,
+    )
+
+    // O input de percentual de perda deve existir com valor inicial 30
+    const inputPercentual = screen.getByLabelText(/Perda Estimada/i) as HTMLInputElement
+    expect(inputPercentual).toBeDefined()
+    expect(inputPercentual.value).toBe('30')
+
+    // Altera o percentual para 20%
+    fireEvent.change(inputPercentual, { target: { value: '20' } })
+    expect(inputPercentual.value).toBe('20')
+
+    // Verifica que o card exibe Perda Anual (20%)
+    await waitFor(() => {
+      expect(screen.getByText(/Perda Anual \(20%\)/i)).toBeDefined()
+    })
+  })
+
+  it('salva mensagem e percentual de perda como padrão ao clicar em "Salvar como padrão"', async () => {
+    const spySetOfertaPadrao = vi.spyOn(configuracoesService, 'setOfertaLimpezaConfigPadrao')
+
+    render(
+      <ModalOferecerLimpezaAvulsa
+        open={true}
+        onOpenChange={vi.fn()}
+        initialClienteId={clienteMock.id}
+        modoIndividual={true}
+        clienteContexto={clienteMock as any}
+      />,
+    )
+
+    // Ajusta o percentual para 25%
+    const inputPercentual = screen.getByLabelText(/Perda Estimada/i) as HTMLInputElement
+    fireEvent.change(inputPercentual, { target: { value: '25' } })
+
+    // Clica no botão "Salvar como padrão"
+    const botaoSalvarPadrao = screen.getByRole('button', { name: /Salvar como padrão/i })
+    expect(botaoSalvarPadrao).toBeDefined()
+    fireEvent.click(botaoSalvarPadrao)
+
+    await waitFor(() => {
+      expect(spySetOfertaPadrao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          percentualPerda: 25,
+        }),
+      )
+    })
+  })
 })
