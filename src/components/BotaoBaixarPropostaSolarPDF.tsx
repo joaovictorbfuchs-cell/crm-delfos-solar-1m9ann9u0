@@ -67,8 +67,23 @@ export const BotaoBaixarPropostaSolarPDF: React.FC<BotaoBaixarPropostaSolarPDFPr
     }
   }
 
-  return
-  null
+  return (
+    <Button
+      type="button"
+      variant={variante}
+      size={tamanho}
+      disabled={desabilitado || gerando}
+      onClick={handleBaixar}
+      className={className || 'gap-1.5 font-bold cursor-pointer'}
+    >
+      {gerando ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : (
+        <Download className="w-3.5 h-3.5" />
+      )}
+      <span>{gerando ? 'Gerando PDF...' : rotulo}</span>
+    </Button>
+  )
 }
 
 /**
