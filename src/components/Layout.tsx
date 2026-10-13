@@ -188,7 +188,7 @@ export default function Layout() {
   }
 
   // Itens secundários agrupados no painel flutuante (flyout) "Mais Opções"
-  // Conforme solicitação do usuário para eliminar a barra de rolagem da sidebar
+  // Conforme solicitação do usuário, Configurações subiu para a sequência principal da sidebar
   const maisOpcoesItems: NavSubItem[] = [
     {
       name: 'Automações',
@@ -238,19 +238,13 @@ export default function Layout() {
       icon: BookOpen,
       description: 'Documentos e procedimentos',
     },
-    {
-      name: 'Configurações',
-      path: '/equipamentos',
-      icon: Settings,
-      description: 'Logotipo, WhatsApp, notificações e tarifas',
-    },
   ]
 
   const isMaisOpcoesActive = maisOpcoesItems.some((sub) => location.pathname === sub.path)
 
   // Itens principais fixos visíveis na sidebar desktop
   // Para instalador: apenas "Serviços"
-  // Para admin: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços, O&M, Clientes, Contatos
+  // Para admin: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços, O&M, Clientes, Contatos e Configurações (logo abaixo na sequência)
   const navItems: NavItem[] = isInstalador
     ? [{ name: 'Serviços', path: '/servicos-campo', icon: Wrench }]
     : [
@@ -263,6 +257,7 @@ export default function Layout() {
         { name: 'O&M', path: '/manutencoes', icon: ShieldCheck },
         { name: 'Clientes', path: '/clientes', icon: Users },
         { name: 'Contatos', path: '/contatos', icon: Contact },
+        { name: 'Configurações', path: '/equipamentos', icon: Settings },
       ]
 
   const isManutencoesSectionActive =
@@ -306,11 +301,10 @@ export default function Layout() {
           </NavLink>
         </div>
 
-        {/* Navigation Links: lista com densidade ultra otimizada para todos os 9 itens principais
-            cabem integralmente sem corte vertical (Dashboard e Comercial 100% visíveis no topo),
-            com overflow-y-auto e scrollbar oculta como salvaguarda preventiva */}
-        <nav className="flex-1 px-1 py-1 min-h-0 flex flex-col justify-between overflow-hidden">
-          <div className="flex-1 flex flex-col justify-start min-h-0 overflow-y-auto overscroll-contain pr-0.5 space-y-[2px] scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {/* Navigation Links: lista com todos os itens principais visíveis (Dashboard até Contatos, seguido de Configurações),
+            cabem integralmente sem rolagem e sem corte vertical. overflow-y-auto habilitado como garantia para telas menores */}
+        <nav className="flex-1 px-1 py-1 min-h-0 flex flex-col justify-between overflow-y-auto overflow-x-visible scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex flex-col justify-start space-y-[2px]">
             {navItems.map((item) => {
               const Icon = item.icon
               const itemPath = item.path
@@ -327,7 +321,7 @@ export default function Layout() {
                     location.pathname === '/planos-monitoramento'))
 
               return (
-                <div key={itemPath} className="w-full">
+                <div key={`${item.name}-${itemPath}`} className="w-full">
                   <NavLink
                     to={itemPath}
                     title={item.name}
@@ -378,9 +372,9 @@ export default function Layout() {
                 }`}
               >
                 <div className="relative flex items-center justify-center">
-                  <Settings
+                  <MoreHorizontal
                     className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
-                      maisOpcoesOpen ? 'rotate-45' : 'group-hover:scale-110'
+                      maisOpcoesOpen ? 'rotate-90' : 'group-hover:scale-110'
                     } ${
                       maisOpcoesOpen || isMaisOpcoesActive
                         ? 'text-[#16A34A]'
@@ -404,7 +398,7 @@ export default function Layout() {
                   - Card branco com cantos arredondados (rounded-xl)
                   - Sombra projetada elegante (shadow-xl)
                   - Borda sutil (border border-gray-200)
-                  - Cabeçalho "Configurar" ou "Mais Opções"
+                  - Cabeçalho "Mais Opções"
                   - Linhas com ícone à esquerda + rótulo (+ subtítulo sutil opcional)
                   - Posicionado flutuante à direita da sidebar (left-[84px] bottom-0)
                   - max-h-[75vh] para abrir acima do botão sem ser cortado pela janela
@@ -425,7 +419,7 @@ export default function Layout() {
                   <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-md bg-emerald-50 text-[#16A34A] flex items-center justify-center">
-                        <Settings className="w-3.5 h-3.5" />
+                        <MoreHorizontal className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-sm font-semibold text-gray-800">Mais Opções</span>
                     </div>

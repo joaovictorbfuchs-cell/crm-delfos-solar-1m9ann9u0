@@ -52,7 +52,7 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
       </MemoryRouter>,
     )
 
-    // Itens principais fixos
+    // Itens principais fixos (incluindo Configurações na sequência principal)
     expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Comercial').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Propostas').length).toBeGreaterThan(0)
@@ -62,10 +62,11 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     expect(screen.getAllByText('O&M').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Clientes').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Contatos').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Configurações').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Mais Opções').length).toBeGreaterThan(0)
   })
 
-  it('abre o flyout Mais Opções ao clicar no botão e lista itens secundários', () => {
+  it('abre o flyout Mais Opções ao clicar no botão e lista itens secundários sem Configurações no flyout', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Layout />
@@ -94,7 +95,6 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     expect(screen.getByText('Importar Clientes')).not.toBeNull()
     expect(screen.getByText('Gerenciar usuários')).not.toBeNull()
     expect(screen.getByText('Base de Conhecimento')).not.toBeNull()
-    expect(screen.getByText('Configurações')).not.toBeNull()
 
     // Fecha pelo botão de fechar (X)
     const botaoFechar = screen.getByRole('button', { name: /Fechar/i })
