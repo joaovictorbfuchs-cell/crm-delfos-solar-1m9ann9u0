@@ -41,7 +41,7 @@ describe('Medição de tamanho de imagens para diagnóstico', () => {
     add('monitoramentoPngAsset', monitoramentoPngAsset)
     USINAS_PORTFOLIO_PADRAO.forEach((u) => add(`usina_${u.id}`, u.fotoBase64))
 
-    throw new Error(`[MEDICAO_IMAGEM_RESULT] ${JSON.stringify(report)}`)
+    expect(report.logoOficialPngAsset.bytes).toBeGreaterThan(0)
   })
 })
 
@@ -1421,6 +1421,61 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
       expect(html).toMatch(/#secao-5-investimento-pagamento\s*\{[^}]*page-break-before:\s*always/s)
       expect(html).toMatch(/#secao-5-investimento-pagamento\s*\{[^}]*break-before:\s*page/s)
+    })
+  })
+
+  describe('Proteção permanente contra regressão do @media print (v0.0.1162)', () => {
+    it('garante que o bloco @media print preserva a paginação discreta A4 e regras estritas da v0.0.1162', () => {
+      const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+
+      // 1. Cada seção .proposta-secao-page como página A4 discreta com flex vertical e padding 7mm
+      expect(html).toMatch(/\.proposta-secao-page\s*\{[^}]*display:\s*flex\s*!important;/)
+      expect(html).toMatch(/\.proposta-secao-page\s*\{[^}]*flex-direction:\s*column\s*!important;/)
+      expect(html).toMatch(
+        /\.proposta-secao-page\s*\{[^}]*justify-content:\s*space-between\s*!important;/,
+      )
+      expect(html).toMatch(
+        /\.proposta-secao-page\s*\{[^}]*page-break-after:\s*always\s*!important;/,
+      )
+      expect(html).toMatch(/\.proposta-secao-page\s*\{[^}]*break-after:\s*page\s*!important;/)
+      expect(html).toMatch(/\.proposta-secao-page\s*\{[^}]*padding:\s*7mm\s*!important;/)
+
+      // 2. Última seção / Seção 5 sem quebra final extra
+      expect(html).toMatch(
+        /\.proposta-secao-page:last-of-type,\s*#secao-5-investimento-pagamento\s*\{[^}]*page-break-after:\s*auto\s*!important;/,
+      )
+      expect(html).toMatch(
+        /\.proposta-secao-page:last-of-type,\s*#secao-5-investimento-pagamento\s*\{[^}]*break-after:\s*auto\s*!important;/,
+      )
+
+      // 3. Seção 5 inicia em página nova
+      expect(html).toMatch(
+        /#secao-5-investimento-pagamento\s*\{[^}]*page-break-before:\s*always\s*!important;/,
+      )
+      expect(html).toMatch(
+        /#secao-5-investimento-pagamento\s*\{[^}]*break-before:\s*page\s*!important;/,
+      )
+
+      // 4. Rodapé fixo (.print-fixed-footer) em position: fixed e padding-bottom 22mm no contêiner
+      expect(html).toMatch(/\.proposta-container\s*\{[^}]*padding-bottom:\s*22mm\s*!important;/)
+      expect(html).toMatch(/\.print-fixed-footer\s*\{[^}]*position:\s*fixed\s*!important;/)
+      expect(html).toMatch(/\.print-fixed-footer\s*\{[^}]*bottom:\s*0\s*!important;/)
+
+      // 5. Restrição de page-break-inside no @media print aos blocos indivisíveis necessários
+      const mediaPrintMatch = html.match(/@media print\s*\{([\s\S]*?)\}\s*<\/style>/)
+      expect(mediaPrintMatch).not.toBeNull()
+      const mediaPrintContent = mediaPrintMatch![1]
+
+      expect(mediaPrintContent).toContain('.bloco-assinaturas')
+      expect(mediaPrintContent).toContain('.assinatura-bloco')
+      expect(mediaPrintContent).toContain('.badge-urgencia-validade')
+
+      // Certifica que não foi reintroduzido page-break-inside avoid para tabelas ou cards no print
+      expect(mediaPrintContent).not.toMatch(/table\s*\{[^}]*page-break-inside:\s*avoid/i)
+      expect(mediaPrintContent).not.toMatch(/\.card-sistema\s*\{[^}]*page-break-inside:\s*avoid/i)
+      expect(mediaPrintContent).not.toMatch(
+        /\.card-marco-inercia\s*\{[^}]*page-break-inside:\s*avoid/i,
+      )
     })
   })
 })
