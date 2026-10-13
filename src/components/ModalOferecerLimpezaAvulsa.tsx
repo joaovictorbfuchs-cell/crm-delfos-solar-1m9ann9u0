@@ -123,6 +123,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     updateCliente,
     whatsAppConfig,
     isSessionExpired,
+    refreshData,
   } = useClientes()
 
   // Cache síncrono inicial da mensagem e do percentual padrão
@@ -136,6 +137,12 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
   const [templateTexto, setTemplateTexto] = useState<string>(configInicial.mensagem)
   const [percentualPerda, setPercentualPerda] = useState<number>(configInicial.percentualPerda)
   const [salvandoMensagemPadrao, setSalvandoMensagemPadrao] = useState(false)
+
+  // Flags para rastrear se o usuário já editou ativamente os campos nesta sessão do modal
+  const usuarioEditouMensagemRef = React.useRef(false)
+  const usuarioEditouPercentualRef = React.useRef(false)
+  const usuarioEditouValorServicoRef = React.useRef(false)
+  const usuarioEditouValorPorPlacaRef = React.useRef(false)
 
   // Estado do valor comercial
   const [valorServico, setValorServico] = useState<number>(VALOR_BASE_LIMPEZA_PADRAO)
@@ -360,10 +367,20 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       setEditandoTelefoneId(null)
       setIncluirDeslocamento(false)
       setValorPorKm(VALOR_KM_DESLOCAMENTO_LIMPEZA)
+      usuarioEditouMensagemRef.current = false
+      usuarioEditouPercentualRef.current = false
+      usuarioEditouValorServicoRef.current = false
+      usuarioEditouValorPorPlacaRef.current = false
       return
     }
 
-    // Carrega a configuração padrão salva (mensagem e percentual de perda)
+    // Reseta flags de edição do usuário ao reabrir o modal
+    usuarioEditouMensagemRef.current = false
+    usuarioEditouPercentualRef.current = false
+    usuarioEditouValorServicoRef.current = false
+    usuarioEditouValorPorPlacaRef.current = false
+
+    // Carrega a configuração padrão salva (mensagem e percentual de perda) do cache local imediato
     const confCache = getOfertaLimpezaConfigCacheSync(
       MENSAGEM_OFERTA_LIMPEZA_PADRAO,
       PERCENTUAL_PERDA_PADRAO_INT,
@@ -375,24 +392,45 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     setAuthErrorCapturado(false)
     setProgressoEnvio(null)
 
-    // Sincroniza com os valores persistidos no PocketBase
     let ativo = true
+
+    // 1. Sincroniza com os valores persistidos no PocketBase para configuração padrão
     getOfertaLimpezaConfigPadrao(MENSAGEM_OFERTA_LIMPEZA_PADRAO, PERCENTUAL_PERDA_PADRAO_INT).then(
       (cfg) => {
         if (ativo && cfg) {
-          if (cfg.mensagem) setTemplateTexto(cfg.mensagem)
-          if (typeof cfg.percentualPerda === 'number' && cfg.percentualPerda > 0) {
+          // Atualiza apenas se o usuário AINDA não tiver digitado nada
+          if (!usuarioEditouMensagemRef.current && cfg.mensagem) {
+            setTemplateTexto(cfg.mensagem)
+          }
+          if (
+            !usuarioEditouPercentualRef.current &&
+            typeof cfg.percentualPerda === 'number' &&
+            cfg.percentualPerda > 0
+          ) {
             setPercentualPerda(cfg.percentualPerda)
           }
         }
       },
     )
 
+    // 2. Busca fresca do valor padrão por placa no PocketBase
     getValorLimpezaPorPlacaPadrao().then((v) => {
       if (ativo && v > 0) {
-        setValorPorPlaca(v)
+        if (!usuarioEditouValorPorPlacaRef.current) {
+          setValorPorPlaca(v)
+        }
       }
     })
+
+    // 3. Atualiza dados frescos do CRM (clientes/usinas/sistemas) via refreshData em background
+    if (typeof refreshData === 'function') {
+      refreshData().catch((err) => {
+        console.warn(
+          '[ModalOferecerLimpezaAvulsa] Erro silencioso ao atualizar dados frescos:',
+          err,
+        )
+      })
+    }
 
     const precoBasePlaca = getValorLimpezaPorPlacaCacheSync()
 
@@ -458,10 +496,11 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
 
   // Handler para alteração do valor por placa e persistência como novo padrão
   const handleAlterarValorPorPlaca = async (novoValor: number) => {
+    usuarioEditouValorPorPlacaRef.current = true
     const limpo = Math.max(0, novoValor)
     setValorPorPlaca(limpo)
     if (limpo > 0) {
-      // Recalcula o valor sugerido de limpeza em tempo real
+      // Recalcula o valor sugerido de limpeza em tempo real se o usuário não tiver travado um valor manual
       const novoSugerido = calcularValorLimpezaPorPlacas(numeroPlacasCalculado, limpo)
       setValorServico(novoSugerido)
 
@@ -1067,6 +1106,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                         step={5}
                         value={percentualPerda === 0 ? '' : percentualPerda}
                         onChange={(e) => {
+                          usuarioEditouPercentualRef.current = true
                           const raw = e.target.value
                           if (raw === '') {
                             setPercentualPerda(0)
@@ -1079,6 +1119,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                           }
                         }}
                         onBlur={() => {
+                          usuarioEditouPercentualRef.current = true
                           // Ao sair do campo, garante a faixa válida de 5% a 100%
                           if (percentualPerda < 5) {
                             setPercentualPerda(5)
@@ -1346,14 +1387,20 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                   step="10"
                   min="0"
                   value={valorServico}
-                  onChange={(e) => setValorServico(Number(e.target.value) || 0)}
+                  onChange={(e) => {
+                    usuarioEditouValorServicoRef.current = true
+                    setValorServico(Number(e.target.value) || 0)
+                  }}
                   className="bg-white text-xs sm:text-sm font-bold text-gray-900"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setValorServico(valorSugeridoLimpeza || VALOR_BASE_LIMPEZA_PADRAO)}
+                  onClick={() => {
+                    usuarioEditouValorServicoRef.current = false
+                    setValorServico(valorSugeridoLimpeza || VALOR_BASE_LIMPEZA_PADRAO)
+                  }}
                   className="text-xs h-9 text-gray-600 shrink-0"
                   title={`Restaurar valor sugerido (${formatCurrency(valorSugeridoLimpeza)})`}
                 >
@@ -1487,6 +1534,8 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                   <button
                     type="button"
                     onClick={() => {
+                      usuarioEditouMensagemRef.current = true
+                      usuarioEditouPercentualRef.current = true
                       setTemplateTexto(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
                       setPercentualPerda(PERCENTUAL_PERDA_PADRAO_INT)
                     }}
@@ -1500,7 +1549,10 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
               <Textarea
                 rows={5}
                 value={templateTexto}
-                onChange={(e) => setTemplateTexto(e.target.value)}
+                onChange={(e) => {
+                  usuarioEditouMensagemRef.current = true
+                  setTemplateTexto(e.target.value)
+                }}
                 className="text-xs font-mono bg-white resize-none p-2.5 leading-relaxed"
                 placeholder="Digite o texto com os placeholders..."
               />

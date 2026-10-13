@@ -48,7 +48,9 @@ export async function getValorLimpezaPorPlacaPadrao(): Promise<number> {
   try {
     const record = await pb
       .collection('configuracoes')
-      .getFirstListItem<ConfiguracaoItem>('chave = "valor_limpeza_por_placa"')
+      .getFirstListItem<ConfiguracaoItem>('chave = "valor_limpeza_por_placa"', {
+        requestKey: null,
+      })
 
     if (record) {
       let num = 0
@@ -119,7 +121,9 @@ export async function setValorLimpezaPorPlacaPadrao(novoValor: number): Promise<
     try {
       recordExistente = await pb
         .collection('configuracoes')
-        .getFirstListItem<ConfiguracaoItem>('chave = "valor_limpeza_por_placa"')
+        .getFirstListItem<ConfiguracaoItem>('chave = "valor_limpeza_por_placa"', {
+          requestKey: null,
+        })
     } catch (_) {
       recordExistente = null
     }
@@ -132,9 +136,22 @@ export async function setValorLimpezaPorPlacaPadrao(novoValor: number): Promise<
     }
 
     if (recordExistente?.id) {
-      await pb.collection('configuracoes').update(recordExistente.id, payload)
+      await pb.collection('configuracoes').update(recordExistente.id, payload, { requestKey: null })
     } else {
-      await pb.collection('configuracoes').create(payload)
+      try {
+        await pb.collection('configuracoes').create(payload, { requestKey: null })
+      } catch (createErr) {
+        const itemRecente = await pb
+          .collection('configuracoes')
+          .getFirstListItem<ConfiguracaoItem>('chave = "valor_limpeza_por_placa"', {
+            requestKey: null,
+          })
+        if (itemRecente?.id) {
+          await pb.collection('configuracoes').update(itemRecente.id, payload, { requestKey: null })
+        } else {
+          throw createErr
+        }
+      }
     }
   } catch (err) {
     console.error('[configuracoesService] Erro ao persistir valor no PocketBase:', err)
@@ -284,7 +301,9 @@ export async function getOfertaLimpezaConfigPadrao(
   try {
     const record = await pb
       .collection('configuracoes')
-      .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_OFERTA_LIMPEZA_PADRAO}"`)
+      .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_OFERTA_LIMPEZA_PADRAO}"`, {
+        requestKey: null,
+      })
 
     if (record) {
       const msg = (record.dados?.mensagem as string) || (record.valor as string) || fallbackMensagem
@@ -367,13 +386,15 @@ export async function setOfertaLimpezaConfigPadrao(config: {
     /* ignore */
   }
 
-  // 2. Persiste no PocketBase
+  // 2. Persiste no PocketBase com create/update explícito e requestKey: null
   try {
     let recordExistente: ConfiguracaoItem | null = null
     try {
       recordExistente = await pb
         .collection('configuracoes')
-        .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_OFERTA_LIMPEZA_PADRAO}"`)
+        .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_OFERTA_LIMPEZA_PADRAO}"`, {
+          requestKey: null,
+        })
     } catch {
       recordExistente = null
     }
@@ -389,15 +410,41 @@ export async function setOfertaLimpezaConfigPadrao(config: {
     }
 
     if (recordExistente?.id) {
-      await pb.collection('configuracoes').update(recordExistente.id, payload)
+      await pb.collection('configuracoes').update(recordExistente.id, payload, { requestKey: null })
     } else {
-      await pb.collection('configuracoes').create(payload)
+      // Se não existir, tenta criar; se houver conflito de índice único concorrente, busca novamente e faz update
+      try {
+        await pb.collection('configuracoes').create(payload, { requestKey: null })
+      } catch (createErr) {
+        const itemRecente = await pb
+          .collection('configuracoes')
+          .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_OFERTA_LIMPEZA_PADRAO}"`, {
+            requestKey: null,
+          })
+        if (itemRecente?.id) {
+          await pb.collection('configuracoes').update(itemRecente.id, payload, { requestKey: null })
+        } else {
+          throw createErr
+        }
+      }
+    }
+
+    // Atualiza novamente o cache após confirmação de sucesso da persistência
+    try {
+      localStorage.setItem(STORAGE_KEY_OFERTA_LIMPEZA_MENSAGEM, finalConfig.mensagem)
+      localStorage.setItem(
+        STORAGE_KEY_OFERTA_LIMPEZA_PERCENTUAL,
+        finalConfig.percentualPerda.toString(),
+      )
+    } catch {
+      /* ignore */
     }
   } catch (err) {
     console.error(
       '[configuracoesService] Erro ao persistir oferta_limpeza_config_padrao no PocketBase:',
       err,
     )
+    throw err
   }
 
   return finalConfig
