@@ -393,14 +393,14 @@ export const FichaOMDrawer: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-4 sm:px-6 bg-[#F8FAF9] border-b border-gray-200/90 flex items-center gap-1 overflow-x-auto scrollbar-none">
+        <div className="px-4 sm:px-6 bg-[#F8FAF9] border-b border-gray-200/90 flex items-end gap-1 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('contrato')}
-            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap rounded-t-lg ${
               activeTab === 'contrato'
-                ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
+                ? 'border-[#16A34A] text-[#166534] bg-white shadow-xs'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100/60'
             }`}
           >
             <FileText className="w-4 h-4 text-emerald-600" />
@@ -410,10 +410,10 @@ export const FichaOMDrawer: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('adicionais')}
-            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap rounded-t-lg ${
               activeTab === 'adicionais'
-                ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
+                ? 'border-[#16A34A] text-[#166534] bg-white shadow-xs'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100/60'
             }`}
           >
             <Wrench className="w-4 h-4 text-blue-600" />
@@ -428,10 +428,10 @@ export const FichaOMDrawer: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('historico')}
-            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap rounded-t-lg ${
               activeTab === 'historico'
-                ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
+                ? 'border-[#16A34A] text-[#166534] bg-white shadow-xs'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100/60'
             }`}
           >
             <History className="w-4 h-4 text-gray-600" />

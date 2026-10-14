@@ -1565,15 +1565,15 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         </div>
 
         {/* Abas Superiores */}
-        <div className="border-b border-gray-200 bg-gray-50/70 px-5 pt-2 flex items-center justify-between gap-2 overflow-x-auto shrink-0">
-          <div className="flex items-center gap-1">
+        <div className="border-b border-gray-200 bg-gray-50/70 px-5 pt-2 flex items-end justify-between gap-2 overflow-x-auto shrink-0">
+          <div className="flex items-end gap-1">
             <button
               type="button"
               onClick={() => setActiveTab('tecnico')}
-              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap rounded-t-lg ${
                 activeTab === 'tecnico'
-                  ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
+                  ? 'border-[#16A34A] text-[#166534] bg-white shadow-xs'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
               }`}
             >
               <Sun className="w-4 h-4 text-emerald-600" />
@@ -1583,10 +1583,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('custos')}
-              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap rounded-t-lg ${
                 activeTab === 'custos'
-                  ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
+                  ? 'border-[#16A34A] text-[#166534] bg-white shadow-xs'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
               }`}
             >
               <DollarSign className="w-4 h-4 text-emerald-600" />
@@ -1601,10 +1601,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('parcelamentos')}
-              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap rounded-t-lg ${
                 activeTab === 'parcelamentos'
-                  ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
+                  ? 'border-[#16A34A] text-[#166534] bg-white shadow-xs'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
               }`}
             >
               <CreditCard className="w-4 h-4 text-emerald-600" />
@@ -1614,10 +1614,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('proposta')}
-              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+              className={`px-3.5 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap rounded-t-lg ${
                 activeTab === 'proposta'
-                  ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
+                  ? 'border-[#16A34A] text-[#166534] bg-white shadow-xs'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
               }`}
             >
               <FileText className="w-4 h-4 text-emerald-600" />
