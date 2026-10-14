@@ -1104,20 +1104,7 @@ function ExecucaoOSContent() {
   )
 
   // Botão padrão de Nova Atividade (Manutenção nos Serviços de Campo)
-  const renderBotaoNovaAtividade = () => (
-    <button
-      type="button"
-      onClick={() => {
-        setSlotSelecionadoDataHora(null)
-        setIsModalNovaAtividadeOpen(true)
-      }}
-      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer shrink-0 h-8"
-      title="Gerar nova atividade de manutenção para os serviços de campo"
-    >
-      <Plus className="w-3.5 h-3.5" />
-      <span>Nova Atividade</span>
-    </button>
-  )
+  const renderBotaoNovaAtividade = () => null
 
   // Botões de Ações Primárias (Nova Atividade + Filtros Popover)
   const renderAcoesPrimarias = () => (
