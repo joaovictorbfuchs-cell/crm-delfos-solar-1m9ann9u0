@@ -509,13 +509,339 @@ export async function deleteServicoAvulso(id: string): Promise<boolean> {
   return true
 }
 
+/**
+ * Conjunto de campos reconhecidos pela coleção 'clientes' no PocketBase
+ * para evitar rejeição (400 Bad Request) por envio de propriedades desconhecidas ou espúrias.
+ */
+export const CAMPOS_VALIDOS_CLIENTES = new Set<string>([
+  'nome',
+  'telefone',
+  'endereco',
+  'uc',
+  'cidade',
+  'potencia_kwp',
+  'valor_estimado',
+  'status',
+  'data_instalacao',
+  'inversor_marca',
+  'inversor_modelo',
+  'placas_qtd',
+  'placas_marca',
+  'telhado_tipo',
+  'produto',
+  'consumo_kwh_mes',
+  'origem_lead',
+  'nome_fantasia',
+  'razao_social',
+  'cnpj',
+  'cpf',
+  'inscricao_estadual',
+  'email',
+  'cep',
+  'estado',
+  'bairro',
+  'numero',
+  'complemento',
+  'contato',
+  'data_nascimento_fundacao',
+  'rg',
+  'tarifa',
+  'classe_consumo',
+  'concessionaria',
+  'whatsapp',
+  'tipo_cliente',
+  'usina_endereco',
+  'cnae_principal',
+  'situacao_cadastral',
+  'tipo_pessoa',
+  'telefone_secundario',
+  'contato_principal',
+  'atividade_principal',
+  'observacoes',
+  'como_conheceu',
+  'data_abertura',
+  'titular_nome',
+  'titular_cpf',
+  'titular_telefone',
+  'titular_email',
+  'dados_importados',
+  'monitoramento_app_nome',
+  'monitoramento_login',
+  'monitoramento_senha',
+  'monitoramento_datalogger_url',
+  'solarview_login',
+  'solarview_senha',
+  'solarview_link_ios',
+  'solarview_link_android',
+  'solarview_link_texto',
+  'responsavel_id',
+  'responsavel_nome',
+  'data_previsao_fechamento',
+  'arquivado',
+  'transferido_pos_vendas',
+  'data_transferencia_pos_vendas',
+  'origem_pos_vendas',
+  'data_fechamento',
+  'area_destino',
+  'motivo_perda',
+  'pendencias_informacoes',
+  'tipo_sistema',
+  'garantia_instalacao_data',
+  'garantia_instalacao_status',
+  'data_ultima_atividade',
+  'tipo_ultima_atividade',
+  'data_proxima_atividade',
+  'tipo_proxima_atividade',
+  'status_pos_vendas',
+  'valor_final',
+  'condicao_pagamento',
+  'observacoes_perda',
+  'reabertura',
+  'motivo_reabertura',
+  'descricao_reabertura',
+  'valor_reabertura',
+  'data_reabertura',
+  'tipo_negocio',
+  'tipo_venda',
+  'recorrencia_mensal',
+  'grupo_subgrupo',
+  'tipo_fornecimento',
+  'tensao_nominal',
+  'historico_consumo_fatura',
+  'consumo_anual_kwh',
+  'consumo_medio_diario_kwh',
+  'consumo_medio',
+  'latitude',
+  'longitude',
+])
+
+export const CAMPOS_NUMERICOS_CLIENTES = new Set<string>([
+  'potencia_kwp',
+  'valor_estimado',
+  'placas_qtd',
+  'consumo_kwh_mes',
+  'tarifa',
+  'valor_final',
+  'valor_reabertura',
+  'consumo_anual_kwh',
+  'consumo_medio_diario_kwh',
+  'consumo_medio',
+  'latitude',
+  'longitude',
+])
+
+export const CAMPOS_DATE_CLIENTES = new Set<string>([
+  'data_instalacao',
+  'data_previsao_fechamento',
+  'data_transferencia_pos_vendas',
+  'data_fechamento',
+  'garantia_instalacao_data',
+  'data_ultima_atividade',
+  'data_proxima_atividade',
+])
+
+export const CAMPOS_BOOLEAN_CLIENTES = new Set<string>([
+  'arquivado',
+  'transferido_pos_vendas',
+  'reabertura',
+  'recorrencia_mensal',
+])
+
+export const CAMPOS_JSON_CLIENTES = new Set<string>([
+  'dados_importados',
+  'pendencias_informacoes',
+  'historico_consumo_fatura',
+])
+
+export const CAMPOS_SELECT_CLIENTES: Record<string, string[]> = {
+  status: [
+    'Novo Lead',
+    'Levantamento',
+    'Orçamento',
+    'Negociação',
+    'Fechado',
+    'Contato Futuro',
+    'Perdido',
+  ],
+  telhado_tipo: ['ceramico', 'metalico', 'laje', 'fibrocimento'],
+  produto: [
+    'Energia Solar',
+    'Manutenção avulsa',
+    'Plano de O&M',
+    'Sistemas Híbridos',
+    'Carregadores veiculares',
+    'residencial',
+    'comercial',
+    'industrial',
+    'rural',
+    'investidor',
+  ],
+  origem_lead: [
+    'Facebook',
+    'Instagram',
+    'Indicação',
+    'Site',
+    'WhatsApp',
+    'Outro',
+    'google',
+    'instagram',
+    'indicacao',
+    'whatsapp',
+    'facebook',
+    'site',
+    'outro',
+  ],
+  tipo_cliente: ['residencial', 'comercial', 'industrial', 'rural', 'investidor'],
+  tipo_venda: [
+    'Energia Solar',
+    'O&M (Operação e Manutenção)',
+    'Baterias',
+    'Carregadores Veículos Elétricos',
+    'Créditos de energia',
+  ],
+}
+
+/**
+ * Sanitiza defensivamente o payload para criação ou atualização na coleção `clientes`.
+ * - Descarta chaves inexistentes no schema do PocketBase ou metadados de sistema (id, expand, created, updated, etc).
+ * - Remove chaves com valor `undefined`.
+ * - Para campos numéricos: converte strings numéricas, descarta NaN, e converte string vazia para null.
+ * - Para campos de data: converte string vazia para null e valida strings no formato aceito pelo PocketBase.
+ * - Para campos JSON: converte string vazia ou valores inválidos para null.
+ * - Para relations vazias (ex: responsavel_id = ''): envia null para desvincular sem gerar 400.
+ * - Para selects restritos: valida contra as opções permitidas pelo PocketBase.
+ * - Para booleanos: garante booleano estrito.
+ */
+export function sanitizarPayloadCliente(raw: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(raw)) {
+    // Ignorar metadados do PocketBase e chaves inexistentes no schema
+    if (!CAMPOS_VALIDOS_CLIENTES.has(key)) {
+      continue
+    }
+
+    // Ignorar valores undefined
+    if (value === undefined) {
+      continue
+    }
+
+    // Tratamento de campos numéricos
+    if (CAMPOS_NUMERICOS_CLIENTES.has(key)) {
+      if (value === null || value === '') {
+        sanitized[key] = null
+        continue
+      }
+      const num = Number(value)
+      if (isNaN(num)) {
+        continue
+      }
+      sanitized[key] = num
+      continue
+    }
+
+    // Tratamento de campos date
+    if (CAMPOS_DATE_CLIENTES.has(key)) {
+      if (value === null || value === '') {
+        sanitized[key] = null
+        continue
+      }
+      if (typeof value === 'string') {
+        const trimmed = value.trim()
+        if (!trimmed) {
+          sanitized[key] = null
+          continue
+        }
+        sanitized[key] = trimmed
+        continue
+      }
+    }
+
+    // Tratamento de relations (responsavel_id)
+    if (key === 'responsavel_id') {
+      if (value === null || value === '') {
+        sanitized[key] = null
+        continue
+      }
+      sanitized[key] = String(value).trim()
+      continue
+    }
+
+    // Tratamento de campos select com enumeração restrita no banco
+    if (key in CAMPOS_SELECT_CLIENTES) {
+      if (value === null || value === '') {
+        sanitized[key] = ''
+        continue
+      }
+      const strVal = String(value).trim()
+      const allowed = CAMPOS_SELECT_CLIENTES[key]
+      if (allowed.includes(strVal)) {
+        sanitized[key] = strVal
+      } else {
+        // Tenta correspondência case-insensitive / sem acentos
+        const matchNormalized = allowed.find(
+          (opt) =>
+            opt
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase() ===
+            strVal
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase(),
+        )
+        if (matchNormalized) {
+          sanitized[key] = matchNormalized
+        } else {
+          continue
+        }
+      }
+      continue
+    }
+
+    // Tratamento de booleanos
+    if (CAMPOS_BOOLEAN_CLIENTES.has(key)) {
+      if (value === null || value === undefined) {
+        continue
+      }
+      sanitized[key] = Boolean(value)
+      continue
+    }
+
+    // Tratamento de campos JSON
+    if (CAMPOS_JSON_CLIENTES.has(key)) {
+      if (value === null || value === '' || value === false) {
+        sanitized[key] = null
+        continue
+      }
+      if (typeof value === 'object') {
+        sanitized[key] = value
+        continue
+      }
+      continue
+    }
+
+    // Demais campos de texto
+    if (typeof value === 'string') {
+      sanitized[key] = value
+      continue
+    }
+
+    sanitized[key] = value
+  }
+
+  return sanitized
+}
+
 export async function createCliente(data: Partial<Cliente> & { nome: string }): Promise<Cliente> {
-  const record = await pb.collection('clientes').create<Cliente>(data)
+  const payloadSanitizado = sanitizarPayloadCliente(data as Record<string, unknown>)
+  const record = await pb.collection('clientes').create<Cliente>(payloadSanitizado as any)
   return record
 }
 
 export async function updateCliente(id: string, data: Partial<Cliente>): Promise<Cliente> {
-  const record = await pb.collection('clientes').update<Cliente>(id, data)
+  const payloadSanitizado = sanitizarPayloadCliente(data as Record<string, unknown>)
+  const record = await pb.collection('clientes').update<Cliente>(id, payloadSanitizado as any)
   return record
 }
 

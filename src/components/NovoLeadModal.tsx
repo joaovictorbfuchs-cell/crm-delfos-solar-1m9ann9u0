@@ -306,6 +306,21 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     const telFinal = telefone.trim() || whatsapp.trim()
     const whatsFinal = whatsapp.trim() || telefone.trim()
 
+    // Mapear tipoVenda para um valor válido do enum aceito no campo select `produto` da coleção clientes:
+    // 'Energia Solar' | 'Manutenção avulsa' | 'Plano de O&M' | 'Sistemas Híbridos' | 'Carregadores veiculares' | residencial | comercial | industrial | rural | investidor
+    let produtoEnum: ProdutoTipo = 'Energia Solar'
+    if (tipoVenda === 'O&M (Operação e Manutenção)') {
+      produtoEnum = 'Plano de O&M'
+    } else if (tipoVenda === 'Carregadores Veículos Elétricos') {
+      produtoEnum = 'Carregadores veiculares'
+    } else if (tipoVenda === 'Baterias') {
+      produtoEnum = 'Sistemas Híbridos'
+    } else if (tipoVenda === 'Energia Solar') {
+      produtoEnum = 'Energia Solar'
+    } else {
+      produtoEnum = 'Energia Solar'
+    }
+
     const payloadNovoCliente: Record<string, unknown> = {
       nome: nome.trim(),
       razao_social: razaoSocial.trim() || undefined,
@@ -326,8 +341,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
       tipo_cliente: cnpj.replace(/\D/g, '').length === 14 ? 'comercial' : 'residencial',
       consumo_kwh_mes: consumoNum,
       origem_lead: origem,
-      produto:
-        tipoVenda === 'Energia Solar' ? 'Energia Solar' : (tipoVenda as unknown as ProdutoTipo),
+      produto: produtoEnum,
       tipo_venda: tipoVenda,
       status: 'Novo Lead',
       cidade: cidade.trim() || 'Erechim/RS',
@@ -338,7 +352,6 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     if (dadosFaturaArmazenados) {
       if (dadosFaturaArmazenados.uc) {
         payloadNovoCliente.uc = dadosFaturaArmazenados.uc
-        payloadNovoCliente.numero_uc = dadosFaturaArmazenados.uc
       }
       if (dadosFaturaArmazenados.cpf) {
         payloadNovoCliente.cpf = dadosFaturaArmazenados.cpf

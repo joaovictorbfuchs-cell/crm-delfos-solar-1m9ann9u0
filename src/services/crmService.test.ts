@@ -5,6 +5,9 @@ import {
   mesclarMultiplosClientes,
   NOMES_COLECOES_CRM,
   sanitizarPayloadUsina,
+  sanitizarPayloadCliente,
+  createCliente,
+  updateCliente,
   updateUsina,
   deleteContratoOM,
 } from './crmService'
@@ -249,6 +252,72 @@ describe('mesclarMultiplosClientes - otimizações e integridade de dados', () =
     })
     expect(calledPayload.id).toBeUndefined()
     expect(calledPayload.campo_fantasma).toBeUndefined()
+  })
+
+  it('sanitizarPayloadCliente descarta campos desconhecidos (ex: numero_uc), converte string vazia para null em números/datas/json e sanitiza selects', () => {
+    const raw = {
+      id: 'cli-123',
+      expand: { responsavel_id: {} },
+      created: '2026-03-29',
+      updated: '2026-03-29',
+      numero_uc: '12345678', // campo inválido em clientes (existe só uc) -> deve ser descartado
+      campo_aleatorio: 'teste', // deve ser descartado
+      nome: 'João da Silva',
+      telefone: '54999998888',
+      uc: '12345678',
+      consumo_kwh_mes: '450', // converter para 450
+      potencia_kwp: '', // string vazia -> null
+      valor_estimado: 'abc', // NaN -> omitido/descartado
+      data_instalacao: '', // string vazia em date -> null
+      responsavel_id: '', // relation vazia -> null
+      produto: 'Plano de O&M', // select válido -> preservado
+      tipo_venda: 'O&M (Operação e Manutenção)', // select válido -> preservado
+      dados_importados: '', // string vazia em json -> null
+      historico_consumo_fatura: [{ mes_ano: '01/2026', consumo_kwh: 300 }],
+      arquivado: false,
+    }
+
+    const sanitized = sanitizarPayloadCliente(raw)
+
+    expect(sanitized.id).toBeUndefined()
+    expect(sanitized.expand).toBeUndefined()
+    expect(sanitized.created).toBeUndefined()
+    expect(sanitized.numero_uc).toBeUndefined()
+    expect(sanitized.campo_aleatorio).toBeUndefined()
+    expect(sanitized.valor_estimado).toBeUndefined()
+
+    expect(sanitized.nome).toBe('João da Silva')
+    expect(sanitized.telefone).toBe('54999998888')
+    expect(sanitized.uc).toBe('12345678')
+    expect(sanitized.consumo_kwh_mes).toBe(450)
+    expect(sanitized.potencia_kwp).toBeNull()
+    expect(sanitized.data_instalacao).toBeNull()
+    expect(sanitized.responsavel_id).toBeNull()
+    expect(sanitized.produto).toBe('Plano de O&M')
+    expect(sanitized.tipo_venda).toBe('O&M (Operação e Manutenção)')
+    expect(sanitized.dados_importados).toBeNull()
+    expect(sanitized.historico_consumo_fatura).toEqual([{ mes_ano: '01/2026', consumo_kwh: 300 }])
+    expect(sanitized.arquivado).toBe(false)
+  })
+
+  it('createCliente sanitiza o payload antes de invocar pb.create', async () => {
+    mockPbCreate.mockClear()
+
+    await createCliente({
+      nome: 'Maria Solar',
+      numero_uc: '999888' as any,
+      potencia_kwp: '' as any,
+      produto: 'Carregadores veiculares' as any,
+      tipo_venda: 'Carregadores Veículos Elétricos' as any,
+    })
+
+    expect(mockPbCreate).toHaveBeenCalledTimes(1)
+    const [calledPayload] = mockPbCreate.mock.calls[0]
+    expect(calledPayload.nome).toBe('Maria Solar')
+    expect(calledPayload.numero_uc).toBeUndefined()
+    expect(calledPayload.potencia_kwp).toBeNull()
+    expect(calledPayload.produto).toBe('Carregadores veiculares')
+    expect(calledPayload.tipo_venda).toBe('Carregadores Veículos Elétricos')
   })
 
   describe('deleteContratoOM - limpeza prévia de vínculos', () => {
