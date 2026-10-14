@@ -157,6 +157,12 @@ async function executarHtml2PdfPipeline<T>(
     async function executar() {
       let iframe: HTMLIFrameElement | null = null
       try {
+        const htmlTemPaginacaoA4 = html.includes('data-proposta-paginacao-a4')
+        const html2pdfPadrao = htmlTemPaginacaoA4 ? null : await carregarHtml2Pdf()
+        if (!htmlTemPaginacaoA4 && !html2pdfPadrao) {
+          throw new Error('Biblioteca html2pdf.js não disponível.')
+        }
+
         // Cria iframe isolado no DOM para manter o CSSOM da proposta separado do CRM.
         // Largura calibrada para 794px (210mm a 96 DPI padrão A4).
         // Altura inicial flexível auto/grande para que todo o documento se expanda naturalmente.
@@ -200,7 +206,10 @@ async function executarHtml2PdfPipeline<T>(
         if (html.includes('data-proposta-paginacao-a4') && !propostaPaginada) {
           throw new Error('A paginação A4 da proposta não terminou; tente gerar o PDF novamente.')
         }
-        const html2pdf = await carregarHtml2PdfNoDocumento(doc)
+        const html2pdf = propostaPaginada
+          ? await carregarHtml2PdfNoDocumento(doc)
+          : html2pdfPadrao || (await carregarHtml2Pdf())
+        if (!html2pdf) throw new Error('Biblioteca html2pdf.js não disponível.')
 
         // Remove barras de preview e botões que não devem sair no PDF impresso
         doc
