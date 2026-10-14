@@ -227,7 +227,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         userProfile,
         token,
-        isAuthenticated: !!token && !!userProfile && userProfile.ativo,
+        // Token salvo pode permanecer no storage depois de expirar. Só considerar autenticado
+        // se o PocketBase validar o token; caso contrário, Login deve permanecer acessível.
+        isAuthenticated: pb.authStore.isValid && !!token && !!userProfile && userProfile.ativo,
         isLoading,
         isAdmin,
         isInstalador,
