@@ -68,9 +68,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   // Se o usuário não está autenticado ou o token não é válido, redireciona para o login
   // passando explicitamente sessão expirada para a tela de Login exibir banner destacado
   if (!isAuthenticated || !isPbAuthValid) {
+    // Guarda o caminho de retorno também no sessionStorage para garantia extra caso a navegação limpe state
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem('delfos_redirect_after_login', currentPath)
+      }
+    } catch {
+      /* ignore */
+    }
     return (
       <Navigate
-        to="/login"
+        to={`/login${isSessaoExpirada ? '?sessaoExpirada=true' : ''}`}
         state={{
           from: currentPath,
           sessaoExpirada: isSessaoExpirada,

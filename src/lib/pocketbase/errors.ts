@@ -28,21 +28,23 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const errorObj = err as Record<string, unknown>
-    if (errorObj.status === 401 || errorObj.status === 403) return true
-    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
-    if (
-      typeof errorObj.message === 'string' &&
-      (errorObj.message.includes('Token is expired') ||
-        errorObj.message.includes('token is expired') ||
-        errorObj.message.includes('Failed to authenticate') ||
-        errorObj.message.includes('The request requires valid record authorization token'))
-    ) {
-      return true
-    }
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  const errObj = error as any
+  const status = errObj?.status ?? errObj?.statusCode ?? errObj?.response?.status
+  if (status === 401 || status === 403) return true
+  const msg = String(errObj?.message || '').toLowerCase()
+  if (
+    msg.includes('token is expired') ||
+    msg.includes('expired token') ||
+    msg.includes('token expired') ||
+    msg.includes('sessão expirada') ||
+    msg.includes('sessao expirada') ||
+    msg.includes('failed to authenticate') ||
+    msg.includes('invalid token') ||
+    msg.includes('the request requires valid user authorization')
+  ) {
+    return true
   }
   return false
 }

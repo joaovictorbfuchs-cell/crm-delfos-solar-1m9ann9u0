@@ -63,13 +63,29 @@ export class RootErrorBoundary extends Component<Props, State> {
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={this.handleReload}
-              className="w-full py-3 bg-[#16A34A] hover:bg-[#15803D] text-white font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              Recarregar
-            </button>
+            <div className="w-full flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('pocketbase_auth')
+                  } catch {
+                    /* ignore */
+                  }
+                  window.location.href = '/login'
+                }}
+                className="w-full py-3 bg-[#16A34A] hover:bg-[#15803D] text-white font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                Fazer Login Novamente
+              </button>
+              <button
+                type="button"
+                onClick={this.handleReload}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs"
+              >
+                Recarregar aplicação
+              </button>
+            </div>
           </div>
         </div>
       )

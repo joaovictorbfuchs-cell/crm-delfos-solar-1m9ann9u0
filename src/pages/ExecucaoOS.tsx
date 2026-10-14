@@ -76,7 +76,7 @@ import {
 function ExecucaoOSContent() {
   const { toast } = useToast()
   const isMobile = useIsMobile()
-  const { userProfile, isAdmin, isInstalador } = useAuth()
+  const { userProfile, isAdmin, isInstalador, isSessaoExpirada } = useAuth()
 
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
   const [instaladores, setInstaladores] = useState<SistemaUsuario[]>([])
@@ -489,10 +489,11 @@ function ExecucaoOSContent() {
           try {
             pb.authStore.clear()
             localStorage.removeItem('pocketbase_auth')
+            sessionStorage.setItem('delfos_redirect_after_login', '/servicos-campo')
           } catch {
             /* ignore */
           }
-          window.location.href = '/login'
+          window.location.href = '/login?sessaoExpirada=true'
           return
         } else if (!silent) {
           toast({
@@ -1271,6 +1272,15 @@ function ExecucaoOSContent() {
       </Popover>
     </div>
   )
+
+  // Se a sessão expirou ou não há usuário autenticado, exibe alerta explicativo com botão direto para Fazer Login
+  if (isSessaoExpirada) {
+    return (
+      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+        <SessaoExpiradaAlert />
+      </div>
+    )
+  }
 
   // Se for instalador no mobile, renderiza a tela dedicada para instaladores
   // com lista de atividades do dia, conclusão e checklist dinâmico no celular
@@ -2111,8 +2121,16 @@ function ExecucaoOSContent() {
 }
 
 export default function ExecucaoOS() {
+  const { isSessaoExpirada, isAuthenticated, isLoading: authLoading } = useAuth()
+
+  // Se a sessão expirou ou não há autenticação válida após término do carregamento de auth,
+  // exibe o banner informativo com o botão "Fazer Login Novamente"
+  if (isSessaoExpirada || (!authLoading && !isAuthenticated)) {
+    return <SessaoExpiradaAlert />
+  }
+
   return (
-    <ErrorBoundary errorMessage="Não foi possível carregar o módulo de Serviços de Campo." compact>
+    <ErrorBoundary errorMessage="Não foi possível carregar o módulo de Serviços de Campo. Tente recarregar a página.">
       <ExecucaoOSContent />
     </ErrorBoundary>
   )

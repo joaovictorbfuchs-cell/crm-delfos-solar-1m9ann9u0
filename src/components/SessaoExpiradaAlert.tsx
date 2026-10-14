@@ -28,7 +28,14 @@ export function SessaoExpiradaAlert({
       console.warn('Erro ao limpar authStore:', e)
     }
     const currentPath = location.pathname + (location.search || '')
-    navigate('/login', {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem('delfos_redirect_after_login', currentPath)
+      }
+    } catch {
+      /* ignore */
+    }
+    navigate('/login?sessaoExpirada=true', {
       replace: true,
       state: { from: currentPath, sessaoExpirada: true },
     })

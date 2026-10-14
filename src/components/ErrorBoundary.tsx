@@ -87,6 +87,102 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           return this.props.fallback
         }
 
+        // Se o erro capturado pelo ErrorBoundary for de autenticação ou sessão expirada,
+        // ou se o authStore do cliente estiver sem login/inválido neste momento,
+        // SEMPRE exibe com prioridade máxima o banner claro com o botão "Fazer Login Novamente"
+        // (mesmo que a prop compact seja true).
+        const errorMsgLower = String(this.state.error?.message || '').toLowerCase()
+        const isAuthError =
+          errorMsgLower.includes('sessão expirada') ||
+          errorMsgLower.includes('sessao expirada') ||
+          errorMsgLower.includes('login expirou') ||
+          errorMsgLower.includes('token') ||
+          errorMsgLower.includes('401') ||
+          errorMsgLower.includes('403') ||
+          errorMsgLower.includes('unauthorized') ||
+          errorMsgLower.includes('autentica') ||
+          errorMsgLower.includes('auth')
+
+        const handleLoginRedirect = () => {
+          try {
+            if (typeof window !== 'undefined') {
+              try {
+                window.localStorage?.removeItem('pocketbase_auth')
+              } catch {
+                /* ignore */
+              }
+              const currentPath =
+                window.location.pathname +
+                (window.location.search || '') +
+                (window.location.hash || '')
+              // Armazena a rota de retorno no sessionStorage para garantia extra pós-login
+              try {
+                window.sessionStorage?.setItem('delfos_redirect_after_login', currentPath)
+              } catch {
+                /* ignore */
+              }
+              window.location.href = '/login'
+            }
+          } catch {
+            window.location.href = '/login'
+          }
+        }
+
+        if (isAuthError) {
+          if (this.props.compact) {
+            return (
+              <div
+                role="alert"
+                className="p-4 rounded-xl border-2 border-amber-300 bg-amber-50 text-amber-950 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs my-2 shadow-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <div>
+                    <p className="font-bold text-amber-950">Sua sessão expirou</p>
+                    <p className="text-[11px] text-amber-800">
+                      Faça login novamente para continuar seu trabalho com segurança no Delfos
+                      Solar.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLoginRedirect}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                >
+                  <span>Fazer Login Novamente</span>
+                </button>
+              </div>
+            )
+          }
+
+          return (
+            <div
+              role="alert"
+              className="p-6 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-950 flex flex-col items-center justify-center text-center gap-3 my-4 shadow-xs"
+            >
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 border border-amber-200">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="max-w-md">
+                <h4 className="text-base font-bold text-amber-950 mb-1">Sua sessão expirou</h4>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  Faça login novamente para continuar seu trabalho com segurança no Delfos Solar.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={handleLoginRedirect}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>Fazer Login Novamente</span>
+                </button>
+              </div>
+            </div>
+          )
+        }
+
         const mensagem = this.props.errorMessage || 'Não foi possível exibir esta seção'
 
         if (this.props.compact) {
@@ -104,58 +200,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={this.handleReset}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-200/80 hover:bg-amber-300/80 text-amber-950 transition-colors inline-flex items-center gap-1 shrink-0"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Tentar novamente</span>
-              </button>
-            </div>
-          )
-        }
-
-        // Se o erro capturado pelo ErrorBoundary for de autenticação ou sessão expirada,
-        // renderiza banner claro com botão direto para Fazer Login
-        const errorMsgLower = String(this.state.error?.message || '').toLowerCase()
-        const isAuthError =
-          errorMsgLower.includes('sessão expirada') ||
-          errorMsgLower.includes('sessao expirada') ||
-          errorMsgLower.includes('token') ||
-          errorMsgLower.includes('401') ||
-          errorMsgLower.includes('403') ||
-          errorMsgLower.includes('unauthorized')
-
-        if (isAuthError) {
-          return (
-            <div
-              role="alert"
-              className="p-6 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-950 flex flex-col items-center justify-center text-center gap-3 my-4"
-            >
-              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 border border-amber-200">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div className="max-w-md">
-                <h4 className="text-base font-bold text-amber-950 mb-1">Sua sessão expirou</h4>
-                <p className="text-xs text-amber-800 leading-relaxed">
-                  Faça login novamente para continuar seu trabalho com segurança no Delfos Solar.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
-                  onClick={() => {
-                    try {
-                      localStorage.removeItem('pocketbase_auth')
-                    } catch {
-                      /* ignore */
-                    }
-                    window.location.href = '/login'
-                  }}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={handleLoginRedirect}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white transition-colors inline-flex items-center gap-1 cursor-pointer"
+                  title="Fazer Login Novamente"
                 >
-                  <span>Fazer Login Novamente</span>
+                  <span>Fazer Login</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={this.handleReset}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-200/80 hover:bg-amber-300/80 text-amber-950 transition-colors inline-flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Tentar novamente</span>
                 </button>
               </div>
             </div>
@@ -189,11 +249,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+              <button
+                type="button"
+                onClick={handleLoginRedirect}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>Fazer Login Novamente</span>
+              </button>
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="mt-1 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs inline-flex items-center gap-1.5 transition-colors"
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 shadow-2xs inline-flex items-center gap-1.5 transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Tentar novamente</span>
@@ -201,7 +268,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <button
                 type="button"
                 onClick={this.handleReloadPage}
-                className="mt-1 px-4 py-2 text-xs font-bold rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 shadow-2xs inline-flex items-center gap-1.5 transition-colors"
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 shadow-2xs inline-flex items-center gap-1.5 transition-colors"
               >
                 <span>Recarregar página</span>
               </button>
@@ -213,21 +280,47 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return (
           <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif' }}>
             <h3 style={{ color: '#b91c1c', marginBottom: '8px' }}>Ocorreu um erro inesperado</h3>
-            <button
-              type="button"
-              onClick={this.handleReloadPage}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#16a34a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
+            <div
+              style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '12px' }}
             >
-              Recarregar página
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('pocketbase_auth')
+                  } catch {
+                    /* ignore */
+                  }
+                  window.location.href = '/login'
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#16a34a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                }}
+              >
+                Fazer Login Novamente
+              </button>
+              <button
+                type="button"
+                onClick={this.handleReloadPage}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                }}
+              >
+                Recarregar página
+              </button>
+            </div>
           </div>
         )
       }

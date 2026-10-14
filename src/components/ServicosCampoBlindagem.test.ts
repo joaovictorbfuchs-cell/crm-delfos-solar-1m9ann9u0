@@ -121,4 +121,26 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(typeof mod.CalendarioExecucaoOS).toBe('function')
     })
   })
+
+  describe('Tratamento de sessão expirada / erro de autenticação', () => {
+    it('isAuthSessionError identifica corretamente erros de token expirado ou status 401/403', async () => {
+      const { isAuthSessionError } = await import('@/lib/pocketbase/errors')
+      expect(isAuthSessionError({ status: 401 })).toBe(true)
+      expect(isAuthSessionError({ status: 403 })).toBe(true)
+      expect(isAuthSessionError({ response: { status: 401 } })).toBe(true)
+      expect(isAuthSessionError(new Error('Token is expired or invalid'))).toBe(true)
+      expect(isAuthSessionError(new Error('Login expirou'))).toBe(true)
+      expect(isAuthSessionError(new Error('Sessão expirada'))).toBe(true)
+      expect(isAuthSessionError(new Error('Failed to authenticate'))).toBe(true)
+      expect(isAuthSessionError(new Error('Generic network timeout'))).toBe(false)
+      expect(isAuthSessionError(null)).toBe(false)
+    })
+
+    it('export { pb } e export default pb coexistem em client.ts', async () => {
+      const client = await import('@/lib/pocketbase/client')
+      expect(client.pb).toBeDefined()
+      expect(client.default).toBeDefined()
+      expect(client.pb).toBe(client.default)
+    })
+  })
 })

@@ -27,13 +27,18 @@ export default function Login() {
         ? locationState.from.pathname +
           (locationState.from.search || '') +
           (locationState.from.hash || '')
-        : undefined
+        : typeof window !== 'undefined'
+          ? window.sessionStorage?.getItem('delfos_redirect_after_login') || undefined
+          : undefined
   ) as string | undefined
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const isSessaoExpiradaNav = Boolean(locationState?.sessaoExpirada)
+  const searchParams = new URLSearchParams(location.search)
+  const isSessaoExpiradaFromSearch =
+    searchParams.get('sessaoExpirada') === 'true' || searchParams.has('expirada')
+  const isSessaoExpiradaNav = Boolean(locationState?.sessaoExpirada) || isSessaoExpiradaFromSearch
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -85,10 +90,17 @@ export default function Login() {
       setIsLoading(true)
       const profile = await login(cleanEmail, password)
 
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage?.removeItem('delfos_redirect_after_login')
+        }
+      } catch {
+        /* ignore */
+      }
       // Redirecionamento por perfil: instalador acessa exclusivamente Serviços de Campo
       if (profile?.role === 'instalador') {
         navigate('/servicos-campo', { replace: true })
-      } else if (fromLocation && fromLocation.startsWith('/')) {
+      } else if (fromLocation && fromLocation.startsWith('/') && fromLocation !== '/login') {
         navigate(fromLocation, { replace: true })
       } else {
         navigate('/', { replace: true })
