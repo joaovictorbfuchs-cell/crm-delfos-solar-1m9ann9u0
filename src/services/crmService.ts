@@ -139,15 +139,41 @@ function mapSistemaPayloadToUsina(
   return result as Partial<import('@/types/crm').UsinaCliente>
 }
 
+// -------------------------------------------------------------
+// Cache de curta duração em memória (30s) para listas de usinas
+// -------------------------------------------------------------
+const USINAS_CACHE_TTL_MS = 30_000
+
+let _cachedSistemas: { timestamp: number; data: Sistema[] } | null = null
+let _cachedAllUsinas: { timestamp: number; data: import('@/types/crm').UsinaCliente[] } | null =
+  null
+
+export function invalidateUsinasCache(): void {
+  _cachedSistemas = null
+  _cachedAllUsinas = null
+}
+
+export { mapUsinaToSistema }
+
 export async function fetchSistemas(): Promise<Sistema[]> {
+  const now = Date.now()
+  if (_cachedSistemas && now - _cachedSistemas.timestamp < USINAS_CACHE_TTL_MS) {
+    return _cachedSistemas.data
+  }
+
   try {
     const usinas = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
       sort: 'created',
-      requestKey: null,
+      requestKey: 'sistemas-list',
     })
-    return usinas.map(mapUsinaToSistema)
+    const mapeados = usinas.map(mapUsinaToSistema)
+    _cachedSistemas = { timestamp: now, data: mapeados }
+    return mapeados
   } catch (err) {
     console.warn('Erro ao buscar usinas em fetchSistemas:', err)
+    if (_cachedSistemas?.data) {
+      return _cachedSistemas.data
+    }
     return []
   }
 }
@@ -4064,15 +4090,24 @@ export async function deleteClienteInversor(id: string): Promise<boolean> {
 // -------------------------------------------------------------
 
 export async function fetchAllUsinas(): Promise<import('@/types/crm').UsinaCliente[]> {
+  const now = Date.now()
+  if (_cachedAllUsinas && now - _cachedAllUsinas.timestamp < USINAS_CACHE_TTL_MS) {
+    return _cachedAllUsinas.data
+  }
+
   try {
     const list = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
       sort: 'cliente_id,created',
       expand: 'contrato_id',
-      requestKey: null,
+      requestKey: 'usinas-all-list',
     })
+    _cachedAllUsinas = { timestamp: now, data: list }
     return list
   } catch (err) {
     console.warn('Erro ao buscar todas as usinas:', err)
+    if (_cachedAllUsinas?.data) {
+      return _cachedAllUsinas.data
+    }
     return []
   }
 }
@@ -4208,6 +4243,9 @@ export async function createUsina(
     .create<import('@/types/crm').UsinaCliente>(payloadSanitizado as any, {
       expand: 'contrato_id',
     })
+
+  // Invalida cache local de usinas imediatamente
+  invalidateUsinasCache()
 
   // Sincronização automática usina -> ficha do cliente (aditivo)
   if (created.cliente_id) {
@@ -4495,6 +4533,9 @@ export async function updateUsina(
       expand: 'contrato_id',
     })
 
+  // Invalida cache local de usinas imediatamente
+  invalidateUsinasCache()
+
   // Sincronização automática usina -> ficha do cliente quando endereço/coordenadas/cidade forem alterados
   if (
     updated.cliente_id &&
@@ -4528,6 +4569,8 @@ export async function updateUsina(
 export async function deleteUsina(id: string): Promise<boolean> {
   try {
     await pb.collection('usinas').delete(id)
+    // Invalida cache local de usinas imediatamente
+    invalidateUsinasCache()
     return true
   } catch (err) {
     console.error(`Erro ao excluir usina ${id}:`, err)

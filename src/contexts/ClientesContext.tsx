@@ -373,6 +373,7 @@ interface ClientesContextType {
   ) => Promise<Cliente>
   bulkArquivar: (ids: string[]) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
+  updateSistemaLocal: (usinaId: string, data: Partial<import('@/types/crm').UsinaCliente>) => void
   // Profissionais
   addProfissional: (data: {
     nome: string
@@ -1847,6 +1848,113 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
+  const updateSistemaLocal = useCallback(
+    (usinaId: string, data: Partial<import('@/types/crm').UsinaCliente>) => {
+      setSistemas((prev) =>
+        prev.map((s) => {
+          if (s.id === usinaId) {
+            return {
+              ...s,
+              ...(data.nome !== undefined ? { nome: data.nome } : {}),
+              ...(data.potencia_kwp !== undefined
+                ? {
+                    potencia_total_kwp: data.potencia_kwp,
+                    potencia_pico_modulos_kwp: data.potencia_kwp,
+                    potencia_pico_inversores_kwp: data.potencia_kwp,
+                  }
+                : {}),
+              ...(data.qtd_modulos !== undefined
+                ? {
+                    quantidade_modulos: data.qtd_modulos,
+                    quantidade_placas: data.qtd_modulos,
+                  }
+                : {}),
+              ...(data.quantidade_placas !== undefined
+                ? {
+                    quantidade_placas: data.quantidade_placas,
+                    quantidade_modulos: s.quantidade_modulos ?? data.quantidade_placas,
+                  }
+                : {}),
+              ...(data.geracao_media_mensal_kwh !== undefined
+                ? { geracao_media_mensal_kwh: data.geracao_media_mensal_kwh }
+                : {}),
+              ...(data.geracao_estimada_kwh !== undefined &&
+              data.geracao_media_mensal_kwh === undefined
+                ? { geracao_media_mensal_kwh: data.geracao_estimada_kwh }
+                : {}),
+              ...(data.inversores_info !== undefined
+                ? { inversores_info: data.inversores_info }
+                : {}),
+              ...(data.tipo_estrutura !== undefined ? { tipo_estrutura: data.tipo_estrutura } : {}),
+              ...(data.tipo_telhado !== undefined ? { tipo_telhado: data.tipo_telhado } : {}),
+              ...(data.concessionaria !== undefined ? { concessionaria: data.concessionaria } : {}),
+              ...(data.numero_uc !== undefined ? { numero_uc: data.numero_uc } : {}),
+              ...(data.numero_medidor !== undefined ? { numero_medidor: data.numero_medidor } : {}),
+              ...(data.contrato_id !== undefined ? { contrato_id: data.contrato_id } : {}),
+              ...(data.cidade !== undefined ? { cidade: data.cidade } : {}),
+              ...(data.endereco !== undefined ? { endereco: data.endereco } : {}),
+              ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
+              ...(data.longitude !== undefined ? { longitude: data.longitude } : {}),
+              ...(data.tarifa !== undefined ? { tarifa: data.tarifa } : {}),
+              ...(data.classe_consumo !== undefined ? { classe_consumo: data.classe_consumo } : {}),
+              ...(data.padrao_entrada !== undefined ? { padrao_entrada: data.padrao_entrada } : {}),
+              ...(data.tipo_atendimento !== undefined
+                ? { tipo_atendimento: data.tipo_atendimento }
+                : {}),
+              ...(data.numero_fases !== undefined ? { numero_fases: data.numero_fases } : {}),
+              ...(data.secao_cabos !== undefined ? { secao_cabos: data.secao_cabos } : {}),
+              ...(data.tipo_caixa_medicao !== undefined
+                ? { tipo_caixa_medicao: data.tipo_caixa_medicao }
+                : {}),
+              ...(data.amperagem_disjuntor !== undefined
+                ? { amperagem_disjuntor: data.amperagem_disjuntor }
+                : {}),
+              ...(data.fabricante_modulos !== undefined
+                ? { fabricante_modulos: data.fabricante_modulos }
+                : {}),
+              ...(data.modelo_modulos !== undefined ? { modelo_modulos: data.modelo_modulos } : {}),
+              ...(data.fabricante_inversores !== undefined
+                ? { fabricante_inversores: data.fabricante_inversores }
+                : {}),
+              ...(data.modelo_inversores !== undefined
+                ? { modelo_inversores: data.modelo_inversores }
+                : {}),
+              ...(data.monitoramento_app_nome !== undefined
+                ? { monitoramento_app_nome: data.monitoramento_app_nome }
+                : {}),
+              ...(data.monitoramento_login !== undefined
+                ? { monitoramento_login: data.monitoramento_login }
+                : {}),
+              ...(data.monitoramento_senha !== undefined
+                ? { monitoramento_senha: data.monitoramento_senha }
+                : {}),
+              ...(data.monitoramento_datalogger_url !== undefined
+                ? { monitoramento_datalogger_url: data.monitoramento_datalogger_url }
+                : {}),
+              ...(data.solarview_login !== undefined
+                ? { solarview_login: data.solarview_login }
+                : {}),
+              ...(data.solarview_senha !== undefined
+                ? { solarview_senha: data.solarview_senha }
+                : {}),
+              ...(data.solarview_link_ios !== undefined
+                ? { solarview_link_ios: data.solarview_link_ios }
+                : {}),
+              ...(data.solarview_link_android !== undefined
+                ? { solarview_link_android: data.solarview_link_android }
+                : {}),
+              ...(data.solarview_link_texto !== undefined
+                ? { solarview_link_texto: data.solarview_link_texto }
+                : {}),
+            }
+          }
+          return s
+        }),
+      )
+    },
+    [],
+  )
+
   const updateSistema = async (clienteId: string, data: Partial<Sistema>): Promise<Sistema> => {
     const existing = sistemas.find((s) => s.cliente_id === clienteId)
     // Optimistic update
@@ -2943,6 +3051,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         reabrirOportunidade,
         bulkArquivar,
         updateSistema,
+        updateSistemaLocal,
         addProfissional,
         updateProfissional,
         removeProfissional,
@@ -3208,6 +3317,7 @@ export function useClientes(): ClientesContextType {
       reabrirOportunidade: async () => ({}) as any,
       bulkArquivar: async () => {},
       updateSistema: async () => ({}) as any,
+      updateSistemaLocal: () => {},
       addProfissional: async () => ({}) as any,
       updateProfissional: async () => ({}) as any,
       removeProfissional: async () => {},

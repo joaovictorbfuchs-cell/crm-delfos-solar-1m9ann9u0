@@ -192,6 +192,7 @@ export const FichaClienteDrawer: React.FC = () => {
     reabrirOportunidade,
     usuarios,
     removeCliente,
+    updateSistemaLocal,
   } = useClientes()
 
   // Modal e estado para Excluir Cliente
@@ -2476,9 +2477,16 @@ export const FichaClienteDrawer: React.FC = () => {
                       await refreshData()
                     }}
                     onUpdateUsina={async (usinaId, data) => {
-                      await updateUsina(usinaId, data)
+                      const updated = await updateUsina(usinaId, data)
+                      // Atualização local imediata do estado da usina na ficha sem disparar carga global
+                      setUsinasDoCliente((prev) =>
+                        prev.map((u) => (u.id === usinaId ? { ...u, ...data, ...updated } : u)),
+                      )
+                      // Atualização local no cache/contexto de sistemas do CRM
+                      if (updateSistemaLocal) {
+                        updateSistemaLocal(usinaId, data)
+                      }
                       await recarregarUsinas()
-                      await refreshData()
                     }}
                     onDeleteUsina={async (usinaId) => {
                       await deleteUsina(usinaId)
