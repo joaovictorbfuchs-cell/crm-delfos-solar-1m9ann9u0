@@ -28,41 +28,23 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-
-  const errObj = error as {
-    status?: unknown
-    statusCode?: unknown
-    response?: { status?: unknown }
-    message?: unknown
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const errorObj = err as Record<string, any>
+    if (errorObj.status === 401 || errorObj.status === 403) return true
+    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
+    if (errorObj.response?.status === 401 || errorObj.response?.status === 403) return true
+    const msg = String(errorObj.message || errorObj.error || '').toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('login expirou') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('invalid token')
+    ) {
+      return true
+    }
   }
-
-  const status =
-    typeof errObj.status === 'number'
-      ? errObj.status
-      : typeof errObj.statusCode === 'number'
-        ? errObj.statusCode
-        : typeof errObj.response?.status === 'number'
-          ? errObj.response.status
-          : undefined
-
-  if (status === 401 || status === 403) return true
-
-  const msg = typeof errObj.message === 'string' ? errObj.message.toLowerCase() : ''
-  if (
-    msg.includes('token is expired') ||
-    msg.includes('token expired') ||
-    msg.includes('login expirou') ||
-    msg.includes('sessão expirada') ||
-    msg.includes('sessao expirada') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('the request requires valid') ||
-    msg.includes('requires valid user') ||
-    msg.includes('requires valid admin')
-  ) {
-    return true
-  }
-
   return false
 }

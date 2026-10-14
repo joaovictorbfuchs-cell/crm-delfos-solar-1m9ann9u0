@@ -24,7 +24,15 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { PropostaOM, Cliente } from '@/types/crm'
 
-export const AbaPropostasOM: React.FC = () => {
+export interface AbaPropostasOMProps {
+  filtroStatusExterno?: string
+  onNovoOrcamentoSolar?: () => void
+  onNovaPropostaOM?: () => void
+}
+
+export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
+  filtroStatusExterno = 'todos',
+}) => {
   const { propostasOM, clientes, sistemas, usuarios, removePropostaOM, isLoading, refreshData } =
     useClientes()
 
@@ -73,12 +81,13 @@ export const AbaPropostasOM: React.FC = () => {
   const totalFiltrosAtivos = useMemo(() => {
     let count = 0
     if (busca.trim()) count++
+    if (filtroStatusExterno !== 'todos') count++
     if (filtroPlano !== 'todos') count++
     if (filtroConsultor !== 'todos') count++
     if (dataInicio) count++
     if (dataFim) count++
     return count
-  }, [busca, filtroPlano, filtroConsultor, dataInicio, dataFim])
+  }, [busca, filtroStatusExterno, filtroPlano, filtroConsultor, dataInicio, dataFim])
 
   // Filtragem e ordenação (mais recentes primeiro)
   const propostasFiltradas = useMemo(() => {
@@ -103,6 +112,24 @@ export const AbaPropostasOM: React.FC = () => {
       const matchConsultor =
         filtroConsultor === 'todos' || autor.includes(filtroConsultor.toLowerCase().trim())
 
+      // Filtro de status O&M (da barra de filtro superior)
+      let matchStatus = true
+      if (filtroStatusExterno !== 'todos') {
+        const sTarget = filtroStatusExterno.toLowerCase().trim()
+        const stProp = (prop.status || 'Proposta Enviada').toLowerCase().trim()
+        if (sTarget === 'proposta enviada' || sTarget === 'enviada') {
+          matchStatus = stProp === 'proposta enviada' || stProp === 'enviada'
+        } else if (sTarget === 'aprovada' || sTarget === 'aprovado') {
+          matchStatus = stProp === 'aprovada' || stProp === 'aprovado'
+        } else if (sTarget === 'rejeitada' || sTarget === 'recusada' || sTarget === 'rejeitado') {
+          matchStatus = stProp === 'rejeitada' || stProp === 'recusada' || stProp === 'rejeitado'
+        } else if (sTarget === 'em elaboração' || sTarget === 'em elaboracao') {
+          matchStatus = stProp === 'em elaboração' || stProp === 'em elaboracao'
+        } else {
+          matchStatus = stProp === sTarget
+        }
+      }
+
       let matchData = true
       const rawData = prop.data_proposta || prop.created
       if (rawData) {
@@ -117,7 +144,7 @@ export const AbaPropostasOM: React.FC = () => {
         }
       }
 
-      return matchBusca && matchPlano && matchConsultor && matchData
+      return matchBusca && matchPlano && matchConsultor && matchStatus && matchData
     })
 
     return list.sort((a, b) => {
@@ -125,7 +152,16 @@ export const AbaPropostasOM: React.FC = () => {
       const timeB = new Date(b.data_proposta || b.created || 0).getTime()
       return timeB - timeA
     })
-  }, [propostasOM, clientes, busca, filtroPlano, filtroConsultor, dataInicio, dataFim])
+  }, [
+    propostasOM,
+    clientes,
+    busca,
+    filtroPlano,
+    filtroConsultor,
+    filtroStatusExterno,
+    dataInicio,
+    dataFim,
+  ])
 
   const handleExcluir = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -228,14 +264,14 @@ export const AbaPropostasOM: React.FC = () => {
       {/* Barra Superior de Ações e Filtros */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Busca Rápida */}
+          {/* Busca Rápida Padronizada */}
           <div className="relative flex-1 max-w-xl">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar proposta O&M por cliente, cidade ou consultor..."
+              placeholder="Buscar proposta..."
               className="w-full text-xs pl-9 pr-8 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
             />
             {busca && (

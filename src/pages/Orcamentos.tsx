@@ -35,6 +35,14 @@ import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AbaPropostasOM } from '@/components/AbaPropostasOM'
+import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import type { OrcamentoSolar, OrcamentoSolarStatus, Cliente } from '@/types/crm'
 
 export const Orcamentos: React.FC = () => {
@@ -169,12 +177,20 @@ export const Orcamentos: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [editingOrcamento, setEditingOrcamento] = useState<OrcamentoSolar | null>(null)
   const [clienteParaNovoOrcamento, setClienteParaNovoOrcamento] = useState<string>('')
+  const [isModalNovaOMOpen, setIsModalNovaOMOpen] = useState<boolean>(false)
+
+  // Estados dos filtros rápidos por status em cada aba
+  const [filtroStatusSolar, setFiltroStatusSolar] = useState<string>('todos')
+  const [filtroStatusOM, setFiltroStatusOM] = useState<string>('todos')
+  const [popoverFiltroAberto, setPopoverFiltroAberto] = useState<boolean>(false)
 
   // Aba do Hub de Propostas: 'solar' | 'om' | 'baterias' | 'carregadores'
   // Sincronizada com o query param ?aba=om, ?aba=solar, etc.
   const abaParam = searchParams.get('aba')
-  const abaAtivaHub = useMemo<'solar' | 'om'>(() => {
+  const abaAtivaHub = useMemo<'solar' | 'om' | 'baterias' | 'carregadores'>(() => {
     if (abaParam === 'om') return 'om'
+    if (abaParam === 'baterias') return 'baterias'
+    if (abaParam === 'carregadores') return 'carregadores'
     return 'solar'
   }, [abaParam])
 
@@ -263,10 +279,14 @@ export const Orcamentos: React.FC = () => {
       // 2. Status: Em Negociação, Aprovada, Recusada, Expirada, Arquivada
       let matchStatus = true
       if (filtrosAtivos.status !== 'todos') {
-        const s = filtrosAtivos.status.toLowerCase()
-        const orcSt = (orc.status || '').toLowerCase()
+        const s = filtrosAtivos.status.toLowerCase().trim()
+        const orcSt = (orc.status || '').toLowerCase().trim()
         if (s === 'em negociação' || s === 'em negociacao') {
           matchStatus = orcSt === 'em elaboração' || orcSt === 'enviado ao cliente'
+        } else if (s === 'em elaboração' || s === 'em elaboracao') {
+          matchStatus = orcSt === 'em elaboração'
+        } else if (s === 'enviado ao cliente' || s === 'enviado') {
+          matchStatus = orcSt === 'enviado ao cliente'
         } else if (s === 'aprovada' || s === 'aprovado') {
           matchStatus = orcSt === 'aprovado'
         } else if (s === 'recusada' || s === 'rejeitada' || s === 'rejeitado') {
@@ -282,6 +302,23 @@ export const Orcamentos: React.FC = () => {
           matchStatus = orcSt === 'arquivado' || orcSt === 'arquivada'
         } else {
           matchStatus = orcSt === s
+        }
+      }
+
+      // 2b. Filtro de status rápido do botão de filtro superior da aba Solar
+      if (filtroStatusSolar !== 'todos') {
+        const s = filtroStatusSolar.toLowerCase().trim()
+        const orcSt = (orc.status || '').toLowerCase().trim()
+        if (s === 'em elaboração' || s === 'em elaboracao') {
+          if (orcSt !== 'em elaboração') matchStatus = false
+        } else if (s === 'enviado ao cliente' || s === 'enviado') {
+          if (orcSt !== 'enviado ao cliente') matchStatus = false
+        } else if (s === 'aprovado' || s === 'aprovada') {
+          if (orcSt !== 'aprovado') matchStatus = false
+        } else if (s === 'rejeitado' || s === 'rejeitada' || s === 'recusada') {
+          if (orcSt !== 'rejeitado') matchStatus = false
+        } else {
+          if (orcSt !== s) matchStatus = false
         }
       }
 
@@ -397,7 +434,7 @@ export const Orcamentos: React.FC = () => {
         return timeA - timeB
       }
     })
-  }, [orcamentosSolar, clientes, filtrosAtivos, ordemDirecao])
+  }, [orcamentosSolar, clientes, filtrosAtivos, filtroStatusSolar, ordemDirecao])
 
   // Contagem de filtros ativos para badge
   const totalFiltrosAtivos = useMemo(() => {
@@ -510,6 +547,9 @@ export const Orcamentos: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
                   Propostas
                 </h1>
+                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Hub Unificado
+                </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
                 Central de geração e acompanhamento de propostas comerciais
@@ -519,76 +559,362 @@ export const Orcamentos: React.FC = () => {
         </div>
       </div>
 
-      {/* Navegador de Abas por Produto (Design System Verde Solar) */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-1.5 flex items-center gap-1.5 overflow-x-auto select-none">
-        {/* Aba 1: Energia Solar (Ativa por padrão) */}
-        <button
-          type="button"
-          onClick={() => handleMudarAbaHub('solar')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-            abaAtivaHub === 'solar'
-              ? 'bg-[#16A34A] text-white shadow-sm'
-              : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
-          }`}
-        >
-          <Sun className="w-4 h-4" />
-          <span>Energia Solar</span>
-          <span
-            className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-              abaAtivaHub === 'solar' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+      {/* Linha das Abas do Hub com Botão de Filtro (apenas ícone) e Botão + (dropdown) alinhados à direita */}
+      <div className="flex items-center justify-between gap-2 w-full">
+        {/* Navegador de Abas por Produto (Design System Verde Solar) */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-1.5 flex items-center gap-1.5 overflow-x-auto select-none flex-1 min-w-0">
+          {/* Aba 1: Energia Solar (Ativa por padrão) */}
+          <button
+            type="button"
+            onClick={() => handleMudarAbaHub('solar')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              abaAtivaHub === 'solar'
+                ? 'bg-[#16A34A] text-white shadow-sm'
+                : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
             }`}
           >
-            {orcamentosSolar.length}
-          </span>
-        </button>
+            <Sun className="w-4 h-4" />
+            <span>Energia Solar</span>
+            <span
+              className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                abaAtivaHub === 'solar' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {orcamentosSolar.length}
+            </span>
+          </button>
 
-        {/* Aba 2: O&M (Ativa) */}
-        <button
-          type="button"
-          onClick={() => handleMudarAbaHub('om')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-            abaAtivaHub === 'om'
-              ? 'bg-[#16A34A] text-white shadow-sm'
-              : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
-          }`}
-        >
-          <FileCheck className="w-4 h-4" />
-          <span>O&amp;M</span>
-          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-            Operação &amp; Manutenção
-          </span>
-        </button>
+          {/* Aba 2: O&M (Ativa) */}
+          <button
+            type="button"
+            onClick={() => handleMudarAbaHub('om')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              abaAtivaHub === 'om'
+                ? 'bg-[#16A34A] text-white shadow-sm'
+                : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
+            }`}
+          >
+            <FileCheck className="w-4 h-4" />
+            <span>O&amp;M</span>
+            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Operação &amp; Manutenção
+            </span>
+          </button>
 
-        {/* Aba 3: Baterias (Desabilitada / Em breve) */}
-        <div
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
-          title="Módulo de Baterias em desenvolvimento"
-          aria-disabled="true"
-        >
-          <Battery className="w-4 h-4 text-gray-400" />
-          <span>Baterias</span>
-          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
-            Em breve
-          </span>
+          {/* Aba 3: Baterias (Desabilitada / Em breve) */}
+          <div
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
+            title="Módulo de Baterias em desenvolvimento"
+            aria-disabled="true"
+          >
+            <Battery className="w-4 h-4 text-gray-400" />
+            <span>Baterias</span>
+            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+              Em breve
+            </span>
+          </div>
+
+          {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
+          <div
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
+            title="Módulo de Carregadores Veiculares em desenvolvimento"
+            aria-disabled="true"
+          >
+            <Zap className="w-4 h-4 text-gray-400" />
+            <span>Carregadores Veiculares</span>
+            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+              Em breve
+            </span>
+          </div>
         </div>
 
-        {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
-        <div
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
-          title="Módulo de Carregadores Veiculares em desenvolvimento"
-          aria-disabled="true"
-        >
-          <Zap className="w-4 h-4 text-gray-400" />
-          <span>Carregadores Veiculares</span>
-          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
-            Em breve
-          </span>
+        {/* Ações da Linha das Abas: Botão Filtro (apenas ícone) + Botão + com Menu */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Botão de Filtro (apenas ícone funil) com popover contextual por aba */}
+          {(() => {
+            const isFiltroAtivoNaAba =
+              abaAtivaHub === 'solar'
+                ? filtroStatusSolar !== 'todos'
+                : abaAtivaHub === 'om'
+                  ? filtroStatusOM !== 'todos'
+                  : false
+            const isDesabilitado = abaAtivaHub !== 'solar' && abaAtivaHub !== 'om'
+
+            return (
+              <Popover open={popoverFiltroAberto} onOpenChange={setPopoverFiltroAberto}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isDesabilitado}
+                    aria-label="Filtrar por status"
+                    title={
+                      isDesabilitado
+                        ? 'Filtro indisponível para esta aba'
+                        : isFiltroAtivoNaAba
+                          ? 'Filtro de status ativo'
+                          : 'Filtrar propostas por status'
+                    }
+                    className={`relative inline-flex items-center justify-center w-10 h-10 rounded-xl border transition-all cursor-pointer ${
+                      isDesabilitado
+                        ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
+                        : isFiltroAtivoNaAba
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs'
+                          : 'bg-white text-gray-600 border-gray-200 hover:text-emerald-700 hover:bg-emerald-50/50 hover:border-emerald-300 shadow-2xs'
+                    }`}
+                  >
+                    <Filter className="w-4 h-4" />
+                    {isFiltroAtivoNaAba && (
+                      <span
+                        data-testid="filtro-ativo-dot"
+                        className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-600 ring-2 ring-white"
+                      />
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-56 p-2 rounded-xl shadow-lg border-gray-200"
+                >
+                  <div className="space-y-1">
+                    <div className="px-2 py-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                      <span>Status ({abaAtivaHub === 'solar' ? 'Solar' : 'O&M'})</span>
+                      {isFiltroAtivoNaAba && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (abaAtivaHub === 'solar') setFiltroStatusSolar('todos')
+                            if (abaAtivaHub === 'om') setFiltroStatusOM('todos')
+                          }}
+                          className="text-[10px] text-emerald-700 hover:underline font-bold"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+
+                    {abaAtivaHub === 'solar' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusSolar('todos')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusSolar === 'todos'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Todos os status</span>
+                          {filtroStatusSolar === 'todos' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusSolar('Em elaboração')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusSolar === 'Em elaboração'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Em elaboração</span>
+                          {filtroStatusSolar === 'Em elaboração' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusSolar('Enviado ao cliente')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusSolar === 'Enviado ao cliente'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Enviado ao cliente</span>
+                          {filtroStatusSolar === 'Enviado ao cliente' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusSolar('Aprovado')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusSolar === 'Aprovado'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Aprovado</span>
+                          {filtroStatusSolar === 'Aprovado' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusSolar('Rejeitado')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusSolar === 'Rejeitado'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Rejeitado</span>
+                          {filtroStatusSolar === 'Rejeitado' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                      </>
+                    )}
+
+                    {abaAtivaHub === 'om' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusOM('todos')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusOM === 'todos'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Todos os status</span>
+                          {filtroStatusOM === 'todos' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusOM('Proposta Enviada')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusOM === 'Proposta Enviada'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Proposta Enviada</span>
+                          {filtroStatusOM === 'Proposta Enviada' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusOM('Aprovada')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusOM === 'Aprovada'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Aprovada</span>
+                          {filtroStatusOM === 'Aprovada' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusOM('Rejeitada')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusOM === 'Rejeitada'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Rejeitada</span>
+                          {filtroStatusOM === 'Rejeitada' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroStatusOM('Em elaboração')
+                            setPopoverFiltroAberto(false)
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                            filtroStatusOM === 'Em elaboração'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>Em elaboração</span>
+                          {filtroStatusOM === 'Em elaboração' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )
+          })()}
+
+          {/* Botão + com Menu Dropdown: "Nova proposta Solar" e "Nova proposta O&M" */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Criar nova proposta"
+                title="Criar nova proposta"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white shadow-xs hover:shadow transition-all cursor-pointer"
+              >
+                <Plus className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-52 rounded-xl p-1.5 shadow-lg border-gray-200"
+            >
+              <DropdownMenuItem
+                onClick={() => handleNovoOrcamento()}
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors"
+              >
+                <Sun className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>Nova proposta Solar</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setIsModalNovaOMOpen(true)}
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors"
+              >
+                <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Nova proposta O&amp;M</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Conteúdo Dinâmico por Aba */}
       {abaAtivaHub === 'om' ? (
-        <AbaPropostasOM />
+        <AbaPropostasOM filtroStatusExterno={filtroStatusOM} />
       ) : (
         <div className="space-y-5 w-full">
           {/* Barra de Ações Rápidas Energia Solar */}
@@ -607,7 +933,7 @@ export const Orcamentos: React.FC = () => {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>&nbsp;Solar</span>
+                <span>Nova Proposta Solar</span>
               </button>
             </div>
           </div>
@@ -667,9 +993,9 @@ export const Orcamentos: React.FC = () => {
 
           {/* Barra de Filtros Avançados e Busca Rápida */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 sm:p-5 space-y-4">
-            {/* Linha 1: Busca rápida, Alternância de Ordem, Botão do Painel e Contadores */}
+            {/* Linha 1: Busca rápida padronizada, Alternância de Ordem, Botão do Painel e Contadores */}
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-              {/* Busca rápida */}
+              {/* Busca rápida padronizada */}
               <div className="relative flex-1 max-w-xl">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -681,7 +1007,7 @@ export const Orcamentos: React.FC = () => {
                       handleAplicarFiltros()
                     }
                   }}
-                  placeholder="Busca rápida: cliente, número da proposta (#1, ID) ou cidade..."
+                  placeholder="Buscar proposta..."
                   className="w-full text-xs pl-9 pr-8 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                 />
                 {buscaRapida && (
@@ -1216,7 +1542,7 @@ export const Orcamentos: React.FC = () => {
             </div>
           )}
 
-          {/* Modal de Novo / Editar Orçamento */}
+          {/* Modal de Novo / Editar Orçamento Solar */}
           <ModalOrcamentoSolar
             isOpen={isModalOpen}
             onClose={() => {
@@ -1226,6 +1552,12 @@ export const Orcamentos: React.FC = () => {
             }}
             initialClienteId={clienteParaNovoOrcamento}
             initialOrcamento={editingOrcamento}
+          />
+
+          {/* Modal de Nova Proposta O&M acionado pelo menu + */}
+          <ModalNovaPropostaOM
+            isOpen={isModalNovaOMOpen}
+            onClose={() => setIsModalNovaOMOpen(false)}
           />
 
           {/* Modal de Enviar Proposta por WhatsApp protegido por ErrorBoundary local */}

@@ -309,4 +309,26 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
     expect(screen.getByRole('button', { name: /Salvar Orçamento/i })).toBeDefined()
     expect(screen.getByRole('button', { name: /Cancelar/i })).toBeDefined()
   })
+
+  it('no Hub de Propostas (/propostas), exibe o botão + e o botão de filtro ao lado direito da linha de abas', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    render(
+      <MemoryRouter initialEntries={['/propostas']}>
+        <Orcamentos />
+      </MemoryRouter>,
+    )
+
+    // Botão + na linha de abas
+    const btnMais = screen.getByRole('button', { name: 'Criar nova proposta' })
+    expect(btnMais).toBeDefined()
+
+    // Botão de filtro por status ao lado esquerdo do +
+    const btnFiltro = screen.getByRole('button', { name: 'Filtrar por status' })
+    expect(btnFiltro).toBeDefined()
+
+    // Clicar no botão + abre dropdown com "Nova proposta Solar" e "Nova proposta O&M"
+    fireEvent.click(btnMais)
+    expect(screen.getByText('Nova proposta Solar')).toBeDefined()
+    expect(screen.getByText('Nova proposta O&M')).toBeDefined()
+  })
 })
