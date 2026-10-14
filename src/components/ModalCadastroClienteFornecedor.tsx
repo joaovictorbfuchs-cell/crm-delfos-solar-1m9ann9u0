@@ -307,75 +307,83 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
 
   // Ao digitar os 14 dígitos do CNPJ ou sair do campo
   const handleCnpjBlur = async () => {
-    const raw = cnpj.replace(/\D/g, '')
-    if (raw.length !== 14) {
-      if (raw.length > 0) {
-        setDocError('CNPJ deve conter 14 dígitos.')
-      } else {
-        setDocError(null)
+    try {
+      const raw = cnpj.replace(/\D/g, '')
+      if (raw.length !== 14) {
+        if (raw.length > 0) {
+          setDocError('CNPJ deve conter 14 dígitos.')
+        } else {
+          setDocError(null)
+        }
+        return
       }
-      return
-    }
 
-    if (!validarCNPJ(raw)) {
-      setDocError('CNPJ inválido (dígitos verificadores incorretos).')
-      return
-    }
-    setDocError(null)
+      if (!validarCNPJ(raw)) {
+        setDocError('CNPJ inválido (dígitos verificadores incorretos).')
+        return
+      }
+      setDocError(null)
 
-    const result = await lookupCnpj(raw)
-    if (!result) return
+      const result = await lookupCnpj(raw)
+      if (!result) return
 
-    const conflitos: CnpjConflictField[] = []
-    const nomePrincipal = result.nome_fantasia || result.razao_social
+      const conflitos: CnpjConflictField[] = []
+      const nomePrincipal = result.nome_fantasia || result.razao_social
 
-    if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
-      conflitos.push({
-        campo: 'nome',
-        label: tipoEntidade === 'fornecedor' ? 'Nome da Empresa' : 'Nome / Razão Social',
-        valorAtual: nome,
-        valorReceita: nomePrincipal,
-      })
-    }
-    if (
-      telefone.trim() &&
-      result.telefone &&
-      telefone.replace(/\D/g, '') !== result.telefone.replace(/\D/g, '')
-    ) {
-      conflitos.push({
-        campo: 'telefone',
-        label: 'Telefone Principal',
-        valorAtual: telefone,
-        valorReceita: result.telefone,
-      })
-    }
-    if (email.trim() && result.email && email.trim().toLowerCase() !== result.email.toLowerCase()) {
-      conflitos.push({
-        campo: 'email',
-        label: 'E-mail',
-        valorAtual: email,
-        valorReceita: result.email,
-      })
-    }
-    if (
-      cidade.trim() &&
-      result.municipio &&
-      cidade.trim().toLowerCase() !== result.municipio.toLowerCase()
-    ) {
-      conflitos.push({
-        campo: 'cidade',
-        label: 'Cidade',
-        valorAtual: cidade,
-        valorReceita: result.municipio,
-      })
-    }
+      if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
+        conflitos.push({
+          campo: 'nome',
+          label: tipoEntidade === 'fornecedor' ? 'Nome da Empresa' : 'Nome / Razão Social',
+          valorAtual: nome,
+          valorReceita: nomePrincipal,
+        })
+      }
+      if (
+        telefone.trim() &&
+        result.telefone &&
+        telefone.replace(/\D/g, '') !== result.telefone.replace(/\D/g, '')
+      ) {
+        conflitos.push({
+          campo: 'telefone',
+          label: 'Telefone Principal',
+          valorAtual: telefone,
+          valorReceita: result.telefone,
+        })
+      }
+      if (
+        email.trim() &&
+        result.email &&
+        email.trim().toLowerCase() !== result.email.toLowerCase()
+      ) {
+        conflitos.push({
+          campo: 'email',
+          label: 'E-mail',
+          valorAtual: email,
+          valorReceita: result.email,
+        })
+      }
+      if (
+        cidade.trim() &&
+        result.municipio &&
+        cidade.trim().toLowerCase() !== result.municipio.toLowerCase()
+      ) {
+        conflitos.push({
+          campo: 'cidade',
+          label: 'Cidade',
+          valorAtual: cidade,
+          valorReceita: result.municipio,
+        })
+      }
 
-    if (conflitos.length > 0) {
-      setConflitosCnpj(conflitos)
-      setPendenteDadosReceita(result)
-      aplicarDadosReceita(result, false)
-    } else {
-      aplicarDadosReceita(result, true)
+      if (conflitos.length > 0) {
+        setConflitosCnpj(conflitos)
+        setPendenteDadosReceita(result)
+        aplicarDadosReceita(result, false)
+      } else {
+        aplicarDadosReceita(result, true)
+      }
+    } catch (err: unknown) {
+      console.warn('[ModalCadastroClienteFornecedor] Falha no lookup de CNPJ no blur:', err)
     }
   }
 

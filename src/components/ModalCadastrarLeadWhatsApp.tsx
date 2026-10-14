@@ -175,42 +175,46 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   }
 
   const handleCnpjBlur = async () => {
-    const raw = cnpj.replace(/\D/g, '')
-    if (raw.length !== 14) return
+    try {
+      const raw = cnpj.replace(/\D/g, '')
+      if (raw.length !== 14) return
 
-    const result = await lookupCnpj(raw)
-    if (!result) return
+      const result = await lookupCnpj(raw)
+      if (!result) return
 
-    const conflitos: CnpjConflictField[] = []
-    const nomePrincipal = result.nome_fantasia || result.razao_social
+      const conflitos: CnpjConflictField[] = []
+      const nomePrincipal = result.nome_fantasia || result.razao_social
 
-    if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
-      conflitos.push({
-        campo: 'nome',
-        label: 'Nome da Empresa',
-        valorAtual: nome,
-        valorReceita: nomePrincipal,
-      })
-    }
-    if (
-      endereco.trim() &&
-      result.logradouro &&
-      !endereco.toLowerCase().includes(result.logradouro.toLowerCase())
-    ) {
-      conflitos.push({
-        campo: 'endereco',
-        label: 'Endereço',
-        valorAtual: endereco,
-        valorReceita: result.logradouro,
-      })
-    }
+      if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
+        conflitos.push({
+          campo: 'nome',
+          label: 'Nome da Empresa',
+          valorAtual: nome,
+          valorReceita: nomePrincipal,
+        })
+      }
+      if (
+        endereco.trim() &&
+        result.logradouro &&
+        !endereco.toLowerCase().includes(result.logradouro.toLowerCase())
+      ) {
+        conflitos.push({
+          campo: 'endereco',
+          label: 'Endereço',
+          valorAtual: endereco,
+          valorReceita: result.logradouro,
+        })
+      }
 
-    if (conflitos.length > 0) {
-      setConflitosCnpj(conflitos)
-      setPendenteDadosReceita(result)
-      aplicarDadosReceita(result, false)
-    } else {
-      aplicarDadosReceita(result, true)
+      if (conflitos.length > 0) {
+        setConflitosCnpj(conflitos)
+        setPendenteDadosReceita(result)
+        aplicarDadosReceita(result, false)
+      } else {
+        aplicarDadosReceita(result, true)
+      }
+    } catch (err: unknown) {
+      console.warn('[ModalCadastrarLeadWhatsApp] Falha silenciosa no lookup de CNPJ:', err)
     }
   }
 

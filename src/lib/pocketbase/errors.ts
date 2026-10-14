@@ -30,33 +30,26 @@ export function getErrorMessage(error: unknown): string {
 
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-
-  // ClientResponseError com status 401 ou 403
-  if (typeof error === 'object' && error !== null) {
-    const errObj = error as {
-      status?: number
-      statusCode?: number
-      response?: { status?: number }
-      message?: string
-    }
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
     if (errObj.status === 401 || errObj.status === 403) return true
     if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (errObj.response && (errObj.response.status === 401 || errObj.response.status === 403))
-      return true
-
+    if (errObj.response && typeof errObj.response === 'object') {
+      const resp = errObj.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
     const msg = typeof errObj.message === 'string' ? errObj.message.toLowerCase() : ''
     if (
       msg.includes('token is expired') ||
-      msg.includes('failed to authenticate') ||
+      msg.includes('token expired') ||
+      msg.includes('login expirou') ||
       msg.includes('sessão expirada') ||
       msg.includes('sessao expirada') ||
-      msg.includes('login expirou') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
+      msg.includes('failed to authenticate') ||
+      msg.includes('the request requires valid user authorization')
     ) {
       return true
     }
   }
-
   return false
 }

@@ -240,55 +240,63 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   }
 
   const handleCnpjBlur = async () => {
-    const raw = cnpj.replace(/\D/g, '')
-    if (raw.length !== 14) return
+    try {
+      const raw = cnpj.replace(/\D/g, '')
+      if (raw.length !== 14) return
 
-    const result = await lookupCnpj(raw)
-    if (!result) return
+      const result = await lookupCnpj(raw)
+      if (!result) return
 
-    const conflitos: CnpjConflictField[] = []
-    const nomePrincipal = result.nome_fantasia || result.razao_social
+      const conflitos: CnpjConflictField[] = []
+      const nomePrincipal = result.nome_fantasia || result.razao_social
 
-    if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
-      conflitos.push({
-        campo: 'nome',
-        label: 'Nome do Lead',
-        valorAtual: nome,
-        valorReceita: nomePrincipal,
-      })
-    }
-    if (
-      telefone.trim() &&
-      result.telefone &&
-      telefone.replace(/\D/g, '') !== result.telefone.replace(/\D/g, '')
-    ) {
-      conflitos.push({
-        campo: 'telefone',
-        label: 'Telefone',
-        valorAtual: telefone,
-        valorReceita: result.telefone,
-      })
-    }
-    const cidadeFormatada = result.municipio ? `${result.municipio}/${result.uf}` : ''
-    if (
-      cidade.trim() &&
-      cidadeFormatada &&
-      cidade.trim().toLowerCase() !== cidadeFormatada.toLowerCase()
-    ) {
-      conflitos.push({
-        campo: 'cidade',
-        label: 'Cidade',
-        valorAtual: cidade,
-        valorReceita: cidadeFormatada,
-      })
-    }
+      if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
+        conflitos.push({
+          campo: 'nome',
+          label: 'Nome do Lead',
+          valorAtual: nome,
+          valorReceita: nomePrincipal,
+        })
+      }
+      if (
+        telefone.trim() &&
+        result.telefone &&
+        telefone.replace(/\D/g, '') !== result.telefone.replace(/\D/g, '')
+      ) {
+        conflitos.push({
+          campo: 'telefone',
+          label: 'Telefone',
+          valorAtual: telefone,
+          valorReceita: result.telefone,
+        })
+      }
+      const cidadeFormatada = result.municipio ? `${result.municipio}/${result.uf}` : ''
+      if (
+        cidade.trim() &&
+        cidadeFormatada &&
+        cidade.trim().toLowerCase() !== cidadeFormatada.toLowerCase()
+      ) {
+        conflitos.push({
+          campo: 'cidade',
+          label: 'Cidade',
+          valorAtual: cidade,
+          valorReceita: cidadeFormatada,
+        })
+      }
 
-    if (conflitos.length > 0) {
-      setConflitosCnpj(conflitos)
-      setPendenteDadosReceita(result)
-      aplicarDadosReceita(result, false)
-    } else {
-      aplicarDadosReceita(result, true)
+      if (conflitos.length > 0) {
+        setConflitosCnpj(conflitos)
+        setPendenteDadosReceita(result)
+        aplicarDadosReceita(result, false)
+      } else {
+        aplicarDadosReceita(result, true)
+      }
+    } catch (err: unknown) {
+      // Degradação graciosa: falha na consulta de CNPJ nunca quebra o formulário
+      console.warn(
+        '[NovoLeadModal] Não foi possível consultar CNPJ no blur (fluxo manual mantido):',
+        err,
+      )
     }
   }
 

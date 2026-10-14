@@ -2902,7 +2902,10 @@ export const FichaClienteDrawer: React.FC = () => {
                                         }
                                       }
                                     } catch (e) {
-                                      console.error('Erro na busca CNPJ:', e)
+                                      console.warn(
+                                        '[FichaClienteDrawer] Erro na busca CNPJ (fluxo manual preservado):',
+                                        e,
+                                      )
                                     } finally {
                                       setIsCnpjBuscandoReceita(false)
                                     }

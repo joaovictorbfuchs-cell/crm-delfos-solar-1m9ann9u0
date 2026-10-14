@@ -97,6 +97,10 @@ export function useCnpjLookup(options?: UseCnpjLookupOptions) {
         if (err instanceof DOMException && err.name === 'AbortError') {
           return null
         }
+        if (err instanceof Error && err.name === 'AbortError') {
+          return null
+        }
+        console.warn('[useCnpjLookup] Erro capturado na consulta de CNPJ:', err)
         setStatus('error')
         const msg =
           'Erro ao consultar CNPJ na Receita Federal. Você pode continuar preenchendo manualmente.'

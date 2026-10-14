@@ -84,52 +84,59 @@ async function consultarBrasilApi(
   cnpjLimpo: string,
   signal?: AbortSignal,
 ): Promise<CnpjDataNormalized | null> {
-  const url = `https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`
-  const response = await fetch(url, { signal })
+  try {
+    const url = `https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`
+    const response = await fetch(url, { signal })
 
-  if (response.status === 404) {
+    if (response.status === 404) {
+      return null
+    }
+
+    if (!response.ok) {
+      console.warn(`[CNPJ Lookup] BrasilAPI retornou status HTTP ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+
+    const logradouroCompleto = [data.descricao_tipo_de_logradouro, data.logradouro]
+      .filter(Boolean)
+      .join(' ')
+      .trim()
+
+    const telefoneFinal = comporTelefone(
+      data.ddd_telefone_1 ? '' : '',
+      '',
+      data.ddd_telefone_1 || data.ddd_telefone_2,
+    )
+
+    return {
+      cnpj: formatarCNPJ(data.cnpj || cnpjLimpo),
+      razao_social: (data.razao_social || '').trim(),
+      nome_fantasia: (data.nome_fantasia || '').trim(),
+      logradouro: logradouroCompleto || (data.logradouro || '').trim(),
+      numero: (data.numero || '').trim(),
+      complemento: (data.complemento || '').trim(),
+      bairro: (data.bairro || '').trim(),
+      municipio: (data.municipio || '').trim(),
+      uf: (data.uf || '').trim().toUpperCase(),
+      cep: formatarCEP(data.cep),
+      telefone: telefoneFinal,
+      email: (data.email || '').trim().toLowerCase(),
+      situacao_cadastral: (
+        data.descricao_situacao_cadastral ||
+        (data.situacao_cadastral === 2 ? 'ATIVA' : '') ||
+        ''
+      ).trim(),
+      cnae_principal: (data.cnae_fiscal_descricao || '').trim(),
+      cnae_codigo: String(data.cnae_fiscal || ''),
+      data_abertura: normalizarData(data.data_inicio_atividade),
+      origem_api: 'brasilapi',
+    }
+  } catch (err: unknown) {
+    // Falhas de rede/CORS/timeout retornam null para permitir fallback limpo sem lançar
+    console.warn('[CNPJ Lookup] Falha ao consultar BrasilAPI (degradação graciosa):', err)
     return null
-  }
-
-  if (!response.ok) {
-    throw new Error(`BrasilAPI HTTP error: ${response.status}`)
-  }
-
-  const data = await response.json()
-
-  const logradouroCompleto = [data.descricao_tipo_de_logradouro, data.logradouro]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-
-  const telefoneFinal = comporTelefone(
-    data.ddd_telefone_1 ? '' : '',
-    '',
-    data.ddd_telefone_1 || data.ddd_telefone_2,
-  )
-
-  return {
-    cnpj: formatarCNPJ(data.cnpj || cnpjLimpo),
-    razao_social: (data.razao_social || '').trim(),
-    nome_fantasia: (data.nome_fantasia || '').trim(),
-    logradouro: logradouroCompleto || (data.logradouro || '').trim(),
-    numero: (data.numero || '').trim(),
-    complemento: (data.complemento || '').trim(),
-    bairro: (data.bairro || '').trim(),
-    municipio: (data.municipio || '').trim(),
-    uf: (data.uf || '').trim().toUpperCase(),
-    cep: formatarCEP(data.cep),
-    telefone: telefoneFinal,
-    email: (data.email || '').trim().toLowerCase(),
-    situacao_cadastral: (
-      data.descricao_situacao_cadastral ||
-      (data.situacao_cadastral === 2 ? 'ATIVA' : '') ||
-      ''
-    ).trim(),
-    cnae_principal: (data.cnae_fiscal_descricao || '').trim(),
-    cnae_codigo: String(data.cnae_fiscal || ''),
-    data_abertura: normalizarData(data.data_inicio_atividade),
-    origem_api: 'brasilapi',
   }
 }
 
@@ -140,56 +147,63 @@ async function consultarPublicaCnpj(
   cnpjLimpo: string,
   signal?: AbortSignal,
 ): Promise<CnpjDataNormalized | null> {
-  const url = `https://publica.cnpj.ws/cnpj/${cnpjLimpo}`
-  const response = await fetch(url, { signal })
+  try {
+    const url = `https://publica.cnpj.ws/cnpj/${cnpjLimpo}`
+    const response = await fetch(url, { signal })
 
-  if (response.status === 404) {
+    if (response.status === 404) {
+      return null
+    }
+
+    if (!response.ok) {
+      console.warn(`[CNPJ Lookup] PublicaCNPJ retornou status HTTP ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    const est = data.estabelecimento || {}
+
+    const tipoLog = est.tipo_logradouro || ''
+    const logr = est.logradouro || ''
+    const logradouroCompleto = [tipoLog, logr].filter(Boolean).join(' ').trim()
+
+    const telefoneFinal = comporTelefone(
+      est.ddd1,
+      est.telefone1,
+      est.telefone2 ? `${est.ddd2 || ''}${est.telefone2}` : undefined,
+    )
+
+    const cnaeDesc =
+      est.atividade_principal?.descricao ||
+      (Array.isArray(est.atividades_secundarias) && est.atividades_secundarias[0]?.descricao) ||
+      ''
+    const cnaeCod = est.atividade_principal?.subclasse || est.atividade_principal?.id || ''
+
+    const situacao = est.situacao_cadastral || ''
+
+    return {
+      cnpj: formatarCNPJ(est.cnpj || cnpjLimpo),
+      razao_social: (data.razao_social || '').trim(),
+      nome_fantasia: (est.nome_fantasia || '').trim(),
+      logradouro: logradouroCompleto,
+      numero: (est.numero || '').trim(),
+      complemento: (est.complemento || '').trim(),
+      bairro: (est.bairro || '').trim(),
+      municipio: (est.cidade?.nome || '').trim(),
+      uf: (est.estado?.sigla || '').trim().toUpperCase(),
+      cep: formatarCEP(est.cep),
+      telefone: telefoneFinal,
+      email: (est.email || '').trim().toLowerCase(),
+      situacao_cadastral: situacao.trim(),
+      cnae_principal: cnaeDesc.trim(),
+      cnae_codigo: String(cnaeCod),
+      data_abertura: normalizarData(est.data_inicio_atividade),
+      origem_api: 'publicacnpj',
+    }
+  } catch (err: unknown) {
+    // Falhas de rede/CORS/timeout retornam null para degradação graciosa sem lançar
+    console.warn('[CNPJ Lookup] Falha ao consultar Publica CNPJ (degradação graciosa):', err)
     return null
-  }
-
-  if (!response.ok) {
-    throw new Error(`PublicaCNPJ HTTP error: ${response.status}`)
-  }
-
-  const data = await response.json()
-  const est = data.estabelecimento || {}
-
-  const tipoLog = est.tipo_logradouro || ''
-  const logr = est.logradouro || ''
-  const logradouroCompleto = [tipoLog, logr].filter(Boolean).join(' ').trim()
-
-  const telefoneFinal = comporTelefone(
-    est.ddd1,
-    est.telefone1,
-    est.telefone2 ? `${est.ddd2 || ''}${est.telefone2}` : undefined,
-  )
-
-  const cnaeDesc =
-    est.atividade_principal?.descricao ||
-    (Array.isArray(est.atividades_secundarias) && est.atividades_secundarias[0]?.descricao) ||
-    ''
-  const cnaeCod = est.atividade_principal?.subclasse || est.atividade_principal?.id || ''
-
-  const situacao = est.situacao_cadastral || ''
-
-  return {
-    cnpj: formatarCNPJ(est.cnpj || cnpjLimpo),
-    razao_social: (data.razao_social || '').trim(),
-    nome_fantasia: (est.nome_fantasia || '').trim(),
-    logradouro: logradouroCompleto,
-    numero: (est.numero || '').trim(),
-    complemento: (est.complemento || '').trim(),
-    bairro: (est.bairro || '').trim(),
-    municipio: (est.cidade?.nome || '').trim(),
-    uf: (est.estado?.sigla || '').trim().toUpperCase(),
-    cep: formatarCEP(est.cep),
-    telefone: telefoneFinal,
-    email: (est.email || '').trim().toLowerCase(),
-    situacao_cadastral: situacao.trim(),
-    cnae_principal: cnaeDesc.trim(),
-    cnae_codigo: String(cnaeCod),
-    data_abertura: normalizarData(est.data_inicio_atividade),
-    origem_api: 'publicacnpj',
   }
 }
 
@@ -216,34 +230,87 @@ export async function consultarCNPJReceita(
     }
   }
 
-  // 1ª Tentativa: BrasilAPI
-  try {
-    const resBrasil = await consultarBrasilApi(cnpjLimpo, options?.signal)
-    if (resBrasil) {
-      return { success: true, data: resBrasil }
+  // Criar timeout controlado para não travar indefinidamente se a API externa ou rede demorar
+  const timeoutMs = 10000
+  const internalController = new AbortController()
+  const timer = setTimeout(() => {
+    try {
+      internalController.abort()
+    } catch {
+      // Ignora erro ao abortar
     }
-    // Se retornou 404 na BrasilAPI, podemos tentar na Publica CNPJ como garantia antes de cravar "not_found"
-  } catch (err: unknown) {
-    console.warn('[CNPJ Lookup] Falha na BrasilAPI, tentando fallback na Publica CNPJ...', err)
+  }, timeoutMs)
+
+  // Vincula o sinal externo (caso fornecido) ao controlador interno
+  if (options?.signal) {
+    if (options.signal.aborted) {
+      clearTimeout(timer)
+      return {
+        success: false,
+        error: 'Consulta cancelada.',
+      }
+    }
+    options.signal.addEventListener(
+      'abort',
+      () => {
+        try {
+          internalController.abort()
+        } catch {
+          // Ignora
+        }
+      },
+      { once: true },
+    )
   }
 
-  // 2ª Tentativa (Fallback): Publica CNPJ
   try {
-    const resPublica = await consultarPublicaCnpj(cnpjLimpo, options?.signal)
-    if (resPublica) {
-      return { success: true, data: resPublica }
+    // 1ª Tentativa: BrasilAPI
+    try {
+      const resBrasil = await consultarBrasilApi(cnpjLimpo, internalController.signal)
+      if (resBrasil) {
+        return { success: true, data: resBrasil }
+      }
+    } catch (err: unknown) {
+      console.warn('[CNPJ Lookup] Falha na BrasilAPI, tentando fallback na Publica CNPJ...', err)
     }
-    return {
-      success: false,
-      notFound: true,
-      error: 'CNPJ não encontrado na Receita Federal.',
+
+    // Se o sinal foi abortado externamente, retorna silenciosamente
+    if (options?.signal?.aborted) {
+      return {
+        success: false,
+        error: 'Consulta cancelada.',
+      }
     }
-  } catch (err: unknown) {
-    console.error('[CNPJ Lookup] Falha em ambas as APIs (BrasilAPI e Publica CNPJ):', err)
+
+    // 2ª Tentativa (Fallback): Publica CNPJ
+    try {
+      const resPublica = await consultarPublicaCnpj(cnpjLimpo, internalController.signal)
+      if (resPublica) {
+        return { success: true, data: resPublica }
+      }
+      return {
+        success: false,
+        notFound: true,
+        error: 'CNPJ não encontrado na Receita Federal.',
+      }
+    } catch (err: unknown) {
+      console.warn('[CNPJ Lookup] Falha em ambas as APIs (BrasilAPI e Publica CNPJ):', err)
+      return {
+        success: false,
+        error:
+          'Não foi possível consultar os dados na Receita Federal no momento. O cadastro manual continua disponível.',
+      }
+    }
+  } catch (unexpectedErr: unknown) {
+    // Garantia absoluta: Toda falha de rede/CORS/timeout/erro inesperado é capturada
+    // sem nunca lançar ou quebrar a chamada externa.
+    console.warn('[CNPJ Lookup] Exceção capturada na consulta pública:', unexpectedErr)
     return {
       success: false,
       error:
         'Não foi possível consultar os dados na Receita Federal no momento. O cadastro manual continua disponível.',
     }
+  } finally {
+    clearTimeout(timer)
   }
 }
