@@ -377,9 +377,6 @@ export const AbaPropostasOM: React.FC = () => {
               Total da carteira: {propostasOM.length}
             </span>
           </div>
-          <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-            Módulo O&amp;M Delfos Solar
-          </span>
         </div>
       </div>
 

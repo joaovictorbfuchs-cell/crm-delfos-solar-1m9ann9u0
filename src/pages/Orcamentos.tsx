@@ -702,24 +702,6 @@ export const Orcamentos: React.FC = () => {
               {/* Controles de Ordenação e Ações Rápidas */}
               <div className="flex items-center gap-2 flex-wrap justify-between md:justify-end">
                 {/* Botão de alternar ordem crescente/decrescente */}
-                <button
-                  type="button"
-                  onClick={handleToggleOrdem}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-emerald-50/50 border border-gray-200 hover:border-emerald-300 text-gray-700 text-xs font-bold rounded-xl shadow-2xs transition-all"
-                  title={`Alternar para ordem ${ordemDirecao === 'desc' ? 'crescente (mais antigas primeiro)' : 'decrescente (mais recentes primeiro)'}`}
-                >
-                  {ordemDirecao === 'desc' ? (
-                    <>
-                      <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Mais recentes primeiro</span>
-                    </>
-                  ) : (
-                    <>
-                      <ArrowUp className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Mais antigas primeiro</span>
-                    </>
-                  )}
-                </button>
 
                 {/* Alternar visibilidade do painel de filtros avançados */}
                 <button
