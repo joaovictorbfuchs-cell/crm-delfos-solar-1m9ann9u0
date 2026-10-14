@@ -2051,6 +2051,67 @@ describe('Login e App Smoke Tests', () => {
     expect(htmlSemDiaTodo).not.toContain('Dia todo')
   })
 
+  it('CalendarioExecucaoOS dispara onSlotClick ao clicar em slot vazio da grade semanal', async () => {
+    let slotClicado: { date: Date; hora: number } | null = null
+
+    const handleSlotClick = (date: Date, hora: number) => {
+      slotClicado = { date, hora }
+    }
+
+    let rendered: any = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(CalendarioExecucaoOS, {
+          ordens: [],
+          onSelectOS: () => {},
+          onSlotClick: handleSlotClick,
+        }),
+      )
+    })
+
+    // Localiza um slot qualquer da grade pelo testid
+    const slotElements = rendered.container.querySelectorAll('[data-testid^="slot-"]')
+    expect(slotElements.length).toBeGreaterThan(0)
+
+    const firstSlot = slotElements[0] as HTMLElement
+    await act(async () => {
+      firstSlot.click()
+    })
+
+    expect(slotClicado).not.toBeNull()
+    expect(slotClicado?.date).toBeInstanceOf(Date)
+    expect(typeof slotClicado?.hora).toBe('number')
+    expect(slotClicado?.hora).toBeGreaterThanOrEqual(6)
+    expect(slotClicado?.hora).toBeLessThanOrEqual(22)
+  })
+
+  it('ModalNovaAtividade aceita initialDataHora e initialHorarioInicio e preenche data e horários de início e término (+1h)', async () => {
+    const { ModalNovaAtividade } = await import('@/components/ModalNovaAtividade')
+
+    let rendered: any = null
+    await act(async () => {
+      rendered = render(
+        React.createElement(ModalNovaAtividade, {
+          isOpen: true,
+          onClose: () => {},
+          apenasManutencao: true,
+          initialDataHora: '2026-05-15T14:00',
+          initialHorarioInicio: '14:00',
+        }),
+      )
+    })
+
+    const dataInput = rendered.container.querySelector('input[type="date"]') as HTMLInputElement
+    expect(dataInput).not.toBeNull()
+    expect(dataInput.value).toBe('2026-05-15')
+
+    // O container deve ter campos para início 14:00 e término 15:00 (+1h)
+    const text = rendered.container.textContent || ''
+    expect(text).toContain('14')
+    expect(text).toContain('15')
+    expect(text).toContain('60 min')
+  })
+
   it('ModalGerarProcuracaoOM: abre pré-visualização A4, exibe botões Imprimir, Baixar PDF e Enviar pelo WhatsApp com conferência', async () => {
     const { ModalGerarProcuracaoOM } = await import('@/components/ModalGerarProcuracaoOM')
     const clienteMock: any = {

@@ -81,6 +81,8 @@ interface ModalNovaAtividadeProps {
   initialNegocioId?: string | null
   usinas?: UsinaCliente[]
   apenasManutencao?: boolean
+  initialDataHora?: string
+  initialHorarioInicio?: string
   onAtividadeCriada?: () => void
 }
 
@@ -113,6 +115,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   initialNegocioId,
   usinas: usinasProp,
   apenasManutencao = false,
+  initialDataHora,
+  initialHorarioInicio,
   onAtividadeCriada,
 }) => {
   const { clientes, usuarios, addAtividade, tiposAtividadesCustom } = useClientes()
@@ -134,13 +138,32 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [selectedNegocioId, setSelectedNegocioId] = useState<string>(initialNegocioId || '')
   const [responsavelId, setResponsavelId] = useState('')
   const [dataHora, setDataHora] = useState(() => {
+    if (initialDataHora && initialDataHora.length >= 16) {
+      return initialDataHora.slice(0, 16)
+    }
     const now = new Date()
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
     return now.toISOString().slice(0, 16)
   })
   // Campos de início, fim e duração prevista para atividades de manutenção
-  const [horarioInicio, setHorarioInicio] = useState<string>('08:00')
-  const [horarioFim, setHorarioFim] = useState<string>('09:00')
+  const [horarioInicio, setHorarioInicio] = useState<string>(() => {
+    if (initialHorarioInicio && /^\d{2}:\d{2}$/.test(initialHorarioInicio)) {
+      return initialHorarioInicio
+    }
+    if (initialDataHora && initialDataHora.length >= 16) {
+      return initialDataHora.slice(11, 16)
+    }
+    return '08:00'
+  })
+  const [horarioFim, setHorarioFim] = useState<string>(() => {
+    const inicioBase =
+      initialHorarioInicio && /^\d{2}:\d{2}$/.test(initialHorarioInicio)
+        ? initialHorarioInicio
+        : initialDataHora && initialDataHora.length >= 16
+          ? initialDataHora.slice(11, 16)
+          : '08:00'
+    return somarMinutos(inicioBase, 60)
+  })
   const [duracaoMinutos, setDuracaoMinutos] = useState<number>(60)
   const [descricao, setDescricao] = useState('')
 
@@ -199,8 +222,18 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         setSelectedNegocioId(initialNegocioId)
       }
 
-      // Reset / inicialização dos horários de manutenção: início da dataHora atual ou 08:00, fim +1h, duração 60min
-      const horaPadrao = dataHora && dataHora.length >= 16 ? dataHora.slice(11, 16) : '08:00'
+      // Reset / inicialização dos horários de manutenção
+      if (initialDataHora && initialDataHora.length >= 16) {
+        setDataHora(initialDataHora.slice(0, 16))
+      }
+      const horaPadrao =
+        initialHorarioInicio && /^\d{2}:\d{2}$/.test(initialHorarioInicio)
+          ? initialHorarioInicio
+          : initialDataHora && initialDataHora.length >= 16
+            ? initialDataHora.slice(11, 16)
+            : dataHora && dataHora.length >= 16
+              ? dataHora.slice(11, 16)
+              : '08:00'
       setHorarioInicio(horaPadrao)
       setHorarioFim(somarMinutos(horaPadrao, 60))
       setDuracaoMinutos(60)
@@ -240,6 +273,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     initialClienteId,
     initialUsinaId,
     initialNegocioId,
+    initialDataHora,
+    initialHorarioInicio,
     clientes,
     usuarios,
     user,

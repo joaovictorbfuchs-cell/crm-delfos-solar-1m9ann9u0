@@ -89,6 +89,7 @@ function ExecucaoOSContent() {
   const [selectedProfissionalId, setSelectedProfissionalId] = useState<string>('')
   const [isSavingAtribuicao, setIsSavingAtribuicao] = useState(false)
   const [isModalNovaAtividadeOpen, setIsModalNovaAtividadeOpen] = useState(false)
+  const [slotSelecionadoDataHora, setSlotSelecionadoDataHora] = useState<string | null>(null)
 
   // Modal para admin enviar relatório de OS via WhatsApp
   const [osParaWhatsApp, setOsParaWhatsApp] = useState<OrdemServico | null>(null)
@@ -145,9 +146,27 @@ function ExecucaoOSContent() {
     )
   }, [activeFiltersCount])
 
+  // Handler para clique em slot vazio do calendário (criação rápida de atividade)
+  const handleSlotClick = useCallback((date: Date, hora: number) => {
+    try {
+      const ano = date.getFullYear()
+      const mes = String(date.getMonth() + 1).padStart(2, '0')
+      const dia = String(date.getDate()).padStart(2, '0')
+      const h = String(hora).padStart(2, '0')
+      const formatoDataHora = `${ano}-${mes}-${dia}T${h}:00`
+      setSlotSelecionadoDataHora(formatoDataHora)
+      setIsModalNovaAtividadeOpen(true)
+    } catch (err) {
+      console.warn('Erro ao processar clique no slot do calendário:', err)
+      setSlotSelecionadoDataHora(null)
+      setIsModalNovaAtividadeOpen(true)
+    }
+  }, [])
+
   // Listeners dos eventos mobile disparados pelo header: Nova Atividade e Filtros
   useEffect(() => {
     const handleAbrirNovaAtividade = () => {
+      setSlotSelecionadoDataHora(null)
       setIsModalNovaAtividadeOpen(true)
     }
 
@@ -1075,7 +1094,10 @@ function ExecucaoOSContent() {
   const renderBotaoNovaAtividade = () => (
     <button
       type="button"
-      onClick={() => setIsModalNovaAtividadeOpen(true)}
+      onClick={() => {
+        setSlotSelecionadoDataHora(null)
+        setIsModalNovaAtividadeOpen(true)
+      }}
       className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer shrink-0 h-8"
       title="Gerar nova atividade de manutenção para os serviços de campo"
     >
@@ -1430,6 +1452,7 @@ function ExecucaoOSContent() {
               leftControlsSlot={renderTabsNavegacao()}
               rightActionsSlot={renderBotaoNovaAtividade()}
               mostrarLinhaDiaTodo={!isMobile}
+              onSlotClick={handleSlotClick}
             />
           </ErrorBoundary>
         )
@@ -2056,9 +2079,21 @@ function ExecucaoOSContent() {
       {isModalNovaAtividadeOpen && (
         <ModalNovaAtividade
           isOpen={isModalNovaAtividadeOpen}
-          onClose={() => setIsModalNovaAtividadeOpen(false)}
-          onAtividadeCriada={() => carregarDados()}
+          onClose={() => {
+            setIsModalNovaAtividadeOpen(false)
+            setSlotSelecionadoDataHora(null)
+          }}
+          onAtividadeCriada={() => {
+            setSlotSelecionadoDataHora(null)
+            carregarDados()
+          }}
           apenasManutencao
+          initialDataHora={slotSelecionadoDataHora || undefined}
+          initialHorarioInicio={
+            slotSelecionadoDataHora && slotSelecionadoDataHora.length >= 16
+              ? slotSelecionadoDataHora.slice(11, 16)
+              : undefined
+          }
         />
       )}
     </div>

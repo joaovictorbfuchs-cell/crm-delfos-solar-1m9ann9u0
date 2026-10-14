@@ -33,6 +33,7 @@ interface CalendarioExecucaoOSProps {
   leftControlsSlot?: React.ReactNode
   rightActionsSlot?: React.ReactNode
   mostrarLinhaDiaTodo?: boolean
+  onSlotClick?: (date: Date, hora: number) => void
 }
 
 // Configurações de cores por tipo de serviço
@@ -761,6 +762,7 @@ function CalendarioExecucaoOSContent({
   leftControlsSlot,
   rightActionsSlot,
   mostrarLinhaDiaTodo = true,
+  onSlotClick,
 }: CalendarioExecucaoOSProps) {
   const now = new Date()
   const { toast } = useToast()
@@ -2202,16 +2204,22 @@ function CalendarioExecucaoOSContent({
                         return (
                           <div
                             key={`slot-${dia.dateKey}-${hora}`}
+                            data-testid={`slot-${dia.dateKey}-${hora}`}
                             onDragOver={(e) => handleDragOverSlot(e, dia.dateKey, hora)}
                             onDrop={(e) => handleDropOnSlot(e, dia.dateKey, hora)}
-                            onClick={() => setSelectedDayKey(dia.dateKey)}
+                            onClick={() => {
+                              setSelectedDayKey(dia.dateKey)
+                              if (onSlotClick) {
+                                onSlotClick(dia.date, hora)
+                              }
+                            }}
                             className={`border-b border-gray-100 transition-colors cursor-pointer group/slot relative ${
                               isHovered
                                 ? 'bg-emerald-100/70 border-emerald-400 ring-2 ring-emerald-400/40'
                                 : 'hover:bg-gray-50/80'
                             }`}
                             style={{ height: `${ALTURA_HORA_PX}px` }}
-                            title={`Arraste uma OS até as ${hora}:00h ou clique para selecionar o dia`}
+                            title={`Arraste uma OS até as ${hora}:00h ou clique para agendar atividade`}
                           >
                             {/* Linha pontilhada de meia hora para visualização precisa */}
                             <div className="absolute top-1/2 left-0 right-0 border-b border-dashed border-gray-100/80 pointer-events-none" />
