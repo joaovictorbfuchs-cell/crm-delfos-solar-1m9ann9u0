@@ -16,6 +16,7 @@ import {
   type ConteudoProposta,
 } from '@/lib/conteudoProposta'
 import { prepararDadosPropostaParaPDF } from './propostaImageOptimizer'
+import { injetarPaginacaoA4 } from '@/lib/propostaPaginacaoA4'
 
 export interface PropostaSecoesHabilitadas {
   layoutTelhado?: boolean
