@@ -20,36 +20,43 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-/**
- * Identifica se um erro é de autenticação ou sessão expirada (401, 403, token inválido).
- * Exportação canônica com salvaguarda permanente do projeto.
- */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    const response = errObj.response as Record<string, unknown> | undefined
-    if (response && (response.status === 401 || response.status === 403)) return true
-    const msg = String(errObj.message || '').toLowerCase()
-    if (msg.includes('token') && (msg.includes('expired') || msg.includes('invalid'))) return true
-    if (
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('sessao expirada') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('not authenticated')
-    )
-      return true
-  }
-  return false
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // ClientResponseError com status 401 ou 403
+  if (typeof error === 'object' && error !== null) {
+    const errObj = error as {
+      status?: number
+      statusCode?: number
+      response?: { status?: number }
+      message?: string
+    }
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response && (errObj.response.status === 401 || errObj.response.status === 403))
+      return true
+
+    const msg = typeof errObj.message === 'string' ? errObj.message.toLowerCase() : ''
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('sessao expirada') ||
+      msg.includes('login expirou') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden')
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
