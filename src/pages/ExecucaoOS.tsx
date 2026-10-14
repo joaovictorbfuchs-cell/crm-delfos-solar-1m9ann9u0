@@ -482,8 +482,18 @@ function ExecucaoOSContent() {
       } catch (err) {
         console.error('Erro ao carregar dados de OS e atividades:', err)
         const { isAuthSessionError } = await import('@/lib/pocketbase/errors')
-        if (isAuthSessionError(err)) {
-          console.warn('Sessão expirada ou não autenticada ao carregar serviços de campo')
+        if (isAuthSessionError(err) || !pb.authStore.isValid) {
+          console.warn(
+            'Sessão expirada ou não autenticada ao carregar serviços de campo. Redirecionando para login.',
+          )
+          try {
+            pb.authStore.clear()
+            localStorage.removeItem('pocketbase_auth')
+          } catch {
+            /* ignore */
+          }
+          window.location.href = '/login'
+          return
         } else if (!silent) {
           toast({
             variant: 'destructive',

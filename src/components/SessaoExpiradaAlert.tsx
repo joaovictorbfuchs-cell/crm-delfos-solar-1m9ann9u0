@@ -19,13 +19,18 @@ export function SessaoExpiradaAlert({
   const handleLoginNovamente = () => {
     try {
       pb.authStore.clear()
+      try {
+        localStorage.removeItem('pocketbase_auth')
+      } catch {
+        /* ignore */
+      }
     } catch (e) {
       console.warn('Erro ao limpar authStore:', e)
     }
     const currentPath = location.pathname + (location.search || '')
     navigate('/login', {
       replace: true,
-      state: { from: currentPath },
+      state: { from: currentPath, sessaoExpirada: true },
     })
   }
 

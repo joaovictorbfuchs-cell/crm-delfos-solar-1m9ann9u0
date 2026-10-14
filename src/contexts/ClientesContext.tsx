@@ -2577,14 +2577,19 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return res
   }
 
-  const refreshWhatsAppBloqueados = async () => {
+  const refreshWhatsAppBloqueadosRef = useRef(false)
+  const refreshWhatsAppBloqueados = useCallback(async (options?: { force?: boolean }) => {
+    if (refreshWhatsAppBloqueadosRef.current) return
+    refreshWhatsAppBloqueadosRef.current = true
     try {
-      const bloqs = await fetchWhatsAppBloqueados()
+      const bloqs = await fetchWhatsAppBloqueados({ force: options?.force })
       setWhatsAppBloqueados(bloqs)
     } catch (err) {
       console.warn('Erro ao atualizar bloqueados:', err)
+    } finally {
+      refreshWhatsAppBloqueadosRef.current = false
     }
-  }
+  }, [])
 
   const vincularConversa = async (
     conversaId: string,

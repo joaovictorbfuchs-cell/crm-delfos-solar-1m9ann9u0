@@ -33,6 +33,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const isSessaoExpiradaNav = Boolean(locationState?.sessaoExpirada)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -130,6 +131,19 @@ export default function Login() {
             CRM & Gestão Operacional de Usinas Fotovoltaicas
           </p>
         </div>
+
+        {isSessaoExpiradaNav && !error && !isForgotMode && (
+          <div
+            role="alert"
+            className="mb-6 p-3.5 bg-amber-50 border-2 border-amber-300 text-amber-900 rounded-xl text-xs flex items-start gap-2.5 shadow-xs"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+            <div className="flex-1">
+              <strong className="block font-bold text-amber-950">Sua sessão expirou.</strong>
+              <span>Faça login novamente para continuar seu trabalho no Delfos Solar.</span>
+            </div>
+          </div>
+        )}
 
         {error && !isForgotMode && (
           <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">

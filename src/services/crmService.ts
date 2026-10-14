@@ -2237,21 +2237,124 @@ export async function deleteWhatsAppConversa(id: string): Promise<boolean> {
 // Bloqueio de Contatos WhatsApp
 // -------------------------------------------------------------
 
-export async function fetchWhatsAppBloqueados(): Promise<
-  import('@/types/crm').WhatsAppBloqueado[]
-> {
-  try {
-    return await pb
-      .collection('whatsapp_bloqueados')
-      .getFullList<import('@/types/crm').WhatsAppBloqueado>({
-        sort: '-created',
-        requestKey: null,
-      })
-  } catch (err) {
-    // Catch silencioso defensivo caso a coleção não exista ou falhe
-    console.warn('Erro ao carregar contatos bloqueados:', err)
-    return []
+// Variáveis e guardas para prevenir rajada em loop de whatsapp_bloqueados:
+// - Cache em memória com TTL de 30 segundos
+// - Bloqueio de retry imediato após 429 ou erros repetidos (backoff mínimo de 60 segundos)
+// - Deduplicação de requisições simultâneas em andamento
+// - Suporte a AbortController
+let cachedBloqueados: import('@/types/crm').WhatsAppBloqueado[] | null = null
+let cachedBloqueadosTime = 0
+const BLOQUEADOS_CACHE_TTL_MS = 30000 // 30s
+let bloqueadosCooldownUntil = 0
+let bloqueadosInFlightPromise: Promise<import('@/types/crm').WhatsAppBloqueado[]> | null = null
+let bloqueadosAbortController: AbortController | null = null
+
+export function invalidarCacheWhatsAppBloqueados(): void {
+  cachedBloqueados = null
+  cachedBloqueadosTime = 0
+}
+
+export async function fetchWhatsAppBloqueados(options?: {
+  force?: boolean
+  signal?: AbortSignal
+}): Promise<import('@/types/crm').WhatsAppBloqueado[]> {
+  const now = Date.now()
+
+  // Se estiver em cooldown devido a 429 (Too Many Requests), retorna o cache ou vazio imediatamente sem disparar fetch
+  if (now < bloqueadosCooldownUntil) {
+    return cachedBloqueados || []
   }
+
+  // Se tiver cache válido e não for forçado, retorna cache
+  if (!options?.force && cachedBloqueados && now - cachedBloqueadosTime < BLOQUEADOS_CACHE_TTL_MS) {
+    return cachedBloqueados
+  }
+
+  // Se já houver requisição em andamento, reaproveita a mesma Promise (deduplicação)
+  if (bloqueadosInFlightPromise) {
+    return bloqueadosInFlightPromise
+  }
+
+  // Cancela requisição anterior se ainda estivesse pendente
+  if (bloqueadosAbortController) {
+    try {
+      bloqueadosAbortController.abort()
+    } catch {
+      /* ignore */
+    }
+  }
+
+  bloqueadosAbortController = new AbortController()
+  const localController = bloqueadosAbortController
+
+  // Conectar com o signal do chamador se fornecido
+  if (options?.signal) {
+    if (options.signal.aborted) {
+      return cachedBloqueados || []
+    }
+    options.signal.addEventListener(
+      'abort',
+      () => {
+        try {
+          localController.abort()
+        } catch {
+          /* ignore */
+        }
+      },
+      { once: true },
+    )
+  }
+
+  bloqueadosInFlightPromise = (async () => {
+    try {
+      const records = await pb
+        .collection('whatsapp_bloqueados')
+        .getFullList<import('@/types/crm').WhatsAppBloqueado>({
+          sort: '-created',
+          requestKey: null,
+          signal: localController.signal,
+        })
+
+      cachedBloqueados = records
+      cachedBloqueadosTime = Date.now()
+      bloqueadosCooldownUntil = 0
+      return records
+    } catch (err: any) {
+      const isAbort =
+        err?.isAbort ||
+        err?.name === 'AbortError' ||
+        err?.status === 0 ||
+        String(err?.message || '')
+          .toLowerCase()
+          .includes('abort')
+
+      if (isAbort) {
+        return cachedBloqueados || []
+      }
+
+      const status = Number(err?.status || err?.statusCode || 0)
+      if (status === 429) {
+        // Too Many Requests: recua por 60 segundos completos para estancar rajada
+        console.warn(
+          'HTTP 429 Too Many Requests detectado em whatsapp_bloqueados. Ativando backoff de 60s.',
+        )
+        bloqueadosCooldownUntil = Date.now() + 60000
+      } else if (status >= 500) {
+        // Erro de servidor: backoff de 15 segundos
+        bloqueadosCooldownUntil = Date.now() + 15000
+      }
+
+      console.warn('Erro ao carregar contatos bloqueados:', err)
+      return cachedBloqueados || []
+    } finally {
+      bloqueadosInFlightPromise = null
+      if (bloqueadosAbortController === localController) {
+        bloqueadosAbortController = null
+      }
+    }
+  })()
+
+  return bloqueadosInFlightPromise
 }
 
 export async function bloquearContatoWhatsApp(data: {
@@ -2261,13 +2364,17 @@ export async function bloquearContatoWhatsApp(data: {
   usuarioNome?: string
 }): Promise<import('@/types/crm').WhatsAppBloqueado> {
   const numeroLimpo = data.numero.replace(/\D/g, '')
-  return pb.collection('whatsapp_bloqueados').create<import('@/types/crm').WhatsAppBloqueado>({
-    numero: numeroLimpo || data.numero,
-    data_bloqueio: new Date().toISOString(),
-    usuario_bloqueou_id: data.usuarioId || '',
-    usuario_bloqueou_nome: data.usuarioNome || '',
-    motivo: data.motivo || '',
-  })
+  const res = await pb
+    .collection('whatsapp_bloqueados')
+    .create<import('@/types/crm').WhatsAppBloqueado>({
+      numero: numeroLimpo || data.numero,
+      data_bloqueio: new Date().toISOString(),
+      usuario_bloqueou_id: data.usuarioId || '',
+      usuario_bloqueou_nome: data.usuarioNome || '',
+      motivo: data.motivo || '',
+    })
+  invalidarCacheWhatsAppBloqueados()
+  return res
 }
 
 export async function desbloquearContatoWhatsApp(idOuNumero: string): Promise<boolean> {
@@ -2275,6 +2382,7 @@ export async function desbloquearContatoWhatsApp(idOuNumero: string): Promise<bo
     // Tenta primeiro por ID direto
     try {
       await pb.collection('whatsapp_bloqueados').delete(idOuNumero)
+      invalidarCacheWhatsAppBloqueados()
       return true
     } catch (_) {
       // Se não for ID, tenta por número
@@ -2287,6 +2395,7 @@ export async function desbloquearContatoWhatsApp(idOuNumero: string): Promise<bo
       for (const r of records) {
         await pb.collection('whatsapp_bloqueados').delete(r.id)
       }
+      invalidarCacheWhatsAppBloqueados()
       return true
     }
   } catch (err) {

@@ -34,23 +34,25 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
 
   const isPbAuthValid = Boolean(pb.authStore.isValid)
 
+  const hadPreviousToken = Boolean(pb.authStore.token)
+  const isSessaoExpirada = (!isAuthenticated || !isPbAuthValid) && hadPreviousToken
+
   // Se a sessão expirou ou não for válida no PocketBase, exibir toast informativo
   // apenas se o usuário tinha alguma credencial/token prévia que expirou (evitando toast falso ao entrar pela primeira vez deslogado)
   React.useEffect(() => {
     if (isLoading) return
-    const hadPreviousToken = Boolean(pb.authStore.token)
-    if ((!isAuthenticated || !isPbAuthValid) && hadPreviousToken) {
+    if (isSessaoExpirada) {
       const now = Date.now()
       if (now - lastToastTime > 5000) {
         lastToastTime = now
         toast({
           title: 'Sessão expirada',
-          description: 'Sua sessão expirou ou não é válida. Faça login novamente para continuar.',
+          description: 'Sua sessão expirou. Faça login novamente.',
           variant: 'destructive',
         })
       }
     }
-  }, [isLoading, isAuthenticated, isPbAuthValid])
+  }, [isLoading, isSessaoExpirada])
 
   if (isLoading && !safetyTimeoutReached) {
     return (
@@ -64,8 +66,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   const currentPath = location.pathname + (location.search || '') + (location.hash || '')
 
   // Se o usuário não está autenticado ou o token não é válido, redireciona para o login
+  // passando explicitamente sessão expirada para a tela de Login exibir banner destacado
   if (!isAuthenticated || !isPbAuthValid) {
-    return <Navigate to="/login" state={{ from: currentPath }} replace />
+    return (
+      <Navigate
+        to="/login"
+        state={{
+          from: currentPath,
+          sessaoExpirada: isSessaoExpirada,
+        }}
+        replace
+      />
+    )
   }
 
   // Se rota requer admin e usuário não for admin (ex.: instalador), redireciona para Serviços de Campo

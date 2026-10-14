@@ -88,11 +88,17 @@ export const CentralAtendimento: React.FC = () => {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  // Contatos bloqueados: garantir lista sincronizada ao montar a tela para o filtro de conversas
+  // Contatos bloqueados: garantir lista sincronizada uma única vez ao montar a tela para o filtro de conversas
   useEffect(() => {
-    refreshWhatsAppBloqueados().catch((err) =>
-      console.warn('Falha ao carregar contatos bloqueados na Central:', err),
-    )
+    let active = true
+    refreshWhatsAppBloqueados().catch((err) => {
+      if (active) {
+        console.warn('Falha ao carregar contatos bloqueados na Central:', err)
+      }
+    })
+    return () => {
+      active = false
+    }
   }, [refreshWhatsAppBloqueados])
 
   // Polling automático a cada 15 segundos conforme solicitado
