@@ -230,14 +230,18 @@ const SCRIPT_EDICAO = String.raw`<script data-proposta-edicao>
     }
   }
 
-  MAPA.forEach(function (cfg, idxCfg) {
-    var els = document.querySelectorAll(cfg.sel);
-    Array.prototype.forEach.call(els, function (el) {
-      el.classList.add('edicao-alvo');
-      el.setAttribute('data-edit-cfg', String(idxCfg));
-      el.setAttribute('title', 'Clique para editar');
+  function marcarEditaveis() {
+    MAPA.forEach(function (cfg, idxCfg) {
+      var els = document.querySelectorAll(cfg.sel);
+      Array.prototype.forEach.call(els, function (el) {
+        el.classList.add('edicao-alvo');
+        el.setAttribute('data-edit-cfg', String(idxCfg));
+        el.setAttribute('title', 'Clique para editar');
+      });
     });
-  });
+  }
+  marcarEditaveis();
+  window.addEventListener('proposta-a4-paginada', marcarEditaveis);
 
   var dica = document.createElement('div');
   dica.className = 'edicao-dica';

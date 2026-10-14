@@ -49,7 +49,7 @@ const PAGINACAO_A4_SCRIPT = String.raw`<script data-proposta-paginacao-a4>
   if(window.__propostaA4Paginada)return;
   window.__propostaA4Paginada=true;
   function first(root,sel){return root.querySelector(sel)}
-  function originalFooter(section){return section&&first(section,':scope>.secao-body>.doc-footer')}
+  function originalFooter(section){return section&&first(section,':scope>.doc-footer')}
   function fragment(source, selectors, includeHeader){
     var f=document.createElement('section');f.className='a4-fragment';f.dataset.sourceId=source.id;
     var body=document.createElement('div');body.className='secao-body';

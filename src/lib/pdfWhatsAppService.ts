@@ -161,6 +161,18 @@ async function executarHtml2PdfPipeline<T>(
         doc.write(html)
         doc.close()
 
+        // A proposta paginada monta as caixas A4 após o carregamento das imagens.
+        // O exportador precisa aguardar esse evento antes de selecionar o alvo.
+        await new Promise<void>((resolve) => {
+          if (doc.querySelector('.proposta-container.a4-paginada .a4-page')) {
+            resolve()
+            return
+          }
+          const onPaginated = () => resolve()
+          doc.defaultView?.addEventListener('proposta-a4-paginada', onPaginated, { once: true })
+          setTimeout(resolve, 8000)
+        })
+
         // Remove barras de preview e botões que não devem sair no PDF impresso
         doc
           .querySelectorAll(
