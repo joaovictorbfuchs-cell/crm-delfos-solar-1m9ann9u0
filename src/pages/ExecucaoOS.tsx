@@ -72,11 +72,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 
 function ExecucaoOSContent() {
   const { toast } = useToast()
   const isMobile = useIsMobile()
-  const { userProfile, isAdmin, isInstalador, isSessaoExpirada } = useAuth()
+  const { userProfile, isAdmin, isInstalador } = useAuth()
+  const isSessaoExpirada = Boolean(pb.authStore.token) && !pb.authStore.isValid
 
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
   const [instaladores, setInstaladores] = useState<SistemaUsuario[]>([])
@@ -2121,7 +2123,8 @@ function ExecucaoOSContent() {
 }
 
 export default function ExecucaoOS() {
-  const { isSessaoExpirada, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const isSessaoExpirada = Boolean(pb.authStore.token) && !pb.authStore.isValid
 
   // Se a sessão expirou ou não há autenticação válida após término do carregamento de auth,
   // exibe o banner informativo com o botão "Fazer Login Novamente"
