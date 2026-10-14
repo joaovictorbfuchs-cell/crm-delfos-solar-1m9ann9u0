@@ -726,7 +726,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const yPayback = escalaY(investimentoTotal).toFixed(1)
   const quitacaoMesAno = formatarMesAnoQuitacao(dataProposta, paybackMesesCalculado)
 
-  return `<!DOCTYPE html>
+  const htmlBase = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -4016,6 +4016,7 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
 
 </body>
 </html>`
+  return injetarPaginacaoA4(htmlBase)
 }
 
 /**

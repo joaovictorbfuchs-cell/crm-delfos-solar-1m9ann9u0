@@ -188,6 +188,8 @@ async function executarHtml2PdfPipeline<T>(
         const targetElement = (doc.querySelector('.proposta-container, .page-a4') ||
           doc.body) as HTMLElement
 
+        const propostaPaginada = !!doc.querySelector('.proposta-container.a4-paginada .a4-page')
+
         // Normalização específica para proposta comercial (.proposta-container)
         if (targetElement.classList.contains('proposta-container')) {
           targetElement.style.paddingBottom = '0'
@@ -249,8 +251,9 @@ async function executarHtml2PdfPipeline<T>(
         // 4. Espera de estabilização do layout renderizado
         await new Promise<void>((r) => setTimeout(r, 400))
 
-        // 5. Mede a altura real de todo o conteúdo (todas as seções da capa à assinatura)
-        const a4PageHeightPx = 1122.5 // 297mm a 96 DPI
+        // 5. Mede a altura real. A proposta paginada já contém caixas A4 explícitas;
+        // não reempilhamos nem recalculamos sua altura, pois isso reintroduz cortes.
+        const a4PageHeightPx = 1122.5
         const measuredHeight = Math.max(
           targetElement.scrollHeight || 0,
           targetElement.offsetHeight || 0,
@@ -258,10 +261,8 @@ async function executarHtml2PdfPipeline<T>(
           doc.documentElement ? doc.documentElement.scrollHeight || 0 : 0,
           1123,
         )
-
-        // Calibra a altura para o múltiplo exato de página A4, evitando quebras residuais e folhas em branco
         let totalContentHeightPx = measuredHeight
-        if (measuredHeight > 0) {
+        if (!propostaPaginada && measuredHeight > 0) {
           const totalPages = Math.max(1, Math.ceil((measuredHeight - 2) / a4PageHeightPx))
           const exactA4HeightPx = totalPages * a4PageHeightPx
           totalContentHeightPx = exactA4HeightPx
@@ -298,7 +299,8 @@ async function executarHtml2PdfPipeline<T>(
             compress: compressJsPdf,
           },
           pagebreak: {
-            mode: ['css', 'avoid-all'],
+            mode: propostaPaginada ? ['css', 'legacy'] : ['css', 'avoid-all'],
+            before: propostaPaginada ? ['.a4-page + .a4-page'] : [],
             avoid: [
               '.doc-header',
               '.doc-footer',

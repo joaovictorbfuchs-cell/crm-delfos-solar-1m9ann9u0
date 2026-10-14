@@ -67,6 +67,7 @@ import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 import { PainelEdicaoConteudoProposta } from '@/components/PainelEdicaoConteudoProposta'
 import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
 import { injetarEdicaoNoPreview, setCaminhoConteudo } from '@/lib/propostaEdicaoPreview'
+import { injetarPaginacaoA4 } from '@/lib/propostaPaginacaoA4'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 import { BotaoBaixarPropostaSolarPDF } from '@/components/BotaoBaixarPropostaSolarPDF'
 
@@ -1240,7 +1241,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const htmlPropostaLimpo = useMemo<string>(() => {
     if (!propostaPDFData) return ''
     try {
-      return gerarHTMLPropostaSolar(propostaPDFData)
+      return injetarPaginacaoA4(gerarHTMLPropostaSolar(propostaPDFData))
     } catch (err) {
       console.error('Erro ao gerar HTML da proposta para preview fiel:', err)
       return '<div style="padding:20px;color:#b91c1c;font-family:sans-serif;">Não foi possível carregar o preview da proposta. Verifique os dados preenchidos.</div>'
