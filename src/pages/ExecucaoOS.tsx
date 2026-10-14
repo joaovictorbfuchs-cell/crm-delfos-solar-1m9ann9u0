@@ -22,6 +22,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useToast } from '@/hooks/use-toast'
 import { useIsMobile } from '@/hooks/use-mobile'
 import pb from '@/lib/pocketbase/client'
+import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { formatDateTime } from '@/lib/formatters'
 import {
   Wrench,
@@ -238,16 +239,52 @@ function ExecucaoOSContent() {
         const filterAtividades =
           "(tipo='limpeza_manutencao' || tipo='limpeza' || tipo='manutencao_preventiva' || tipo='manutencao_corretiva' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger' || tipo='custom')"
 
-        const promises = [
-          fetchOrdensServico(undefined, responsavelFiltro),
-          pb.collection('atividades').getFullList({
+        const podeExpandirFornecedor = isAdmin || (userProfile?.role as string) === 'comercial'
+        const expandAtividades = podeExpandirFornecedor
+          ? 'cliente_id,usina_id,responsavel_id,fornecedor_id,tipo_custom_id'
+          : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
+
+        const osPromise = fetchOrdensServico(undefined, responsavelFiltro).catch((err) => {
+          if (isAuthSessionError(err)) throw err
+          console.warn('Erro ao carregar ordens de serviço (isolado):', err)
+          return []
+        })
+
+        const atividadesPromise = pb
+          .collection('atividades')
+          .getFullList({
             filter: filterAtividades,
             sort: '-data,-created',
-            expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id,tipo_custom_id',
+            expand: expandAtividades,
             requestKey: null,
-          }),
-          isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
-          fetchProfissionais ? fetchProfissionais() : Promise.resolve([]),
+          })
+          .catch((err) => {
+            if (isAuthSessionError(err)) throw err
+            console.warn('Erro ao carregar atividades de campo (isolado):', err)
+            return []
+          })
+
+        const instaladoresPromise = (
+          isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([])
+        ).catch((err) => {
+          if (isAuthSessionError(err)) throw err
+          console.warn('Erro ao carregar instaladores ativos (isolado):', err)
+          return []
+        })
+
+        const profissionaisPromise = (
+          fetchProfissionais ? fetchProfissionais() : Promise.resolve([])
+        ).catch((err) => {
+          if (isAuthSessionError(err)) throw err
+          console.warn('Erro ao carregar profissionais (isolado):', err)
+          return []
+        })
+
+        const promises = [
+          osPromise,
+          atividadesPromise,
+          instaladoresPromise,
+          profissionaisPromise,
         ] as const
 
         const [osList, atividadesList, instList, profList] = await Promise.all(promises)
@@ -483,7 +520,6 @@ function ExecucaoOSContent() {
         setProfissionais(Array.isArray(profList) ? profList : [])
       } catch (err) {
         console.error('Erro ao carregar dados de OS e atividades:', err)
-        const { isAuthSessionError } = await import('@/lib/pocketbase/errors')
         if (isAuthSessionError(err) || !pb.authStore.isValid) {
           console.warn(
             'Sessão expirada ou não autenticada ao carregar serviços de campo. Redirecionando para login.',
