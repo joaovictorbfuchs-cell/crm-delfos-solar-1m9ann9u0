@@ -510,12 +510,9 @@ export const Orcamentos: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
                   Propostas
                 </h1>
-                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Hub Unificado
-                </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
-                Central unificada de geração e acompanhamento de propostas comerciais
+                Central de geração e acompanhamento de propostas comerciais
               </p>
             </div>
           </div>
