@@ -918,25 +918,7 @@ export const Orcamentos: React.FC = () => {
       ) : (
         <div className="space-y-5 w-full">
           {/* Barra de Ações Rápidas Energia Solar */}
-          <div className="flex items-center justify-between gap-3 flex-wrap bg-white p-3.5 rounded-2xl border border-gray-200 shadow-2xs">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-800">
-                Propostas &amp; Orçamentos de Energia Solar Fotovoltaica
-              </span>
-              <span className="text-[11px] text-gray-400 hidden sm:inline">
-                • Lista com histórico de revisões, fornecedores e 4 formatos de saída
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => handleNovoOrcamento()}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nova Proposta Solar</span>
-              </button>
-            </div>
-          </div>
+
           {/* Alerta de Sessão Expirada exibido no topo quando o token expira */}
           {isSessionExpired && (
             <SessaoExpiradaAlert
