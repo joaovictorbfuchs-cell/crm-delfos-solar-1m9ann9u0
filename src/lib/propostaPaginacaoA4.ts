@@ -40,7 +40,7 @@ html,body{margin:0!important;padding:0!important;background:#E5E7EB!important}
 .a4-paginada .a4-page[data-page="6"] .assinatura-bloco{min-height:190px;height:auto;justify-content:flex-start;padding:9px 12px}
 .a4-paginada .a4-page[data-page="6"] .linha-assinatura-final{margin:50px 0 8px}
 .a4-paginada .a4-page[data-page="6"] .assinatura-dados{margin-top:5px;padding-top:5px}
-@media print{html,body{background:#fff!important}.a4-paginada .a4-page{margin:0;box-shadow:none}.a4-paginada .a4-page[data-cover]{padding:0 0 29px}.a4-paginada .a4-page-footer{break-inside:avoid;page-break-inside:avoid}}
+@media print{.proposta-container.a4-paginada~.print-fixed-footer{display:none!important}html,body{background:#fff!important}.a4-paginada .a4-page{margin:0;box-shadow:none}.a4-paginada .a4-page[data-cover]{padding:0 0 29px}.a4-paginada .a4-page-footer{break-inside:avoid;page-break-inside:avoid}}
 `
 
 const PAGINACAO_A4_SCRIPT = String.raw`<script data-proposta-paginacao-a4>

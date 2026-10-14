@@ -85,6 +85,34 @@ export function carregarHtml2Pdf(): Promise<any> {
 }
 
 /**
+ * Carrega html2pdf.js no próprio documento da proposta. O Worker clona o nó-alvo;
+ * carregar a biblioteca no parent usa o CSSOM/window errados para alvos em iframe.
+ */
+async function carregarHtml2PdfNoDocumento(doc: Document): Promise<any> {
+  const win = doc.defaultView
+  if (!win) throw new Error('Documento isolado da proposta sem window disponível.')
+  if (win.html2pdf) return win.html2pdf
+
+  return new Promise((resolve, reject) => {
+    const existente = doc.querySelector(
+      `script[src="${HTML2PDF_CDN_URL}"]`,
+    ) as HTMLScriptElement | null
+    const script = existente || doc.createElement('script')
+    script.onload = () => {
+      if (win.html2pdf) resolve(win.html2pdf)
+      else reject(new Error('html2pdf.js não inicializou no documento da proposta.'))
+    }
+    script.onerror = () =>
+      reject(new Error('Falha ao carregar html2pdf.js no documento da proposta.'))
+    if (!existente) {
+      script.src = HTML2PDF_CDN_URL
+      script.async = true
+      doc.head.appendChild(script)
+    }
+  })
+}
+
+/**
  * Renderiza uma string HTML em PDF A4 Data URI base64 usando html2pdf.js
  * dentro de um container/iframe isolado.
  */
@@ -129,12 +157,7 @@ async function executarHtml2PdfPipeline<T>(
     async function executar() {
       let iframe: HTMLIFrameElement | null = null
       try {
-        const html2pdf = await carregarHtml2Pdf()
-        if (!html2pdf) {
-          throw new Error('Biblioteca html2pdf.js não disponível.')
-        }
-
-        // Cria iframe isolado no DOM para garantir aplicação fiel de todos os estilos da proposta
+        // Cria iframe isolado no DOM para manter o CSSOM da proposta separado do CRM.
         // Largura calibrada para 794px (210mm a 96 DPI padrão A4).
         // Altura inicial flexível auto/grande para que todo o documento se expanda naturalmente.
         iframe = document.createElement('iframe')
@@ -173,6 +196,12 @@ async function executarHtml2PdfPipeline<T>(
           setTimeout(resolve, 8000)
         })
 
+        const propostaPaginada = !!doc.querySelector('.proposta-container.a4-paginada .a4-page')
+        if (html.includes('data-proposta-paginacao-a4') && !propostaPaginada) {
+          throw new Error('A paginação A4 da proposta não terminou; tente gerar o PDF novamente.')
+        }
+        const html2pdf = await carregarHtml2PdfNoDocumento(doc)
+
         // Remove barras de preview e botões que não devem sair no PDF impresso
         doc
           .querySelectorAll(
@@ -199,8 +228,6 @@ async function executarHtml2PdfPipeline<T>(
         // Seletor canônico: suporta proposta técnica (.proposta-container) e outros documentos (.page-a4)
         const targetElement = (doc.querySelector('.proposta-container, .page-a4') ||
           doc.body) as HTMLElement
-
-        const propostaPaginada = !!doc.querySelector('.proposta-container.a4-paginada .a4-page')
 
         // Normalização específica para proposta comercial (.proposta-container)
         if (targetElement.classList.contains('proposta-container')) {
@@ -310,22 +337,26 @@ async function executarHtml2PdfPipeline<T>(
             orientation: 'portrait',
             compress: compressJsPdf,
           },
-          pagebreak: {
-            mode: propostaPaginada ? ['css', 'legacy'] : ['css', 'avoid-all'],
-            before: propostaPaginada ? ['.a4-page + .a4-page'] : [],
-            avoid: [
-              '.doc-header',
-              '.doc-footer',
-              '.card-diferencial',
-              '.card-portfolio-usina',
-              '.card-situacao',
-              '.card-info-sistema',
-              '.card-investimento-opcao',
-              '.secao-card',
-              '.foto-card-rel',
-              '.assinatura-wrap',
-            ],
-          },
+          // A proposta paginada já tem folhas A4 de altura fixa. html2pdf pagebreak
+          // insere espaçadores CSS e desloca o conteúdo; deixa o jsPDF fatiar o canvas
+          // contínuo exatamente a cada A4. Os demais documentos mantêm o fluxo legado.
+          pagebreak: propostaPaginada
+            ? { mode: [] }
+            : {
+                mode: ['css', 'avoid-all'],
+                avoid: [
+                  '.doc-header',
+                  '.doc-footer',
+                  '.card-diferencial',
+                  '.card-portfolio-usina',
+                  '.card-situacao',
+                  '.card-info-sistema',
+                  '.card-investimento-opcao',
+                  '.secao-card',
+                  '.foto-card-rel',
+                  '.assinatura-wrap',
+                ],
+              },
         }
 
         const worker = html2pdf().set(opt).from(targetElement)
