@@ -312,15 +312,6 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
                 }`}
               />
             </button>
-
-            <button
-              type="button"
-              onClick={handleNovaProposta}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>&nbsp;O&amp;M</span>
-            </button>
           </div>
         </div>
 
@@ -401,19 +392,6 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
         )}
 
         {/* Linha de contadores */}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-gray-900 text-sm">
-              {propostasFiltradas.length === 1
-                ? '1 proposta O&M encontrada'
-                : `${propostasFiltradas.length} propostas O&M encontradas`}
-            </span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-500 font-medium">
-              Total da carteira: {propostasOM.length}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Tabela de Propostas O&M */}
