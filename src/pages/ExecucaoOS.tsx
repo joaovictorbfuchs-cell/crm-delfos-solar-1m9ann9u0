@@ -52,6 +52,12 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { useClientes } from '@/contexts/ClientesContext'
+import {
+  ATIVIDADES_PADRAO,
+  buildCustomTipoDef,
+  deduplicarTiposAtividades,
+} from '@/constants/atividadesTipos'
 import { fetchInstaladoresAtivos } from '@/services/usuariosService'
 import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
 import type { SistemaUsuario } from '@/types/crm'
@@ -79,6 +85,7 @@ function ExecucaoOSContent() {
   const { toast } = useToast()
   const isMobile = useIsMobile()
   const { userProfile, isAdmin, isInstalador } = useAuth()
+  const { tiposAtividadesCustom } = useClientes()
   const isSessaoExpirada = Boolean(pb.authStore.token) && !pb.authStore.isValid
 
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
@@ -701,6 +708,18 @@ function ExecucaoOSContent() {
 
   const listToDisplay = activeTab === 'pendentes' ? pendentesList : concluidasList
 
+  // Lista dinâmica de tipos de manutenção (nativos + customizados) deduplicados e ordenados
+  const tiposManutencaoOpcoes = useMemo(() => {
+    const padroesManutencao = ATIVIDADES_PADRAO.filter((a) => a.categoria === 'manutencao')
+    const customDefs = (tiposAtividadesCustom || [])
+      .map((t) => buildCustomTipoDef(t))
+      .filter((t) => t.categoria === 'manutencao')
+    const unificados = deduplicarTiposAtividades(padroesManutencao, customDefs)
+    return unificados.sort((a, b) =>
+      a.tituloPadrao.localeCompare(b.tituloPadrao, 'pt-BR', { sensitivity: 'base' }),
+    )
+  }, [tiposAtividadesCustom])
+
   // Lista de todos os nomes de prestadores para o dropdown
   const prestadoresOpcoes = useMemo(() => {
     const set = new Set<string>()
@@ -742,12 +761,27 @@ function ExecucaoOSContent() {
       if (!os) return false
 
       try {
-        // Filtro por tipo de serviço
-        if (
-          selectedTipoFilter !== 'todos' &&
-          String(os?.tipo_servico || '') !== selectedTipoFilter
-        ) {
-          return false
+        // Filtro por tipo de serviço (correspondência canônica por id do tipo)
+        if (selectedTipoFilter !== 'todos') {
+          const rawTipo = String(os?.tipo || '')
+            .trim()
+            .toLowerCase()
+          const rawTipoCustomId = String(os?.tipo_custom_id || '').trim()
+          const filterNorm = String(selectedTipoFilter).trim().toLowerCase()
+
+          // Caso especial: limpeza_manutencao legado casa com o tipo canônico limpeza
+          const tipoEquivalente = rawTipo === 'limpeza_manutencao' ? 'limpeza' : rawTipo
+
+          const matchTipoCanonico = tipoEquivalente === filterNorm || rawTipo === filterNorm
+
+          const matchCustomId =
+            Boolean(rawTipoCustomId) &&
+            (rawTipoCustomId === selectedTipoFilter ||
+              `custom_${rawTipoCustomId}` === selectedTipoFilter)
+
+          if (!matchTipoCanonico && !matchCustomId) {
+            return false
+          }
         }
 
         // Filtro por prestador (ignorado para instalador, pois a visão já é filtrada/atribuída a ele)
@@ -814,6 +848,32 @@ function ExecucaoOSContent() {
     searchTerm,
     isInstalador,
   ])
+
+  // Filtragem canônica das ordens enviadas ao Calendário pelo tipo selecionado
+  const ordensCalendario = useMemo(() => {
+    if (selectedTipoFilter === 'todos') {
+      return ordens
+    }
+    return (ordens || []).filter((os) => {
+      if (!os) return false
+      const rawTipo = String(os?.tipo || '')
+        .trim()
+        .toLowerCase()
+      const rawTipoCustomId = String(os?.tipo_custom_id || '').trim()
+      const filterNorm = String(selectedTipoFilter).trim().toLowerCase()
+
+      const tipoEquivalente = rawTipo === 'limpeza_manutencao' ? 'limpeza' : rawTipo
+
+      const matchTipoCanonico = tipoEquivalente === filterNorm || rawTipo === filterNorm
+
+      const matchCustomId =
+        Boolean(rawTipoCustomId) &&
+        (rawTipoCustomId === selectedTipoFilter ||
+          `custom_${rawTipoCustomId}` === selectedTipoFilter)
+
+      return matchTipoCanonico || matchCustomId
+    })
+  }, [ordens, selectedTipoFilter])
 
   // Ação de admin para visualizar o PDF do relatório usando o gerador canônico @react-pdf/renderer
   const handleVerRelatorioPdf = async (os: OrdemServico) => {
@@ -1171,13 +1231,13 @@ function ExecucaoOSContent() {
   // Botão padrão de Nova Atividade (Manutenção nos Serviços de Campo)
   const renderBotaoNovaAtividade = () => null
 
-  // Botões de Ações Primárias (Nova Atividade + Filtros Popover)
-  const renderAcoesPrimarias = () => (
-    <div className="flex items-center gap-1.5 shrink-0">
-      {renderBotaoNovaAtividade()}
-
-      <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
-        <PopoverTrigger asChild>
+  // Componente reutilizável do Popover de Filtros (usado nas abas de lista e no cabeçalho do calendário)
+  const renderFiltrosPopover = (ocultarTrigger = false) => (
+    <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
+      <PopoverTrigger asChild>
+        {ocultarTrigger ? (
+          <span className="sr-only" aria-hidden="true" />
+        ) : (
           <Button
             type="button"
             variant="outline"
@@ -1200,130 +1260,141 @@ function ExecucaoOSContent() {
               </span>
             )}
           </Button>
-        </PopoverTrigger>
+        )}
+      </PopoverTrigger>
 
-        <PopoverContent
-          align="end"
-          sideOffset={8}
-          className="w-[340px] sm:w-[380px] p-4 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 space-y-3.5"
-        >
-          <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
-                <Filter className="w-3.5 h-3.5" />
-              </span>
-              <h4 className="text-xs sm:text-sm font-bold text-gray-900">
-                Filtros de Serviços de Campo
-              </h4>
-            </div>
-            {activeFiltersCount > 0 && (
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className="w-[340px] sm:w-[380px] p-4 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 space-y-3.5"
+      >
+        <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
+              <Filter className="w-3.5 h-3.5" />
+            </span>
+            <h4 className="text-xs sm:text-sm font-bold text-gray-900">
+              Filtros de Serviços de Campo
+            </h4>
+          </div>
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={handleLimparFiltros}
+              className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
+              title="Limpar todos os filtros"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Limpar</span>
+            </button>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder={
+                isInstalador
+                  ? 'Buscar por cliente ou tipo de atividade...'
+                  : 'Nome do cliente, endereço...'
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
+            />
+            {searchTerm && (
               <button
                 type="button"
-                onClick={handleLimparFiltros}
-                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
-                title="Limpar todos os filtros"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Limpar busca"
               >
-                <RotateCcw className="w-3 h-3" />
-                <span>Limpar</span>
+                <X className="w-3 h-3" />
               </button>
             )}
           </div>
+        </div>
 
-          <div>
-            <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <Input
-                type="text"
-                placeholder={
-                  isInstalador
-                    ? 'Buscar por cliente ou tipo de atividade...'
-                    : 'Nome do cliente, endereço...'
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  title="Limpar busca"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {!isInstalador && (
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                Prestador / Técnico
-              </label>
-              <select
-                value={selectedPrestadorFilter}
-                onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-              >
-                <option value="todos">Todos os Prestadores</option>
-                {prestadoresOpcoes.map((nome) => (
-                  <option key={nome} value={nome}>
-                    Prestador: {nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
+        {!isInstalador && (
           <div>
             <label className="block text-[11px] font-bold text-gray-700 mb-1">
-              Tipo de Serviço
+              Prestador / Técnico
             </label>
             <select
-              value={selectedTipoFilter}
-              onChange={(e) => setSelectedTipoFilter(e.target.value)}
+              value={selectedPrestadorFilter}
+              onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
               className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
             >
-              <option value="todos">Todos os Serviços</option>
-              <option value="Limpeza">Limpeza</option>
-              <option value="Manutenção">Manutenção</option>
-              <option value="Instalação">Instalação</option>
-              <option value="Garantia">Garantia</option>
-              <option value="Configuração de Datalogger">Configuração de Datalogger</option>
+              <option value="todos">Todos os Prestadores</option>
+              {prestadoresOpcoes.map((nome) => (
+                <option key={nome} value={nome}>
+                  Prestador: {nome}
+                </option>
+              ))}
             </select>
           </div>
+        )}
 
-          <div>
-            <label className="block text-[11px] font-bold text-gray-700 mb-1">
-              Período Agendado
-            </label>
-            <select
-              value={selectedPeriodoFilter}
-              onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
-              className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-            >
-              <option value="todos">Qualquer Período</option>
-              <option value="hoje">Agendadas para Hoje</option>
-              <option value="semana">Nesta Semana</option>
-              <option value="mes">Neste Mês</option>
-            </select>
-          </div>
+        <div>
+          <label className="block text-[11px] font-bold text-gray-700 mb-1">Tipo de Serviço</label>
+          <select
+            value={selectedTipoFilter}
+            onChange={(e) => setSelectedTipoFilter(e.target.value)}
+            className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+          >
+            <option value="todos">Todos os Serviços</option>
+            {tiposManutencaoOpcoes.map((tipoDef) => {
+              const valorOpcao = tipoDef.customRecordId || tipoDef.id
+              return (
+                <option key={tipoDef.id} value={valorOpcao}>
+                  {tipoDef.tituloPadrao}
+                </option>
+              )
+            })}
+          </select>
+        </div>
 
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-[11px] text-gray-500">{filteredList.length} resultado(s)</span>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setFiltrosPopoverOpen(false)}
-              className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
-            >
-              Concluir
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+        <div>
+          <label className="block text-[11px] font-bold text-gray-700 mb-1">Período Agendado</label>
+          <select
+            value={selectedPeriodoFilter}
+            onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
+            className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+          >
+            <option value="todos">Qualquer Período</option>
+            <option value="hoje">Agendadas para Hoje</option>
+            <option value="semana">Nesta Semana</option>
+            <option value="mes">Neste Mês</option>
+          </select>
+        </div>
+
+        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+          <span className="text-[11px] text-gray-500">
+            {activeTab === 'calendario'
+              ? `${ordensCalendario.length} serviço(s) no calendário`
+              : `${filteredList.length} resultado(s)`}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setFiltrosPopoverOpen(false)}
+            className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
+          >
+            Concluir
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+
+  // Botões de Ações Primárias (Nova Atividade + Filtros Popover)
+  const renderAcoesPrimarias = () => (
+    <div className="flex items-center gap-1.5 shrink-0">
+      {renderBotaoNovaAtividade()}
+      {renderFiltrosPopover(false)}
     </div>
   )
 
@@ -1371,132 +1442,7 @@ function ExecucaoOSContent() {
         </div>
       ) : (
         /* Na visão de calendário, mantém o Popover de Filtros montado no DOM para atender o evento mobile 'delfos:abrir-filtros-servicos-campo' */
-        <Popover open={filtrosPopoverOpen} onOpenChange={setFiltrosPopoverOpen}>
-          <PopoverTrigger asChild>
-            <span className="sr-only" aria-hidden="true" />
-          </PopoverTrigger>
-          <PopoverContent
-            align="end"
-            sideOffset={8}
-            className="w-[340px] sm:w-[380px] p-4 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 space-y-3.5"
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
-                  <Filter className="w-3.5 h-3.5" />
-                </span>
-                <h4 className="text-xs sm:text-sm font-bold text-gray-900">
-                  Filtros de Serviços de Campo
-                </h4>
-              </div>
-              {activeFiltersCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleLimparFiltros}
-                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
-                  title="Limpar todos os filtros"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Limpar</span>
-                </button>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Busca Rápida</label>
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder={
-                    isInstalador
-                      ? 'Buscar por cliente ou tipo de atividade...'
-                      : 'Nome do cliente, endereço...'
-                  }
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    title="Limpar busca"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {!isInstalador && (
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Prestador / Técnico
-                </label>
-                <select
-                  value={selectedPrestadorFilter}
-                  onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
-                  className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-                >
-                  <option value="todos">Todos os Prestadores</option>
-                  {prestadoresOpcoes.map((nome) => (
-                    <option key={nome} value={nome}>
-                      Prestador: {nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                Tipo de Serviço
-              </label>
-              <select
-                value={selectedTipoFilter}
-                onChange={(e) => setSelectedTipoFilter(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-              >
-                <option value="todos">Todos os Serviços</option>
-                <option value="Limpeza">Limpeza</option>
-                <option value="Manutenção">Manutenção</option>
-                <option value="Instalação">Instalação</option>
-                <option value="Garantia">Garantia</option>
-                <option value="Configuração de Datalogger">Configuração de Datalogger</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                Período Agendado
-              </label>
-              <select
-                value={selectedPeriodoFilter}
-                onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-              >
-                <option value="todos">Qualquer Período</option>
-                <option value="hoje">Agendadas para Hoje</option>
-                <option value="semana">Nesta Semana</option>
-                <option value="mes">Neste Mês</option>
-              </select>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-[11px] text-gray-500">{filteredList.length} resultado(s)</span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setFiltrosPopoverOpen(false)}
-                className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
-              >
-                Concluir
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
+        renderFiltrosPopover(true)
       )}
       {/* Conteúdo da Aba Relatório (apenas Admin) */}
       {activeTab === 'configuracoes' && isAdmin ? (
@@ -1524,13 +1470,13 @@ function ExecucaoOSContent() {
             compact
           >
             <CalendarioExecucaoOS
-              ordens={ordens}
+              ordens={ordensCalendario}
               onSelectOS={(os) => setSelectedOS(os)}
               onOSUpdated={handleOSUpdated}
               isInstalador={isInstalador}
               instaladorNome={userProfile?.name}
               leftControlsSlot={renderTabsNavegacao()}
-              rightActionsSlot={renderBotaoNovaAtividade()}
+              rightActionsSlot={renderAcoesPrimarias()}
               mostrarLinhaDiaTodo={!isMobile}
               onSlotClick={handleSlotClick}
             />
@@ -1558,7 +1504,12 @@ function ExecucaoOSContent() {
                 )}
                 {selectedTipoFilter !== 'todos' && (
                   <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-[11px] font-medium text-emerald-800">
-                    Tipo: {selectedTipoFilter}
+                    Tipo:{' '}
+                    {tiposManutencaoOpcoes.find(
+                      (t) =>
+                        (t.customRecordId || t.id) === selectedTipoFilter ||
+                        t.id === selectedTipoFilter,
+                    )?.tituloPadrao || selectedTipoFilter}
                   </span>
                 )}
                 {selectedPeriodoFilter !== 'todos' && (

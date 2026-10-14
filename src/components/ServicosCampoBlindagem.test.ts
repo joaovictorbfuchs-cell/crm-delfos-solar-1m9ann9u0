@@ -122,6 +122,32 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
     })
   })
 
+  describe('Filtros Canônicos e Dinâmicos de Serviços de Campo', () => {
+    it('tipos de manutenção do catálogo contêm identificadores canônicos para filtros', async () => {
+      const { ATIVIDADES_PADRAO, buildCustomTipoDef, deduplicarTiposAtividades } =
+        await import('@/constants/atividadesTipos')
+
+      const padroes = ATIVIDADES_PADRAO.filter((a) => a.categoria === 'manutencao')
+      const idsPadroes = padroes.map((p) => p.id)
+      expect(idsPadroes).toContain('limpeza')
+      expect(idsPadroes).toContain('manutencao_preventiva')
+      expect(idsPadroes).toContain('manutencao_corretiva')
+      expect(idsPadroes).toContain('instalacao')
+      expect(idsPadroes).toContain('configuracao_datalogger')
+      expect(idsPadroes).toContain('garantia_equipamento')
+
+      const customTipo = buildCustomTipoDef({
+        id: 'cust-manut-123',
+        nome: 'Revisão Semestral',
+        categoria: 'manutencao',
+      })
+      const unificados = deduplicarTiposAtividades(padroes, [customTipo])
+      const customEncontrado = unificados.find((t) => t.id === 'custom_cust-manut-123')
+      expect(customEncontrado).toBeDefined()
+      expect(customEncontrado?.customRecordId).toBe('cust-manut-123')
+    })
+  })
+
   describe('Tratamento de sessão expirada / erro de autenticação', () => {
     it('isAuthSessionError identifica corretamente erros de token expirado ou status 401/403', async () => {
       const { isAuthSessionError } = await import('@/lib/pocketbase/errors')
