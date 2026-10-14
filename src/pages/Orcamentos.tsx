@@ -605,23 +605,12 @@ export const Orcamentos: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleRefresh}
-                disabled={isRefreshing || isLoading}
-                className="h-9 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
-                title="Atualizar dados de Energia Solar"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-
               <button
                 onClick={() => handleNovoOrcamento()}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Nova Proposta Solar</span>
+                <span>&nbsp;Solar</span>
               </button>
             </div>
           </div>

@@ -252,17 +252,6 @@ export const AbaPropostasOM: React.FC = () => {
 
           {/* Botões de Ação */}
           <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isRefreshing || isLoading}
-              className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
-              title="Atualizar dados de O&M"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
-
             <button
               type="button"
               onClick={() => setPainelFiltrosAberto((prev) => !prev)}
@@ -294,7 +283,7 @@ export const AbaPropostasOM: React.FC = () => {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Nova Proposta O&amp;M</span>
+              <span>&nbsp;O&amp;M</span>
             </button>
           </div>
         </div>
