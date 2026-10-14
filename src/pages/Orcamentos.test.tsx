@@ -256,4 +256,57 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
     expect(screen.getByText('Fazenda Santa Rita')).toBeDefined()
     expect(screen.queryByText('Indústria Metalúrgica Sul')).toBeNull()
   })
+
+  it('no gerador de propostas solar (ModalOrcamentoSolar), cada botão Continuar avança para o próximo passo da própria sequência e no último passo o botão é omitido', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    render(
+      <MemoryRouter initialEntries={['/propostas']}>
+        <Orcamentos />
+      </MemoryRouter>,
+    )
+
+    // Clica no botão "Nova Proposta Solar" para abrir o modal de proposta solar
+    const btnNovo = screen.getByRole('button', { name: /Nova Proposta Solar/i })
+    fireEvent.click(btnNovo)
+
+    // Passo 1 inicial: "1. Dados Técnicos & Sistema" deve estar ativo
+    expect(screen.getByText('1. Dados Técnicos & Sistema')).toBeDefined()
+    expect(screen.getByText('Resumo Instantâneo do Sistema Solar (Erechim/RS)')).toBeDefined()
+
+    // Botão Continuar deve estar presente e com título/ação para o próximo passo (Custos)
+    const btnContinuar1 = screen.getByRole('button', { name: /Continuar/i })
+    expect(btnContinuar1).toBeDefined()
+    expect(btnContinuar1.getAttribute('title')).toBe('Continuar para Custos')
+
+    // Clica em Continuar a partir do Passo 1
+    fireEvent.click(btnContinuar1)
+
+    // Agora deve estar no Passo 2: "2. Aba de Custos"
+    expect(screen.getByText(/Composição Analítica dos Custos do Projeto/i)).toBeDefined()
+
+    // O botão Continuar agora deve avançar para o Passo 3 (Parcelamentos & Financiamento), NÃO para Custos
+    const btnContinuar2 = screen.getByRole('button', { name: /Continuar/i })
+    expect(btnContinuar2.getAttribute('title')).toBe('Continuar para Parcelamentos')
+
+    // Clica em Continuar a partir do Passo 2
+    fireEvent.click(btnContinuar2)
+
+    // Agora deve estar no Passo 3: "3. Parcelamentos & Financiamento"
+    expect(screen.getByText(/Simulação de Parcelamento & Financiamento/i)).toBeDefined()
+
+    // O botão Continuar agora deve avançar para o Passo 4 (Resumo & Proposta Oficial)
+    const btnContinuar3 = screen.getByRole('button', { name: /Continuar/i })
+    expect(btnContinuar3.getAttribute('title')).toBe('Continuar para Proposta')
+
+    // Clica em Continuar a partir do Passo 3
+    fireEvent.click(btnContinuar3)
+
+    // Agora deve estar no Passo 4: "4. Resumo & Proposta Oficial"
+    expect(screen.getByText(/Proposta Técnico-Comercial da Delfos Solar/i)).toBeDefined()
+
+    // No último passo (Passo 4), o botão Continuar NÃO deve mais existir (somente Cancelar e Salvar Orçamento)
+    expect(screen.queryByRole('button', { name: /Continuar/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /Salvar Orçamento/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /Cancelar/i })).toBeDefined()
+  })
 })

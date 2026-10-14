@@ -95,6 +95,22 @@ interface ModalOrcamentoSolarProps {
 
 type TabType = 'tecnico' | 'custos' | 'parcelamentos' | 'proposta'
 
+export const SEQUENCIA_PASSOS_SOLAR: TabType[] = ['tecnico', 'custos', 'parcelamentos', 'proposta']
+
+export const MAPA_PROXIMO_PASSO_SOLAR: Record<TabType, TabType | null> = {
+  tecnico: 'custos',
+  custos: 'parcelamentos',
+  parcelamentos: 'proposta',
+  proposta: null,
+}
+
+export const MAPA_ROTULO_PROXIMO_PASSO_SOLAR: Record<TabType, string> = {
+  tecnico: 'Continuar para Custos',
+  custos: 'Continuar para Parcelamentos',
+  parcelamentos: 'Continuar para Proposta',
+  proposta: '',
+}
+
 interface SecaoAcordeaoProps {
   titulo: string
   subtitulo?: string
@@ -4304,16 +4320,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Continuar para a Aba de Custos */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('custos')}
-              className="px-4 py-2 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5"
-              title="Avançar para a aba de Custos"
-            >
-              <span>Continuar</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {/* Avanço relativo de passos: cada passo avança para o próximo da sua própria sequência */}
+            {MAPA_PROXIMO_PASSO_SOLAR[activeTab] && (
+              <button
+                type="button"
+                onClick={() => {
+                  const proximo = MAPA_PROXIMO_PASSO_SOLAR[activeTab]
+                  if (proximo) {
+                    setActiveTab(proximo)
+                  }
+                }}
+                className="px-4 py-2 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                title={MAPA_ROTULO_PROXIMO_PASSO_SOLAR[activeTab] || 'Avançar para o próximo passo'}
+              >
+                <span>Continuar</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Salvar Orçamento */}
             <button
