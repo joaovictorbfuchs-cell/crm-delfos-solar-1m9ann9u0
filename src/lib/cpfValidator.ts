@@ -23,6 +23,33 @@ export function formatarCPF(cpfRaw: string): string {
 }
 
 /**
+ * Formata CPF ou CNPJ progressivamente conforme o número de dígitos (até 14 dígitos).
+ * - até 11 dígitos: máscara progressiva de CPF (000.000.000-00)
+ * - 12 a 14 dígitos: máscara progressiva de CNPJ (00.000.000/0000-00)
+ * - Aceita entradas coladas com pontuação (limpa caracteres não numéricos antes).
+ */
+export function formatarCpfCnpj(docRaw: string | undefined | null): string {
+  if (!docRaw) return ''
+  const digits = docRaw.replace(/\D/g, '').slice(0, 14)
+  if (!digits) return ''
+
+  if (digits.length <= 11) {
+    // Máscara dinâmica CPF
+    return digits
+      .replace(/^(\d{3})(\d)/, '$1.$2')
+      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1-$2')
+  }
+
+  // Máscara dinâmica CNPJ (12 a 14 dígitos)
+  return digits
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2')
+}
+
+/**
  * Validação com algoritmo oficial dos dígitos verificadores do CPF
  */
 export function validarCPF(cpfRaw: string): boolean {

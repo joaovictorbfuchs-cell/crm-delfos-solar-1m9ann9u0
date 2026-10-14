@@ -77,7 +77,7 @@ import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { createAtividade } from '@/services/crmService'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
-import { formatarCPF } from '@/lib/cpfValidator'
+import { formatarCPF, formatarCpfCnpj } from '@/lib/cpfValidator'
 import { TipoAtendimento, NumeroFases, TelhadoTipo } from '@/types/crm'
 import {
   extrairDadosDocumento,
@@ -2078,25 +2078,26 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                           />
                         </div>
 
-                        {/* CPF com máscara */}
+                        {/* CPF/CNPJ com máscara dinâmica */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div className="flex items-center gap-2">
                             <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">CPF:</span>
+                            <span className="text-gray-500 w-24 shrink-0">CPF/CNPJ:</span>
                             <InlineEditField
                               value={usinaDetalhes.titular_cpf || ''}
                               displayValue={
                                 <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
                                   {usinaDetalhes.titular_cpf
-                                    ? formatarCPF(usinaDetalhes.titular_cpf)
+                                    ? formatarCpfCnpj(usinaDetalhes.titular_cpf)
                                     : 'Não inf.'}
                                 </span>
                               }
                               type="text"
-                              placeholder="000.000.000-00"
+                              placeholder="CPF ou CNPJ"
+                              transformInput={formatarCpfCnpj}
                               onSave={async (val) => {
                                 const raw = String(val)
-                                const formatted = formatarCPF(raw)
+                                const formatted = formatarCpfCnpj(raw)
                                 await handleUpdateUsinaField('titular_cpf', formatted)
                               }}
                             />

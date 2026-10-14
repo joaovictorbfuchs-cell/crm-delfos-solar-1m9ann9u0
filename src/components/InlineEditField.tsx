@@ -21,6 +21,7 @@ export interface InlineEditFieldProps {
   className?: string
   inputClassName?: string
   badgeMode?: boolean
+  transformInput?: (val: string) => string
 }
 
 export const InlineEditField: React.FC<InlineEditFieldProps> = ({
@@ -37,6 +38,7 @@ export const InlineEditField: React.FC<InlineEditFieldProps> = ({
   className = '',
   inputClassName = '',
   badgeMode = false,
+  transformInput,
 }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [currentVal, setCurrentVal] = useState<string>('')
@@ -71,6 +73,9 @@ export const InlineEditField: React.FC<InlineEditFieldProps> = ({
 
   const handleStartEditing = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (transformInput) {
+      setCurrentVal(transformInput(String(value ?? '')))
+    }
     setIsEditing(true)
     setError(null)
   }
@@ -175,7 +180,10 @@ export const InlineEditField: React.FC<InlineEditFieldProps> = ({
                 value={currentVal}
                 disabled={isSaving}
                 placeholder={placeholder}
-                onChange={(e) => setCurrentVal(e.target.value)}
+                onChange={(e) => {
+                  const val = transformInput ? transformInput(e.target.value) : e.target.value
+                  setCurrentVal(val)
+                }}
                 onKeyDown={handleKeyDown}
                 className={`text-xs py-1 px-2 border rounded-md bg-white text-gray-900 border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-xs ${
                   unit ? 'pr-7' : ''
