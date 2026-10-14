@@ -517,3 +517,104 @@ export async function excluirFilhaPorData(
   }
   return false
 }
+
+export interface SubstituirVariaveisAutoLeituraParams {
+  texto: string
+  nomeCliente?: string | null
+  nomeUsina?: string | null
+  numeroUc?: string | null
+  endereco?: string | null
+  dataLeitura?: string | null // YYYY-MM-DD ou DD/MM/AAAA
+}
+
+/**
+ * Substitui em tempo real as variáveis do template da Auto Leitura RGE
+ * para pré-visualização e disparo.
+ *
+ * Suporta formatos {{var}}, {var} e [var], insensível a maiúsculas/minúsculas e tolerante a espaços:
+ * - [nome do cliente] / {{nome_cliente}} / {nome_cliente} -> Nome do Cliente (fallback: "Nome do Cliente")
+ * - {{usina}} / [usina] / {usina} -> Nome da Usina (fallback: "Nome da Usina")
+ * - {{numero_uc}} / [numero_uc] / {numero_uc} -> Número da UC (fallback: "Número da UC")
+ * - {{endereco}} / [endereco] / {endereco} -> Endereço (fallback: "Endereço")
+ * - [data] / {{data}} / {data} / {{data_leitura}} -> Data de Leitura formatada DD/MM/AAAA (fallback: "data da leitura")
+ * - [dia anterior] / [dia_anterior] / {{dia_anterior}} -> Data do lembrete (2 dias antes; se fim de semana -> sexta-feira anterior) formatada DD/MM/AAAA (fallback: "data do lembrete")
+ *
+ * Se uma variável não estiver preenchida no formulário, mantém o fallback visível para o usuário perceber.
+ */
+export function substituirVariaveisAutoLeitura(
+  params: SubstituirVariaveisAutoLeituraParams,
+): string {
+  const { texto, nomeCliente, nomeUsina, numeroUc, endereco, dataLeitura } = params
+  if (!texto) return ''
+
+  const clienteValor = nomeCliente?.trim() || 'Nome do Cliente'
+  const usinaValor = nomeUsina?.trim() || 'Nome da Usina'
+  const ucValor = numeroUc?.trim() || 'Número da UC'
+  const enderecoValor = endereco?.trim() || 'Endereço'
+
+  let dataLeituraValor = 'data da leitura'
+  let dataLembreteValor = 'data do lembrete'
+
+  if (dataLeitura && dataLeitura.trim()) {
+    const rawData = dataLeitura.trim().slice(0, 10)
+    // Se estiver no formato YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawData)) {
+      dataLeituraValor = formatarDataParaDDMMAAAA(rawData)
+      try {
+        const { dataLembreteIso } = calcularDataLembrete2DiasAntes(rawData)
+        dataLembreteValor = formatarDataParaDDMMAAAA(dataLembreteIso.slice(0, 10))
+      } catch {
+        dataLembreteValor = 'data do lembrete'
+      }
+    } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawData)) {
+      // Se já veio no formato DD/MM/AAAA
+      dataLeituraValor = rawData
+      const [d, m, y] = rawData.split('/')
+      try {
+        const { dataLembreteIso } = calcularDataLembrete2DiasAntes(`${y}-${m}-${d}`)
+        dataLembreteValor = formatarDataParaDDMMAAAA(dataLembreteIso.slice(0, 10))
+      } catch {
+        dataLembreteValor = 'data do lembrete'
+      }
+    } else {
+      dataLeituraValor = rawData
+    }
+  }
+
+  let resultado = texto
+
+  // 1. [nome do cliente] / {{nome_cliente}} / [nome_cliente] / {{nome do cliente}} / {nome_cliente}
+  resultado = resultado.replace(
+    /(?:\[\s*(?:nome\s+do\s+cliente|nome_cliente|cliente)\s*\]|\{\{?\s*(?:nome_cliente|nome\s+do\s+cliente|cliente)\s*\}?\})/gi,
+    clienteValor,
+  )
+
+  // 2. {{usina}} / [usina] / {usina}
+  resultado = resultado.replace(/(?:\[\s*usina\s*\]|\{\{?\s*usina\s*\}?\})/gi, usinaValor)
+
+  // 3. {{numero_uc}} / [numero_uc] / [numero uc] / {{numero uc}} / {numero_uc} / {{uc}} / [uc]
+  resultado = resultado.replace(
+    /(?:\[\s*(?:numero_uc|numero\s+uc|uc)\s*\]|\{\{?\s*(?:numero_uc|numero\s+uc|uc)\s*\}?\})/gi,
+    ucValor,
+  )
+
+  // 4. {{endereco}} / [endereco] / [endereço] / {{endereço}} / {endereco}
+  resultado = resultado.replace(
+    /(?:\[\s*(?:endereco|endereço)\s*\]|\{\{?\s*(?:endereco|endereço)\s*\}?\})/gi,
+    enderecoValor,
+  )
+
+  // 5. [data] / {{data}} / {data} / {{data_leitura}} / [data da leitura] / [data_leitura]
+  resultado = resultado.replace(
+    /(?:\[\s*(?:data|data_leitura|data\s+da\s+leitura)\s*\]|\{\{?\s*(?:data|data_leitura|data\s+da\s+leitura)\s*\}?\})/gi,
+    dataLeituraValor,
+  )
+
+  // 6. [dia anterior] / [dia_anterior] / {{dia_anterior}} / {{dia anterior}} / {dia_anterior}
+  resultado = resultado.replace(
+    /(?:\[\s*(?:dia\s+anterior|dia_anterior)\s*\]|\{\{?\s*(?:dia\s+anterior|dia_anterior)\s*\}?\})/gi,
+    dataLembreteValor,
+  )
+
+  return resultado
+}

@@ -24,7 +24,12 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { fetchUsinasByClienteId } from '@/services/crmService'
-import { formatarDataParaDDMMAAAA, sincronizarFilhasNovas } from '@/services/autoLeituraService'
+import {
+  formatarDataParaDDMMAAAA,
+  sincronizarFilhasNovas,
+  substituirVariaveisAutoLeitura,
+} from '@/services/autoLeituraService'
+import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import {
   calcularCustosAtividade,
   getConfiguracaoDeslocamento,
@@ -179,6 +184,63 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   )
   const [salvandoTemplatePadrao, setSalvandoTemplatePadrao] = useState(false)
   const [sucessoSalvarTemplate, setSucessoSalvarTemplate] = useState(false)
+
+  // Cliente e Usina atualmente selecionados no formulário (para resolver variáveis do preview)
+  const clienteSelecionadoAtual = React.useMemo(() => {
+    return (clientes || []).find((c) => c.id === clienteId) || null
+  }, [clientes, clienteId])
+
+  const usinaSelecionadaAtual = React.useMemo(() => {
+    return (usinasDoCliente || []).find((u) => u.id === selectedUsinaId) || null
+  }, [usinasDoCliente, selectedUsinaId])
+
+  // Endereço formatado da usina ou do cliente vinculado (para {{endereco}})
+  const enderecoResolvidoPreview = React.useMemo(() => {
+    if (usinaSelecionadaAtual?.endereco && usinaSelecionadaAtual.endereco.trim()) {
+      return usinaSelecionadaAtual.endereco.trim()
+    }
+    const partesUsina = [usinaSelecionadaAtual?.cidade, usinaSelecionadaAtual?.estado].filter(
+      Boolean,
+    )
+    if (partesUsina.length > 0) {
+      return partesUsina.join(' - ')
+    }
+    if (clienteSelecionadoAtual?.endereco && clienteSelecionadoAtual.endereco.trim()) {
+      const complemento = [
+        clienteSelecionadoAtual.numero,
+        clienteSelecionadoAtual.bairro,
+        clienteSelecionadoAtual.cidade,
+      ]
+        .filter(Boolean)
+        .join(', ')
+      return complemento
+        ? `${clienteSelecionadoAtual.endereco}, ${complemento}`
+        : clienteSelecionadoAtual.endereco
+    }
+    if (clienteSelecionadoAtual?.cidade) {
+      return clienteSelecionadoAtual.cidade
+    }
+    return ''
+  }, [usinaSelecionadaAtual, clienteSelecionadoAtual])
+
+  // Pré-visualização da mensagem ao cliente em tempo real com todas as variáveis substituídas
+  const mensagemPreviewResolvida = React.useMemo(() => {
+    return substituirVariaveisAutoLeitura({
+      texto: mensagemClienteAutoLeitura,
+      nomeCliente: clienteSelecionadoAtual?.nome || null,
+      nomeUsina: usinaSelecionadaAtual?.nome || null,
+      numeroUc: numeroUcAutoLeitura || null,
+      endereco: enderecoResolvidoPreview || null,
+      dataLeitura: datasLeituraAutoLeitura[0] || null,
+    })
+  }, [
+    mensagemClienteAutoLeitura,
+    clienteSelecionadoAtual,
+    usinaSelecionadaAtual,
+    numeroUcAutoLeitura,
+    enderecoResolvidoPreview,
+    datasLeituraAutoLeitura,
+  ])
 
   const [programacaoLeituras, setProgramacaoLeituras] =
     useState<ProgramacaoLeituraItem[]>(ITENS_EXEMPLO_PROGRAMACAO)
@@ -1497,6 +1559,52 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                   placeholder="Digite a mensagem que o cliente receberá pelo WhatsApp..."
                   className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y bg-white text-gray-900 leading-relaxed font-sans"
                 />
+
+                {/* Quadro de Pré-visualização da Mensagem ao Cliente (WhatsApp) */}
+                <div className="mt-3 rounded-xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/50 to-emerald-50/20 p-3 sm:p-3.5 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-emerald-900">
+                      <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center shadow-2xs shrink-0">
+                        <WhatsAppIcon className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-xs font-bold tracking-tight">
+                        Pré-visualização da mensagem ao cliente
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Disparo via WhatsApp
+                    </span>
+                  </div>
+
+                  {/* Balão estilo WhatsApp */}
+                  <div className="relative rounded-2xl rounded-tl-sm bg-[#DCF8C6] border border-[#C5E1A5] text-[#111B21] p-3 text-xs leading-relaxed shadow-2xs whitespace-pre-wrap select-text break-words font-sans">
+                    {mensagemPreviewResolvida || (
+                      <span className="italic text-gray-400">
+                        Nenhuma mensagem para pré-visualizar...
+                      </span>
+                    )}
+
+                    <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px] text-gray-500 font-sans select-none">
+                      <span>09:00</span>
+                      <span className="text-emerald-700 font-bold">✓✓</span>
+                    </div>
+                  </div>
+
+                  {/* Rodapé com dicas de contexto */}
+                  <div className="flex items-center justify-between text-[11px] text-emerald-900/80 px-0.5 pt-0.5 flex-wrap gap-1">
+                    <span>
+                      Primeira leitura:{' '}
+                      <strong className="text-emerald-950 font-semibold">
+                        {datasLeituraAutoLeitura[0]
+                          ? formatarDataParaDDMMAAAA(datasLeituraAutoLeitura[0])
+                          : 'Ainda não adicionada'}
+                      </strong>
+                    </span>
+                    <span className="text-emerald-800/70 text-[10px]">
+                      Variáveis substituídas em tempo real conforme dados vinculados
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}

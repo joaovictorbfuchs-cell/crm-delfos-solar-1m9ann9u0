@@ -29,33 +29,21 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Identifica se um erro retornado pelo PocketBase decorre de sessão expirada,
- * não autenticada ou proibida (401 / 403 / token inválido / expired).
+ * Identifica se o erro é decorrente de sessão/autenticação expirada ou inválida (status 401 ou 403)
  */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    const status = err.status ?? err.statusCode
-    if (status === 401 || status === 403) return true
-    if (typeof err.message === 'string') {
-      const msg = err.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('expired token') ||
-        msg.includes('the request requires valid') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('not authenticated') ||
-        msg.includes('session expired')
-      ) {
-        return true
-      }
-    }
-    if (typeof err.data === 'object' && err.data !== null) {
-      const dataMsg = String((err.data as Record<string, unknown>).message || '').toLowerCase()
-      if (dataMsg.includes('token') || dataMsg.includes('auth')) {
-        return true
-      }
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (
+      typeof errObj.message === 'string' &&
+      (errObj.message.includes('Token is expired') ||
+        errObj.message.includes('Failed to authenticate') ||
+        errObj.message.includes('The request requires valid record authorization token'))
+    ) {
+      return true
     }
   }
   return false
