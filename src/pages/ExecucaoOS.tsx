@@ -239,30 +239,59 @@ function ExecucaoOSContent() {
         const filterAtividades =
           "(tipo='limpeza_manutencao' || tipo='limpeza' || tipo='manutencao_preventiva' || tipo='manutencao_corretiva' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger' || tipo='custom')"
 
+        // Se for perfil instalador, a coleção `users` esbarra nas regras de acesso (não-admin).
+        // Portanto, para instalador NÃO expandimos responsavel_id nem fornecedor_id.
+        // Apenas 'cliente_id,usina_id,tipo_custom_id'. Admin/comercial mantêm o expand completo.
         const podeExpandirFornecedor = isAdmin || (userProfile?.role as string) === 'comercial'
-        const expandAtividades = podeExpandirFornecedor
-          ? 'cliente_id,usina_id,responsavel_id,fornecedor_id,tipo_custom_id'
-          : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
+        const expandAtividades = isInstalador
+          ? 'cliente_id,usina_id,tipo_custom_id'
+          : podeExpandirFornecedor
+            ? 'cliente_id,usina_id,responsavel_id,fornecedor_id,tipo_custom_id'
+            : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
 
-        const osPromise = fetchOrdensServico(undefined, responsavelFiltro).catch((err) => {
+        const osPromise = fetchOrdensServico(undefined, responsavelFiltro, isInstalador).catch(
+          (err) => {
+            if (isAuthSessionError(err)) throw err
+            console.warn('Erro ao carregar ordens de serviço (isolado):', err)
+            return []
+          },
+        )
+
+        const carregarAtividadesSeguro = async () => {
+          try {
+            return await pb.collection('atividades').getFullList({
+              filter: filterAtividades,
+              sort: '-data,-created',
+              expand: expandAtividades,
+              requestKey: null,
+            })
+          } catch (errAtv: any) {
+            // Fallback de erro 400 por falha em expand relacional restrito
+            const status = errAtv?.status || errAtv?.statusCode || errAtv?.response?.status
+            if (
+              status === 400 ||
+              (typeof errAtv?.message === 'string' && errAtv.message.includes('expand'))
+            ) {
+              console.warn(
+                'carregarAtividades: falha com expand, refazendo com cliente_id,usina_id,tipo_custom_id:',
+                errAtv?.message,
+              )
+              return await pb.collection('atividades').getFullList({
+                filter: filterAtividades,
+                sort: '-data,-created',
+                expand: 'cliente_id,usina_id,tipo_custom_id',
+                requestKey: null,
+              })
+            }
+            throw errAtv
+          }
+        }
+
+        const atividadesPromise = carregarAtividadesSeguro().catch((err) => {
           if (isAuthSessionError(err)) throw err
-          console.warn('Erro ao carregar ordens de serviço (isolado):', err)
+          console.warn('Erro ao carregar atividades de campo (isolado):', err)
           return []
         })
-
-        const atividadesPromise = pb
-          .collection('atividades')
-          .getFullList({
-            filter: filterAtividades,
-            sort: '-data,-created',
-            expand: expandAtividades,
-            requestKey: null,
-          })
-          .catch((err) => {
-            if (isAuthSessionError(err)) throw err
-            console.warn('Erro ao carregar atividades de campo (isolado):', err)
-            return []
-          })
 
         const instaladoresPromise = (
           isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([])
@@ -1308,17 +1337,23 @@ function ExecucaoOSContent() {
   }
 
   // Se for instalador no mobile, renderiza a tela dedicada para instaladores
-  // com lista de atividades do dia, conclusão e checklist dinâmico no celular
+  // com lista de atividades do dia, conclusão e checklist dinâmico no celular.
+  // Envolto em ErrorBoundary defensivo para NUNCA derrubar a página no ErrorBoundary de rota.
   if (isMobile && isInstalador) {
     return (
-      <VisaoInstaladorMobileOS
-        ordens={ordens}
-        userId={userProfile?.id}
-        userName={userProfile?.name}
-        onOSUpdated={handleOSUpdated}
-        onSelectOS={(os) => setSelectedOS(os)}
-        onRefresh={() => carregarDados()}
-      />
+      <ErrorBoundary
+        errorMessage="Não foi possível exibir a visão do instalador no celular. Tente recarregar."
+        compact
+      >
+        <VisaoInstaladorMobileOS
+          ordens={ordens}
+          userId={userProfile?.id}
+          userName={userProfile?.name}
+          onOSUpdated={handleOSUpdated}
+          onSelectOS={(os) => setSelectedOS(os)}
+          onRefresh={() => carregarDados()}
+        />
+      </ErrorBoundary>
     )
   }
 

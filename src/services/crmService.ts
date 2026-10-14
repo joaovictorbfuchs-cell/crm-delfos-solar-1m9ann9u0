@@ -3406,6 +3406,7 @@ export async function saveOSTemplate(
 export async function fetchOrdensServico(
   filterStatus?: import('@/types/crm').OSStatus,
   responsavelUsuarioId?: string,
+  isInstalador = false,
 ): Promise<import('@/types/crm').OrdemServico[]> {
   try {
     const conditions: string[] = []
@@ -3417,15 +3418,49 @@ export async function fetchOrdensServico(
     }
     const filter = conditions.join(' && ')
 
-    const records = await pb
-      .collection('ordens_servico')
-      .getFullList<import('@/types/crm').OrdemServico>({
-        filter: filter || undefined,
-        sort: 'data_agendada,-created',
-        expand: 'cliente_id,usina_id,profissional_id,responsavel_usuario_id',
-        requestKey: null,
-      })
-    return records
+    // Se o usuário logado for instalador (ou se a flag isInstalador for true),
+    // usar expand restrito 'cliente_id,usina_id' porque a coleção `users` esbarra
+    // em regras de acesso de perfil não-admin. Caso contrário, tenta expand completo.
+    const currentUserRole = pb.authStore.model?.role as string | undefined
+    const ehInstalador = isInstalador || currentUserRole === 'instalador'
+    const expandQuery = ehInstalador
+      ? 'cliente_id,usina_id'
+      : 'cliente_id,usina_id,profissional_id,responsavel_usuario_id'
+
+    try {
+      const records = await pb
+        .collection('ordens_servico')
+        .getFullList<import('@/types/crm').OrdemServico>({
+          filter: filter || undefined,
+          sort: 'data_agendada,-created',
+          expand: expandQuery,
+          requestKey: null,
+        })
+      return records
+    } catch (errPrimario: any) {
+      // Fallback robusto: se falhou com erro 400 ou qualquer erro de expand,
+      // refazer a query com o expand estritamente seguro 'cliente_id,usina_id'
+      const status = errPrimario?.status || errPrimario?.statusCode || errPrimario?.response?.status
+      if (
+        status === 400 ||
+        (typeof errPrimario?.message === 'string' && errPrimario.message.includes('expand'))
+      ) {
+        console.warn(
+          'fetchOrdensServico: falha com expand amplo, tentando fallback seguro:',
+          errPrimario?.message,
+        )
+        const recordsFallback = await pb
+          .collection('ordens_servico')
+          .getFullList<import('@/types/crm').OrdemServico>({
+            filter: filter || undefined,
+            sort: 'data_agendada,-created',
+            expand: 'cliente_id,usina_id',
+            requestKey: null,
+          })
+        return recordsFallback
+      }
+      throw errPrimario
+    }
   } catch (err) {
     console.error('Erro ao buscar ordens de serviço:', err)
     return []

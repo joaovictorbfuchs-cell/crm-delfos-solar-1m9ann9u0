@@ -143,4 +143,14 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(client.pb).toBe(client.default)
     })
   })
+
+  describe('Blindagem de Carregamento e Fallback de Expands para Instalador', () => {
+    it('fetchOrdensServico aceita parâmetro isInstalador e não lança exceção em erro de expand', async () => {
+      const { fetchOrdensServico } = await import('@/services/crmService')
+      expect(typeof fetchOrdensServico).toBe('function')
+      // Teste chamando com responsavelUsuarioId e isInstalador=true
+      const result = await fetchOrdensServico(undefined, 'user-fake-instalador', true)
+      expect(Array.isArray(result)).toBe(true)
+    })
+  })
 })

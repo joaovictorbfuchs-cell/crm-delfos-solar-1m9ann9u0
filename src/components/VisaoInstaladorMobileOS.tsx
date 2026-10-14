@@ -462,66 +462,80 @@ export default function VisaoInstaladorMobileOS({
     }
   }
 
-  // Traçar rota GPS usina ou endereço
+  // Traçar rota GPS usina ou endereço com proteção total contra exceções
   const handleTraçarRota = (os: OrdemServico, e: React.MouseEvent) => {
     e.stopPropagation()
-    const SEDE_DELFOS = 'Rua Espírito Santo, 275, Erechim - RS, CEP 99709296'
-    const usina = os.expand?.usina_id
-    const cli = os.expand?.cliente_id
+    try {
+      const SEDE_DELFOS = 'Rua Espírito Santo, 275, Erechim - RS, CEP 99709296'
+      const usina = os && typeof os === 'object' ? os.expand?.usina_id : undefined
+      const cli = os && typeof os === 'object' ? os.expand?.cliente_id : undefined
 
-    const lat =
-      usina?.latitude !== undefined &&
-      usina?.latitude !== null &&
-      !isNaN(Number(usina.latitude)) &&
-      Number(usina.latitude) !== 0
-        ? Number(usina.latitude)
-        : cli?.latitude !== undefined &&
-            cli?.latitude !== null &&
-            !isNaN(Number(cli.latitude)) &&
-            Number(cli.latitude) !== 0
-          ? Number(cli.latitude)
-          : null
+      const lat =
+        usina?.latitude !== undefined &&
+        usina?.latitude !== null &&
+        !isNaN(Number(usina.latitude)) &&
+        Number(usina.latitude) !== 0
+          ? Number(usina.latitude)
+          : cli?.latitude !== undefined &&
+              cli?.latitude !== null &&
+              !isNaN(Number(cli.latitude)) &&
+              Number(cli.latitude) !== 0
+            ? Number(cli.latitude)
+            : null
 
-    const lng =
-      usina?.longitude !== undefined &&
-      usina?.longitude !== null &&
-      !isNaN(Number(usina.longitude)) &&
-      Number(usina.longitude) !== 0
-        ? Number(usina.longitude)
-        : cli?.longitude !== undefined &&
-            cli?.longitude !== null &&
-            !isNaN(Number(cli.longitude)) &&
-            Number(cli.longitude) !== 0
-          ? Number(cli.longitude)
-          : null
+      const lng =
+        usina?.longitude !== undefined &&
+        usina?.longitude !== null &&
+        !isNaN(Number(usina.longitude)) &&
+        Number(usina.longitude) !== 0
+          ? Number(usina.longitude)
+          : cli?.longitude !== undefined &&
+              cli?.longitude !== null &&
+              !isNaN(Number(cli.longitude)) &&
+              Number(cli.longitude) !== 0
+            ? Number(cli.longitude)
+            : null
 
-    if (lat !== null && lng !== null) {
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${lat},${lng}`,
-        '_blank',
-        'noopener,noreferrer',
-      )
-      return
+      if (lat !== null && lng !== null) {
+        window.open(
+          `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${lat},${lng}`,
+          '_blank',
+          'noopener,noreferrer',
+        )
+        return
+      }
+
+      const endereco =
+        (os && typeof os === 'object' ? os.endereco : '') ||
+        usina?.endereco ||
+        cli?.usina_endereco ||
+        cli?.endereco ||
+        ''
+      const cidade = usina?.cidade || cli?.cidade || ''
+      const dest = [endereco, cidade].filter(Boolean).join(' - ')
+
+      if (dest) {
+        window.open(
+          `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${encodeURIComponent(dest)}`,
+          '_blank',
+          'noopener,noreferrer',
+        )
+        return
+      }
+
+      toast({
+        variant: 'destructive',
+        title: 'Endereço não cadastrado',
+        description: 'Esta atividade não possui coordenadas nem endereço cadastrado.',
+      })
+    } catch (err) {
+      console.warn('Erro ao abrir rota GPS:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao abrir mapa',
+        description: 'Não foi possível traçar a rota.',
+      })
     }
-
-    const endereco = os.endereco || usina?.endereco || cli?.usina_endereco || cli?.endereco || ''
-    const cidade = usina?.cidade || cli?.cidade || ''
-    const dest = [endereco, cidade].filter(Boolean).join(' - ')
-
-    if (dest) {
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(SEDE_DELFOS)}&destination=${encodeURIComponent(dest)}`,
-        '_blank',
-        'noopener,noreferrer',
-      )
-      return
-    }
-
-    toast({
-      variant: 'destructive',
-      title: 'Endereço não cadastrado',
-      description: 'Esta atividade não possui coordenadas nem endereço cadastrado.',
-    })
   }
 
   const toggleExpandCard = (osId: string) => {
@@ -649,270 +663,316 @@ export default function VisaoInstaladorMobileOS({
           ) : (
             <div className="space-y-3">
               {atividadesDoInstalador.map((os) => {
-                const isConcluida = os.status === 'concluida'
-                const isSalvando = salvandoOSId === os.id
-                // Na visão do instalador, o clique abre JÁ a tela de execução (onSelectOS).
-                // Caso não haja onSelectOS (fallback), permite expansão in-place via expandedOSIds.
-                const isExpanded = !onSelectOS && (expandedOSIds[os.id] ?? !isConcluida)
-                const checklist = localChecklists[os.id] || normalizeChecklist(os.checklist)
-                const concluidosCount = checklist.filter((c) => c.concluido).length
-                const totalCount = checklist.length
-                const clienteNome =
-                  os.expand?.cliente_id?.nome ||
-                  os.expand?.cliente_id?.razao_social ||
-                  'Cliente Solar'
-                const usinaNome = os.expand?.usina_id?.nome || ''
-                const endereco =
-                  os.endereco ||
-                  os.expand?.usina_id?.endereco ||
-                  os.expand?.cliente_id?.usina_endereco ||
-                  os.expand?.cliente_id?.endereco ||
-                  'Endereço não informado'
-                const rawDataAgendada: unknown = os.data_agendada
-                const dataAgendadaStr =
-                  rawDataAgendada instanceof Date
-                    ? rawDataAgendada.toISOString()
-                    : String(rawDataAgendada || '')
-                const horario =
-                  os.horario_inicio &&
-                  typeof os.horario_inicio === 'string' &&
-                  os.horario_inicio.trim()
-                    ? os.horario_inicio.slice(0, 5)
-                    : extractHorario(dataAgendadaStr) !== '--:--'
-                      ? extractHorario(dataAgendadaStr)
-                      : 'A definir'
+                // Card individual blindado com try/catch: qualquer anomalia de dados
+                // renderiza em modo seguro sem disparar o ErrorBoundary da rota
+                try {
+                  if (!os || typeof os !== 'object') return null
+                  const osId = String(os.id || '')
+                  const isConcluida = os.status === 'concluida'
+                  const isSalvando = salvandoOSId === osId
+                  // Na visão do instalador, o clique abre JÁ a tela de execução (onSelectOS).
+                  // Caso não haja onSelectOS (fallback), permite expansão in-place via expandedOSIds.
+                  const isExpanded = !onSelectOS && (expandedOSIds[osId] ?? !isConcluida)
+                  const checklist = localChecklists[osId] || normalizeChecklist(os.checklist)
+                  const concluidosCount = Array.isArray(checklist)
+                    ? checklist.filter((c) => c && c.concluido).length
+                    : 0
+                  const totalCount = Array.isArray(checklist) ? checklist.length : 0
+                  const clienteNome =
+                    os.expand?.cliente_id?.nome ||
+                    os.expand?.cliente_id?.razao_social ||
+                    'Cliente Solar'
+                  const usinaNome = os.expand?.usina_id?.nome || ''
+                  const endereco =
+                    os.endereco ||
+                    os.expand?.usina_id?.endereco ||
+                    os.expand?.cliente_id?.usina_endereco ||
+                    os.expand?.cliente_id?.endereco ||
+                    'Endereço não informado'
+                  const rawDataAgendada: unknown = os.data_agendada
+                  let dataAgendadaStr = ''
+                  try {
+                    dataAgendadaStr =
+                      rawDataAgendada instanceof Date
+                        ? rawDataAgendada.toISOString()
+                        : String(rawDataAgendada || '')
+                  } catch {
+                    dataAgendadaStr = ''
+                  }
+                  let horario = 'A definir'
+                  try {
+                    if (
+                      os.horario_inicio &&
+                      typeof os.horario_inicio === 'string' &&
+                      os.horario_inicio.trim()
+                    ) {
+                      horario = os.horario_inicio.slice(0, 5)
+                    } else {
+                      const ext = extractHorario(dataAgendadaStr)
+                      if (ext && ext !== '--:--') {
+                        horario = ext
+                      }
+                    }
+                  } catch {
+                    horario = 'A definir'
+                  }
 
-                return (
-                  <div
-                    key={os.id}
-                    className={`bg-white rounded-2xl border transition-all shadow-2xs overflow-hidden ${
-                      isConcluida
-                        ? 'border-gray-200 bg-gray-50/60 opacity-90'
-                        : 'border-emerald-300/80 hover:border-emerald-500'
-                    }`}
-                  >
-                    {/* Cabeçalho do Card: No perfil instalador, clique abre direto a Ficha de Execução */}
+                  return (
                     <div
-                      onClick={() => {
-                        if (onSelectOS) {
-                          onSelectOS(os)
-                        } else {
-                          toggleExpandCard(os.id)
-                        }
-                      }}
-                      className="p-3.5 cursor-pointer active:bg-gray-50/80 transition-colors select-none"
+                      key={osId || Math.random().toString(36).slice(2, 8)}
+                      className={`bg-white rounded-2xl border transition-all shadow-2xs overflow-hidden ${
+                        isConcluida
+                          ? 'border-gray-200 bg-gray-50/60 opacity-90'
+                          : 'border-emerald-300/80 hover:border-emerald-500'
+                      }`}
                     >
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge
-                            className={`text-[10px] font-bold px-2 py-0.5 border ${
-                              isConcluida
-                                ? 'bg-gray-100 text-gray-700 border-gray-300'
-                                : 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                            }`}
-                          >
-                            {os.tipo_servico || 'Manutenção'}
-                          </Badge>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">
-                            <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
-                            {horario}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          {isConcluida ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3 h-3" />
-                              Concluída
+                      {/* Cabeçalho do Card: No perfil instalador, clique abre direto a Ficha de Execução */}
+                      <div
+                        onClick={() => {
+                          if (onSelectOS) {
+                            onSelectOS(os)
+                          } else {
+                            toggleExpandCard(os.id)
+                          }
+                        }}
+                        className="p-3.5 cursor-pointer active:bg-gray-50/80 transition-colors select-none"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge
+                              className={`text-[10px] font-bold px-2 py-0.5 border ${
+                                isConcluida
+                                  ? 'bg-gray-100 text-gray-700 border-gray-300'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              }`}
+                            >
+                              {os.tipo_servico || 'Manutenção'}
+                            </Badge>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">
+                              <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
+                              {horario}
                             </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                              <Clock className="w-3 h-3" />
-                              Pendente
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            aria-label="Abrir execução da atividade"
-                            className="text-gray-400 p-0.5"
-                          >
-                            <ChevronDown className="w-4 h-4 -rotate-90 text-emerald-600" />
-                          </button>
-                        </div>
-                      </div>
+                          </div>
 
-                      {/* Nome do Cliente e Usina */}
-                      <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1">
-                        {clienteNome}
-                      </h3>
-                      {usinaNome && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-1">
-                          <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span className="truncate font-medium">{usinaNome}</span>
-                        </div>
-                      )}
-
-                      {/* Endereço */}
-                      <div className="flex items-start gap-1.5 text-xs text-gray-600">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2 leading-relaxed">{endereco}</span>
-                      </div>
-
-                      {/* Status simples do checklist sem badge/flag 'Toque para ver checklist' */}
-                      {totalCount > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
-                          <span>
-                            Checklist:{' '}
-                            <strong>
-                              {concluidosCount}/{totalCount}
-                            </strong>{' '}
-                            concluídos
-                          </span>
-                          <span className="text-emerald-700 font-bold">Abrir Execução</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Conteúdo Expandido (Fallback caso não haja navegação para a ficha) */}
-                    {isExpanded && (
-                      <div className="px-3.5 pb-3.5 pt-1 border-t border-gray-100 space-y-3 bg-white">
-                        {/* Botão Traçar Rota GPS */}
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => handleTraçarRota(os, e)}
-                            className="w-full h-8 px-2.5 text-xs font-bold text-[#0F2038] bg-amber-400 hover:bg-amber-300 border-amber-500/30 flex items-center justify-center gap-1.5 rounded-xl shadow-2xs cursor-pointer"
-                          >
-                            <Navigation className="w-3.5 h-3.5" />
-                            <span>Traçar Rota no GPS (Waze / Maps)</span>
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {isConcluida ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Concluída
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                <Clock className="w-3 h-3" />
+                                Pendente
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              aria-label="Abrir execução da atividade"
+                              className="text-gray-400 p-0.5"
+                            >
+                              <ChevronDown className="w-4 h-4 -rotate-90 text-emerald-600" />
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Instruções se houver */}
-                        {os.instrucoes && (
-                          <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 text-xs text-amber-950">
-                            <span className="font-bold block mb-0.5 text-amber-900">
-                              Instruções Técnicas:
-                            </span>
-                            <p className="whitespace-pre-line text-[11px] leading-relaxed">
-                              {os.instrucoes}
-                            </p>
+                        {/* Nome do Cliente e Usina */}
+                        <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1">
+                          {clienteNome}
+                        </h3>
+                        {usinaNome && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-1">
+                            <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="truncate font-medium">{usinaNome}</span>
                           </div>
                         )}
 
-                        {/* Bloco de Checklist Dinâmico */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-gray-900 flex items-center gap-1">
-                              <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
-                              Checklist de Campo ({concluidosCount}/{totalCount})
-                            </span>
-                            {totalCount > 0 && (
-                              <span className="text-[11px] font-bold text-gray-500">
-                                {Math.round((concluidosCount / totalCount) * 100)}%
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Itens do Checklist */}
-                          <div className="space-y-1 bg-gray-50/80 p-2 rounded-xl border border-gray-200/80">
-                            {checklist.map((item) => (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => handleToggleChecklist(os.id, item.id)}
-                                className={`w-full text-left p-2 rounded-lg flex items-start gap-2.5 transition-colors cursor-pointer ${
-                                  item.concluido
-                                    ? 'bg-emerald-50 text-emerald-950 border border-emerald-200/80'
-                                    : 'bg-white hover:bg-gray-100 text-gray-800 border border-gray-200/60'
-                                }`}
-                              >
-                                <span className="shrink-0 mt-0.5">
-                                  {item.concluido ? (
-                                    <CheckSquare className="w-4 h-4 text-emerald-600" />
-                                  ) : (
-                                    <Square className="w-4 h-4 text-gray-400" />
-                                  )}
-                                </span>
-                                <span
-                                  className={`text-xs leading-snug ${
-                                    item.concluido
-                                      ? 'line-through text-gray-500 font-medium'
-                                      : 'font-semibold'
-                                  }`}
-                                >
-                                  {item.item}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
+                        {/* Endereço */}
+                        <div className="flex items-start gap-1.5 text-xs text-gray-600">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                          <span className="line-clamp-2 leading-relaxed">{endereco}</span>
                         </div>
 
-                        {/* Barra de Ações do Instalador */}
-                        <div className="pt-2 flex items-center gap-2 flex-wrap">
-                          {!isConcluida ? (
-                            <div className="contents">
-                              <Button
-                                type="button"
-                                disabled={isSalvando}
-                                onClick={() => handleConcluirAtividade(os)}
-                                className="flex-1 h-9 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-xl shadow-xs transition-transform active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
-                              >
-                                <FileCheck2 className="w-4 h-4" />
-                                <span>{isSalvando ? 'Salvando...' : 'Concluir Atividade'}</span>
-                              </Button>
+                        {/* Status simples do checklist sem badge/flag 'Toque para ver checklist' */}
+                        {totalCount > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                            <span>
+                              Checklist:{' '}
+                              <strong>
+                                {concluidosCount}/{totalCount}
+                              </strong>{' '}
+                              concluídos
+                            </span>
+                            <span className="text-emerald-700 font-bold">Abrir Execução</span>
+                          </div>
+                        )}
+                      </div>
 
-                              {onSelectOS && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => onSelectOS(os)}
-                                  className="h-9 px-3 text-xs font-semibold text-gray-700 border-gray-300 rounded-xl"
-                                >
-                                  Ver Ficha
-                                </Button>
+                      {/* Conteúdo Expandido (Fallback caso não haja navegação para a ficha) */}
+                      {isExpanded && (
+                        <div className="px-3.5 pb-3.5 pt-1 border-t border-gray-100 space-y-3 bg-white">
+                          {/* Botão Traçar Rota GPS */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => handleTraçarRota(os, e)}
+                              className="w-full h-8 px-2.5 text-xs font-bold text-[#0F2038] bg-amber-400 hover:bg-amber-300 border-amber-500/30 flex items-center justify-center gap-1.5 rounded-xl shadow-2xs cursor-pointer"
+                            >
+                              <Navigation className="w-3.5 h-3.5" />
+                              <span>Traçar Rota no GPS (Waze / Maps)</span>
+                            </Button>
+                          </div>
+
+                          {/* Instruções se houver */}
+                          {os.instrucoes && (
+                            <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 text-xs text-amber-950">
+                              <span className="font-bold block mb-0.5 text-amber-900">
+                                Instruções Técnicas:
+                              </span>
+                              <p className="whitespace-pre-line text-[11px] leading-relaxed">
+                                {os.instrucoes}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Bloco de Checklist Dinâmico */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-gray-900 flex items-center gap-1">
+                                <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                                Checklist de Campo ({concluidosCount}/{totalCount})
+                              </span>
+                              {totalCount > 0 && (
+                                <span className="text-[11px] font-bold text-gray-500">
+                                  {Math.round((concluidosCount / totalCount) * 100)}%
+                                </span>
                               )}
                             </div>
-                          ) : (
-                            <div className="w-full flex items-center justify-between gap-2">
-                              <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-4 h-4" />
-                                Finalizada
-                              </span>
-                              <div className="flex items-center gap-1.5">
+
+                            {/* Itens do Checklist */}
+                            <div className="space-y-1 bg-gray-50/80 p-2 rounded-xl border border-gray-200/80">
+                              {checklist.map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleToggleChecklist(os.id, item.id)}
+                                  className={`w-full text-left p-2 rounded-lg flex items-start gap-2.5 transition-colors cursor-pointer ${
+                                    item.concluido
+                                      ? 'bg-emerald-50 text-emerald-950 border border-emerald-200/80'
+                                      : 'bg-white hover:bg-gray-100 text-gray-800 border border-gray-200/60'
+                                  }`}
+                                >
+                                  <span className="shrink-0 mt-0.5">
+                                    {item.concluido ? (
+                                      <CheckSquare className="w-4 h-4 text-emerald-600" />
+                                    ) : (
+                                      <Square className="w-4 h-4 text-gray-400" />
+                                    )}
+                                  </span>
+                                  <span
+                                    className={`text-xs leading-snug ${
+                                      item.concluido
+                                        ? 'line-through text-gray-500 font-medium'
+                                        : 'font-semibold'
+                                    }`}
+                                  >
+                                    {item.item}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Barra de Ações do Instalador */}
+                          <div className="pt-2 flex items-center gap-2 flex-wrap">
+                            {!isConcluida ? (
+                              <div className="contents">
                                 <Button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
                                   disabled={isSalvando}
-                                  onClick={() => handleReabrirAtividade(os)}
-                                  className="h-8 px-2.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                                  onClick={() => handleConcluirAtividade(os)}
+                                  className="flex-1 h-9 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-xl shadow-xs transition-transform active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
                                 >
-                                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                                  Reabrir
+                                  <FileCheck2 className="w-4 h-4" />
+                                  <span>{isSalvando ? 'Salvando...' : 'Concluir Atividade'}</span>
                                 </Button>
+
                                 {onSelectOS && (
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={() => onSelectOS(os)}
-                                    className="h-8 px-2.5 text-xs font-semibold rounded-lg"
+                                    className="h-9 px-3 text-xs font-semibold text-gray-700 border-gray-300 rounded-xl"
                                   >
                                     Ver Ficha
                                   </Button>
                                 )}
                               </div>
-                            </div>
-                          )}
+                            ) : (
+                              <div className="w-full flex items-center justify-between gap-2">
+                                <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Finalizada
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={isSalvando}
+                                    onClick={() => handleReabrirAtividade(os)}
+                                    className="h-8 px-2.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                                    Reabrir
+                                  </Button>
+                                  {onSelectOS && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => onSelectOS(os)}
+                                      className="h-8 px-2.5 text-xs font-semibold rounded-lg"
+                                    >
+                                      Ver Ficha
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
+                      )}
+                    </div>
+                  )
+                } catch (cardErr) {
+                  console.warn(
+                    'Erro ao renderizar card de OS no mobile do instalador (recuperado):',
+                    cardErr,
+                  )
+                  return (
+                    <div
+                      key={os?.id || Math.random().toString(36).slice(2, 8)}
+                      className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 flex items-center justify-between"
+                    >
+                      <span>{os?.tipo_servico || 'Atividade em campo'}</span>
+                      {onSelectOS && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onSelectOS(os)}
+                          className="h-7 text-xs"
+                        >
+                          Abrir
+                        </Button>
+                      )}
+                    </div>
+                  )
+                }
               })}
             </div>
           )}
