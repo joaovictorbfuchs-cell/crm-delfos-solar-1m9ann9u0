@@ -192,6 +192,7 @@ export interface PropostaPDFInput {
   calculos: PropostaCalculos
   dataEmissao?: string
   autor?: string
+  referenciaProposta?: string
   conteudo?: Partial<ConteudoPropostaOM> | null
 }
 

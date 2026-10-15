@@ -219,6 +219,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       calculos,
       dataEmissao: new Date().toISOString(),
       autor: user?.name || 'Equipe Comercial Delfos Solar',
+      referenciaProposta: initialProposta?.id,
       conteudo: conteudoOM,
     }
   }, [
@@ -236,15 +237,21 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     valoresNegociados,
     calculos,
     conteudoOM,
+    initialProposta,
     user,
   ])
 
   if (!isOpen) return null
 
   // Salvar registro de proposta O&M no banco de dados
-  const handleSalvarProposta = async () => {
-    if (!clienteAtual) {
-      alert('Selecione um cliente para vincular a proposta.')
+  const handleSalvarProposta = async (aceite = false) => {
+  if (aceite) {
+    const confirmado = window.confirm(
+      `Confirmar o aceite do Plano ${planoEscolhido} por ${formatCurrency(calculos.planos[planoEscolhido].mensal)}/mês? A proposta será marcada como Aprovado no CRM.`,
+    )
+    if (!confirmado) return
+  }
+  if (!clienteAtual) {      alert('Selecione um cliente para vincular a proposta.')
       return
     }
     setIsSubmitting(true)
@@ -286,7 +293,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         conteudo_proposta: conteudoOM,
         data_proposta: new Date().toISOString(),
         autor: user?.name || 'Equipe Comercial Delfos Solar',
-        status: 'Proposta Enviada',
+        status: aceite ? 'Aprovado' : 'Proposta Enviada',
         observacoes,
       }
 
@@ -302,14 +309,15 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         await addTimelineOM({
           cliente_id: clienteAtual.id,
           tipo: 'interacao',
-          titulo: 'Proposta O&M Registrada',
-          descricao: `Proposta O&M salva no sistema para o cliente com os cenários de perda e comparativo dos 3 planos (Essencial, Inspeção e Completo). Status: Proposta Enviada.`,
+          titulo: aceite ? 'Aceite de Proposta O&M Registrado' : 'Proposta O&M Registrada',
+          descricao: aceite
+            ? `Aceite comercial registrado para o Plano ${planoEscolhido}. Mensalidade: ${formatCurrency(calculos.planos[planoEscolhido].mensal)}/mês. Status: Aprovado.`
+            : `Proposta O&M salva para o cliente com os valores dos três planos. Status: Proposta Enviada.`,
           data: new Date().toISOString(),
           autor: user?.name || 'Equipe Comercial Delfos Solar',
-          status_tag: 'Proposta Enviada',
+          status_tag: aceite ? 'Aprovado' : 'Proposta Enviada',
           referencia_id: nova.id,
-        })
-      } catch (errTime) {
+        })      } catch (errTime) {
         console.error('Erro ao adicionar timeline O&M:', errTime)
       }
 
@@ -408,8 +416,9 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               conteudo={conteudoOM}
               planoSelecionado={planoEscolhido}
               onSelecionarPlano={(plano) => setPlanoEscolhido(plano)}
-            />
-          </div>
+              onAceitarPlano={() => handleSalvarProposta(true)}
+              isSubmitting={isSubmitting}
+              aceiteRegistrado={['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())}            />          </div>
         ) : activeTab === 'edicao' ? (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
             <PainelEdicaoConteudoOM

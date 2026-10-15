@@ -33,6 +33,9 @@ export interface ConteudoOMSecao2 {
   tituloCardFalha30: string
   subtituloCardFalha30: string
   avisoRiscoOculto: string
+  textoRiscoGarantia: string
+  textoEvidenciaSujidade: string
+  fonteEvidenciaSujidade: string
 }
 
 export interface LinhaCenarioRisco {
@@ -58,6 +61,17 @@ export interface ConteudoOMSecao4 {
   beneficiosCompleto: string[]
   botaoTextoSelecionado: string
   botaoTextoSelecionar: string
+}
+
+export interface ConteudoOMEscopoTecnicoItem {
+  id: string
+  texto: string
+}
+
+export interface ConteudoOMEscopoTecnico {
+  titulo: string
+  subtitulo: string
+  itens: ConteudoOMEscopoTecnicoItem[]
 }
 
 export interface ConteudoOMSecao5Item {
@@ -106,6 +120,7 @@ export interface ConteudoOMSecao8 {
   passos: ConteudoOMSecao8Passo[]
   textoTermoAceite: string
   termoAutorizacao: string
+  textoCliqueAceite: string
   responsavelDelfosCargo: string
   cnpjDelfos: string
 }
@@ -127,6 +142,7 @@ export interface ConteudoPropostaOM {
   secao2: ConteudoOMSecao2
   secao3: ConteudoOMSecao3
   secao4: ConteudoOMSecao4
+  secaoEscopoTecnico: ConteudoOMEscopoTecnico
   secao5: ConteudoOMSecao5
   secao6: ConteudoOMSecao6
   secao7: ConteudoOMSecao7
@@ -142,8 +158,8 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
     corPrimaria: '#16A34A',
     corSecundaria: '#166534',
     secao1: {
-      titulo: 'Dados Gerais e Identificação Técnica',
-      subtitulo: 'Proposta Comercial O&M • Delfos Engenharia Solar',
+      titulo: 'Preparado para',
+      subtitulo: 'Dados do Cliente e da Usina',
       badgeEmissao: 'Documento Oficial',
       cardAnualDestaquePrefixo: 'Sua usina gera cerca de',
       cardAnualDestaqueSufixo: 'em energia bruta estimada ao ano',
@@ -152,17 +168,22 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
     },
     secao2: {
       titulo: 'Cenários de Exposição Financeira',
-      subtitulo: 'Impacto real na receita da usina sem operação e manutenção especializada',
+      subtitulo: 'O que acontece com a sua usina sem manutenção adequada',
       tituloCardAtivo: 'Ativo Protegido',
       subtituloCardAtivo: 'Geração Plena Preservada',
       tituloCardPerda15: 'Perda 15% ao ano',
       subtituloCardPerda15: 'Impacto de Sujidade',
-      tituloCardPerda20: 'Perda 20% ao ano',
-      subtituloCardPerda20: 'Operação Sem Prevenção',
-      tituloCardFalha30: 'Prejuízo 30 dias',
-      subtituloCardFalha30: 'Falha Grave Sem Alerta',
-      avisoRiscoOculto:
-        'Atenção ao risco oculto: 20 dias de falha ou inversor desarmado sem alerta imediato causam prejuízos severos. Um plano de O&M se paga integralmente ao evitar apenas alguns dias pontuais de perda de geração ao longo do ano.',
+      tituloCardPerda20: 'Sujidade acumulada',
+      subtituloCardPerda20: '20% de geração perdida por ano',
+      tituloCardFalha30: 'Falha não detectada',
+      subtituloCardFalha30: '30 dias sem funcionamento da usina',
+      avisoRiscoOculto: '',
+      textoRiscoGarantia:
+        'Sujidade não representa apenas perda de geração. Conforme as condições de cada fabricante, a manutenção adequada e documentada pode ser relevante para a cobertura de garantia dos módulos.',
+      textoEvidenciaSujidade:
+        'Em uma usina do IFMG Betim, um estudo estimou perdas de geração por sujidade de até 22,25%. Os resultados variam conforme o período de deposição e a ocorrência de chuvas.',
+      fonteEvidenciaSujidade:
+        'Fonte: SciELO — Operação e manutenção de sistemas fotovoltaicos conectados à rede: inspeção termográfica e limpeza de módulos FV (2021).',
     },
     secao3: {
       titulo: 'Qual Plano Elimina Cada Cenário',
@@ -195,24 +216,42 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
       titulo: 'Modalidades de Planos de O&M',
       seloRecomendado: 'RECOMENDADO DELFOS',
       beneficiosEssencial: [
-        'Monitoramento comercial 24/7 contínuo de geração',
-        'Relatório mensal analítico de desempenho energético',
-        'Suporte técnico e gestão de ocorrências junto à concessionária',
+        'Monitoramento diário da geração com tratamento de alertas em dias úteis',
+        'Relatório mensal analítico',
+        'Suporte técnico e gestão junto à concessionária',
       ],
       beneficiosInspecao: [
         'Tudo incluso no Plano Essencial',
         '1x Inspeção preventiva anual completa in loco',
-        '1x Limpeza técnica de placas anual',
-        'Reaperto geral de conexões elétricas e mecânicas',
+        '1x Limpeza técnica de placas anual ({numeroModulos} módulos)',
+        'Reaperto geral de conexões',
       ],
       beneficiosCompleto: [
         'Tudo incluso no Plano Inspeção',
-        '2x Limpezas de placas ao ano (desempenho máximo sustentado)',
-        'Verificação semestral de anomalias térmicas e elétricas',
-        'Suporte técnico VIP prioritário com canal direto de engenharia',
+        '2x Limpezas de placas ao ano — preventiva a cada 6 meses',
+        'Verificação semestral de anomalias térmicas e elétricas com drone e câmera termográfica',
+        'Suporte técnico VIP prioritário',
       ],
       botaoTextoSelecionado: 'Plano Selecionado ✓',
       botaoTextoSelecionar: 'Selecionar',
+    },
+    secaoEscopoTecnico: {
+      titulo: 'Escopo Técnico das Visitas',
+      subtitulo: 'Atividades preventivas incluídas no plano contratado',
+      itens: [
+        { id: 'escopo-1', texto: 'Limpeza dos módulos com equipamento profissional' },
+        { id: 'escopo-2', texto: 'Inspeção visual de cabos, conectores e string boxes' },
+        { id: 'escopo-3', texto: 'Reaperto das conexões elétricas' },
+        { id: 'escopo-4', texto: 'Revisão do aterramento (NBR 5419)' },
+        {
+          id: 'escopo-5',
+          texto:
+            'Inspeção termográfica com drone para identificação de pontos quentes e defeitos não detectáveis a olho nu',
+        },
+        { id: 'escopo-6', texto: 'Revisão e reaperto das estruturas de fixação' },
+        { id: 'escopo-7', texto: 'Análise de sombreamento (vegetação e obstáculos)' },
+        { id: 'escopo-8', texto: 'Relatório fotográfico de cada visita técnica' },
+      ],
     },
     secao5: {
       titulo: 'Padrões Técnicos e Credibilidade',
@@ -229,14 +268,14 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
           icone: 'Gauge',
           titulo: 'Precisão Metrológica',
           descricao:
-            'Instrumentos e equipamentos de medição aferidos e calibrados segundo os padrões metrológicos vigentes.',
+            'Equipamentos e instrumentos calibrados, incluindo drone e câmera para inspeção termográfica.',
         },
         {
           id: 'padr-3',
           icone: 'Droplets',
-          titulo: 'Química e Água Tratada',
+          titulo: 'Garantias Preservadas',
           descricao:
-            'Produtos homologados e água desmineralizada/filtrada, preservando integralmente a garantia dos módulos.',
+            'Contrato de manutenção documentado auxilia na comprovação das condições de manutenção previstas pelos fabricantes.',
         },
       ],
     },
@@ -270,27 +309,21 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
       itens: [
         {
           id: 'cond-1',
-          titulo: 'Escolha Flexível',
+          titulo: 'Vigência',
           descricao:
-            'O cliente escolhe livremente a modalidade de plano ideal após a avaliação dos cenários de retorno e conveniência apresentados.',
+            '12 meses renováveis, com atendimento contínuo, preventivo e emissão de laudos periódicos.',
         },
         {
           id: 'cond-2',
-          titulo: 'Vigência Contratual',
+          titulo: 'Condições de Pagamento',
           descricao:
-            '12 (doze) meses renováveis automaticamente por iguais períodos, garantindo atendimento contínuo, preventivo e laudos periódicos regulares.',
+            'Pagamento via boleto bancário ou PIX corporativo, com vencimento programado.',
         },
         {
           id: 'cond-3',
-          titulo: 'Condições de Pagamento',
+          titulo: 'Serviços Adicionais Sob Demanda',
           descricao:
-            'Mensalidades faturadas com vencimento no dia acordado via boleto bancário corporativo ou PIX empresarial Delfos.',
-        },
-        {
-          id: 'cond-4',
-          titulo: 'Reajuste',
-          descricao:
-            'Anual com base na variação acumulada do índice oficial pactuado em contrato (IPCA/IBGE ou IGP-M/FGV).',
+            'Serviços fora do escopo — como corretivas, substituição de componentes, limpezas adicionais e inspeções especiais — dependem de escopo e orçamento aprovados previamente pelo cliente.',
         },
       ],
     },
@@ -314,9 +347,10 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
         },
       ],
       textoTermoAceite:
-        'Declaramos ciência e concordância com os valores, condições e escopo do plano selecionado, autorizando a Delfos Engenharia Solar a formalizar o contrato de prestação de serviços de O&M.',
+        'Declaro que li e estou de acordo com o plano selecionado, seus valores, condições e escopo, e autorizo a equipe Delfos a preparar o contrato de prestação de serviços de O&M.',
       termoAutorizacao:
-        'autorizando a Delfos Engenharia Solar a formalizar o contrato de prestação de serviços de O&M para a usina.',
+        'autorizando a equipe Delfos a preparar o contrato de prestação de serviços de O&M para a usina.',
+      textoCliqueAceite: 'Clique no botão para registrar o aceite preliminar.',
       responsavelDelfosCargo: 'Diretoria de Operações & Manutenção',
       cnpjDelfos: '21.379.952/0001-38',
     },
@@ -342,11 +376,98 @@ export function normalizarConteudoPropostaOM(
   const padrao = getConteudoPropostaOMDefaults()
   if (!salvo) return padrao
 
+  const arraysIguais = (valor: unknown, referencia: string[]) =>
+    Array.isArray(valor) &&
+    valor.length === referencia.length &&
+    referencia.every((item, index) => valor[index] === item)
+
+  const beneficiosLegados = {
+    essencial: [
+      'Monitoramento comercial 24/7 contínuo de geração',
+      'Relatório mensal analítico de desempenho energético',
+      'Suporte técnico e gestão de ocorrências junto à concessionária',
+    ],
+    inspecao: [
+      'Tudo incluso no Plano Essencial',
+      '1x Inspeção preventiva anual completa in loco',
+      '1x Limpeza técnica de placas anual',
+      'Reaperto geral de conexões elétricas e mecânicas',
+    ],
+    completo: [
+      'Tudo incluso no Plano Inspeção',
+      '2x Limpezas de placas ao ano (desempenho máximo sustentado)',
+      'Verificação semestral de anomalias térmicas e elétricas',
+      'Suporte técnico VIP prioritário com canal direto de engenharia',
+    ],
+  }
+  const itensCondicaoLegados = [
+    {
+      id: 'cond-1',
+      titulo: 'Escolha Flexível',
+      descricao:
+        'O cliente escolhe livremente a modalidade de plano ideal após a avaliação dos cenários de retorno e conveniência apresentados.',
+    },
+    {
+      id: 'cond-2',
+      titulo: 'Vigência Contratual',
+      descricao:
+        '12 (doze) meses renováveis automaticamente por iguais períodos, garantindo atendimento contínuo, preventivo e laudos periódicos regulares.',
+    },
+    {
+      id: 'cond-3',
+      titulo: 'Condições de Pagamento',
+      descricao:
+        'Mensalidades faturadas com vencimento no dia acordado via boleto bancário corporativo ou PIX empresarial Delfos.',
+    },
+    {
+      id: 'cond-4',
+      titulo: 'Reajuste',
+      descricao:
+        'Anual com base na variação acumulada do índice oficial pactuado em contrato (IPCA/IBGE ou IGP-M/FGV).',
+    },
+  ]
+
+  const secao1Salva = salvo.secao1 || {}
+  const secao2Salva = salvo.secao2 || {}
+  const secao4Salva = salvo.secao4 || {}
+  const secao5Salva = salvo.secao5 || {}
+  const secao7Salva = salvo.secao7 || {}
+
   return {
     corPrimaria: salvo.corPrimaria || padrao.corPrimaria,
     corSecundaria: salvo.corSecundaria || padrao.corSecundaria,
-    secao1: { ...padrao.secao1, ...(salvo.secao1 || {}) },
-    secao2: { ...padrao.secao2, ...(salvo.secao2 || {}) },
+    secao1: {
+      ...padrao.secao1,
+      ...secao1Salva,
+      titulo:
+        secao1Salva.titulo === 'Dados Gerais e Identificação Técnica'
+          ? padrao.secao1.titulo
+          : secao1Salva.titulo || padrao.secao1.titulo,
+      subtitulo:
+        secao1Salva.subtitulo === 'Proposta Comercial O&M • Delfos Engenharia Solar'
+          ? padrao.secao1.subtitulo
+          : secao1Salva.subtitulo || padrao.secao1.subtitulo,
+    },
+    secao2: {
+      ...padrao.secao2,
+      ...secao2Salva,
+      tituloCardPerda20:
+        secao2Salva.tituloCardPerda20 === 'Perda 20% ao ano'
+          ? padrao.secao2.tituloCardPerda20
+          : secao2Salva.tituloCardPerda20 || padrao.secao2.tituloCardPerda20,
+      subtituloCardPerda20:
+        secao2Salva.subtituloCardPerda20 === 'Operação Sem Prevenção'
+          ? padrao.secao2.subtituloCardPerda20
+          : secao2Salva.subtituloCardPerda20 || padrao.secao2.subtituloCardPerda20,
+      tituloCardFalha30:
+        secao2Salva.tituloCardFalha30 === 'Prejuízo 30 dias'
+          ? padrao.secao2.tituloCardFalha30
+          : secao2Salva.tituloCardFalha30 || padrao.secao2.tituloCardFalha30,
+      subtituloCardFalha30:
+        secao2Salva.subtituloCardFalha30 === 'Falha Grave Sem Alerta'
+          ? padrao.secao2.subtituloCardFalha30
+          : secao2Salva.subtituloCardFalha30 || padrao.secao2.subtituloCardFalha30,
+    },
     secao3: {
       ...padrao.secao3,
       ...(salvo.secao3 || {}),
@@ -357,27 +478,48 @@ export function normalizarConteudoPropostaOM(
     },
     secao4: {
       ...padrao.secao4,
-      ...(salvo.secao4 || {}),
-      beneficiosEssencial:
-        salvo.secao4?.beneficiosEssencial && Array.isArray(salvo.secao4.beneficiosEssencial)
-          ? salvo.secao4.beneficiosEssencial
+      ...secao4Salva,
+      beneficiosEssencial: arraysIguais(
+        secao4Salva.beneficiosEssencial,
+        beneficiosLegados.essencial,
+      )
+        ? padrao.secao4.beneficiosEssencial
+        : Array.isArray(secao4Salva.beneficiosEssencial)
+          ? secao4Salva.beneficiosEssencial
           : padrao.secao4.beneficiosEssencial,
-      beneficiosInspecao:
-        salvo.secao4?.beneficiosInspecao && Array.isArray(salvo.secao4.beneficiosInspecao)
-          ? salvo.secao4.beneficiosInspecao
+      beneficiosInspecao: arraysIguais(
+        secao4Salva.beneficiosInspecao,
+        beneficiosLegados.inspecao,
+      )
+        ? padrao.secao4.beneficiosInspecao
+        : Array.isArray(secao4Salva.beneficiosInspecao)
+          ? secao4Salva.beneficiosInspecao
           : padrao.secao4.beneficiosInspecao,
-      beneficiosCompleto:
-        salvo.secao4?.beneficiosCompleto && Array.isArray(salvo.secao4.beneficiosCompleto)
-          ? salvo.secao4.beneficiosCompleto
+      beneficiosCompleto: arraysIguais(
+        secao4Salva.beneficiosCompleto,
+        beneficiosLegados.completo,
+      )
+        ? padrao.secao4.beneficiosCompleto
+        : Array.isArray(secao4Salva.beneficiosCompleto)
+          ? secao4Salva.beneficiosCompleto
           : padrao.secao4.beneficiosCompleto,
     },
     secao5: {
       ...padrao.secao5,
-      ...(salvo.secao5 || {}),
+      ...secao5Salva,
       itens:
-        salvo.secao5?.itens && Array.isArray(salvo.secao5.itens) && salvo.secao5.itens.length > 0
-          ? salvo.secao5.itens
-          : padrao.secao5.itens,
+        arraysIguais(
+          secao5Salva.itens?.map((item: ConteudoOMSecao5Item) => `${item.titulo}|${item.descricao}`),
+          [
+            'Segurança Normativa|Técnicos certificados nas normas regulamentadoras NR-10 (Segurança Elétrica) e NR-35 (Trabalho em Altura).',
+            'Precisão Metrológica|Instrumentos e equipamentos de medição aferidos e calibrados segundo os padrões metrológicos vigentes.',
+            'Química e Água Tratada|Produtos homologados e água desmineralizada/filtrada, preservando integralmente a garantia dos módulos.',
+          ],
+        )
+          ? padrao.secao5.itens
+          : secao5Salva.itens && Array.isArray(secao5Salva.itens) && secao5Salva.itens.length > 0
+            ? secao5Salva.itens
+            : padrao.secao5.itens,
     },
     secao6: {
       ...padrao.secao6,
@@ -389,11 +531,25 @@ export function normalizarConteudoPropostaOM(
     },
     secao7: {
       ...padrao.secao7,
-      ...(salvo.secao7 || {}),
-      itens:
-        salvo.secao7?.itens && Array.isArray(salvo.secao7.itens) && salvo.secao7.itens.length > 0
-          ? salvo.secao7.itens
+      ...secao7Salva,
+      itens: arraysIguais(
+        secao7Salva.itens?.map((item: ConteudoOMSecao7Item) => `${item.id}|${item.titulo}|${item.descricao}`),
+        itensCondicaoLegados.map((item) => `${item.id}|${item.titulo}|${item.descricao}`),
+      )
+        ? padrao.secao7.itens
+        : secao7Salva.itens && Array.isArray(secao7Salva.itens) && secao7Salva.itens.length > 0
+          ? secao7Salva.itens
           : padrao.secao7.itens,
+    },
+    secaoEscopoTecnico: {
+      ...padrao.secaoEscopoTecnico,
+      ...(salvo.secaoEscopoTecnico || {}),
+      itens:
+        salvo.secaoEscopoTecnico?.itens &&
+        Array.isArray(salvo.secaoEscopoTecnico.itens) &&
+        salvo.secaoEscopoTecnico.itens.length > 0
+          ? salvo.secaoEscopoTecnico.itens
+          : padrao.secaoEscopoTecnico.itens,
     },
     secao8: {
       ...padrao.secao8,
