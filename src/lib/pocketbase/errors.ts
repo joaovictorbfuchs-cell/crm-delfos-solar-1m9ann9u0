@@ -20,6 +20,12 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (!(error instanceof ClientResponseError)) return false
+  // 401 = token/session invalid, 403 = authenticated request no longer authorized.
+  return error.status === 401 || error.status === 403
+}
+
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
