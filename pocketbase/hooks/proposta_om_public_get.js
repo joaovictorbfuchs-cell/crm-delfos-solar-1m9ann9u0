@@ -50,6 +50,7 @@ routerAdd('GET', '/backend/v1/propostas-om/public/{token}', (e) => {
   return e.json(200, {
     status: proposal.getString('status') || 'Proposta Enviada',
     dataProposta: proposal.getString('data_proposta'),
+    dataEmissao: proposal.getString('data_proposta'),
     observacoes: proposal.getString('observacoes'),
     cliente: {
       nome: nomeCliente,

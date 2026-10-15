@@ -26,7 +26,7 @@ export async function aceitarPropostaOMPublica(
   anual?: number
   acceptedAt?: string
 }> {
-  return pb.send(`/backend/v1/propostas-om/public/${encodeURIComponent(token)}`, {
+  return pb.send(`/backend/v1/propostas-om/public/${encodeURIComponent(token)}/accept`, {
     method: 'POST',
     body: aceite,
   })
@@ -35,7 +35,7 @@ export async function aceitarPropostaOMPublica(
 export async function criarLinkPropostaOM(
   id: string,
 ): Promise<{ token: string; expiresAt: string }> {
-  return pb.send(`/backend/v1/propostas-om/${encodeURIComponent(id)}/link`, {
+  return pb.send(`/backend/v1/propostas-om/link/${encodeURIComponent(id)}`, {
     method: 'POST',
     body: {},
   })

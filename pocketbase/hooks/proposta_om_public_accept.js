@@ -1,4 +1,4 @@
-routerAdd('POST', '/backend/v1/propostas-om/public/{token}', (e) => {
+routerAdd('POST', '/backend/v1/propostas-om/public/{token}/accept', (e) => {
   const token = e.request.pathValue('token')
   if (!token || token.length !== 48) return e.notFoundError('Este link não é válido.')
 

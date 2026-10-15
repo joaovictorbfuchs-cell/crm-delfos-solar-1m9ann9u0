@@ -1,6 +1,6 @@
 routerAdd(
   'POST',
-  '/backend/v1/propostas-om/{id}/link',
+  '/backend/v1/propostas-om/link/{id}',
   (e) => {
     const proposalId = e.request.pathValue('id')
     if (!proposalId) return e.badRequestError('Proposta O&M inválida.')
