@@ -51,8 +51,8 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [valorManualCompleto, setValorManualCompleto] = useState<string>('')
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  // Aba ativa do modal: 'parametros' (edição/cálculo), 'preview' (visualização) ou 'edicao' (seletor de elementos)
-  const [activeTab, setActiveTab] = useState<'parametros' | 'preview' | 'edicao'>('preview')
+  // Abre pelos dados da proposta; o documento fica disponível na etapa seguinte.
+  const [activeTab, setActiveTab] = useState<'parametros' | 'preview' | 'edicao'>('parametros')
   const [planoEscolhido, setPlanoEscolhido] = useState<any>('Completo')
   const [conteudoOM, setConteudoOM] = useState<ConteudoPropostaOM>(getConteudoPropostaOMDefaults())
 
@@ -359,8 +359,21 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* Alternador de Abas: Documento Oficial / Parâmetros / Seletor de Elementos */}
+            {/* Etapas da proposta: dados técnicos/comerciais primeiro e documento em seguida */}
             <div className="bg-gray-100 p-1 rounded-xl flex items-center gap-1 border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('parametros')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  activeTab === 'parametros'
+                    ? 'bg-white text-emerald-800 shadow-2xs'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Dados Técnicos e Comerciais</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setActiveTab('preview')}
@@ -373,32 +386,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span>Documento</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('edicao')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  activeTab === 'edicao'
-                    ? 'bg-white text-emerald-800 shadow-2xs'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Seletor de Elementos</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('parametros')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  activeTab === 'parametros'
-                    ? 'bg-white text-emerald-800 shadow-2xs'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Parâmetros Técnicos</span>
               </button>
             </div>
 
