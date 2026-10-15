@@ -263,8 +263,7 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
   const conteudo = normalizarConteudoPropostaOM(dados.conteudo)
   const planoAtivo = normalizarNomePlanoOM(parametros.planoEscolhido || 'Completo') as OMPlanoTipo
   const dataEmissao = dados.dataEmissao || new Date().toISOString()
-  const dataDate = new Date(dataEmissao)
-  const dataValidade = new Date(dataDate)
+  const dataDate = new Date(dataEmissao)  const dataValidade = new Date(dataDate)
   dataValidade.setDate(dataValidade.getDate() + (conteudo.rodape.validadeDias || 5))
   const formatDate = (date: Date) =>
     Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR')
@@ -382,11 +381,6 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
         <View style={styles.section}>
           {heading(2, conteudo.secao2.titulo, conteudo.secao2.subtitulo)}
           <View style={styles.scenarios}>
-            <View style={styles.scenarioCard}>
-              <Text style={styles.scenarioLabel}>{conteudo.secao2.tituloCardPerda20}</Text>
-              <Text style={styles.scenarioValue}>{money(calculos.prejuizo20Dias)}</Text>
-              <Text style={styles.scenarioLabel}>{conteudo.secao2.subtituloCardPerda20}</Text>
-            </View>
             <View style={[styles.scenarioCard, styles.scenarioDanger]}>
               <Text style={[styles.scenarioLabel, { color: '#991b1b' }]}>
                 {conteudo.secao2.tituloCardFalha30}
@@ -397,6 +391,11 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               <Text style={[styles.scenarioLabel, { color: '#991b1b' }]}>
                 {conteudo.secao2.subtituloCardFalha30}
               </Text>
+            </View>
+            <View style={styles.scenarioCard}>
+              <Text style={styles.scenarioLabel}>{conteudo.secao2.tituloCardPerda20}</Text>
+              <Text style={styles.scenarioValue}>{money(calculos.perda20Ano)}</Text>
+              <Text style={styles.scenarioLabel}>{conteudo.secao2.subtituloCardPerda20}</Text>
             </View>
           </View>
           <View style={styles.noteBox}>

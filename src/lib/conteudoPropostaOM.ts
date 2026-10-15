@@ -172,12 +172,12 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
         'Estimativas da energia que pode deixar de ser gerada; os resultados variam conforme as condições da usina',
       tituloCardAtivo: 'Geração mensal estimada',
       subtituloCardAtivo: 'Valor bruto da energia, não representa lucro',
-      tituloCardPerda15: 'Valor estimado de 20 dias de geração',
-      subtituloCardPerda15: 'Estimativa desta usina, com base na geração média mensal',
-      tituloCardPerda20: 'Valor estimado de 20 dias de geração',
-      subtituloCardPerda20: 'Cálculo: geração mensal × tarifa ÷ 30 × 20; varia por usina',
-      tituloCardFalha30: 'Valor estimado de 30 dias de geração',
-      subtituloCardFalha30: 'Cálculo: geração mensal × tarifa; varia por usina',
+      tituloCardPerda15: 'Referência de perda de 15% por sujidade',
+      subtituloCardPerda15: 'Referência variável por localização, não é previsão para esta usina',
+      tituloCardPerda20: 'Perda anual estimada de 20% por sujidade',
+      subtituloCardPerda20: 'Estimativa: geração mensal × tarifa × 12 × 20%; varia por usina',
+      tituloCardFalha30: 'Perda estimada em 30 dias sem geração',
+      subtituloCardFalha30: 'Estimativa: geração mensal × tarifa; falha não detectada a tempo',
       avisoRiscoOculto: '',
       textoRiscoGarantia:
         'A manutenção adequada e documentada pode ser relevante para demonstrar o atendimento às condições de garantia dos fabricantes. Consulte sempre os termos aplicáveis ao equipamento instalado.',
@@ -459,26 +459,39 @@ export function normalizarConteudoPropostaOM(
         secao2Salva.subtituloCardAtivo === 'Geração Plena Preservada'
           ? padrao.secao2.subtituloCardAtivo
           : secao2Salva.subtituloCardAtivo || padrao.secao2.subtituloCardAtivo,
-      tituloCardPerda15: secao2Salva.tituloCardPerda15 || padrao.secao2.tituloCardPerda15,
-      subtituloCardPerda15: secao2Salva.subtituloCardPerda15 || padrao.secao2.subtituloCardPerda15,
-      tituloCardPerda20: ['Perda 20% ao ano', 'Sujidade acumulada'].includes(
-        secao2Salva.tituloCardPerda20,
+      tituloCardPerda15: ['Perda 15% ao ano', 'Perda de 15% por sujidade'].includes(
+        secao2Salva.tituloCardPerda15,
       )
+        ? padrao.secao2.tituloCardPerda15
+        : secao2Salva.tituloCardPerda15 || padrao.secao2.tituloCardPerda15,
+      subtituloCardPerda15: secao2Salva.subtituloCardPerda15 || padrao.secao2.subtituloCardPerda15,
+      tituloCardPerda20: [
+        'Perda 20% ao ano',
+        'Sujidade acumulada',
+        'Valor estimado de 20 dias de geração',
+      ].includes(secao2Salva.tituloCardPerda20)
         ? padrao.secao2.tituloCardPerda20
         : secao2Salva.tituloCardPerda20 || padrao.secao2.tituloCardPerda20,
-      subtituloCardPerda20: ['Operação Sem Prevenção', '20% de geração perdida por ano'].includes(
-        secao2Salva.subtituloCardPerda20,
-      )
+      subtituloCardPerda20: [
+        'Operação Sem Prevenção',
+        '20% de geração perdida por ano',
+        'Cálculo: geração mensal × tarifa ÷ 30 × 20; varia por usina',
+      ].includes(secao2Salva.subtituloCardPerda20)
         ? padrao.secao2.subtituloCardPerda20
         : secao2Salva.subtituloCardPerda20 || padrao.secao2.subtituloCardPerda20,
-      tituloCardFalha30: ['Prejuízo 30 dias', 'Falha não detectada'].includes(
-        secao2Salva.tituloCardFalha30,
-      )
+      tituloCardFalha30: [
+        'Prejuízo 30 dias',
+        'Falha não detectada',
+        'Valor estimado de 30 dias de geração',
+        'Perda não detectada em 30 dias',
+      ].includes(secao2Salva.tituloCardFalha30)
         ? padrao.secao2.tituloCardFalha30
         : secao2Salva.tituloCardFalha30 || padrao.secao2.tituloCardFalha30,
       subtituloCardFalha30: [
         'Falha Grave Sem Alerta',
         '30 dias sem funcionamento da usina',
+        'Cálculo: geração mensal × tarifa; varia por usina',
+        'Estimativa desta usina: geração mensal × tarifa ÷ 30 × 20',
       ].includes(secao2Salva.subtituloCardFalha30)
         ? padrao.secao2.subtituloCardFalha30
         : secao2Salva.subtituloCardFalha30 || padrao.secao2.subtituloCardFalha30,

@@ -104,6 +104,64 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
     },
   ]
 
+  const handleImprimir = () => {
+    const documento = document.querySelector('.proposta-om-documento')
+    if (!documento) {
+      window.alert('Não foi possível localizar a proposta para imprimir.')
+      return
+    }
+
+    // Abrir a janela de forma síncrona durante o clique evita bloqueio do pop-up.
+    const janela = window.open('', '_blank', 'width=980,height=1200')
+    if (!janela) {
+      window.alert(
+        'O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente novamente.',
+      )
+      return
+    }
+
+    const estilos = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((elemento) => {
+        if (elemento instanceof HTMLLinkElement) {
+          return `<link rel="stylesheet" href="${elemento.href}" />`
+        }
+        return elemento.outerHTML
+      })
+      .join('\n')
+    const nomeCliente = cliente.nome.replace(/[<>]/g, '')
+
+    janela.addEventListener('load', () => {
+      janela.requestAnimationFrame(() =>
+        janela.requestAnimationFrame(() => {
+          janela.focus()
+          janela.print()
+        }),
+      )
+    })
+    janela.addEventListener('afterprint', () => janela.close())
+    janela.document.open()
+    janela.document.write(`<!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Proposta O&amp;M — ${nomeCliente}</title>
+          ${estilos}
+          <style>
+            @page { size: A4; margin: 12mm; }
+            html, body { margin: 0; padding: 0; width: 100%; height: auto; overflow: visible; background: #fff; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .proposta-om-documento { position: static !important; width: 100% !important; max-width: none !important; max-height: none !important; height: auto !important; overflow: visible !important; margin: 0 auto !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+            .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid-page; }
+            .no-print { display: none !important; }
+            @media screen { body { padding: 16px; background: #f1f5f9; } .proposta-om-documento { max-width: 900px !important; } }
+          </style>
+        </head>
+        <body>${documento.outerHTML}</body>
+      </html>`)
+    janela.document.close()
+  }
+
   const beneficiosDoPlano = (itens: string[]) =>
     itens.map((item) =>
       item.replace(
@@ -116,7 +174,16 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
     <div
       className={`proposta-om-documento bg-white text-gray-900 font-sans shadow-lg rounded-2xl border border-gray-200 overflow-hidden print:shadow-none print:border-none print:m-0 print:p-0 max-w-4xl mx-auto ${className}`}
     >
-      <style>{`@media print { .proposta-om-documento { max-width: none !important; border: 0 !important; box-shadow: none !important; } .proposta-om-documento .no-print { display: none !important; } .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid; } }`}</style>
+      <style>{`@page { size: A4; margin: 12mm; }
+        @media print {
+          html, body { width: 100% !important; height: auto !important; overflow: visible !important; background: #fff !important; }
+          body * { visibility: hidden !important; }
+          .proposta-om-documento, .proposta-om-documento * { visibility: visible !important; }
+          .proposta-om-documento { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; max-width: none !important; height: auto !important; max-height: none !important; overflow: visible !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+          .proposta-om-documento .no-print { display: none !important; }
+          .proposta-om-documento section, .proposta-om-documento footer { break-inside: auto !important; }
+          .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid-page; }
+        }`}</style>
 
       <div className="no-print bg-slate-900 text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
@@ -135,7 +202,7 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
         </div>
         <button
           type="button"
-          onClick={onImprimir || (() => window.print())}
+          onClick={onImprimir || handleImprimir}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
         >
           <Printer className="w-4 h-4" />
@@ -250,18 +317,8 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
         <section id="secao-2-cenarios" className="space-y-4">
           <CabecalhoSecao numero={2} titulo={c.secao2.titulo} subtitulo={c.secao2.subtitulo} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-amber-50/70 border border-amber-300 rounded-xl p-4 text-center">
-              <span className="text-[11px] font-black uppercase tracking-wide text-amber-900">
-                {c.secao2.tituloCardPerda20}
-              </span>
-              <div className="text-2xl font-black text-amber-800 mt-1">
-                {formatarBRL(calculos.prejuizo20Dias)}
-              </div>
-              <div className="text-xs text-amber-900 font-semibold">
-                {c.secao2.subtituloCardPerda20}
-              </div>
-            </div>
             <div className="bg-red-50/70 border border-red-300 rounded-xl p-4 text-center">
+              {' '}
               <span className="text-[11px] font-black uppercase tracking-wide text-red-900">
                 {c.secao2.tituloCardFalha30}
               </span>
@@ -272,6 +329,17 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
                 {c.secao2.subtituloCardFalha30}
               </div>
             </div>
+            <div className="bg-amber-50/70 border border-amber-300 rounded-xl p-4 text-center">
+              <span className="text-[11px] font-black uppercase tracking-wide text-amber-900">
+                {c.secao2.tituloCardPerda20}
+              </span>
+              <div className="text-2xl font-black text-amber-800 mt-1">
+                {formatarBRL(calculos.perda20Ano)}
+              </div>
+              <div className="text-xs text-amber-900 font-semibold">
+                {c.secao2.subtituloCardPerda20}
+              </div>
+            </div>{' '}
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 space-y-2 text-xs leading-relaxed text-amber-950">
             <p>{c.secao2.textoRiscoGarantia}</p>

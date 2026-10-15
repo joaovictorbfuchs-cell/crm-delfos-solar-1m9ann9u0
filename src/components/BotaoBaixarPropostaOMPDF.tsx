@@ -1,6 +1,4 @@
-// Componente de botão para download do PDF da Proposta O&M via @react-pdf/renderer
-// Carrega @react-pdf/renderer EXCLUSIVAMENTE via import() dinâmico para prevenir estouro de memória (exit 137).
-import React, { Suspense, lazy } from 'react'
+import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, Loader2 } from 'lucide-react'
 import type { PropostaPDFInput } from '@/lib/propostaOMGenerator'
@@ -19,113 +17,84 @@ export interface BotaoBaixarPropostaOMPDFProps {
 
 export { blobParaDataUriBase64 }
 
-/**
- * Gera o PDF oficial da Proposta O&M como Blob e Data URI Base64 via @react-pdf/renderer
- * usando import() dinâmico sob demanda.
- */
+/** Gera o PDF O&M sob demanda pelo renderer oficial e entrega o arquivo ao navegador. */
 export async function gerarPropostaOMPdfBlobBase64(
   dados: PropostaPDFInput,
   observacoesAdicionais?: string,
-): Promise<{
-  blob: Blob
-  base64: string
-  fileName: string
-}> {
-  const safeName = (dados.cliente?.nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
+): Promise<{ blob: Blob; base64: string; fileName: string }> {
+  const safeName = (dados.cliente?.nome || 'Cliente')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .substring(0, 48)
   const fileName = `Proposta_OM_Delfos_${safeName}.pdf`
 
   const [{ pdf }, { PropostaOMPDFDocument }] = await Promise.all([
     import('@react-pdf/renderer'),
     import('./PropostaOMPDFDocument'),
   ])
-
-  const docElement = React.createElement(PropostaOMPDFDocument, {
-    dados,
-    observacoesAdicionais,
-  })
-  const instance = pdf(docElement)
-  const blob = await instance.toBlob()
+  const docElement = React.createElement(PropostaOMPDFDocument, { dados, observacoesAdicionais })
+  const blob = await pdf(docElement).toBlob()
+  if (!blob.size) throw new Error('O renderizador retornou um PDF vazio.')
   const base64 = await blobParaDataUriBase64(blob)
-
-  return {
-    blob,
-    base64,
-    fileName,
-  }
+  return { blob, base64, fileName }
 }
 
-// Carregamento preguiçoso dinâmico isolado em chunk separado
-const LazyPDFDownload = lazy(async () => {
-  const [{ PDFDownloadLink }, { PropostaOMPDFDocument }] = await Promise.all([
-    import('@react-pdf/renderer'),
-    import('./PropostaOMPDFDocument'),
-  ])
+export const BotaoBaixarPropostaOMPDF: React.FC<BotaoBaixarPropostaOMPDFProps> = ({
+  dados,
+  observacoesAdicionais,
+  onClick,
+  variante = 'outline',
+  tamanho = 'sm',
+  rotulo = 'Baixar PDF',
+  desabilitado = false,
+  className,
+}) => {
+  const [carregando, setCarregando] = useState(false)
 
-  return {
-    default: function PDFDownloadInner({
-      dados,
-      observacoesAdicionais,
-      onClick,
-      variante = 'outline',
-      tamanho = 'sm',
-      rotulo = 'Baixar PDF',
-      desabilitado = false,
-      className,
-    }: BotaoBaixarPropostaOMPDFProps) {
-      const safeName = (dados.cliente?.nome || 'Cliente')
-        .replace(/[^a-zA-Z0-9]/g, '_')
-        .substring(0, 30)
-      const nomeArquivo = `Proposta_OM_Delfos_${safeName}.pdf`
-
-      return (
-        <PDFDownloadLink
-          document={
-            <PropostaOMPDFDocument dados={dados} observacoesAdicionais={observacoesAdicionais} />
-          }
-          fileName={nomeArquivo}
-          onClick={onClick}
-          className="inline-flex"
-        >
-          {({ loading }: { loading: boolean }) => (
-            <Button
-              type="button"
-              variant={variante}
-              size={tamanho}
-              disabled={desabilitado || loading}
-              className={className || 'gap-1.5 font-bold cursor-pointer'}
-            >
-              {loading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Download className="w-3.5 h-3.5" />
-              )}
-              <span>{loading ? 'Preparando PDF...' : rotulo}</span>
-            </Button>
-          )}
-        </PDFDownloadLink>
+  const baixarPDF = async () => {
+    if (carregando || desabilitado) return
+    setCarregando(true)
+    try {
+      onClick?.()
+      const { blob, fileName } = await gerarPropostaOMPdfBlobBase64(dados, observacoesAdicionais)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    } catch (erro) {
+      console.error('Falha ao gerar o PDF da proposta O&M:', erro)
+      window.alert(
+        erro instanceof Error
+          ? `Não foi possível gerar o PDF da proposta O&M: ${erro.message}`
+          : 'Não foi possível gerar o PDF da proposta O&M. Tente novamente.',
       )
-    },
+    } finally {
+      setCarregando(false)
+    }
   }
-})
 
-export const BotaoBaixarPropostaOMPDF: React.FC<BotaoBaixarPropostaOMPDFProps> = (props) => {
   return (
-    <Suspense
-      fallback={
-        <Button
-          type="button"
-          variant={props.variante || 'outline'}
-          size={props.tamanho || 'sm'}
-          disabled
-          className={props.className || 'gap-1.5 font-bold'}
-        >
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          <span>Preparando PDF...</span>
-        </Button>
-      }
+    <Button
+      type="button"
+      variant={variante}
+      size={tamanho}
+      disabled={desabilitado || carregando}
+      onClick={baixarPDF}
+      className={className || 'gap-1.5 font-bold cursor-pointer'}
     >
-      <LazyPDFDownload {...props} />
-    </Suspense>
+      {carregando ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : (
+        <Download className="w-3.5 h-3.5" />
+      )}
+      <span>{carregando ? 'Gerando PDF...' : rotulo}</span>
+    </Button>
   )
 }
 

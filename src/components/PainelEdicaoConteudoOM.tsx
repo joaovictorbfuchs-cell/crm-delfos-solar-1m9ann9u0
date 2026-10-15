@@ -189,22 +189,22 @@ export const PainelEdicaoConteudoOM: React.FC<PainelEdicaoConteudoOMProps> = ({
             <Campo label="Título" path="secao2.titulo" value={dados.secao2.titulo} />
             <Campo label="Subtítulo" path="secao2.subtitulo" value={dados.secao2.subtitulo} />
             <Campo
-              label="Título do cenário de 20 dias"
+              label="Título da perda anual por sujidade (20%)"
               path="secao2.tituloCardPerda20"
               value={dados.secao2.tituloCardPerda20}
             />
             <Campo
-              label="Explicação do cenário de 20 dias"
+              label="Explicação da estimativa anual"
               path="secao2.subtituloCardPerda20"
               value={dados.secao2.subtituloCardPerda20}
             />
             <Campo
-              label="Título da interrupção de 30 dias"
+              label="Título da falha de equipamento (30 dias)"
               path="secao2.tituloCardFalha30"
               value={dados.secao2.tituloCardFalha30}
             />
             <Campo
-              label="Explicação da interrupção"
+              label="Explicação da perda por falha"
               path="secao2.subtituloCardFalha30"
               value={dados.secao2.subtituloCardFalha30}
             />
