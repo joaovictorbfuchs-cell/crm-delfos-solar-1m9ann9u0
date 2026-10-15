@@ -263,7 +263,8 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
   const conteudo = normalizarConteudoPropostaOM(dados.conteudo)
   const planoAtivo = normalizarNomePlanoOM(parametros.planoEscolhido || 'Completo') as OMPlanoTipo
   const dataEmissao = dados.dataEmissao || new Date().toISOString()
-  const dataDate = new Date(dataEmissao)  const dataValidade = new Date(dataDate)
+  const dataDate = new Date(dataEmissao)
+  const dataValidade = new Date(dataDate)
   dataValidade.setDate(dataValidade.getDate() + (conteudo.rodape.validadeDias || 5))
   const formatDate = (date: Date) =>
     Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR')
