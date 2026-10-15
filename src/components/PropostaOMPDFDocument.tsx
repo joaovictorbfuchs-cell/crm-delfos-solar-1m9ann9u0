@@ -17,12 +17,13 @@ import { formatCurrency } from '@/lib/formatters'
 import { normalizarConteudoPropostaOM, type ConteudoOMSecao5Item } from '@/lib/conteudoPropostaOM'
 import { normalizarNomePlanoOM, type PlanoOMChave } from '@/lib/planosOM'
 import { OMPlanoTipo } from '@/types/crm'
-import logoDelfosCorreta from '@/assets/delfos-solar-1368d.png'
+import logoDelfosCorreta from '@/assets/delfos-solar-09ea2.png'
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 28,
-    paddingBottom: 28,
+    // Espaço reservado: cabeçalho e rodapé são fixos/repetidos em cada página.
+    paddingTop: 94,
+    paddingBottom: 62,
     paddingHorizontal: 32,
     fontFamily: 'Helvetica',
     fontSize: 8.5,
@@ -31,15 +32,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   header: {
+    position: 'absolute',
+    top: 18,
+    left: 32,
+    right: 32,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1.5,
     borderBottomColor: '#16a34a',
-    paddingBottom: 9,
-    marginBottom: 10,
-    gap: 12,
+    paddingBottom: 7,
+    gap: 10,
   },
-  logo: { width: 86, height: 42, objectFit: 'contain' },
+  logo: { width: 70, height: 44, objectFit: 'contain' },
   headerText: { flex: 1 },
   title: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#064e3b', marginBottom: 3 },
   subtitle: { fontSize: 7.5, color: '#047857' },
@@ -100,13 +104,14 @@ const styles = StyleSheet.create({
   highlight: {
     marginTop: 6,
     backgroundColor: '#ecfdf5',
-    borderWidth: 0.7,
-    borderColor: '#bbf7d0',
-    borderRadius: 5,
-    padding: 7,
+    borderWidth: 1.2,
+    borderColor: '#86efac',
+    borderRadius: 7,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
   },
-  highlightText: { fontSize: 7.2, color: '#166534' },
-  highlightValue: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#064e3b' },
+  highlightText: { fontSize: 7.5, color: '#166534', lineHeight: 1.35 },
+  highlightValue: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#064e3b' },
   scenarios: { flexDirection: 'row', gap: 6 },
   scenarioCard: {
     flex: 1,
@@ -227,7 +232,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   signatureRole: { fontSize: 6.2, color: '#64748b', textAlign: 'center', marginTop: 2 },
-  footer: { marginTop: 5, borderTopWidth: 0.6, borderTopColor: '#e5e7eb', paddingTop: 5 },
+  footer: {
+    position: 'absolute',
+    left: 32,
+    right: 32,
+    bottom: 15,
+    borderTopWidth: 0.6,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 4,
+  },
   footerBox: {
     backgroundColor: '#f3f4f6',
     borderWidth: 0.6,
@@ -313,7 +326,7 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
       {...docProps}
     >
       <Page size="A4" style={styles.page}>
-        <View style={styles.header} wrap={false}>
+        <View style={styles.header} fixed wrap={false}>
           <Image src={logoDelfosCorreta} style={styles.logo} />
           <View style={styles.headerText}>
             <Text style={styles.title}>
@@ -382,7 +395,12 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
         <View style={styles.section}>
           {heading(2, conteudo.secao2.titulo, conteudo.secao2.subtitulo)}
           <View style={styles.scenarios}>
-            <View style={[styles.scenarioCard, styles.scenarioDanger]}>
+            <View style={styles.scenarioCard} wrap>
+              <Text style={styles.scenarioLabel}>{conteudo.secao2.tituloCardPerda20}</Text>
+              <Text style={styles.scenarioValue}>{money(calculos.perda20Ano)}</Text>
+              <Text style={styles.scenarioLabel}>{conteudo.secao2.subtituloCardPerda20}</Text>
+            </View>
+            <View style={[styles.scenarioCard, styles.scenarioDanger]} wrap>
               <Text style={[styles.scenarioLabel, { color: '#991b1b' }]}>
                 {conteudo.secao2.tituloCardFalha30}
               </Text>
@@ -392,11 +410,6 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
               <Text style={[styles.scenarioLabel, { color: '#991b1b' }]}>
                 {conteudo.secao2.subtituloCardFalha30}
               </Text>
-            </View>
-            <View style={styles.scenarioCard}>
-              <Text style={styles.scenarioLabel}>{conteudo.secao2.tituloCardPerda20}</Text>
-              <Text style={styles.scenarioValue}>{money(calculos.perda20Ano)}</Text>
-              <Text style={styles.scenarioLabel}>{conteudo.secao2.subtituloCardPerda20}</Text>
             </View>
           </View>
           <View style={styles.noteBox}>
@@ -525,7 +538,7 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
           </View>
         ) : null}
 
-        <View style={styles.footer} wrap={false}>
+        <View style={styles.footer} fixed wrap={false}>
           <View style={styles.footerBox}>
             <Text style={styles.footerLine}>
               <Text style={styles.footerCompany}>{conteudo.rodape.empresaNome}</Text>

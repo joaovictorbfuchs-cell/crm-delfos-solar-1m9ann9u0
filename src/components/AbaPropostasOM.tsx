@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
+import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
 import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
@@ -49,6 +50,12 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
   // Modais de Nova / Visualizar Proposta
   const [isNovaPropostaOpen, setIsNovaPropostaOpen] = useState(false)
   const [propostaParaVisualizar, setPropostaParaVisualizar] = useState<PropostaOM | null>(null)
+  const [propostaParaContrato, setPropostaParaContrato] = useState<PropostaOM | null>(null)
+  const clientePropostaContrato = propostaParaContrato
+    ? propostaParaContrato.expand?.cliente_id ||
+      clientes.find((cliente) => cliente.id === propostaParaContrato.cliente_id) ||
+      null
+    : null
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -592,6 +599,27 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
                               </TooltipContent>
                             </Tooltip>
 
+                            {/* Enviar contrato somente após aceite explícito do cliente no link da proposta. */}
+                            {['aprovada', 'aprovado'].includes((prop.status || '').toLowerCase()) &&
+                              cliente && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPropostaParaContrato(prop)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-800 hover:bg-blue-100"
+                                      aria-label={`Enviar contrato para ${nomeCliente}`}
+                                    >
+                                      <FileCheck className="h-3.5 w-3.5" />
+                                      Contrato
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    Gerar e enviar contrato da proposta aprovada
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+
                             {/* Botão Baixar PDF */}
                             <BotaoBaixarPropostaOMPDF
                               dados={pdfData}
@@ -633,6 +661,16 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
         initialClienteId={propostaParaVisualizar?.cliente_id}
         initialProposta={propostaParaVisualizar}
       />
+      {clientePropostaContrato && propostaParaContrato && (
+        <ModalGerarContratoOM
+          open={Boolean(propostaParaContrato)}
+          onOpenChange={(open) => {
+            if (!open) setPropostaParaContrato(null)
+          }}
+          cliente={clientePropostaContrato}
+          propostaOM={propostaParaContrato}
+        />
+      )}
     </div>
   )
 }

@@ -701,15 +701,15 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       <p class="subtitulo" style="font-size:9.5px;color:#64748B;margin:0 0 6px 0;">${c.secao2.subtitulo}</p>
 
       <div class="scenarios-grid">
-        <div class="scenario-card danger">
-          <div class="scenario-label" style="color:#991B1B;">${c.secao2.tituloCardFalha30}</div>
-          <div class="scenario-val" style="color:#DC2626;">- ${formatBRL(calculos.prejuizo30Dias)}</div>
-          <div class="scenario-sub">${c.secao2.subtituloCardFalha30}</div>
-        </div>
         <div class="scenario-card warning">
           <div class="scenario-label" style="color:#92400E;">${c.secao2.tituloCardPerda20}</div>
           <div class="scenario-val" style="color:#B45309;">- ${formatBRL(calculos.perda20Ano)}</div>
           <div class="scenario-sub">${c.secao2.subtituloCardPerda20}</div>
+        </div>
+        <div class="scenario-card danger">
+          <div class="scenario-label" style="color:#991B1B;">${c.secao2.tituloCardFalha30}</div>
+          <div class="scenario-val" style="color:#DC2626;">- ${formatBRL(calculos.prejuizo30Dias)}</div>
+          <div class="scenario-sub">${c.secao2.subtituloCardFalha30}</div>
         </div>
       </div>
       <div class="faixa-risco-oculto banner-risco">

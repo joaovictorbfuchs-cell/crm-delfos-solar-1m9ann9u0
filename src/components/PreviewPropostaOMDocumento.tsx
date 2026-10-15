@@ -1,6 +1,16 @@
 import React from 'react'
-import { Award, CheckCircle2, Phone, Printer, ShieldCheck, User, Zap } from 'lucide-react'
-import { DelfosLogo } from '@/components/DelfosLogo'
+import {
+  Award,
+  CheckCircle2,
+  Download,
+  Phone,
+  Printer,
+  Share2,
+  ShieldCheck,
+  User,
+  Zap,
+} from 'lucide-react'
+import { delfosLogoAsset } from '@/components/DelfosLogo'
 import { ConteudoPropostaOM, normalizarConteudoPropostaOM } from '@/lib/conteudoPropostaOM'
 import { PropostaPDFInput } from '@/lib/propostaOMGenerator'
 import { OMPlanoTipo } from '@/types/crm'
@@ -18,6 +28,17 @@ export interface PreviewPropostaOMDocumentoProps {
   aceiteRegistrado?: boolean
   className?: string
   onImprimir?: () => void
+  onEnviarLink?: () => void
+  onEnviarPdf?: () => void
+  somenteLeitura?: boolean
+  statusProposta?: string
+  coletaAceiteCliente?: boolean
+  aceiteNome?: string
+  onAceiteNomeChange?: (value: string) => void
+  aceiteDocumento?: string
+  onAceiteDocumentoChange?: (value: string) => void
+  aceiteConfirmado?: boolean
+  onAceiteConfirmadoChange?: (value: boolean) => void
 }
 
 const formatarBRL = (valor?: number) =>
@@ -69,6 +90,17 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
   aceiteRegistrado = false,
   className = '',
   onImprimir,
+  onEnviarLink,
+  onEnviarPdf,
+  somenteLeitura = false,
+  statusProposta,
+  coletaAceiteCliente = false,
+  aceiteNome = '',
+  onAceiteNomeChange,
+  aceiteDocumento = '',
+  onAceiteDocumentoChange,
+  aceiteConfirmado = false,
+  onAceiteConfirmadoChange,
 }) => {
   const c = normalizarConteudoPropostaOM(conteudo)
   const { cliente, tecnico, parametros, calculos } = dados
@@ -200,21 +232,49 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onImprimir || handleImprimir}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Imprimir / Salvar em PDF</span>
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onImprimir || handleImprimir}
+            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Imprimir / Salvar PDF</span>
+          </button>
+          {onEnviarLink && (
+            <button
+              type="button"
+              onClick={onEnviarLink}
+              disabled={isSubmitting}
+              className="px-3 py-2 bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-60"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>Enviar link (WhatsApp)</span>
+            </button>
+          )}
+          {onEnviarPdf && (
+            <button
+              type="button"
+              onClick={onEnviarPdf}
+              disabled={isSubmitting}
+              className="px-3 py-2 bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-60"
+            >
+              <Download className="w-4 h-4" />
+              <span>Enviar proposta PDF (WhatsApp)</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-6 sm:p-10 space-y-7 bg-white print:p-4 print:space-y-5">
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-5 border-b-2 border-emerald-600/20">
           <div className="flex items-center gap-4">
             <div className="w-28 sm:w-36 shrink-0">
-              <DelfosLogo className="w-full h-auto" />
+              <img
+                src={delfosLogoAsset}
+                alt="Delfos Solar"
+                className="block w-full h-auto object-contain"
+              />
             </div>
             <div className="border-l-2 border-gray-200 pl-4 py-1">
               <h1 className="text-base sm:text-lg font-black text-emerald-950 uppercase tracking-tight leading-tight">
@@ -294,22 +354,41 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-r from-emerald-50 via-emerald-100/40 to-teal-50 rounded-xl p-4 border border-emerald-200 flex items-center gap-3 text-xs">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <Award className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-gray-600 block text-[11px]">
-                {c.secao1.cardAnualDestaquePrefixo}{' '}
-                <strong className="text-emerald-950 text-base font-black">
-                  {formatarBRL(valorAnualBruto)}/ano
-                </strong>{' '}
-                {c.secao1.cardAnualDestaqueSufixo}
-              </span>
-              <span className="text-[10px] text-emerald-800 font-semibold">
-                Base estimada: {geracaoAnual.toLocaleString('pt-BR')} kWh/ano ×{' '}
-                {formatarBRL(parametros.valorKwh)}/kWh.
-              </span>
+          <div className="rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-md ring-4 ring-emerald-100">
+                <Award className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-3 lg:items-center">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-800">
+                    Energia bruta estimada da usina
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-gray-600">
+                    {c.secao1.cardAnualDestaquePrefixo}
+                  </div>
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <strong className="text-2xl sm:text-3xl leading-tight font-black tracking-tight text-emerald-950 tabular-nums">
+                      {formatarBRL(valorAnualBruto)}
+                    </strong>
+                    <span className="text-sm font-extrabold text-emerald-800">/ano</span>
+                    <span className="text-xs text-gray-600">
+                      {c.secao1.cardAnualDestaqueSufixo}
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-white/85 px-3.5 py-2.5 lg:min-w-[220px]">
+                  <div className="text-[9px] font-black uppercase tracking-wider text-gray-500">
+                    Base estimada
+                  </div>
+                  <div className="mt-0.5 text-sm font-extrabold text-gray-900 tabular-nums">
+                    {geracaoAnual.toLocaleString('pt-BR')} kWh/ano
+                  </div>
+                  <div className="text-[10px] font-semibold text-emerald-800">
+                    × {formatarBRL(parametros.valorKwh)}/kWh
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -317,29 +396,28 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
         <section id="secao-2-cenarios" className="space-y-4">
           <CabecalhoSecao numero={2} titulo={c.secao2.titulo} subtitulo={c.secao2.subtitulo} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50/70 border border-red-300 rounded-xl p-4 text-center">
-              {' '}
+            <div className="bg-amber-50/80 border border-amber-300 rounded-xl p-4 text-center shadow-sm">
+              <span className="text-[11px] font-black uppercase tracking-wide text-amber-900">
+                {c.secao2.tituloCardPerda20}
+              </span>
+              <div className="text-2xl font-black text-amber-800 mt-1 tabular-nums">
+                {formatarBRL(calculos.perda20Ano)}
+              </div>
+              <div className="text-xs text-amber-900 font-semibold">
+                {c.secao2.subtituloCardPerda20}
+              </div>
+            </div>
+            <div className="bg-red-50/80 border border-red-300 rounded-xl p-4 text-center shadow-sm">
               <span className="text-[11px] font-black uppercase tracking-wide text-red-900">
                 {c.secao2.tituloCardFalha30}
               </span>
-              <div className="text-2xl font-black text-red-700 mt-1">
+              <div className="text-2xl font-black text-red-700 mt-1 tabular-nums">
                 {formatarBRL(calculos.prejuizo30Dias)}
               </div>
               <div className="text-xs text-red-900 font-semibold">
                 {c.secao2.subtituloCardFalha30}
               </div>
             </div>
-            <div className="bg-amber-50/70 border border-amber-300 rounded-xl p-4 text-center">
-              <span className="text-[11px] font-black uppercase tracking-wide text-amber-900">
-                {c.secao2.tituloCardPerda20}
-              </span>
-              <div className="text-2xl font-black text-amber-800 mt-1">
-                {formatarBRL(calculos.perda20Ano)}
-              </div>
-              <div className="text-xs text-amber-900 font-semibold">
-                {c.secao2.subtituloCardPerda20}
-              </div>
-            </div>{' '}
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 space-y-2 text-xs leading-relaxed text-amber-950">
             <p>{c.secao2.textoRiscoGarantia}</p>
@@ -531,32 +609,90 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
                 <strong>{formatarBRL(calculos.planos[planoAtivo]?.anual)}/ano</strong>
               </div>
             </div>
+            {statusProposta && /aprovad/i.test(statusProposta) && (
+              <div className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-900">
+                Esta proposta já foi aprovada no CRM para o Plano {planoAtivo}.
+              </div>
+            )}
+            {coletaAceiteCliente && !somenteLeitura && (
+              <div className="space-y-3 rounded-xl border border-emerald-200 bg-white p-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="text-[11px] font-semibold text-gray-700">
+                    Nome completo do responsável
+                    <input
+                      type="text"
+                      autoComplete="name"
+                      value={aceiteNome}
+                      onChange={(event) => onAceiteNomeChange?.(event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      placeholder="Digite seu nome completo"
+                    />
+                  </label>
+                  <label className="text-[11px] font-semibold text-gray-700">
+                    CPF ou CNPJ do responsável
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={aceiteDocumento}
+                      onChange={(event) => onAceiteDocumentoChange?.(event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      placeholder="Somente números ou pontuação"
+                    />
+                  </label>
+                </div>
+                <label className="flex items-start gap-2 text-[11px] leading-relaxed text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={aceiteConfirmado}
+                    onChange={(event) => onAceiteConfirmadoChange?.(event.target.checked)}
+                    className="mt-0.5 accent-emerald-700"
+                  />
+                  <span>
+                    Li e concordo com os termos desta proposta e autorizo o registro do plano
+                    selecionado.
+                  </span>
+                </label>
+              </div>
+            )}
             <p className="text-[11px] text-gray-600 leading-relaxed m-0">
               {c.secao8.textoTermoAceite}
             </p>
             <p className="text-[11px] text-gray-600 leading-relaxed m-0">
               {c.secao8.termoAutorizacao}
             </p>
-            <div className="no-print flex flex-col sm:flex-row sm:items-center gap-3">
-              <button
-                type="button"
-                onClick={onAceitarPlano}
-                disabled={!onAceitarPlano || isSubmitting || aceiteRegistrado}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                {isSubmitting
-                  ? 'Registrando aceite…'
-                  : aceiteRegistrado
-                    ? 'Aceite registrado ✓'
-                    : 'De acordo — Quero contratar este plano'}
-              </button>
-              <span className="text-[10px] text-gray-500">
-                {aceiteRegistrado
-                  ? 'Este aceite está registrado no CRM.'
-                  : c.secao8.textoCliqueAceite}
-              </span>
-            </div>
+            {onAceitarPlano && (
+              <div className="no-print flex flex-col sm:flex-row sm:items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onAceitarPlano}
+                  disabled={
+                    isSubmitting ||
+                    aceiteRegistrado ||
+                    somenteLeitura ||
+                    (coletaAceiteCliente &&
+                      (!aceiteNome.trim() || !aceiteDocumento.trim() || !aceiteConfirmado))
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {isSubmitting
+                    ? 'Registrando aceite…'
+                    : aceiteRegistrado || somenteLeitura
+                      ? 'Aceite registrado ✓'
+                      : coletaAceiteCliente
+                        ? 'Confirmar aceite do plano'
+                        : 'De acordo — Quero contratar este plano'}
+                </button>
+                <span className="text-[10px] text-gray-500">
+                  {aceiteRegistrado || somenteLeitura
+                    ? 'O aceite foi registrado no CRM. A equipe Delfos enviará o contrato para assinatura.'
+                    : coletaAceiteCliente
+                      ? 'Após confirmar, o plano e os valores selecionados serão registrados no CRM.'
+                      : c.secao8.textoCliqueAceite}
+                </span>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-3 text-xs">
             <div className="text-center space-y-1.5">

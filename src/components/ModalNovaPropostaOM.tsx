@@ -1,5 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { X, FileCheck, Sparkles, Info, Save, Eye, Edit3, ArrowLeft, Sliders } from 'lucide-react'
+import {
+  X,
+  FileCheck,
+  Sparkles,
+  Info,
+  Save,
+  Eye,
+  Edit3,
+  ArrowLeft,
+  Sliders,
+  Link2,
+  Send,
+} from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, getTelhadoLabel } from '@/lib/formatters'
@@ -9,6 +21,9 @@ import { normalizarNomePlanoOM } from '@/lib/planosOM'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
 import { PreviewPropostaOMDocumento } from '@/components/PreviewPropostaOMDocumento'
 import { PainelEdicaoConteudoOM } from '@/components/PainelEdicaoConteudoOM'
+import { sendWhatsAppDocumento, sendWhatsAppMensagem } from '@/services/crmService'
+import { criarLinkPropostaOM } from '@/services/propostaOMPublicaService'
+import { toast } from 'sonner'
 import {
   ConteudoPropostaOM,
   getConteudoPropostaOMDefaults,
@@ -52,6 +67,8 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [valorManualCompleto, setValorManualCompleto] = useState<string>('')
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [isSendingAction, setIsSendingAction] = useState<'link' | 'pdf' | null>(null)
+  const [propostaSalvaId, setPropostaSalvaId] = useState<string>(initialProposta?.id || '')
   // Abre pelos dados da proposta; o documento fica disponível na etapa seguinte.
   const [activeTab, setActiveTab] = useState<'parametros' | 'preview' | 'edicao'>('parametros')
   const [planoEscolhido, setPlanoEscolhido] = useState<any>('Completo')
@@ -245,17 +262,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   if (!isOpen) return null
 
   // Salvar registro de proposta O&M no banco de dados
-  const handleSalvarProposta = async (aceite = false) => {
+  const handleSalvarProposta = async (fecharDepois = true): Promise<PropostaOM | null> => {
     const planoSelecionadoAtual = normalizarNomePlanoOM(planoEscolhido)
-    if (aceite) {
-      const confirmado = window.confirm(
-        `Confirmar o aceite do Plano ${planoSelecionadoAtual} por ${formatCurrency(calculos.planos[planoSelecionadoAtual].mensal)}/mês? A proposta será marcada como Aprovado no CRM.`,
-      )
-      if (!confirmado) return
-    }
     if (!clienteAtual) {
       alert('Selecione um cliente para vincular a proposta.')
-      return
+      return null
     }
     setIsSubmitting(true)
 
@@ -264,9 +275,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       const valorEssencialFinal = calculos.planos.Essencial.mensal
       const valorInspecaoFinal = calculos.planos.Inspeção.mensal
       const valorCompletoFinal = calculos.planos.Completo.mensal
-      const valorPlanoPersistido = aceite
-        ? calculos.planos[planoSelecionadoAtual]
-        : calculos.planos.Inspeção
+      const valorPlanoPersistido = calculos.planos[planoSelecionadoAtual]
 
       const dadosProposta = {
         cliente_id: clienteAtual.id,
@@ -299,37 +308,31 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         conteudo_proposta: conteudoOM,
         data_proposta: new Date().toISOString(),
         autor: user?.name || 'Equipe Comercial Delfos Solar',
-        status: aceite
+        status: ['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())
           ? 'Aprovada'
-          : ['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())
-            ? 'Aprovada'
-            : 'Proposta Enviada',
+          : 'Proposta Enviada',
         observacoes,
       }
 
       let nova: any
-      if (initialProposta?.id) {
-        nova = await updatePropostaOM(initialProposta.id, dadosProposta)
+      const idExistente = initialProposta?.id || propostaSalvaId
+      if (idExistente) {
+        nova = await updatePropostaOM(idExistente, dadosProposta)
       } else {
         nova = await addPropostaOM(dadosProposta)
       }
+      setPropostaSalvaId(nova.id)
 
       // 3. Gravar na timeline O&M
       try {
         await addTimelineOM({
           cliente_id: clienteAtual.id,
           tipo: 'interacao',
-          titulo: aceite ? 'Aceite de Proposta O&M Registrado' : 'Proposta O&M Registrada',
-          descricao: aceite
-            ? `Aceite comercial registrado para o Plano ${planoSelecionadoAtual}. Mensalidade: ${formatCurrency(calculos.planos[planoSelecionadoAtual].mensal)}/mês. Status: Aprovada.`
-            : `Proposta O&M salva para o cliente com os valores dos três planos. Status: Proposta Enviada.`,
+          titulo: initialProposta ? 'Proposta O&M atualizada' : 'Proposta O&M registrada',
+          descricao: `Proposta O&M salva com valores dos três planos. Status: ${dadosProposta.status}.`,
           data: new Date().toISOString(),
           autor: user?.name || 'Equipe Comercial Delfos Solar',
-          status_tag:
-            aceite ||
-            ['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())
-              ? 'Aprovada'
-              : 'Proposta Enviada',
+          status_tag: dadosProposta.status,
           referencia_id: nova.id,
         })
       } catch (errTime) {
@@ -345,12 +348,99 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         console.error('Erro ao atualizar status do cliente:', errStatus)
       }
 
-      onClose()
+      if (fecharDepois) onClose()
+      return nova as PropostaOM
     } catch (err) {
       console.error('Erro ao salvar proposta:', err)
       alert('Falha ao gravar a proposta no banco de dados. Tente novamente.')
+      return null
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const montarPDFSalvo = (proposta: PropostaOM): PropostaPDFInput | null => {
+    if (!propostaPDFData) return null
+    return {
+      ...propostaPDFData,
+      referenciaProposta: proposta.id,
+      dataEmissao: proposta.data_proposta || new Date().toISOString(),
+      parametros: {
+        ...propostaPDFData.parametros,
+        planoEscolhido: normalizarNomePlanoOM(proposta.plano_escolhido || planoEscolhido),
+      },
+      conteudo: proposta.conteudo_proposta || conteudoOM,
+    }
+  }
+
+  const handleEnviarLinkWhatsApp = async () => {
+    if (!clienteAtual) return
+    const telefone = clienteAtual.whatsapp || clienteAtual.telefone || ''
+    if (telefone.replace(/\\D/g, '').length < 10) {
+      toast.error('Cadastre um WhatsApp válido para este cliente antes de enviar a proposta.')
+      return
+    }
+    setIsSendingAction('link')
+    try {
+      const saved = await handleSalvarProposta(false)
+      if (!saved) return
+      const { token } = await criarLinkPropostaOM(saved.id)
+      const link = `${window.location.origin}/proposta-om/${token}`
+      const primeiroNome = (clienteAtual.nome_fantasia || clienteAtual.nome || 'Cliente').split(
+        ' ',
+      )[0]
+      const result = await sendWhatsAppMensagem({
+        cliente_id: clienteAtual.id,
+        telefone_destino: telefone,
+        conteudo_final: `Olá ${primeiroNome}! Segue sua proposta de Gestão e Manutenção O&M da Delfos Solar. Acesse o link para conferir os detalhes e escolher o plano: ${link}`,
+        tipo_disparo: 'manual',
+        referencia_id: saved.id,
+      })
+      if (!result.sent)
+        throw new Error(result.message || 'O WhatsApp não confirmou o envio do link.')
+      toast.success('Link da proposta enviado pelo WhatsApp.')
+    } catch (err: any) {
+      console.error('Erro ao enviar link da proposta O&M:', err)
+      toast.error(err?.message || 'Não foi possível enviar o link pelo WhatsApp.')
+    } finally {
+      setIsSendingAction(null)
+    }
+  }
+
+  const handleEnviarPdfWhatsApp = async () => {
+    if (!clienteAtual) return
+    const telefone = clienteAtual.whatsapp || clienteAtual.telefone || ''
+    if (telefone.replace(/\\D/g, '').length < 10) {
+      toast.error('Cadastre um WhatsApp válido para este cliente antes de enviar o PDF.')
+      return
+    }
+    setIsSendingAction('pdf')
+    try {
+      const saved = await handleSalvarProposta(false)
+      if (!saved) return
+      const dadosPdf = montarPDFSalvo(saved)
+      if (!dadosPdf) throw new Error('Não foi possível montar os dados do PDF.')
+      const { base64, fileName } = await import('@/components/BotaoBaixarPropostaOMPDF').then(
+        ({ gerarPropostaOMPdfBlobBase64 }) =>
+          gerarPropostaOMPdfBlobBase64(dadosPdf, saved.observacoes || ''),
+      )
+      const result = await sendWhatsAppDocumento({
+        cliente_id: clienteAtual.id,
+        telefone_destino: telefone,
+        tipo: 'proposta_om',
+        referencia_id: saved.id,
+        legenda: `Olá ${(clienteAtual.nome_fantasia || clienteAtual.nome || 'Cliente').split(' ')[0]}! Segue em anexo a proposta O&M Delfos Solar para sua conferência e escolha do plano.`,
+        nome_arquivo: fileName,
+        base64,
+      })
+      if (!result.sent)
+        throw new Error(result.message || 'O WhatsApp não confirmou o envio do PDF.')
+      toast.success('Proposta PDF enviada pelo WhatsApp.')
+    } catch (err: any) {
+      console.error('Erro ao enviar proposta PDF O&M:', err)
+      toast.error(err?.message || 'Não foi possível enviar o PDF pelo WhatsApp.')
+    } finally {
+      setIsSendingAction(null)
     }
   }
 
@@ -431,8 +521,13 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               conteudo={conteudoOM}
               planoSelecionado={planoEscolhido}
               onSelecionarPlano={(plano) => setPlanoEscolhido(plano)}
-              onAceitarPlano={() => handleSalvarProposta(true)}
-              isSubmitting={isSubmitting}
+              onEnviarLink={handleEnviarLinkWhatsApp}
+              onEnviarPdf={handleEnviarPdfWhatsApp}
+              somenteLeitura={['aprovado', 'aprovada'].includes(
+                (initialProposta?.status || '').toLowerCase(),
+              )}
+              statusProposta={initialProposta?.status || 'Proposta Enviada'}
+              isSubmitting={isSubmitting || Boolean(isSendingAction)}
               aceiteRegistrado={['aprovado', 'aprovada'].includes(
                 (initialProposta?.status || '').toLowerCase(),
               )}
@@ -1073,23 +1168,10 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               )}
             </button>
 
-            {/* Botão Baixar PDF (@react-pdf/renderer dinâmico) */}
-            {propostaPDFData && (
-              <BotaoBaixarPropostaOMPDF
-                dados={propostaPDFData}
-                observacoesAdicionais={observacoes}
-                variante="outline"
-                tamanho="default"
-                rotulo="Baixar PDF"
-                desabilitado={isSubmitting}
-                className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 px-4 py-2 text-xs font-bold rounded-xl"
-              />
-            )}
-
             <button
               type="button"
               disabled={isSubmitting || !clienteAtual}
-              onClick={handleSalvarProposta}
+              onClick={() => handleSalvarProposta()}
               className="px-5 py-2 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-xl shadow-xs transition-all hover:scale-[1.01] flex items-center gap-1.5 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />

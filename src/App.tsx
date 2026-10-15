@@ -50,6 +50,7 @@ const RedefinirSenha = lazy(() => import('./pages/RedefinirSenha'))
 const RelatorioFaturaPage = lazy(() => import('./pages/RelatorioFatura'))
 const RelatorioOSPublico = lazy(() => import('./pages/RelatorioOSPublico'))
 const RelatorioOSPreview = lazy(() => import('./pages/RelatorioOSPreview'))
+const PropostaOMPublica = lazy(() => import('./pages/PropostaOMPublica'))
 const BaseConhecimento = lazy(() => import('./pages/BaseConhecimento'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
@@ -75,6 +76,15 @@ const App = () => (
               element={
                 <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a recuperação de senha">
                   <RedefinirSenha />
+                </ErrorBoundary>
+              }
+            />
+            {/* Link público individual/tokenizado para proposta O&M e aceite de plano */}
+            <Route
+              path="/proposta-om/:token"
+              element={
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a proposta O&M">
+                  <PropostaOMPublica />
                 </ErrorBoundary>
               }
             />

@@ -196,7 +196,13 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
         enderecoPartes.length > 0 ? enderecoPartes.join(', ') : cliente.endereco || ''
 
       const municipioEfetivo = cliente.cidade || 'Erechim/RS'
-      const telefoneEfetivo = cliente.whatsapp || cliente.telefone || cliente.titular_telefone || ''
+      const telefoneEfetivo =
+        cliente.whatsapp ||
+        cliente.telefone ||
+        cliente.titular_telefone ||
+        propostaOM?.expand?.cliente_id?.whatsapp ||
+        propostaOM?.expand?.cliente_id?.telefone ||
+        ''
       const emailEfetivo = cliente.email || cliente.titular_email || ''
 
       // Sistema Fotovoltaico
