@@ -127,12 +127,13 @@ import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import { fetchUsinasByClienteId } from '@/services/crmService'
 import { Sun } from 'lucide-react'
 
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import type { SistemaUsuario } from '@/types/crm'
 import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
 import { ModalConfirmarEnvioWhatsApp } from '@/components/ModalConfirmarEnvioWhatsApp'
 import { useClientes } from '@/contexts/ClientesContext'
-import { MessageSquare, RotateCcw } from 'lucide-react'
+import { MessageSquare, RotateCcw, LogOut } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatUtcToSaoPauloInput } from '@/lib/datetimeSaoPaulo'
@@ -242,8 +243,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   onOSUpdated,
   onOSFinalizada,
 }) => {
+  const navigate = useNavigate()
   const { toast } = useToast()
-  const { isAdmin, isInstalador, userProfile } = useAuth()
+  const { isAdmin, isInstalador, userProfile, logout } = useAuth()
   const { sendWhatsAppMessage } = useClientes()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

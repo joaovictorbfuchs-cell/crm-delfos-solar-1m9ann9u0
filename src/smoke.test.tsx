@@ -2376,6 +2376,59 @@ describe('Login e App Smoke Tests', () => {
     expect(html).toContain('proposta-secao-page')
   })
 
+  it('Botão de Sair do Instalador Mobile: acessível e funcional no topo e nas visualizações do perfil instalador', async () => {
+    // 1. Testa VisaoInstaladorMobileOS contendo botão Sair visível
+    const VisaoComponent = (VisaoInstaladorMobileOS as any)?.default || VisaoInstaladorMobileOS
+    const htmlVisao = renderToStaticMarkup(
+      React.createElement(VisaoComponent, {
+        ordens: [
+          {
+            id: 'os_inst_1',
+            status: 'pendente',
+            tipo_servico: 'Limpeza dos Módulos',
+            atribuida_a: 'Instalador Teste',
+            responsavel_usuario_id: 'usr_inst_1',
+            cliente_id: 'cli_1',
+            expand: {
+              cliente_id: { nome: 'Cliente Solar Teste', endereco: 'Rua A, 100' },
+            },
+          },
+        ],
+        userId: 'usr_inst_1',
+        userName: 'Instalador Teste',
+        onOSUpdated: () => {},
+        onSelectOS: () => {},
+      }),
+    )
+
+    expect(htmlVisao).toContain('Sair')
+    expect(htmlVisao).toContain('title="Sair do sistema"')
+
+    // 2. Testa MobileLayoutChrome contendo botão Sair para perfil instalador
+    const { MobileLayoutChrome } = await import('@/components/MobileLayoutChrome')
+    const MobileChromeComp = (MobileLayoutChrome as any)?.default || MobileLayoutChrome
+    const htmlMobileChrome = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        { initialEntries: ['/servicos-campo'] },
+        React.createElement(MobileChromeComp, {
+          isAdmin: false,
+          isInstalador: true,
+          displayName: 'Instalador Delfos',
+          displayEmail: 'instalador@delfos.com',
+          userInitial: 'I',
+          appVersion: '0.0.1240',
+          pendentesWhatsAppCount: 0,
+          profissionais: [],
+          onLogout: () => {},
+        }),
+      ),
+    )
+
+    expect(htmlMobileChrome).toContain('Sair')
+    expect(htmlMobileChrome).toContain('aria-label="Sair da conta"')
+  })
+
   it('unificação dos 4 botões da proposta solar: Imprimir, Baixar PDF, WhatsApp e Word usam a mesma estrutura A4 e mesma fonte de dados', async () => {
     const { gerarHTMLPropostaSolar } = await import('@/lib/propostaSolarGenerator')
     const { gerarPropostaSolarDocx } = await import('@/lib/propostaSolarDocxGenerator')
