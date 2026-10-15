@@ -1524,24 +1524,6 @@ export const Orcamentos: React.FC = () => {
             </div>
           )}
 
-          {/* Modal de Novo / Editar Orçamento Solar */}
-          <ModalOrcamentoSolar
-            isOpen={isModalOpen}
-            onClose={() => {
-              setIsModalOpen(false)
-              setEditingOrcamento(null)
-              setClienteParaNovoOrcamento('')
-            }}
-            initialClienteId={clienteParaNovoOrcamento}
-            initialOrcamento={editingOrcamento}
-          />
-
-          {/* Modal de Nova Proposta O&M acionado pelo menu + */}
-          <ModalNovaPropostaOM
-            isOpen={isModalNovaOMOpen}
-            onClose={() => setIsModalNovaOMOpen(false)}
-          />
-
           {/* Modal de Enviar Proposta por WhatsApp protegido por ErrorBoundary local */}
           {propostaParaWhatsApp && (
             <ErrorBoundary
@@ -1598,6 +1580,20 @@ export const Orcamentos: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Mantém os modais montados em qualquer aba do Hub, pois o menu + é compartilhado. */}
+      <ModalOrcamentoSolar
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false)
+          setEditingOrcamento(null)
+          setClienteParaNovoOrcamento('')
+        }}
+        initialClienteId={clienteParaNovoOrcamento}
+        initialOrcamento={editingOrcamento}
+      />
+
+      <ModalNovaPropostaOM isOpen={isModalNovaOMOpen} onClose={() => setIsModalNovaOMOpen(false)} />
     </div>
   )
 }
