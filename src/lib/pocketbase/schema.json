@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-14T23:08:58.106Z",
+  "generatedAt": "2026-10-15T00:43:44.586Z",
   "collections": [
     {
       "name": "users",
@@ -2449,6 +2449,12 @@
         },
         {
           "name": "valores_negociados_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conteudo_proposta",
           "type": "json",
           "required": false,
           "system": false

@@ -1458,6 +1458,7 @@ export interface PropostaOM extends RecordModel {
   valor_plano_inspecao?: number
   valor_plano_completo?: number
   valores_negociados_json?: Partial<Record<string, number | null>> | string
+  conteudo_proposta?: import('@/lib/conteudoPropostaOM').ConteudoPropostaOM | Record<string, any>
   data_proposta: string
   autor?: string
   status?: string

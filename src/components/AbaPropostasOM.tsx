@@ -256,6 +256,7 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
       calculos,
       dataEmissao: prop.data_proposta || prop.created,
       autor: prop.autor || 'Equipe Comercial Delfos Solar',
+      conteudo: prop.conteudo_proposta,
     }
   }
 

@@ -72,12 +72,17 @@ const LazyPDFDownload = lazy(async () => {
       desabilitado = false,
       className,
     }: BotaoBaixarPropostaOMPDFProps) {
+      const safeName = (dados.cliente?.nome || 'Cliente')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .substring(0, 30)
+      const nomeArquivo = `Proposta_OM_Delfos_${safeName}.pdf`
+
       return (
         <PDFDownloadLink
           document={
             <PropostaOMPDFDocument dados={dados} observacoesAdicionais={observacoesAdicionais} />
           }
-          fileName="proposta-om.pdf"
+          fileName={nomeArquivo}
           onClick={onClick}
           className="inline-flex"
         >

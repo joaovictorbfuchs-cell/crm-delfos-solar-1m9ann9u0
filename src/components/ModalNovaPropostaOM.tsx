@@ -1,12 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { X, FileCheck, Sparkles, Info, Save, Eye, Edit3, ArrowLeft } from 'lucide-react'
+import { X, FileCheck, Sparkles, Info, Save, Eye, Edit3, ArrowLeft, Sliders } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, getTelhadoLabel } from '@/lib/formatters'
 import type { PropostaOM } from '@/types/crm'
 import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
-import { PreviewPropostaOMSecoes } from '@/components/PreviewPropostaOMSecoes'
+import { PreviewPropostaOMDocumento } from '@/components/PreviewPropostaOMDocumento'
+import { PainelEdicaoConteudoOM } from '@/components/PainelEdicaoConteudoOM'
+import {
+  ConteudoPropostaOM,
+  getConteudoPropostaOMDefaults,
+  normalizarConteudoPropostaOM,
+} from '@/lib/conteudoPropostaOM'
 
 interface ModalNovaPropostaOMProps {
   isOpen: boolean
@@ -45,8 +51,10 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [valorManualCompleto, setValorManualCompleto] = useState<string>('')
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  // Aba ativa do modal: 'parametros' (edição/cálculo) ou 'preview' (visualização do documento)
-  const [activeTab, setActiveTab] = useState<'parametros' | 'preview'>('parametros')
+  // Aba ativa do modal: 'parametros' (edição/cálculo), 'preview' (visualização) ou 'edicao' (seletor de elementos)
+  const [activeTab, setActiveTab] = useState<'parametros' | 'preview' | 'edicao'>('preview')
+  const [planoEscolhido, setPlanoEscolhido] = useState<any>('Completo')
+  const [conteudoOM, setConteudoOM] = useState<ConteudoPropostaOM>(getConteudoPropostaOMDefaults())
 
   // Cliente atual selecionado
   useEffect(() => {
@@ -78,6 +86,12 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       }
       if (initialProposta.valor_plano_completo) {
         setValorManualCompleto(String(initialProposta.valor_plano_completo))
+      }
+      if (initialProposta.plano_escolhido) {
+        setPlanoEscolhido(initialProposta.plano_escolhido)
+      }
+      if (initialProposta.conteudo_proposta) {
+        setConteudoOM(normalizarConteudoPropostaOM(initialProposta.conteudo_proposta))
       }
       setObservacoes(initialProposta.observacoes || '')
     }
@@ -192,17 +206,20 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         marcaInversores,
         tipoInstalacao: tipoTelhadoOuSolo,
         numeroModulos,
+        municipio,
       },
       parametros: {
         valorKwh,
         distanciaKm,
         valorKm,
         valorPorPlaca,
+        planoEscolhido,
         valoresNegociados,
       },
       calculos,
       dataEmissao: new Date().toISOString(),
       autor: user?.name || 'Equipe Comercial Delfos Solar',
+      conteudo: conteudoOM,
     }
   }, [
     clienteAtual,
@@ -215,8 +232,10 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     distanciaKm,
     valorKm,
     valorPorPlaca,
+    planoEscolhido,
     valoresNegociados,
     calculos,
+    conteudoOM,
     user,
   ])
 
@@ -258,11 +277,13 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         valor_plano_completo: valorCompletoFinal,
         valor_mensal_plano: valorInspecaoFinal, // fallback canônico plano recomendado/padrão
         valor_anual_plano: Math.round(valorInspecaoFinal * 12 * 100) / 100,
+        plano_escolhido: planoEscolhido,
         valores_negociados_json: {
           Essencial: valoresNegociados.Essencial,
           Inspeção: valoresNegociados.Inspeção,
           Completo: valoresNegociados.Completo,
         },
+        conteudo_proposta: conteudoOM,
         data_proposta: new Date().toISOString(),
         autor: user?.name || 'Equipe Comercial Delfos Solar',
         status: 'Proposta Enviada',
@@ -338,21 +359,8 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* Alternador de Abas Parâmetros / Visualizar Proposta */}
+            {/* Alternador de Abas: Documento Oficial / Parâmetros / Seletor de Elementos */}
             <div className="bg-gray-100 p-1 rounded-xl flex items-center gap-1 border border-gray-200">
-              <button
-                type="button"
-                onClick={() => setActiveTab('parametros')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  activeTab === 'parametros'
-                    ? 'bg-white text-emerald-800 shadow-2xs'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Parâmetros</span>
-              </button>
-
               <button
                 type="button"
                 onClick={() => setActiveTab('preview')}
@@ -364,7 +372,33 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                 }`}
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>Visualizar Proposta</span>
+                <span>Documento</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('edicao')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  activeTab === 'edicao'
+                    ? 'bg-white text-emerald-800 shadow-2xs'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Seletor de Elementos</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('parametros')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  activeTab === 'parametros'
+                    ? 'bg-white text-emerald-800 shadow-2xs'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Parâmetros Técnicos</span>
               </button>
             </div>
 
@@ -381,38 +415,19 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
 
         {/* Scrollable Body */}
         {activeTab === 'preview' && propostaPDFData ? (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#F1F5F9]/80">
-            <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-2xs flex items-center justify-between flex-wrap gap-2 text-xs">
-              <div className="flex items-center gap-2 text-emerald-900 font-semibold">
-                <Eye className="w-4 h-4 text-emerald-600" />
-                <span>Pré-visualização do Documento da Proposta O&amp;M</span>
-                <span className="text-gray-400 font-normal hidden sm:inline">
-                  • Pronto para apresentação e download em PDF
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('parametros')}
-                  className="px-2.5 py-1 text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg border border-gray-200 flex items-center gap-1"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Ajustar Parâmetros</span>
-                </button>
-                <BotaoBaixarPropostaOMPDF
-                  dados={propostaPDFData}
-                  observacoesAdicionais={observacoes}
-                  variante="default"
-                  tamanho="sm"
-                  rotulo="Baixar PDF"
-                  className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-1.5 shadow-2xs"
-                />
-              </div>
-            </div>
-
-            <PreviewPropostaOMSecoes
-              propostaData={propostaPDFData}
-              observacoesAdicionais={observacoes}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-100">
+            <PreviewPropostaOMDocumento
+              dados={propostaPDFData}
+              conteudo={conteudoOM}
+              planoSelecionado={planoEscolhido}
+              onSelecionarPlano={(plano) => setPlanoEscolhido(plano)}
+            />
+          </div>
+        ) : activeTab === 'edicao' ? (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
+            <PainelEdicaoConteudoOM
+              conteudo={conteudoOM}
+              onChange={(novo) => setConteudoOM(novo)}
             />
           </div>
         ) : (
@@ -1018,27 +1033,27 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               Cancelar
             </button>
 
-            {/* Botão Visualizar Proposta */}
+            {/* Botão Alternar Modo Documento */}
             <button
               type="button"
               disabled={!propostaPDFData || isSubmitting}
-              onClick={() => setActiveTab(activeTab === 'preview' ? 'parametros' : 'preview')}
+              onClick={() => setActiveTab(activeTab === 'preview' ? 'edicao' : 'preview')}
               className="px-4 py-2 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 disabled:opacity-50"
               title={
                 activeTab === 'preview'
-                  ? 'Voltar para parâmetros'
-                  : 'Visualizar prévia do documento'
+                  ? 'Editar textos com seletor'
+                  : 'Visualizar documento oficial'
               }
             >
               {activeTab === 'preview' ? (
                 <>
-                  <Edit3 className="w-4 h-4" />
-                  <span>Editar Parâmetros</span>
+                  <Sliders className="w-4 h-4" />
+                  <span>Editar Textos</span>
                 </>
               ) : (
                 <>
                   <Eye className="w-4 h-4" />
-                  <span>Visualizar Proposta</span>
+                  <span>Ver Documento</span>
                 </>
               )}
             </button>
