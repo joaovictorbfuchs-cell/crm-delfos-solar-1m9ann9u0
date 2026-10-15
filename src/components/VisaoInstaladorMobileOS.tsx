@@ -13,7 +13,9 @@ import {
   Square,
   FileCheck2,
 } from 'lucide-react'
-import { List, Calendar as CalendarIcon } from 'lucide-react'
+import { List, Calendar as CalendarIcon, LogOut } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import { OrdemServico, OSChecklistItem } from '@/types/crm'
 import {
   normalizeChecklist,
@@ -50,6 +52,13 @@ export default function VisaoInstaladorMobileOS({
   onRefresh,
 }: VisaoInstaladorMobileOSProps) {
   const { toast } = useToast()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   // Toggle de visualização para o instalador mobile: "lista" ou "calendario" (padrão: "lista")
   const [abaVisualizacao, setAbaVisualizacao] = useState<'lista' | 'calendario'>('lista')
@@ -577,20 +586,34 @@ export default function VisaoInstaladorMobileOS({
 
   return (
     <div className="space-y-3 pb-20 px-1 max-w-xl mx-auto">
-      {/* Barra de Toggle no Topo: Lista / Calendário (com ícones, 100% aditivo) */}
+      {/* Barra de Toggle no Topo: Lista / Calendário (com ícones, 100% aditivo) + Botões Atualizar e Sair */}
       <div className="bg-white rounded-2xl p-2 border border-gray-200 shadow-2xs flex items-center justify-between gap-2">
         {renderNavMobileInstalador()}
 
-        {onRefresh && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="p-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 transition-all cursor-pointer"
+              title="Atualizar atividades"
+              aria-label="Atualizar atividades"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={onRefresh}
-            className="p-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 transition-all cursor-pointer"
-            title="Atualizar atividades"
+            onClick={handleLogout}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 border border-red-200 text-red-600 hover:text-red-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            title="Sair do sistema"
+            aria-label="Sair da conta"
           >
-            <RefreshCw className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sair</span>
           </button>
-        )}
+        </div>
       </div>
 
       {/* SELECIONADO: CALENDÁRIO */}

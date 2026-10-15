@@ -1364,6 +1364,22 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               OS Concluída
             </Badge>
           )}
+
+          {isInstalador && (
+            <button
+              type="button"
+              onClick={() => {
+                logout()
+                navigate('/login')
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors shadow-2xs"
+              title="Sair do sistema"
+              aria-label="Sair da conta"
+            >
+              <LogOut className="w-3.5 h-3.5 text-red-600" />
+              <span>Sair</span>
+            </button>
+          )}
         </div>
       </div>
 

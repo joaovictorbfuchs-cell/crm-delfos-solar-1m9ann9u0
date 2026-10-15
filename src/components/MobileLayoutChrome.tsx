@@ -522,42 +522,76 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
             <div className="contents" key="mobile-servicos-campo-actions">
               {isAdmin && <AssistenteDelfosBotao size="sm" />}
 
-              {/* Botão Nova Atividade compacto verde #16A34A com ícone Plus */}
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('delfos:abrir-nova-atividade-os'))
-                }}
-                aria-label="Nova Atividade"
-                title="Nova Atividade"
-                className="h-8 px-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] active:scale-95 text-white flex items-center gap-1 text-xs font-bold shadow-xs transition-all cursor-pointer pr-[2px] pl-[8px]"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span className="text-[11px] font-bold">
-                  <br />
-                </span>
-              </button>
+              {/* Para Admin: botões de Nova Atividade e Filtros */}
+              {isAdmin && (
+                <div className="contents" key="mobile-servicos-campo-admin-buttons">
+                  {/* Botão Nova Atividade compacto verde #16A34A com ícone Plus */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('delfos:abrir-nova-atividade-os'))
+                    }}
+                    aria-label="Nova Atividade"
+                    title="Nova Atividade"
+                    className="h-8 px-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] active:scale-95 text-white flex items-center gap-1 text-xs font-bold shadow-xs transition-all cursor-pointer pr-[2px] pl-[8px]"
+                  >
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                    <span className="text-[11px] font-bold">
+                      <br />
+                    </span>
+                  </button>
 
-              {/* Botão Filtros compacto com apenas ícone Filter */}
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('delfos:abrir-filtros-servicos-campo'))
-                }}
-                aria-label="Abrir filtros de Serviços de Campo"
-                title="Filtros"
-                className={`relative h-8 w-8 rounded-lg border flex items-center justify-center text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-95 ${
-                  servicosCampoActiveFiltersCount > 0
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <Filter
-                  className={`w-3.5 h-3.5 ${
-                    servicosCampoActiveFiltersCount > 0 ? 'text-emerald-700' : 'text-gray-500'
-                  }`}
-                />
-              </button>
+                  {/* Botão Filtros compacto com apenas ícone Filter */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('delfos:abrir-filtros-servicos-campo'))
+                    }}
+                    aria-label="Abrir filtros de Serviços de Campo"
+                    title="Filtros"
+                    className={`relative h-8 w-8 rounded-lg border flex items-center justify-center text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-95 ${
+                      servicosCampoActiveFiltersCount > 0
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Filter
+                      className={`w-3.5 h-3.5 ${
+                        servicosCampoActiveFiltersCount > 0 ? 'text-emerald-700' : 'text-gray-500'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
+
+              {/* Para Instalador no mobile em Serviços de Campo: Botão de Atualizar e Botão de SAIR */}
+              {isInstalador && (
+                <div className="contents" key="mobile-servicos-campo-instalador-buttons">
+                  <button
+                    type="button"
+                    onClick={handleMobileRefresh}
+                    disabled={isRefreshingMobile}
+                    aria-label="Atualizar dados"
+                    title="Atualizar dados"
+                    className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-emerald-50 active:scale-95 border border-gray-200 text-gray-700 hover:text-emerald-700 flex items-center justify-center shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshingMobile ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    aria-label="Sair da conta"
+                    title="Sair"
+                    className="h-8 px-2.5 rounded-lg bg-red-50 hover:bg-red-100 active:scale-95 border border-red-200 text-red-600 hover:text-red-700 flex items-center gap-1.5 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-red-600" />
+                    <span>Sair</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="contents" key="mobile-outras-telas-actions">

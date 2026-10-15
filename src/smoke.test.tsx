@@ -1974,6 +1974,7 @@ describe('Login e App Smoke Tests', () => {
     expect(html).toContain('Concluir Atividade')
     expect(html).toContain('Lista')
     expect(html).toContain('Calendário')
+    expect(html).toContain('Sair')
   })
 
   it('VisaoInstaladorMobileOS tolera registros legados com Date, null, números e campos malformados sem TypeError', () => {
