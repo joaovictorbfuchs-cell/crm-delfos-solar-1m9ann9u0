@@ -20,6 +20,7 @@ import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
 import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
+import { normalizarNomePlanoOM } from '@/lib/planosOM'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { PropostaOM, Cliente } from '@/types/crm'
@@ -251,11 +252,13 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
         distanciaKm,
         valorKm,
         valorPorPlaca,
+        planoEscolhido: normalizarNomePlanoOM(prop.plano_escolhido),
         valoresNegociados,
       },
       calculos,
       dataEmissao: prop.data_proposta || prop.created,
       autor: prop.autor || 'Equipe Comercial Delfos Solar',
+      referenciaProposta: prop.id,
       conteudo: prop.conteudo_proposta,
     }
   }

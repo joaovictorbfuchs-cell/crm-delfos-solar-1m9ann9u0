@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, getTelhadoLabel } from '@/lib/formatters'
 import type { PropostaOM } from '@/types/crm'
 import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
+import { normalizarNomePlanoOM } from '@/lib/planosOM'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
 import { PreviewPropostaOMDocumento } from '@/components/PreviewPropostaOMDocumento'
 import { PainelEdicaoConteudoOM } from '@/components/PainelEdicaoConteudoOM'
@@ -88,7 +89,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         setValorManualCompleto(String(initialProposta.valor_plano_completo))
       }
       if (initialProposta.plano_escolhido) {
-        setPlanoEscolhido(initialProposta.plano_escolhido)
+        setPlanoEscolhido(normalizarNomePlanoOM(initialProposta.plano_escolhido))
       }
       if (initialProposta.conteudo_proposta) {
         setConteudoOM(normalizarConteudoPropostaOM(initialProposta.conteudo_proposta))
@@ -245,13 +246,15 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
 
   // Salvar registro de proposta O&M no banco de dados
   const handleSalvarProposta = async (aceite = false) => {
-  if (aceite) {
-    const confirmado = window.confirm(
-      `Confirmar o aceite do Plano ${planoEscolhido} por ${formatCurrency(calculos.planos[planoEscolhido].mensal)}/mês? A proposta será marcada como Aprovado no CRM.`,
-    )
-    if (!confirmado) return
-  }
-  if (!clienteAtual) {      alert('Selecione um cliente para vincular a proposta.')
+    const planoSelecionadoAtual = normalizarNomePlanoOM(planoEscolhido)
+    if (aceite) {
+      const confirmado = window.confirm(
+        `Confirmar o aceite do Plano ${planoSelecionadoAtual} por ${formatCurrency(calculos.planos[planoSelecionadoAtual].mensal)}/mês? A proposta será marcada como Aprovado no CRM.`,
+      )
+      if (!confirmado) return
+    }
+    if (!clienteAtual) {
+      alert('Selecione um cliente para vincular a proposta.')
       return
     }
     setIsSubmitting(true)
@@ -261,6 +264,9 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       const valorEssencialFinal = calculos.planos.Essencial.mensal
       const valorInspecaoFinal = calculos.planos.Inspeção.mensal
       const valorCompletoFinal = calculos.planos.Completo.mensal
+      const valorPlanoPersistido = aceite
+        ? calculos.planos[planoSelecionadoAtual]
+        : calculos.planos.Inspeção
 
       const dadosProposta = {
         cliente_id: clienteAtual.id,
@@ -282,9 +288,9 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         valor_plano_essencial: valorEssencialFinal,
         valor_plano_inspecao: valorInspecaoFinal,
         valor_plano_completo: valorCompletoFinal,
-        valor_mensal_plano: valorInspecaoFinal, // fallback canônico plano recomendado/padrão
-        valor_anual_plano: Math.round(valorInspecaoFinal * 12 * 100) / 100,
-        plano_escolhido: planoEscolhido,
+        valor_mensal_plano: valorPlanoPersistido.mensal,
+        valor_anual_plano: valorPlanoPersistido.anual,
+        plano_escolhido: planoSelecionadoAtual,
         valores_negociados_json: {
           Essencial: valoresNegociados.Essencial,
           Inspeção: valoresNegociados.Inspeção,
@@ -293,7 +299,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         conteudo_proposta: conteudoOM,
         data_proposta: new Date().toISOString(),
         autor: user?.name || 'Equipe Comercial Delfos Solar',
-        status: aceite ? 'Aprovado' : 'Proposta Enviada',
+        status: aceite
+          ? 'Aprovada'
+          : ['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())
+            ? 'Aprovada'
+            : 'Proposta Enviada',
         observacoes,
       }
 
@@ -311,13 +321,18 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           tipo: 'interacao',
           titulo: aceite ? 'Aceite de Proposta O&M Registrado' : 'Proposta O&M Registrada',
           descricao: aceite
-            ? `Aceite comercial registrado para o Plano ${planoEscolhido}. Mensalidade: ${formatCurrency(calculos.planos[planoEscolhido].mensal)}/mês. Status: Aprovado.`
+            ? `Aceite comercial registrado para o Plano ${planoSelecionadoAtual}. Mensalidade: ${formatCurrency(calculos.planos[planoSelecionadoAtual].mensal)}/mês. Status: Aprovada.`
             : `Proposta O&M salva para o cliente com os valores dos três planos. Status: Proposta Enviada.`,
           data: new Date().toISOString(),
           autor: user?.name || 'Equipe Comercial Delfos Solar',
-          status_tag: aceite ? 'Aprovado' : 'Proposta Enviada',
+          status_tag:
+            aceite ||
+            ['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())
+              ? 'Aprovada'
+              : 'Proposta Enviada',
           referencia_id: nova.id,
-        })      } catch (errTime) {
+        })
+      } catch (errTime) {
         console.error('Erro ao adicionar timeline O&M:', errTime)
       }
 
@@ -418,7 +433,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               onSelecionarPlano={(plano) => setPlanoEscolhido(plano)}
               onAceitarPlano={() => handleSalvarProposta(true)}
               isSubmitting={isSubmitting}
-              aceiteRegistrado={['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())}            />          </div>
+              aceiteRegistrado={['aprovado', 'aprovada'].includes(
+                (initialProposta?.status || '').toLowerCase(),
+              )}
+            />{' '}
+          </div>
         ) : activeTab === 'edicao' ? (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
             <PainelEdicaoConteudoOM

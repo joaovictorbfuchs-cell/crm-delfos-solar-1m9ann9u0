@@ -1,16 +1,5 @@
-import React, { useState } from 'react'
-import {
-  FileText,
-  Sliders,
-  DollarSign,
-  ShieldCheck,
-  Clock,
-  HelpCircle,
-  RotateCcw,
-  Plus,
-  Trash2,
-  Check,
-} from 'lucide-react'
+import React, { useMemo, useRef, useState } from 'react'
+import { FileText, RotateCcw } from 'lucide-react'
 import {
   ConteudoPropostaOM,
   getConteudoPropostaOMDefaults,
@@ -23,617 +12,393 @@ interface PainelEdicaoConteudoOMProps {
   disabled?: boolean
 }
 
+const CampoTexto: React.FC<{
+  label: string
+  value?: string | number
+  onChange: (value: string) => void
+  multiline?: boolean
+  disabled?: boolean
+}> = ({ label, value, onChange, multiline = false, disabled = false }) => {
+  const common =
+    'w-full px-3 py-2 border rounded-lg border-gray-300 bg-white text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 disabled:bg-gray-100 disabled:text-gray-500'
+  return (
+    <label className="block min-w-0">
+      <span className="font-semibold text-gray-700 block mb-1">{label}</span>
+      {multiline ? (
+        <textarea
+          rows={3}
+          disabled={disabled}
+          value={value ?? ''}
+          onChange={(event) => onChange(event.target.value)}
+          className={`${common} resize-y`}
+        />
+      ) : (
+        <input
+          type="text"
+          disabled={disabled}
+          value={value ?? ''}
+          onChange={(event) => onChange(event.target.value)}
+          className={common}
+        />
+      )}
+    </label>
+  )
+}
+
 export const PainelEdicaoConteudoOM: React.FC<PainelEdicaoConteudoOMProps> = ({
   conteudo,
   onChange,
   disabled = false,
 }) => {
   const dados = normalizarConteudoPropostaOM(conteudo)
-  const [secaoAberta, setSecaoAberta] = useState<string>('secao1')
+  const [secaoAberta, setSecaoAberta] = useState('secao1')
 
-  const handleRestaurar = () => {
-    if (confirm('Deseja restaurar todos os textos da proposta O&M para o padrão oficial?')) {
+  const updateField = (caminho: string, valor: unknown) => {
+    const partes = caminho.split('.')
+    const clonar = (no: any, indice: number): any => {
+      if (indice >= partes.length) return valor
+      const chave = partes[indice]
+      if (Array.isArray(no)) {
+        const index = Number(chave)
+        const copia = [...no]
+        copia[index] = clonar(no[index] ?? {}, indice + 1)
+        return copia
+      }
+      const copia = { ...(no || {}) }
+      copia[chave] = clonar(no?.[chave], indice + 1)
+      return copia
+    }
+    onChange(clonar(dados, 0))
+  }
+
+  const toggleSecao = (nome: string) => setSecaoAberta((atual) => (atual === nome ? '' : nome))
+  const toggleSecaoRef = useRef(toggleSecao)
+  toggleSecaoRef.current = toggleSecao
+  const secaoAbertaRef = useRef(secaoAberta)
+  secaoAbertaRef.current = secaoAberta
+
+  const restaurarPadrao = () => {
+    if (window.confirm('Restaurar os textos da proposta O&M para o modelo oficial?')) {
       onChange(getConteudoPropostaOMDefaults())
     }
   }
 
-  const updateField = (caminho: string, valor: any) => {
-    const partes = caminho.split('.')
-    const clonar = (no: any, i: number): any => {
-      if (i >= partes.length) return valor
-      const chave = partes[i]
-      if (Array.isArray(no)) {
-        const idx = Number(chave)
-        const arr = [...no]
-        arr[idx] = clonar(no[idx] ?? {}, i + 1)
-        return arr
-      }
-      const obj = { ...(no || {}) }
-      obj[chave] = clonar(no?.[chave], i + 1)
-      return obj
-    }
-    const novo = clonar(dados, 0)
-    onChange(novo)
-  }
+  const Secao = useMemo(
+    () =>
+      ({ id, titulo, children }: { id: string; titulo: string; children: React.ReactNode }) => (
+        <section className="border border-gray-200 rounded-xl overflow-hidden">
+          <button
+            type="button"
+            aria-expanded={secaoAbertaRef.current === id}
+            onClick={() => toggleSecaoRef.current(id)}
+            className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-left text-xs font-bold text-gray-800"
+          >
+            <span>{titulo}</span>
+            <span className="text-gray-400" aria-hidden="true">
+              {secaoAbertaRef.current === id ? '▲' : '▼'}
+            </span>
+          </button>
+          {secaoAbertaRef.current === id && (
+            <div className="p-4 space-y-3 bg-white text-xs">{children}</div>
+          )}
+        </section>
+      ),
+    [],
+  )
 
-  const toggleSecao = (nome: string) => {
-    setSecaoAberta((prev) => (prev === nome ? '' : nome))
-  }
+  // Manter o tipo do componente de campo estável para não remontar o input a cada tecla.
+  const updateFieldRef = useRef(updateField)
+  updateFieldRef.current = updateField
+  const disabledRef = useRef(disabled)
+  disabledRef.current = disabled
+  const Campo = useMemo(
+    () =>
+      ({
+        path,
+        ...props
+      }: Omit<React.ComponentProps<typeof CampoTexto>, 'onChange'> & { path: string }) => (
+        <CampoTexto
+          {...props}
+          disabled={disabledRef.current}
+          onChange={(value) =>
+            updateFieldRef.current(
+              path,
+              path === 'rodape.validadeDias' ? Math.max(1, Number(value) || 5) : value,
+            )
+          }
+        />
+      ),
+    [],
+  )
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden">
-      {/* Top Header */}
-      <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 via-white to-emerald-50/30">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/30">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center shadow-xs">
-            <FileText className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center">
+            <FileText className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-gray-900 tracking-tight">
-                Seletor de Elementos & Textos da Proposta O&M
-              </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-                Editável
-              </span>
-            </div>
+            <h3 className="text-sm font-bold text-gray-900">Editar textos da proposta O&amp;M</h3>
             <p className="text-xs text-gray-500">
-              Personalize títulos, badges, chamadas de risco, SLA, condições e assinaturas das 8
-              seções oficiais
+              Os campos alterados aparecem na prévia e no PDF.
             </p>
           </div>
         </div>
-
         <button
           type="button"
-          onClick={handleRestaurar}
+          onClick={restaurarPadrao}
           disabled={disabled}
-          className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 flex items-center gap-1.5 transition-colors"
-          title="Restaurar textos originais do documento de referência"
+          className="text-xs font-semibold px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 inline-flex items-center gap-1.5 disabled:opacity-50"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Restaurar Padrão</span>
+          <RotateCcw className="w-3.5 h-3.5" /> Restaurar padrão
         </button>
       </div>
 
       <div className="p-4 space-y-3">
-        {/* SEÇÃO 1 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao1')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>1. Dados Gerais e Identificação Técnica</span>
-            <span className="text-gray-400">{secaoAberta === 'secao1' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao1' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Título da Seção</label>
-                <input
-                  type="text"
-                  value={dados.secao1.titulo}
-                  onChange={(e) => updateField('secao1.titulo', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Subtítulo</label>
-                  <input
-                    type="text"
-                    value={dados.secao1.subtitulo}
-                    onChange={(e) => updateField('secao1.subtitulo', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Badge de Emissão</label>
-                  <input
-                    type="text"
-                    value={dados.secao1.badgeEmissao}
-                    onChange={(e) => updateField('secao1.badgeEmissao', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">
-                  Citação de Destaque (Comparativo de Custo vs Falha)
-                </label>
-                <textarea
-                  rows={2}
-                  value={dados.secao1.citacaoDestaque}
-                  onChange={(e) => updateField('secao1.citacaoDestaque', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        <Secao id="secao1" titulo="1. Dados do cliente e da usina">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Campo label="Título" path="secao1.titulo" value={dados.secao1.titulo} />
+            <Campo label="Subtítulo" path="secao1.subtitulo" value={dados.secao1.subtitulo} />
+            <Campo
+              label="Selo do documento"
+              path="secao1.badgeEmissao"
+              value={dados.secao1.badgeEmissao}
+            />
+            <Campo
+              label="Texto antes do valor anual"
+              path="secao1.cardAnualDestaquePrefixo"
+              value={dados.secao1.cardAnualDestaquePrefixo}
+            />
+            <Campo
+              label="Texto depois do valor anual"
+              path="secao1.cardAnualDestaqueSufixo"
+              value={dados.secao1.cardAnualDestaqueSufixo}
+            />
+            <Campo
+              label="Chamada de destaque"
+              path="secao1.citacaoDestaque"
+              value={dados.secao1.citacaoDestaque}
+              multiline
+            />
+          </div>
+        </Secao>
 
-        {/* SEÇÃO 2 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao2')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>2. Cenários de Exposição Financeira &amp; Alerta de Risco Oculto</span>
-            <span className="text-gray-400">{secaoAberta === 'secao2' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao2' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Título</label>
-                  <input
-                    type="text"
-                    value={dados.secao2.titulo}
-                    onChange={(e) => updateField('secao2.titulo', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Subtítulo</label>
-                  <input
-                    type="text"
-                    value={dados.secao2.subtitulo}
-                    onChange={(e) => updateField('secao2.subtitulo', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">
-                  Texto da Faixa &quot;Atenção ao risco oculto&quot;
-                </label>
-                <textarea
-                  rows={3}
-                  value={dados.secao2.avisoRiscoOculto}
-                  onChange={(e) => updateField('secao2.avisoRiscoOculto', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        <Secao id="secao2" titulo="2. Cenários financeiros">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Campo label="Título" path="secao2.titulo" value={dados.secao2.titulo} />
+            <Campo label="Subtítulo" path="secao2.subtitulo" value={dados.secao2.subtitulo} />
+            <Campo
+              label="Título do cenário de 20 dias"
+              path="secao2.tituloCardPerda20"
+              value={dados.secao2.tituloCardPerda20}
+            />
+            <Campo
+              label="Explicação do cenário de 20 dias"
+              path="secao2.subtituloCardPerda20"
+              value={dados.secao2.subtituloCardPerda20}
+            />
+            <Campo
+              label="Título da interrupção de 30 dias"
+              path="secao2.tituloCardFalha30"
+              value={dados.secao2.tituloCardFalha30}
+            />
+            <Campo
+              label="Explicação da interrupção"
+              path="secao2.subtituloCardFalha30"
+              value={dados.secao2.subtituloCardFalha30}
+            />
+            <Campo
+              label="Nota sobre garantia"
+              path="secao2.textoRiscoGarantia"
+              value={dados.secao2.textoRiscoGarantia}
+              multiline
+            />
+            <Campo
+              label="Evidência sobre sujidade (com ressalvas)"
+              path="secao2.textoEvidenciaSujidade"
+              value={dados.secao2.textoEvidenciaSujidade}
+              multiline
+            />
+            <Campo
+              label="Fonte da evidência"
+              path="secao2.fonteEvidenciaSujidade"
+              value={dados.secao2.fonteEvidenciaSujidade}
+              multiline
+            />
+          </div>
+        </Secao>
 
-        {/* SEÇÃO 3 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao3')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>3. Tabela &quot;Qual Plano Elimina Cada Cenário&quot;</span>
-            <span className="text-gray-400">{secaoAberta === 'secao3' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao3' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Título da Tabela</label>
-                <input
-                  type="text"
-                  value={dados.secao3.titulo}
-                  onChange={(e) => updateField('secao3.titulo', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                />
-              </div>
-              <div className="space-y-2 pt-2">
-                <span className="font-bold text-gray-700 block">Linhas de Cobertura:</span>
-                {dados.secao3.linhas.map((l, idx) => (
-                  <div
-                    key={l.id || idx}
-                    className="p-2.5 rounded-lg border border-gray-200 bg-gray-50 space-y-2"
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div className="sm:col-span-2">
-                        <label className="text-[10px] text-gray-500 uppercase font-semibold">
-                          Cenário
-                        </label>
-                        <input
-                          type="text"
-                          value={l.cenario}
-                          onChange={(e) =>
-                            updateField(`secao3.linhas.${idx}.cenario`, e.target.value)
-                          }
-                          className="w-full px-2 py-1 text-xs border rounded bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 uppercase font-semibold">
-                          Selo do Plano
-                        </label>
-                        <input
-                          type="text"
-                          value={l.planoSelo}
-                          onChange={(e) =>
-                            updateField(`secao3.linhas.${idx}.planoSelo`, e.target.value)
-                          }
-                          className="w-full px-2 py-1 text-xs border rounded bg-white"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-gray-500 uppercase font-semibold">
-                        Cobertura Delfos
-                      </label>
-                      <input
-                        type="text"
-                        value={l.cobertura}
-                        onChange={(e) =>
-                          updateField(`secao3.linhas.${idx}.cobertura`, e.target.value)
-                        }
-                        className="w-full px-2 py-1 text-xs border rounded bg-white"
-                      />
-                    </div>
-                  </div>
+        <Secao id="secao3" titulo="3. Planos de gestão e manutenção">
+          <Campo label="Título" path="secao4.titulo" value={dados.secao4.titulo} />
+          <Campo
+            label="Selo do plano recomendado"
+            path="secao4.seloRecomendado"
+            value={dados.secao4.seloRecomendado}
+          />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            {(
+              [
+                ['Essencial', dados.secao4.beneficiosEssencial],
+                ['Inspeção', dados.secao4.beneficiosInspecao],
+                ['Completo', dados.secao4.beneficiosCompleto],
+              ] as const
+            ).map(([plano, beneficios]) => (
+              <div key={plano} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                <h4 className="font-bold text-gray-800">Plano {plano}</h4>
+                {beneficios.map((beneficio, index) => (
+                  <Campo
+                    key={`${plano}-${index}`}
+                    label={`Benefício ${index + 1}`}
+                    path={`secao4.beneficios${plano === 'Inspeção' ? 'Inspecao' : plano}.${index}`}
+                    value={beneficio}
+                    multiline
+                  />
                 ))}
               </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        </Secao>
 
-        {/* SEÇÃO 4 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao4')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>4. Modalidades de Planos (Benefícios &amp; Selo Recomendado)</span>
-            <span className="text-gray-400">{secaoAberta === 'secao4' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao4' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Título</label>
-                  <input
-                    type="text"
-                    value={dados.secao4.titulo}
-                    onChange={(e) => updateField('secao4.titulo', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Texto do Selo de Destaque
-                  </label>
-                  <input
-                    type="text"
-                    value={dados.secao4.seloRecomendado}
-                    onChange={(e) => updateField('secao4.seloRecomendado', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
-                <div className="border p-2.5 rounded-lg bg-gray-50">
-                  <span className="font-bold text-gray-800 block mb-1">Plano Essencial</span>
-                  {dados.secao4.beneficiosEssencial.map((b, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      value={b}
-                      onChange={(e) =>
-                        updateField(`secao4.beneficiosEssencial.${i}`, e.target.value)
-                      }
-                      className="w-full px-2 py-1 text-[11px] border rounded bg-white mb-1.5"
-                    />
-                  ))}
-                </div>
-                <div className="border p-2.5 rounded-lg bg-gray-50">
-                  <span className="font-bold text-gray-800 block mb-1">Plano Inspeção</span>
-                  {dados.secao4.beneficiosInspecao.map((b, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      value={b}
-                      onChange={(e) =>
-                        updateField(`secao4.beneficiosInspecao.${i}`, e.target.value)
-                      }
-                      className="w-full px-2 py-1 text-[11px] border rounded bg-white mb-1.5"
-                    />
-                  ))}
-                </div>
-                <div className="border border-emerald-300 p-2.5 rounded-lg bg-emerald-50/50">
-                  <span className="font-bold text-emerald-900 block mb-1">Plano Completo</span>
-                  {dados.secao4.beneficiosCompleto.map((b, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      value={b}
-                      onChange={(e) =>
-                        updateField(`secao4.beneficiosCompleto.${i}`, e.target.value)
-                      }
-                      className="w-full px-2 py-1 text-[11px] border rounded bg-white mb-1.5"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <Secao id="secao4" titulo="4. Escopo técnico das visitas">
+          <Campo
+            label="Título"
+            path="secaoEscopoTecnico.titulo"
+            value={dados.secaoEscopoTecnico.titulo}
+          />
+          <Campo
+            label="Subtítulo"
+            path="secaoEscopoTecnico.subtitulo"
+            value={dados.secaoEscopoTecnico.subtitulo}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {dados.secaoEscopoTecnico.itens.map((item, index) => (
+              <Campo
+                key={item.id}
+                label={`Atividade ${index + 1}`}
+                path={`secaoEscopoTecnico.itens.${index}.texto`}
+                value={item.texto}
+                multiline
+              />
+            ))}
+          </div>
+        </Secao>
 
-        {/* SEÇÃO 5 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao5')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>5. Padrões Técnicos e Credibilidade (NR-10, Metrologia, Água Tratada)</span>
-            <span className="text-gray-400">{secaoAberta === 'secao5' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao5' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Título</label>
-                <input
-                  type="text"
-                  value={dados.secao5.titulo}
-                  onChange={(e) => updateField('secao5.titulo', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
+        <Secao id="secao5" titulo="5. Credibilidade">
+          <Campo label="Título" path="secao5.titulo" value={dados.secao5.titulo} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {dados.secao5.itens.map((item, index) => (
+              <div key={item.id} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                <Campo
+                  label={`Diferencial ${index + 1}`}
+                  path={`secao5.itens.${index}.titulo`}
+                  value={item.titulo}
+                />
+                <Campo
+                  label="Descrição"
+                  path={`secao5.itens.${index}.descricao`}
+                  value={item.descricao}
+                  multiline
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {dados.secao5.itens.map((it, idx) => (
-                  <div key={it.id || idx} className="p-2.5 rounded-lg border bg-gray-50 space-y-1">
-                    <input
-                      type="text"
-                      value={it.titulo}
-                      onChange={(e) => updateField(`secao5.itens.${idx}.titulo`, e.target.value)}
-                      className="w-full font-bold px-2 py-1 text-xs border rounded bg-white"
-                    />
-                    <textarea
-                      rows={3}
-                      value={it.descricao}
-                      onChange={(e) => updateField(`secao5.itens.${idx}.descricao`, e.target.value)}
-                      className="w-full px-2 py-1 text-[11px] border rounded bg-white"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        </Secao>
 
-        {/* SEÇÃO 6 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao6')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>6. Níveis de Serviço (SLA) &amp; Compromissos</span>
-            <span className="text-gray-400">{secaoAberta === 'secao6' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao6' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Título</label>
-                <input
-                  type="text"
-                  value={dados.secao6.titulo}
-                  onChange={(e) => updateField('secao6.titulo', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
+        <Secao id="secao6" titulo="6. Condições">
+          <Campo label="Título" path="secao7.titulo" value={dados.secao7.titulo} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {dados.secao7.itens.map((item, index) => (
+              <div key={item.id} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                <Campo
+                  label={`Condição ${index + 1}`}
+                  path={`secao7.itens.${index}.titulo`}
+                  value={item.titulo}
+                />
+                <Campo
+                  label="Descrição"
+                  path={`secao7.itens.${index}.descricao`}
+                  value={item.descricao}
+                  multiline
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {dados.secao6.itens.map((it, idx) => (
-                  <div key={it.id || idx} className="p-2.5 rounded-lg border bg-gray-50 space-y-1">
-                    <input
-                      type="text"
-                      value={it.titulo}
-                      onChange={(e) => updateField(`secao6.itens.${idx}.titulo`, e.target.value)}
-                      className="w-full font-bold px-2 py-1 text-xs border rounded bg-white"
-                    />
-                    <textarea
-                      rows={3}
-                      value={it.descricao}
-                      onChange={(e) => updateField(`secao6.itens.${idx}.descricao`, e.target.value)}
-                      className="w-full px-2 py-1 text-[11px] border rounded bg-white"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        </Secao>
 
-        {/* SEÇÃO 7 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao7')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>7. Condições Contratuais &amp; Vigência (4 Itens)</span>
-            <span className="text-gray-400">{secaoAberta === 'secao7' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao7' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Título</label>
-                <input
-                  type="text"
-                  value={dados.secao7.titulo}
-                  onChange={(e) => updateField('secao7.titulo', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
+        <Secao id="secao7" titulo="7. Aceite">
+          <Campo label="Título" path="secao8.titulo" value={dados.secao8.titulo} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {dados.secao8.passos.map((passo, index) => (
+              <div key={passo.numero} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                <Campo
+                  label={`Etapa ${index + 1}`}
+                  path={`secao8.passos.${index}.titulo`}
+                  value={passo.titulo}
+                />
+                <Campo
+                  label="Descrição"
+                  path={`secao8.passos.${index}.descricao`}
+                  value={passo.descricao}
+                  multiline
                 />
               </div>
-              <div className="space-y-2">
-                {dados.secao7.itens.map((it, idx) => (
-                  <div key={it.id || idx} className="p-2.5 rounded-lg border bg-gray-50 space-y-1">
-                    <input
-                      type="text"
-                      value={it.titulo}
-                      onChange={(e) => updateField(`secao7.itens.${idx}.titulo`, e.target.value)}
-                      className="w-full font-bold px-2 py-1 text-xs border rounded bg-white"
-                    />
-                    <textarea
-                      rows={2}
-                      value={it.descricao}
-                      onChange={(e) => updateField(`secao7.itens.${idx}.descricao`, e.target.value)}
-                      className="w-full px-2 py-1 text-[11px] border rounded bg-white"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+          <Campo
+            label="Termo de aceite"
+            path="secao8.textoTermoAceite"
+            value={dados.secao8.textoTermoAceite}
+            multiline
+          />
+          <Campo
+            label="Texto de autorização"
+            path="secao8.termoAutorizacao"
+            value={dados.secao8.termoAutorizacao}
+            multiline
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Campo
+              label="Instrução do botão de aceite"
+              path="secao8.textoCliqueAceite"
+              value={dados.secao8.textoCliqueAceite}
+            />
+            <Campo
+              label="Cargo na assinatura Delfos"
+              path="secao8.responsavelDelfosCargo"
+              value={dados.secao8.responsavelDelfosCargo}
+            />
+            <Campo
+              label="CNPJ na assinatura"
+              path="secao8.cnpjDelfos"
+              value={dados.secao8.cnpjDelfos}
+            />
+          </div>
+        </Secao>
 
-        {/* SEÇÃO 8 */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('secao8')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>8. Aceite Comercial, Passos de Contratação &amp; Assinaturas</span>
-            <span className="text-gray-400">{secaoAberta === 'secao8' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'secao8' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Título</label>
-                <input
-                  type="text"
-                  value={dados.secao8.titulo}
-                  onChange={(e) => updateField('secao8.titulo', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {dados.secao8.passos.map((p, idx) => (
-                  <div key={idx} className="p-2 border rounded-lg bg-gray-50">
-                    <span className="font-bold text-[10px] text-gray-500 uppercase block mb-1">
-                      Passo {p.numero}
-                    </span>
-                    <input
-                      type="text"
-                      value={p.titulo}
-                      onChange={(e) => updateField(`secao8.passos.${idx}.titulo`, e.target.value)}
-                      className="w-full font-bold px-2 py-1 text-xs border rounded bg-white mb-1"
-                    />
-                    <textarea
-                      rows={2}
-                      value={p.descricao}
-                      onChange={(e) =>
-                        updateField(`secao8.passos.${idx}.descricao`, e.target.value)
-                      }
-                      className="w-full px-2 py-1 text-[11px] border rounded bg-white"
-                    />
-                  </div>
-                ))}
-              </div>
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">
-                  Texto do Termo de Aceite
-                </label>
-                <textarea
-                  rows={2}
-                  value={dados.secao8.textoTermoAceite}
-                  onChange={(e) => updateField('secao8.textoTermoAceite', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Cargo Delfos na Assinatura
-                  </label>
-                  <input
-                    type="text"
-                    value={dados.secao8.responsavelDelfosCargo}
-                    onChange={(e) => updateField('secao8.responsavelDelfosCargo', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">CNPJ Delfos</label>
-                  <input
-                    type="text"
-                    value={dados.secao8.cnpjDelfos}
-                    onChange={(e) => updateField('secao8.cnpjDelfos', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* RODAPÉ */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => toggleSecao('rodape')}
-            className="w-full px-4 py-3 bg-gray-50/70 hover:bg-gray-100/70 flex items-center justify-between text-left text-xs font-bold text-gray-800"
-          >
-            <span>Rodapé Oficial (Mesmo da Proposta Solar Delfos)</span>
-            <span className="text-gray-400">{secaoAberta === 'rodape' ? '▲' : '▼'}</span>
-          </button>
-          {secaoAberta === 'rodape' && (
-            <div className="p-4 space-y-3 bg-white text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Empresa</label>
-                  <input
-                    type="text"
-                    value={dados.rodape.empresaNome}
-                    onChange={(e) => updateField('rodape.empresaNome', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">CNPJ</label>
-                  <input
-                    type="text"
-                    value={dados.rodape.cnpj}
-                    onChange={(e) => updateField('rodape.cnpj', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Telefone</label>
-                  <input
-                    type="text"
-                    value={dados.rodape.telefone}
-                    onChange={(e) => updateField('rodape.telefone', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Endereço</label>
-                  <input
-                    type="text"
-                    value={dados.rodape.endereco}
-                    onChange={(e) => updateField('rodape.endereco', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Texto de Validade
-                  </label>
-                  <input
-                    type="text"
-                    value={dados.rodape.textoValidade}
-                    onChange={(e) => updateField('rodape.textoValidade', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg border-gray-300"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <Secao id="rodape" titulo="Rodapé oficial">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Campo label="Empresa" path="rodape.empresaNome" value={dados.rodape.empresaNome} />
+            <Campo label="CNPJ" path="rodape.cnpj" value={dados.rodape.cnpj} />
+            <Campo label="Telefone" path="rodape.telefone" value={dados.rodape.telefone} />
+            <Campo label="Site" path="rodape.site" value={dados.rodape.site} />
+            <Campo label="Endereço" path="rodape.endereco" value={dados.rodape.endereco} />
+            <Campo
+              label="Prazo de validade em dias"
+              path="rodape.validadeDias"
+              value={dados.rodape.validadeDias}
+            />
+            <Campo
+              label="Texto de validade"
+              path="rodape.textoValidade"
+              value={dados.rodape.textoValidade}
+            />
+          </div>
+          <p className="text-[10px] text-gray-500">
+            Os campos antigos de cobertura e SLA permanecem preservados nos dados das propostas
+            existentes, mas não aparecem no documento de sete seções.
+          </p>
+        </Secao>
       </div>
     </div>
   )

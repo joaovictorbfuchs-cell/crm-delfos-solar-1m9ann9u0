@@ -1,7 +1,3 @@
-// Componente de documento de Proposta O&M para renderização via @react-pdf/renderer
-// Utiliza estética limpa com margens alinhadas com o preview, fontes serif/sans harmônicas,
-// cabeçalho com a logo correta da Delfos ao lado do título (sem cabeçalho antigo) e rodapé
-// com faixa cinza clara centralizada em duas linhas + validade de 5 dias em verde.
 import React from 'react'
 import {
   Document,
@@ -12,438 +8,242 @@ import {
   StyleSheet,
   type DocumentProps,
 } from '@react-pdf/renderer'
-import { type PropostaPDFInput, DADOS_EMPRESA_DELFOS } from '@/lib/propostaOMGenerator'
+import {
+  DADOS_EMPRESA_DELFOS,
+  type PropostaPDFInput,
+  type PropostaCalculos,
+} from '@/lib/propostaOMGenerator'
 import { formatCurrency } from '@/lib/formatters'
+import { normalizarConteudoPropostaOM, type ConteudoOMSecao5Item } from '@/lib/conteudoPropostaOM'
+import { normalizarNomePlanoOM, type PlanoOMChave } from '@/lib/planosOM'
+import { OMPlanoTipo } from '@/types/crm'
 import logoDelfosCorreta from '@/assets/delfos-solar-1368d.png'
-
-// Margens alinhadas com a visualização/preview da proposta O&M em tela (sem excesso de estreiteza)
-export const MARGIN_VERTICAL_PROPOSTA = 24
-export const MARGIN_HORIZONTAL_PROPOSTA = 26
-
-// Compatibilidade retroativa para imports externos existentes
-export const MARGIN_VERTICAL_25MM = MARGIN_VERTICAL_PROPOSTA
-export const MARGIN_HORIZONTAL_007CM = MARGIN_HORIZONTAL_PROPOSTA
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: MARGIN_VERTICAL_PROPOSTA,
-    paddingBottom: MARGIN_VERTICAL_PROPOSTA,
-    paddingLeft: MARGIN_HORIZONTAL_PROPOSTA,
-    paddingRight: MARGIN_HORIZONTAL_PROPOSTA,
+    paddingTop: 28,
+    paddingBottom: 28,
+    paddingHorizontal: 32,
     fontFamily: 'Helvetica',
     fontSize: 8.5,
     lineHeight: 1.35,
     color: '#1f2937',
     backgroundColor: '#ffffff',
   },
-  // Título e Cabeçalho: logo da Delfos correta ao lado do título
-  headerBanner: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    borderLeftWidth: 4,
-    borderLeftColor: '#16a34a',
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 8,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#16a34a',
+    paddingBottom: 9,
+    marginBottom: 10,
+    gap: 12,
   },
-  headerLeftGroup: {
+  logo: { width: 86, height: 42, objectFit: 'contain' },
+  headerText: { flex: 1 },
+  title: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#064e3b', marginBottom: 3 },
+  subtitle: { fontSize: 7.5, color: '#047857' },
+  meta: { alignItems: 'flex-end', maxWidth: 120 },
+  badge: { color: '#166534', fontFamily: 'Helvetica-Bold', fontSize: 7, textAlign: 'right' },
+  metaText: { fontSize: 6.8, color: '#475569', textAlign: 'right', marginTop: 2 },
+  section: { marginBottom: 9 },
+  sectionHeading: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    gap: 10,
-  },
-  logoDelfos: {
-    width: 64,
-    height: 38,
-    objectFit: 'contain',
-  },
-  tituloBox: {
-    flex: 1,
-  },
-  tituloPrincipal: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 10.5,
-    color: '#064e3b',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  subtituloPrincipal: {
-    fontFamily: 'Helvetica',
-    fontSize: 7.2,
-    color: '#047857',
-    lineHeight: 1.25,
-  },
-  badgeDataEmissao: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#86efac',
-    borderRadius: 5,
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-    alignSelf: 'center',
-  },
-  badgeDataTexto: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 7.5,
-    color: '#166534',
-  },
-  bold: {
-    fontFamily: 'Helvetica-Bold',
-  },
-  // Blocos 2 colunas: Cliente e Usina
-  cardsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 8,
-  },
-  cardColuna: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 6,
-    padding: 7,
-  },
-  cardTitulo: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    color: '#065f46',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#cbd5e1',
-    paddingBottom: 2,
-  },
-  cardLinha: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-    fontSize: 7.5,
-  },
-  cardLabel: {
-    fontFamily: 'Helvetica',
-    color: '#64748b',
-    width: '38%',
-  },
-  cardValor: {
-    fontFamily: 'Helvetica-Bold',
-    color: '#0f172a',
-    textAlign: 'right',
-    width: '62%',
-  },
-  cardValorDestaque: {
-    fontFamily: 'Helvetica-Bold',
-    color: '#047857',
-    textAlign: 'right',
-    width: '62%',
-  },
-  // Box de Cenários de Exposição Financeira
-  scenariosBox: {
-    backgroundColor: '#fffbeb',
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    borderRadius: 6,
-    padding: 7,
-    marginBottom: 8,
-  },
-  scenariosHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderBottomWidth: 0.7,
+    borderBottomColor: '#e5e7eb',
+    paddingBottom: 3,
     marginBottom: 5,
   },
-  scenariosTitulo: {
+  sectionNumber: {
+    backgroundColor: '#dcfce7',
+    color: '#166534',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 7.8,
-    color: '#92400e',
-    textTransform: 'uppercase',
-  },
-  scenariosSub: {
-    fontFamily: 'Helvetica',
     fontSize: 7,
-    color: '#b45309',
+    width: 16,
+    height: 16,
+    textAlign: 'center',
+    paddingTop: 4,
+    borderRadius: 4,
+    marginRight: 6,
   },
-  scenariosGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 5,
-  },
-  scenarioItem: {
+  sectionTitle: { fontFamily: 'Helvetica-Bold', fontSize: 8.3, color: '#111827' },
+  sectionSubtitle: { fontSize: 6.7, color: '#64748b', marginTop: 1 },
+  headingText: { flex: 1 },
+  cards: { flexDirection: 'row', gap: 7 },
+  card: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
+    borderWidth: 0.7,
+    borderColor: '#e2e8f0',
+    borderRadius: 5,
+    padding: 7,
+  },
+  cardTitle: {
+    fontFamily: 'Helvetica-Bold',
+    color: '#065f46',
+    fontSize: 7,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#cbd5e1',
+    paddingBottom: 3,
+    marginBottom: 4,
+  },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
+  infoLabel: { color: '#64748b', fontSize: 6.8, width: '38%' },
+  infoValue: {
+    color: '#0f172a',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.8,
+    textAlign: 'right',
+    width: '62%',
+  },
+  highlight: {
+    marginTop: 6,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 0.7,
+    borderColor: '#bbf7d0',
+    borderRadius: 5,
+    padding: 7,
+  },
+  highlightText: { fontSize: 7.2, color: '#166534' },
+  highlightValue: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#064e3b' },
+  scenarios: { flexDirection: 'row', gap: 6 },
+  scenarioCard: {
+    flex: 1,
     borderWidth: 0.8,
     borderColor: '#fcd34d',
-    borderRadius: 5,
-    padding: 4.5,
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-  scenarioItemDestaque: {
-    borderColor: '#86efac',
-    backgroundColor: '#f0fdf4',
-  },
-  scenarioItemPerigo: {
-    borderColor: '#fca5a5',
-    backgroundColor: '#fef2f2',
-  },
-  scenarioLabel: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 6.5,
-    color: '#78350f',
-    textAlign: 'center',
-    marginBottom: 2,
-    height: 15,
-  },
-  scenarioValor: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 9,
-    color: '#b45309',
-  },
-  scenarioValorVerde: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 9,
-    color: '#15803d',
-  },
-  scenarioValorVermelho: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 9,
-    color: '#dc2626',
-  },
-  scenarioNota: {
-    fontFamily: 'Helvetica',
-    fontSize: 6.8,
-    color: '#78350f',
-    marginTop: 4,
-    lineHeight: 1.25,
-  },
-  // Título da Seção
-  secaoTituloRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  secaoTitulo: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8.5,
-    textTransform: 'uppercase',
-    color: '#1f2937',
-  },
-  secaoBadgePlanos: {
-    backgroundColor: '#ecfdf5',
-    borderWidth: 0.5,
-    borderColor: '#a7f3d0',
-    borderRadius: 3,
-    paddingVertical: 1,
-    paddingHorizontal: 4,
-  },
-  secaoBadgePlanosText: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 6.5,
-    color: '#047857',
-  },
-  // Grid de Cards de Planos (3 cards lado a lado)
-  planCardsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 7,
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  planCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 6,
-    padding: 7,
-    position: 'relative',
-  },
-  planCardRec: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#16a34a',
-    borderRadius: 6,
-    padding: 7,
-    position: 'relative',
-  },
-  planBadgeRec: {
-    position: 'absolute',
-    top: -6,
-    right: 8,
-    backgroundColor: '#047857',
-    borderRadius: 4,
-    paddingVertical: 1.5,
-    paddingHorizontal: 5,
-  },
-  planBadgeRecText: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 5.8,
-    color: '#ffffff',
-    textTransform: 'uppercase',
-  },
-  planNome: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8.5,
-    color: '#111827',
-    marginBottom: 2,
-  },
-  planPreco: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 11.5,
-    color: '#0d7a3e',
-  },
-  planPrecoUnidade: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 7.5,
-    color: '#0d7a3e',
-  },
-  planFaturamentoAnual: {
-    fontFamily: 'Helvetica',
-    fontSize: 6.5,
-    color: '#6b7280',
-    marginTop: 1,
-    marginBottom: 4,
-  },
-  planBulletItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 2,
-  },
-  planBulletDot: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 6.5,
-    color: '#9ca3af',
-    width: 7,
-  },
-  planBulletTexto: {
-    fontFamily: 'Helvetica',
-    fontSize: 6.8,
-    color: '#4b5563',
-    flex: 1,
-    lineHeight: 1.25,
-  },
-  // Condições Gerais / Vigência
-  condicoesBox: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderLeftWidth: 3,
-    borderLeftColor: '#16a34a',
+    backgroundColor: '#fffbeb',
     borderRadius: 5,
     padding: 6,
-    marginBottom: 6,
+    alignItems: 'center',
+    minHeight: 45,
   },
-  condicoesTitulo: {
+  scenarioDanger: { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
+  scenarioLabel: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 7.5,
-    color: '#0f172a',
-    marginBottom: 2.5,
-    textTransform: 'uppercase',
+    fontSize: 6.3,
+    textAlign: 'center',
+    color: '#78350f',
+    marginBottom: 3,
   },
-  condicoesItem: {
-    fontFamily: 'Helvetica',
-    fontSize: 6.8,
-    color: '#334155',
-    lineHeight: 1.3,
-    marginBottom: 1,
+  scenarioValue: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: '#92400e',
+    textAlign: 'center',
   },
-  // Observações adicionais
-  observacoesBox: {
-    backgroundColor: '#f0fdf4',
-    borderWidth: 0.8,
-    borderColor: '#86efac',
+  dangerValue: { color: '#b91c1c' },
+  noteBox: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 0.6,
+    borderColor: '#fde68a',
     borderRadius: 5,
-    padding: 5,
-    marginBottom: 6,
+    padding: 7,
+    marginTop: 6,
   },
-  observacoesTitulo: {
+  note: { fontSize: 6.7, color: '#78350f', marginBottom: 3, lineHeight: 1.35 },
+  planGrid: { flexDirection: 'row', gap: 6 },
+  planCard: { flex: 1, borderWidth: 0.8, borderColor: '#d1d5db', borderRadius: 5, padding: 7 },
+  planRecommended: { borderWidth: 1.5, borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
+  recommendedBadge: {
+    color: '#047857',
+    fontSize: 5.8,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 7.2,
-    color: '#166534',
-    marginBottom: 1.5,
-    textTransform: 'uppercase',
+    textAlign: 'right',
+    marginBottom: 2,
   },
-  observacoesTexto: {
-    fontFamily: 'Helvetica',
-    fontSize: 6.8,
-    color: '#14532d',
-    lineHeight: 1.25,
+  planName: { fontFamily: 'Helvetica-Bold', fontSize: 7.7, color: '#111827', marginBottom: 3 },
+  planPrice: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#047857' },
+  planAnnual: { fontSize: 6.5, color: '#64748b', marginTop: 1, marginBottom: 4 },
+  bulletRow: { flexDirection: 'row', marginBottom: 2 },
+  bullet: { color: '#16a34a', fontFamily: 'Helvetica-Bold', width: 8, fontSize: 6.7 },
+  bulletText: { flex: 1, fontSize: 6.5, color: '#374151', lineHeight: 1.25 },
+  selectedPlan: { marginTop: 4, fontFamily: 'Helvetica-Bold', color: '#047857', fontSize: 6.5 },
+  listBox: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 0.7,
+    borderColor: '#e2e8f0',
+    borderRadius: 5,
+    padding: 7,
   },
-  // Rodapé Oficial conforme modelo anexo
-  footerContainer: {
-    borderTopWidth: 0.8,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 4,
-    marginTop: 4,
+  listRow: { flexDirection: 'row', marginBottom: 3 },
+  listBullet: { color: '#16a34a', fontFamily: 'Helvetica-Bold', width: 9, fontSize: 7 },
+  listText: { flex: 1, fontSize: 7, color: '#374151', lineHeight: 1.3 },
+  trustGrid: { flexDirection: 'row', gap: 6 },
+  trustCard: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderWidth: 0.7,
+    borderColor: '#e2e8f0',
+    borderRadius: 5,
+    padding: 7,
   },
-  footerStrip: {
+  trustTitle: { fontFamily: 'Helvetica-Bold', fontSize: 7, color: '#111827', marginBottom: 3 },
+  trustText: { fontSize: 6.5, color: '#4b5563', lineHeight: 1.3 },
+  conditionRow: { flexDirection: 'row', marginBottom: 3 },
+  conditionTitle: { fontFamily: 'Helvetica-Bold', fontSize: 6.8, color: '#111827' },
+  conditionText: { fontSize: 6.8, color: '#374151', lineHeight: 1.3 },
+  stepsGrid: { flexDirection: 'row', gap: 5, marginBottom: 6 },
+  stepCard: {
+    flex: 1,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 0.6,
+    borderColor: '#bbf7d0',
+    borderRadius: 5,
+    padding: 6,
+  },
+  stepTitle: { fontFamily: 'Helvetica-Bold', fontSize: 6.5, color: '#047857', marginBottom: 2 },
+  stepText: { fontSize: 6.2, color: '#4b5563', lineHeight: 1.25 },
+  acceptance: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 0.7,
+    borderColor: '#e2e8f0',
+    borderRadius: 5,
+    padding: 7,
+  },
+  acceptanceText: { fontSize: 6.8, color: '#374151', lineHeight: 1.35, marginBottom: 4 },
+  acceptanceSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderWidth: 0.5,
+    borderColor: '#e5e7eb',
+    borderRadius: 4,
+    padding: 5,
+    marginBottom: 5,
+  },
+  signatureGrid: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  signature: {
+    flex: 1,
+    borderTopWidth: 0.6,
+    borderTopColor: '#6b7280',
+    paddingTop: 3,
+    alignItems: 'center',
+  },
+  signatureName: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.7,
+    color: '#111827',
+    textAlign: 'center',
+  },
+  signatureRole: { fontSize: 6.2, color: '#64748b', textAlign: 'center', marginTop: 2 },
+  footer: { marginTop: 5, borderTopWidth: 0.6, borderTopColor: '#e5e7eb', paddingTop: 5 },
+  footerBox: {
     backgroundColor: '#f3f4f6',
-    borderWidth: 0.8,
+    borderWidth: 0.6,
     borderColor: '#e5e7eb',
     borderRadius: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    padding: 6,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  footerLinha1: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-    gap: 4,
-  },
-  footerLogoSmall: {
-    width: 22,
-    height: 12,
-    objectFit: 'contain',
-    marginRight: 2,
-  },
-  footerTextoEmpresa: {
+  footerLine: { fontSize: 6.2, color: '#334155', textAlign: 'center', marginBottom: 2 },
+  footerCompany: { fontFamily: 'Helvetica-Bold', fontSize: 6.5, color: '#0f172a' },
+  footerValidity: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 7,
-    color: '#0f172a',
-  },
-  footerTextoDivisor: {
-    fontFamily: 'Helvetica',
     fontSize: 6.5,
-    color: '#94a3b8',
-  },
-  footerTextoDados: {
-    fontFamily: 'Helvetica',
-    fontSize: 6.8,
-    color: '#334155',
-  },
-  footerTextoLink: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 6.8,
     color: '#047857',
-  },
-  footerLinha2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  footerEndereco: {
-    fontFamily: 'Helvetica',
-    fontSize: 6.6,
-    color: '#475569',
-  },
-  footerValidade: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 6.8,
-    color: '#0d7a3e',
-    marginTop: 1,
+    marginTop: 2,
+    textAlign: 'center',
   },
 })
 
@@ -452,304 +252,293 @@ export interface PropostaOMPDFDocumentProps extends DocumentProps {
   observacoesAdicionais?: string
 }
 
+type PlanoComAlias = PlanoOMChave | 'Prevenção'
+
 export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
   dados,
   observacoesAdicionais,
   ...docProps
 }) => {
   const { cliente, tecnico, parametros, calculos } = dados
-
-  const dataFormatada = dados.dataEmissao
-    ? new Date(dados.dataEmissao).toLocaleDateString('pt-BR')
-    : new Date().toLocaleDateString('pt-BR')
-
-  const formatBRL = (val: number) => formatCurrency(val || 0)
+  const conteudo = normalizarConteudoPropostaOM(dados.conteudo)
+  const planoAtivo = normalizarNomePlanoOM(parametros.planoEscolhido || 'Completo') as OMPlanoTipo
+  const dataEmissao = dados.dataEmissao || new Date().toISOString()
+  const dataDate = new Date(dataEmissao)
+  const dataValidade = new Date(dataDate)
+  dataValidade.setDate(dataValidade.getDate() + (conteudo.rodape.validadeDias || 5))
+  const formatDate = (date: Date) =>
+    Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR')
+  const money = (value?: number) => formatCurrency(Number(value) || 0)
+  const geracaoAnual = (Number(tecnico.geracaoMediaKwh) || 0) * 12
+  const valorAnualBruto = geracaoAnual * (Number(parametros.valorKwh) || 0)
+  const planoKeys: Array<{ key: PlanoComAlias; benefits: string[]; recommended?: boolean }> = [
+    { key: 'Essencial', benefits: conteudo.secao4.beneficiosEssencial },
+    { key: 'Inspeção', benefits: conteudo.secao4.beneficiosInspecao },
+    { key: 'Completo', benefits: conteudo.secao4.beneficiosCompleto, recommended: true },
+  ]
+  const getPlan = (key: PlanoComAlias) => {
+    const calcKey: PlanoOMChave = key === 'Prevenção' ? 'Inspeção' : key
+    return calculos.planos[calcKey]
+  }
+  const benefitsWithModules = (items: string[]) =>
+    items.map((item) =>
+      item.replace(
+        '{numeroModulos}',
+        tecnico.numeroModulos ? String(tecnico.numeroModulos) : 'conforme projeto',
+      ),
+    )
+  const heading = (number: number, title: string, subtitle?: string) => (
+    <View style={styles.sectionHeading} wrap={false}>
+      <Text style={styles.sectionNumber}>{number}</Text>
+      <View style={styles.headingText}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+      </View>
+    </View>
+  )
+  const info = (label: string, value?: string | number, green = false) => (
+    <View style={styles.infoRow} key={label}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={[styles.infoValue, ...(green ? [{ color: '#047857' }] : [])]}>
+        {value || 'Não informado'}
+      </Text>
+    </View>
+  )
 
   return (
     <Document
-      title={`PROPOSTA O&M — ${cliente.nome || 'Cliente'}`}
+      title={`Proposta O&M — ${cliente.nome || 'Cliente'}`}
       author={DADOS_EMPRESA_DELFOS.razaoSocial}
       subject="Proposta de Gestão e Manutenção de Usinas Fotovoltaicas (O&M)"
       {...docProps}
     >
       <Page size="A4" style={styles.page}>
-        {/* Cabeçalho com a logo correta da Delfos ao lado do Título (cabeçalho antigo removido) */}
-        <View style={styles.headerBanner} wrap={false}>
-          <View style={styles.headerLeftGroup}>
-            <Image src={logoDelfosCorreta} style={styles.logoDelfos} />
-            <View style={styles.tituloBox}>
-              <Text style={styles.tituloPrincipal}>
-                PROPOSTA DE GESTÃO E MANUTENÇÃO DE USINAS (O&amp;M)
-              </Text>
-              <Text style={styles.subtituloPrincipal}>
-                Prevenção ativa, aumento de geração e proteção integral do seu investimento solar
-                fotovoltaico
-              </Text>
-            </View>
-          </View>
-          <View style={styles.badgeDataEmissao}>
-            <Text style={styles.badgeDataTexto}>Emissão: {dataFormatada}</Text>
-          </View>
-        </View>
-
-        {/* 1. DADOS DO CLIENTE & DADOS TÉCNICOS DA USINA (2 colunas protegidas) */}
-        <View style={styles.cardsGrid} wrap={false}>
-          {/* Coluna 1: Cliente */}
-          <View style={styles.cardColuna}>
-            <Text style={styles.cardTitulo}>1. DADOS DO CLIENTE</Text>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Nome/Razão:</Text>
-              <Text style={styles.cardValor}>{cliente.nome || 'Não informado'}</Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>CPF/CNPJ:</Text>
-              <Text style={styles.cardValor}>{cliente.cpfOuCnpj || 'Não informado'}</Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Município:</Text>
-              <Text style={styles.cardValor}>{cliente.municipio || 'Erechim / RS'}</Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Endereço:</Text>
-              <Text style={styles.cardValor}>{cliente.endereco || 'Endereço da usina'}</Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Telefone:</Text>
-              <Text style={styles.cardValor}>{cliente.telefone || '(54) 99129-2121'}</Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>E-mail:</Text>
-              <Text style={styles.cardValor}>{cliente.email || 'contato@cliente.com'}</Text>
-            </View>
-          </View>
-
-          {/* Coluna 2: Dados Técnicos */}
-          <View style={styles.cardColuna}>
-            <Text style={styles.cardTitulo}>2. DADOS TÉCNICOS DA USINA</Text>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Potência Total:</Text>
-              <Text style={styles.cardValorDestaque}>
-                {tecnico.potenciaKwp > 0
-                  ? `${tecnico.potenciaKwp.toLocaleString('pt-BR')} kWp`
-                  : '5,00 kWp'}
-              </Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Geração Estimada:</Text>
-              <Text style={styles.cardValor}>
-                {tecnico.geracaoMediaKwh.toLocaleString('pt-BR')} kWh/mês
-              </Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Inversor(es):</Text>
-              <Text style={styles.cardValor}>
-                {tecnico.marcaInversores || 'Inversores homologados'}
-              </Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Módulos:</Text>
-              <Text style={styles.cardValor}>
-                {tecnico.numeroModulos ? `${tecnico.numeroModulos} unidades` : 'Conforme projeto'}
-              </Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Instalação:</Text>
-              <Text style={styles.cardValor}>{tecnico.tipoInstalacao || 'Telhado'}</Text>
-            </View>
-            <View style={styles.cardLinha}>
-              <Text style={styles.cardLabel}>Tarifa Base:</Text>
-              <Text style={styles.cardValorDestaque}>{formatBRL(parametros.valorKwh)} / kWh</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 2. CENÁRIOS DE EXPOSIÇÃO FINANCEIRA (wrap={false}) */}
-        <View style={styles.scenariosBox} wrap={false}>
-          <View style={styles.scenariosHeader}>
-            <Text style={styles.scenariosTitulo}>
-              Cenários de Exposição Financeira sem O&amp;M Especializado
+        <View style={styles.header} wrap={false}>
+          <Image src={logoDelfosCorreta} style={styles.logo} />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>
+              Proposta de Gestão e Manutenção de Usinas Fotovoltaicas (O&amp;M)
             </Text>
-            <Text style={styles.scenariosSub}>
-              Produção mensal: {tecnico.geracaoMediaKwh.toLocaleString('pt-BR')} kWh ×{' '}
-              {formatBRL(parametros.valorKwh)}
+            <Text style={styles.subtitle}>
+              Prevenção ativa, aumento de geração e proteção do investimento solar.
             </Text>
           </View>
-
-          <View style={styles.scenariosGrid}>
-            <View style={[styles.scenarioItem, styles.scenarioItemDestaque]}>
-              <Text style={styles.scenarioLabel}>Ativo Protegido (Mês)</Text>
-              <Text style={styles.scenarioValorVerde}>
-                {formatBRL(calculos.valorAtivoProtegido)}
-              </Text>
-            </View>
-            <View style={styles.scenarioItem}>
-              <Text style={styles.scenarioLabel}>Perda 15% ao ano (Sujidade)</Text>
-              <Text style={styles.scenarioValor}>{formatBRL(calculos.perda15Ano)}</Text>
-            </View>
-            <View style={styles.scenarioItem}>
-              <Text style={styles.scenarioLabel}>Perda 20% ao ano (Sem Prev.)</Text>
-              <Text style={styles.scenarioValor}>{formatBRL(calculos.perda20Ano)}</Text>
-            </View>
-            <View style={[styles.scenarioItem, styles.scenarioItemPerigo]}>
-              <Text style={styles.scenarioLabel}>Prejuízo 30 dias (Falha)</Text>
-              <Text style={styles.scenarioValorVermelho}>{formatBRL(calculos.prejuizo30Dias)}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.scenarioNota}>
-            * Prejuízo por 20 dias de falha ou inversor desarmado sem alerta de monitoramento:{' '}
-            <Text style={styles.bold}>{formatBRL(calculos.prejuizo20Dias)}</Text>. Um plano de
-            O&amp;M se paga integralmente ao evitar apenas alguns dias de perda de geração ao ano.
-          </Text>
-        </View>
-
-        {/* 3. PLANOS DE GESTÃO E MANUTENÇÃO (Contrato Anual) (Cards com wrap={false}) */}
-        <View wrap={false}>
-          <View style={styles.secaoTituloRow}>
-            <Text style={styles.secaoTitulo}>PLANOS DE GESTÃO E MANUTENÇÃO (Contrato Anual)</Text>
-            <View style={styles.secaoBadgePlanos}>
-              <Text style={styles.secaoBadgePlanosText}>3 Modalidades Inclusas</Text>
-            </View>
-          </View>
-
-          <View style={styles.planCardsGrid}>
-            {/* Card 1: Plano Essencial */}
-            <View style={styles.planCard}>
-              <Text style={styles.planNome}>Plano Essencial</Text>
-              <Text style={styles.planPreco}>
-                {formatBRL(calculos.planos.Essencial.mensal)}
-                <Text style={styles.planPrecoUnidade}>/mês</Text>
-              </Text>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Monitoramento comercial</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Relatório mensal analítico</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Suporte técnico e RGE</Text>
-              </View>
-            </View>
-
-            {/* Card 2: Plano Inspeção */}
-            <View style={styles.planCard}>
-              <Text style={styles.planNome}>Plano Inspeção</Text>
-              <Text style={styles.planPreco}>
-                {formatBRL(calculos.planos.Inspeção.mensal)}
-                <Text style={styles.planPrecoUnidade}>/mês</Text>
-              </Text>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Tudo do plano Essencial</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>1x Inspeção preventiva anual</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>1x Limpeza de placas anual</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Reaperto geral de conexões</Text>
-              </View>
-            </View>
-
-            {/* Card 3: Plano Completo (Recomendado Delfos) */}
-            <View style={styles.planCardRec}>
-              <View style={styles.planBadgeRec}>
-                <Text style={styles.planBadgeRecText}>RECOMENDADO DELFOS</Text>
-              </View>
-              <Text style={styles.planNome}>Plano Completo</Text>
-              <Text style={styles.planPreco}>
-                {formatBRL(calculos.planos.Completo.mensal)}
-                <Text style={styles.planPrecoUnidade}>/mês</Text>
-              </Text>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Tudo do plano Inspeção</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>2x Limpezas de placas ao ano</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Verificação semestral de anomalias</Text>
-              </View>
-              <View style={styles.planBulletItem}>
-                <Text style={styles.planBulletDot}>•</Text>
-                <Text style={styles.planBulletTexto}>Suporte técnico limitado VIP</Text>
-              </View>
-            </View>
+          <View style={styles.meta}>
+            <Text style={styles.badge}>{conteudo.secao1.badgeEmissao}</Text>
+            <Text style={styles.metaText}>
+              Proposta nº {dados.referenciaProposta || 'Em elaboração'}
+            </Text>
+            <Text style={styles.metaText}>Emissão: {formatDate(dataDate)}</Text>
+            <Text style={styles.metaText}>Válida até: {formatDate(dataValidade)}</Text>
+            {dados.autor ? <Text style={styles.metaText}>Elaborado por: {dados.autor}</Text> : null}
           </View>
         </View>
 
-        {/* 4. CONDIÇÕES GERAIS E VIGÊNCIA (wrap={false}) */}
-        <View style={styles.condicoesBox} wrap={false}>
-          <Text style={styles.condicoesTitulo}>Condições Gerais e Vigência:</Text>
-          <Text style={styles.condicoesItem}>
-            • <Text style={styles.bold}>Escolha flexível:</Text> O cliente escolhe livremente a
-            modalidade mais adequada após a apresentação dos cenários de proteção.
-          </Text>
-          <Text style={styles.condicoesItem}>
-            • <Text style={styles.bold}>Vigência contratual:</Text> 12 meses renováveis, garantindo
-            atendimento contínuo, preventivo e laudos periódicos da usina.
-          </Text>
-          <Text style={styles.condicoesItem}>
-            • <Text style={styles.bold}>Forma de pagamento:</Text> Mensalidades via boleto bancário
-            ou PIX corporativo Delfos Engenharia.
-          </Text>
-          <Text style={styles.condicoesItem}>
-            • <Text style={styles.bold}>Equipe técnica qualificada:</Text> Técnicos certificados
-            NR-10 e NR-35 com equipamentos e instrumentos calibrados.
-          </Text>
-          <Text style={styles.condicoesItem}>
-            • <Text style={styles.bold}>Garantia de segurança:</Text> Produtos específicos e água
-            desmineralizada/filtrada homologados, preservando as garantias dos fabricantes.
-          </Text>
+        <View style={styles.section}>
+          {heading(1, conteudo.secao1.titulo, conteudo.secao1.subtitulo)}
+          <View style={styles.cards}>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Dados do Cliente</Text>
+              {info('Razão social:', cliente.nome)}
+              {info('CPF/CNPJ:', cliente.cpfOuCnpj)}
+              {info('Município:', cliente.municipio || tecnico.municipio)}
+              {info('Endereço:', cliente.endereco)}
+              {info('Telefone:', cliente.telefone)}
+              {info('E-mail:', cliente.email)}
+            </View>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Dados Técnicos da Usina</Text>
+              {info(
+                'Potência:',
+                `${(Number(tecnico.potenciaKwp) || 0).toLocaleString('pt-BR')} kWp`,
+                true,
+              )}
+              {info(
+                'Geração estimada:',
+                `${(Number(tecnico.geracaoMediaKwh) || 0).toLocaleString('pt-BR')} kWh/mês`,
+              )}
+              {info('Inversor:', tecnico.marcaInversores)}
+              {info(
+                'Módulos:',
+                tecnico.numeroModulos ? `${tecnico.numeroModulos} unidades` : 'Conforme projeto',
+              )}
+              {info('Instalação:', tecnico.tipoInstalacao)}
+              {info('Tarifa base:', `${money(parametros.valorKwh)} / kWh`, true)}
+            </View>
+          </View>
+          <View style={styles.highlight}>
+            <Text style={styles.highlightText}>
+              {conteudo.secao1.cardAnualDestaquePrefixo}{' '}
+              <Text style={styles.highlightValue}>{money(valorAnualBruto)}/ano</Text>{' '}
+              {conteudo.secao1.cardAnualDestaqueSufixo}
+            </Text>
+            <Text style={styles.highlightText}>
+              Base estimada: {geracaoAnual.toLocaleString('pt-BR')} kWh/ano ×{' '}
+              {money(parametros.valorKwh)}/kWh.
+            </Text>
+          </View>
         </View>
 
-        {/* Observações Complementares (quando informadas) */}
-        {observacoesAdicionais && (
-          <View style={styles.observacoesBox} wrap={false}>
-            <Text style={styles.observacoesTitulo}>Observações Complementares:</Text>
-            <Text style={styles.observacoesTexto}>{observacoesAdicionais}</Text>
-          </View>
-        )}
-
-        {/* Rodapé Oficial conforme modelo anexo:
-            Faixa cinza clara com as informações centradas em duas linhas:
-            Linha 1: logo pequena Delfos + Delfos Engenharia Solar | CNPJ 21.379.952/0001-38 • (54) 99129-2121 • www.delfos.eng.br
-            Linha 2: Rua Espírito Santo, 275 – Centro, Erechim/RS
-            Abaixo: Proposta válida por 5 dias. (em verde escuro) */}
-        <View style={styles.footerContainer} wrap={false}>
-          <View style={styles.footerStrip}>
-            {/* Linha 1 */}
-            <View style={styles.footerLinha1}>
-              <Image src={logoDelfosCorreta} style={styles.footerLogoSmall} />
-              <Text style={styles.footerTextoEmpresa}>Delfos Engenharia Solar</Text>
-              <Text style={styles.footerTextoDivisor}>|</Text>
-              <Text style={styles.footerTextoDados}>CNPJ 21.379.952/0001-38</Text>
-              <Text style={styles.footerTextoDivisor}>•</Text>
-              <Text style={styles.footerTextoDados}>☎ (54) 99129-2121</Text>
-              <Text style={styles.footerTextoDivisor}>•</Text>
-              <Text style={styles.footerTextoLink}>🌐 www.delfos.eng.br</Text>
+        <View style={styles.section}>
+          {heading(2, conteudo.secao2.titulo, conteudo.secao2.subtitulo)}
+          <View style={styles.scenarios}>
+            <View style={styles.scenarioCard}>
+              <Text style={styles.scenarioLabel}>{conteudo.secao2.tituloCardPerda20}</Text>
+              <Text style={styles.scenarioValue}>{money(calculos.prejuizo20Dias)}</Text>
+              <Text style={styles.scenarioLabel}>{conteudo.secao2.subtituloCardPerda20}</Text>
             </View>
-
-            {/* Linha 2 */}
-            <View style={styles.footerLinha2}>
-              <Text style={styles.footerEndereco}>
-                📍 Rua Espírito Santo, 275 – Centro, Erechim/RS
+            <View style={[styles.scenarioCard, styles.scenarioDanger]}>
+              <Text style={[styles.scenarioLabel, { color: '#991b1b' }]}>
+                {conteudo.secao2.tituloCardFalha30}
+              </Text>
+              <Text style={[styles.scenarioValue, styles.dangerValue]}>
+                {money(calculos.prejuizo30Dias)}
+              </Text>
+              <Text style={[styles.scenarioLabel, { color: '#991b1b' }]}>
+                {conteudo.secao2.subtituloCardFalha30}
               </Text>
             </View>
+          </View>
+          <View style={styles.noteBox}>
+            <Text style={styles.note}>{conteudo.secao2.textoRiscoGarantia}</Text>
+            <Text style={styles.note}>{conteudo.secao2.textoEvidenciaSujidade}</Text>
+            <Text style={[styles.note, { color: '#047857' }]}>
+              {conteudo.secao2.fonteEvidenciaSujidade}
+            </Text>
+          </View>
+        </View>
 
-            {/* Linha 3: Proposta válida por 5 dias. */}
-            <Text style={styles.footerValidade}>Proposta válida por 5 dias.</Text>
+        <View style={styles.section}>
+          {heading(3, conteudo.secao4.titulo, 'Escolha a modalidade ideal para sua usina')}
+          <View style={styles.planGrid}>
+            {planoKeys.map((plano) => {
+              const dadosPlano = getPlan(plano.key)
+              const selecionado = planoAtivo === plano.key
+              return (
+                <View
+                  key={plano.key}
+                  style={[styles.planCard, ...(plano.recommended ? [styles.planRecommended] : [])]}
+                  wrap={false}
+                >
+                  {plano.recommended ? (
+                    <Text style={styles.recommendedBadge}>{conteudo.secao4.seloRecomendado}</Text>
+                  ) : null}
+                  <Text style={styles.planName}>Plano {plano.key}</Text>
+                  <Text style={styles.planPrice}>{money(dadosPlano?.mensal)} /mês</Text>
+                  <Text style={styles.planAnnual}>
+                    Investimento anual: {money(dadosPlano?.anual)}
+                  </Text>
+                  {benefitsWithModules(plano.benefits).map((beneficio, idx) => (
+                    <View key={`${plano.key}-${idx}`} style={styles.bulletRow}>
+                      <Text style={styles.bullet}>✓</Text>
+                      <Text style={styles.bulletText}>{beneficio}</Text>
+                    </View>
+                  ))}
+                  {selecionado ? (
+                    <Text style={styles.selectedPlan}>Plano selecionado ✓</Text>
+                  ) : null}
+                </View>
+              )
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          {heading(4, conteudo.secaoEscopoTecnico.titulo, conteudo.secaoEscopoTecnico.subtitulo)}
+          <View style={styles.listBox}>
+            {conteudo.secaoEscopoTecnico.itens.map((item) => (
+              <View key={item.id} style={styles.listRow}>
+                <Text style={styles.listBullet}>✓</Text>
+                <Text style={styles.listText}>{item.texto}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          {heading(5, conteudo.secao5.titulo)}
+          <View style={styles.trustGrid}>
+            {conteudo.secao5.itens.map((item: ConteudoOMSecao5Item) => (
+              <View key={item.id} style={styles.trustCard}>
+                <Text style={styles.trustTitle}>{item.titulo}</Text>
+                <Text style={styles.trustText}>{item.descricao}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          {heading(6, conteudo.secao7.titulo)}
+          <View style={styles.listBox}>
+            {conteudo.secao7.itens.map((item) => (
+              <View key={item.id} style={styles.conditionRow}>
+                <Text style={styles.listBullet}>•</Text>
+                <Text style={styles.conditionText}>
+                  <Text style={styles.conditionTitle}>{item.titulo}: </Text>
+                  {item.descricao}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          {heading(7, conteudo.secao8.titulo, 'Seleção do plano e aceite preliminar')}
+          <View style={styles.stepsGrid}>
+            {conteudo.secao8.passos.map((passo) => (
+              <View key={passo.numero} style={styles.stepCard}>
+                <Text style={styles.stepTitle}>
+                  {passo.numero}. {passo.titulo}
+                </Text>
+                <Text style={styles.stepText}>{passo.descricao}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.acceptance}>
+            <View style={styles.acceptanceSummary}>
+              <Text style={styles.conditionText}>Plano selecionado: Plano {planoAtivo}</Text>
+              <Text style={styles.conditionTitle}>
+                {money(getPlan(planoAtivo)?.mensal)}/mês • {money(getPlan(planoAtivo)?.anual)}/ano
+              </Text>
+            </View>
+            <Text style={styles.acceptanceText}>{conteudo.secao8.textoTermoAceite}</Text>
+            <Text style={styles.acceptanceText}>{conteudo.secao8.termoAutorizacao}</Text>
+            <View style={styles.signatureGrid}>
+              <View style={styles.signature}>
+                <Text style={styles.signatureName}>{cliente.nome}</Text>
+                <Text style={styles.signatureRole}>Responsável • CPF • Data</Text>
+              </View>
+              <View style={styles.signature}>
+                <Text style={styles.signatureName}>DELFOS ENGENHARIA SOLAR</Text>
+                <Text style={styles.signatureRole}>
+                  {conteudo.secao8.responsavelDelfosCargo} • CNPJ {conteudo.secao8.cnpjDelfos}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {observacoesAdicionais ? (
+          <View style={styles.noteBox}>
+            <Text style={styles.conditionTitle}>Observações comerciais</Text>
+            <Text style={styles.note}>{observacoesAdicionais}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.footer} wrap={false}>
+          <View style={styles.footerBox}>
+            <Text style={styles.footerLine}>
+              <Text style={styles.footerCompany}>{conteudo.rodape.empresaNome}</Text>
+              {'  •  '}CNPJ {conteudo.rodape.cnpj}
+              {'  •  '}
+              {conteudo.rodape.telefone}
+              {'  •  '}
+              {conteudo.rodape.site}
+            </Text>
+            <Text style={styles.footerLine}>{conteudo.rodape.endereco}</Text>
+            <Text style={styles.footerValidity}>
+              {conteudo.rodape.textoValidade} Válida até {formatDate(dataValidade)}.
+            </Text>
           </View>
         </View>
       </Page>

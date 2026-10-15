@@ -1,14 +1,14 @@
 /**
  * Definições de tipo, textos e valores padrão para o conteúdo editável da Proposta O&M.
- * Segue a estrutura fiel das 8 seções do documento de referência oficial da Delfos Solar:
- * 1. Dados Gerais e Identificação Técnica
- * 2. Cenários de Exposição Financeira
- * 3. Qual Plano Elimina Cada Cenário
- * 4. Modalidades de Planos de O&M
- * 5. Padrões Técnicos e Credibilidade
- * 6. Níveis de Serviço (SLA) & Compromissos
- * 7. Condições Contratuais & Vigência
- * 8. Aceite Comercial e Contratação
+ * Segue a estrutura de sete seções aprovada para a proposta O&M:
+ * 1. Dados do Cliente e da Usina
+ * 2. Cenários Financeiros
+ * 3. Modalidades de Planos
+ * 4. Escopo Técnico das Visitas
+ * 5. Credibilidade
+ * 6. Condições
+ * 7. Aceite
+ * Campos legados de uma versão anterior são mantidos para não apagar propostas antigas.
  */
 
 export interface ConteudoOMSecao1 {
@@ -168,22 +168,23 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
     },
     secao2: {
       titulo: 'Cenários de Exposição Financeira',
-      subtitulo: 'O que acontece com a sua usina sem manutenção adequada',
-      tituloCardAtivo: 'Ativo Protegido',
-      subtituloCardAtivo: 'Geração Plena Preservada',
-      tituloCardPerda15: 'Perda 15% ao ano',
-      subtituloCardPerda15: 'Impacto de Sujidade',
-      tituloCardPerda20: 'Sujidade acumulada',
-      subtituloCardPerda20: '20% de geração perdida por ano',
-      tituloCardFalha30: 'Falha não detectada',
-      subtituloCardFalha30: '30 dias sem funcionamento da usina',
+      subtitulo:
+        'Estimativas da energia que pode deixar de ser gerada; os resultados variam conforme as condições da usina',
+      tituloCardAtivo: 'Geração mensal estimada',
+      subtituloCardAtivo: 'Valor bruto da energia, não representa lucro',
+      tituloCardPerda15: 'Valor estimado de 20 dias de geração',
+      subtituloCardPerda15: 'Estimativa desta usina, com base na geração média mensal',
+      tituloCardPerda20: 'Valor estimado de 20 dias de geração',
+      subtituloCardPerda20: 'Cálculo: geração mensal × tarifa ÷ 30 × 20; varia por usina',
+      tituloCardFalha30: 'Valor estimado de 30 dias de geração',
+      subtituloCardFalha30: 'Cálculo: geração mensal × tarifa; varia por usina',
       avisoRiscoOculto: '',
       textoRiscoGarantia:
-        'Sujidade não representa apenas perda de geração. Conforme as condições de cada fabricante, a manutenção adequada e documentada pode ser relevante para a cobertura de garantia dos módulos.',
+        'A manutenção adequada e documentada pode ser relevante para demonstrar o atendimento às condições de garantia dos fabricantes. Consulte sempre os termos aplicáveis ao equipamento instalado.',
       textoEvidenciaSujidade:
-        'Em uma usina do IFMG Betim, um estudo estimou perdas de geração por sujidade de até 22,25%. Os resultados variam conforme o período de deposição e a ocorrência de chuvas.',
+        'Estudo publicado em 2021 estimou perdas por sujidade de até 22,25% em Betim e 56,86% em Congonhas. São resultados observados em locais e condições específicas; não são previsão para esta usina e variam conforme local, período de deposição, chuva e operação.',
       fonteEvidenciaSujidade:
-        'Fonte: SciELO — Operação e manutenção de sistemas fotovoltaicos conectados à rede: inspeção termográfica e limpeza de módulos FV (2021).',
+        'Fonte: SciELO (2021), Operação e manutenção de sistemas fotovoltaicos conectados à rede: inspeção termográfica e limpeza de módulos FV.',
     },
     secao3: {
       titulo: 'Qual Plano Elimina Cada Cenário',
@@ -316,8 +317,7 @@ export function getConteudoPropostaOMDefaults(): ConteudoPropostaOM {
         {
           id: 'cond-2',
           titulo: 'Condições de Pagamento',
-          descricao:
-            'Pagamento via boleto bancário ou PIX corporativo, com vencimento programado.',
+          descricao: 'Pagamento via boleto bancário ou PIX corporativo, com vencimento programado.',
         },
         {
           id: 'cond-3',
@@ -451,22 +451,52 @@ export function normalizarConteudoPropostaOM(
     secao2: {
       ...padrao.secao2,
       ...secao2Salva,
-      tituloCardPerda20:
-        secao2Salva.tituloCardPerda20 === 'Perda 20% ao ano'
-          ? padrao.secao2.tituloCardPerda20
-          : secao2Salva.tituloCardPerda20 || padrao.secao2.tituloCardPerda20,
-      subtituloCardPerda20:
-        secao2Salva.subtituloCardPerda20 === 'Operação Sem Prevenção'
-          ? padrao.secao2.subtituloCardPerda20
-          : secao2Salva.subtituloCardPerda20 || padrao.secao2.subtituloCardPerda20,
-      tituloCardFalha30:
-        secao2Salva.tituloCardFalha30 === 'Prejuízo 30 dias'
-          ? padrao.secao2.tituloCardFalha30
-          : secao2Salva.tituloCardFalha30 || padrao.secao2.tituloCardFalha30,
-      subtituloCardFalha30:
-        secao2Salva.subtituloCardFalha30 === 'Falha Grave Sem Alerta'
-          ? padrao.secao2.subtituloCardFalha30
-          : secao2Salva.subtituloCardFalha30 || padrao.secao2.subtituloCardFalha30,
+      tituloCardAtivo:
+        secao2Salva.tituloCardAtivo === 'Ativo Protegido'
+          ? padrao.secao2.tituloCardAtivo
+          : secao2Salva.tituloCardAtivo || padrao.secao2.tituloCardAtivo,
+      subtituloCardAtivo:
+        secao2Salva.subtituloCardAtivo === 'Geração Plena Preservada'
+          ? padrao.secao2.subtituloCardAtivo
+          : secao2Salva.subtituloCardAtivo || padrao.secao2.subtituloCardAtivo,
+      tituloCardPerda15: secao2Salva.tituloCardPerda15 || padrao.secao2.tituloCardPerda15,
+      subtituloCardPerda15: secao2Salva.subtituloCardPerda15 || padrao.secao2.subtituloCardPerda15,
+      tituloCardPerda20: ['Perda 20% ao ano', 'Sujidade acumulada'].includes(
+        secao2Salva.tituloCardPerda20,
+      )
+        ? padrao.secao2.tituloCardPerda20
+        : secao2Salva.tituloCardPerda20 || padrao.secao2.tituloCardPerda20,
+      subtituloCardPerda20: ['Operação Sem Prevenção', '20% de geração perdida por ano'].includes(
+        secao2Salva.subtituloCardPerda20,
+      )
+        ? padrao.secao2.subtituloCardPerda20
+        : secao2Salva.subtituloCardPerda20 || padrao.secao2.subtituloCardPerda20,
+      tituloCardFalha30: ['Prejuízo 30 dias', 'Falha não detectada'].includes(
+        secao2Salva.tituloCardFalha30,
+      )
+        ? padrao.secao2.tituloCardFalha30
+        : secao2Salva.tituloCardFalha30 || padrao.secao2.tituloCardFalha30,
+      subtituloCardFalha30: [
+        'Falha Grave Sem Alerta',
+        '30 dias sem funcionamento da usina',
+      ].includes(secao2Salva.subtituloCardFalha30)
+        ? padrao.secao2.subtituloCardFalha30
+        : secao2Salva.subtituloCardFalha30 || padrao.secao2.subtituloCardFalha30,
+      textoRiscoGarantia:
+        secao2Salva.textoRiscoGarantia ===
+        'Sujidade não representa apenas perda de geração. Conforme as condições de cada fabricante, a manutenção adequada e documentada pode ser relevante para a cobertura de garantia dos módulos.'
+          ? padrao.secao2.textoRiscoGarantia
+          : secao2Salva.textoRiscoGarantia || padrao.secao2.textoRiscoGarantia,
+      textoEvidenciaSujidade:
+        secao2Salva.textoEvidenciaSujidade ===
+        'Em uma usina do IFMG Betim, um estudo estimou perdas de geração por sujidade de até 22,25%. Os resultados variam conforme o período de deposição e a ocorrência de chuvas.'
+          ? padrao.secao2.textoEvidenciaSujidade
+          : secao2Salva.textoEvidenciaSujidade || padrao.secao2.textoEvidenciaSujidade,
+      fonteEvidenciaSujidade:
+        secao2Salva.fonteEvidenciaSujidade ===
+        'Fonte: SciELO — Operação e manutenção de sistemas fotovoltaicos conectados à rede: inspeção termográfica e limpeza de módulos FV (2021).'
+          ? padrao.secao2.fonteEvidenciaSujidade
+          : secao2Salva.fonteEvidenciaSujidade || padrao.secao2.fonteEvidenciaSujidade,
     },
     secao3: {
       ...padrao.secao3,
@@ -487,18 +517,12 @@ export function normalizarConteudoPropostaOM(
         : Array.isArray(secao4Salva.beneficiosEssencial)
           ? secao4Salva.beneficiosEssencial
           : padrao.secao4.beneficiosEssencial,
-      beneficiosInspecao: arraysIguais(
-        secao4Salva.beneficiosInspecao,
-        beneficiosLegados.inspecao,
-      )
+      beneficiosInspecao: arraysIguais(secao4Salva.beneficiosInspecao, beneficiosLegados.inspecao)
         ? padrao.secao4.beneficiosInspecao
         : Array.isArray(secao4Salva.beneficiosInspecao)
           ? secao4Salva.beneficiosInspecao
           : padrao.secao4.beneficiosInspecao,
-      beneficiosCompleto: arraysIguais(
-        secao4Salva.beneficiosCompleto,
-        beneficiosLegados.completo,
-      )
+      beneficiosCompleto: arraysIguais(secao4Salva.beneficiosCompleto, beneficiosLegados.completo)
         ? padrao.secao4.beneficiosCompleto
         : Array.isArray(secao4Salva.beneficiosCompleto)
           ? secao4Salva.beneficiosCompleto
@@ -507,19 +531,18 @@ export function normalizarConteudoPropostaOM(
     secao5: {
       ...padrao.secao5,
       ...secao5Salva,
-      itens:
-        arraysIguais(
-          secao5Salva.itens?.map((item: ConteudoOMSecao5Item) => `${item.titulo}|${item.descricao}`),
-          [
-            'Segurança Normativa|Técnicos certificados nas normas regulamentadoras NR-10 (Segurança Elétrica) e NR-35 (Trabalho em Altura).',
-            'Precisão Metrológica|Instrumentos e equipamentos de medição aferidos e calibrados segundo os padrões metrológicos vigentes.',
-            'Química e Água Tratada|Produtos homologados e água desmineralizada/filtrada, preservando integralmente a garantia dos módulos.',
-          ],
-        )
-          ? padrao.secao5.itens
-          : secao5Salva.itens && Array.isArray(secao5Salva.itens) && secao5Salva.itens.length > 0
-            ? secao5Salva.itens
-            : padrao.secao5.itens,
+      itens: arraysIguais(
+        secao5Salva.itens?.map((item: ConteudoOMSecao5Item) => `${item.titulo}|${item.descricao}`),
+        [
+          'Segurança Normativa|Técnicos certificados nas normas regulamentadoras NR-10 (Segurança Elétrica) e NR-35 (Trabalho em Altura).',
+          'Precisão Metrológica|Instrumentos e equipamentos de medição aferidos e calibrados segundo os padrões metrológicos vigentes.',
+          'Química e Água Tratada|Produtos homologados e água desmineralizada/filtrada, preservando integralmente a garantia dos módulos.',
+        ],
+      )
+        ? padrao.secao5.itens
+        : secao5Salva.itens && Array.isArray(secao5Salva.itens) && secao5Salva.itens.length > 0
+          ? secao5Salva.itens
+          : padrao.secao5.itens,
     },
     secao6: {
       ...padrao.secao6,
@@ -533,7 +556,9 @@ export function normalizarConteudoPropostaOM(
       ...padrao.secao7,
       ...secao7Salva,
       itens: arraysIguais(
-        secao7Salva.itens?.map((item: ConteudoOMSecao7Item) => `${item.id}|${item.titulo}|${item.descricao}`),
+        secao7Salva.itens?.map(
+          (item: ConteudoOMSecao7Item) => `${item.id}|${item.titulo}|${item.descricao}`,
+        ),
         itensCondicaoLegados.map((item) => `${item.id}|${item.titulo}|${item.descricao}`),
       )
         ? padrao.secao7.itens
