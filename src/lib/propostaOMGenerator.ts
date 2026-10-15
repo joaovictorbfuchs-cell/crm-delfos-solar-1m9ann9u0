@@ -6,6 +6,7 @@ import {
   type PlanoOMChave,
   type ValoresCalculadosPlanoOM,
 } from '@/lib/planosOM'
+import { normalizarConteudoPropostaOM, type ConteudoPropostaOM } from '@/lib/conteudoPropostaOM'
 
 export interface PropostaCalculos {
   valorAtivoProtegido: number
@@ -742,13 +743,17 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
           </tr>
         </thead>
         <tbody>
-          ${c.secao3.linhas.map((l: any) => `
+          ${c.secao3.linhas
+            .map(
+              (l: any) => `
             <tr>
               <td class="col-cenario"><strong>${l.cenario}</strong></td>
               <td style="text-align:center;"><span class="selo-tabela">${l.planoSelo}</span></td>
               <td class="col-cobertura">${l.cobertura}</td>
             </tr>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </tbody>
       </table>
     </div>
@@ -826,12 +831,16 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </div>
 
       <div class="grid-padroes grid-3-boxes">
-        ${c.secao5.itens.map((it: any) => `
+        ${c.secao5.itens
+          .map(
+            (it: any) => `
           <div class="card-padrao item-box">
             <h4 class="item-box-title">🛡️ ${it.titulo}</h4>
             <p class="item-box-desc">${it.descricao}</p>
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
     </div>
 
@@ -843,12 +852,16 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </div>
 
       <div class="grid-sla grid-3-boxes">
-        ${c.secao6.itens.map((it: any) => `
+        ${c.secao6.itens
+          .map(
+            (it: any) => `
           <div class="card-sla item-box">
             <h4 class="item-box-title">⏱️ ${it.titulo}</h4>
             <p class="item-box-desc">${it.descricao}</p>
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
     </div>
 
@@ -861,11 +874,15 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
 
       <div class="terms-box">
         <ul class="lista-condicoes">
-          ${c.secao7.itens.map((it: any) => `
+          ${c.secao7.itens
+            .map(
+              (it: any) => `
             <li class="item-condicao">
               <strong>${it.titulo}:</strong> <span class="desc">${it.descricao}</span>
             </li>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </ul>
       </div>
     </div>
@@ -878,13 +895,17 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </div>
 
       <div class="grid-passos aceite-steps">
-        ${c.secao8.passos.map((p: any) => `
+        ${c.secao8.passos
+          .map(
+            (p: any) => `
           <div class="passo-item step-box">
             <div class="step-num">Passo ${p.numero}</div>
             <strong class="step-title">${p.titulo}</strong>
             <p class="step-desc">${p.descricao}</p>
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
 
       <div class="aceite-card">
@@ -927,18 +948,7 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
         </div>
       </div>
     </div>
-  </div>
-</body>
-</html>`
-}
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <title>Proposta O&M - Delfos Solar - ${cliente.nome}</title>
-  <style>
-    @page {
-      size: A4 portrait;
-      margin: 12mm 14mm 12mm 14mm;
+
     }
     * {
       box-sizing: border-box;
