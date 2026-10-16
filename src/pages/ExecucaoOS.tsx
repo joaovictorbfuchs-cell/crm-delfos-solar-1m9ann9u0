@@ -243,33 +243,76 @@ function ExecucaoOSContent() {
         const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
 
         // Filtro OR para as atividades de manutenção/campo (100% aditivo)
+        // Timeout de segurança (AbortController, 9s) para isolar completamente o carregamento
+        // e JAMAIS propagar rejeição ou lentidão para o ErrorBoundary.
+        const abortController = new AbortController()
+        const timeoutId = setTimeout(() => {
+          abortController.abort()
+        }, 9000)
+
+        const withTimeoutSeguro = async <T,>(
+          promiseFn: () => Promise<T>,
+          fallbackVal: T,
+          nomeLog: string,
+        ): Promise<T> => {
+          try {
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              const onAbort = () => reject(new Error(`Timeout na consulta ${nomeLog}`))
+              if (abortController.signal.aborted) {
+                onAbort()
+              } else {
+                abortController.signal.addEventListener('abort', onAbort, { once: true })
+              }
+            })
+            return await Promise.race([promiseFn(), timeoutPromise])
+          } catch (err) {
+            if (isAuthSessionError(err)) throw err
+            console.warn(`[ExecucaoOS] Erro ou timeout capturado em ${nomeLog}:`, err)
+            return fallbackVal
+          }
+        }
+
+        // Filtro OR para as atividades de manutenção/campo (100% aditivo)
         const filterAtividades =
           "(tipo='limpeza_manutencao' || tipo='limpeza' || tipo='manutencao_preventiva' || tipo='manutencao_corretiva' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger' || tipo='custom')"
 
         // Se for perfil instalador, a coleção `users` esbarra nas regras de acesso (não-admin).
         // Portanto, para instalador NÃO expandimos responsavel_id nem fornecedor_id.
-        // Apenas 'cliente_id,usina_id,tipo_custom_id'. Admin/comercial mantêm o expand completo.
-        const podeExpandirFornecedor = isAdmin || (userProfile?.role as string) === 'comercial'
+        // Apenas 'cliente_id,usina_id,tipo_custom_id'.
+        // Para admin/outros: sem expand de fornecedor_id (pesado e não usado na listagem).
         const expandAtividades = isInstalador
           ? 'cliente_id,usina_id,tipo_custom_id'
-          : podeExpandirFornecedor
-            ? 'cliente_id,usina_id,responsavel_id,fornecedor_id,tipo_custom_id'
-            : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
+          : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
 
-        const osPromise = fetchOrdensServico(undefined, responsavelFiltro, isInstalador).catch(
-          (err) => {
-            if (isAuthSessionError(err)) throw err
-            console.warn('Erro ao carregar ordens de serviço (isolado):', err)
-            return []
-          },
+        // Projeção mínima idêntica ao item 1 (sem campos pesados: checklist, fotos, retornos_rge, cronograma)
+        const fieldsAtividades = isInstalador
+          ? 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
+          : 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.responsavel_id.id,expand.responsavel_id.name,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
+
+        const osPromise = withTimeoutSeguro(
+          () => fetchOrdensServico(undefined, responsavelFiltro, isInstalador),
+          [] as OrdemServico[],
+          'fetchOrdensServico',
         )
 
         const carregarAtividadesSeguro = async () => {
+          const col = pb.collection('atividades') as any
           try {
-            return await pb.collection('atividades').getFullList({
+            if (typeof col.getList === 'function') {
+              const res = await col.getList(1, 100, {
+                filter: filterAtividades,
+                sort: '-data,-created',
+                expand: expandAtividades,
+                fields: fieldsAtividades,
+                requestKey: null,
+              })
+              return res.items || []
+            }
+            return await col.getFullList({
               filter: filterAtividades,
               sort: '-data,-created',
               expand: expandAtividades,
+              fields: fieldsAtividades,
               requestKey: null,
             })
           } catch (errAtv: any) {
@@ -283,38 +326,39 @@ function ExecucaoOSContent() {
                 'carregarAtividades: falha com expand, refazendo com cliente_id,usina_id,tipo_custom_id:',
                 errAtv?.message,
               )
-              return await pb.collection('atividades').getFullList({
-                filter: filterAtividades,
-                sort: '-data,-created',
-                expand: 'cliente_id,usina_id,tipo_custom_id',
-                requestKey: null,
-              })
+              return await pb
+                .collection('atividades')
+                .getList(1, 100, {
+                  filter: filterAtividades,
+                  sort: '-data,-created',
+                  expand: 'cliente_id,usina_id,tipo_custom_id',
+                  fields: fieldsAtividades,
+                  requestKey: null,
+                })
+                .then((r: any) => r.items || [])
+                .catch(() => [])
             }
             throw errAtv
           }
         }
 
-        const atividadesPromise = carregarAtividadesSeguro().catch((err) => {
-          if (isAuthSessionError(err)) throw err
-          console.warn('Erro ao carregar atividades de campo (isolado):', err)
-          return []
-        })
+        const atividadesPromise = withTimeoutSeguro(
+          carregarAtividadesSeguro,
+          [],
+          'carregarAtividadesSeguro',
+        )
 
-        const instaladoresPromise = (
-          isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([])
-        ).catch((err) => {
-          if (isAuthSessionError(err)) throw err
-          console.warn('Erro ao carregar instaladores ativos (isolado):', err)
-          return []
-        })
+        const instaladoresPromise = withTimeoutSeguro(
+          () => (isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([])),
+          [],
+          'fetchInstaladoresAtivos',
+        )
 
-        const profissionaisPromise = (
-          fetchProfissionais ? fetchProfissionais() : Promise.resolve([])
-        ).catch((err) => {
-          if (isAuthSessionError(err)) throw err
-          console.warn('Erro ao carregar profissionais (isolado):', err)
-          return []
-        })
+        const profissionaisPromise = withTimeoutSeguro(
+          () => (fetchProfissionais ? fetchProfissionais() : Promise.resolve([])),
+          [],
+          'fetchProfissionais',
+        )
 
         const promises = [
           osPromise,
@@ -323,7 +367,20 @@ function ExecucaoOSContent() {
           profissionaisPromise,
         ] as const
 
-        const [osList, atividadesList, instList, profList] = await Promise.all(promises)
+        let osList: any[] = []
+        let atividadesList: any[] = []
+        let instList: any[] = []
+        let profList: any[] = []
+
+        try {
+          const results = await Promise.all(promises)
+          osList = results[0]
+          atividadesList = results[1]
+          instList = results[2]
+          profList = results[3]
+        } finally {
+          clearTimeout(timeoutId)
+        }
 
         // Filtragem estrutural das atividades para serviços de campo / calendário:
         // Só devem entrar atividades que precisam ser lembradas ou executadas futuramente (manutenção agendada).

@@ -164,6 +164,9 @@ export function invalidateUsinasCache(): void {
 
 export { mapUsinaToSistema }
 
+export const USINAS_LISTAGEM_FIELDS =
+  'id,cliente_id,nome,cidade,estado,potencia_kwp,qtd_modulos,geracao_estimada_kwh,status,contrato_id,numero_uc,created,updated,expand.contrato_id.id,expand.contrato_id.status,expand.contrato_id.numero_contrato,expand.contrato_id.plano'
+
 export async function fetchSistemas(): Promise<Sistema[]> {
   const now = Date.now()
   if (_cachedSistemas && now - _cachedSistemas.timestamp < USINAS_CACHE_TTL_MS) {
@@ -173,6 +176,8 @@ export async function fetchSistemas(): Promise<Sistema[]> {
   try {
     const usinas = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
       sort: 'created',
+      fields: USINAS_LISTAGEM_FIELDS,
+      expand: 'contrato_id',
       requestKey: 'sistemas-list',
     })
     const mapeados = usinas.map(mapUsinaToSistema)
@@ -215,24 +220,50 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
   )
 }
 
-export async function fetchAtividades(): Promise<Atividade[]> {
+export const ATIVIDADES_LISTAGEM_FIELDS =
+  'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,data,status,responsavel_id,responsavel_nome,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
+
+export async function fetchAtividades(options?: {
+  page?: number
+  perPage?: number
+  fetchAllPages?: boolean
+}): Promise<Atividade[]> {
+  const page = options?.page ?? 1
+  const perPage = options?.perPage ?? 100
+  const fetchAllPages = options?.fetchAllPages ?? false
+
   return withNetworkRetry(
-    () =>
-      pb.collection('atividades').getFullList<Atividade>({
-        sort: '-data',
-        // negocio_id removido do expand: nunca é lido via expand em nenhum
-        // consumidor e era a relação mais custosa da listagem completa.
-        expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
-        // O expand embutia o registro COMPLETO de cada cliente (103 campos,
-        // incluindo historico_consumo_fatura) em cada atividade, gerando um
-        // response tão grande que o servidor não conseguia escrevê-lo
-        // (timeout de 300s). Limitamos o expand aos campos realmente lidos:
-        // cliente_id.nome, usina_id.nome, responsavel_id.name,
-        // fornecedor_id.nome_empresa/contato_nome.
-        fields:
-          '*,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name,expand.fornecedor_id.id,expand.fornecedor_id.nome_empresa,expand.fornecedor_id.contato_nome',
-        requestKey: null,
-      }),
+    async () => {
+      // Se não foi solicitado buscar todas as páginas, busca apenas a página solicitada (100 itens)
+      if (!fetchAllPages) {
+        const result = await pb.collection('atividades').getList<Atividade>(page, perPage, {
+          sort: '-data',
+          expand: 'cliente_id,responsavel_id,usina_id',
+          fields: ATIVIDADES_LISTAGEM_FIELDS,
+          requestKey: null,
+        })
+        return result.items
+      }
+
+      // Se solicitado todas as páginas de forma paginada para retrocompatibilidade
+      const allItems: Atividade[] = []
+      let currentPage = 1
+      let totalPages = 1
+
+      do {
+        const result = await pb.collection('atividades').getList<Atividade>(currentPage, perPage, {
+          sort: '-data',
+          expand: 'cliente_id,responsavel_id,usina_id',
+          fields: ATIVIDADES_LISTAGEM_FIELDS,
+          requestKey: null,
+        })
+        allItems.push(...result.items)
+        totalPages = result.totalPages
+        currentPage++
+      } while (currentPage <= totalPages && currentPage <= 10) // Limite de segurança de 10 páginas (1000 itens)
+
+      return allItems
+    },
     2,
     600,
     'fetchAtividades',
@@ -4478,6 +4509,7 @@ export async function fetchAllUsinas(): Promise<import('@/types/crm').UsinaClien
   try {
     const list = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
       sort: 'cliente_id,created',
+      fields: USINAS_LISTAGEM_FIELDS,
       expand: 'contrato_id',
       requestKey: 'usinas-all-list',
     })

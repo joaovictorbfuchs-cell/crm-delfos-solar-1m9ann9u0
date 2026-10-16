@@ -216,7 +216,38 @@ export async function carregarCentralAtividades(
   clientesMap?: Map<string, Cliente>,
   usinasMap?: Map<string, UsinaCliente>,
 ): Promise<CentralAtividadesData> {
-  // 1. Carregar coleções em paralelo
+  // 1. Carregar coleções em paralelo (atividades otimizadas com getList ou getFullList se mockado, tipos custom em memória)
+  const carregarAtividadesOtimizado = async (): Promise<Atividade[]> => {
+    // Busca paginada (100 por página) com payload enxuto
+    const col = pb.collection('atividades') as any
+    const options = {
+      sort: '-data,-created',
+      fields:
+        'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,categoria_unificada,origem,chave_importacao,registro_original_id,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,valor_servico,numero_uc,protocolo_atendimento,retornos_rge,retorno_rge,prazo_conclusao_rge,created,updated',
+      requestKey: null,
+    }
+
+    if (typeof col.getList === 'function') {
+      try {
+        const firstPage = await col.getList(1, 100, options)
+        const items = [...(firstPage.items || [])]
+        // Se houver mais páginas e totalPages razoável (até 5 páginas / 500 itens)
+        let curr = 2
+        const total = Math.min(firstPage.totalPages || 1, 5)
+        while (curr <= total) {
+          const nextPage = await col.getList(curr, 100, options)
+          items.push(...(nextPage.items || []))
+          curr++
+        }
+        return items
+      } catch {
+        // Fallback para getFullList
+        return await col.getFullList(options)
+      }
+    }
+    return await col.getFullList(options)
+  }
+
   const [
     atividadesRes,
     manutencoesRes,
@@ -226,11 +257,9 @@ export async function carregarCentralAtividades(
     anomaliasOMRes,
     clientesRes,
     usinasRes,
+    tiposCustomRes,
   ] = await Promise.allSettled([
-    pb.collection('atividades').getFullList<Atividade>({
-      sort: '-data,-created',
-      requestKey: null,
-    }),
+    carregarAtividadesOtimizado(),
     pb.collection('manutencoes').getFullList<Manutencao>({
       sort: '-data,-created',
       requestKey: null,
@@ -263,6 +292,16 @@ export async function carregarCentralAtividades(
           fields: 'id,nome,cliente_id',
           requestKey: null,
         }),
+    pb.collection('tipos_atividades_custom').getFullList<{
+      id: string
+      nome: string
+      categoria: string
+      cor?: string
+      icone?: string
+    }>({
+      fields: 'id,nome,categoria,cor,icone',
+      requestKey: null,
+    }),
   ])
 
   // Mapas de resolução rápida de cliente e usina
@@ -278,6 +317,19 @@ export async function carregarCentralAtividades(
     usinasMap.forEach((v, k) => uMap.set(k, v))
   } else if (usinasRes.status === 'fulfilled') {
     usinasRes.value.forEach((u) => uMap.set(u.id, u))
+  }
+
+  // Mapa em memória de tipos customizados de atividade (sem expand relacional aninhado por registro)
+  const tiposCustomMap = new Map<
+    string,
+    { id: string; nome: string; categoria: string; cor?: string; icone?: string }
+  >()
+  if (tiposCustomRes.status === 'fulfilled' && Array.isArray(tiposCustomRes.value)) {
+    tiposCustomRes.value.forEach((tc) => {
+      if (tc && tc.id) {
+        tiposCustomMap.set(tc.id, tc)
+      }
+    })
   }
 
   const items: CentralAtividadeItem[] = []
@@ -346,14 +398,20 @@ export async function carregarCentralAtividades(
       }
 
       let tipoLabel = 'Atividade'
-      if (atv.tipo_unificado) {
+      const customTipo = atv.tipo_custom_id ? tiposCustomMap.get(atv.tipo_custom_id) : undefined
+
+      if (customTipo?.nome) {
+        tipoLabel = customTipo.nome
+      } else if (atv.tipo_unificado) {
         tipoLabel = atv.tipo_unificado
       } else if (atv.tipo) {
         tipoLabel = formatarTipoAtividade(atv.tipo)
       }
 
-      // Determinar categoria unificada oficial
+      // Determinar categoria unificada oficial (respeita mapeamento do tipo_custom_id em memória)
+      const catCustom = customTipo?.categoria as AtividadeCategoriaId | undefined
       const catId =
+        catCustom ||
         (atv.categoria_unificada as AtividadeCategoriaId) ||
         determinarCategoriaAtividade(fonte, atv.tipo, atv.subtipo)
       const catDef = CATEGORIAS_ATIVIDADES.find((c) => c.id === catId)
