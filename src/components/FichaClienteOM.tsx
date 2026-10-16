@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   ShieldCheck,
   CalendarClock,
@@ -36,17 +36,20 @@ import {
 } from '@/lib/formatters'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import { calcularTodosPlanosOM } from '@/lib/planosOM'
-import type { OMPlanoTipo, OMStatusPlano, PropostaOM } from '@/types/crm'
+import type { OMPlanoTipo, OMStatusPlano, PropostaOM, UsinaCliente, ContratoOM } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { BotaoBaixarPropostaOMPDF } from './BotaoBaixarPropostaOMPDF'
 import { InlineEditField } from './InlineEditField'
 import { SecaoContratoUsinas } from './SecaoContratoUsinas'
 import { BlocoDocumentosContratoOM } from './BlocoDocumentosContratoOM'
+import { fetchUsinasByClienteId, updateUsina } from '@/services/crmService'
+import { vincularUsinaAoContrato } from '@/services/contratosUsinasService'
 import { toast } from 'sonner'
 
 interface FichaClienteOMProps {
   clienteId: string
+  usinasDoCliente?: UsinaCliente[]
   onNavigateToTab?: (tab: 'historico' | 'projeto' | 'om' | 'usinas' | 'whatsapp') => void
   onDispararGerarContrato?: (
     proposta?: PropostaOM | null,
@@ -59,6 +62,7 @@ interface FichaClienteOMProps {
 
 export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
   clienteId,
+  usinasDoCliente: usinasDoClienteProp,
   onNavigateToTab,
   onDispararGerarContrato,
   onDispararGerarProcuracao,
@@ -298,20 +302,55 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
     return propostaAprovada || propostasCliente[0] || null
   }, [propostaAprovada, propostasCliente])
 
-  const contrato = useMemo(() => {
-    return (
-      todosContratosCliente.find(
-        (c) =>
-          c.status !== 'Encerrado' &&
-          c.status !== 'Cancelado' &&
-          c.status_encerramento !== 'encerrado',
-      ) || null
+  // Carregar usinas do cliente para exibição e vinculação de múltiplos contratos
+  const [usinasLocais, setUsinasLocais] = useState<UsinaCliente[]>([])
+  useEffect(() => {
+    if (usinasDoClienteProp && usinasDoClienteProp.length > 0) {
+      setUsinasLocais(usinasDoClienteProp)
+    } else if (clienteId) {
+      fetchUsinasByClienteId(clienteId).then((res) => setUsinasLocais(res))
+    }
+  }, [clienteId, usinasDoClienteProp])
+
+  // Lista de TODOS os contratos vigentes/ativos do cliente
+  const contratosVigentes = useMemo(() => {
+    return todosContratosCliente.filter(
+      (c) =>
+        c.status !== 'Encerrado' &&
+        c.status !== 'Cancelado' &&
+        c.status_encerramento !== 'encerrado',
     )
   }, [todosContratosCliente])
 
+  // Contrato ativo selecionado/principal
+  const [contratoSelecionadoId, setContratoSelecionadoId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (contratosVigentes.length > 0) {
+      if (
+        !contratoSelecionadoId ||
+        !contratosVigentes.some((c) => c.id === contratoSelecionadoId)
+      ) {
+        setContratoSelecionadoId(contratosVigentes[0].id)
+      }
+    } else {
+      setContratoSelecionadoId(null)
+    }
+  }, [contratosVigentes, contratoSelecionadoId])
+
+  const contrato = useMemo(() => {
+    if (contratosVigentes.length === 0) return null
+    if (contratoSelecionadoId) {
+      const match = contratosVigentes.find((c) => c.id === contratoSelecionadoId)
+      if (match) return match
+    }
+    return contratosVigentes[0]
+  }, [contratosVigentes, contratoSelecionadoId])
+
   const contratosHistorico = useMemo(() => {
-    return todosContratosCliente.filter((c) => c.id !== contrato?.id)
-  }, [todosContratosCliente, contrato?.id])
+    const idsVigentes = new Set(contratosVigentes.map((c) => c.id))
+    return todosContratosCliente.filter((c) => !idsVigentes.has(c.id))
+  }, [todosContratosCliente, contratosVigentes])
 
   if (!cliente) return null
 
@@ -572,6 +611,139 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
 
   return (
     <div className="space-y-5 animate-in fade-in duration-150">
+      {/* BARRA SUPERIOR DE CONTRATOS O&M: Ações e Botão "+ Adicionar Contrato O&M" (100% aditivo) */}
+      <div className="flex items-center justify-between flex-wrap gap-2 p-3 bg-white rounded-2xl border border-gray-200 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
+            <ShieldCheck className="w-4 h-4 text-emerald-700" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900">
+              Contratos O&M ({contratosVigentes.length}{' '}
+              {contratosVigentes.length === 1 ? 'vigente' : 'vigentes'})
+            </h3>
+            <p className="text-[11px] text-gray-500">
+              Gerencie contratos vigentes e crie novos contratos (um por usina ou geral).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botão Oficial: "+ Adicionar Contrato O&M" — SEMPRE visível mesmo com contratos existentes */}
+          <button
+            type="button"
+            onClick={() => setModalContratoOpen(true)}
+            className="px-3.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            title="Adicionar novo contrato O&M (opção de 1 contrato por usina)"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Adicionar Contrato O&M</span>
+          </button>
+
+          {/* Botão de Contratação via Proposta (se houver proposta aprovada/emitida) */}
+          <button
+            type="button"
+            onClick={handleIniciarContratacaoPlano}
+            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-xl shadow-2xs transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            title="Contratar a partir das propostas O&M"
+          >
+            <FileText className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Contratar via Proposta</span>
+          </button>
+
+          {/* Botão de Inserção Manual Rápida */}
+          <button
+            type="button"
+            onClick={() => setModalOferecerPlano(true)}
+            className="px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 text-xs font-medium rounded-xl shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer"
+            title="Inserir manualmente registro direto"
+          >
+            <span>Inserir Manual</span>
+          </button>
+        </div>
+      </div>
+
+      {/* SELETOR DE ABAS/CARDS QUANDO EXISTEM MÚLTIPLOS CONTRATOS VIGENTES */}
+      {contratosVigentes.length > 1 && (
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Contratos Vigentes deste Cliente ({contratosVigentes.length}):</span>
+            </span>
+            <span className="text-[10px] text-slate-500 font-normal">
+              Clique em um contrato para visualizar e editar seus detalhes
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {contratosVigentes.map((cItem, idx) => {
+              const isSel = contrato?.id === cItem.id
+              const dias = calcularDiasRestantesDefensivo(cItem.data_vencimento) ?? 0
+
+              // Identificar usinas vinculadas a este contrato da lista de usinas do cliente
+              const usinasDesteContrato = usinasLocais.filter(
+                (u) => (u as any).contrato_id === cItem.id,
+              )
+              const nomeUsinaVinculada =
+                usinasDesteContrato.length > 0
+                  ? usinasDesteContrato.map((u) => u.nome).join(', ')
+                  : null
+
+              return (
+                <button
+                  key={cItem.id}
+                  type="button"
+                  onClick={() => setContratoSelecionadoId(cItem.id)}
+                  className={`p-3 rounded-xl text-left border transition-all cursor-pointer relative ${
+                    isSel
+                      ? 'bg-white border-emerald-500 ring-2 ring-emerald-500 shadow-xs'
+                      : 'bg-white/80 border-gray-200 hover:border-gray-300 hover:bg-white shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-gray-900">
+                      Contrato #{idx + 1} • {cItem.plano}
+                    </span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase ${
+                        dias < 0
+                          ? 'bg-rose-100 text-rose-800'
+                          : dias <= 30
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                      }`}
+                    >
+                      {dias < 0 ? 'Vencido' : dias <= 30 ? 'Vencendo' : 'Ativo'}
+                    </span>
+                  </div>
+
+                  <div className="text-xs font-extrabold text-emerald-700">
+                    {formatCurrency(cItem.valor_mensal)}/mês
+                  </div>
+
+                  {nomeUsinaVinculada ? (
+                    <div className="text-[10px] text-gray-600 mt-1 truncate">
+                      🏢 <strong>Usina:</strong> {nomeUsinaVinculada}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-gray-400 mt-1">
+                      (Sem usina específica vinculada)
+                    </div>
+                  )}
+
+                  {cItem.data_vencimento && (
+                    <div className="text-[10px] text-gray-400 mt-0.5">
+                      Vence em: {formatDate(cItem.data_vencimento)}
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 2. CONTRATO VIGENTE E STATUS DO PLANO O&M */}
       {!contrato ? (
         <div className="p-6 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 rounded-2xl border-2 border-dashed border-amber-300 space-y-4">
@@ -596,11 +768,20 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
           <div className="flex items-center gap-3 pt-2 border-t border-amber-200/60 flex-wrap">
             <button
               type="button"
-              onClick={handleIniciarContratacaoPlano}
+              onClick={() => setModalContratoOpen(true)}
               className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-2 cursor-pointer"
             >
+              <Plus className="w-4 h-4" />
+              <span>+ Adicionar Contrato O&M</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleIniciarContratacaoPlano}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-2 cursor-pointer"
+            >
               <ShieldCheck className="w-4 h-4" />
-              <span>Contratar Plano O&M</span>
+              <span>Contratar via Proposta O&M</span>
             </button>
 
             {/* Acesso rápido alternativo mantido para flexibilidade operacional */}
@@ -625,7 +806,10 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
-                  Contrato Vigente
+                  Contrato Vigente{' '}
+                  {contratosVigentes.length > 1
+                    ? `(${contratosVigentes.findIndex((c) => c.id === contrato.id) + 1} de ${contratosVigentes.length})`
+                    : ''}
                 </span>
                 <h4 className="text-base font-bold text-gray-900">Plano {planoExibido}</h4>
               </div>
@@ -1241,7 +1425,8 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
           onOpenChange={setModalContratoOpen}
           cliente={cliente}
           propostaOM={propostaAprovada}
-          onDocumentoGerado={async (dados) => {
+          usinasDoCliente={usinasLocais}
+          onDocumentoGerado={async (dados, usinaId) => {
             try {
               const { upsertDocumentoCliente } = await import('@/services/crmService')
               await upsertDocumentoCliente({
@@ -1259,7 +1444,58 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
               console.error('Erro ao salvar documento contrato:', err)
             }
 
-            // Registra a atividade do contrato na linha do tempo
+            // 1. Cria o registro oficial do contrato O&M na base de dados
+            try {
+              const hoje = new Date()
+              const vencimento = new Date()
+              vencimento.setFullYear(vencimento.getFullYear() + 1)
+
+              const novoContrato = await addContratoOM({
+                cliente_id: cliente.id,
+                plano: (dados.planoSelecionado as OMPlanoTipo) || 'Essencial',
+                status: 'Ativo',
+                valor_mensal: dados.valorMensal || 190,
+                valor_anual: dados.valorTotal || (dados.valorMensal || 190) * 12,
+                data_inicio: hoje.toISOString(),
+                data_vencimento: vencimento.toISOString(),
+                servicos_realizados: [],
+                servicos_agendados: [
+                  'Monitoramento da geração em horários comerciais',
+                  'Relatório mensal de desempenho',
+                ],
+                proxima_atividade_titulo: `Inspeção e monitoramento inicial - Plano ${dados.planoSelecionado}`,
+                proxima_atividade_data: new Date(
+                  Date.now() + 15 * 24 * 60 * 60 * 1000,
+                ).toISOString(),
+                observacoes: usinaId ? `Contrato vinculado à usina ID ${usinaId}` : '',
+              })
+
+              // Se uma usina foi selecionada (caso de uso: 1 contrato por usina), vincula N:N e atualiza usina.contrato_id
+              if (usinaId && novoContrato?.id) {
+                try {
+                  await vincularUsinaAoContrato({
+                    contrato_id: novoContrato.id,
+                    usina_id: usinaId,
+                  })
+                } catch (vErr) {
+                  console.warn('Erro ao vincular tabela relacional contratos_usinas:', vErr)
+                }
+                try {
+                  await updateUsina(usinaId, { contrato_id: novoContrato.id })
+                } catch (uErr) {
+                  console.warn('Erro ao atualizar usina.contrato_id:', uErr)
+                }
+              }
+
+              if (novoContrato?.id) {
+                setContratoSelecionadoId(novoContrato.id)
+              }
+              toast.success('Novo Contrato O&M adicionado e ativado com sucesso!')
+            } catch (errContrato) {
+              console.error('Erro ao salvar contrato na coleção contratos_om:', errContrato)
+            }
+
+            // 2. Registra a atividade do contrato na linha do tempo
             try {
               await addAtividade({
                 cliente_id: cliente.id,

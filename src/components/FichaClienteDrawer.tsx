@@ -1587,6 +1587,7 @@ export const FichaClienteDrawer: React.FC = () => {
                 <div className="space-y-4">
                   <FichaClienteOM
                     clienteId={selectedCliente.id}
+                    usinasDoCliente={usinasDoCliente}
                     onNavigateToTab={(tab) => setActiveClientTab(tab)}
                     onDispararGerarContrato={(proposta, plano, valorMensal, valorTotal) => {
                       if (proposta || plano || valorMensal) {
@@ -4184,7 +4185,8 @@ export const FichaClienteDrawer: React.FC = () => {
           propostaOM={propostaOMAprovada}
           initialDados={contratoOMDetalhesDados}
           modoVisualizacaoDireta={modoVisualizacaoContratoDireta}
-          onDocumentoGerado={async (dados) => {
+          usinasDoCliente={usinasDoCliente}
+          onDocumentoGerado={async (dados, usinaId) => {
             try {
               // 1. Salva na coleção documentos_cliente com os dados completos do documento em JSON
               await addOrUpdateDocumentoCliente({
@@ -4216,6 +4218,17 @@ export const FichaClienteDrawer: React.FC = () => {
               })
             } catch {
               /* intentionally ignored */
+            }
+
+            // 3. Se uma usina foi vinculada neste contrato, atualiza o usina.contrato_id
+            if (usinaId) {
+              try {
+                const { updateUsina } = await import('@/services/crmService')
+                await updateUsina(usinaId, { cliente_id: selectedCliente.id })
+                await recarregarUsinas()
+              } catch (uErr) {
+                console.warn('Aviso ao sincronizar usina:', uErr)
+              }
             }
           }}
         />

@@ -32,8 +32,10 @@ import {
   Loader2,
   FileCheck,
   Phone,
+  Factory,
 } from 'lucide-react'
-import type { Cliente, PropostaOM } from '@/types/crm'
+import type { Cliente, PropostaOM, UsinaCliente } from '@/types/crm'
+import { fetchUsinasByClienteId } from '@/services/crmService'
 import {
   type DadosContratoOM,
   type PlanoContratoOM,
@@ -71,7 +73,9 @@ export interface ModalGerarContratoOMProps {
   propostaOM?: PropostaOM | null
   initialDados?: Partial<DadosContratoOM> | null
   modoVisualizacaoDireta?: boolean
-  onDocumentoGerado?: (dados: DadosContratoOM) => void
+  usinasDoCliente?: UsinaCliente[]
+  usinaPreSelecionadaId?: string
+  onDocumentoGerado?: (dados: DadosContratoOM, usinaId?: string | null) => void
 }
 
 export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
@@ -81,6 +85,8 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   propostaOM,
   initialDados,
   modoVisualizacaoDireta = false,
+  usinasDoCliente,
+  usinaPreSelecionadaId,
   onDocumentoGerado,
 }) => {
   // Etapa 1: 'revisao' (formulário com todos os dados preenchidos automaticamente da ficha e editáveis)
@@ -96,6 +102,10 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   const [origemDestino, setOrigemDestino] = useState<OrigemNumeroDestino>('nenhum')
   const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
   const [formEmail, setFormEmail] = useState('')
+
+  // Lista de Usinas do Cliente e Usina Selecionada
+  const [listaUsinas, setListaUsinas] = useState<UsinaCliente[]>([])
+  const [usinaSelecionadaId, setUsinaSelecionadaId] = useState<string>('')
 
   // Dados Técnicos do Sistema
   const [formNumModulos, setFormNumModulos] = useState<number | string>('0')
@@ -114,6 +124,39 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     SERVICOS_ADICIONAIS_PADRAO,
   )
   const [showServicosAdicionaisEdit, setShowServicosAdicionaisEdit] = useState(false)
+
+  // Carregar usinas do cliente quando o modal abrir (se não fornecidas nas props)
+  useEffect(() => {
+    if (!open || !cliente) return
+    let active = true
+
+    if (usinasDoCliente && usinasDoCliente.length > 0) {
+      setListaUsinas(usinasDoCliente)
+      const inicialId =
+        usinaPreSelecionadaId && usinasDoCliente.some((u) => u.id === usinaPreSelecionadaId)
+          ? usinaPreSelecionadaId
+          : usinasDoCliente.length === 1
+            ? usinasDoCliente[0].id
+            : ''
+      setUsinaSelecionadaId(inicialId)
+    } else {
+      fetchUsinasByClienteId(cliente.id).then((res) => {
+        if (!active) return
+        setListaUsinas(res)
+        const inicialId =
+          usinaPreSelecionadaId && res.some((u) => u.id === usinaPreSelecionadaId)
+            ? usinaPreSelecionadaId
+            : res.length === 1
+              ? res[0].id
+              : ''
+        setUsinaSelecionadaId(inicialId)
+      })
+    }
+
+    return () => {
+      active = false
+    }
+  }, [open, cliente, usinasDoCliente, usinaPreSelecionadaId])
 
   // Ao abrir o modal, pré-carrega os dados da ficha do cliente ou initialDados
   useEffect(() => {
@@ -343,8 +386,43 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   const registrarAtividadeEmissao = (dados: DadosContratoOM) => {
     if (!atividadeRegistrada) {
       setAtividadeRegistrada(true)
-      onDocumentoGerado?.(dados)
+      onDocumentoGerado?.(dados, usinaSelecionadaId || null)
     }
+  }
+
+  // Handler de seleção de Usina para auto-preenchimento
+  const handleSelecionarUsina = (usinaId: string) => {
+    setUsinaSelecionadaId(usinaId)
+    if (!usinaId) return
+
+    const usina = listaUsinas.find((u) => u.id === usinaId)
+    if (!usina) return
+
+    // Preenche quantidade de placas
+    const qtdPlacas = usina.quantidade_placas || usina.qtd_modulos
+    if (qtdPlacas) {
+      setFormNumModulos(qtdPlacas)
+    }
+
+    // Preenche inversores
+    const inversores =
+      usina.inversores_info ||
+      [usina.fabricante_inversores, usina.modelo_inversores].filter(Boolean).join(' ')
+    if (inversores) {
+      setFormMarcaInversores(inversores)
+    }
+
+    // Preenche local de instalação
+    if (usina.tipo_estrutura) {
+      setFormLocalInstalacao(usina.tipo_estrutura === 'solo' ? 'Solo' : 'Telhado')
+    }
+
+    // Preenche endereço da usina se houver e for específico
+    if (usina.endereco) {
+      setFormEnderecoInstalacaoDiferente(usina.endereco)
+    }
+
+    toast.info(`Dados técnicos e endereço preenchidos a partir da usina "${usina.nome}".`)
   }
 
   // Avançar para tela de pré-visualização A4
@@ -612,7 +690,7 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
               </div>
             </div>
 
-            {/* Bloco 2: Dados Técnicos do Sistema Fotovoltaico */}
+            {/* Bloco 2: Dados Técnicos do Sistema Fotovoltaico & Vínculo com Usina */}
             <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-3.5">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
                 <div className="flex items-center gap-2">
@@ -623,6 +701,42 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                 </div>
                 <span className="text-[11px] text-gray-400">Parâmetros técnicos da instalação</span>
               </div>
+
+              {/* Seletor de Usina do Cliente (caso de uso: 1 contrato por usina ou vínculo direto) */}
+              {listaUsinas.length > 0 && (
+                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-bold text-emerald-950 flex items-center gap-1.5">
+                      <Factory className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Vincular a uma Usina do Cliente (1 Contrato por Usina)</span>
+                    </Label>
+                    <span className="text-[10px] text-emerald-700 font-medium">
+                      Auto-preenche endereço e equipamentos
+                    </span>
+                  </div>
+                  <select
+                    value={usinaSelecionadaId}
+                    onChange={(e) => handleSelecionarUsina(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-emerald-300 text-xs bg-white text-gray-900 font-semibold focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="">Nenhuma usina específica (contrato geral do cliente)</option>
+                    {listaUsinas.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}{' '}
+                        {u.qtd_modulos || u.quantidade_placas
+                          ? `• ${u.qtd_modulos || u.quantidade_placas} placas`
+                          : ''}{' '}
+                        {u.endereco ? `• ${u.endereco}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {usinaSelecionadaId && (
+                    <p className="text-[10px] text-emerald-800">
+                      ✓ A usina selecionada será vinculada a este contrato O&M na base de dados.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
                 <div>
