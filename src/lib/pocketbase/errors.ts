@@ -20,6 +20,19 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (!(error instanceof ClientResponseError)) return false
+  const status = error.status ?? 0
+  if (status === 401 || status === 403) return true
+  const msg = (error.message || '').toLowerCase()
+  return (
+    msg.includes('sessão expirada') ||
+    msg.includes('session expired') ||
+    msg.includes('autenticação necessária') ||
+    msg.includes('the request requires valid record authorization token')
+  )
+}
+
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
