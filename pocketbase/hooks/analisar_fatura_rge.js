@@ -207,14 +207,8 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
       },
     }
 
-    // Lista de modelos suportados para fallback resiliente
-    // Lista de modelos atualizados suportados pela Gemini API (v1beta)
-    const candidateModels = [
-      'gemini-3.8-flash',
-      'gemini-3.5-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-3.7-flash',
-    ]
+    // Lista de modelos suportados para fallback resiliente (iniciando pelos mais rápidos e disponíveis)
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash']
 
     let geminiResponse = null
     let lastError = null
@@ -234,7 +228,7 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(geminiPayload),
-            timeout: 45,
+            timeout: 25,
           })
 
           if (res.statusCode >= 200 && res.statusCode < 300) {

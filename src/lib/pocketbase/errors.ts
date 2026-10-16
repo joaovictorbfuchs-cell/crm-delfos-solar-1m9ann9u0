@@ -20,45 +20,34 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    const status = Number(
+      errObj.status ||
+        (errObj.response as Record<string, unknown> | undefined)?.status ||
+        errObj.statusCode,
+    )
+    if (status === 401 || status === 403) return true
+    const message = String(errObj.message || '').toLowerCase()
+    if (
+      message.includes('token is expired') ||
+      message.includes('login expirou') ||
+      message.includes('sessão expirada') ||
+      message.includes('failed to authenticate') ||
+      message.includes('autenticação necessária')
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-
-  const anyErr = err as Record<string, unknown>
-  const status = Number(
-    anyErr.status ??
-      anyErr.statusCode ??
-      (anyErr.response && typeof anyErr.response === 'object'
-        ? (anyErr.response as Record<string, unknown>).status
-        : undefined),
-  )
-
-  if (status === 401 || status === 403) return true
-
-  const msg = (
-    anyErr.message ||
-    (anyErr.response && typeof anyErr.response === 'object'
-      ? (anyErr.response as Record<string, unknown>).message
-      : '') ||
-    String(err)
-  )
-    .toString()
-    .toLowerCase()
-
-  return (
-    msg.includes('token is expired') ||
-    msg.includes('token expired') ||
-    msg.includes('login expirou') ||
-    msg.includes('sessão expirada') ||
-    msg.includes('sessao expirada') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('the request requires valid user authorization')
-  )
 }

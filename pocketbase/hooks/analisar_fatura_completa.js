@@ -267,12 +267,7 @@ FORMATO JSON ESPERADO:
       },
     }
 
-    const candidateModels = [
-      'gemini-3.8-flash',
-      'gemini-3.5-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-3.7-flash',
-    ]
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash']
 
     let geminiResponse = null
     let modelUsed = ''
@@ -290,7 +285,7 @@ FORMATO JSON ESPERADO:
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(geminiPayload),
-            timeout: 60,
+            timeout: 25,
           })
 
           if (res.statusCode >= 200 && res.statusCode < 300) {
