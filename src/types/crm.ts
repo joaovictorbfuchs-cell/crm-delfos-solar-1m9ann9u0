@@ -1435,6 +1435,8 @@ export interface PropostaOM extends RecordModel {
   id: string
   collectionId: string
   collectionName: string
+  numero_proposta?: string
+  negocio_id?: string
   cliente_id: string
   plano_escolhido?: OMPlanoTipo | ''
   potencia_kwp: number
@@ -1467,6 +1469,7 @@ export interface PropostaOM extends RecordModel {
   updated: string
   expand?: {
     cliente_id?: Cliente
+    negocio_id?: Negocio
   }
 }
 
