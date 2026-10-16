@@ -25,6 +25,51 @@ describe('Base de Conhecimento & Verificação Crítica Delfos CRM', () => {
     expect(isAuthSessionError({ status: 500, message: 'Server error' })).toBe(false)
   })
 
+  it('lista categorias e artigos pelas coleções canônicas knowledge_categories e knowledge_articles', async () => {
+    const originalCollection = pb.collection.bind(pb)
+    const mockCategories = [
+      { id: 'yic90bj6dns9uzy', titulo: 'Análise de Faturas', icone: 'FileSpreadsheet', ordem: 1 },
+      { id: 'a0n1jaf0vnq8gmh', titulo: 'Suporte Comercial', icone: 'TrendingUp', ordem: 2 },
+      { id: 'sg71ebmr3rjyqhd', titulo: 'Suporte Técnico', icone: 'Wrench', ordem: 3 },
+    ]
+    const mockArticles = [
+      { id: 'art-1', categoria_id: 'yic90bj6dns9uzy', titulo: 'Tarifa RGE', conteudo: 'TUSD + TE' },
+      { id: 'art-2', categoria_id: 'a0n1jaf0vnq8gmh', titulo: 'Vendas', conteudo: 'Objeções' },
+    ]
+
+    const spy = vi.spyOn(pb, 'collection').mockImplementation((colName: string) => {
+      if (colName === 'knowledge_categories') {
+        return {
+          getFullList: vi.fn().mockResolvedValue(mockCategories),
+        } as any
+      }
+      if (colName === 'knowledge_articles') {
+        return {
+          getFullList: vi.fn().mockImplementation((opts?: any) => {
+            if (opts?.fields === 'id,categoria_id') {
+              return Promise.resolve(
+                mockArticles.map((a) => ({ id: a.id, categoria_id: a.categoria_id })),
+              )
+            }
+            return Promise.resolve(mockArticles)
+          }),
+        } as any
+      }
+      return originalCollection(colName)
+    })
+
+    const cats = await listarCategorias()
+    expect(cats.length).toBe(3)
+    expect(cats[0].artigos_count).toBe(1)
+    expect(cats[1].artigos_count).toBe(1)
+    expect(cats[2].artigos_count).toBe(0)
+
+    const arts = await listarArtigos({ categoriaId: 'yic90bj6dns9uzy' })
+    expect(arts.length).toBe(2)
+
+    spy.mockRestore()
+  })
+
   it('monta URLs de anexos da base de conhecimento corretamente', () => {
     const artigo = {
       id: 'art-123',
