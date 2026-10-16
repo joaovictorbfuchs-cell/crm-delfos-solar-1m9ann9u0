@@ -34,6 +34,18 @@ export async function gerarPropostaOMPdfDoPreviewBlobBase64(): Promise<{
 
   const { renderizarHTMLParaPdfBase64 } = await import('@/lib/pdfWhatsAppService')
 
+  // Copia TODOS os stylesheets do app (Tailwind incluído), igual ao botão
+  // Imprimir faz — sem isso o preview perde as classes utilitárias e o PDF
+  // sai desconfigurado.
+  const estilos = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+    .map((elemento) => {
+      if (elemento instanceof HTMLLinkElement) {
+        return `<link rel="stylesheet" href="${elemento.href}" />`
+      }
+      return elemento.outerHTML
+    })
+    .join('\n')
+
   // Clona o DOM do preview fora da árvore para limpar estilos de tela
   // (scroll, sombras, largura) sem alterar o que o usuário está vendo.
   const clone = documento.cloneNode(true) as HTMLElement
@@ -63,6 +75,7 @@ export async function gerarPropostaOMPdfDoPreviewBlobBase64(): Promise<{
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
+${estilos}
 <style>
   @page { size: A4; margin: 0; }
   html, body { margin: 0; padding: 0; background: #fff; }
