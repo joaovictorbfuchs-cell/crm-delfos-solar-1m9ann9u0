@@ -23,6 +23,15 @@ import { PreviewPropostaOMDocumento } from '@/components/PreviewPropostaOMDocume
 import { PainelEdicaoConteudoOM } from '@/components/PainelEdicaoConteudoOM'
 import { sendWhatsAppDocumento, sendWhatsAppMensagem } from '@/services/crmService'
 import { criarLinkPropostaOM } from '@/services/propostaOMPublicaService'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import {
   ConteudoPropostaOM,
@@ -68,6 +77,15 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [isSendingAction, setIsSendingAction] = useState<'link' | 'pdf' | null>(null)
+  const [whatsAppConfirmation, setWhatsAppConfirmation] = useState<null | {
+    type: 'link' | 'pdf'
+    phone: string
+    message: string
+    proposalId: string
+    link?: string
+    base64?: string
+    fileName?: string
+  }>(null)
   const [propostaSalvaId, setPropostaSalvaId] = useState<string>(initialProposta?.id || '')
   // Abre pelos dados da proposta; o documento fica disponível na etapa seguinte.
   const [activeTab, setActiveTab] = useState<'parametros' | 'preview' | 'edicao'>('parametros')
@@ -389,19 +407,19 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       const primeiroNome = (clienteAtual.nome_fantasia || clienteAtual.nome || 'Cliente').split(
         ' ',
       )[0]
-      const result = await sendWhatsAppMensagem({
-        cliente_id: clienteAtual.id,
-        telefone_destino: telefone,
-        conteudo_final: `Olá ${primeiroNome}! Segue sua proposta de Gestão e Manutenção O&M da Delfos Solar. Acesse o link para conferir os detalhes e escolher o plano: ${link}`,
-        tipo_disparo: 'manual',
-        referencia_id: saved.id,
+      setWhatsAppConfirmation({
+        type: 'link',
+        phone: telefone,
+        message: aplicarPrefixoMensagemManual(
+          `Olá ${primeiroNome}! Segue sua proposta de Gestão e Manutenção O&M da Delfos Solar. Acesse o link para conferir os detalhes e escolher o plano: ${link}`,
+          user?.name || 'Atendente',
+        ),
+        proposalId: saved.id,
+        link,
       })
-      if (!result.sent)
-        throw new Error(result.message || 'O WhatsApp não confirmou o envio do link.')
-      toast.success('Link da proposta enviado pelo WhatsApp.')
     } catch (err: any) {
-      console.error('Erro ao enviar link da proposta O&M:', err)
-      toast.error(err?.message || 'Não foi possível enviar o link pelo WhatsApp.')
+      console.error('Falha ao preparar link da proposta O&M:', err)
+      toast.error(err?.message || 'Não foi possível preparar o link para envio.')
     } finally {
       setIsSendingAction(null)
     }
@@ -424,21 +442,72 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         ({ gerarPropostaOMPdfBlobBase64 }) =>
           gerarPropostaOMPdfBlobBase64(dadosPdf, saved.observacoes || ''),
       )
-      const result = await sendWhatsAppDocumento({
-        cliente_id: clienteAtual.id,
-        telefone_destino: telefone,
-        tipo: 'proposta_om',
-        referencia_id: saved.id,
-        legenda: `Olá ${(clienteAtual.nome_fantasia || clienteAtual.nome || 'Cliente').split(' ')[0]}! Segue em anexo a proposta O&M Delfos Solar para sua conferência e escolha do plano.`,
-        nome_arquivo: fileName,
+      const primeiroNome = (clienteAtual.nome_fantasia || clienteAtual.nome || 'Cliente').split(
+        ' ',
+      )[0]
+      setWhatsAppConfirmation({
+        type: 'pdf',
+        phone: telefone,
+        message: aplicarPrefixoMensagemManual(
+          `Olá ${primeiroNome}! Segue em anexo a proposta O&M Delfos Solar para sua conferência e escolha do plano.`,
+          user?.name || 'Atendente',
+        ),
+        proposalId: saved.id,
         base64,
+        fileName,
       })
-      if (!result.sent)
-        throw new Error(result.message || 'O WhatsApp não confirmou o envio do PDF.')
-      toast.success('Proposta PDF enviada pelo WhatsApp.')
     } catch (err: any) {
-      console.error('Erro ao enviar proposta PDF O&M:', err)
-      toast.error(err?.message || 'Não foi possível enviar o PDF pelo WhatsApp.')
+      console.error('Falha ao preparar PDF da proposta O&M:', err)
+      toast.error(err?.message || 'Não foi possível preparar o PDF para envio.')
+    } finally {
+      setIsSendingAction(null)
+    }
+  }
+
+  const handleConfirmarEnvioWhatsApp = async () => {
+    if (!clienteAtual || !whatsAppConfirmation) return
+    const telefone = whatsAppConfirmation.phone.trim()
+    const digitos = telefone.replace(/\\D/g, '')
+    if (digitos.length < 10 || digitos.length > 13) {
+      toast.error('Informe um número de WhatsApp válido com DDD.')
+      return
+    }
+    const mensagem = whatsAppConfirmation.message.trim()
+    if (!mensagem) {
+      toast.error('Informe o texto que acompanhará o envio.')
+      return
+    }
+
+    setIsSendingAction(whatsAppConfirmation.type)
+    try {
+      const result =
+        whatsAppConfirmation.type === 'link'
+          ? await sendWhatsAppMensagem({
+              cliente_id: clienteAtual.id,
+              telefone_destino: telefone,
+              conteudo_final: mensagem,
+              tipo_disparo: 'manual',
+              referencia_id: whatsAppConfirmation.proposalId,
+            })
+          : await sendWhatsAppDocumento({
+              cliente_id: clienteAtual.id,
+              telefone_destino: telefone,
+              tipo: 'proposta_om',
+              referencia_id: whatsAppConfirmation.proposalId,
+              legenda: mensagem,
+              nome_arquivo: whatsAppConfirmation.fileName,
+              base64: whatsAppConfirmation.base64,
+            })
+      if (!result.sent) throw new Error(result.message || 'O WhatsApp não confirmou o envio.')
+      toast.success(
+        whatsAppConfirmation.type === 'link'
+          ? 'Link da proposta enviado pelo WhatsApp.'
+          : 'Proposta PDF enviada pelo WhatsApp.',
+      )
+      setWhatsAppConfirmation(null)
+    } catch (err: any) {
+      console.error('Erro ao enviar proposta O&M pelo WhatsApp:', err)
+      toast.error(err?.message || 'Não foi possível enviar pelo WhatsApp.')
     } finally {
       setIsSendingAction(null)
     }
@@ -611,7 +680,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               </div>
             </div>
 
-            {/* 2. DADOS TÉCNICOS AUTOMÁTICOS DO SISTEMA */}
+            {/* 2. DADOS TÉCNICOS AUTOMÁTICOS DO SISTEMA SOLAR */}
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
@@ -1180,6 +1249,91 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(whatsAppConfirmation)}
+        onOpenChange={(open) => {
+          if (!open && !isSendingAction) setWhatsAppConfirmation(null)
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Confirmar envio pelo WhatsApp</DialogTitle>
+            <DialogDescription>
+              Confira o número e edite a mensagem. Nada será enviado até você confirmar.
+            </DialogDescription>
+          </DialogHeader>
+
+          {whatsAppConfirmation && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="om-whatsapp-phone" className="text-sm font-medium">
+                  Número do WhatsApp
+                </label>
+                <input
+                  id="om-whatsapp-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={whatsAppConfirmation.phone}
+                  onChange={(event) =>
+                    setWhatsAppConfirmation({ ...whatsAppConfirmation, phone: event.target.value })
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="(54) 99999-9999"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="om-whatsapp-message" className="text-sm font-medium">
+                  Texto que acompanhará o envio
+                </label>
+                <textarea
+                  id="om-whatsapp-message"
+                  rows={5}
+                  value={whatsAppConfirmation.message}
+                  onChange={(event) =>
+                    setWhatsAppConfirmation({
+                      ...whatsAppConfirmation,
+                      message: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="rounded-md bg-slate-50 p-3 text-xs text-slate-600 break-all">
+                {whatsAppConfirmation.type === 'pdf' ? (
+                  <span>Anexo PDF: {whatsAppConfirmation.fileName || 'Proposta O&M'}</span>
+                ) : (
+                  <span>Link da proposta: {whatsAppConfirmation.link}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <button
+              type="button"
+              onClick={() => setWhatsAppConfirmation(null)}
+              disabled={Boolean(isSendingAction)}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmarEnvioWhatsApp}
+              disabled={!whatsAppConfirmation || Boolean(isSendingAction)}
+              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {isSendingAction ? 'Enviando…' : 'Confirmar envio'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+
+export default ModalNovaPropostaOM

@@ -170,7 +170,6 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
         }),
       )
     })
-    janela.addEventListener('afterprint', () => janela.close())
     janela.document.open()
     janela.document.write(`<!doctype html>
       <html lang="pt-BR">
@@ -184,12 +183,21 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
             html, body { margin: 0; padding: 0; width: 100%; height: auto; overflow: visible; background: #fff; }
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .proposta-om-documento { position: static !important; width: 100% !important; max-width: none !important; max-height: none !important; height: auto !important; overflow: visible !important; margin: 0 auto !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
-            .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid-page; }
-            .no-print { display: none !important; }
+            .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid-page; page-break-inside: avoid; }
+            .proposta-om-documento #secao-4-escopo { break-before: page; page-break-before: always; }
+            .print-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin: 0 auto 14px; max-width: 900px; background: #0f172a; color: #fff; border-radius: 10px; font: 14px Arial,sans-serif; }
+            .print-toolbar button { border: 0; border-radius: 7px; background: #16a34a; color: #fff; padding: 9px 14px; font-weight: 700; cursor: pointer; }
+            @media print { .no-print { display: none !important; } }
             @media screen { body { padding: 16px; background: #f1f5f9; } .proposta-om-documento { max-width: 900px !important; } }
           </style>
         </head>
-        <body>${documento.outerHTML}</body>
+        <body>
+          <div class="print-toolbar no-print">
+            <button type="button" onclick="window.focus(); window.print()">Imprimir / Salvar em PDF</button>
+            <span>Na janela de impressão, escolha “Salvar como PDF” para baixar a proposta.</span>
+          </div>
+          ${documento.outerHTML}
+        </body>
       </html>`)
     janela.document.close()
   }
@@ -213,9 +221,8 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
           .proposta-om-documento, .proposta-om-documento * { visibility: visible !important; }
           .proposta-om-documento { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; max-width: none !important; height: auto !important; max-height: none !important; overflow: visible !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
           .proposta-om-documento .no-print { display: none !important; }
-          .proposta-om-documento section, .proposta-om-documento footer { break-inside: auto !important; }
-          .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid-page; }
-        }`}</style>
+          .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid-page !important; page-break-inside: avoid !important; }
+          .proposta-om-documento #secao-4-escopo { break-before: page !important; page-break-before: always !important; }        }`}</style>
 
       <div className="no-print bg-slate-900 text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
         <div className="flex items-center gap-3">

@@ -456,7 +456,7 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
           </View>
         </View>
 
-        <View style={styles.section}>
+        <View break style={styles.section} wrap={false}>
           {heading(4, conteudo.secaoEscopoTecnico.titulo, conteudo.secaoEscopoTecnico.subtitulo)}
           <View style={styles.listBox}>
             {conteudo.secaoEscopoTecnico.itens.map((item) => (
