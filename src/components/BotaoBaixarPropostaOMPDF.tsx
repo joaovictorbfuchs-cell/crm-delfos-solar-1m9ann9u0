@@ -41,6 +41,19 @@ export async function gerarPropostaOMPdfOficialBlobBase64(
     /* mantém o HTML original se o parse falhar */
   }
 
+  // O pipeline html2pdf captura o body num iframe de 794px (210mm a 96dpi),
+  // mas o .page-container oficial tem max-width: 820px — 26px mais largo que a
+  // página, cortando o texto nas laterais. Sobrescreve para caber exato em A4
+  // com margens laterais de 0,7cm (26px ≈ 6,9mm por lado).
+  html = html.replace(
+    '</head>',
+    `<style>
+      html, body { width: 794px !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+      .page-container { width: 794px !important; max-width: 794px !important; margin: 0 !important; padding: 0 26px !important; box-sizing: border-box !important; }
+    </style>
+  </head>`,
+  )
+
   const safeName = (dados.cliente?.nome || 'Cliente')
     .normalize('NFD')
     .replace(/[\\u0300-\\u036f]/g, '')
