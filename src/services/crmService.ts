@@ -52,7 +52,16 @@ async function withNetworkRetry<T>(
 
 export async function fetchClientes(): Promise<Cliente[]> {
   return withNetworkRetry(
-    () => pb.collection('clientes').getFullList<Cliente>({ sort: 'nome', requestKey: null }),
+    () =>
+      pb.collection('clientes').getFullList<Cliente>({
+        sort: 'nome',
+        requestKey: null,
+        // historico_consumo_fatura é o maior campo da coleção (JSON com todo o
+        // histórico de faturas) e nunca é lido a partir de registros carregados
+        // (só escrito em imports/criação). Excluí-lo da listagem reduz
+        // drasticamente o payload de 1000+ registros.
+        fields: '*, -historico_consumo_fatura',
+      }),
     2,
     600,
     'fetchClientes',
@@ -214,6 +223,14 @@ export async function fetchAtividades(): Promise<Atividade[]> {
         // negocio_id removido do expand: nunca é lido via expand em nenhum
         // consumidor e era a relação mais custosa da listagem completa.
         expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
+        // O expand embutia o registro COMPLETO de cada cliente (103 campos,
+        // incluindo historico_consumo_fatura) em cada atividade, gerando um
+        // response tão grande que o servidor não conseguia escrevê-lo
+        // (timeout de 300s). Limitamos o expand aos campos realmente lidos:
+        // cliente_id.nome, usina_id.nome, responsavel_id.name,
+        // fornecedor_id.nome_empresa/contato_nome.
+        fields:
+          '*,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name,expand.fornecedor_id.id,expand.fornecedor_id.nome_empresa,expand.fornecedor_id.contato_nome',
         requestKey: null,
       }),
     2,
