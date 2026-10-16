@@ -31,6 +31,17 @@ export async function gerarPropostaOMPdfOficialBlobBase64(
 
   let html = gerarHTMLPropostaOM(dados)
 
+  // BUG CONHECIDO do gerador: após o rodapé oficial existe um fragmento
+  // duplicado de documento (segundo <style>/<body> fantasma) que dobra o
+  // conteúdo, gera páginas extras e página em branco. Trunca no fechamento
+  // do rodapé e fecha o HTML corretamente. Se o gerador for corrigido, este
+  // bloco não encontra o marcador e não altera nada (seguro).
+  const rodapeIdx = html.indexOf('id="rodape-oficial"')
+  const fragIdx = html.indexOf('    }\n    * {', rodapeIdx)
+  if (fragIdx > 0) {
+    html = html.slice(0, fragIdx).trimEnd() + '\n  </div>\n</body>\n</html>'
+  }
+
   // Remove a barra de ações/botão de impressão que não deve sair no PDF
   try {
     const parser = new DOMParser()
