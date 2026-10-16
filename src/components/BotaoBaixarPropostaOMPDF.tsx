@@ -18,74 +18,35 @@ export interface BotaoBaixarPropostaOMPDFProps {
 export { blobParaDataUriBase64 }
 
 /**
- * Gera o PDF da proposta O&M a partir do MESMO DOM do preview exibido ao usuário
- * (elemento .proposta-om-documento), garantindo fidelidade 100% entre o que o
- * usuário vê no preview e o PDF anexado no WhatsApp. Fallback: renderer react-pdf.
+ * Gera o PDF da proposta O&M a partir do gerador HTML oficial
+ * (gerarHTMLPropostaOM) — a MESMA fonte usada pelo botão Imprimir e pelo link
+ * público, com CSS próprio embutido. Garante que o anexo do WhatsApp saia no
+ * layout oficial do documento, idêntico ao que o cliente vê no link.
  */
-export async function gerarPropostaOMPdfDoPreviewBlobBase64(): Promise<{
-  blob: Blob
-  base64: string
-  fileName: string
-}> {
-  const documento = document.querySelector('.proposta-om-documento') as HTMLElement | null
-  if (!documento) {
-    throw new Error('Preview da proposta não encontrado na tela.')
-  }
-
+export async function gerarPropostaOMPdfOficialBlobBase64(
+  dados: PropostaPDFInput,
+): Promise<{ blob: Blob; base64: string; fileName: string }> {
+  const { gerarHTMLPropostaOM } = await import('@/lib/propostaOMGenerator')
   const { renderizarHTMLParaPdfBase64 } = await import('@/lib/pdfWhatsAppService')
 
-  // Copia TODOS os stylesheets do app (Tailwind incluído), igual ao botão
-  // Imprimir faz — sem isso o preview perde as classes utilitárias e o PDF
-  // sai desconfigurado.
-  const estilos = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-    .map((elemento) => {
-      if (elemento instanceof HTMLLinkElement) {
-        return `<link rel="stylesheet" href="${elemento.href}" />`
-      }
-      return elemento.outerHTML
-    })
-    .join('\n')
+  let html = gerarHTMLPropostaOM(dados)
 
-  // Clona o DOM do preview fora da árvore para limpar estilos de tela
-  // (scroll, sombras, largura) sem alterar o que o usuário está vendo.
-  const clone = documento.cloneNode(true) as HTMLElement
-  clone.classList.remove('print:', 'shadow-lg', 'rounded-2xl', 'border', 'border-gray-200')
-  clone.querySelectorAll('.no-print').forEach((el) => el.remove())
-  clone.style.boxShadow = 'none'
-  clone.style.borderRadius = '0'
-  clone.style.border = '0'
-  clone.style.maxWidth = '794px'
-  clone.style.width = '794px'
-  clone.style.margin = '0'
-  clone.style.overflow = 'visible'
-  clone.style.height = 'auto'
-  clone.style.maxHeight = 'none'
-  clone.style.position = 'static'
+  // Remove a barra de ações/botão de impressão que não deve sair no PDF
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    doc.querySelectorAll('.no-print, .print-btn').forEach((el) => el.remove())
+    html = '<!doctype html>' + doc.documentElement.outerHTML
+  } catch {
+    /* mantém o HTML original se o parse falhar */
+  }
 
-  const nomeCliente =
-    (documento.querySelector('[data-cliente-nome]')?.textContent || 'Cliente').trim() || 'Cliente'
-  const safeName = nomeCliente
+  const safeName = (dados.cliente?.nome || 'Cliente')
     .normalize('NFD')
     .replace(/[\\u0300-\\u036f]/g, '')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .substring(0, 48)
   const fileName = `Proposta_OM_Delfos_${safeName}.pdf`
-
-  const html = `<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8" />
-${estilos}
-<style>
-  @page { size: A4; margin: 0; }
-  html, body { margin: 0; padding: 0; background: #fff; }
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .proposta-om-documento { width: 794px !important; max-width: 794px !important; margin: 0 !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; overflow: visible !important; height: auto !important; max-height: none !important; position: static !important; }
-  .proposta-om-documento section, .proposta-om-documento footer { break-inside: avoid-page; }
-</style>
-</head>
-<body>${clone.outerHTML}</body>
-</html>`
 
   const base64 = await renderizarHTMLParaPdfBase64(html, fileName, {
     scale: 1.5,
@@ -93,18 +54,15 @@ ${estilos}
     compressJsPdf: true,
     timeoutMs: 30000,
   })
-  const blob = base64ParaBlob(base64)
-  return { blob, base64, fileName }
-}
+  if (!base64) throw new Error('O renderizador retornou um PDF vazio.')
 
-/** Converte Data URI base64 em Blob. */
-function base64ParaBlob(dataUri: string): Blob {
-  const [meta, dados] = dataUri.split(',')
+  const [meta, dadosB64] = base64.split(',')
   const mime = /data:([^;]+)/.exec(meta)?.[1] || 'application/pdf'
-  const bin = atob(dados)
+  const bin = atob(dadosB64)
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return new Blob([bytes], { type: mime })
+  const blob = new Blob([bytes], { type: mime })
+  return { blob, base64, fileName }
 }
 
 /** Gera o PDF O&M sob demanda pelo renderer oficial e entrega o arquivo ao navegador. */
