@@ -223,6 +223,9 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
 export const ATIVIDADES_LISTAGEM_FIELDS =
   'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,data,status,responsavel_id,responsavel_nome,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
 
+// Cache de promessa em voo para deduplicar chamadas concorrentes idênticas a fetchAtividades
+const _inFlightFetchAtividades = new Map<string, Promise<Atividade[]>>()
+
 export async function fetchAtividades(options?: {
   page?: number
   perPage?: number
@@ -231,8 +234,14 @@ export async function fetchAtividades(options?: {
   const page = options?.page ?? 1
   const perPage = options?.perPage ?? 100
   const fetchAllPages = options?.fetchAllPages ?? false
+  const cacheKey = `${page}:${perPage}:${fetchAllPages}`
 
-  return withNetworkRetry(
+  const inFlight = _inFlightFetchAtividades.get(cacheKey)
+  if (inFlight) {
+    return inFlight
+  }
+
+  const promise = withNetworkRetry(
     async () => {
       // Se não foi solicitado buscar todas as páginas, busca apenas a página solicitada (100 itens)
       if (!fetchAllPages) {
@@ -267,35 +276,58 @@ export async function fetchAtividades(options?: {
     2,
     600,
     'fetchAtividades',
-  )
+  ).finally(() => {
+    _inFlightFetchAtividades.delete(cacheKey)
+  })
+
+  _inFlightFetchAtividades.set(cacheKey, promise)
+  return promise
 }
 
-export async function fetchAtividadesByCliente(clienteId: string): Promise<Atividade[]> {
+export async function fetchAtividadesByCliente(
+  clienteId: string,
+  page: number = 1,
+  perPage: number = 100,
+): Promise<Atividade[]> {
   try {
-    const records = await pb.collection('atividades').getFullList<Atividade>({
-      filter: `cliente_id='${clienteId}'`,
+    if (!clienteId || typeof clienteId !== 'string') return []
+    const cleanId = clienteId.trim()
+    if (!cleanId) return []
+
+    const result = await pb.collection('atividades').getList<Atividade>(page, perPage, {
+      filter: `cliente_id='${cleanId}'`,
       sort: '-data,-created',
-      expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
+      expand: 'cliente_id,responsavel_id,usina_id',
+      fields: ATIVIDADES_LISTAGEM_FIELDS,
       requestKey: null,
     })
-    return records
+    return result.items || []
   } catch (err) {
-    console.error('Erro ao buscar atividades do cliente:', err)
+    console.warn('Erro ao buscar atividades do cliente:', err)
     return []
   }
 }
 
-export async function fetchAtividadesByNegocio(negocioId: string): Promise<Atividade[]> {
+export async function fetchAtividadesByNegocio(
+  negocioId: string,
+  page: number = 1,
+  perPage: number = 100,
+): Promise<Atividade[]> {
   try {
-    const records = await pb.collection('atividades').getFullList<Atividade>({
-      filter: `negocio_id='${negocioId}'`,
+    if (!negocioId || typeof negocioId !== 'string') return []
+    const cleanId = negocioId.trim()
+    if (!cleanId) return []
+
+    const result = await pb.collection('atividades').getList<Atividade>(page, perPage, {
+      filter: `negocio_id='${cleanId}'`,
       sort: '-data,-created',
-      expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
+      expand: 'cliente_id,responsavel_id,usina_id',
+      fields: ATIVIDADES_LISTAGEM_FIELDS,
       requestKey: null,
     })
-    return records
+    return result.items || []
   } catch (err) {
-    console.error(`Erro ao buscar atividades do negócio ${negocioId}:`, err)
+    console.warn(`Erro ao buscar atividades do negócio ${negocioId}:`, err)
     return []
   }
 }
@@ -427,14 +459,14 @@ export async function createAtividade(data: {
   }
 
   const record = await pb.collection('atividades').create<Atividade>(payload as any, {
-    expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
+    expand: 'cliente_id,usina_id,responsavel_id',
   })
   return record
 }
 
 export async function updateAtividade(id: string, data: Partial<Atividade>): Promise<Atividade> {
   const record = await pb.collection('atividades').update<Atividade>(id, data, {
-    expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
+    expand: 'cliente_id,usina_id,responsavel_id',
   })
   return record
 }
@@ -4029,11 +4061,11 @@ async function updateAtividadeComoOrdemServico(
       }
     }
     atvRecord = await pb.collection('atividades').update(id, formData, {
-      expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+      expand: 'cliente_id,usina_id,responsavel_id',
     })
   } else {
     atvRecord = await pb.collection('atividades').update(id, payloadAtividade, {
-      expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+      expand: 'cliente_id,usina_id,responsavel_id',
     })
   }
 

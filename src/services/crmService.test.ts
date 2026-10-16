@@ -406,4 +406,139 @@ describe('mesclarMultiplosClientes - otimizações e integridade de dados', () =
       )
     })
   })
+
+  describe('Atividades Otimizadas (fetch, deduplicação em voo, expands estritos)', () => {
+    it('fetchAtividadesByCliente usa getList com projeção de campos e expand estrito', async () => {
+      const { fetchAtividadesByCliente, ATIVIDADES_LISTAGEM_FIELDS } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+
+      let chamadaParams: any = null
+      const mockGetList = vi
+        .fn()
+        .mockImplementation((page: number, perPage: number, options: any) => {
+          chamadaParams = { page, perPage, options }
+          return Promise.resolve({
+            items: [{ id: 'atv-1', titulo: 'Visita Técnica' }],
+            totalItems: 1,
+            totalPages: 1,
+          })
+        })
+
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((colName: string) => {
+        if (colName === 'atividades') {
+          return { getList: mockGetList }
+        }
+        return {}
+      }) as any)
+
+      const result = await fetchAtividadesByCliente('cli-100')
+      expect(result).toHaveLength(1)
+      expect(chamadaParams.page).toBe(1)
+      expect(chamadaParams.perPage).toBe(100)
+      expect(chamadaParams.options.filter).toBe("cliente_id='cli-100'")
+      expect(chamadaParams.options.expand).toBe('cliente_id,responsavel_id,usina_id')
+      expect(chamadaParams.options.fields).toBe(ATIVIDADES_LISTAGEM_FIELDS)
+    })
+
+    it('fetchAtividadesByNegocio usa getList com projeção de campos e expand estrito', async () => {
+      const { fetchAtividadesByNegocio, ATIVIDADES_LISTAGEM_FIELDS } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+
+      let chamadaParams: any = null
+      const mockGetList = vi
+        .fn()
+        .mockImplementation((page: number, perPage: number, options: any) => {
+          chamadaParams = { page, perPage, options }
+          return Promise.resolve({
+            items: [{ id: 'atv-2', titulo: 'Follow-up comercial' }],
+            totalItems: 1,
+            totalPages: 1,
+          })
+        })
+
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((colName: string) => {
+        if (colName === 'atividades') {
+          return { getList: mockGetList }
+        }
+        return {}
+      }) as any)
+
+      const result = await fetchAtividadesByNegocio('neg-200')
+      expect(result).toHaveLength(1)
+      expect(chamadaParams.page).toBe(1)
+      expect(chamadaParams.perPage).toBe(100)
+      expect(chamadaParams.options.filter).toBe("negocio_id='neg-200'")
+      expect(chamadaParams.options.expand).toBe('cliente_id,responsavel_id,usina_id')
+      expect(chamadaParams.options.fields).toBe(ATIVIDADES_LISTAGEM_FIELDS)
+    })
+
+    it('fetchAtividades deduplica chamadas concorrentes idênticas via in-flight promise cache', async () => {
+      const { fetchAtividades } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+
+      let countGetList = 0
+      const mockGetList = vi.fn().mockImplementation(async () => {
+        countGetList++
+        // simula latência de rede
+        await new Promise((res) => setTimeout(res, 30))
+        return {
+          items: [{ id: 'atv-dedup-1', titulo: 'Tarefa A' }],
+          totalItems: 1,
+          totalPages: 1,
+        }
+      })
+
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((colName: string) => {
+        if (colName === 'atividades') {
+          return { getList: mockGetList }
+        }
+        return {}
+      }) as any)
+
+      // Dispara 3 chamadas concorrentes simultâneas (como ocorre em montagens de componentes)
+      const [res1, res2, res3] = await Promise.all([
+        fetchAtividades(),
+        fetchAtividades(),
+        fetchAtividades(),
+      ])
+
+      expect(countGetList).toBe(1)
+      expect(res1).toEqual(res2)
+      expect(res2).toEqual(res3)
+    })
+
+    it('createAtividade e updateAtividade usam expand reduzido "cliente_id,usina_id,responsavel_id"', async () => {
+      const { createAtividade, updateAtividade } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+
+      let createOptions: any = null
+      let updateOptions: any = null
+
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((colName: string) => {
+        if (colName === 'atividades') {
+          return {
+            create: vi.fn().mockImplementation((payload: any, opts: any) => {
+              createOptions = opts
+              return Promise.resolve({ id: 'atv-nova', ...payload })
+            }),
+            update: vi.fn().mockImplementation((id: string, payload: any, opts: any) => {
+              updateOptions = opts
+              return Promise.resolve({ id, ...payload })
+            }),
+          }
+        }
+        return {}
+      }) as any)
+
+      await createAtividade({
+        cliente_id: 'cli-teste-123',
+        tipo: 'contato_ligacao',
+        titulo: 'Ligação para cliente',
+      })
+      expect(createOptions?.expand).toBe('cliente_id,usina_id,responsavel_id')
+
+      await updateAtividade('atv-nova', { status: 'concluida' })
+      expect(updateOptions?.expand).toBe('cliente_id,usina_id,responsavel_id')
+    })
+  })
 })
