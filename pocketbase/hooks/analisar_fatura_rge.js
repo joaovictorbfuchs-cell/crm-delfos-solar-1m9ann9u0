@@ -3,7 +3,7 @@
  * Rota POST /backend/v1/analisar-fatura-rge
  *
  * Utiliza o secret GEMINI_API_KEY ($os.getenv("GEMINI_API_KEY")) via REST API do Gemini
- * (com fallback dinâmico entre modelos compatíveis: gemini-2.5-flash, gemini-1.5-flash, gemini-2.0-flash).
+ * (com fallback dinâmico entre modelos compatíveis: gemini-3.8-flash, gemini-3.5-flash, gemini-3.5-flash-lite).
  *
  * Suporta arquivo em PDF ou Imagem (PNG/JPG/WEBP) com base64 inline_data ou texto extraído.
  */
@@ -211,9 +211,9 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
     // Lista de modelos atualizados suportados pela Gemini API (v1beta)
     const candidateModels = [
       'gemini-3.8-flash',
-      'gemini-3.7-flash',
       'gemini-3.5-flash',
-      'gemini-2.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.7-flash',
     ]
 
     let geminiResponse = null

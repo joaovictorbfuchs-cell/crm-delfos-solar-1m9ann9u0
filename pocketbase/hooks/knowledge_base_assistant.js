@@ -2,12 +2,12 @@
  * Hook para a Base de Conhecimento do CRM Delfos Solar:
  * 1. Rota POST /backend/v1/assistente-delfos
  *    - Recebe a pergunta do usuário e histórico recente da sessão (body.historico)
- *    - Busca semântica avançada via embeddings Gemini (text-embedding-004 com fallback gemini-embedding-001 e $ai.embed)
+ *    - Busca semântica avançada via embeddings Gemini (text-embedding-004, gemini-embedding-001 e $ai.embed)
  *    - Similaridade de cosseno combinada com pontuação léxica de palavras-chave como reforço
  *    - Utiliza os top 6 artigos mais relevantes
  *    - Incorpora o texto_extraido INTEGRAL de documentos anexados (sem corte de 3000 chars; limite total de contexto de 30k chars)
  *    - Identifica a categoria de origem mais relevante
- *    - Modelos Gemini válidos: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash (timeout 60s)
+ *    - Modelos Gemini válidos: gemini-3.8-flash, gemini-3.5-flash, gemini-3.5-flash-lite (timeout 60s)
  *    - Envia histórico conversacional recente antes da pergunta atual
  *    - Fallback seguro para $ai.chat
  *    - Mantém exatamente as regras de resposta vigentes (português, citar categoria, frase padrão estrita se não encontrar)
@@ -49,7 +49,7 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
     const getEmbedding = (textToEmbed, apiKey) => {
       if (!textToEmbed || !apiKey) return null
       const sanitized = textToEmbed.slice(0, 4000)
-      const candidateModels = ['text-embedding-004', 'gemini-embedding-001']
+      const candidateModels = ['text-embedding-004', 'gemini-embedding-001', 'embedding-001']
 
       for (let m = 0; m < candidateModels.length; m++) {
         const model = candidateModels[m]
@@ -76,6 +76,11 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
             if (values && Array.isArray(values) && values.length > 0) {
               return values
             }
+          } else {
+            console.log(
+              `[ASSISTENTE DELFOS] Embedding ${model} status ${res.statusCode}:`,
+              (res.raw || '').substring(0, 200),
+            )
           }
         } catch (callErr) {
           console.log(`[ASSISTENTE DELFOS] Erro embedding ${model}:`, callErr)
@@ -237,6 +242,10 @@ routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
     let queryEmbedding = null
     if (geminiApiKey) {
       queryEmbedding = getEmbedding(pergunta, geminiApiKey)
+    }
+
+    if (!queryEmbedding) {
+      console.log('[ASSISTENTE DELFOS] Embeddings indisponíveis — busca cai para léxica')
     }
 
     // 4. Ranqueamento dos artigos: similaridade de cosseno (semântica) + reforço de palavras-chave
@@ -435,13 +444,13 @@ ${historicoTexto}Pergunta atual do usuário:
 
 Por favor elabore a resposta seguindo rigorosamente as instruções.`
 
-    // 7. Chamada ao Gemini API com modelos existentes e timeout de 60s (gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash)
+    // 7. Chamada ao Gemini API com modelos existentes e timeout de 60s (gemini-3.8-flash, gemini-3.5-flash, gemini-3.5-flash-lite)
     let respostaTexto = ''
     let modelUsed = ''
     let erroInputTooLong = false
 
     if (geminiApiKey) {
-      const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+      const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite']
 
       const contentsPayload = []
 
@@ -632,7 +641,7 @@ routerAdd('POST', '/backend/v1/extrair-texto-anexo', (e) => {
     if (base64Data && (mimeType.startsWith('image/') || mimeType === 'application/pdf')) {
       const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
       if (geminiApiKey) {
-        const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+        const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite']
         const promptOcr =
           'Você é um assistente de extração de texto para a Base de Conhecimento técnica e comercial da Delfos Solar. Transcreva todo o texto, tabelas, dados técnicos, números e informações legíveis contidas neste documento/imagem de forma fiel e estruturada em texto puro legível.'
 

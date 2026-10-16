@@ -28,53 +28,37 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Identifica se um erro lançado por chamada ao PocketBase ou fetch decorre
- * de sessão inválida, token expirado ou credencial não autorizada (401 / 403).
- */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
 
-  // Instância do ClientResponseError do PocketBase
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-  }
+  const anyErr = err as Record<string, unknown>
+  const status = Number(
+    anyErr.status ??
+      anyErr.statusCode ??
+      (anyErr.response && typeof anyErr.response === 'object'
+        ? (anyErr.response as Record<string, unknown>).status
+        : undefined),
+  )
 
-  // Objetos com propriedades status / statusCode / response
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, any>
-    const status = errObj.status ?? errObj.statusCode ?? errObj.response?.status
-    if (status === 401 || status === 403) return true
+  if (status === 401 || status === 403) return true
 
-    // Verificação por mensagem de texto
-    const msg = (errObj.message || errObj.error || '').toString().toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('sessao expirada') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    ) {
-      return true
-    }
-  }
+  const msg = (
+    anyErr.message ||
+    (anyErr.response && typeof anyErr.response === 'object'
+      ? (anyErr.response as Record<string, unknown>).message
+      : '') ||
+    String(err)
+  )
+    .toString()
+    .toLowerCase()
 
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('sessao expirada') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    ) {
-      return true
-    }
-  }
-
-  return false
+  return (
+    msg.includes('token is expired') ||
+    msg.includes('token expired') ||
+    msg.includes('login expirou') ||
+    msg.includes('sessão expirada') ||
+    msg.includes('sessao expirada') ||
+    msg.includes('failed to authenticate') ||
+    msg.includes('the request requires valid user authorization')
+  )
 }
