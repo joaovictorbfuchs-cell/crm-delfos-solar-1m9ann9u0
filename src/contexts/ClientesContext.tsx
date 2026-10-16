@@ -711,18 +711,33 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       }
 
-      const [cRes, aRes, orcRes, uRes, sRes, mRes, pRes, projRes, contRes] =
-        await Promise.allSettled([
-          safeFetch(fetchClientes, [] as Cliente[]),
-          safeFetch(fetchAtividades, [] as Atividade[]),
-          safeFetch(fetchOrcamentosSolar, [] as OrcamentoSolar[]),
-          safeFetch(fetchUsuarios, [] as SistemaUsuario[]),
-          safeFetch(fetchSistemas, [] as Sistema[]),
-          safeFetch(fetchManutencoes, [] as Manutencao[]),
-          safeFetch(fetchProfissionais, [] as Profissional[]),
-          safeFetch(fetchProjetos, [] as Projeto[]),
-          safeFetch(fetchContratosOM, [] as ContratoOM[]),
-        ])
+      // ETAPA 1a: Clientes primeiro — é a coleção que as telas principais
+      // (funil, lista, ficha) precisam para renderizar qualquer coisa.
+      // Sem esperar atividades/orçamentos, que são as listas mais pesadas.
+      const cRes = await Promise.allSettled([safeFetch(fetchClientes, [] as Cliente[])]).then(
+        (r) => r[0],
+      )
+      const cList = getValue(cRes, [])
+      setClientes(cList)
+      if (cRes.status === 'rejected') {
+        console.warn('Falha ao carregar clientes:', cRes.reason)
+        setError(`Falha ao obter clientes: ${cRes.reason?.message || 'erro desconhecido'}`)
+      }
+      // Libera a interface assim que os clientes estão disponíveis
+      setIsLoading(false)
+
+      // ETAPA 1b: Restante das coleções prioritárias em paralelo,
+      // sem bloquear a renderização já liberada acima.
+      const [aRes, orcRes, uRes, sRes, mRes, pRes, projRes, contRes] = await Promise.allSettled([
+        safeFetch(fetchAtividades, [] as Atividade[]),
+        safeFetch(fetchOrcamentosSolar, [] as OrcamentoSolar[]),
+        safeFetch(fetchUsuarios, [] as SistemaUsuario[]),
+        safeFetch(fetchSistemas, [] as Sistema[]),
+        safeFetch(fetchManutencoes, [] as Manutencao[]),
+        safeFetch(fetchProfissionais, [] as Profissional[]),
+        safeFetch(fetchProjetos, [] as Projeto[]),
+        safeFetch(fetchContratosOM, [] as ContratoOM[]),
+      ])
 
       // Verificar se houve erro de sessão/autenticação nas requisições principais
       const prioritySettled = [cRes, aRes, orcRes, uRes, sRes, mRes, pRes, projRes, contRes]
@@ -739,11 +754,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // Em falha nas tabelas prioritárias, registrar no estado error e console.warn (sem re-lançar)
+      // (falha de clientes já registrada na etapa 1a acima)
       const failedPriority: string[] = []
-      if (cRes.status === 'rejected') {
-        console.warn('Falha ao carregar clientes:', cRes.reason)
-        failedPriority.push('clientes')
-      }
       if (aRes.status === 'rejected') {
         console.warn('Falha ao carregar atividades:', aRes.reason)
         failedPriority.push('atividades')
@@ -769,7 +781,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setError(`Falha ao obter ${failedPriority.join(', ')}: ${primaryReason}`)
       }
 
-      const cList = getValue(cRes, [])
       const aList = getValue(aRes, [])
       const orcList = getValue(orcRes, [])
       const uList = getValue(uRes, [])
@@ -780,7 +791,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const contList = getValue(contRes, [])
 
       // Aplica imediatamente as entidades prioritárias do CRM
-      setClientes(cList)
+      // (clientes já aplicados na etapa 1a)
       setAtividades(aList)
       setOrcamentosSolar(orcList)
       setUsuarios(uList)

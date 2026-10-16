@@ -211,7 +211,9 @@ export async function fetchAtividades(): Promise<Atividade[]> {
     () =>
       pb.collection('atividades').getFullList<Atividade>({
         sort: '-data',
-        expand: 'cliente_id,negocio_id,responsavel_id,usina_id,fornecedor_id',
+        // negocio_id removido do expand: nunca é lido via expand em nenhum
+        // consumidor e era a relação mais custosa da listagem completa.
+        expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
         requestKey: null,
       }),
     2,
