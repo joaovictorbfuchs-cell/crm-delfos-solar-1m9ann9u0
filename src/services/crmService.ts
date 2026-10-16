@@ -465,10 +465,36 @@ export async function createAtividade(data: {
 }
 
 export async function updateAtividade(id: string, data: Partial<Atividade>): Promise<Atividade> {
-  const record = await pb.collection('atividades').update<Atividade>(id, data, {
-    expand: 'cliente_id,usina_id,responsavel_id',
-  })
-  return record
+  const currentUserRole = pb.authStore.model?.role as string | undefined
+  const ehInstalador = currentUserRole === 'instalador'
+  const expandQuery = ehInstalador
+    ? 'cliente_id,usina_id,tipo_custom_id'
+    : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
+
+  try {
+    const record = await pb.collection('atividades').update<Atividade>(id, data, {
+      expand: expandQuery,
+    })
+    return record
+  } catch (err: any) {
+    const status = err?.status || err?.statusCode || err?.response?.status
+    const isExpandError =
+      status === 400 ||
+      status === 403 ||
+      (typeof err?.message === 'string' && err.message.toLowerCase().includes('expand'))
+
+    if (isExpandError) {
+      console.warn(
+        'updateAtividade: falha no expand, aplicando fallback sem responsavel_id:',
+        err?.message,
+      )
+      const recordFallback = await pb.collection('atividades').update<Atividade>(id, data, {
+        expand: 'cliente_id,usina_id,tipo_custom_id',
+      })
+      return recordFallback
+    }
+    throw err
+  }
 }
 
 export async function deleteAtividade(id: string): Promise<boolean> {
@@ -3985,7 +4011,7 @@ export async function createOrdemServico(data: {
  * Helper para atualizar registro na coleção `atividades` mapeando os campos de execução de campo
  * e retornando a projeção em formato OrdemServico compatível com a UI.
  */
-async function updateAtividadeComoOrdemServico(
+export async function updateAtividadeComoOrdemServico(
   id: string,
   data: Partial<import('@/types/crm').OrdemServico>,
   newPhotos?: File[],
@@ -4060,13 +4086,65 @@ async function updateAtividadeComoOrdemServico(
         formData.append('fotos', photo)
       }
     }
-    atvRecord = await pb.collection('atividades').update(id, formData, {
-      expand: 'cliente_id,usina_id,responsavel_id',
-    })
+    const currentUserRole = pb.authStore.model?.role as string | undefined
+    const ehInstalador = currentUserRole === 'instalador'
+    const expandQueryAtividade = ehInstalador
+      ? 'cliente_id,usina_id,tipo_custom_id'
+      : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
+
+    try {
+      atvRecord = await pb.collection('atividades').update(id, formData, {
+        expand: expandQueryAtividade,
+      })
+    } catch (errAtvUpdate: any) {
+      const status =
+        errAtvUpdate?.status || errAtvUpdate?.statusCode || errAtvUpdate?.response?.status
+      const isExpandErr =
+        status === 400 ||
+        status === 403 ||
+        (typeof errAtvUpdate?.message === 'string' &&
+          errAtvUpdate.message.toLowerCase().includes('expand'))
+      if (isExpandErr) {
+        console.warn(
+          'updateAtividadeComoOrdemServico: fallback seguro no update com arquivos (sem responsavel_id)',
+        )
+        atvRecord = await pb.collection('atividades').update(id, formData, {
+          expand: 'cliente_id,usina_id,tipo_custom_id',
+        })
+      } else {
+        throw errAtvUpdate
+      }
+    }
   } else {
-    atvRecord = await pb.collection('atividades').update(id, payloadAtividade, {
-      expand: 'cliente_id,usina_id,responsavel_id',
-    })
+    const currentUserRole = pb.authStore.model?.role as string | undefined
+    const ehInstalador = currentUserRole === 'instalador'
+    const expandQueryAtividade = ehInstalador
+      ? 'cliente_id,usina_id,tipo_custom_id'
+      : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
+
+    try {
+      atvRecord = await pb.collection('atividades').update(id, payloadAtividade, {
+        expand: expandQueryAtividade,
+      })
+    } catch (errAtvUpdate: any) {
+      const status =
+        errAtvUpdate?.status || errAtvUpdate?.statusCode || errAtvUpdate?.response?.status
+      const isExpandErr =
+        status === 400 ||
+        status === 403 ||
+        (typeof errAtvUpdate?.message === 'string' &&
+          errAtvUpdate.message.toLowerCase().includes('expand'))
+      if (isExpandErr) {
+        console.warn(
+          'updateAtividadeComoOrdemServico: fallback seguro no update sem arquivos (sem responsavel_id)',
+        )
+        atvRecord = await pb.collection('atividades').update(id, payloadAtividade, {
+          expand: 'cliente_id,usina_id,tipo_custom_id',
+        })
+      } else {
+        throw errAtvUpdate
+      }
+    }
   }
 
   const cli = atvRecord.expand?.cliente_id

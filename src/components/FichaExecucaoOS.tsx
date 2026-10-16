@@ -395,6 +395,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return getDefaultChecklist(os?.tipo_servico || 'Manutenção')
   })
 
+  // Sincronizar checklist quando a OS selecionada/recebida atualizar (ex: carregamento posterior ou alteração remota)
+  useEffect(() => {
+    const normalizado = normalizeChecklist(os?.checklist)
+    if (normalizado && normalizado.length > 0) {
+      setChecklist(normalizado)
+    }
+  }, [os?.id, os?.checklist])
+
   // 4. Fotos: fotos já salvas (nomes em PB) + novas fotos capturadas na sessão
   const normalizarFotosIniciais = (fotosRaw: unknown, fotoMedidorRaw?: unknown): string[] => {
     const list: string[] = []
@@ -437,7 +445,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Carrega lista de usinas do cliente para seleção/edição e validação de usina obrigatória
   useEffect(() => {
     let cancelado = false
-    if (!os.cliente_id) {
+    if (!os?.cliente_id) {
       setUsinasDoCliente([])
       return
     }
@@ -454,7 +462,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return () => {
       cancelado = true
     }
-  }, [os.cliente_id, selectedUsinaId])
+  }, [os?.cliente_id, selectedUsinaId])
 
   // Determina se este item é manutenção ou administrativo exigindo usina obrigatória
   const isManutencaoOuAdmin = React.useMemo(() => {
@@ -488,7 +496,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Carrega dados da usina vinculada, equipamentos e catálogo de configurações de monitoramento
   useEffect(() => {
     let cancelado = false
-    const usinaId = selectedUsinaId || os.usina_id || (os.expand?.usina_id as any)?.id
+    const usinaId = selectedUsinaId || os?.usina_id || (os?.expand?.usina_id as any)?.id
 
     async function carregarDadosUsinaOuCliente() {
       setCarregandoUsina(true)
@@ -512,7 +520,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           if (!cancelado) {
             setEquipamentosUsina(eqs || [])
           }
-        } else if (os.cliente_id) {
+        } else if (os?.cliente_id) {
           // Fallback quando não há usina vinculada à OS: carrega sistema legado
           fetchSistemaByClienteId(os.cliente_id)
             .then((sist) => {
@@ -521,11 +529,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             .catch((e) => console.error('Erro ao carregar sistema:', e))
 
           import('@/services/crmService').then(({ fetchInversoresByClienteId }) => {
-            fetchInversoresByClienteId(os.cliente_id)
-              .then((invs) => {
-                if (!cancelado) setInversoresLista(invs)
-              })
-              .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
+            if (os?.cliente_id) {
+              fetchInversoresByClienteId(os.cliente_id)
+                .then((invs) => {
+                  if (!cancelado) setInversoresLista(invs)
+                })
+                .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
+            }
           })
         }
       } catch (err) {
@@ -540,7 +550,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return () => {
       cancelado = true
     }
-  }, [os.usina_id, os.expand?.usina_id, os.cliente_id])
+  }, [os?.usina_id, os?.expand?.usina_id, os?.cliente_id])
 
   // Procedimentos e checklist do catálogo de atividades
   useEffect(() => {
@@ -554,10 +564,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         // Resolução de match usando o helper canônico unificado
         const match = encontrarMatchTipoCustom(
           {
-            tipo_custom_id: os.tipo_custom_id,
-            tipo: os.tipo,
-            tipo_servico: os.tipo_servico,
-            categoria: (os as any).categoria,
+            tipo_custom_id: os?.tipo_custom_id,
+            tipo: os?.tipo,
+            tipo_servico: os?.tipo_servico,
+            categoria: (os as any)?.categoria,
           },
           tiposList,
         )
@@ -572,7 +582,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
         // Resolução estrita do checklist:
         // Guarda 1: NUNCA redefinir o checklist se o checklist salvo já tem itens marcados como concluídos
-        const checklistSalvo = os.checklist ? normalizeChecklist(os.checklist) : []
+        const checklistSalvo = os?.checklist ? normalizeChecklist(os.checklist) : []
         const temItemConcluido = checklistSalvo.some((it) => it.concluido)
 
         if (temItemConcluido) {
@@ -593,12 +603,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           return
         }
 
-        // (3) Fallback genérico SOMENTE se não há nenhum checklist salvo
-        setChecklist(getDefaultChecklist((os.tipo_servico as any) || 'Manutenção'))
+        // (3) Fallback genérico SOMENTE se o estado checklist atual também estiver vazio
+        setChecklist((current) => {
+          if (Array.isArray(current) && current.length > 0) {
+            return current
+          }
+          return getDefaultChecklist((os?.tipo_servico as any) || 'Manutenção')
+        })
       })
       .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
       .finally(() => setLoadingCatalogo(false))
-  }, [os.cliente_id, os.tipo_servico, os.tipo, os.tipo_custom_id, os.origem, os.checklist])
+  }, [os?.cliente_id, os?.tipo_servico, os?.tipo, os?.tipo_custom_id, os?.origem, os?.checklist])
 
   // Reabrir Ordem de Serviço (apenas Admin)
   const handleReabrirOS = async () => {
@@ -989,28 +1004,30 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Resolução de inversores e módulos para exibição compacta no cabeçalho verde
   // Prioridade: usina_equipamentos da usina vinculada; fallback: campos diretos da usina ou cliente
   const inversoresUsina = React.useMemo(() => {
-    const list = equipamentosUsina.filter((ue) => ue.expand?.equipamento_id?.tipo === 'inversor')
+    const list = Array.isArray(equipamentosUsina)
+      ? equipamentosUsina.filter((ue) => ue?.expand?.equipamento_id?.tipo === 'inversor')
+      : []
     if (list.length > 0) {
       return list.map((ue) => {
-        const eq = ue.expand!.equipamento_id!
+        const eq = ue.expand?.equipamento_id
         const datasheetUrl =
-          (eq.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
-          eq.datasheet_url ||
+          (eq?.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
+          eq?.datasheet_url ||
           usinaVinculada?.datasheet_inversor_url ||
           null
         const dataloggerUrl =
-          eq.datalogger_url ||
+          eq?.datalogger_url ||
           usinaVinculada?.monitoramento_datalogger_url ||
           cliente?.monitoramento_datalogger_url ||
           null
 
-        const configMonitoramento = encontrarConfigMonitoramentoInversor(eq, eq.marca)
+        const configMonitoramento = eq ? encontrarConfigMonitoramentoInversor(eq, eq?.marca) : null
 
         return {
           id: ue.id,
-          marca: eq.marca,
-          modelo: eq.modelo,
-          potencia_w: eq.potencia_w,
+          marca: eq?.marca,
+          modelo: eq?.modelo,
+          potencia_w: eq?.potencia_w,
           quantidade: ue.quantidade || 1,
           numero_serie: ue.numero_serie,
           datasheetUrl,
@@ -1084,21 +1101,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   }, [equipamentosUsina, usinaVinculada, cliente, inversoresLista, configuracoesMonitoramento])
 
   const modulosUsina = React.useMemo(() => {
-    const list = equipamentosUsina.filter((ue) => ue.expand?.equipamento_id?.tipo === 'modulo_fv')
+    const list = Array.isArray(equipamentosUsina)
+      ? equipamentosUsina.filter((ue) => ue?.expand?.equipamento_id?.tipo === 'modulo_fv')
+      : []
     if (list.length > 0) {
       return list.map((ue) => {
-        const eq = ue.expand!.equipamento_id!
+        const eq = ue.expand?.equipamento_id
         const datasheetUrl =
-          (eq.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
-          eq.datasheet_url ||
+          (eq?.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
+          eq?.datasheet_url ||
           usinaVinculada?.datasheet_modulo_url ||
           null
 
         return {
           id: ue.id,
-          marca: eq.marca,
-          modelo: eq.modelo,
-          potencia_w: eq.potencia_w,
+          marca: eq?.marca,
+          modelo: eq?.modelo,
+          potencia_w: eq?.potencia_w,
           quantidade: ue.quantidade || 0,
           datasheetUrl,
         }
@@ -1340,10 +1359,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   }
 
   // Indicador de progresso do checklist defensivo contra ErrorBoundary
-  const safeChecklist = os?.checklist ?? checklist ?? []
-  const totalItens = (checklist ?? []).length
-  const concluidosCount = (checklist ?? []).filter((c) => Boolean(c?.concluido)).length
+  const checklistRenderizado = Array.isArray(checklist) ? checklist : []
+  const totalItens = checklistRenderizado.length
+  const concluidosCount = checklistRenderizado.filter((c) => Boolean(c?.concluido)).length
   const progressoPct = totalItens > 0 ? Math.round((concluidosCount / totalItens) * 100) : 0
+  const totalFotosContador =
+    (Array.isArray(fotosSalvas) ? fotosSalvas.length : 0) +
+    (Array.isArray(novasFotos) ? novasFotos.length : 0)
 
   return (
     <div className="max-w-3xl mx-auto space-y-3 pb-24">
@@ -2011,8 +2033,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
         {/* Lista de Itens do Checklist com Botões Grandes para Toque Mobile */}
         <div className="space-y-2">
-          {checklist.map((item, index) => {
-            const isChecked = item.concluido
+          {checklistRenderizado.map((item, index) => {
+            const isChecked = Boolean(item?.concluido)
             return (
               <button
                 key={item.id || index}
@@ -2056,9 +2078,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               4. Fotos do Serviço em Campo
             </h3>
           </div>
-          <span className="text-xs text-gray-500">
-            {fotosSalvas.length + novasFotos.length} foto(s) anexada(s)
-          </span>
+          <span className="text-xs text-gray-500">{totalFotosContador} foto(s) anexada(s)</span>
         </div>
 
         {/* Botões de Ação para Fotos */}

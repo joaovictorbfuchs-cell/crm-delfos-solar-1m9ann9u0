@@ -284,10 +284,11 @@ function ExecucaoOSContent() {
           ? 'cliente_id,usina_id,tipo_custom_id'
           : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
 
-        // Projeção mínima idêntica ao item 1 (sem campos pesados: checklist, fotos, retornos_rge, cronograma)
+        // Projeção segura de atividades incluindo checklist e fotos para que cheguem à tela
+        // tanto para instalador quanto para admin/outros perfis
         const fieldsAtividades = isInstalador
-          ? 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
-          : 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.responsavel_id.id,expand.responsavel_id.name,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
+          ? 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,checklist,fotos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
+          : 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,checklist,fotos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.responsavel_id.id,expand.responsavel_id.name,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
 
         const osPromise = withTimeoutSeguro(
           () => fetchOrdensServico(undefined, responsavelFiltro, isInstalador),
@@ -735,23 +736,37 @@ function ExecucaoOSContent() {
 
   // Callback de OS atualizada (rascunho ou salva)
   const handleOSUpdated = (updatedOS: OrdemServico) => {
-    const sanitized = sanitizeOS(updatedOS)
-    setOrdens((prev) =>
-      Array.isArray(prev) ? prev.map((item) => (item.id === sanitized.id ? sanitized : item)) : [],
-    )
-    if (selectedOS?.id === sanitized.id) {
-      setSelectedOS(sanitized)
+    try {
+      const sanitized = sanitizeOS(updatedOS)
+      setOrdens((prev) =>
+        Array.isArray(prev)
+          ? prev.map((item) => (item.id === sanitized.id ? sanitized : item))
+          : [],
+      )
+      if (selectedOS?.id === sanitized.id) {
+        setSelectedOS(sanitized)
+      }
+    } catch (err) {
+      console.warn('Erro ao atualizar OS no estado local:', err)
     }
   }
 
   // Callback de OS finalizada
   const handleOSFinalizada = (finalizedOS: OrdemServico) => {
-    const sanitized = sanitizeOS(finalizedOS)
-    setOrdens((prev) =>
-      Array.isArray(prev) ? prev.map((item) => (item.id === sanitized.id ? sanitized : item)) : [],
-    )
-    setSelectedOS(null)
-    setActiveTab('concluidas')
+    try {
+      const sanitized = sanitizeOS(finalizedOS)
+      setOrdens((prev) =>
+        Array.isArray(prev)
+          ? prev.map((item) => (item.id === sanitized.id ? sanitized : item))
+          : [],
+      )
+      setSelectedOS(null)
+      setActiveTab('concluidas')
+    } catch (err) {
+      console.warn('Erro ao finalizar OS no estado local:', err)
+      setSelectedOS(null)
+      setActiveTab('concluidas')
+    }
   }
 
   // Filtros aplicados com checagem segura contra array nulo
@@ -1123,16 +1138,21 @@ function ExecucaoOSContent() {
           </div>
         )}
 
-        <FichaExecucaoOS
-          os={selectedOS ? sanitizeOS(selectedOS) : selectedOS}
-          instaladores={instaladores}
-          onBack={() => {
-            setSelectedOS(null)
-            carregarDados()
-          }}
-          onOSUpdated={handleOSUpdated}
-          onOSFinalizada={handleOSFinalizada}
-        />
+        <ErrorBoundary
+          errorMessage="Não foi possível exibir os detalhes desta Ordem de Serviço. Tente recarregar ou voltar à lista."
+          compact
+        >
+          <FichaExecucaoOS
+            os={selectedOS ? sanitizeOS(selectedOS) : selectedOS}
+            instaladores={instaladores}
+            onBack={() => {
+              setSelectedOS(null)
+              carregarDados()
+            }}
+            onOSUpdated={handleOSUpdated}
+            onOSFinalizada={handleOSFinalizada}
+          />
+        </ErrorBoundary>
 
         {/* Modal Enviar Relatório ao Cliente (E-mail e WhatsApp com confirmação) */}
         {osParaEnviarCliente && (

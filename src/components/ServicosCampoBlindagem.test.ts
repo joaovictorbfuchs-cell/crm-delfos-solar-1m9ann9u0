@@ -178,5 +178,12 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       const result = await fetchOrdensServico(undefined, 'user-fake-instalador', true)
       expect(Array.isArray(result)).toBe(true)
     })
+
+    it('updateAtividade e updateAtividadeComoOrdemServico exportadas e operacionais', async () => {
+      const { updateAtividade, updateAtividadeComoOrdemServico } =
+        await import('@/services/crmService')
+      expect(typeof updateAtividade).toBe('function')
+      expect(typeof updateAtividadeComoOrdemServico).toBe('function')
+    })
   })
 })
