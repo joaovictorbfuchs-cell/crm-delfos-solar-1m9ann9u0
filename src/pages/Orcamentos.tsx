@@ -564,12 +564,16 @@ export const Orcamentos: React.FC = () => {
           <button
             type="button"
             onClick={() => handleMudarAbaHub('solar')}
-            className="text-[0.75rem]"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              abaAtivaHub === 'solar'
+                ? 'bg-[#16A34A] text-white shadow-sm'
+                : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
+            }`}
           >
             <Sun className="w-4 h-4" />
             <span>Energia Solar</span>
             <span
-              className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+              className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
                 abaAtivaHub === 'solar' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
@@ -592,6 +596,17 @@ export const Orcamentos: React.FC = () => {
           </button>
 
           {/* Aba 3: Baterias (Desabilitada / Em breve) */}
+          <div
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
+            title="Módulo de Baterias em desenvolvimento"
+            aria-disabled="true"
+          >
+            <Battery className="w-4 h-4 text-gray-400" />
+            <span>Baterias</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200/60 text-gray-500">
+              Em breve
+            </span>
+          </div>
 
           {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
           <div
@@ -601,6 +616,9 @@ export const Orcamentos: React.FC = () => {
           >
             <Zap className="w-4 h-4 text-gray-400" />
             <span>Carregadores Veiculares</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200/60 text-gray-500">
+              Em breve
+            </span>
           </div>
         </div>
 
