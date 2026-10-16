@@ -547,9 +547,7 @@ export const Orcamentos: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
                   Propostas
                 </h1>
-                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Hub Unificado
-                </span>
+                
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
                 Central de geração e acompanhamento de propostas comerciais
@@ -595,14 +593,7 @@ export const Orcamentos: React.FC = () => {
           </button>
 
           {/* Aba 3: Baterias (Desabilitada / Em breve) */}
-          <div
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
-            title="Módulo de Baterias em desenvolvimento"
-            aria-disabled="true"
-          >
-            <Battery className="w-4 h-4 text-gray-400" />
-            <span>Baterias</span>
-          </div>
+          
 
           {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
           <div

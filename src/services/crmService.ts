@@ -2465,7 +2465,7 @@ export async function fetchPropostasOM(
       .getFullList<import('@/types/crm').PropostaOM>({
         filter,
         sort: '-data_proposta',
-        expand: 'cliente_id',
+        expand: 'cliente_id,negocio_id',
         requestKey: null,
       })
     return records
@@ -2475,8 +2475,37 @@ export async function fetchPropostasOM(
   }
 }
 
+export async function gerarProximoNumeroPropostaOM(): Promise<string> {
+  const anoAtual = new Date().getFullYear().toString()
+  try {
+    const records = await pb
+      .collection('propostas_om')
+      .getFullList<import('@/types/crm').PropostaOM>({
+        filter: `numero_proposta ~ 'OM-${anoAtual}-'`,
+        sort: '-numero_proposta',
+        requestKey: null,
+      })
+    let maiorSeq = 0
+    for (const rec of records) {
+      const match = (rec.numero_proposta || '').match(/^OM-(\d{4})-(\d+)$/i)
+      if (match && match[1] === anoAtual) {
+        const seq = parseInt(match[2], 10)
+        if (!isNaN(seq) && seq > maiorSeq) {
+          maiorSeq = seq
+        }
+      }
+    }
+    return `OM-${anoAtual}-${String(maiorSeq + 1).padStart(3, '0')}`
+  } catch (err) {
+    console.warn('Erro ao calcular próximo número da proposta O&M, gerando fallback:', err)
+    return `OM-${anoAtual}-001`
+  }
+}
+
 export async function createPropostaOM(data: {
   cliente_id: string
+  negocio_id?: string
+  numero_proposta?: string
   plano_escolhido?: import('@/types/crm').OMPlanoTipo | ''
   potencia_kwp: number
   geracao_mensal_kwh: number
@@ -2486,6 +2515,7 @@ export async function createPropostaOM(data: {
   valor_kwh: number
   distancia_km?: number
   valor_km?: number
+  valor_por_placa?: number
   valor_ativo_protegido: number
   perda_15_ano: number
   perda_20_ano: number
@@ -2493,13 +2523,39 @@ export async function createPropostaOM(data: {
   prejuizo_30_dias: number
   valor_mensal_plano?: number
   valor_anual_plano?: number
+  valor_plano_essencial?: number
+  valor_plano_inspecao?: number
+  valor_plano_completo?: number
+  valores_negociados_json?: any
+  conteudo_proposta?: any
   data_proposta?: string
   autor?: string
   status?: string
   observacoes?: string
 }): Promise<import('@/types/crm').PropostaOM> {
+  const numeroPropostaFinal = data.numero_proposta || (await gerarProximoNumeroPropostaOM())
+
+  // Se nao foi fornecido negocio_id, buscar automaticamente se o cliente tem negócio em andamento único
+  let negocioIdFinal = data.negocio_id || ''
+  if (!negocioIdFinal && data.cliente_id) {
+    try {
+      const negocios = await pb.collection('negocios').getList(1, 2, {
+        filter: `cliente_id = '${data.cliente_id}' && status = 'em andamento'`,
+        sort: '-created',
+        requestKey: null,
+      })
+      if (negocios.items.length === 1) {
+        negocioIdFinal = negocios.items[0].id
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
   const payload = {
     ...data,
+    negocio_id: negocioIdFinal || undefined,
+    numero_proposta: numeroPropostaFinal,
     status: data.status || 'Proposta Enviada',
     data_proposta: data.data_proposta || new Date().toISOString(),
     autor: data.autor || 'Delfos Solar O&M',
@@ -2507,7 +2563,7 @@ export async function createPropostaOM(data: {
   const record = await pb
     .collection('propostas_om')
     .create<import('@/types/crm').PropostaOM>(payload, {
-      expand: 'cliente_id',
+      expand: 'cliente_id,negocio_id',
     })
   return record
 }
@@ -2519,7 +2575,7 @@ export async function updatePropostaOM(
   const record = await pb
     .collection('propostas_om')
     .update<import('@/types/crm').PropostaOM>(id, data, {
-      expand: 'cliente_id',
+      expand: 'cliente_id,negocio_id',
     })
   return record
 }

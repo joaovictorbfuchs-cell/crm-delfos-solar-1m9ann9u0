@@ -193,7 +193,32 @@ export interface PropostaPDFInput {
   dataEmissao?: string
   autor?: string
   referenciaProposta?: string
+  numeroProposta?: string
+  negocioId?: string
+  negocioTitulo?: string
   conteudo?: Partial<ConteudoPropostaOM> | null
+}
+
+/**
+ * Retorna o rótulo de exibição amigável da proposta vinculado ao negócio, se houver.
+ * Ex.: "OM-2026-001" ou "OM-2026-001 · Negócio: Expansão Usina Sul"
+ */
+export function formatarNumeroPropostaExibicao(dados?: {
+  numeroProposta?: string
+  referenciaProposta?: string
+  negocioTitulo?: string
+}): string {
+  if (!dados) return 'Em elaboração'
+  const base =
+    dados.numeroProposta ||
+    (dados.referenciaProposta && !/^[a-z0-9]{15}$/i.test(dados.referenciaProposta)
+      ? dados.referenciaProposta
+      : '') ||
+    'Em elaboração'
+  if (dados.negocioTitulo && dados.negocioTitulo.trim()) {
+    return `${base} · Negócio: ${dados.negocioTitulo.trim()}`
+  }
+  return base
 }
 
 export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
@@ -215,6 +240,11 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
   const planoAtivo: OMPlanoTipo = (parametros.planoEscolhido || 'Completo') as OMPlanoTipo
   const geracaoAnual = (tecnico.geracaoMediaKwh || 0) * 12
   const valorAnualBruto = geracaoAnual * (parametros.valorKwh || 0)
+  const numeroExibicao = formatarNumeroPropostaExibicao({
+    numeroProposta: dados.numeroProposta,
+    referenciaProposta: dados.referenciaProposta,
+    negocioTitulo: dados.negocioTitulo,
+  })
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -296,8 +326,9 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       padding: 4px 10px;
       border-radius: 6px;
       border: 1px solid #86EFAC;
-      white-space: nowrap;
+      white-space: normal;
       text-align: right;
+      max-width: 260px;
     }
     .section-block {
       margin-bottom: 16px;
@@ -637,6 +668,7 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
         </div>
       </div>
       <div class="doc-badge-date">
+        <strong>Proposta nº ${numeroExibicao}</strong><br/>
         Emissão: ${formatDateBR(dados.dataEmissao)}<br/>
         <span style="font-size: 8.5px; font-weight: 500; color: #047857;">${c.secao1.badgeEmissao}</span>
       </div>

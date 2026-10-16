@@ -339,7 +339,13 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
           <View style={styles.meta}>
             <Text style={styles.badge}>{conteudo.secao1.badgeEmissao}</Text>
             <Text style={styles.metaText}>
-              Proposta nº {dados.referenciaProposta || 'Em elaboração'}
+              Proposta nº{' '}
+              {dados.numeroProposta ||
+                (dados.referenciaProposta && !/^[a-z0-9]{15}$/i.test(dados.referenciaProposta)
+                  ? dados.referenciaProposta
+                  : '') ||
+                'Em elaboração'}
+              {dados.negocioTitulo ? ` · Negócio: ${dados.negocioTitulo.trim()}` : ''}
             </Text>
             <Text style={styles.metaText}>Emissão: {formatDate(dataDate)}</Text>
             <Text style={styles.metaText}>Válida até: {formatDate(dataValidade)}</Text>

@@ -112,7 +112,13 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
   dataValidade.setDate(dataValidade.getDate() + (c.rodape.validadeDias || 5))
   const geracaoAnual = (tecnico.geracaoMediaKwh || 0) * 12
   const valorAnualBruto = geracaoAnual * (parametros.valorKwh || 0)
-  const numeroProposta = dados.referenciaProposta || 'Em elaboração'
+  const numeroProposta =
+    dados.numeroProposta ||
+    (dados.referenciaProposta && !/^[a-z0-9]{15}$/i.test(dados.referenciaProposta)
+      ? dados.referenciaProposta
+      : '') ||
+    'Em elaboração'
+  const negocioTitulo = dados.negocioTitulo?.trim() || ''
 
   const planos = [
     {
@@ -237,8 +243,13 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
             <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-extrabold text-[11px] uppercase tracking-wide">
               {c.secao1.badgeEmissao || 'Documento Oficial'}
             </span>
-            <span className="text-gray-700 text-[11px] mt-1.5 font-semibold">
+            <span className="text-gray-700 text-[11px] mt-1.5 font-semibold text-right">
               Proposta nº {numeroProposta}
+              {negocioTitulo && (
+                <span className="block text-[10px] text-emerald-800 font-bold">
+                  Negócio: {negocioTitulo}
+                </span>
+              )}
             </span>
             <span className="text-gray-500 text-[11px] mt-1 font-medium">
               Emissão: <strong className="text-gray-800">{formatarData(dataEmissao)}</strong>
