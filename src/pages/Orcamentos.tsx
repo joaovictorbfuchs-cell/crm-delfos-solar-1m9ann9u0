@@ -547,7 +547,6 @@ export const Orcamentos: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
                   Propostas
                 </h1>
-                
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
                 Central de geração e acompanhamento de propostas comerciais
@@ -593,7 +592,6 @@ export const Orcamentos: React.FC = () => {
           </button>
 
           {/* Aba 3: Baterias (Desabilitada / Em breve) */}
-          
 
           {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
           <div
