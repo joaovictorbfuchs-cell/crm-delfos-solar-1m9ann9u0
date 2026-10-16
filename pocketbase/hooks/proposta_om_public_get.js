@@ -47,6 +47,19 @@ routerAdd('GET', '/backend/v1/propostas-om/public/{token}', (e) => {
   const documentoCliente = client.getString('cnpj') || client.getString('cpf') || ''
   const aceitoEm = proposal.getString('aceite_cliente_em')
 
+  let negocioTitulo = ''
+  const negocioId = proposal.getString('negocio_id')
+  if (negocioId) {
+    try {
+      const neg = $app.findRecordById('negocios', negocioId)
+      negocioTitulo = neg.getString('titulo') || ''
+    } catch (_) {
+      negocioTitulo = ''
+    }
+  }
+
+  const numeroPropostaValido = proposal.getString('numero_proposta') || ''
+
   return e.json(200, {
     status: proposal.getString('status') || 'Proposta Enviada',
     dataProposta: proposal.getString('data_proposta'),
@@ -104,6 +117,9 @@ routerAdd('GET', '/backend/v1/propostas-om/public/{token}', (e) => {
       },
     },
     referenciaProposta: proposal.id,
+    numeroProposta: numeroPropostaValido,
+    negocioId: negocioId,
+    negocioTitulo: negocioTitulo,
     autor: proposal.getString('autor'),
     conteudo: content,
     aceite: aceitoEm

@@ -567,11 +567,7 @@ export const Orcamentos: React.FC = () => {
           <button
             type="button"
             onClick={() => handleMudarAbaHub('solar')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              abaAtivaHub === 'solar'
-                ? 'bg-[#16A34A] text-white shadow-sm'
-                : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
-            }`}
+            className="text-[0.75rem]"
           >
             <Sun className="w-4 h-4" />
             <span>Energia Solar</span>
@@ -596,9 +592,6 @@ export const Orcamentos: React.FC = () => {
           >
             <FileCheck className="w-4 h-4" />
             <span>O&amp;M</span>
-            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-              Operação &amp; Manutenção
-            </span>
           </button>
 
           {/* Aba 3: Baterias (Desabilitada / Em breve) */}
@@ -609,9 +602,6 @@ export const Orcamentos: React.FC = () => {
           >
             <Battery className="w-4 h-4 text-gray-400" />
             <span>Baterias</span>
-            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
-              Em breve
-            </span>
           </div>
 
           {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
@@ -622,9 +612,6 @@ export const Orcamentos: React.FC = () => {
           >
             <Zap className="w-4 h-4 text-gray-400" />
             <span>Carregadores Veiculares</span>
-            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
-              Em breve
-            </span>
           </div>
         </div>
 
