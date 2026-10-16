@@ -436,11 +436,10 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     try {
       const saved = await handleSalvarProposta(false)
       if (!saved) return
-      const dadosPdf = montarPDFSalvo(saved)
-      if (!dadosPdf) throw new Error('Não foi possível montar os dados do PDF.')
+      // PDF gerado a partir do MESMO DOM do preview: o anexo do WhatsApp sai
+      // idêntico ao layout que o usuário vê e valida na tela.
       const { base64, fileName } = await import('@/components/BotaoBaixarPropostaOMPDF').then(
-        ({ gerarPropostaOMPdfBlobBase64 }) =>
-          gerarPropostaOMPdfBlobBase64(dadosPdf, saved.observacoes || ''),
+        ({ gerarPropostaOMPdfDoPreviewBlobBase64 }) => gerarPropostaOMPdfDoPreviewBlobBase64(),
       )
       const primeiroNome = (clienteAtual.nome_fantasia || clienteAtual.nome || 'Cliente').split(
         ' ',
