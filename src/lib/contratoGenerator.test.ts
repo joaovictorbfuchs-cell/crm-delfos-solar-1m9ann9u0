@@ -7,6 +7,7 @@ import {
   getAnexoIIServicos,
   gerarHTMLContratoOM,
   gerarPDFBinarioContrato,
+  calcularValoresSugeridosAnexoII,
   DADOS_FIXOS_CONTRATADA_CONTRATO,
   SERVICOS_ADICIONAIS_PADRAO,
 } from './contratoGenerator'
@@ -153,5 +154,41 @@ describe('contratoGenerator - Contrato de Prestação de Serviços O&M Delfos So
 
     const pdfString = new TextDecoder().decode(pdfBytes.slice(0, 50))
     expect(pdfString.startsWith('%PDF-1.4')).toBe(true)
+  })
+
+  it('deve calcular valores sugeridos do Anexo II com base nas variáveis da usina e proposta', () => {
+    // Cenário 1: Sem deslocamento e usina padrão
+    const valoresBase = calcularValoresSugeridosAnexoII({
+      numeroModulos: 64,
+      potenciaKwp: 30,
+      distanciaKm: 0,
+      valorKm: 2.5,
+      valorPorPlaca: 9,
+    })
+
+    expect(valoresBase.diagnostico).toBe(350)
+    expect(valoresBase.manutencaoCorretiva).toBe(450)
+    // Limpeza de painéis: 64 * 9 = 576
+    expect(valoresBase.limpezaPaineis).toBe(576)
+    expect(valoresBase.testesInversor).toBe(350)
+    expect(valoresBase.substituicaoInversor).toBe(550)
+    expect(valoresBase.gestaoRateio).toBe(300)
+    expect(valoresBase.auditoriaFaturamento).toBe(450)
+
+    // Cenário 2: Usina distante (50 km, R$ 2.5/km => ida e volta 100km * 2.5 = R$ 250 de deslocamento)
+    const valoresComDeslocamento = calcularValoresSugeridosAnexoII({
+      numeroModulos: 100,
+      potenciaKwp: 60,
+      distanciaKm: 50,
+      valorKm: 2.5,
+      valorPorPlaca: 9,
+    })
+
+    // Diagnóstico: 350 + 250 = 600
+    expect(valoresComDeslocamento.diagnostico).toBe(600)
+    // Manutenção Corretiva: 450 + 250 = 700
+    expect(valoresComDeslocamento.manutencaoCorretiva).toBe(700)
+    // Limpeza: 100 * 9 (900) + 250 = 1150
+    expect(valoresComDeslocamento.limpezaPaineis).toBe(1150)
   })
 })

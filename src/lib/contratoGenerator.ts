@@ -38,6 +38,114 @@ export const SERVICOS_ADICIONAIS_PADRAO: ServicosAdicionaisValores = {
   manutencaoAtivos: 350,
 }
 
+export interface ParametrosCalculoAnexoII {
+  numeroModulos?: number
+  potenciaKwp?: number
+  distanciaKm?: number
+  valorKm?: number
+  valorKwh?: number
+  valorPorPlaca?: number
+}
+
+/**
+ * Calcula valores sugeridos para a Tabela de Serviços Adicionais (Anexo II)
+ * a partir das variáveis técnicas e comerciais da usina/proposta O&M:
+ * - quantidade de módulos
+ * - potência (kWp)
+ * - distância de deslocamento (km)
+ * - valor por km (R$/km)
+ * - tarifa (R$/kWh)
+ * - valor por placa (R$/placa)
+ *
+ * Lógica de cada serviço:
+ * - Serviços cobrados por módulo (limpeza): escalam com quantidade de módulos (piso R$ 350 ou padrão)
+ * - Serviços com deslocamento in loco (diagnóstico, corretiva, termografia, inspeção, troca inversor):
+ *   incorporam o custo de distância (distancia × valorKm × 2) adicionado à base técnica
+ * - Serviços de engenharia/perícia que escalam com o porte da usina (kWp): relatorioSeguradora
+ * - Hora adicional permanece fixa em R$ 150,00
+ */
+export function calcularValoresSugeridosAnexoII(
+  params: ParametrosCalculoAnexoII,
+  valoresBase: ServicosAdicionaisValores = SERVICOS_ADICIONAIS_PADRAO,
+): ServicosAdicionaisValores {
+  const modulos = Math.max(0, Number(params.numeroModulos) || 0)
+  const potencia = Math.max(0, Number(params.potenciaKwp) || 0)
+  const distancia = Math.max(0, Number(params.distanciaKm) || 0)
+  const valorKm = Math.max(0, Number(params.valorKm) || 0)
+  const valorPorPlaca = Math.max(0, Number(params.valorPorPlaca) || 9)
+
+  // Custo ida e volta de deslocamento rodoviário
+  const custoDeslocamento = Math.round(distancia * valorKm * 2)
+
+  // 1. Diagnóstico Técnico: base R$ 350 + deslocamento
+  const diagnostico = Math.max(valoresBase.diagnostico, 350 + custoDeslocamento)
+
+  // 2. Manutenção Corretiva: base R$ 450 + deslocamento
+  const manutencaoCorretiva = Math.max(valoresBase.manutencaoCorretiva, 450 + custoDeslocamento)
+
+  // 3. Inspeção Termográfica e Relatório:
+  // Câmera térmica + laudo técnico: base R$ 600 + deslocamento + acréscimo proporcional para usinas grandes (> 50 kWp)
+  const porteTermografia = potencia > 50 ? Math.round((potencia - 50) * 3) : 0
+  const inspecaoTermografica = Math.max(
+    valoresBase.inspecaoTermografica,
+    600 + custoDeslocamento + porteTermografia,
+  )
+
+  // 4. Inspeção Técnica: base R$ 350 + deslocamento
+  const inspecaoTecnica = Math.max(valoresBase.inspecaoTecnica, 350 + custoDeslocamento)
+
+  // 5. Limpeza de Painéis:
+  // Se houver módulos: modulos * valorPorPlaca (piso R$ 450) + deslocamento
+  let limpezaCalculada = valoresBase.limpezaPaineis
+  if (modulos > 0) {
+    limpezaCalculada = Math.round(modulos * valorPorPlaca)
+  }
+  const limpezaPaineis = Math.max(valoresBase.limpezaPaineis, limpezaCalculada + custoDeslocamento)
+
+  // 6. Testes em Inversor para Garantia: base R$ 350 + deslocamento
+  const testesInversor = Math.max(valoresBase.testesInversor, 350 + custoDeslocamento)
+
+  // 7. Substituição de Inversor: serviço mais pesado base R$ 550 + deslocamento
+  const substituicaoInversor = Math.max(valoresBase.substituicaoInversor, 550 + custoDeslocamento)
+
+  // 8. Relatório Seguradora: base pericial R$ 850 + escala com porte da usina
+  const escalaSeguradora = potencia > 0 ? Math.round(potencia * 5) : 0
+  const relatorioSeguradora = Math.max(
+    valoresBase.relatorioSeguradora,
+    850 + escalaSeguradora + custoDeslocamento,
+  )
+
+  // 9. Datalogger / WiFi: configuração/reconfiguração R$ 250 (se in loco, + deslocamento)
+  const configuracaoDatalogger = Math.max(
+    valoresBase.configuracaoDatalogger,
+    250 + (distancia > 0 ? custoDeslocamento : 0),
+  )
+
+  // 10. Gestão de Rateio e Beneficiárias: administrativo/remoto base R$ 300
+  const gestaoRateio = valoresBase.gestaoRateio
+
+  // 11. Auditoria e Contestação de Faturamento: administrativo especializado base R$ 450
+  const auditoriaFaturamento = valoresBase.auditoriaFaturamento
+
+  // 12. Manutenção de Ativos e Medição: base R$ 350 + deslocamento
+  const manutencaoAtivos = Math.max(valoresBase.manutencaoAtivos, 350 + custoDeslocamento)
+
+  return {
+    diagnostico: Math.round(diagnostico),
+    manutencaoCorretiva: Math.round(manutencaoCorretiva),
+    inspecaoTermografica: Math.round(inspecaoTermografica),
+    inspecaoTecnica: Math.round(inspecaoTecnica),
+    limpezaPaineis: Math.round(limpezaPaineis),
+    testesInversor: Math.round(testesInversor),
+    substituicaoInversor: Math.round(substituicaoInversor),
+    relatorioSeguradora: Math.round(relatorioSeguradora),
+    configuracaoDatalogger: Math.round(configuracaoDatalogger),
+    gestaoRateio: Math.round(gestaoRateio),
+    auditoriaFaturamento: Math.round(auditoriaFaturamento),
+    manutencaoAtivos: Math.round(manutencaoAtivos),
+  }
+}
+
 export interface DadosContratoOM {
   // Contratante
   nomeRazaoSocial: string

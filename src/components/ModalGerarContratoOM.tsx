@@ -33,6 +33,7 @@ import {
   FileCheck,
   Phone,
   Factory,
+  Calculator,
 } from 'lucide-react'
 import type { Cliente, PropostaOM, UsinaCliente } from '@/types/crm'
 import { fetchUsinasByClienteId } from '@/services/crmService'
@@ -40,6 +41,7 @@ import {
   type DadosContratoOM,
   type PlanoContratoOM,
   type ServicosAdicionaisValores,
+  type ParametrosCalculoAnexoII,
   DADOS_FIXOS_CONTRATADA_CONTRATO,
   SERVICOS_ADICIONAIS_PADRAO,
   formatarDataExtenso,
@@ -47,9 +49,11 @@ import {
   normalizarDadosContrato,
   getAnexoIPlanoConteudo,
   getAnexoIIServicos,
+  calcularValoresSugeridosAnexoII,
   baixarContratoPDF,
   abrirContratoImpressao,
 } from '@/lib/contratoGenerator'
+import { estimarDistanciaDelfosCliente } from '@/lib/calculoDeslocamentoAtividades'
 const LazyBotaoBaixarContratoOMPDF = React.lazy(
   () => import('@/components/BotaoBaixarContratoOMPDF'),
 )
@@ -90,8 +94,11 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   onDocumentoGerado,
 }) => {
   // Etapa 1: 'revisao' (formulário com todos os dados preenchidos automaticamente da ficha e editáveis)
-  // Etapa 2: 'previsualizacao' (página A4 com o texto exato do modelo + botões Baixar PDF e Enviar WhatsApp)
-  const [etapa, setEtapa] = useState<'revisao' | 'previsualizacao'>('revisao')
+  // Etapa 2: 'confirmacao_tabela' (revisão e confirmação explícita da tabela completa do Anexo II antes da emissão)
+  // Etapa 3: 'previsualizacao' (página A4 com o texto exato do modelo + botões Baixar PDF e Enviar WhatsApp)
+  const [etapa, setEtapa] = useState<'revisao' | 'confirmacao_tabela' | 'previsualizacao'>(
+    'revisao',
+  )
 
   // Dados do Contratante
   const [formNome, setFormNome] = useState('')
@@ -124,6 +131,14 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     SERVICOS_ADICIONAIS_PADRAO,
   )
   const [showServicosAdicionaisEdit, setShowServicosAdicionaisEdit] = useState(false)
+
+  // Variáveis para cálculo sugerido dos serviços do Anexo II (com base na proposta/usina vinculada)
+  const [paramPotenciaKwp, setParamPotenciaKwp] = useState<number>(0)
+  const [paramDistanciaKm, setParamDistanciaKm] = useState<number>(15)
+  const [paramValorKm, setParamValorKm] = useState<number>(2.5)
+  const [paramValorKwh, setParamValorKwh] = useState<number>(0.92)
+  const [paramValorPorPlaca, setParamValorPorPlaca] = useState<number>(9.0)
+  const [showParametrosCalculo, setShowParametrosCalculo] = useState<boolean>(false)
 
   // Carregar usinas do cliente quando o modal abrir (se não fornecidas nas props)
   useEffect(() => {
@@ -222,11 +237,38 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
         setFormValorMensal(initialDados.valorMensal || 190)
         setFormDataExtenso(initialDados.dataPorExtenso || formatarDataExtenso(new Date()))
         setFormServicosAdicionais(initialDados.servicosAdicionais || SERVICOS_ADICIONAIS_PADRAO)
+
+        // Carrega parâmetros para cálculo de sugestão a partir da proposta ou cliente
+        const potInicial = propostaOM?.potencia_kwp || cliente.potencia_kwp || 0
+        const distInicial =
+          propostaOM?.distancia_km ??
+          estimarDistanciaDelfosCliente(cliente.endereco || '', cliente.cidade || '').distanciaKm
+        const kmValInicial = propostaOM?.valor_km ?? 2.5
+        const kwhValInicial = propostaOM?.valor_kwh ?? 0.92
+        const placaValInicial = propostaOM?.valor_por_placa ?? 9.0
+        setParamPotenciaKwp(potInicial)
+        setParamDistanciaKm(distInicial)
+        setParamValorKm(kmValInicial)
+        setParamValorKwh(kwhValInicial)
+        setParamValorPorPlaca(placaValInicial)
+
         setEtapa(modoVisualizacaoDireta ? 'previsualizacao' : 'revisao')
         return
       }
 
       // Preenchimento automático da ficha do cliente e proposta O&M aprovada
+      const potInicial = propostaOM?.potencia_kwp || cliente.potencia_kwp || 0
+      const distInicial =
+        propostaOM?.distancia_km ??
+        estimarDistanciaDelfosCliente(cliente.endereco || '', cliente.cidade || '').distanciaKm
+      const kmValInicial = propostaOM?.valor_km ?? 2.5
+      const kwhValInicial = propostaOM?.valor_kwh ?? 0.92
+      const placaValInicial = propostaOM?.valor_por_placa ?? 9.0
+      setParamPotenciaKwp(potInicial)
+      setParamDistanciaKm(distInicial)
+      setParamValorKm(kmValInicial)
+      setParamValorKwh(kwhValInicial)
+      setParamValorPorPlaca(placaValInicial)
       const nomeEfetivo = cliente.razao_social || cliente.nome || cliente.titular_nome || ''
       const docEfetivo = cliente.cnpj || cliente.cpf || cliente.titular_cpf || ''
 
@@ -404,6 +446,10 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
       setFormNumModulos(qtdPlacas)
     }
 
+    if (usina.potencia_kwp) {
+      setParamPotenciaKwp(Number(usina.potencia_kwp) || 0)
+    }
+
     // Preenche inversores
     const inversores =
       usina.inversores_info ||
@@ -425,8 +471,27 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     toast.info(`Dados técnicos e endereço preenchidos a partir da usina "${usina.nome}".`)
   }
 
-  // Avançar para tela de pré-visualização A4
-  const handleConfirmarRevisao = () => {
+  // Ação de cálculo de valores sugeridos para a Tabela de Serviços Adicionais (Anexo II)
+  const handleCalcularValoresSugeridos = () => {
+    const params: ParametrosCalculoAnexoII = {
+      numeroModulos: Number(formNumModulos) || 0,
+      potenciaKwp: Number(paramPotenciaKwp) || 0,
+      distanciaKm: Number(paramDistanciaKm) || 0,
+      valorKm: Number(paramValorKm) || 0,
+      valorKwh: Number(paramValorKwh) || 0,
+      valorPorPlaca: Number(paramValorPorPlaca) || 9,
+    }
+
+    const novosValores = calcularValoresSugeridosAnexoII(params)
+    setFormServicosAdicionais(novosValores)
+    setShowServicosAdicionaisEdit(true)
+    toast.success(
+      'Valores do Anexo II calculados e preenchidos com base nas variáveis da usina/proposta!',
+    )
+  }
+
+  // Avançar da etapa de revisão dos dados gerais para a etapa de confirmação da tabela do Anexo II
+  const handleAvancarParaConfirmacaoTabela = () => {
     if (!formNome.trim()) {
       toast.warning('Informe o Nome ou Razão Social do cliente/contratante.')
       return
@@ -435,8 +500,14 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
       toast.warning('Informe o CPF ou CNPJ do contratante.')
       return
     }
+    setEtapa('confirmacao_tabela')
+  }
+
+  // Confirmar os valores da tabela do Anexo II e avançar para a emissão/pré-visualização
+  const handleConfirmarTabelaEEmitir = () => {
     setEtapa('previsualizacao')
     registrarAtividadeEmissao(dadosConsolidados)
+    toast.success('Valores do Anexo II confirmados com sucesso!')
   }
 
   // Submodal de conferência e envio do WhatsApp com PDF anexo (mesmo padrão da Procuração)
@@ -553,12 +624,16 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                 <DialogTitle className="text-base sm:text-lg font-bold text-gray-900">
                   {etapa === 'revisao'
                     ? 'Gerar Contrato de Prestação de Serviços O&M — Revisão de Dados'
-                    : 'Pré-Visualização do Contrato O&M — Modelo Oficial Delfos'}
+                    : etapa === 'confirmacao_tabela'
+                      ? 'Confirmar Tabela de Serviços Adicionais (Anexo II) — Conferência Prévia'
+                      : 'Pré-Visualização do Contrato O&M — Modelo Oficial Delfos'}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-gray-500 mt-0.5">
                   {etapa === 'revisao'
-                    ? 'Confira os dados do cliente, sistema técnico, plano e valores antes de gerar o contrato oficial.'
-                    : 'Confira o contrato completo no padrão A4 oficial Delfos com os anexos antes de baixar ou enviar pelo WhatsApp.'}
+                    ? 'Confira os dados do cliente, sistema técnico, plano e valores antes de avançar para a emissão.'
+                    : etapa === 'confirmacao_tabela'
+                      ? 'Revise os valores finais de cada um dos 12 serviços do Anexo II antes de emitir o contrato oficial.'
+                      : 'Confira o contrato completo no padrão A4 oficial Delfos com os anexos antes de baixar ou enviar pelo WhatsApp.'}
                 </DialogDescription>
               </div>
             </div>
@@ -567,6 +642,11 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
               <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold text-xs">
                 Plano {dadosConsolidados.planoSelecionado}
               </Badge>
+              {etapa === 'confirmacao_tabela' && (
+                <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-semibold text-xs">
+                  Etapa: Confirmação Anexo II
+                </Badge>
+              )}
               {etapa === 'previsualizacao' && (
                 <Badge className="bg-emerald-600 text-white font-medium text-xs">
                   Pronto para emissão
@@ -876,33 +956,136 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
             </div>
 
             {/* Bloco 4: Serviços Adicionais (Anexo II) — Valores editáveis */}
-            <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-3">
-              <div
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => setShowServicosAdicionaisEdit(!showServicosAdicionaisEdit)}
-              >
-                <div className="flex items-center gap-2">
+            <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                  onClick={() => setShowServicosAdicionaisEdit(!showServicosAdicionaisEdit)}
+                >
                   <FileText className="w-4 h-4 text-gray-600" />
                   <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800">
                     4. Tabela de Serviços Adicionais (Anexo II)
                   </h4>
                 </div>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
-                >
-                  <span>
-                    {showServicosAdicionaisEdit
-                      ? 'Ocultar Valores'
-                      : 'Personalizar Valores (12 Itens)'}
-                  </span>
-                  {showServicosAdicionaisEdit ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </button>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Botão de Calcular Valores Sugeridos (Melhoria 1) */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCalcularValoresSugeridos}
+                    className="h-8 px-2.5 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 gap-1.5 shadow-2xs"
+                    title="Calcular valores sugeridos dos 12 serviços com base na quantidade de módulos, potência, distância e parâmetros da usina/proposta"
+                  >
+                    <Calculator className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Calcular valores sugeridos</span>
+                  </Button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowParametrosCalculo(!showParametrosCalculo)}
+                    className="text-[11px] font-medium text-gray-600 hover:text-gray-900 underline underline-offset-2 flex items-center gap-1"
+                    title="Visualizar ou editar variáveis de cálculo (distância, potência, valor/km, etc.)"
+                  >
+                    <span>{showParametrosCalculo ? 'Ocultar Parâmetros' : 'Parâmetros Usina'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowServicosAdicionaisEdit(!showServicosAdicionaisEdit)}
+                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                  >
+                    <span>
+                      {showServicosAdicionaisEdit
+                        ? 'Ocultar Valores'
+                        : 'Personalizar Valores (12 Itens)'}
+                    </span>
+                    {showServicosAdicionaisEdit ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* Sub-painel retrátil de parâmetros de cálculo da usina/proposta */}
+              {showParametrosCalculo && (
+                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-950 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                      Parâmetros vinculados à usina / proposta para o cálculo
+                    </span>
+                    <span className="text-[10px] text-emerald-800">
+                      O botão &quot;Calcular valores sugeridos&quot; usa estes parâmetros
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                    <div>
+                      <Label className="text-[10px] font-medium text-emerald-900">Nº Módulos</Label>
+                      <Input
+                        type="number"
+                        value={formNumModulos}
+                        onChange={(e) => setFormNumModulos(Number(e.target.value) || 0)}
+                        className="h-7 text-xs bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-medium text-emerald-900">
+                        Potência (kWp)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={paramPotenciaKwp}
+                        onChange={(e) => setParamPotenciaKwp(Number(e.target.value) || 0)}
+                        className="h-7 text-xs bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-medium text-emerald-900">
+                        Distância (km)
+                      </Label>
+                      <Input
+                        type="number"
+                        value={paramDistanciaKm}
+                        onChange={(e) => setParamDistanciaKm(Number(e.target.value) || 0)}
+                        className="h-7 text-xs bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-medium text-emerald-900">
+                        Valor por km (R$)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={paramValorKm}
+                        onChange={(e) => setParamValorKm(Number(e.target.value) || 0)}
+                        className="h-7 text-xs bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-medium text-emerald-900">
+                        Valor p/ Placa (R$)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.5"
+                        value={paramValorPorPlaca}
+                        onChange={(e) => setParamValorPorPlaca(Number(e.target.value) || 0)}
+                        className="h-7 text-xs bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-emerald-700">
+                    * Módulos escalam a limpeza (R$/placa). Distância e valor/km escalam serviços
+                    com visita in loco (ida e volta). Hora adicional fixa em R$ 150,00.
+                  </p>
+                </div>
+              )}
 
               {showServicosAdicionaisEdit ? (
                 <div className="pt-2 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs animate-in fade-in">
@@ -1171,18 +1354,193 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
               <Button
                 type="button"
                 size="sm"
-                onClick={handleConfirmarRevisao}
+                onClick={handleAvancarParaConfirmacaoTabela}
                 className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-2 shadow-xs transition-transform hover:scale-[1.01]"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Confirmar e Visualizar Contrato</span>
+                <span>Revisar Tabela Anexo II</span>
               </Button>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TELA 2: PRÉ-VISUALIZAÇÃO EM FOLHA A4 COM O TEXTO EXATO E BOTÕES          */}
+        {/* TELA 2: ETAPA DE CONFIRMAÇÃO DA TABELA DO ANEXO II ANTES DA EMISSÃO       */}
+        {/* ========================================================================= */}
+        {etapa === 'confirmacao_tabela' && (
+          <div className="p-5 sm:p-6 space-y-5">
+            <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">
+                      Confirmação dos Valores — Anexo II (Serviços Adicionais)
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Revise a tabela completa antes da emissão oficial. Você pode ajustar valores
+                      caso a caso ou recalcular com novos parâmetros.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCalcularValoresSugeridos}
+                    className="h-8 px-2.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 gap-1.5 shadow-2xs"
+                  >
+                    <Calculator className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Recalcular sugeridos</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Resumo de Parâmetros da Usina */}
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-700 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <span className="text-[10px] text-gray-400 font-semibold block uppercase">
+                    Módulos
+                  </span>
+                  <span className="font-bold text-gray-900">{formNumModulos || '0'} placas</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 font-semibold block uppercase">
+                    Potência
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    {paramPotenciaKwp ? `${paramPotenciaKwp} kWp` : 'Não informada'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 font-semibold block uppercase">
+                    Distância
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    {paramDistanciaKm || 0} km ({formatCurrency(paramValorKm)}/km)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 font-semibold block uppercase">
+                    Hora Adicional
+                  </span>
+                  <span className="font-bold text-gray-900">R$ 150,00 / hora</span>
+                </div>
+              </div>
+
+              {/* Tabela completa com inputs diretos para ajuste fino */}
+              <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100/90 text-gray-800 font-bold border-b border-gray-200">
+                      <th className="p-2.5 text-center w-12">Item</th>
+                      <th className="p-2.5 text-left w-48">Serviço</th>
+                      <th className="p-2.5 text-left">Descrição Detalhada</th>
+                      <th className="p-2.5 text-right w-36">Valor Gravado (R$)</th>
+                      <th className="p-2.5 text-center w-28">Hora Adicional</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {anexoIIServicos.map((s, idx) => {
+                      // Determina a chave correspondente no estado para permitir edição inline se desejado
+                      const chaveMapeamento: Record<number, keyof ServicosAdicionaisValores> = {
+                        1: 'diagnostico',
+                        2: 'manutencaoCorretiva',
+                        3: 'inspecaoTermografica',
+                        4: 'inspecaoTecnica',
+                        5: 'limpezaPaineis',
+                        6: 'testesInversor',
+                        7: 'substituicaoInversor',
+                        8: 'relatorioSeguradora',
+                        9: 'configuracaoDatalogger',
+                        10: 'gestaoRateio',
+                        11: 'auditoriaFaturamento',
+                        12: 'manutencaoAtivos',
+                      }
+                      const chave = chaveMapeamento[idx + 1]
+
+                      return (
+                        <tr key={s.item} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="p-2.5 text-center font-bold text-gray-700">{s.item}</td>
+                          <td className="p-2.5 font-semibold text-gray-900">{s.servico}</td>
+                          <td className="p-2.5 text-gray-600 leading-snug text-[11px]">
+                            {s.descricao}
+                          </td>
+                          <td className="p-2.5 text-right">
+                            {chave ? (
+                              <div className="inline-flex items-center gap-1 justify-end font-mono">
+                                <span className="text-[11px] text-gray-400">R$</span>
+                                <Input
+                                  type="number"
+                                  value={formServicosAdicionais[chave]}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value) || 0
+                                    setFormServicosAdicionais((prev) => ({
+                                      ...prev,
+                                      [chave]: val,
+                                    }))
+                                  }}
+                                  className="h-8 w-24 text-right text-xs font-bold font-mono text-emerald-800 bg-emerald-50/40 border-emerald-300 focus:bg-white"
+                                />
+                              </div>
+                            ) : (
+                              <span className="font-bold text-emerald-800 font-mono">
+                                {s.valor}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-2.5 text-center text-gray-700 font-mono text-[11px]">
+                            {s.horaAdicional}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong>Atenção:</strong> Estes são os valores exatos que constarão na tabela do{' '}
+                  <strong>Anexo II</strong> impressa no contrato oficial e no arquivo PDF. Você pode
+                  ajustar qualquer valor individualmente nos campos acima antes de prosseguir.
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé com botões de ação da Confirmação */}
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEtapa('revisao')}
+                className="w-full sm:w-auto text-xs gap-1.5"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Voltar e Ajustar Dados</span>
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmarTabelaEEmitir}
+                className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-2 shadow-xs transition-transform hover:scale-[1.01]"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirmar valores e emitir contrato</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TELA 3: PRÉ-VISUALIZAÇÃO EM FOLHA A4 COM O TEXTO EXATO E BOTÕES          */}
         {/* ========================================================================= */}
         {etapa === 'previsualizacao' && (
           <div className="p-4 sm:p-6 space-y-5">
@@ -1192,11 +1550,12 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setEtapa('revisao')}
+                onClick={() => setEtapa('confirmacao_tabela')}
                 className="text-xs text-gray-600 hover:text-gray-900 gap-1.5"
+                title="Voltar para a conferência da tabela de serviços adicionais"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Voltar e Editar Dados</span>
+                <span>Voltar e Ajustar Tabela Anexo II</span>
               </Button>
 
               <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
