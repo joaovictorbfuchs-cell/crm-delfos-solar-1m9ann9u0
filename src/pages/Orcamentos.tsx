@@ -560,7 +560,7 @@ export const Orcamentos: React.FC = () => {
       <div className="flex items-center justify-between gap-2 w-full">
         {/* Navegador de Abas por Produto (Design System Verde Solar) */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-1.5 flex items-center gap-1.5 overflow-x-auto select-none flex-1 min-w-0">
-          {/* Aba 1: Energia Solar (Ativa por padrão) */}
+          {/* Aba 1: Energia Solar */}
           <button
             type="button"
             onClick={() => handleMudarAbaHub('solar')}
@@ -570,18 +570,13 @@ export const Orcamentos: React.FC = () => {
                 : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
             }`}
           >
-            <Sun className="w-4 h-4" />
+            <Sun
+              className={`w-4 h-4 shrink-0 ${abaAtivaHub === 'solar' ? 'text-white' : 'text-gray-500'}`}
+            />
             <span>Energia Solar</span>
-            <span
-              className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                abaAtivaHub === 'solar' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {orcamentosSolar.length}
-            </span>
           </button>
 
-          {/* Aba 2: O&M (Ativa) */}
+          {/* Aba 2: O&M */}
           <button
             type="button"
             onClick={() => handleMudarAbaHub('om')}
@@ -591,7 +586,9 @@ export const Orcamentos: React.FC = () => {
                 : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
             }`}
           >
-            <FileCheck className="w-4 h-4" />
+            <FileCheck
+              className={`w-4 h-4 shrink-0 ${abaAtivaHub === 'om' ? 'text-white' : 'text-gray-500'}`}
+            />
             <span>O&amp;M</span>
           </button>
 
@@ -601,7 +598,7 @@ export const Orcamentos: React.FC = () => {
             title="Módulo de Baterias em desenvolvimento"
             aria-disabled="true"
           >
-            <Battery className="w-4 h-4 text-gray-400" />
+            <Battery className="w-4 h-4 text-gray-400 shrink-0" />
             <span>Baterias</span>
             <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200/60 text-gray-500">
               Em breve
@@ -614,7 +611,7 @@ export const Orcamentos: React.FC = () => {
             title="Módulo de Carregadores Veiculares em desenvolvimento"
             aria-disabled="true"
           >
-            <Zap className="w-4 h-4 text-gray-400" />
+            <Zap className="w-4 h-4 text-gray-400 shrink-0" />
             <span>Carregadores Veiculares</span>
             <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200/60 text-gray-500">
               Em breve
