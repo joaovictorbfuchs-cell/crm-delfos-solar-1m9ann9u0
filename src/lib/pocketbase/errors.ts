@@ -28,21 +28,31 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  const errObj = error as any
-  const status = errObj?.status || errObj?.response?.status || errObj?.statusCode
-  if (status === 401 || status === 403) return true
-  const msg = String(errObj?.message || '').toLowerCase()
+/**
+ * Identifica se um erro de requisição corresponde a expiração/invalidade de sessão ou falha de autenticação (401/403).
+ */
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+
+  const anyErr = err as any
+  const status = anyErr?.status ?? anyErr?.statusCode ?? anyErr?.response?.status
+
+  if (status === 401 || status === 403) {
+    return true
+  }
+
+  const message = String(anyErr?.message || anyErr?.response?.message || '').toLowerCase()
   if (
-    msg.includes('token is expired') ||
-    msg.includes('token expired') ||
-    msg.includes('login expirou') ||
-    msg.includes('sessão expirada') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('user is not authorized')
+    message.includes('token is expired') ||
+    message.includes('failed to authenticate') ||
+    message.includes('the request requires valid') ||
+    message.includes('sessão expirada') ||
+    message.includes('sessao expirada') ||
+    message.includes('login expirou') ||
+    message.includes('token expired')
   ) {
     return true
   }
+
   return false
 }

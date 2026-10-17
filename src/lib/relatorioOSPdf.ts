@@ -173,183 +173,464 @@ function normalizarChecklistArray(checklistRaw: any): OSChecklistItem[] {
   return []
 }
 
+import { compilarDadosRelatorioOS } from './relatorioOSCanonical'
+
 export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   const os = dados?.os || ({} as any)
   const cliente = dados?.cliente || os.expand?.cliente_id || null
   const sistema = dados?.sistema || null
   const rawFotos = Array.isArray(dados?.fotosDataUrls) ? dados.fotosDataUrls : []
-  // Blindagem de fotos: se vazia ou inválida, substitui por placeholder seguro sem quebrar o layout
-  const fotosDataUrls: string[] = rawFotos.map((f) =>
-    f && typeof f === 'string' && f.trim() ? f : FOTO_FALLBACK_PLACEHOLDER,
-  )
-  const inversoresInfo = dados?.inversoresInfo
-  const assinaturaBase64 = dados?.assinaturaBase64
+  const fotosDataUrls: string[] = rawFotos.filter((f) => f && typeof f === 'string' && f.trim())
 
-  const concessionaria = sistema?.concessionaria || (cliente as any)?.concessionaria || 'RGE Sul'
-  const telhadoTipo = (sistema as any)?.tipo_telhado || (cliente as any)?.telhado_tipo || '-'
-  const placasMarca = (sistema as any)?.fabricante_modulos || (cliente as any)?.marca_placas || '-'
-  const inversorCompleto =
-    inversoresInfo || sistema?.fabricante_inversores || (cliente as any)?.inversor_marca || '-'
-  const fotoMedidorDataUrl = (os as any)?.foto_medidor_url || (os as any)?.foto_medidor || null
-  const rodapeComercial = (dados as any)?.rodapeComercial || getRodapeComercialCacheSync()
+  const rel = compilarDadosRelatorioOS(os, cliente, sistema, fotosDataUrls)
 
-  const osIdCurto = os?.id ? String(os.id).slice(-6).toUpperCase() : '000000'
-  const osIdFormatado = `OS #${osIdCurto}`
-  const tipoServico = os?.tipo_servico || (os as any)?.titulo || 'Serviço em Campo'
-  const prestadorNome =
-    os?.atribuida_a ||
-    os?.expand?.responsavel_usuario_id?.name ||
-    os?.expand?.profissional_id?.nome ||
-    'Técnico Autorizado Delfos'
-  const prestadorTelefone = os?.expand?.responsavel_usuario_id?.phone || '-'
+  const servicosRowsHtml = rel.servicosExecutados
+    .map(
+      (s) => `
+    <tr>
+      <td data-label="Atividade" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; font-weight: 600; color: #1A2332;">${s.atividade}</td>
+      <td data-label="Local / Ativo" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${s.localAtivo}</td>
+      <td data-label="Quantidade" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${s.quantidade}</td>
+      <td data-label="Situação" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE;">
+        <span style="display: inline-block; background: #E8F7EE; color: #126330; border: 1px solid #B8E4C7; font-weight: 700; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; white-space: nowrap;">${s.situacao}</span>
+      </td>
+      <td data-label="Evidência" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${s.evidencia}</td>
+    </tr>
+  `,
+    )
+    .join('')
 
-  const clienteNome = cliente?.nome || cliente?.razao_social || 'Cliente Solar'
-  const clienteDoc = cliente?.cpf || cliente?.cnpj || ''
-  const clienteTelefone = cliente?.whatsapp || cliente?.telefone || '-'
-  const enderecoUsina = os?.endereco || cliente?.endereco || '-'
-  const cidadeUsina = cliente?.cidade ? `${cliente.cidade} - ${cliente.estado || 'RS'}` : ''
-  const potenciaUsina =
-    sistema?.potencia_total_kwp || cliente?.potencia_kwp
-      ? `${sistema?.potencia_total_kwp || cliente?.potencia_kwp} kWp`
-      : '-'
-  const placasUsina =
-    sistema?.quantidade_modulos || cliente?.placas_qtd
-      ? `${sistema?.quantidade_modulos || cliente?.placas_qtd} módulos`
-      : '-'
-  const ucUsina = sistema?.numero_uc || cliente?.uc || '-'
+  const componentesRowsHtml = rel.componentes
+    .map(
+      (c) => `
+    <tr>
+      <td data-label="Componente" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; font-weight: 700; color: #0E2A47;">${c.componente}</td>
+      <td data-label="Abrangência / Método" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${c.abrangencia}</td>
+      <td data-label="Condição observada" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE;">
+        <span style="display: inline-block; background: #EBF3FC; color: #0F5195; border: 1px solid #B9D5F5; font-weight: 600; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px;">${c.condicao}</span>
+      </td>
+      <td data-label="Evidência" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${c.evidencia}</td>
+    </tr>
+  `,
+    )
+    .join('')
 
-  const dataInicioStr = extrairInicioAtendimentoOS(os?.detalhes_execucao, os?.data_agendada) || '-'
-  const dataConclusaoStr = formatarDataHoraRelatorio(os?.concluida_em || os?.updated) || '-'
-
-  const checklistItens: OSChecklistItem[] = normalizarChecklistArray(os?.checklist)
-  const itensConcluidos = checklistItens.filter((c) => c.concluido).length
-  const totalItens = checklistItens.length
-
-  // Lista formatada para a seção de serviços e procedimentos executados no local
-  const servicosExecutadosHtml =
-    checklistItens.length > 0
-      ? checklistItens
-          .map((c) => {
-            if (c.concluido) {
-              return `<div style="padding: 4px 0; font-size: 8.5pt; color: #166534; font-weight: 700;">
-                <span style="display: inline-block; background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; border-radius: 4px; padding: 1px 6px; font-size: 7pt; font-weight: 900; margin-right: 6px;">[✓] Concluído</span>
-                <span style="color: #0F172A;">${c.item}</span>
-                <span style="font-size: 7pt; color: #16A34A; font-weight: 800; margin-left: 6px;">— Serviço Realizado</span>
-              </div>`
-            }
-            return `<div style="padding: 4px 0; font-size: 8.5pt; color: #64748B;">
-              <span style="display: inline-block; background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1; border-radius: 4px; padding: 1px 6px; font-size: 7pt; font-weight: 700; margin-right: 6px;">[ ] Pendente</span>
-              <span>${c.item}</span>
+  const fotosCardsHtml = rel.fotos
+    .slice(0, 3)
+    .map(
+      (f) => `
+    <div style="background: #F4F7FA; border: 1px solid #DDE4EE; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;">
+      ${
+        f.url
+          ? `<div style="height: 140px; background: #0E2A47; overflow: hidden;"><img src="${f.url}" alt="${f.titulo}" style="width:100%; height:100%; object-fit:cover;" /></div>`
+          : `<div style="height: 140px; background: linear-gradient(135deg, #224364 0%, #0E2A47 100%); color: #FFF; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; text-align: center;">
+              <div style="font-size: 1.5rem; margin-bottom: 4px;">📷</div>
+              <div style="font-size: 0.8rem; font-weight: 700; color: #FFFFFF;">${f.titulo}</div>
             </div>`
-          })
-          .join('')
-      : `<div style="font-size: 8.5pt; color: #94A3B8; font-style: italic;">Nenhum serviço ou procedimento listado.</div>`
-
-  const observacoesLimpas = limparTextoDetalhesExecucao(os.detalhes_execucao)
-
-  // Montagem da galeria de fotos em grade de 2 colunas com table para compatibilidade 100% no html2canvas
-  let fotosHtml = ''
-  if (fotosDataUrls.length > 0) {
-    const rows: string[] = []
-    for (let i = 0; i < fotosDataUrls.length; i += 2) {
-      const url1 = fotosDataUrls[i]
-      const url2 = fotosDataUrls[i + 1]
-      rows.push(`
-        <tr>
-          <td style="width: 50%; vertical-align: top; padding: 5px;">
-            <div class="foto-card-rel">
-              <div class="foto-img-container">
-                <img src="${url1}" alt="Registro Fotográfico #${i + 1}" class="foto-img" />
-              </div>
-              <div class="foto-legenda-bar">
-                <span class="foto-tag">FOTO #${i + 1}</span>
-                <span class="foto-desc">Registro Fotográfico #${i + 1}</span>
-              </div>
-            </div>
-          </td>
-          ${
-            url2
-              ? `
-          <td style="width: 50%; vertical-align: top; padding: 5px;">
-            <div class="foto-card-rel">
-              <div class="foto-img-container">
-                <img src="${url2}" alt="Registro Fotográfico #${i + 2}" class="foto-img" />
-              </div>
-              <div class="foto-legenda-bar">
-                <span class="foto-tag">FOTO #${i + 2}</span>
-                <span class="foto-desc">Registro Fotográfico #${i + 2}</span>
-              </div>
-            </div>
-          </td>`
-              : `
-          <td style="width: 50%; vertical-align: top; padding: 5px;"></td>`
-          }
-        </tr>
-      `)
-    }
-    fotosHtml = `<table class="fotos-table-grid" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-      <tbody>${rows.join('')}</tbody>
-    </table>`
-  } else {
-    fotosHtml = `<div class="sem-fotos-box">Nenhuma fotografia anexada à Ordem de Serviço.</div>`
-  }
-
-  // Checklist em tabela estilizada (2 colunas se houver mais de 4 itens, ou lista estilizada)
-  let checklistHtml = ''
-  if (checklistItens.length > 0) {
-    const checkRows: string[] = []
-    for (let i = 0; i < checklistItens.length; i += 2) {
-      const it1 = checklistItens[i]
-      const it2 = checklistItens[i + 1]
-
-      const renderCheckCell = (item?: OSChecklistItem) => {
-        if (!item) return ''
-        const ok = item.concluido
-        return `
-          <div class="check-item-box ${ok ? 'check-done' : 'check-pending'}">
-            <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="width: 24px; vertical-align: middle; text-align: center;">
-                  <span class="check-pill ${ok ? 'check-pill-ok' : 'check-pill-gray'}">
-                    ${ok ? '&#10003;' : '&#8211;'}
-                  </span>
-                </td>
-                <td style="vertical-align: middle; padding-left: 8px;">
-                  <span class="check-text ${ok ? 'check-text-ok' : ''}">${item.item}</span>
-                </td>
-                <td style="width: 72px; text-align: right; vertical-align: middle;">
-                  <span class="status-pill ${ok ? 'status-pill-ok' : 'status-pill-gray'}">
-                    ${ok ? 'CONCLUÍDO' : 'PENDENTE'}
-                  </span>
-                </td>
-              </tr>
-            </table>
-          </div>
-        `
       }
+      <div style="padding: 10px 12px; font-size: 0.75rem; color: #536377; background: #FFFFFF; border-top: 1px solid #EAEFF5; flex-grow: 1;">
+        <strong style="display: block; color: #0E2A47; font-size: 0.8rem; margin-bottom: 2px;">${f.subtitulo}</strong>
+        ${f.descricao}
+        <div style="margin-top: 6px; font-size: 0.7rem; color: #8896A6;">${f.dataHora}</div>
+      </div>
+    </div>
+  `,
+    )
+    .join('')
 
-      checkRows.push(`
-        <tr>
-          <td style="width: 50%; vertical-align: top; padding: 3px 4px 3px 0;">
-            ${renderCheckCell(it1)}
-          </td>
-          <td style="width: 50%; vertical-align: top; padding: 3px 0 3px 4px;">
-            ${renderCheckCell(it2)}
-          </td>
-        </tr>
-      `)
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Relatório de Atendimento — Delfos Solar</title>
+  <style>
+    :root {
+      --navy-dark: #0E2A47;
+      --gold-primary: #C9A227;
+      --gold-surface: #FCF8EB;
+      --gold-border: #E8D388;
+      --bg-page: #F7F9FC;
+      --text-main: #1A2332;
+      --text-muted: #536377;
+      --border-color: #DDE4EE;
+      --card-bg: #FFFFFF;
+      --radius: 12px;
     }
+    * { box-sizing: border-box; }
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .doc-container {
+      max-width: 900px;
+      margin: 20px auto 40px;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .rep-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: 0 2px 8px rgba(14, 42, 71, 0.04);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .timbrado-header {
+      background: var(--navy-dark) !important;
+      color: #FFFFFF !important;
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 24px 28px;
+      box-shadow: 0 4px 16px rgba(14, 42, 71, 0.12);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .timbrado-top {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      padding-bottom: 14px;
+      margin-bottom: 12px;
+    }
+    .brand-logo-circle {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--gold-primary) !important;
+      color: #0E2A47 !important;
+      font-weight: 900;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .brand-text h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #FFFFFF !important;
+      line-height: 1.2;
+    }
+    .brand-text p {
+      margin: 2px 0 0;
+      font-size: 0.78rem;
+      color: #E2E8F0;
+      font-weight: 500;
+    }
+    .timbrado-meta {
+      font-size: 0.75rem;
+      color: #C2D3E8;
+      line-height: 1.5;
+    }
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--navy-dark);
+      border-bottom: 2px solid #EBF0F7;
+      padding-bottom: 6px;
+    }
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px 20px;
+    }
+    .grid-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .grid-value {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--navy-dark);
+    }
+    .highlight-card {
+      border-left: 6px solid var(--gold-primary) !important;
+      background: var(--gold-surface) !important;
+      border-color: var(--gold-border) var(--gold-border) var(--gold-border) var(--gold-primary);
+    }
+    .status-pill {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #B8E4C7;
+      background: #F1F9F4 !important;
+    }
+    .status-icon-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #1B8342 !important;
+      box-shadow: 0 0 0 4px #D0EED9;
+      flex-shrink: 0;
+    }
+    .timbrado-footer {
+      background: var(--navy-dark) !important;
+      color: #FFFFFF !important;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 20px 24px;
+      font-size: 0.75rem;
+      line-height: 1.55;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    @media print {
+      body { background: #FFFFFF !important; color: #000000 !important; }
+      .doc-container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; gap: 10px !important; }
+      .rep-card { box-shadow: none !important; border: 1px solid #D0D0D0 !important; border-radius: 6px !important; padding: 14px 18px !important; }
+      .timbrado-header { border-radius: 6px 6px 0 0 !important; padding: 16px 20px !important; }
+      .timbrado-footer { border-radius: 0 0 6px 6px !important; padding: 14px 20px !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-container">
+    <!-- 1. Cabeçalho Timbrado -->
+    <header class="timbrado-header">
+      <div class="timbrado-top">
+        <div class="brand-logo-circle">D</div>
+        <div class="brand-text">
+          <h1>DELFOS ENGENHARIA SOLAR</h1>
+          <p>Engenharia &amp; Operação de Usinas Fotovoltaicas</p>
+        </div>
+      </div>
+      <div class="timbrado-meta">
+        Delfos Engenharia Ltda • CNPJ 21.379.952/0001-38 • Rua Espírito Santo, 275 – Erechim/RS, CEP 99709-296<br />
+        Telefone: (54) 99129-2121 • E-mail: solar@updates.delfos.eng.br • Web: www.delfos.eng.br
+      </div>
+    </header>
 
-    checklistHtml = `<table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-      <tbody>${checkRows.join('')}</tbody>
-    </table>`
-  } else {
-    checklistHtml = `<div class="sem-fotos-box">Nenhum item de checklist registrado para esta OS.</div>`
-  }
+    <!-- 2. Título & Meta Pills -->
+    <section class="rep-card" style="border-top: 4px solid var(--navy-dark);">
+      <h2 style="margin: 0 0 8px; font-size: 1.35rem; font-weight: 800; color: var(--navy-dark);">Relatório de Atendimento e Condição do Sistema</h2>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 8px;">
+        <span><strong style="color: var(--navy-dark);">Relatório nº:</strong> ${rel.numeroRelatorio}</span>
+        <span><strong style="color: var(--navy-dark);">OS vinculada:</strong> ${rel.osCodigo}</span>
+        <span><strong style="color: var(--navy-dark);">Revisão:</strong> ${rel.revisao}</span>
+        <span><strong style="color: var(--navy-dark);">Data de emissão:</strong> ${rel.dataEmissao}</span>
+      </div>
+    </section>
 
-  const agoraData = new Date().toLocaleDateString('pt-BR')
-  const agoraHora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    <!-- 3. Resumo do Atendimento -->
+    <section class="rep-card">
+      <h3 class="section-title">Resumo do atendimento</h3>
+      <div class="details-grid">
+        <div><span class="grid-label">Cliente</span><span class="grid-value">${rel.clienteNome}</span></div>
+        <div><span class="grid-label">Endereço da usina</span><span class="grid-value">${rel.enderecoUsina}</span></div>
+        <div><span class="grid-label">Data do atendimento</span><span class="grid-value">${rel.dataAtendimento}</span></div>
+        <div><span class="grid-label">Horários (Início / Término)</span><span class="grid-value">${rel.horarioInicioTermino}</span></div>
+        <div><span class="grid-label">Tipo de serviço</span><span class="grid-value">${rel.tipoServico}</span></div>
+        <div><span class="grid-label">OS Vinculada</span><span class="grid-value">${rel.osCodigo}</span></div>
+        <div><span class="grid-label">Concessionária &amp; UC</span><span class="grid-value">${rel.concessionariaUc}</span></div>
+        <div style="grid-column: 1 / -1;"><span class="grid-label">Dados do sistema gerador</span><span class="grid-value">${rel.dadosSistemaGerador}</span></div>
+      </div>
+    </section>
 
+    <!-- 4. Card Destaque: Resultado em Poucas Palavras -->
+    <section class="rep-card highlight-card">
+      <h3 class="section-title" style="color: #5D4300; border-bottom-color: rgba(201, 162, 39, 0.25);">Resultado em poucas palavras</h3>
+      <p style="margin: 0; font-size: 0.9rem; line-height: 1.6; color: #272109; font-weight: 500;">${rel.resultadoPoucasPalavras}</p>
+    </section>
+
+    <!-- 5. Badges de Status -->
+    <section class="rep-card">
+      <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+        <div class="status-pill">
+          <div class="status-icon-dot"></div>
+          <div>
+            <div style="font-size: 0.72rem; color: #2C6B40; font-weight: 600; text-transform: uppercase;">Situação do atendimento</div>
+            <div style="font-size: 0.95rem; font-weight: 800; color: #0E5325;">${rel.situacaoAtendimento}</div>
+          </div>
+        </div>
+        <div class="status-pill">
+          <div class="status-icon-dot"></div>
+          <div>
+            <div style="font-size: 0.72rem; color: #2C6B40; font-weight: 600; text-transform: uppercase;">Condição do sistema ao término</div>
+            <div style="font-size: 0.95rem; font-weight: 800; color: #0E5325;">${rel.condicaoSistema}</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; font-style: italic; margin: 10px 0 0;">
+        * Nota técnica: Situação do atendimento refere-se ao escopo da visita. Condição do sistema refere-se ao estado operacional observado. São avaliações independentes.
+      </p>
+    </section>
+
+    <!-- 6. Serviços Executados -->
+    <section class="rep-card">
+      <h3 class="section-title">Serviços executados</h3>
+      <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+        <thead>
+          <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Atividade</th>
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Local / Ativo</th>
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Quantidade</th>
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Situação</th>
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Evidência</th>
+          </tr>
+        </thead>
+        <tbody>${servicosRowsHtml}</tbody>
+      </table>
+
+      <!-- Detalhes da Limpeza -->
+      <div style="margin-top: 14px; padding: 12px 14px; background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--navy-dark); text-transform: uppercase; margin-bottom: 6px;">Detalhes da limpeza</div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; font-size: 0.8rem;">
+          <div><strong style="color: var(--navy-dark);">Módulos previstos / atendidos:</strong> ${rel.modulosPrevistosAtendidos}</div>
+          <div><strong style="color: var(--navy-dark);">Método executado:</strong> ${rel.metodoExecutado}</div>
+          <div><strong style="color: var(--navy-dark);">Manual do fabricante:</strong> ${rel.manualFabricante}</div>
+          <div><strong style="color: var(--navy-dark);">Ressalvas observadas:</strong> ${rel.ressalvasObservadas}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Condição do Sistema por Componente -->
+    <section class="rep-card">
+      <h3 class="section-title">Condição do sistema por componente</h3>
+      <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+        <thead>
+          <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Componente</th>
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Abrangência / Método</th>
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Condição observada</th>
+            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Evidência</th>
+          </tr>
+        </thead>
+        <tbody>${componentesRowsHtml}</tbody>
+      </table>
+    </section>
+
+    <!-- 8. Registro Fotográfico -->
+    <section class="rep-card">
+      <h3 class="section-title">Registro fotográfico</h3>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">${fotosCardsHtml}</div>
+    </section>
+
+    <!-- 9. Pendências e Recomendações -->
+    <section class="rep-card">
+      <h3 class="section-title">Pendências e recomendações</h3>
+      <div style="background: #F1F9F4; border: 1px solid #B8E4C7; border-radius: 8px; padding: 12px 14px; color: #0E5325; font-size: 0.88rem;">
+        <strong>✓ Conformidade técnica:</strong> ${rel.conformidadeTecnica}
+      </div>
+      <div style="margin-top: 10px; font-size: 0.88rem; font-weight: 600; color: var(--navy-dark);">
+        📅 Próxima manutenção prevista: <strong>${rel.proximaManutencao}</strong> (semestral, conforme plano de manutenção).
+      </div>
+    </section>
+
+    <!-- 10. Escopo e Limitações -->
+    <section class="rep-card">
+      <h3 class="section-title">Escopo e limitações</h3>
+      <div style="background: #F0F6FC; border-left: 4px solid var(--navy-dark); border-radius: 6px; padding: 12px 16px; color: #1A314E; font-size: 0.85rem; line-height: 1.55;">
+        ${rel.escopoELimitacoes}
+      </div>
+    </section>
+
+    <!-- 11. Conclusão Técnica -->
+    <section class="rep-card">
+      <h3 class="section-title">Conclusão técnica</h3>
+      <p style="margin: 0 0 10px; font-size: 0.9rem; line-height: 1.6;">${rel.conclusaoNarrativa}</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; background: #F5F8FC; border: 1px solid #D7E2F0; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem;">
+        <div><strong style="color: var(--navy-dark);">Situação do serviço:</strong> ${rel.conclusaoSituacao}</div>
+        <div><strong style="color: var(--navy-dark);">• Condição no escopo avaliado:</strong> ${rel.conclusaoCondicao}</div>
+        <div><strong style="color: var(--navy-dark);">• Desempenho energético:</strong> ${rel.conclusaoDesempenho}</div>
+      </div>
+    </section>
+
+    <!-- 12. Próximos Passos -->
+    <section class="rep-card">
+      <h3 class="section-title">Próximos passos</h3>
+      <p style="margin: 0 0 10px; font-size: 0.88rem; color: #2C3E50;">${rel.proximosPassosTexto}</p>
+      <div style="background: #FFFDF5; border: 1px solid #E5D38A; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px;">
+        <div style="color: #5D4300; font-size: 0.95rem; font-weight: 800; margin-bottom: 4px;">${rel.planoOmTitulo}</div>
+        <p style="font-size: 0.85rem; color: #2F2A14; line-height: 1.5; margin: 0 0 8px;">${rel.planoOmTexto}</p>
+        <div style="font-size: 0.82rem; font-weight: 700; color: var(--navy-dark);">${rel.planoOmContato}</div>
+      </div>
+      <div style="font-size: 0.8rem; font-weight: 600; color: #5D4300; background: #FCF5DF; padding: 6px 12px; border-radius: 6px; display: inline-block;">
+        ${rel.indicacaoAmigoTexto}
+      </div>
+    </section>
+
+    <!-- 13. Recebimento do Cliente -->
+    <section class="rep-card">
+      <h3 class="section-title">Recebimento do cliente</h3>
+      <div class="details-grid" style="margin-bottom: 8px;">
+        <div><span class="grid-label">Forma e data de envio</span><span class="grid-value">${rel.formaEDataEnvio}</span></div>
+        <div><span class="grid-label">Recebido por</span><span class="grid-value">${rel.recebidoPor}</span></div>
+      </div>
+      <p style="margin: 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+        * Nota: A confirmação registra o recebimento deste documento e das recomendações nele descritas. Não representa certificação técnica da instalação pelo cliente.
+      </p>
+    </section>
+
+    <!-- 14. Rodapé Timbrado -->
+    <footer class="timbrado-footer">
+      <p style="margin: 0 0 4px; color: #D2DFEE;"><strong style="color: #FFFFFF;">Documento oficial Delfos Solar</strong> — Atendimento técnico autorizado em estrita conformidade com as normas ABNT NBR 16690 e NR-10 (Segurança em Instalações e Serviços em Eletricidade).</p>
+      <p style="margin: 0 0 8px; color: #D2DFEE;">Central de Operação e Suporte: (54) 99129-2121 • solar@updates.delfos.eng.br • Rua Espírito Santo, 275 – Erechim/RS</p>
+      <div style="border-top: 1px solid rgba(255, 255, 255, 0.15); margin-bottom: 8px;"></div>
+      <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: #A9C2DF; font-weight: 600; font-size: 0.72rem;">
+        <span>Relatório ${rel.numeroRelatorio} • OS ${rel.osCodigo} • Revisão ${rel.revisao}</span>
+        <span>Delfos Engenharia Solar © ${new Date().getFullYear()}</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>`
+}
+
+/**
+ * HTML anterior para fallback legado quando necessário
+ */
+function _gerarHTMLRelatorioOSLegado(
+  osIdFormatado: string,
+  tipoServico: string,
+  concessionaria: string,
+  ucUsina: string,
+  clienteNome: string,
+  enderecoUsina: string,
+  cidadeUsina: string,
+  clienteDoc: string,
+  clienteTelefone: string,
+  potenciaUsina: string,
+  telhadoTipo: string,
+  placasUsina: string,
+  placasMarca: string,
+  inversorCompleto: string,
+  dataInicioStr: string,
+  dataConclusaoStr: string,
+  checklistHtml: string,
+  servicosExecutadosHtml: string,
+  observacoesLimpas: string,
+  fotoMedidorDataUrl: string | null,
+  fotosHtml: string,
+  prestadorNome: string,
+  prestadorTelefone: string,
+  assinaturaBase64: string | undefined,
+  rodapeComercial: any,
+  itensConcluidos: number,
+  totalItens: number,
+  agoraData: string,
+  agoraHora: string,
+  fotosDataUrls: string[] = [],
+): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>

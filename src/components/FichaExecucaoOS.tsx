@@ -2329,7 +2329,6 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   <Send className="w-3.5 h-3.5" />
                   <span>Enviar relatório ao cliente</span>
                 </Button>
-
                 {/* Botão de Visualização Web do Relatório da OS */}
                 <Button
                   type="button"
@@ -2341,7 +2340,6 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   <FileText className="w-3.5 h-3.5 text-slate-600" />
                   <span>Visualizar relatório (web)</span>
                 </Button>
-
                 {/* Botão Oficial Baixar como PDF usando @react-pdf/renderer */}
                 <React.Suspense fallback={null}>
                   <LazyBotaoBaixarRelatorioFicha
@@ -2350,10 +2348,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                       cliente,
                       sistema,
                     }}
-                    className="rounded-xl h-9 px-3 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5 shrink-0"
+                    className="rounded-full h-9 px-4 text-xs font-bold bg-[#C9A227] hover:bg-[#dbae26] text-[#0E2A47] border border-[#B38E1D] shadow-[0_4px_14px_rgba(201,162,39,0.35)] inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
                     rotulo="Baixar PDF"
                   />
-                </React.Suspense>
+                </React.Suspense>{' '}
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -2417,9 +2415,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] h-[92vh] p-0 overflow-hidden flex flex-col rounded-2xl border border-slate-200 shadow-2xl bg-slate-100">
             <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shrink-0">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-600" />
+                <div className="w-6 h-6 rounded-full bg-[#0E2A47] text-[#C9A227] font-black text-xs flex items-center justify-center">
+                  D
+                </div>
                 <span className="text-sm font-bold text-slate-900">
-                  Relatório Técnico de Execução • OS #
+                  Relatório de Atendimento e Condição do Sistema • OS #
                   {String(os?.id || '')
                     .slice(-6)
                     .toUpperCase()}
@@ -2428,10 +2428,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               <div className="flex items-center gap-2 mr-6">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => window.open('/relatorio-os-preview/' + os.id, '_blank')}
-                  className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
+                  className="h-8 text-xs font-semibold text-[#0E2A47] border-[#DDE4EE] hover:bg-slate-50 inline-flex items-center gap-1.5 cursor-pointer rounded-lg"
                   title="Abrir também em nova guia"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />

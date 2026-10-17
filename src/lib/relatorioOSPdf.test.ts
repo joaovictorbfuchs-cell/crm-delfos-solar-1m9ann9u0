@@ -80,35 +80,30 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
       inversoresInfo: 'Growatt MAC 70KTL3-X',
     })
 
-    // Cabeçalho e identificação Delfos Solar
-    expect(html).toContain('DELFOS SOLAR')
-    expect(html).toContain('Relatório Técnico de Serviço Executado')
+    // Cabeçalho e identificação Delfos Solar canônica
+    expect(html).toContain('DELFOS ENGENHARIA SOLAR')
+    expect(html).toContain('Relatório de Atendimento e Condição do Sistema')
     expect(html).toContain('OS #123456')
     expect(html).toContain('Delfos Engenharia Ltda')
     expect(html).toContain('21.379.952/0001-38')
 
     // Dados do Cliente e Usina
     expect(html).toContain('Agropecuária Vista Verde Ltda')
-    expect(html).toContain('Rua das Palmeiras, 450 - Bairro Bela Vista')
-    expect(html).toContain('Erechim - RS')
-    expect(html).toContain('75.5 kWp')
+    expect(html).toContain('Rua das Palmeiras, 450')
+    expect(html).toContain('75,50 kWp')
     expect(html).toContain('136 módulos')
     expect(html).toContain('987654321')
 
-    // Checklist
+    // Checklist e serviços executados
     expect(html).toContain('Inspeção visual dos módulos solares')
     expect(html).toContain('Reaperto dos conectores MC4 e quadros CA/CC')
-    expect(html).toContain('2/3 Concluídos')
+    expect(html).toContain('Executado integralmente')
 
-    // Observações
+    // Observações / Resultado em poucas palavras
     expect(html).toContain('Limpeza de 18 módulos realizada com água desmineralizada')
-
-    // Prestador
-    expect(html).toContain('Carlos Instalador')
 
     // Fotos
     expect(html).toContain('data:image/jpeg;base64,/9j/4AAQSkZJRg==')
-    expect(html).toContain('Registro Fotográfico #1')
   })
 
   it('converte dataUri base64 para objeto File nativo com sucesso', () => {

@@ -8,7 +8,8 @@ import {
   StyleSheet,
   type DocumentProps,
 } from '@react-pdf/renderer'
-import type { OrdemServico, Cliente, Sistema, OSChecklistItem } from '@/types/crm'
+import type { OrdemServico, Cliente, Sistema } from '@/types/crm'
+import { compilarDadosRelatorioOS, type RelatorioOSCanonicalData } from '@/lib/relatorioOSCanonical'
 
 export interface RelatorioOSRodapeComercial {
   titulo?: string
@@ -17,8 +18,8 @@ export interface RelatorioOSRodapeComercial {
   contato?: string
 }
 
-// Margem interna de 25mm em pontos: 25 * 72 / 25.4 = ~70.87pt (idêntico à Procuração e Contrato O&M)
-const MARGIN_25MM = 70.87
+// Margem interna de ~15mm em pontos: 15 * 72 / 25.4 = ~42.5pt
+const MARGIN_PAGE = 36
 
 export interface RelatorioOSPDFDados {
   os: OrdemServico
@@ -36,637 +37,524 @@ export interface RelatorioOSPDFDocumentProps extends DocumentProps {
 
 const styles = StyleSheet.create({
   page: {
-    padding: MARGIN_25MM,
+    padding: MARGIN_PAGE,
     fontFamily: 'Helvetica',
-    fontSize: 10,
+    fontSize: 9,
     lineHeight: 1.45,
-    color: '#1E293B',
+    color: '#1A2332',
     backgroundColor: '#FFFFFF',
   },
-  // Cabeçalho Institucional
-  headerRow: {
+
+  // 1. Cabeçalho Timbrado Azul-marinho #0E2A47
+  timbradoHeader: {
+    backgroundColor: '#0E2A47',
+    color: '#FFFFFF',
+    borderRadius: 6,
+    padding: 14,
+    marginBottom: 10,
+  },
+  timbradoTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: '#16A34A',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
     borderBottomStyle: 'solid',
-    paddingBottom: 10,
-    marginBottom: 12,
+    paddingBottom: 8,
+    marginBottom: 8,
   },
-  headerLeft: {
-    flexDirection: 'column',
-    maxWidth: '68%',
-  },
-  headerLogoBrand: {
+  brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
   },
-  headerBrandTitle: {
+  brandLogoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#C9A227',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  brandLogoLetter: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 14,
-    color: '#0A539E',
+    fontSize: 16,
+    color: '#0E2A47',
+  },
+  brandTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 12,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
-  headerBrandSub: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    color: '#16A34A',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginTop: 1,
-  },
-  headerBrandExtra: {
+  brandSub: {
     fontFamily: 'Helvetica',
     fontSize: 7.5,
-    color: '#64748B',
+    color: '#E2E8F0',
     marginTop: 1,
   },
-  headerRight: {
-    alignItems: 'flex-end',
-    maxWidth: '30%',
-  },
-  badgeOsNum: {
-    backgroundColor: '#DCFCE7',
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-    borderStyle: 'solid',
-    borderRadius: 4,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
-    color: '#166534',
-    textAlign: 'center',
-  },
-  badgeOsTipo: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    color: '#047857',
-    textTransform: 'uppercase',
-    marginTop: 3,
-    textAlign: 'right',
-  },
-
-  // Barra de Título Principal
-  titleBanner: {
-    backgroundColor: '#0F172A',
-    borderLeftWidth: 4,
-    borderLeftColor: '#16A34A',
-    borderLeftStyle: 'solid',
-    borderRadius: 4,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  titleBannerMain: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 10.5,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  titleBannerSub: {
+  timbradoMeta: {
     fontFamily: 'Helvetica',
-    fontSize: 7.5,
-    color: '#94A3B8',
-    marginTop: 1,
-  },
-  statusConcluidaPill: {
-    backgroundColor: '#16A34A',
-    borderRadius: 3,
-    paddingVertical: 2.5,
-    paddingHorizontal: 6,
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 7.5,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    fontSize: 6.8,
+    color: '#C2D3E8',
+    lineHeight: 1.4,
   },
 
-  // Seções em Cards com proteção break-inside avoid
-  secaoCard: {
+  // 2. Título & Meta Pills
+  titleCard: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDE4EE',
+    borderTopWidth: 3,
+    borderTopColor: '#0E2A47',
     borderStyle: 'solid',
     borderRadius: 6,
+    padding: 10,
     marginBottom: 10,
-    backgroundColor: '#FFFFFF',
   },
-  secaoCardHeader: {
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    borderBottomStyle: 'solid',
-    paddingVertical: 5,
-    paddingHorizontal: 9,
+  docMainTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 12,
+    color: '#0E2A47',
+    marginBottom: 6,
+  },
+  metaPillsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    borderTopWidth: 1,
+    borderTopColor: '#DDE4EE',
+    borderTopStyle: 'solid',
+    paddingTop: 6,
   },
-  secaoTitleText: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8.5,
-    color: '#0F172A',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  secaoHeaderExtra: {
-    fontFamily: 'Helvetica-Bold',
+  metaPillItem: {
+    fontFamily: 'Helvetica',
     fontSize: 7.5,
-    color: '#64748B',
+    color: '#536377',
+    marginRight: 14,
   },
-  secaoCardBody: {
-    padding: 8,
+  metaPillStrong: {
+    fontFamily: 'Helvetica-Bold',
+    color: '#0E2A47',
   },
 
-  // Tabela e Grid de Dados
-  gridRow: {
+  // Cards de Seção
+  repCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDE4EE',
+    borderStyle: 'solid',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9.5,
+    color: '#0E2A47',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#EBF0F7',
+    borderBottomStyle: 'solid',
+    paddingBottom: 4,
+    marginBottom: 8,
+  },
+
+  // Grid de Resumo
+  grid2Cols: {
     flexDirection: 'row',
     marginBottom: 5,
   },
-  gridCol2: {
+  gridCell: {
     flex: 1,
-    marginRight: 4,
+    marginRight: 6,
   },
-  gridCol2Last: {
-    flex: 1,
-    marginRight: 0,
-  },
-  gridCol3: {
-    flex: 1,
-    marginRight: 4,
-  },
-  gridCol3Last: {
+  gridCellLast: {
     flex: 1,
     marginRight: 0,
   },
-
-  fieldBox: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    borderLeftWidth: 3,
-    borderLeftColor: '#CBD5E1',
-    borderStyle: 'solid',
-    borderRadius: 4,
-    padding: 5,
-  },
-  fieldBoxHighlight: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#DCFCE7',
-    borderLeftWidth: 3,
-    borderLeftColor: '#16A34A',
-    borderStyle: 'solid',
-    borderRadius: 4,
-    padding: 5,
-  },
-  fieldLabel: {
+  gridLabel: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 6.5,
-    color: '#64748B',
+    color: '#536377',
     textTransform: 'uppercase',
-    marginBottom: 1.5,
-    letterSpacing: 0.2,
-  },
-  fieldValue: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8.5,
-    color: '#0F172A',
-  },
-  fieldValueAccent: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8.5,
-    color: '#15803D',
-  },
-
-  // Período de Atendimento
-  datasBoxRow: {
-    flexDirection: 'row',
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderStyle: 'solid',
-    borderRadius: 5,
-    padding: 7,
-  },
-  dataCol: {
-    flex: 1,
-    paddingRight: 6,
-  },
-  dataColBorder: {
-    flex: 1,
-    paddingLeft: 6,
-    borderLeftWidth: 1,
-    borderLeftColor: '#BBF7D0',
-    borderLeftStyle: 'solid',
-  },
-  dataRotulo: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 7,
-    color: '#166534',
-    textTransform: 'uppercase',
+    letterSpacing: 0.3,
     marginBottom: 1,
   },
-  dataValor: {
+  gridValue: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 9,
-    color: '#0F172A',
+    fontSize: 8,
+    color: '#0E2A47',
   },
 
-  // Checklist e Serviços Executados
-  checklistItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 3.5,
-    paddingHorizontal: 6,
-    borderRadius: 4,
+  // 4. Card Destaque Dourado
+  highlightCard: {
+    backgroundColor: '#FCF8EB',
     borderWidth: 1,
+    borderColor: '#E8D388',
+    borderLeftWidth: 4,
+    borderLeftColor: '#C9A227',
     borderStyle: 'solid',
-    marginBottom: 3,
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10,
   },
-  checklistItemDone: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-  },
-  checklistItemPending: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-  },
-  checkItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 6,
-  },
-  checkPillOk: {
-    width: 14,
-    height: 14,
-    borderRadius: 2,
-    backgroundColor: '#16A34A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 6,
-  },
-  checkPillOkText: {
-    color: '#FFFFFF',
+  highlightTitle: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    textAlign: 'center',
+    fontSize: 9.5,
+    color: '#5D4300',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8D388',
+    borderBottomStyle: 'solid',
+    paddingBottom: 4,
+    marginBottom: 6,
   },
-  checkPillGray: {
-    width: 14,
-    height: 14,
-    borderRadius: 2,
-    backgroundColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 6,
-  },
-  checkPillGrayText: {
-    color: '#94A3B8',
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    textAlign: 'center',
-  },
-  checkItemText: {
+  highlightText: {
     fontFamily: 'Helvetica',
     fontSize: 8,
-    color: '#334155',
-    flex: 1,
-  },
-  checkItemTextDone: {
-    fontFamily: 'Helvetica-Bold',
-    color: '#0F172A',
-  },
-  statusPillOk: {
-    backgroundColor: '#DCFCE7',
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-    borderStyle: 'solid',
-    borderRadius: 3,
-    paddingVertical: 1.5,
-    paddingHorizontal: 4,
-  },
-  statusPillOkText: {
-    color: '#166534',
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 6.5,
-    textTransform: 'uppercase',
-  },
-  statusPillGray: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderStyle: 'solid',
-    borderRadius: 3,
-    paddingVertical: 1.5,
-    paddingHorizontal: 4,
-  },
-  statusPillGrayText: {
-    color: '#64748B',
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 6.5,
-    textTransform: 'uppercase',
-  },
-
-  // Observações Técnicas com texto justificado
-  observacoesBox: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderLeftWidth: 3,
-    borderLeftColor: '#16A34A',
-    borderStyle: 'solid',
-    borderRadius: 5,
-    padding: 8,
-  },
-  observacoesTexto: {
-    fontFamily: 'Helvetica',
-    fontSize: 8.5,
-    color: '#1E293B',
+    color: '#272109',
     lineHeight: 1.5,
     textAlign: 'justify',
   },
 
-  // Fotos
-  fotosRow: {
+  // 5. Badges de Status
+  badgesRow: {
     flexDirection: 'row',
     marginBottom: 6,
   },
-  fotoCard: {
+  statusPillBox: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F9F4',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#B8E4C7',
     borderStyle: 'solid',
-    borderRadius: 4,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    marginRight: 4,
+    borderRadius: 5,
+    padding: 6,
+    marginRight: 6,
   },
-  fotoCardLast: {
+  statusPillBoxLast: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F9F4',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#B8E4C7',
     borderStyle: 'solid',
-    borderRadius: 4,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 6,
     marginRight: 0,
   },
-  fotoImage: {
-    width: '100%',
-    height: 130,
-    objectFit: 'cover',
-    backgroundColor: '#0F172A',
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1B8342',
+    marginRight: 6,
   },
-  fotoLegendaBar: {
-    backgroundColor: '#F8FAFC',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    borderTopStyle: 'solid',
-    paddingVertical: 3,
-    paddingHorizontal: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  fotoTag: {
-    backgroundColor: '#0F172A',
-    color: '#FFFFFF',
+  statusContentTitle: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 6.5,
-    borderRadius: 2,
-    paddingVertical: 1,
-    paddingHorizontal: 4,
-    marginRight: 4,
-  },
-  fotoDesc: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 7,
-    color: '#334155',
-  },
-  semFotosBox: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderStyle: 'dashed',
-    borderRadius: 5,
-    padding: 10,
-    backgroundColor: '#F8FAFC',
-    textAlign: 'center',
-  },
-  semFotosText: {
-    fontFamily: 'Helvetica',
-    fontSize: 8,
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-
-  // Bloco de Assinatura e Responsável
-  assinaturaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  responsavelInfoCol: {
-    flex: 1.3,
-    paddingRight: 8,
-  },
-  assinaturaBoxCol: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderStyle: 'dashed',
-    borderRadius: 5,
-    padding: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    minHeight: 65,
-  },
-  assinaturaImg: {
-    maxHeight: 40,
-    maxWidth: 160,
-    marginBottom: 4,
-    objectFit: 'contain',
-  },
-  linhaAssinaturaPlaceholder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#94A3B8',
-    borderBottomStyle: 'solid',
-    width: '80%',
-    marginTop: 24,
-    marginBottom: 4,
-  },
-  assinaturaNome: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    color: '#0F172A',
-    textAlign: 'center',
-  },
-  assinaturaCargo: {
-    fontFamily: 'Helvetica',
-    fontSize: 7,
-    color: '#64748B',
+    color: '#2C6B40',
     textTransform: 'uppercase',
-    textAlign: 'center',
-    marginTop: 1,
   },
-
-  // Bloco Comercial Opcional
-  comercialBox: {
-    backgroundColor: '#047857',
-    borderRadius: 5,
-    padding: 8,
-    marginBottom: 10,
-    color: '#FFFFFF',
-  },
-  comercialTitulo: {
+  statusContentVal: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 8.5,
-    color: '#FFFFFF',
-    marginBottom: 2,
+    color: '#0E5325',
   },
-  comercialDesc: {
-    fontFamily: 'Helvetica',
-    fontSize: 7.5,
-    color: '#D1FAE5',
-    lineHeight: 1.4,
-    textAlign: 'justify',
-  },
-  comercialIndicacao: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 7.5,
-    color: '#FEF08A',
-    marginTop: 3,
-  },
-  comercialContato: {
-    fontFamily: 'Helvetica',
-    fontSize: 7,
-    color: '#A7F3D0',
+  statusNote: {
+    fontFamily: 'Helvetica-Oblique',
+    fontSize: 6.8,
+    color: '#536377',
     marginTop: 2,
   },
 
-  // Rodapé Institucional
-  footerCard: {
-    borderTopWidth: 2,
-    borderTopColor: '#16A34A',
-    borderTopStyle: 'solid',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 4,
-    padding: 6,
+  // Tabelas
+  tableHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
+    backgroundColor: '#F1F5F9',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#DDE4EE',
+    borderBottomStyle: 'solid',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
   },
-  footerLeft: {
-    flex: 1,
-    paddingRight: 8,
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DDE4EE',
+    borderBottomStyle: 'solid',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
   },
-  footerBrandTitle: {
+  tableRowAlt: {
+    flexDirection: 'row',
+    backgroundColor: '#FAFCFE',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DDE4EE',
+    borderBottomStyle: 'solid',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  thText: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 7.5,
-    color: '#0A539E',
-  },
-  footerContact: {
-    fontFamily: 'Helvetica',
     fontSize: 7,
-    color: '#475569',
-    marginTop: 1,
+    color: '#0E2A47',
+    textTransform: 'uppercase',
   },
-  footerAddress: {
+  tdText: {
     fontFamily: 'Helvetica',
-    fontSize: 6.5,
-    color: '#64748B',
-    marginTop: 1,
+    fontSize: 7.5,
+    color: '#1A2332',
   },
-  footerRight: {
-    alignItems: 'flex-end',
-  },
-  footerBadgeSelo: {
-    backgroundColor: '#DCFCE7',
+  badgeDone: {
+    backgroundColor: '#E8F7EE',
     borderWidth: 1,
-    borderColor: '#86EFAC',
+    borderColor: '#B8E4C7',
     borderStyle: 'solid',
     borderRadius: 3,
     paddingVertical: 1.5,
     paddingHorizontal: 4,
+    color: '#126330',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 6,
-    color: '#166534',
+    fontSize: 6.5,
+    textAlign: 'center',
+  },
+  badgeNormal: {
+    backgroundColor: '#EBF3FC',
+    borderWidth: 1,
+    borderColor: '#B9D5F5',
+    borderStyle: 'solid',
+    borderRadius: 3,
+    paddingVertical: 1.5,
+    paddingHorizontal: 4,
+    color: '#0F5195',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
+    textAlign: 'center',
+  },
+
+  // Sub-box da limpeza
+  subBox: {
+    backgroundColor: '#F8FAFD',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'solid',
+    borderRadius: 5,
+    padding: 7,
+    marginTop: 8,
+  },
+  subBoxTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    color: '#0E2A47',
     textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  subBoxGridRow: {
+    flexDirection: 'row',
     marginBottom: 2,
   },
-  footerDataEmissao: {
+  subBoxItem: {
+    flex: 1,
+    fontFamily: 'Helvetica',
+    fontSize: 7,
+    color: '#536377',
+  },
+  subBoxStrong: {
+    fontFamily: 'Helvetica-Bold',
+    color: '#0E2A47',
+  },
+
+  // Fotos
+  photosGrid: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  photoCard: {
+    flex: 1,
+    backgroundColor: '#F4F7FA',
+    borderWidth: 1,
+    borderColor: '#DDE4EE',
+    borderStyle: 'solid',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginRight: 6,
+  },
+  photoCardLast: {
+    flex: 1,
+    backgroundColor: '#F4F7FA',
+    borderWidth: 1,
+    borderColor: '#DDE4EE',
+    borderStyle: 'solid',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginRight: 0,
+  },
+  photoThumbBox: {
+    height: 70,
+    backgroundColor: '#163e68',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4,
+  },
+  photoThumbImage: {
+    width: '100%',
+    height: 70,
+    objectFit: 'cover',
+  },
+  photoThumbTag: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  photoCaption: {
+    padding: 5,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#EAEFF5',
+    borderTopStyle: 'solid',
+  },
+  photoCaptionTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7,
+    color: '#0E2A47',
+    marginBottom: 1,
+  },
+  photoCaptionDesc: {
     fontFamily: 'Helvetica',
     fontSize: 6.5,
-    color: '#64748B',
+    color: '#536377',
+    lineHeight: 1.3,
+  },
+
+  // Avisos & Conclusão
+  boxSuccess: {
+    backgroundColor: '#F1F9F4',
+    borderWidth: 1,
+    borderColor: '#B8E4C7',
+    borderStyle: 'solid',
+    borderRadius: 5,
+    padding: 7,
+    fontFamily: 'Helvetica',
+    fontSize: 7.5,
+    color: '#0E5325',
+    marginBottom: 6,
+  },
+  boxInfo: {
+    backgroundColor: '#F0F6FC',
+    borderLeftWidth: 3,
+    borderLeftColor: '#0E2A47',
+    borderStyle: 'solid',
+    borderRadius: 4,
+    padding: 8,
+    fontFamily: 'Helvetica',
+    fontSize: 7.5,
+    color: '#1A314E',
+    lineHeight: 1.45,
+  },
+  conclusionMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: '#F5F8FC',
+    borderWidth: 1,
+    borderColor: '#D7E2F0',
+    borderStyle: 'solid',
+    borderRadius: 5,
+    padding: 6,
+    marginTop: 6,
+  },
+  conclusionMetaItem: {
+    fontFamily: 'Helvetica',
+    fontSize: 7,
+    color: '#1A2332',
+    marginRight: 10,
+  },
+
+  // Plano O&M
+  planCard: {
+    backgroundColor: '#FFFDF5',
+    borderWidth: 1,
+    borderColor: '#E5D38A',
+    borderStyle: 'solid',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  planTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 8.5,
+    color: '#5D4300',
+    marginBottom: 3,
+  },
+  planBody: {
+    fontFamily: 'Helvetica',
+    fontSize: 7.5,
+    color: '#2F2A14',
+    lineHeight: 1.4,
+    marginBottom: 4,
+  },
+  planContact: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    color: '#0E2A47',
+  },
+  referralNote: {
+    backgroundColor: '#FCF5DF',
+    borderRadius: 4,
+    padding: 5,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7,
+    color: '#5D4300',
+  },
+
+  // Recebimento
+  receiptGrid: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  receiptCell: {
+    flex: 1,
+    marginRight: 6,
+  },
+  receiptCellLast: {
+    flex: 1,
+    marginRight: 0,
+  },
+
+  // Rodapé Timbrado Azul-marinho #0E2A47
+  timbradoFooter: {
+    backgroundColor: '#0E2A47',
+    color: '#FFFFFF',
+    borderRadius: 6,
+    padding: 10,
+    marginTop: 6,
+  },
+  footerText: {
+    fontFamily: 'Helvetica',
+    fontSize: 6.8,
+    color: '#D2DFEE',
+    lineHeight: 1.35,
+    marginBottom: 2,
+  },
+  footerDivider: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    borderTopStyle: 'solid',
+    marginVertical: 4,
+  },
+  footerBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  footerBottomText: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
+    color: '#A9C2DF',
   },
 })
-
-function formatarDataHora(isoString?: string | null): string {
-  if (!isoString) return 'Não registrada'
-  try {
-    const d = new Date(isoString)
-    if (isNaN(d.getTime())) return String(isoString)
-    return (
-      d.toLocaleDateString('pt-BR') +
-      ' às ' +
-      d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    )
-  } catch {
-    return String(isoString)
-  }
-}
-
-function normalizarChecklist(rawChecklist: any): OSChecklistItem[] {
-  if (!rawChecklist) return []
-  const mapear = (it: any, idx: number): OSChecklistItem => ({
-    id: it?.id ? String(it.id) : `chk_${idx + 1}`,
-    item: String(it?.item || it?.texto || it?.descricao || it?.nome || `Item ${idx + 1}`).trim(),
-    concluido: Boolean(it?.concluido),
-  })
-
-  if (Array.isArray(rawChecklist)) {
-    return rawChecklist
-      .filter((it) => it !== null && it !== undefined && typeof it === 'object')
-      .map(mapear)
-  }
-  if (typeof rawChecklist === 'string') {
-    const trimmed = rawChecklist.trim()
-    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return []
-    try {
-      const parsed = JSON.parse(trimmed)
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((it) => it !== null && it !== undefined && typeof it === 'object')
-          .map(mapear)
-      }
-      if (typeof parsed === 'object' && parsed !== null) {
-        return Object.values(parsed)
-          .filter((it: any) => it !== null && typeof it === 'object')
-          .map(mapear)
-      }
-    } catch {
-      return []
-    }
-  }
-  if (typeof rawChecklist === 'object') {
-    try {
-      const vals = Object.values(rawChecklist)
-      if (Array.isArray(vals)) {
-        return vals.filter((it: any) => it !== null && typeof it === 'object').map(mapear)
-      }
-    } catch {
-      return []
-    }
-  }
-  return []
-}
 
 export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
   dados,
@@ -676,406 +564,358 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
   const cliente = dados.cliente || os.expand?.cliente_id || null
   const sistema = dados.sistema || null
   const fotosDataUrls = Array.isArray(dados.fotosDataUrls) ? dados.fotosDataUrls : []
-  const rodapeComercial = dados.rodapeComercial
 
-  const osIdCurto = os?.id ? String(os.id).slice(-6).toUpperCase() : '000000'
-  const osIdFormatado = `OS #${osIdCurto}`
-  const tipoServico = os?.tipo_servico || (os as any)?.titulo || 'Serviço em Campo'
-
-  const clienteNome = cliente?.nome || cliente?.razao_social || 'Cliente Solar'
-  const clienteDoc = cliente?.cpf || cliente?.cnpj || ''
-  const clienteTelefone = cliente?.whatsapp || cliente?.telefone || 'Não informado'
-  const enderecoUsina = os?.endereco || cliente?.endereco || '-'
-  const cidadeUsina = cliente?.cidade ? `${cliente.cidade} - ${cliente.estado || 'RS'}` : ''
-
-  const concessionaria = sistema?.concessionaria || (cliente as any)?.concessionaria || 'RGE Sul'
-  const telhadoTipo = (sistema as any)?.tipo_telhado || (cliente as any)?.telhado_tipo || '-'
-  const placasMarca = (sistema as any)?.fabricante_modulos || (cliente as any)?.marca_placas || '-'
-  const inversorCompleto =
-    dados.inversoresInfo ||
-    sistema?.fabricante_inversores ||
-    (cliente as any)?.inversor_marca ||
-    '-'
-  const potenciaUsina =
-    sistema?.potencia_total_kwp || cliente?.potencia_kwp
-      ? `${sistema?.potencia_total_kwp || cliente?.potencia_kwp} kWp`
-      : '-'
-  const placasUsina =
-    sistema?.quantidade_modulos || cliente?.placas_qtd
-      ? `${sistema?.quantidade_modulos || cliente?.placas_qtd} módulos`
-      : '-'
-  const ucUsina = sistema?.numero_uc || cliente?.uc || '-'
-
-  const prestadorNome =
-    os?.atribuida_a ||
-    os?.responsavel_nome ||
-    os?.expand?.responsavel_usuario_id?.name ||
-    os?.expand?.responsavel_id?.name ||
-    os?.expand?.profissional_id?.nome ||
-    'Técnico Autorizado Delfos'
-  const prestadorTelefone = os?.expand?.responsavel_usuario_id?.phone || ''
-
-  const dataInicioStr = os?.data_agendada
-    ? formatarDataHora(os.data_agendada)
-    : 'Conforme agendamento'
-  const dataConclusaoStr = formatarDataHora(os?.concluida_em || os?.updated)
-
-  const checklistItens = normalizarChecklist(os?.checklist)
-  const itensConcluidosCount = checklistItens.filter((c) => c.concluido).length
-  const totalItensCount = checklistItens.length
-
-  const observacoes =
-    os?.detalhes_execucao ||
-    os?.observacoes ||
-    os?.descricao ||
-    'Serviço executado e validado conforme especificações técnicas Delfos Solar.'
-
-  const agoraData = new Date().toLocaleDateString('pt-BR')
-  const agoraHora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-
-  // Agrupa fotos de 2 em 2
-  const fotosPares: [string, string | null][] = []
-  for (let i = 0; i < fotosDataUrls.length; i += 2) {
-    fotosPares.push([fotosDataUrls[i], fotosDataUrls[i + 1] || null])
-  }
+  const relatorio: RelatorioOSCanonicalData = compilarDadosRelatorioOS(
+    os,
+    cliente,
+    sistema,
+    fotosDataUrls,
+  )
 
   return (
     <Document
-      title={`Relatório Técnico de Execução — ${osIdFormatado}`}
-      author="DELFOS ENGENHARIA LTDA"
-      subject="Relatório Técnico de Execução de Ordem de Serviço Delfos Solar"
+      title={`Relatório de Atendimento — ${relatorio.osCodigo}`}
+      author="DELFOS ENGENHARIA SOLAR"
+      subject="Relatório de Atendimento e Condição do Sistema"
       {...docProps}
     >
       <Page size="A4" style={styles.page}>
-        {/* CABEÇALHO INSTITUCIONAL */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerLogoBrand}>
-              <Text style={styles.headerBrandTitle}>DELFOS SOLAR</Text>
+        {/* 1. Cabeçalho Timbrado */}
+        <View style={styles.timbradoHeader} wrap={false}>
+          <View style={styles.timbradoTop}>
+            <View style={styles.brandGroup}>
+              <View style={styles.brandLogoCircle}>
+                <Text style={styles.brandLogoLetter}>D</Text>
+              </View>
+              <View>
+                <Text style={styles.brandTitle}>DELFOS ENGENHARIA SOLAR</Text>
+                <Text style={styles.brandSub}>
+                  Engenharia &amp; Operação de Usinas Fotovoltaicas
+                </Text>
+              </View>
             </View>
-            <Text style={styles.headerBrandSub}>
-              Engenharia &amp; Operação de Usinas Fotovoltaicas
-            </Text>
-            <Text style={styles.headerBrandExtra}>
-              Delfos Engenharia Ltda • CNPJ 21.379.952/0001-38
-            </Text>
           </View>
+          <Text style={styles.timbradoMeta}>
+            Delfos Engenharia Ltda • CNPJ 21.379.952/0001-38 • Rua Espírito Santo, 275 – Erechim/RS,
+            CEP 99709-296
+          </Text>
+          <Text style={styles.timbradoMeta}>
+            Telefone: (54) 99129-2121 • E-mail: solar@updates.delfos.eng.br • Web: www.delfos.eng.br
+          </Text>
+        </View>
 
-          <View style={styles.headerRight}>
-            <Text style={styles.badgeOsNum}>{osIdFormatado}</Text>
-            <Text style={styles.badgeOsTipo}>{tipoServico}</Text>
+        {/* 2. Título & Meta Pills */}
+        <View style={styles.titleCard} wrap={false}>
+          <Text style={styles.docMainTitle}>Relatório de Atendimento e Condição do Sistema</Text>
+          <View style={styles.metaPillsRow}>
+            <Text style={styles.metaPillItem}>
+              <Text style={styles.metaPillStrong}>Relatório nº: </Text>
+              {relatorio.numeroRelatorio}
+            </Text>
+            <Text style={styles.metaPillItem}>
+              <Text style={styles.metaPillStrong}>OS vinculada: </Text>
+              {relatorio.osCodigo}
+            </Text>
+            <Text style={styles.metaPillItem}>
+              <Text style={styles.metaPillStrong}>Revisão: </Text>
+              {relatorio.revisao}
+            </Text>
+            <Text style={styles.metaPillItem}>
+              <Text style={styles.metaPillStrong}>Data de emissão: </Text>
+              {relatorio.dataEmissao}
+            </Text>
           </View>
         </View>
 
-        {/* BARRA DE TÍTULO PRINCIPAL */}
-        <View style={styles.titleBanner}>
-          <View>
-            <Text style={styles.titleBannerMain}>Relatório Técnico de Serviço Executado</Text>
-            <Text style={styles.titleBannerSub}>
-              Comprovação técnica de atendimento e encerramento de ordem de serviço em campo
-            </Text>
+        {/* 3. Resumo do Atendimento */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Resumo do atendimento</Text>
+          <View style={styles.grid2Cols}>
+            <View style={styles.gridCell}>
+              <Text style={styles.gridLabel}>Cliente</Text>
+              <Text style={styles.gridValue}>{relatorio.clienteNome}</Text>
+            </View>
+            <View style={styles.gridCellLast}>
+              <Text style={styles.gridLabel}>Endereço da usina</Text>
+              <Text style={styles.gridValue}>{relatorio.enderecoUsina}</Text>
+            </View>
           </View>
-          <View style={styles.statusConcluidaPill}>
-            <Text style={{ color: '#FFFFFF', fontFamily: 'Helvetica-Bold', fontSize: 7.5 }}>
-              ✓ CONCLUÍDA
-            </Text>
+
+          <View style={styles.grid2Cols}>
+            <View style={styles.gridCell}>
+              <Text style={styles.gridLabel}>Data do atendimento</Text>
+              <Text style={styles.gridValue}>{relatorio.dataAtendimento}</Text>
+            </View>
+            <View style={styles.gridCellLast}>
+              <Text style={styles.gridLabel}>Horários (Início / Término)</Text>
+              <Text style={styles.gridValue}>{relatorio.horarioInicioTermino}</Text>
+            </View>
+          </View>
+
+          <View style={styles.grid2Cols}>
+            <View style={styles.gridCell}>
+              <Text style={styles.gridLabel}>Tipo de serviço</Text>
+              <Text style={styles.gridValue}>{relatorio.tipoServico}</Text>
+            </View>
+            <View style={styles.gridCellLast}>
+              <Text style={styles.gridLabel}>Concessionária &amp; UC</Text>
+              <Text style={styles.gridValue}>{relatorio.concessionariaUc}</Text>
+            </View>
+          </View>
+
+          <View style={{ marginTop: 2 }}>
+            <Text style={styles.gridLabel}>Dados do sistema gerador</Text>
+            <Text style={styles.gridValue}>{relatorio.dadosSistemaGerador}</Text>
           </View>
         </View>
 
-        {/* 1. DADOS DO CLIENTE & CADASTRO TÉCNICO DA USINA */}
-        <View style={styles.secaoCard} wrap={false}>
-          <View style={styles.secaoCardHeader}>
-            <Text style={styles.secaoTitleText}>
-              ■ 1. Dados do Cliente &amp; Cadastro Técnico da Usina
-            </Text>
-            <Text style={styles.secaoHeaderExtra}>
-              Concessionária: {concessionaria} • UC: {ucUsina}
-            </Text>
-          </View>
-
-          <View style={styles.secaoCardBody}>
-            <View style={styles.gridRow}>
-              <View style={styles.gridCol2}>
-                <View style={styles.fieldBoxHighlight}>
-                  <Text style={styles.fieldLabel}>Cliente / Razão Social</Text>
-                  <Text style={styles.fieldValueAccent}>{clienteNome}</Text>
-                </View>
-              </View>
-              <View style={styles.gridCol2Last}>
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Endereço da Instalação / Usina</Text>
-                  <Text style={styles.fieldValue}>
-                    {enderecoUsina}
-                    {cidadeUsina ? ` • ${cidadeUsina}` : ''}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.gridRow}>
-              <View style={styles.gridCol2}>
-                <View style={{ flexDirection: 'row' }}>
-                  {clienteDoc ? (
-                    <View style={{ flex: 1, marginRight: 4 }}>
-                      <View style={styles.fieldBox}>
-                        <Text style={styles.fieldLabel}>CPF / CNPJ</Text>
-                        <Text style={styles.fieldValue}>{clienteDoc}</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.fieldBox}>
-                      <Text style={styles.fieldLabel}>Telefone / WhatsApp</Text>
-                      <Text style={styles.fieldValue}>{clienteTelefone}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.gridCol2Last}>
-                <View style={{ flexDirection: 'row' }}>
-                  <View style={{ flex: 1, marginRight: 4 }}>
-                    <View style={styles.fieldBox}>
-                      <Text style={styles.fieldLabel}>Potência Nominal</Text>
-                      <Text style={styles.fieldValue}>{potenciaUsina}</Text>
-                    </View>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.fieldBox}>
-                      <Text style={styles.fieldLabel}>Estrutura / Telhado</Text>
-                      <Text style={styles.fieldValue}>{telhadoTipo}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.gridRow}>
-              <View style={styles.gridCol2}>
-                <View style={{ flexDirection: 'row' }}>
-                  <View style={{ flex: 1, marginRight: 4 }}>
-                    <View style={styles.fieldBox}>
-                      <Text style={styles.fieldLabel}>Qtd. Módulos</Text>
-                      <Text style={styles.fieldValue}>{placasUsina}</Text>
-                    </View>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.fieldBox}>
-                      <Text style={styles.fieldLabel}>Marca Módulos</Text>
-                      <Text style={styles.fieldValue}>{placasMarca}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.gridCol2Last}>
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Inversor(es) Instalado(s)</Text>
-                  <Text style={styles.fieldValue}>{inversorCompleto}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
+        {/* 4. Destaque Dourado: Resultado em Poucas Palavras */}
+        <View style={styles.highlightCard} wrap={false}>
+          <Text style={styles.highlightTitle}>Resultado em poucas palavras</Text>
+          <Text style={styles.highlightText}>{relatorio.resultadoPoucasPalavras}</Text>
         </View>
 
-        {/* 2. PERÍODO DE ATENDIMENTO EM CAMPO */}
-        <View style={styles.secaoCard} wrap={false}>
-          <View style={styles.secaoCardHeader}>
-            <Text style={styles.secaoTitleText}>■ 2. Período de Atendimento em Campo</Text>
-            <Text style={styles.secaoHeaderExtra}>Horários Registrados</Text>
-          </View>
-          <View style={styles.secaoCardBody}>
-            <View style={styles.datasBoxRow}>
-              <View style={styles.dataCol}>
-                <Text style={styles.dataRotulo}>Início do Atendimento</Text>
-                <Text style={styles.dataValor}>{dataInicioStr}</Text>
+        {/* 5. Badges de Status */}
+        <View style={styles.repCard} wrap={false}>
+          <View style={styles.badgesRow}>
+            <View style={styles.statusPillBox}>
+              <View style={styles.statusDot} />
+              <View>
+                <Text style={styles.statusContentTitle}>Situação do atendimento</Text>
+                <Text style={styles.statusContentVal}>{relatorio.situacaoAtendimento}</Text>
               </View>
-              <View style={styles.dataColBorder}>
-                <Text style={styles.dataRotulo}>Conclusão Efetiva</Text>
-                <Text style={[styles.dataValor, { color: '#166534' }]}>{dataConclusaoStr}</Text>
+            </View>
+            <View style={styles.statusPillBoxLast}>
+              <View style={styles.statusDot} />
+              <View>
+                <Text style={styles.statusContentTitle}>Condição do sistema ao término</Text>
+                <Text style={styles.statusContentVal}>{relatorio.condicaoSistema}</Text>
               </View>
             </View>
           </View>
+          <Text style={styles.statusNote}>
+            * Nota técnica: Situação do atendimento refere-se ao escopo da visita. Condição do
+            sistema refere-se ao estado operacional observado. São avaliações independentes.
+          </Text>
         </View>
 
-        {/* 3. CHECKLIST TÉCNICO DE EXECUÇÃO */}
-        {checklistItens.length > 0 && (
-          <View style={styles.secaoCard} wrap={true}>
-            <View style={styles.secaoCardHeader}>
-              <Text style={styles.secaoTitleText}>■ 3. Checklist Técnico de Execução</Text>
-              <Text style={[styles.secaoHeaderExtra, { color: '#166534' }]}>
-                {itensConcluidosCount}/{totalItensCount} Concluídos
+        {/* 6. Serviços Executados */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Serviços executados</Text>
+          <View style={styles.tableHeaderRow}>
+            <Text style={[styles.thText, { flex: 3 }]}>Atividade</Text>
+            <Text style={[styles.thText, { flex: 2 }]}>Local / Ativo</Text>
+            <Text style={[styles.thText, { flex: 1.5 }]}>Quantidade</Text>
+            <Text style={[styles.thText, { flex: 2, textAlign: 'center' }]}>Situação</Text>
+            <Text style={[styles.thText, { flex: 1.5 }]}>Evidência</Text>
+          </View>
+          {relatorio.servicosExecutados.map((item, idx) => (
+            <View key={idx} style={idx % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
+              <Text style={[styles.tdText, { flex: 3, fontFamily: 'Helvetica-Bold' }]}>
+                {item.atividade}
+              </Text>
+              <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>{item.localAtivo}</Text>
+              <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>
+                {item.quantidade}
+              </Text>
+              <View style={{ flex: 2, alignItems: 'center' }}>
+                <Text style={styles.badgeDone}>{item.situacao}</Text>
+              </View>
+              <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>{item.evidencia}</Text>
+            </View>
+          ))}
+
+          {/* Sub-box: Detalhes da Limpeza */}
+          <View style={styles.subBox}>
+            <Text style={styles.subBoxTitle}>Detalhes da limpeza</Text>
+            <View style={styles.subBoxGridRow}>
+              <Text style={styles.subBoxItem}>
+                <Text style={styles.subBoxStrong}>Módulos previstos / atendidos: </Text>
+                {relatorio.modulosPrevistosAtendidos}
+              </Text>
+              <Text style={styles.subBoxItem}>
+                <Text style={styles.subBoxStrong}>Método executado: </Text>
+                {relatorio.metodoExecutado}
               </Text>
             </View>
-            <View style={styles.secaoCardBody}>
-              {checklistItens.map((item, idx) => (
-                <View
-                  key={item.id || idx}
-                  style={[
-                    styles.checklistItem,
-                    item.concluido ? styles.checklistItemDone : styles.checklistItemPending,
-                  ]}
-                  wrap={false}
-                >
-                  <View style={styles.checkItemLeft}>
-                    <View style={item.concluido ? styles.checkPillOk : styles.checkPillGray}>
-                      <Text
-                        style={item.concluido ? styles.checkPillOkText : styles.checkPillGrayText}
-                      >
-                        {item.concluido ? '✓' : '–'}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.checkItemText,
-                        item.concluido ? styles.checkItemTextDone : undefined,
-                      ]}
-                    >
-                      {item.item}
-                    </Text>
-                  </View>
-                  <View style={item.concluido ? styles.statusPillOk : styles.statusPillGray}>
-                    <Text
-                      style={item.concluido ? styles.statusPillOkText : styles.statusPillGrayText}
-                    >
-                      {item.concluido ? 'CONCLUÍDO' : 'PENDENTE'}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* 4. OBSERVAÇÕES TÉCNICAS E DETALHES DE EXECUÇÃO (TEXTO JUSTIFICADO) */}
-        <View style={styles.secaoCard} wrap={false}>
-          <View style={styles.secaoCardHeader}>
-            <Text style={styles.secaoTitleText}>
-              ■ 4. Observações Técnicas &amp; Detalhes da Execução
-            </Text>
-            <Text style={styles.secaoHeaderExtra}>Registro de Campo</Text>
-          </View>
-          <View style={styles.secaoCardBody}>
-            <View style={styles.observacoesBox}>
-              <Text style={styles.observacoesTexto}>{observacoes}</Text>
+            <View style={styles.subBoxGridRow}>
+              <Text style={styles.subBoxItem}>
+                <Text style={styles.subBoxStrong}>Manual do fabricante: </Text>
+                {relatorio.manualFabricante}
+              </Text>
+              <Text style={styles.subBoxItem}>
+                <Text style={styles.subBoxStrong}>Ressalvas observadas: </Text>
+                {relatorio.ressalvasObservadas}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* 5. REGISTROS FOTOGRÁFICOS DE CAMPO */}
-        {fotosDataUrls.length > 0 && (
-          <View style={styles.secaoCard} wrap={true}>
-            <View style={styles.secaoCardHeader}>
-              <Text style={styles.secaoTitleText}>■ 5. Registros Fotográficos de Campo</Text>
-              <Text style={styles.secaoHeaderExtra}>
-                {fotosDataUrls.length} {fotosDataUrls.length === 1 ? 'registro' : 'registros'}
+        {/* 7. Condição do Sistema por Componente */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Condição do sistema por componente</Text>
+          <View style={styles.tableHeaderRow}>
+            <Text style={[styles.thText, { flex: 2.5 }]}>Componente</Text>
+            <Text style={[styles.thText, { flex: 2 }]}>Abrangência / Método</Text>
+            <Text style={[styles.thText, { flex: 3 }]}>Condição observada</Text>
+            <Text style={[styles.thText, { flex: 1.5 }]}>Evidência</Text>
+          </View>
+          {relatorio.componentes.map((comp, idx) => (
+            <View key={idx} style={idx % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
+              <Text style={[styles.tdText, { flex: 2.5, fontFamily: 'Helvetica-Bold' }]}>
+                {comp.componente}
               </Text>
-            </View>
-            <View style={styles.secaoCardBody}>
-              {fotosPares.map((par, pIdx) => (
-                <View key={`par_${pIdx}`} style={styles.fotosRow} wrap={false}>
-                  <View style={par[1] ? styles.fotoCard : styles.fotoCardLast}>
-                    <Image src={par[0]} style={styles.fotoImage} />
-                    <View style={styles.fotoLegendaBar}>
-                      <Text style={styles.fotoTag}>FOTO #{pIdx * 2 + 1}</Text>
-                      <Text style={styles.fotoDesc}>Registro #{pIdx * 2 + 1}</Text>
-                    </View>
-                  </View>
-                  {par[1] ? (
-                    <View style={styles.fotoCardLast}>
-                      <Image src={par[1]} style={styles.fotoImage} />
-                      <View style={styles.fotoLegendaBar}>
-                        <Text style={styles.fotoTag}>FOTO #{pIdx * 2 + 2}</Text>
-                        <Text style={styles.fotoDesc}>Registro #{pIdx * 2 + 2}</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* 6. RESPONSÁVEL TÉCNICO & ASSINATURA (BREAK-INSIDE AVOID) */}
-        <View style={styles.secaoCard} wrap={false}>
-          <View style={styles.secaoCardHeader}>
-            <Text style={styles.secaoTitleText}>
-              ■ 6. Responsável Técnico &amp; Validação de Conclusão
-            </Text>
-            <Text style={styles.secaoHeaderExtra}>Identificação &amp; Assinatura</Text>
-          </View>
-          <View style={styles.secaoCardBody}>
-            <View style={styles.assinaturaRow}>
-              <View style={styles.responsavelInfoCol}>
-                <View style={[styles.fieldBoxHighlight, { marginBottom: 4 }]}>
-                  <Text style={styles.fieldLabel}>Técnico / Prestador Executante</Text>
-                  <Text style={styles.fieldValueAccent}>{prestadorNome}</Text>
-                </View>
-                {prestadorTelefone ? (
-                  <View style={[styles.fieldBox, { marginBottom: 4 }]}>
-                    <Text style={styles.fieldLabel}>Contato do Técnico</Text>
-                    <Text style={styles.fieldValue}>{prestadorTelefone}</Text>
-                  </View>
-                ) : null}
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Empresa Responsável</Text>
-                  <Text style={styles.fieldValue}>
-                    Delfos Engenharia Solar • CNPJ 21.379.952/0001-38
-                  </Text>
-                </View>
+              <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>{comp.abrangencia}</Text>
+              <View style={{ flex: 3, alignItems: 'flex-start' }}>
+                <Text style={styles.badgeNormal}>{comp.condicao}</Text>
               </View>
+              <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>{comp.evidencia}</Text>
+            </View>
+          ))}
+        </View>
 
-              <View style={styles.assinaturaBoxCol}>
-                {dados.assinaturaBase64 ? (
-                  <Image src={dados.assinaturaBase64} style={styles.assinaturaImg} />
+        {/* 8. Registro Fotográfico */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Registro fotográfico</Text>
+          <View style={styles.photosGrid}>
+            {relatorio.fotos.slice(0, 3).map((foto, idx) => (
+              <View key={foto.id} style={idx === 2 ? styles.photoCardLast : styles.photoCard}>
+                {foto.url ? (
+                  <Image src={foto.url} style={styles.photoThumbImage} />
                 ) : (
-                  <View style={styles.linhaAssinaturaPlaceholder} />
+                  <View style={styles.photoThumbBox}>
+                    <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+                  </View>
                 )}
-                <Text style={styles.assinaturaNome}>{prestadorNome}</Text>
-                <Text style={styles.assinaturaCargo}>Prestador Autorizado Delfos</Text>
+                <View style={styles.photoCaption}>
+                  <Text style={styles.photoCaptionTitle}>{foto.subtitulo}</Text>
+                  <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
+                </View>
               </View>
-            </View>
+            ))}
           </View>
         </View>
 
-        {/* BLOCO COMERCIAL E INDICAÇÃO CONFIGURÁVEL */}
-        {rodapeComercial && (rodapeComercial.titulo || rodapeComercial.descricao) && (
-          <View style={styles.comercialBox} wrap={false}>
-            <Text style={styles.comercialTitulo}>★ {rodapeComercial.titulo}</Text>
-            {rodapeComercial.descricao ? (
-              <Text style={styles.comercialDesc}>{rodapeComercial.descricao}</Text>
-            ) : null}
-            {rodapeComercial.indicacao ? (
-              <Text style={styles.comercialIndicacao}>🎁 {rodapeComercial.indicacao}</Text>
-            ) : null}
-            {rodapeComercial.contato ? (
-              <Text style={styles.comercialContato}>{rodapeComercial.contato}</Text>
-            ) : null}
+        {/* 9. Pendências e Recomendações */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Pendências e recomendações</Text>
+          <View style={styles.boxSuccess}>
+            <Text style={{ fontFamily: 'Helvetica-Bold' }}>
+              ✓ Conformidade técnica: {relatorio.conformidadeTecnica}
+            </Text>
           </View>
-        )}
+          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#0E2A47' }}>
+            📅 Próxima manutenção prevista: {relatorio.proximaManutencao} (semestral, conforme plano
+            de manutenção).
+          </Text>
+        </View>
 
-        {/* RODAPÉ INSTITUCIONAL CANÔNICO DELFOS SOLAR */}
-        <View style={styles.footerCard} wrap={false}>
-          <View style={styles.footerLeft}>
-            <Text style={styles.footerBrandTitle}>
-              Delfos Engenharia Solar • Excelência Técnica em Energia Fotovoltaica
+        {/* 10. Escopo e Limitações */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Escopo e limitações</Text>
+          <View style={styles.boxInfo}>
+            <Text>{relatorio.escopoELimitacoes}</Text>
+          </View>
+        </View>
+
+        {/* 11. Conclusão Técnica */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Conclusão técnica</Text>
+          <Text
+            style={{ fontFamily: 'Helvetica', fontSize: 7.8, color: '#1A2332', lineHeight: 1.45 }}
+          >
+            {relatorio.conclusaoNarrativa}
+          </Text>
+          <View style={styles.conclusionMeta}>
+            <Text style={styles.conclusionMetaItem}>
+              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0E2A47' }}>
+                Situação do serviço:{' '}
+              </Text>
+              {relatorio.conclusaoSituacao}
             </Text>
-            <Text style={styles.footerContact}>
-              Rua Espírito Santo, 275 – Erechim/RS, CEP 99709-296 • (54) 99129-2121 •
-              www.delfos.eng.br
+            <Text style={styles.conclusionMetaItem}>
+              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0E2A47' }}>
+                • Condição no escopo:{' '}
+              </Text>
+              {relatorio.conclusaoCondicao}
             </Text>
-            <Text style={styles.footerAddress}>
-              Atendimento técnico autorizado em conformidade com as normas ABNT NBR 16690 e NR-10.
+            <Text style={styles.conclusionMetaItem}>
+              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0E2A47' }}>
+                • Desempenho energético:{' '}
+              </Text>
+              {relatorio.conclusaoDesempenho}
             </Text>
           </View>
-          <View style={styles.footerRight}>
-            <View style={styles.footerBadgeSelo}>
-              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 6, color: '#166534' }}>
-                ✓ DOCUMENTO OFICIAL
-              </Text>
+        </View>
+
+        {/* 12. Próximos Passos */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Próximos passos</Text>
+          <Text
+            style={{ fontFamily: 'Helvetica', fontSize: 7.5, color: '#2C3E50', marginBottom: 4 }}
+          >
+            {relatorio.proximosPassosTexto}
+          </Text>
+          <View style={styles.planCard}>
+            <Text style={styles.planTitle}>{relatorio.planoOmTitulo}</Text>
+            <Text style={styles.planBody}>{relatorio.planoOmTexto}</Text>
+            <Text style={styles.planContact}>{relatorio.planoOmContato}</Text>
+          </View>
+          <View style={styles.referralNote}>
+            <Text>{relatorio.indicacaoAmigoTexto}</Text>
+          </View>
+        </View>
+
+        {/* 13. Recebimento do Cliente */}
+        <View style={styles.repCard} wrap={false}>
+          <Text style={styles.sectionTitle}>Recebimento do cliente</Text>
+          <View style={styles.receiptGrid}>
+            <View style={styles.receiptCell}>
+              <Text style={styles.gridLabel}>Forma e data de envio</Text>
+              <Text style={styles.gridValue}>{relatorio.formaEDataEnvio}</Text>
             </View>
-            <Text style={styles.footerDataEmissao}>
-              Emitido em {agoraData} às {agoraHora}
+            <View style={styles.receiptCellLast}>
+              <Text style={styles.gridLabel}>Recebido por</Text>
+              <Text style={styles.gridValue}>{relatorio.recebidoPor}</Text>
+            </View>
+          </View>
+          <Text
+            style={{
+              fontFamily: 'Helvetica',
+              fontSize: 6.5,
+              color: '#536377',
+              borderTopWidth: 1,
+              borderTopColor: '#DDE4EE',
+              borderTopStyle: 'dashed',
+              paddingTop: 4,
+            }}
+          >
+            * Nota: A confirmação registra o recebimento deste documento e das recomendações nele
+            descritas. Não representa certificação técnica da instalação pelo cliente.
+          </Text>
+        </View>
+
+        {/* 14. Rodapé Timbrado */}
+        <View style={styles.timbradoFooter} wrap={false}>
+          <Text style={styles.footerText}>
+            <Text style={{ fontFamily: 'Helvetica-Bold', color: '#FFFFFF' }}>
+              Documento oficial Delfos Solar
+            </Text>{' '}
+            — Atendimento técnico autorizado em estrita conformidade com as normas ABNT NBR 16690 e
+            NR-10 (Segurança em Instalações e Serviços em Eletricidade).
+          </Text>
+          <Text style={styles.footerText}>
+            Central de Operação e Suporte: (54) 99129-2121 • solar@updates.delfos.eng.br • Rua
+            Espírito Santo, 275 – Erechim/RS
+          </Text>
+          <View style={styles.footerDivider} />
+          <View style={styles.footerBottomRow}>
+            <Text style={styles.footerBottomText}>
+              Relatório {relatorio.numeroRelatorio} • OS {relatorio.osCodigo} • Revisão{' '}
+              {relatorio.revisao}
+            </Text>
+            <Text style={styles.footerBottomText}>
+              Delfos Engenharia Solar © {new Date().getFullYear()}
             </Text>
           </View>
         </View>

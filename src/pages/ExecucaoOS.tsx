@@ -1973,9 +1973,11 @@ function ExecucaoOSContent() {
           <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] h-[92vh] p-0 overflow-hidden flex flex-col rounded-2xl border border-slate-200 shadow-2xl bg-slate-100">
             <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shrink-0">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-600" />
+                <div className="w-6 h-6 rounded-full bg-[#0E2A47] text-[#C9A227] font-black text-xs flex items-center justify-center">
+                  D
+                </div>
                 <span className="text-sm font-bold text-slate-900">
-                  Relatório Técnico de Execução • OS #
+                  Relatório de Atendimento e Condição do Sistema • OS #
                   {String(osParaVisualizarRelatorio?.id || '')
                     .slice(-6)
                     .toUpperCase()}
@@ -1984,16 +1986,17 @@ function ExecucaoOSContent() {
               <div className="flex items-center gap-2 mr-6">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() =>
+                    osParaVisualizarRelatorio &&
                     window.open('/relatorio-os-preview/' + osParaVisualizarRelatorio.id, '_blank')
                   }
-                  className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
-                  title="Abrir também em nova guia"
+                  className="h-8 text-xs font-semibold text-[#0E2A47] border-[#DDE4EE] hover:bg-slate-50 inline-flex items-center gap-1.5 cursor-pointer rounded-lg"
+                  title="Abrir em nova aba"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Nova guia</span>
+                  <span className="hidden sm:inline">Nova aba</span>
                 </Button>
               </div>
             </div>

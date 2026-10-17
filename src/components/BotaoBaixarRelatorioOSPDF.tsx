@@ -80,7 +80,7 @@ const LazyPDFDownload = lazy(async () => {
               disabled={loading}
               className={
                 className ||
-                'bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02] cursor-pointer'
+                'bg-[#C9A227] hover:bg-[#dbae26] text-[#0E2A47] text-xs font-bold gap-1.5 rounded-full border border-[#B38E1D] shadow-[0_4px_14px_rgba(201,162,39,0.4)] transition-all hover:-translate-y-0.5 cursor-pointer'
               }
             >
               {loading ? (
@@ -101,7 +101,7 @@ export const BotaoBaixarRelatorioOSPDF: React.FC<BotaoBaixarRelatorioOSPDFProps>
   dados,
   onClick,
   className,
-  rotulo = 'Baixar como PDF',
+  rotulo = 'Baixar PDF',
 }) => {
   return (
     <Suspense
@@ -110,7 +110,10 @@ export const BotaoBaixarRelatorioOSPDF: React.FC<BotaoBaixarRelatorioOSPDFProps>
           type="button"
           size="sm"
           disabled
-          className={className || 'bg-[#16A34A]/80 text-white text-xs font-bold gap-1.5 shadow-xs'}
+          className={
+            className ||
+            'bg-[#C9A227]/80 text-[#0E2A47] text-xs font-bold gap-1.5 rounded-full border border-[#B38E1D]'
+          }
         >
           <Loader2 className="w-4 h-4 animate-spin" />
           <span>{rotulo}</span>
