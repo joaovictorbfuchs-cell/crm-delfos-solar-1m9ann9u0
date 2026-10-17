@@ -38,10 +38,6 @@ vi.mock('@/components/ListaOM', () => ({
   ),
 }))
 
-vi.mock('@/components/ModalNovoContratoOM', () => ({
-  ModalNovoContratoOM: () => <div data-testid="modal-novo-contrato" />,
-}))
-
 vi.mock('@/components/ModalNovaPropostaOM', () => ({
   ModalNovaPropostaOM: () => <div data-testid="modal-nova-proposta" />,
 }))

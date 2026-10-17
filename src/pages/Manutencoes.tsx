@@ -4,7 +4,6 @@ import { Loader2 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ListaOM, type AbaPrincipalOM } from '@/components/ListaOM'
 import { calcularContagensOM } from '@/lib/omCategorizacao'
-import { ModalNovoContratoOM } from '@/components/ModalNovoContratoOM'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
 
 export default function Manutencoes() {
@@ -22,7 +21,6 @@ export default function Manutencoes() {
   const location = useLocation()
   const navigate = useNavigate()
   const [activeSubTab, setActiveSubTab] = useState<AbaPrincipalOM>('com_plano')
-  const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
   const [isNovaPropostaOpen, setIsNovaPropostaOpen] = useState(false)
 
   // Quando acessado via rota direta /planos-om ou /planos-monitoramento, força a aba com_plano (Planos O&M)
@@ -61,16 +59,10 @@ export default function Manutencoes() {
       {/* Conteúdo Principal: Base Completa O&M com sub-abas Planos O&M e Clientes Pós-Vendas */}
       <ListaOM
         onOpenFichaOM={openFichaOM}
-        onOpenNovoContrato={() => setIsNovoContratoOpen(true)}
+        onOpenNovoContrato={() => navigate('/propostas?aba=om')}
         onOpenNovaProposta={() => navigate('/propostas?aba=om')}
         activeSubTab={activeSubTab}
         onSubTabChange={setActiveSubTab}
-      />
-
-      {/* Modal Novo Contrato de O&M */}
-      <ModalNovoContratoOM
-        isOpen={isNovoContratoOpen}
-        onClose={() => setIsNovoContratoOpen(false)}
       />
 
       {/* Modal Nova Proposta O&M */}
