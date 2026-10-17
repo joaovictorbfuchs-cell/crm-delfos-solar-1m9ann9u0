@@ -43,6 +43,7 @@ export type CatalogoTipoExecucao = 'equipe_interna' | 'fornecedor_externo'
 export interface TipoAtividadeChecklistItem {
   id: string
   texto: string
+  descricao_cliente?: string
   concluido?: boolean
 }
 
@@ -1383,6 +1384,7 @@ export type OSStatus = 'pendente' | 'concluida' | 'cancelada'
 export interface OSChecklistItem {
   id: string
   item: string
+  descricao_cliente?: string
   concluido: boolean
 }
 

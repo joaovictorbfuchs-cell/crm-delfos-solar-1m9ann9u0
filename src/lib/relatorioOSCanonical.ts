@@ -11,6 +11,7 @@ export interface FotoRegistroRelatorio {
 
 export interface ServicoExecutadoRelatorio {
   atividade: string
+  descricaoCliente?: string
   localAtivo: string
   quantidade: string
   situacao: string
@@ -43,9 +44,6 @@ export interface RelatorioOSCanonicalData {
   concessionariaUc: string // ex: RGE • UC: 4004280183
   dadosSistemaGerador: string // ex: Potência: 2,00 kWp • 5 módulos TSUN • Inversor Solis • Estrutura: Telhado cerâmico
 
-  // Destaque "Resultado em poucas palavras"
-  resultadoPoucasPalavras: string
-
   // Badges de status
   situacaoAtendimento: 'CONCLUÍDO' | 'EM ANDAMENTO'
   condicaoSistema: 'EM OPERAÇÃO' | 'EM AVALIAÇÃO' | 'PARALISADO'
@@ -69,9 +67,6 @@ export interface RelatorioOSCanonicalData {
   conformidadeTecnica: string
   proximaManutencao: string // DD/MM/AAAA (semestral +6 meses)
 
-  // Escopo e limitações
-  escopoELimitacoes: string
-
   // Conclusão técnica
   conclusaoNarrativa: string
   conclusaoSituacao: string
@@ -80,10 +75,11 @@ export interface RelatorioOSCanonicalData {
 
   // Próximos passos
   proximosPassosTexto: string
+  temContratoOMAtivo?: boolean
+  exibirPlanoOM?: boolean
   planoOmTitulo: string
   planoOmTexto: string
   planoOmContato: string
-  indicacaoAmigoTexto: string
 
   // Recebimento do cliente
   formaEDataEnvio: string
@@ -93,11 +89,16 @@ export interface RelatorioOSCanonicalData {
 /**
  * Normaliza e compila os dados reais da OS, Cliente e Sistema para o modelo canônico Delfos Solar.
  */
+export interface CompilarDadosRelatorioOSOptions {
+  clientePossuiContratoOMAtivo?: boolean
+}
+
 export function compilarDadosRelatorioOS(
   os: any,
   cliente?: any,
   sistema?: any,
-  fotosUrls: string[] = [],
+  fotosDataUrls?: string[],
+  options?: CompilarDadosRelatorioOSOptions,
 ): RelatorioOSCanonicalData {
   const osId = String(os?.id || '')
   const osIdCurto = osId ? osId.slice(-6).toUpperCase() : '000000'
@@ -277,6 +278,8 @@ export function compilarDadosRelatorioOS(
   if (checklistItens.length > 0) {
     servicosExecutados = checklistItens.map((item, idx) => {
       const text = item.item || ''
+      const descCliente =
+        (item as any).descricao_cliente || (item as any).descricaoCliente || undefined
       const isLimpeza =
         text.toLowerCase().includes('limpeza') || text.toLowerCase().includes('lavagem')
       const isConectores =
@@ -305,6 +308,8 @@ export function compilarDadosRelatorioOS(
 
       return {
         atividade: text,
+        descricaoCliente:
+          descCliente && String(descCliente).trim() ? String(descCliente).trim() : undefined,
         localAtivo,
         quantidade: qtd,
         situacao: item.concluido ? 'Executado integralmente' : 'Pendente',
@@ -318,6 +323,8 @@ export function compilarDadosRelatorioOS(
     servicosExecutados = [
       {
         atividade: 'Limpeza dos módulos',
+        descricaoCliente:
+          'Lavagem técnica dos módulos fotovoltaicos com água desmineralizada/filtrada e escova macia.',
         localAtivo: estruturaFormatada,
         quantidade: `${qtdModulos} módulos`,
         situacao: 'Executado integralmente',
@@ -325,6 +332,8 @@ export function compilarDadosRelatorioOS(
       },
       {
         atividade: 'Verificação de conectores MC4 e fixadores',
+        descricaoCliente:
+          'Inspeção mecânica dos pontos de fixação e integridade dos conectores elétricos da usina.',
         localAtivo: 'Estrutura de fixação',
         quantidade: `${qtdModulos} módulos`,
         situacao: 'Executado integralmente',
@@ -332,6 +341,8 @@ export function compilarDadosRelatorioOS(
       },
       {
         atividade: 'Verificação de conexões e reaperto de disjuntores',
+        descricaoCliente:
+          'Reaperto preventivo de bornes, terminais e disjuntores do quadro de proteção.',
         localAtivo: 'Quadro DC/CA',
         quantidade: '1 quadro',
         situacao: 'Executado integralmente',
@@ -482,6 +493,9 @@ export function compilarDadosRelatorioOS(
   const formaEDataEnvio = `Enviado em ${dataEmissao} por WhatsApp / E-mail`
   const recebidoPor = '____________________________________'
 
+  const clientePossuiContratoOMAtivo = options?.clientePossuiContratoOMAtivo ?? false
+  const exibirPlanoOM = !clientePossuiContratoOMAtivo
+
   return {
     numeroRelatorio,
     osCodigo,
@@ -497,7 +511,6 @@ export function compilarDadosRelatorioOS(
     tipoServico,
     concessionariaUc,
     dadosSistemaGerador,
-    resultadoPoucasPalavras,
     situacaoAtendimento,
     condicaoSistema,
     servicosExecutados,
@@ -509,16 +522,16 @@ export function compilarDadosRelatorioOS(
     fotos,
     conformidadeTecnica,
     proximaManutencao,
-    escopoELimitacoes,
     conclusaoNarrativa,
     conclusaoSituacao: 'Concluído',
     conclusaoCondicao: 'Em operação',
     conclusaoDesempenho: 'Não avaliado neste atendimento',
     proximosPassosTexto,
+    temContratoOMAtivo: clientePossuiContratoOMAtivo,
+    exibirPlanoOM,
     planoOmTitulo,
     planoOmTexto,
     planoOmContato,
-    indicacaoAmigoTexto,
     formaEDataEnvio,
     recebidoPor,
   }
