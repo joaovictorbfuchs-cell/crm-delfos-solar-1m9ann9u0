@@ -116,8 +116,53 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     if (initialProposta?.status) setStatusAtual(initialProposta.status)
   }, [initialProposta?.status])
 
+  // Cliente atual selecionado
+  useEffect(() => {
+    if (initialClienteId) {
+      setSelectedId(initialClienteId)
+    } else if (clientes.length > 0 && (!selectedId || !clientes.some((c) => c.id === selectedId))) {
+      setSelectedId(clientes[0].id)
+    }
+  }, [initialClienteId, clientes, selectedId])
+
+  // Se veio uma proposta para visualizar/regenerar
+  useEffect(() => {
+    if (initialProposta) {
+      setSelectedId(initialProposta.cliente_id)
+      setValorKwh(initialProposta.valor_kwh || 0.92)
+      setDistanciaKm(initialProposta.distancia_km ?? 15)
+      setValorKm(initialProposta.valor_km ?? 2.5)
+      if (
+        initialProposta.valor_por_placa !== undefined &&
+        initialProposta.valor_por_placa !== null
+      ) {
+        setValorPorPlaca(Number(initialProposta.valor_por_placa))
+      }
+      if (initialProposta.valor_plano_essencial) {
+        setValorManualEssencial(String(initialProposta.valor_plano_essencial))
+      }
+      if (initialProposta.valor_plano_inspecao) {
+        setValorManualInspecao(String(initialProposta.valor_plano_inspecao))
+      }
+      if (initialProposta.valor_plano_completo) {
+        setValorManualCompleto(String(initialProposta.valor_plano_completo))
+      }
+      if (initialProposta.plano_escolhido) {
+        setPlanoEscolhido(normalizarNomePlanoOM(initialProposta.plano_escolhido))
+      }
+      if (initialProposta.conteudo_proposta) {
+        setConteudoOM(normalizarConteudoPropostaOM(initialProposta.conteudo_proposta))
+      }
+      setObservacoes(initialProposta.observacoes || '')
+    }
+  }, [initialProposta])
+
+  const clienteAtual = useMemo(() => {
+    return clientes.find((c) => c.id === selectedId) || null
+  }, [clientes, selectedId])
+
   const jaAprovada = ['aprovada', 'aprovado'].includes((statusAtual || '').toLowerCase())
-  const clienteAprovavel = clienteAtual && propostaSalvaId
+  const clienteAprovavel = Boolean(clienteAtual && propostaSalvaId)
 
   const handleAprovarProposta = async () => {
     if (!clienteAtual) return
@@ -163,51 +208,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       setAprovando(false)
     }
   }
-
-  // Cliente atual selecionado
-  useEffect(() => {
-    if (initialClienteId) {
-      setSelectedId(initialClienteId)
-    } else if (clientes.length > 0 && (!selectedId || !clientes.some((c) => c.id === selectedId))) {
-      setSelectedId(clientes[0].id)
-    }
-  }, [initialClienteId, clientes, selectedId])
-
-  // Se veio uma proposta para visualizar/regenerar
-  useEffect(() => {
-    if (initialProposta) {
-      setSelectedId(initialProposta.cliente_id)
-      setValorKwh(initialProposta.valor_kwh || 0.92)
-      setDistanciaKm(initialProposta.distancia_km ?? 15)
-      setValorKm(initialProposta.valor_km ?? 2.5)
-      if (
-        initialProposta.valor_por_placa !== undefined &&
-        initialProposta.valor_por_placa !== null
-      ) {
-        setValorPorPlaca(Number(initialProposta.valor_por_placa))
-      }
-      if (initialProposta.valor_plano_essencial) {
-        setValorManualEssencial(String(initialProposta.valor_plano_essencial))
-      }
-      if (initialProposta.valor_plano_inspecao) {
-        setValorManualInspecao(String(initialProposta.valor_plano_inspecao))
-      }
-      if (initialProposta.valor_plano_completo) {
-        setValorManualCompleto(String(initialProposta.valor_plano_completo))
-      }
-      if (initialProposta.plano_escolhido) {
-        setPlanoEscolhido(normalizarNomePlanoOM(initialProposta.plano_escolhido))
-      }
-      if (initialProposta.conteudo_proposta) {
-        setConteudoOM(normalizarConteudoPropostaOM(initialProposta.conteudo_proposta))
-      }
-      setObservacoes(initialProposta.observacoes || '')
-    }
-  }, [initialProposta])
-
-  const clienteAtual = useMemo(() => {
-    return clientes.find((c) => c.id === selectedId) || null
-  }, [clientes, selectedId])
 
   const sistemaAtual = useMemo(() => {
     return sistemas.find((s) => s.cliente_id === selectedId) || null

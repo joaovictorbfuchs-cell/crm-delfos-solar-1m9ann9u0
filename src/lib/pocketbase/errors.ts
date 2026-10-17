@@ -28,25 +28,47 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
+/**
+ * Identifica se um erro é decorrente de sessão/token expirado ou não autorizado (401/403).
+ */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
+
   if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (errObj.response && typeof errObj.response === 'object') {
-      const resp = errObj.response as Record<string, unknown>
-      if (resp.status === 401 || resp.status === 403) return true
+    const obj = error as Record<string, any>
+    if (obj.status === 401 || obj.status === 403) return true
+    if (obj.statusCode === 401 || obj.statusCode === 403) return true
+    if (obj.response && (obj.response.status === 401 || obj.response.status === 403)) return true
+    if (typeof obj.message === 'string') {
+      const msg = obj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('login expirou') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
+      }
     }
-    const msg = String(errObj.message || '')
+  }
+
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
     if (
-      msg.includes('Token is expired') ||
-      msg.includes('Login expirou') ||
-      msg.includes('Sessão expirada') ||
-      msg.includes('Failed to authenticate')
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('login expirou') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden')
     ) {
       return true
     }
   }
+
   return false
 }
