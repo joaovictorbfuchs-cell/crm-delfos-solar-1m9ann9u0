@@ -20,39 +20,33 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response && typeof errObj.response === 'object') {
+      const resp = errObj.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
+    const msg = String(errObj.message || '')
+    if (
+      msg.includes('Token is expired') ||
+      msg.includes('Login expirou') ||
+      msg.includes('Sessão expirada') ||
+      msg.includes('Failed to authenticate')
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-/**
- * Identifica se um erro de requisição corresponde a expiração/invalidade de sessão ou falha de autenticação (401/403).
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-
-  const anyErr = err as any
-  const status = anyErr?.status ?? anyErr?.statusCode ?? anyErr?.response?.status
-
-  if (status === 401 || status === 403) {
-    return true
-  }
-
-  const message = String(anyErr?.message || anyErr?.response?.message || '').toLowerCase()
-  if (
-    message.includes('token is expired') ||
-    message.includes('failed to authenticate') ||
-    message.includes('the request requires valid') ||
-    message.includes('sessão expirada') ||
-    message.includes('sessao expirada') ||
-    message.includes('login expirou') ||
-    message.includes('token expired')
-  ) {
-    return true
-  }
-
-  return false
 }
