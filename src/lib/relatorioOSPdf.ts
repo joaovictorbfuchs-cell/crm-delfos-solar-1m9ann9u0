@@ -446,13 +446,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </section>
 
-    <!-- 4. Card Destaque: Resultado em Poucas Palavras -->
-    <section class="rep-card highlight-card">
-      <h3 class="section-title" style="color: #5D4300; border-bottom-color: rgba(201, 162, 39, 0.25);">Resultado em poucas palavras</h3>
-      <p style="margin: 0; font-size: 0.9rem; line-height: 1.6; color: #272109; font-weight: 500;">${rel.resultadoPoucasPalavras}</p>
-    </section>
-
-    <!-- 5. Badges de Status -->
+    <!-- 4. Badges de Status -->
     <section class="rep-card">
       <div style="display: flex; gap: 14px; flex-wrap: wrap;">
         <div class="status-pill">
@@ -475,9 +469,9 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </p>
     </section>
 
-    <!-- 6. Serviços Executados -->
+    <!-- 5. Serviços Executados e Condição do Sistema por Componente (Unificados) -->
     <section class="rep-card">
-      <h3 class="section-title">Serviços executados</h3>
+      <h3 class="section-title">Serviços executados e condição do sistema por componente</h3>
       <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
         <thead>
           <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
@@ -501,31 +495,31 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
           <div><strong style="color: var(--navy-dark);">Ressalvas observadas:</strong> ${rel.ressalvasObservadas}</div>
         </div>
       </div>
+
+      <!-- Avaliação dos 6 componentes canônicos -->
+      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #E2E8F0;">
+        <h4 style="margin: 0 0 10px; font-size: 0.88rem; font-weight: 700; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.04em;">Avaliação dos componentes do sistema</h4>
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
+              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Componente</th>
+              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Abrangência / Método</th>
+              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Condição observada</th>
+              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Evidência</th>
+            </tr>
+          </thead>
+          <tbody>${componentesRowsHtml}</tbody>
+        </table>
+      </div>
     </section>
 
-    <!-- 7. Condição do Sistema por Componente -->
-    <section class="rep-card">
-      <h3 class="section-title">Condição do sistema por componente</h3>
-      <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-        <thead>
-          <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
-            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Componente</th>
-            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Abrangência / Método</th>
-            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Condição observada</th>
-            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Evidência</th>
-          </tr>
-        </thead>
-        <tbody>${componentesRowsHtml}</tbody>
-      </table>
-    </section>
-
-    <!-- 8. Registro Fotográfico -->
+    <!-- 6. Registro Fotográfico -->
     <section class="rep-card">
       <h3 class="section-title">Registro fotográfico</h3>
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">${fotosCardsHtml}</div>
     </section>
 
-    <!-- 9. Pendências e Recomendações -->
+    <!-- 7. Pendências e Recomendações -->
     <section class="rep-card">
       <h3 class="section-title">Pendências e recomendações</h3>
       <div style="background: #F1F9F4; border: 1px solid #B8E4C7; border-radius: 8px; padding: 12px 14px; color: #0E5325; font-size: 0.88rem;">
@@ -536,15 +530,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </section>
 
-    <!-- 10. Escopo e Limitações -->
-    <section class="rep-card">
-      <h3 class="section-title">Escopo e limitações</h3>
-      <div style="background: #F0F6FC; border-left: 4px solid var(--navy-dark); border-radius: 6px; padding: 12px 16px; color: #1A314E; font-size: 0.85rem; line-height: 1.55;">
-        ${rel.escopoELimitacoes}
-      </div>
-    </section>
-
-    <!-- 11. Conclusão Técnica -->
+    <!-- 8. Conclusão Técnica -->
     <section class="rep-card">
       <h3 class="section-title">Conclusão técnica</h3>
       <p style="margin: 0 0 10px; font-size: 0.9rem; line-height: 1.6;">${rel.conclusaoNarrativa}</p>
@@ -555,21 +541,22 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </section>
 
-    <!-- 12. Próximos Passos -->
+    <!-- 9. Próximos Passos -->
     <section class="rep-card">
       <h3 class="section-title">Próximos passos</h3>
       <p style="margin: 0 0 10px; font-size: 0.88rem; color: #2C3E50;">${rel.proximosPassosTexto}</p>
-      <div style="background: #FFFDF5; border: 1px solid #E5D38A; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px;">
+      ${
+        rel.exibirPlanoOM
+          ? `<div style="background: #FFFDF5; border: 1px solid #E5D38A; border-radius: 10px; padding: 14px 18px; margin-bottom: 6px;">
         <div style="color: #5D4300; font-size: 0.95rem; font-weight: 800; margin-bottom: 4px;">${rel.planoOmTitulo}</div>
         <p style="font-size: 0.85rem; color: #2F2A14; line-height: 1.5; margin: 0 0 8px;">${rel.planoOmTexto}</p>
         <div style="font-size: 0.82rem; font-weight: 700; color: var(--navy-dark);">${rel.planoOmContato}</div>
-      </div>
-      <div style="font-size: 0.8rem; font-weight: 600; color: #5D4300; background: #FCF5DF; padding: 6px 12px; border-radius: 6px; display: inline-block;">
-        ${rel.indicacaoAmigoTexto}
-      </div>
+      </div>`
+          : ''
+      }
     </section>
 
-    <!-- 13. Recebimento do Cliente -->
+    <!-- 10. Recebimento do Cliente -->
     <section class="rep-card">
       <h3 class="section-title">Recebimento do cliente</h3>
       <div class="details-grid" style="margin-bottom: 8px;">

@@ -93,12 +93,17 @@ export interface CompilarDadosRelatorioOSOptions {
   clientePossuiContratoOMAtivo?: boolean
 }
 
+function safeStr(val: any): string {
+  if (val === null || val === undefined) return ''
+  return String(val).trim()
+}
+
 export function compilarDadosRelatorioOS(
   os: any,
-  cliente?: any,
-  sistema?: any,
-  fotosDataUrls?: string[],
-  options?: CompilarDadosRelatorioOSOptions,
+  cliente: any,
+  sistema: any,
+  fotosDataUrls: string[] = [],
+  opcoes?: CompilarDadosRelatorioOSOptions,
 ): RelatorioOSCanonicalData {
   const osId = String(os?.id || '')
   const osIdCurto = osId ? osId.slice(-6).toUpperCase() : '000000'
@@ -256,11 +261,6 @@ export function compilarDadosRelatorioOS(
   // Limpa o texto de detalhes
   const observacoesLimpas = detalhesRaw.replace(/\[INÍCIO DO ATENDIMENTO:[^\]]+\]\s*/gi, '').trim()
 
-  // Destaque "Resultado em poucas palavras"
-  const resultadoPoucasPalavras =
-    observacoesLimpas ||
-    `Identificamos sujidade acumulada nos módulos e conexões que necessitavam reaperto no quadro. Realizamos a limpeza completa dos ${qtdModulos} módulos, a verificação da integridade dos conectores MC4 e fixadores da estrutura, e o reaperto dos disjuntores. Ao final, verificamos o inversor em operação normal e comunicação de monitoramento ativa, sem alarmes no horário verificado. Não foram identificadas pendências no escopo verificado nesta visita.`
-
   // Serviços executados: baseados no checklist da OS ou nos padrões do modelo
   let checklistItens: OSChecklistItem[] = []
   if (Array.isArray(os?.checklist)) {
@@ -278,8 +278,10 @@ export function compilarDadosRelatorioOS(
   if (checklistItens.length > 0) {
     servicosExecutados = checklistItens.map((item, idx) => {
       const text = item.item || ''
-      const descCliente =
+      const rawDescCliente =
         (item as any).descricao_cliente || (item as any).descricaoCliente || undefined
+      const descCliente =
+        rawDescCliente && String(rawDescCliente).trim() ? String(rawDescCliente).trim() : undefined
       const isLimpeza =
         text.toLowerCase().includes('limpeza') || text.toLowerCase().includes('lavagem')
       const isConectores =
@@ -307,9 +309,9 @@ export function compilarDadosRelatorioOS(
       }
 
       return {
-        atividade: text,
-        descricaoCliente:
-          descCliente && String(descCliente).trim() ? String(descCliente).trim() : undefined,
+        // No relatório ao cliente, o descritivo para o cliente substitui a instrução interna quando preenchido
+        atividade: descCliente || text,
+        descricaoCliente: descCliente,
         localAtivo,
         quantidade: qtd,
         situacao: item.concluido ? 'Executado integralmente' : 'Pendente',
@@ -398,6 +400,7 @@ export function compilarDadosRelatorioOS(
   ]
 
   // Registro fotográfico: fotos reais ou modelo demonstrativo
+  const fotosUrls = fotosDataUrls || []
   const fotos: FotoRegistroRelatorio[] = []
   if (fotosUrls.length > 0) {
     fotosUrls.forEach((url, i) => {
@@ -472,10 +475,6 @@ export function compilarDadosRelatorioOS(
   const conformidadeTecnica =
     'Não foram identificadas pendências no escopo verificado nesta visita.'
 
-  // Escopo e limitações
-  const escopoELimitacoes =
-    'Este atendimento abrangeu a limpeza dos módulos, a verificação visual de conectores, fixadores e proteções acessíveis, e a verificação funcional do inversor e do monitoramento. Não foram realizados ensaios elétricos instrumentados nem avaliação de desempenho energético comparativo. As conclusões correspondem às verificações descritas e às condições registradas durante o atendimento.'
-
   // Conclusão técnica narrativa
   const conclusaoNarrativa = `Em ${dataAtendimento}, realizamos o atendimento de ${tipoServico.toLowerCase()} na unidade ${cidadeEstado}, conforme a OS ${osCodigo}. Foram executadas a limpeza integral dos ${qtdModulos} módulos, a verificação de conectores MC4 e fixadores e o reaperto das conexões do quadro, sem limitações. O resultado observado foi inversor em operação normal e comunicação de monitoramento ativa no horário verificado, conforme registros e fotos anexas. Não foram identificadas pendências no escopo verificado. Recomenda-se manter a próxima manutenção preventiva prevista para ${proximaManutencao}. Esta conclusão se restringe às atividades e verificações descritas neste relatório; o efeito da limpeza sobre a geração não foi quantificado neste atendimento.`
 
@@ -486,14 +485,12 @@ export function compilarDadosRelatorioOS(
   const planoOmTexto =
     'Proteja seu investimento: limpeza periódica, revisão técnica completa, verificação de conexões e estrutura, e atendimento ágil em Erechim e região — mantendo sua usina com geração máxima e segurança durante toda a vida útil do sistema.'
   const planoOmContato = 'Solicite uma avaliação: (54) 99129-2121 • solar@updates.delfos.eng.br'
-  const indicacaoAmigoTexto =
-    '💡 Indique um amigo para instalar ou revisar sua usina solar com a Delfos e ganhe benefícios exclusivos!'
 
   // Recebimento
   const formaEDataEnvio = `Enviado em ${dataEmissao} por WhatsApp / E-mail`
   const recebidoPor = '____________________________________'
 
-  const clientePossuiContratoOMAtivo = options?.clientePossuiContratoOMAtivo ?? false
+  const clientePossuiContratoOMAtivo = opcoes?.clientePossuiContratoOMAtivo ?? false
   const exibirPlanoOM = !clientePossuiContratoOMAtivo
 
   return {

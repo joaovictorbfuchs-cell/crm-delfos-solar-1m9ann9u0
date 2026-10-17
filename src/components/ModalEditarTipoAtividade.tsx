@@ -136,31 +136,43 @@ export function obterChecklistPadraoPorAtividade(
       {
         id: 'chk_limp_1',
         texto: 'Chegou no local da usina e realizou análise de segurança',
+        descricao_cliente:
+          'Inspeção preliminar de segurança e condições gerais do local da instalação fotovoltaica',
         concluido: false,
       },
       {
         id: 'chk_limp_2',
         texto: 'Verificou estado físico das placas, trincas e grau de sujidade',
+        descricao_cliente:
+          'Avaliação da integridade física dos módulos solares e diagnóstico do nível de sujidade acumulada',
         concluido: false,
       },
       {
         id: 'chk_limp_3',
         texto: 'Limpou módulos com água desmineralizada e escova macia anti-risco',
+        descricao_cliente:
+          'Lavagem técnica dos módulos fotovoltaicos com escova de cerdas macias e água tratada, sem produtos abrasivos',
         concluido: false,
       },
       {
         id: 'chk_limp_4',
         texto: 'Verificou integridade dos conectores MC4 e fixadores da estrutura',
+        descricao_cliente:
+          'Verificação mecânica de fixadores da estrutura e integridade dos conectores elétricos MC4 acessíveis',
         concluido: false,
       },
       {
         id: 'chk_limp_5',
         texto: 'Verificou status e conexões do inversor/stringbox',
+        descricao_cliente:
+          'Inspeção visual e funcional do inversor e conexões dos quadros de proteção CC/CA',
         concluido: false,
       },
       {
         id: 'chk_limp_6',
         texto: 'Testou geração instantânea e sincronismo com a rede',
+        descricao_cliente:
+          'Verificação da operação em sincronismo com a rede e funcionamento do monitoramento',
         concluido: false,
       },
     ]
@@ -489,6 +501,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
           atividadeParaEditar.checklist.map((c, i) => ({
             id: c.id || `chk_${Date.now()}_${i}`,
             texto: (c as any).texto || (c as any).item || '',
+            descricao_cliente: (c as any).descricao_cliente || (c as any).descricaoCliente || '',
             concluido: Boolean(c.concluido),
           })),
         )
@@ -1000,6 +1013,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                         {
                           id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
                           texto: novoItemChecklist.trim(),
+                          descricao_cliente: '',
                           concluido: false,
                         },
                       ])
@@ -1019,6 +1033,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                       {
                         id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
                         texto: novoItemChecklist.trim(),
+                        descricao_cliente: '',
                         concluido: false,
                       },
                     ])
@@ -1035,36 +1050,65 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
 
             {/* Lista de itens do checklist */}
             {checklistItems.length > 0 ? (
-              <div className="space-y-1.5 pt-1">
+              <div className="space-y-2 pt-1">
                 {checklistItems.map((item, idx) => (
                   <div
                     key={item.id || idx}
-                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-amber-200/80 text-xs shadow-2xs"
+                    className="p-2.5 rounded-lg bg-white border border-amber-200/80 text-xs shadow-2xs space-y-2"
                   >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
-                        {idx + 1}
-                      </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block mb-0.5">
+                            Instrução interna (equipe de campo)
+                          </span>
+                          <Input
+                            value={item.texto}
+                            onChange={(e) => {
+                              const novoTexto = e.target.value
+                              setChecklistItems((prev) =>
+                                prev.map((it, i) => (i === idx ? { ...it, texto: novoTexto } : it)),
+                              )
+                            }}
+                            className="h-7 text-xs bg-gray-50/60 border border-gray-200 focus:border-amber-500 focus:bg-white text-gray-800 font-medium px-2 rounded-md"
+                            placeholder="Ex: Verificar aperto de conectores MC4..."
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChecklistItems((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer self-center"
+                        title="Remover item do checklist"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Novo campo: Descritivo para o cliente */}
+                    <div className="pl-7 pt-1 border-t border-amber-100/80">
+                      <label className="text-[10px] uppercase font-bold text-amber-800 tracking-wider flex items-center gap-1 mb-1">
+                        <span>Descritivo para o cliente (vai para o Relatório da OS)</span>
+                      </label>
                       <Input
-                        value={item.texto}
+                        value={item.descricao_cliente || ''}
                         onChange={(e) => {
-                          const novoTexto = e.target.value
+                          const novoDescCliente = e.target.value
                           setChecklistItems((prev) =>
-                            prev.map((it, i) => (i === idx ? { ...it, texto: novoTexto } : it)),
+                            prev.map((it, i) =>
+                              i === idx ? { ...it, descricao_cliente: novoDescCliente } : it,
+                            ),
                           )
                         }}
-                        className="h-7 text-xs bg-transparent border-transparent hover:border-input focus:border-input focus:bg-white transition-colors text-gray-800 font-medium px-1.5"
-                        placeholder="Descrição do check..."
+                        className="h-7 text-xs bg-amber-50/40 border border-amber-200 focus:border-amber-500 focus:bg-white text-amber-950 px-2 rounded-md"
+                        placeholder="Ex: Verificação técnica da integridade física e conexões dos conectores MC4..."
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setChecklistItems((prev) => prev.filter((_, i) => i !== idx))}
-                      className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer"
-                      title="Remover item do checklist"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 ))}
               </div>

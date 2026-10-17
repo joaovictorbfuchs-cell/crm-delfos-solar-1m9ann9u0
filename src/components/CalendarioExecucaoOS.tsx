@@ -576,11 +576,15 @@ export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
   if (Array.isArray(raw)) {
     return raw
       .filter((item) => item !== null && item !== undefined && typeof item === 'object')
-      .map((item: any, idx: number) => ({
-        id: safeStr(item.id) || `chk_${idx + 1}`,
-        item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
-        concluido: Boolean(item.concluido),
-      }))
+      .map((item: any, idx: number) => {
+        const descCliente = safeStr(item.descricao_cliente || item.descricaoCliente || '')
+        return {
+          id: safeStr(item.id) || `chk_${idx + 1}`,
+          item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+          descricao_cliente: descCliente || undefined,
+          concluido: Boolean(item.concluido),
+        }
+      })
   }
   if (typeof raw === 'string') {
     const trimmed = raw.trim()
@@ -590,20 +594,28 @@ export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
       if (Array.isArray(parsed)) {
         return parsed
           .filter((item) => item !== null && item !== undefined && typeof item === 'object')
-          .map((item: any, idx: number) => ({
-            id: safeStr(item.id) || `chk_${idx + 1}`,
-            item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
-            concluido: Boolean(item.concluido),
-          }))
+          .map((item: any, idx: number) => {
+            const descCliente = safeStr(item.descricao_cliente || item.descricaoCliente || '')
+            return {
+              id: safeStr(item.id) || `chk_${idx + 1}`,
+              item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+              descricao_cliente: descCliente || undefined,
+              concluido: Boolean(item.concluido),
+            }
+          })
       }
       if (typeof parsed === 'object' && parsed !== null) {
         return Object.values(parsed)
           .filter((item: any) => item !== null && typeof item === 'object')
-          .map((item: any, idx: number) => ({
-            id: safeStr(item.id) || `chk_${idx + 1}`,
-            item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
-            concluido: Boolean(item.concluido),
-          }))
+          .map((item: any, idx: number) => {
+            const descCliente = safeStr(item.descricao_cliente || item.descricaoCliente || '')
+            return {
+              id: safeStr(item.id) || `chk_${idx + 1}`,
+              item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+              descricao_cliente: descCliente || undefined,
+              concluido: Boolean(item.concluido),
+            }
+          })
       }
     } catch (_) {
       return []
@@ -613,11 +625,15 @@ export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
     try {
       return Object.values(raw)
         .filter((item: any) => item !== null && typeof item === 'object')
-        .map((item: any, idx: number) => ({
-          id: safeStr(item.id) || `chk_${idx + 1}`,
-          item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
-          concluido: Boolean(item.concluido),
-        }))
+        .map((item: any, idx: number) => {
+          const descCliente = safeStr(item.descricao_cliente || item.descricaoCliente || '')
+          return {
+            id: safeStr(item.id) || `chk_${idx + 1}`,
+            item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
+            descricao_cliente: descCliente || undefined,
+            concluido: Boolean(item.concluido),
+          }
+        })
     } catch {
       return []
     }

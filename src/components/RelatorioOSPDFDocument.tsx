@@ -563,6 +563,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
   const os = dados.os || ({} as any)
   const cliente = dados.cliente || os.expand?.cliente_id || null
   const sistema = dados.sistema || null
+  const clientePossuiContratoOMAtivo = (dados as any)?.clientePossuiContratoOMAtivo ?? false
   const fotosDataUrls = Array.isArray(dados.fotosDataUrls) ? dados.fotosDataUrls : []
 
   const relatorio: RelatorioOSCanonicalData = compilarDadosRelatorioOS(
@@ -570,6 +571,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
     cliente,
     sistema,
     fotosDataUrls,
+    { clientePossuiContratoOMAtivo },
   )
 
   return (
@@ -669,13 +671,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           </View>
         </View>
 
-        {/* 4. Destaque Dourado: Resultado em Poucas Palavras */}
-        <View style={styles.highlightCard} wrap={false}>
-          <Text style={styles.highlightTitle}>Resultado em poucas palavras</Text>
-          <Text style={styles.highlightText}>{relatorio.resultadoPoucasPalavras}</Text>
-        </View>
-
-        {/* 5. Badges de Status */}
+        {/* 4. Badges de Status */}
         <View style={styles.repCard} wrap={false}>
           <View style={styles.badgesRow}>
             <View style={styles.statusPillBox}>
@@ -699,9 +695,11 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           </Text>
         </View>
 
-        {/* 6. Serviços Executados */}
+        {/* 5. Serviços Executados e Condição do Sistema por Componente (Unificados) */}
         <View style={styles.repCard} wrap={false}>
-          <Text style={styles.sectionTitle}>Serviços executados</Text>
+          <Text style={styles.sectionTitle}>
+            Serviços executados e condição do sistema por componente
+          </Text>
           <View style={styles.tableHeaderRow}>
             <Text style={[styles.thText, { flex: 3 }]}>Atividade</Text>
             <Text style={[styles.thText, { flex: 2 }]}>Local / Ativo</Text>
@@ -749,32 +747,45 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
               </Text>
             </View>
           </View>
-        </View>
 
-        {/* 7. Condição do Sistema por Componente */}
-        <View style={styles.repCard} wrap={false}>
-          <Text style={styles.sectionTitle}>Condição do sistema por componente</Text>
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.thText, { flex: 2.5 }]}>Componente</Text>
-            <Text style={[styles.thText, { flex: 2 }]}>Abrangência / Método</Text>
-            <Text style={[styles.thText, { flex: 3 }]}>Condição observada</Text>
-            <Text style={[styles.thText, { flex: 1.5 }]}>Evidência</Text>
-          </View>
-          {relatorio.componentes.map((comp, idx) => (
-            <View key={idx} style={idx % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
-              <Text style={[styles.tdText, { flex: 2.5, fontFamily: 'Helvetica-Bold' }]}>
-                {comp.componente}
-              </Text>
-              <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>{comp.abrangencia}</Text>
-              <View style={{ flex: 3, alignItems: 'flex-start' }}>
-                <Text style={styles.badgeNormal}>{comp.condicao}</Text>
-              </View>
-              <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>{comp.evidencia}</Text>
+          {/* Avaliação dos 6 componentes do sistema */}
+          <View
+            style={{ marginTop: 10, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#EBF0F7' }}
+          >
+            <Text
+              style={[
+                styles.sectionTitle,
+                { fontSize: 8.5, marginBottom: 4, textTransform: 'uppercase' },
+              ]}
+            >
+              Avaliação dos componentes do sistema
+            </Text>
+            <View style={styles.tableHeaderRow}>
+              <Text style={[styles.thText, { flex: 2.5 }]}>Componente</Text>
+              <Text style={[styles.thText, { flex: 2 }]}>Abrangência / Método</Text>
+              <Text style={[styles.thText, { flex: 3 }]}>Condição observada</Text>
+              <Text style={[styles.thText, { flex: 1.5 }]}>Evidência</Text>
             </View>
-          ))}
+            {relatorio.componentes.map((comp, idx) => (
+              <View key={idx} style={idx % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
+                <Text style={[styles.tdText, { flex: 2.5, fontFamily: 'Helvetica-Bold' }]}>
+                  {comp.componente}
+                </Text>
+                <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>
+                  {comp.abrangencia}
+                </Text>
+                <View style={{ flex: 3, alignItems: 'flex-start' }}>
+                  <Text style={styles.badgeNormal}>{comp.condicao}</Text>
+                </View>
+                <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>
+                  {comp.evidencia}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        {/* 8. Registro Fotográfico */}
+        {/* 6. Registro Fotográfico */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Registro fotográfico</Text>
           <View style={styles.photosGrid}>
@@ -796,7 +807,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           </View>
         </View>
 
-        {/* 9. Pendências e Recomendações */}
+        {/* 7. Pendências e Recomendações */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Pendências e recomendações</Text>
           <View style={styles.boxSuccess}>
@@ -810,15 +821,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           </Text>
         </View>
 
-        {/* 10. Escopo e Limitações */}
-        <View style={styles.repCard} wrap={false}>
-          <Text style={styles.sectionTitle}>Escopo e limitações</Text>
-          <View style={styles.boxInfo}>
-            <Text>{relatorio.escopoELimitacoes}</Text>
-          </View>
-        </View>
-
-        {/* 11. Conclusão Técnica */}
+        {/* 8. Conclusão Técnica */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Conclusão técnica</Text>
           <Text
@@ -848,7 +851,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           </View>
         </View>
 
-        {/* 12. Próximos Passos */}
+        {/* 9. Próximos Passos */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Próximos passos</Text>
           <Text
@@ -856,17 +859,16 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           >
             {relatorio.proximosPassosTexto}
           </Text>
-          <View style={styles.planCard}>
-            <Text style={styles.planTitle}>{relatorio.planoOmTitulo}</Text>
-            <Text style={styles.planBody}>{relatorio.planoOmTexto}</Text>
-            <Text style={styles.planContact}>{relatorio.planoOmContato}</Text>
-          </View>
-          <View style={styles.referralNote}>
-            <Text>{relatorio.indicacaoAmigoTexto}</Text>
-          </View>
+          {relatorio.exibirPlanoOM && (
+            <View style={styles.planCard}>
+              <Text style={styles.planTitle}>{relatorio.planoOmTitulo}</Text>
+              <Text style={styles.planBody}>{relatorio.planoOmTexto}</Text>
+              <Text style={styles.planContact}>{relatorio.planoOmContato}</Text>
+            </View>
+          )}
         </View>
 
-        {/* 13. Recebimento do Cliente */}
+        {/* 10. Recebimento do Cliente */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Recebimento do cliente</Text>
           <View style={styles.receiptGrid}>

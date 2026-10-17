@@ -30,6 +30,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   const [os, setOs] = useState<any>(null)
   const [cliente, setCliente] = useState<any>(null)
   const [usina, setUsina] = useState<any>(null)
+  const [temContratoOMAtivo, setTemContratoOMAtivo] = useState(false)
   const [fotosUrls, setFotosUrls] = useState<string[]>([])
   const [linkCopiado, setLinkCopiado] = useState(false)
   const [fotoModal, setFotoModal] = useState<FotoRegistroRelatorio | null>(null)
@@ -120,6 +121,28 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             : null)
         if (isMounted) setCliente(cliObj)
 
+        // Checa se cliente tem contrato O&M ativo
+        const clienteIdFinal = cliObj?.id || registro.cliente_id
+        if (clienteIdFinal) {
+          try {
+            const contratos = await pb.collection('contratos_om').getList(1, 10, {
+              filter: `cliente_id = "${clienteIdFinal}"`,
+            })
+            const ativo = (contratos?.items || []).some((c: any) => {
+              const st = String(c?.status || '').toLowerCase()
+              const enc = String(c?.status_encerramento || '').toLowerCase()
+              const encerradoOuCancelado =
+                st.includes('encerrado') || st.includes('cancelado') || enc.includes('encerrado')
+              return !encerradoOuCancelado
+            })
+            if (isMounted) setTemContratoOMAtivo(ativo)
+          } catch {
+            if (isMounted) setTemContratoOMAtivo(false)
+          }
+        } else {
+          if (isMounted) setTemContratoOMAtivo(false)
+        }
+
         // Extrai usina / sistema vinculado
         let usinaObj = registro.expand?.usina_id || registro.expand?.sistema_id || null
         if (!usinaObj && registro.usina_id) {
@@ -181,8 +204,10 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   }, [fotoModal])
 
   const relatorio: RelatorioOSCanonicalData = useMemo(() => {
-    return compilarDadosRelatorioOS(os, cliente, usina, fotosUrls)
-  }, [os, cliente, usina, fotosUrls])
+    return compilarDadosRelatorioOS(os, cliente, usina, fotosUrls, {
+      clientePossuiContratoOMAtivo: temContratoOMAtivo,
+    })
+  }, [os, cliente, usina, fotosUrls, temContratoOMAtivo])
 
   const handleCopiarLink = () => {
     try {
@@ -422,17 +447,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 4. Card Destaque: Resultado em Poucas Palavras */}
-        <section className="bg-[#FCF8EB] border border-[#E8D388] border-l-[6px] border-l-[#C9A227] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4 print-color-exact">
-          <h3 className="m-0 mb-3 text-base font-bold text-[#5D4300] flex items-center gap-2 border-b border-[#C9A227]/25 pb-2">
-            Resultado em poucas palavras
-          </h3>
-          <p className="m-0 text-[0.9375rem] leading-relaxed text-[#272109] font-medium">
-            {relatorio.resultadoPoucasPalavras}
-          </p>
-        </section>
-
-        {/* 5. Badges de Status */}
+        {/* 4. Badges de Status */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <div className="flex flex-col gap-2.5">
             <div className="flex flex-wrap gap-4">
@@ -474,10 +489,10 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 6. Serviços Executados */}
+        {/* 5. Serviços Executados e Condição do Sistema por Componente (Unificados) */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <h3 className="m-0 mb-4 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
-            Serviços executados
+            Serviços executados e condição do sistema por componente
           </h3>
 
           <div className="overflow-x-auto">
@@ -559,65 +574,64 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
               </div>
             </div>
           </div>
-        </section>
 
-        {/* 7. Condição do Sistema por Componente */}
-        <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
-          <h3 className="m-0 mb-4 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
-            Condição do sistema por componente
-          </h3>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm border border-[#DDE4EE] rounded-lg overflow-hidden custom-rel-table">
-              <thead>
-                <tr className="bg-[#F1F5F9] text-[#0E2A47] print-color-exact">
-                  <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                    Componente
-                  </th>
-                  <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                    Abrangência / Método
-                  </th>
-                  <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                    Condição observada
-                  </th>
-                  <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                    Evidência
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {relatorio.componentes.map((comp, idx) => (
-                  <tr
-                    key={idx}
-                    className={`border-b border-[#DDE4EE] ${
-                      idx % 2 === 1 ? 'bg-[#FAFCFE]' : 'bg-white'
-                    }`}
-                  >
-                    <td data-label="Componente" className="p-3 text-xs sm:text-sm">
-                      <strong className="text-[#0E2A47] font-bold">{comp.componente}</strong>
-                    </td>
-                    <td
-                      data-label="Abrangência / Método"
-                      className="p-3 text-xs sm:text-sm text-[#536377]"
-                    >
-                      {comp.abrangencia}
-                    </td>
-                    <td data-label="Condição observada" className="p-3 text-xs sm:text-sm">
-                      <span className="inline-block bg-[#EBF3FC] text-[#0F5195] border border-[#B9D5F5] font-semibold text-xs px-2 py-0.5 rounded-md print-color-exact">
-                        {comp.condicao}
-                      </span>
-                    </td>
-                    <td data-label="Evidência" className="p-3 text-xs sm:text-sm text-[#536377]">
-                      {comp.evidencia}
-                    </td>
+          {/* Avaliação dos 6 componentes canônicos na mesma seção */}
+          <div className="mt-6 pt-5 border-t border-[#EBF0F7]">
+            <h4 className="m-0 mb-3 text-sm font-bold text-[#0E2A47] uppercase tracking-wider">
+              Avaliação dos componentes do sistema
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm border border-[#DDE4EE] rounded-lg overflow-hidden custom-rel-table">
+                <thead>
+                  <tr className="bg-[#F1F5F9] text-[#0E2A47] print-color-exact">
+                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
+                      Componente
+                    </th>
+                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
+                      Abrangência / Método
+                    </th>
+                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
+                      Condição observada
+                    </th>
+                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
+                      Evidência
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {relatorio.componentes.map((comp, idx) => (
+                    <tr
+                      key={idx}
+                      className={`border-b border-[#DDE4EE] ${
+                        idx % 2 === 1 ? 'bg-[#FAFCFE]' : 'bg-white'
+                      }`}
+                    >
+                      <td data-label="Componente" className="p-3 text-xs sm:text-sm">
+                        <strong className="text-[#0E2A47] font-bold">{comp.componente}</strong>
+                      </td>
+                      <td
+                        data-label="Abrangência / Método"
+                        className="p-3 text-xs sm:text-sm text-[#536377]"
+                      >
+                        {comp.abrangencia}
+                      </td>
+                      <td data-label="Condição observada" className="p-3 text-xs sm:text-sm">
+                        <span className="inline-block bg-[#EBF3FC] text-[#0F5195] border border-[#B9D5F5] font-semibold text-xs px-2 py-0.5 rounded-md print-color-exact">
+                          {comp.condicao}
+                        </span>
+                      </td>
+                      <td data-label="Evidência" className="p-3 text-xs sm:text-sm text-[#536377]">
+                        {comp.evidencia}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
-        {/* 8. Registro Fotográfico */}
+        {/* 6. Registro Fotográfico */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <h3 className="m-0 mb-1 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
             Registro fotográfico
@@ -675,7 +689,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 9. Pendências e Recomendações */}
+        {/* 7. Pendências e Recomendações */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <h3 className="m-0 mb-3 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
             Pendências e recomendações
@@ -691,17 +705,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 10. Escopo e Limitações */}
-        <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
-          <h3 className="m-0 mb-3 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
-            Escopo e limitações
-          </h3>
-          <div className="bg-[#F0F6FC] border-l-4 border-l-[#0E2A47] rounded-md p-4 text-[#1A314E] text-xs sm:text-sm leading-relaxed print-color-exact">
-            {relatorio.escopoELimitacoes}
-          </div>
-        </section>
-
-        {/* 11. Conclusão Técnica */}
+        {/* 8. Conclusão Técnica */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <h3 className="m-0 mb-3 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
             Conclusão técnica
@@ -726,7 +730,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 12. Próximos Passos */}
+        {/* 9. Próximos Passos */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <h3 className="m-0 mb-3 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
             Próximos passos
@@ -735,24 +739,22 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             {relatorio.proximosPassosTexto}
           </p>
 
-          <div className="bg-[#FFFDF5] border border-[#E5D38A] rounded-xl p-5 mb-3 print-color-exact">
-            <div className="text-[#5D4300] text-sm sm:text-base font-extrabold mb-2">
-              {relatorio.planoOmTitulo}
+          {relatorio.exibirPlanoOM && (
+            <div className="bg-[#FFFDF5] border border-[#E5D38A] rounded-xl p-5 mb-1 print-color-exact">
+              <div className="text-[#5D4300] text-sm sm:text-base font-extrabold mb-2">
+                {relatorio.planoOmTitulo}
+              </div>
+              <p className="m-0 mb-3 text-xs sm:text-sm text-[#2F2A14] leading-relaxed">
+                {relatorio.planoOmTexto}
+              </p>
+              <div className="text-xs sm:text-sm font-bold text-[#0E2A47]">
+                {relatorio.planoOmContato}
+              </div>
             </div>
-            <p className="m-0 mb-3 text-xs sm:text-sm text-[#2F2A14] leading-relaxed">
-              {relatorio.planoOmTexto}
-            </p>
-            <div className="text-xs sm:text-sm font-bold text-[#0E2A47]">
-              {relatorio.planoOmContato}
-            </div>
-          </div>
-
-          <div className="inline-block bg-[#FCF5DF] text-[#5D4300] font-semibold text-xs px-3.5 py-2 rounded-md print-color-exact">
-            {relatorio.indicacaoAmigoTexto}
-          </div>
+          )}
         </section>
 
-        {/* 13. Recebimento do Cliente */}
+        {/* 10. Recebimento do Cliente */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <h3 className="m-0 mb-3 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
             Recebimento do cliente
