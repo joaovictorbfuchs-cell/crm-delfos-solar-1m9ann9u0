@@ -170,6 +170,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
     'Essencial' | 'Inspeção' | 'Completo'
   >('Inspeção')
   const [modalAvisoSemPropostaOpen, setModalAvisoSemPropostaOpen] = useState(false)
+  const [modalAvisoSemPropostaAprovadaOpen, setModalAvisoSemPropostaAprovadaOpen] = useState(false)
 
   // Disparar Gerar Contrato preenchido com a proposta e o plano selecionado
   const handleAcaoGerarContrato = () => {
@@ -287,7 +288,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
     setModalContratarPropostaOpen(true)
   }
 
-  // Proposta O&M aprovada / fechada
+  // Proposta O&M aprovada / fechada (mais recente pela ordenação de data de propostasCliente)
   const propostaAprovada = useMemo<PropostaOM | null>(() => {
     return (
       propostasCliente.find((p) => {
@@ -296,6 +297,34 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
       }) || null
     )
   }, [propostasCliente])
+
+  // Handler canônico para "+ Adicionar Contrato O&M"
+  const handleAdicionarContratoOM = () => {
+    // 1. Se houver proposta O&M aprovada, dispara o fluxo canônico (revisão -> Anexo II -> pré-visualização A4)
+    if (propostaAprovada) {
+      const plano =
+        (propostaAprovada.plano_escolhido as 'Essencial' | 'Inspeção' | 'Completo') || 'Inspeção'
+      let valorMensal = propostaAprovada.valor_mensal_plano
+      if (!valorMensal) {
+        if (plano === 'Essencial') valorMensal = propostaAprovada.valor_plano_essencial || 190
+        else if (plano === 'Inspeção' || (plano as string) === 'Prevenção')
+          valorMensal = propostaAprovada.valor_plano_inspecao || 450
+        else if (plano === 'Completo') valorMensal = propostaAprovada.valor_plano_completo || 1450
+        else valorMensal = 190
+      }
+      const valorTotal = propostaAprovada.valor_anual_plano || valorMensal * 12
+
+      if (onDispararGerarContrato) {
+        onDispararGerarContrato(propostaAprovada, plano, valorMensal, valorTotal)
+      } else {
+        setModalContratoOpen(true)
+      }
+      return
+    }
+
+    // 2. Se NÃO houver proposta aprovada, abre o aviso orientador elegante (sem gerar contrato avulso nem atividades)
+    setModalAvisoSemPropostaAprovadaOpen(true)
+  }
 
   // Proposta O&M ativa de referência (aprovada/fechada tem prioridade, com fallback para mais recente)
   const propostaAtiva = useMemo<PropostaOM | null>(() => {
@@ -632,9 +661,9 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
           {/* Botão Oficial: "+ Adicionar Contrato O&M" — SEMPRE visível mesmo com contratos existentes */}
           <button
             type="button"
-            onClick={() => setModalContratoOpen(true)}
+            onClick={handleAdicionarContratoOM}
             className="px-3.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-            title="Adicionar novo contrato O&M (opção de 1 contrato por usina)"
+            title="Adicionar novo contrato O&M via fluxo canônico da proposta aprovada"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>+ Adicionar Contrato O&M</span>
@@ -768,7 +797,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
           <div className="flex items-center gap-3 pt-2 border-t border-amber-200/60 flex-wrap">
             <button
               type="button"
-              onClick={() => setModalContratoOpen(true)}
+              onClick={handleAdicionarContratoOM}
               className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -1463,10 +1492,6 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
                   'Monitoramento da geração em horários comerciais',
                   'Relatório mensal de desempenho',
                 ],
-                proxima_atividade_titulo: `Inspeção e monitoramento inicial - Plano ${dados.planoSelecionado}`,
-                proxima_atividade_data: new Date(
-                  Date.now() + 15 * 24 * 60 * 60 * 1000,
-                ).toISOString(),
                 observacoes: usinaId ? `Contrato vinculado à usina ID ${usinaId}` : '',
               })
 
@@ -1512,6 +1537,95 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
           }}
         />
       )}
+
+      {/* MODAL ORIENTADOR: QUANDO NÃO HÁ PROPOSTA O&M APROVADA */}
+      <Dialog
+        open={modalAvisoSemPropostaAprovadaOpen}
+        onOpenChange={setModalAvisoSemPropostaAprovadaOpen}
+      >
+        <DialogContent className="max-w-md p-6 bg-white rounded-2xl border border-amber-200">
+          <DialogHeader className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-amber-700" />
+              </div>
+              <DialogTitle className="text-base font-bold text-gray-900">
+                Nenhuma Proposta O&amp;M Aprovada
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-gray-600 leading-relaxed pt-1">
+              Para gerar o Contrato O&amp;M oficial (fluxo canônico: revisão → Anexo II →
+              pré-visualização A4), é necessário que o cliente tenha uma{' '}
+              <strong>proposta O&amp;M aprovada</strong>. O contrato utiliza os dimensionamentos
+              técnicos e valores homologados na proposta.
+            </DialogDescription>
+          </DialogHeader>
+
+          {propostasCliente.length > 0 ? (
+            <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-2 text-amber-900">
+              <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-amber-600" />
+                <span>
+                  Propostas O&amp;M cadastradas deste cliente ({propostasCliente.length}):
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {propostasCliente.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="flex items-center justify-between text-xs p-2 rounded-md bg-white border border-amber-200/80"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-bold text-gray-900 truncate">
+                        {prop.numero_proposta || `#${prop.id.slice(-6)}`}
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        Plano {prop.plano_escolhido || 'Essencial'}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                        {prop.status || 'Enviada'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 shrink-0">
+                      {formatDate(prop.data_proposta || prop.data_emissao || prop.created)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-amber-900 font-medium pt-1">
+                💡 Para emitir o contrato agora, altere o status de uma proposta para{' '}
+                <strong>"Aprovada"</strong> na tabela ou no Hub de Propostas O&amp;M.
+              </p>
+            </div>
+          ) : (
+            <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-1 text-amber-900">
+              <p className="font-semibold">
+                Nenhuma proposta O&amp;M cadastrada para este cliente.
+              </p>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Crie e aprove uma proposta O&amp;M no Hub antes de gerar o contrato oficial.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setModalAvisoSemPropostaAprovadaOpen(false)}
+              className="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+            >
+              Fechar
+            </button>
+            <a
+              href="/propostas?aba=om"
+              className="px-4 py-2 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Ir para Hub de Propostas O&amp;M</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL 1: AVISO EDUCATIVO QUANDO NÃO HÁ PROPOSTA O&M */}
       <Dialog open={modalAvisoSemPropostaOpen} onOpenChange={setModalAvisoSemPropostaOpen}>
