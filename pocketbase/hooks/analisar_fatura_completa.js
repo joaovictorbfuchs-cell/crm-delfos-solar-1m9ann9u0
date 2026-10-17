@@ -4,107 +4,99 @@
  * Rota GET /backend/v1/relatorio-fatura-publico/{token}
  */
 
-routerAdd('POST', '/backend/v1/analisar-fatura-completa', (e) => {
-  const reqStart = Date.now()
+routerAdd(
+  'POST',
+  '/backend/v1/analisar-fatura-completa',
+  (e) => {
+    const reqStart = Date.now()
 
-  // Helpers inline para evitar ReferenceError no pool isolado de VM do Goja / PocketBase
-  function formatNumeroBR(val, casasDecimais) {
-    if (val === undefined || val === null || val === '') return '0'
-    const num = typeof val === 'number' ? val : parseFloat(val)
-    if (isNaN(num)) return '0'
+    // Helpers inline para evitar ReferenceError no pool isolado de VM do Goja / PocketBase
+    function formatNumeroBR(val, casasDecimais) {
+      if (val === undefined || val === null || val === '') return '0'
+      const num = typeof val === 'number' ? val : parseFloat(val)
+      if (isNaN(num)) return '0'
 
-    if (typeof casasDecimais === 'number' && casasDecimais >= 0) {
-      const fixed = num.toFixed(casasDecimais)
-      const parts = fixed.split('.')
+      if (typeof casasDecimais === 'number' && casasDecimais >= 0) {
+        const fixed = num.toFixed(casasDecimais)
+        const parts = fixed.split('.')
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+        return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
+      }
+
+      const rounded = Math.round(num * 100) / 100
+      const isInt = Math.floor(rounded) === rounded
+      if (isInt) {
+        return Math.floor(rounded)
+          .toString()
+          .replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+      }
+      const parts = rounded.toFixed(2).replace(/0+$/, '').split('.')
       const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
       return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
     }
 
-    const rounded = Math.round(num * 100) / 100
-    const isInt = Math.floor(rounded) === rounded
-    if (isInt) {
-      return Math.floor(rounded)
-        .toString()
-        .replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-    }
-    const parts = rounded.toFixed(2).replace(/0+$/, '').split('.')
-    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-    return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
-  }
-
-  function safeParseFloat(val, fallback) {
-    const dFallback = typeof fallback === 'number' ? fallback : 0
-    if (val === undefined || val === null || val === '') return dFallback
-    try {
-      if (typeof val === 'number') return isNaN(val) ? dFallback : val
-      const str = String(val).trim().replace(/\./g, '').replace(',', '.')
-      const parsed = parseFloat(str)
-      return isNaN(parsed) ? dFallback : parsed
-    } catch (_) {
-      return dFallback
-    }
-  }
-
-  try {
-    const authUser = e.auth
-    let userId = authUser ? authUser.id : null
-
-    if (!userId) {
+    function safeParseFloat(val, fallback) {
+      const dFallback = typeof fallback === 'number' ? fallback : 0
+      if (val === undefined || val === null || val === '') return dFallback
       try {
-        const usersCol = $app.findCollectionByNameOrId('users')
-        const firstUser = $app.findRecordsByFilter(usersCol.id, '', 'created', 1, 0)
-        if (firstUser && firstUser.length > 0) {
-          userId = firstUser[0].id
-        }
-      } catch (_) {}
-    }
-
-    if (!userId) {
-      return e.json(401, { error: 'Autenticação necessária', ok: false })
-    }
-
-    const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
-    const body = e.requestInfo().body || {}
-    const clienteId = (body.cliente_id || '').trim()
-    const arquivos = Array.isArray(body.arquivos) ? body.arquivos : []
-
-    // Arquivo único legado compatível
-    if (arquivos.length === 0 && (body.file_base64 || body.text_content)) {
-      arquivos.push({
-        file_name: body.file_name || 'fatura-rge.pdf',
-        mime_type: body.mime_type || 'application/pdf',
-        file_base64: body.file_base64 || '',
-        text_content: body.text_content || '',
-      })
-    }
-
-    if (arquivos.length === 0) {
-      return e.json(400, {
-        ok: false,
-        error: 'Nenhum arquivo de fatura RGE enviado para análise.',
-      })
-    }
-
-    // Carregar dados pré-cadastrados do cliente
-    let clienteRecord = null
-    let clienteNome = ''
-    let clienteUcCadastrada = ''
-    let clienteEnderecoCadastrado = ''
-    let clienteCidadeCadastrada = ''
-
-    if (clienteId) {
-      try {
-        clienteRecord = $app.findRecordById('clientes', clienteId)
-        clienteNome = clienteRecord.getString('nome') || ''
-        clienteUcCadastrada = clienteRecord.getString('uc') || ''
-        clienteEnderecoCadastrado = clienteRecord.getString('endereco') || ''
-        clienteCidadeCadastrada = clienteRecord.getString('cidade') || ''
-      } catch (errCli) {
-        console.log('[ANALISE COMPLETA] Cliente não encontrado pelo id:', clienteId)
+        if (typeof val === 'number') return isNaN(val) ? dFallback : val
+        const str = String(val).trim().replace(/\./g, '').replace(',', '.')
+        const parsed = parseFloat(str)
+        return isNaN(parsed) ? dFallback : parsed
+      } catch (_) {
+        return dFallback
       }
     }
 
-    const promptCompleto = `Você é um engenheiro eletricista e consultor sênior especialista em regulação do setor elétrico brasileiro (REN 482/2012, REN 1000/2021, Lei 14.300/2022) e faturas da concessionária RGE (CPFL Energia / RGE SUL / DANF3E) para a Delfos Solar.
+    try {
+      const authUser = e.auth
+      if (!authUser || !authUser.id) {
+        return e.unauthorizedError('Autenticação necessária para analisar faturas')
+      }
+      const userId = authUser.id
+
+      const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
+      const body = e.requestInfo().body || {}
+      const clienteId = (body.cliente_id || '').trim()
+      const arquivos = Array.isArray(body.arquivos) ? body.arquivos : []
+
+      // Arquivo único legado compatível
+      if (arquivos.length === 0 && (body.file_base64 || body.text_content)) {
+        arquivos.push({
+          file_name: body.file_name || 'fatura-rge.pdf',
+          mime_type: body.mime_type || 'application/pdf',
+          file_base64: body.file_base64 || '',
+          text_content: body.text_content || '',
+        })
+      }
+
+      if (arquivos.length === 0) {
+        return e.json(400, {
+          ok: false,
+          error: 'Nenhum arquivo de fatura RGE enviado para análise.',
+        })
+      }
+
+      // Carregar dados pré-cadastrados do cliente
+      let clienteRecord = null
+      let clienteNome = ''
+      let clienteUcCadastrada = ''
+      let clienteEnderecoCadastrado = ''
+      let clienteCidadeCadastrada = ''
+
+      if (clienteId) {
+        try {
+          clienteRecord = $app.findRecordById('clientes', clienteId)
+          clienteNome = clienteRecord.getString('nome') || ''
+          clienteUcCadastrada = clienteRecord.getString('uc') || ''
+          clienteEnderecoCadastrado = clienteRecord.getString('endereco') || ''
+          clienteCidadeCadastrada = clienteRecord.getString('cidade') || ''
+        } catch (errCli) {
+          console.log('[ANALISE COMPLETA] Cliente não encontrado pelo id:', clienteId)
+        }
+      }
+
+      const promptCompleto = `Você é um engenheiro eletricista e consultor sênior especialista em regulação do setor elétrico brasileiro (REN 482/2012, REN 1000/2021, Lei 14.300/2022) e faturas da concessionária RGE (CPFL Energia / RGE SUL / DANF3E) para a Delfos Solar.
 
 Analise cuidadosamente as faturas de energia em anexo.
 
@@ -227,339 +219,352 @@ FORMATO JSON ESPERADO:
   "conclusoes_recomendacoes": [ string ]
 }`
 
-    // Coletar base64 e textos de todos os arquivos
-    const parts = []
-    let userText = `Analisando fatura(s) para o cliente "${clienteNome}". Quantidade de arquivos: ${arquivos.length}.\n\n`
+      // Coletar base64 e textos de todos os arquivos
+      const parts = []
+      let userText = `Analisando fatura(s) para o cliente "${clienteNome}". Quantidade de arquivos: ${arquivos.length}.\n\n`
 
-    for (let i = 0; i < arquivos.length; i++) {
-      const arq = arquivos[i]
-      userText += `Arquivo [${i + 1}/${arquivos.length}]: ${arq.file_name} (${arq.mime_type})\n`
-      if (arq.text_content) {
-        userText += `Texto extraído:\n"""\n${arq.text_content.substring(0, 50000)}\n"""\n\n`
-      }
-      if (arq.file_base64) {
-        parts.push({
-          inline_data: {
-            mime_type: arq.mime_type || 'application/pdf',
-            data: arq.file_base64,
-          },
-        })
-      }
-    }
-
-    userText +=
-      'Por favor, realize a análise completa e detalhada da fatura RGE conforme as diretrizes e retorne o JSON estruturado.'
-    parts.push({ text: userText })
-
-    const geminiPayload = {
-      system_instruction: {
-        parts: [{ text: promptCompleto }],
-      },
-      contents: [
-        {
-          role: 'user',
-          parts: parts,
-        },
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        response_mime_type: 'application/json',
-      },
-    }
-
-    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash']
-
-    let geminiResponse = null
-    let modelUsed = ''
-    let lastError = null
-
-    if (geminiApiKey) {
-      for (let i = 0; i < candidateModels.length; i++) {
-        const model = candidateModels[i]
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`
-
-        try {
-          console.log(`[ANALISE COMPLETA] Chamando Gemini API modelo "${model}"...`)
-          const res = $http.send({
-            url: url,
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(geminiPayload),
-            timeout: 25,
+      for (let i = 0; i < arquivos.length; i++) {
+        const arq = arquivos[i]
+        userText += `Arquivo [${i + 1}/${arquivos.length}]: ${arq.file_name} (${arq.mime_type})\n`
+        if (arq.text_content) {
+          userText += `Texto extraído:\n"""\n${arq.text_content.substring(0, 50000)}\n"""\n\n`
+        }
+        if (arq.file_base64) {
+          parts.push({
+            inline_data: {
+              mime_type: arq.mime_type || 'application/pdf',
+              data: arq.file_base64,
+            },
           })
+        }
+      }
 
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            geminiResponse = res.json || JSON.parse(res.raw || '{}')
-            modelUsed = `gemini:${model}`
-            break
-          } else {
-            lastError = `Modelo ${model}: HTTP ${res.statusCode} - ${res.raw ? res.raw.substring(0, 200) : ''}`
+      userText +=
+        'Por favor, realize a análise completa e detalhada da fatura RGE conforme as diretrizes e retorne o JSON estruturado.'
+      parts.push({ text: userText })
+
+      const geminiPayload = {
+        system_instruction: {
+          parts: [{ text: promptCompleto }],
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: parts,
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          response_mime_type: 'application/json',
+        },
+      }
+
+      const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash']
+
+      let geminiResponse = null
+      let modelUsed = ''
+      let lastError = null
+
+      if (geminiApiKey) {
+        for (let i = 0; i < candidateModels.length; i++) {
+          const model = candidateModels[i]
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`
+
+          try {
+            console.log(`[ANALISE COMPLETA] Chamando Gemini API modelo "${model}"...`)
+            const res = $http.send({
+              url: url,
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(geminiPayload),
+              timeout: 25,
+            })
+
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              geminiResponse = res.json || JSON.parse(res.raw || '{}')
+              modelUsed = `gemini:${model}`
+              break
+            } else {
+              lastError = `Modelo ${model}: HTTP ${res.statusCode} - ${res.raw ? res.raw.substring(0, 200) : ''}`
+            }
+          } catch (callErr) {
+            lastError = callErr && callErr.message ? callErr.message : String(callErr)
           }
-        } catch (callErr) {
-          lastError = callErr && callErr.message ? callErr.message : String(callErr)
         }
       }
-    }
 
-    let rawText = ''
-    if (geminiResponse) {
-      try {
-        const candidate = geminiResponse.candidates && geminiResponse.candidates[0]
-        if (
-          candidate &&
-          candidate.content &&
-          candidate.content.parts &&
-          candidate.content.parts[0]
-        ) {
-          rawText = candidate.content.parts[0].text || ''
-        }
-      } catch (_) {}
-    }
-
-    // Fallback nativo $ai.chat se necessário
-    if (!rawText) {
-      console.log(`[ANALISE COMPLETA] Fallback $ai.chat... Erro anterior: ${lastError}`)
-      try {
-        const aiRes = $ai.chat({
-          model: 'fast',
-          messages: [
-            { role: 'system', content: promptCompleto },
-            { role: 'user', content: userText },
-          ],
-        })
-        if (aiRes && aiRes.choices && aiRes.choices[0] && aiRes.choices[0].message) {
-          rawText = aiRes.choices[0].message.content.trim()
-          modelUsed = 'skip-ai:fast'
-        }
-      } catch (aiErr) {
-        console.log('[ANALISE COMPLETA] Erro fallback $ai.chat:', aiErr)
-      }
-    }
-
-    if (!rawText) {
-      return e.json(500, {
-        ok: false,
-        error: `Não foi possível obter resposta dos modelos de IA: ${lastError || 'Sem resposta'}`,
-      })
-    }
-
-    let cleanJson = rawText.trim()
-    if (cleanJson.startsWith('```')) {
-      cleanJson = cleanJson
-        .replace(/^```[a-zA-Z]*\n?/, '')
-        .replace(/```$/, '')
-        .trim()
-    }
-
-    let parsed = null
-    try {
-      parsed = JSON.parse(cleanJson)
-    } catch (_) {
-      const firstB = cleanJson.indexOf('{')
-      const lastB = cleanJson.lastIndexOf('}')
-      if (firstB !== -1 && lastB > firstB) {
+      let rawText = ''
+      if (geminiResponse) {
         try {
-          parsed = JSON.parse(cleanJson.substring(firstB, lastB + 1))
+          const candidate = geminiResponse.candidates && geminiResponse.candidates[0]
+          if (
+            candidate &&
+            candidate.content &&
+            candidate.content.parts &&
+            candidate.content.parts[0]
+          ) {
+            rawText = candidate.content.parts[0].text || ''
+          }
         } catch (_) {}
       }
-    }
 
-    if (!parsed) {
-      return e.json(200, {
-        ok: false,
-        error: 'A IA não retornou um JSON válido.',
-        raw_text: rawText,
-      })
-    }
+      // Fallback nativo $ai.chat se necessário
+      if (!rawText) {
+        console.log(`[ANALISE COMPLETA] Fallback $ai.chat... Erro anterior: ${lastError}`)
+        try {
+          const aiRes = $ai.chat({
+            model: 'fast',
+            messages: [
+              { role: 'system', content: promptCompleto },
+              { role: 'user', content: userText },
+            ],
+          })
+          if (aiRes && aiRes.choices && aiRes.choices[0] && aiRes.choices[0].message) {
+            rawText = aiRes.choices[0].message.content.trim()
+            modelUsed = 'skip-ai:fast'
+          }
+        } catch (aiErr) {
+          console.log('[ANALISE COMPLETA] Erro fallback $ai.chat:', aiErr)
+        }
+      }
 
-    if (parsed.e_fatura_rge === false) {
-      return e.json(200, {
-        ok: false,
-        error:
-          parsed.erro_identificacao ||
-          'O documento enviado não é uma fatura da RGE ou está ilegível.',
-        data: parsed,
-      })
-    }
+      if (!rawText) {
+        return e.json(500, {
+          ok: false,
+          error: `Não foi possível obter resposta dos modelos de IA: ${lastError || 'Sem resposta'}`,
+        })
+      }
 
-    // --- LÓGICA DETERMINÍSTICA DO FLUXO DE CRÉDITOS E PARTICIPAÇÃO NA GD ---
-    // Regra Delfos Solar:
-    // energia_injetada_mes = kWh injetados no mês (ex: 368)
-    // creditos_compensados_mes_atual = kWh compensados no próprio mês (ex: 102)
-    // saldo_gerado_nao_usado = energia_injetada_mes - creditos_compensados_mes_atual (ex: 368 - 102 = 266)
-    // Se saldo_gerado_nao_usado > 0 e a UC NÃO acumulou esse saldo na própria instalação
-    // (o saldo da instalação não subiu naquele valor), então os créditos foram para outra UC do arranjo (autoconsumo remoto).
-    // Nesse caso: participação da UC na geração do arranjo ≈ 0% e fluxo aponta envio para outra UC.
-    const energiaInjetadaCalc =
-      typeof parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes === 'number'
-        ? parsed.medicao_e_creditos.energia_injetada_geracao.kwh_injetados_mes
-        : safeParseFloat(parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes, 0)
-    const compensadosMesCalc =
-      typeof parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh === 'number'
-        ? parsed.medicao_e_creditos.creditos.creditos_compensados_mes_atual_kwh
-        : safeParseFloat(
-            parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh,
-            safeParseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh, 0),
-          )
-    const saldoAtualInstalacaoCalc =
-      typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
-        ? parsed.medicao_e_creditos.saldo_energia.saldo_atual_instalacao_kwh
-        : safeParseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh, 0)
+      let cleanJson = rawText.trim()
+      if (cleanJson.startsWith('```')) {
+        cleanJson = cleanJson
+          .replace(/^```[a-zA-Z]*\n?/, '')
+          .replace(/```$/, '')
+          .trim()
+      }
 
-    const saldoGeradoNaoUsado = Math.max(
-      0,
-      Math.round((energiaInjetadaCalc - compensadosMesCalc) * 100) / 100,
-    )
+      let parsed = null
+      try {
+        parsed = JSON.parse(cleanJson)
+      } catch (_) {
+        const firstB = cleanJson.indexOf('{')
+        const lastB = cleanJson.lastIndexOf('}')
+        if (firstB !== -1 && lastB > firstB) {
+          try {
+            parsed = JSON.parse(cleanJson.substring(firstB, lastB + 1))
+          } catch (_) {}
+        }
+      }
 
-    if (!parsed.papel_gd) {
-      parsed.papel_gd = {}
-    }
+      if (!parsed) {
+        return e.json(200, {
+          ok: false,
+          error: 'A IA não retornou um JSON válido.',
+          raw_text: rawText,
+        })
+      }
 
-    // Se houve injeção superior ao compensado no mês
-    if (energiaInjetadaCalc > 0 && saldoGeradoNaoUsado > 0) {
-      // Se a instalação não teve acréscimo de saldo compatível no próprio saldo (ex: saldo atual é zero ou menor que o excedente, ou fatura indica rateio)
-      const acumulouProprio = saldoAtualInstalacaoCalc >= saldoGeradoNaoUsado
-      if (!acumulouProprio) {
-        // Os créditos foram para outra UC do arranjo (autoconsumo remoto)
-        parsed.papel_gd.participacao_geracao_percentual = 0
-        parsed.papel_gd.percentual_energia_fica_instalacao =
-          energiaInjetadaCalc > 0
-            ? Math.round((compensadosMesCalc / energiaInjetadaCalc) * 1000) / 10
-            : 0
-        parsed.papel_gd.kwh_enviados_outras_ucs = saldoGeradoNaoUsado
-        parsed.papel_gd.kwh_retidos_instalacao = compensadosMesCalc
-        parsed.papel_gd.fluxo_creditos_detalhe = `${formatNumeroBR(saldoGeradoNaoUsado)} kWh gerados e não consumidos aqui foram creditados em outra(s) UC(s) do arranjo (autoconsumo remoto).`
-      } else {
-        // Acumulou no próprio saldo da instalação
+      if (parsed.e_fatura_rge === false) {
+        return e.json(200, {
+          ok: false,
+          error:
+            parsed.erro_identificacao ||
+            'O documento enviado não é uma fatura da RGE ou está ilegível.',
+          data: parsed,
+        })
+      }
+
+      // --- LÓGICA DETERMINÍSTICA DO FLUXO DE CRÉDITOS E PARTICIPAÇÃO NA GD ---
+      // Regra Delfos Solar:
+      // energia_injetada_mes = kWh injetados no mês (ex: 368)
+      // creditos_compensados_mes_atual = kWh compensados no próprio mês (ex: 102)
+      // saldo_gerado_nao_usado = energia_injetada_mes - creditos_compensados_mes_atual (ex: 368 - 102 = 266)
+      // Se saldo_gerado_nao_usado > 0 e a UC NÃO acumulou esse saldo na própria instalação
+      // (o saldo da instalação não subiu naquele valor), então os créditos foram para outra UC do arranjo (autoconsumo remoto).
+      // Nesse caso: participação da UC na geração do arranjo ≈ 0% e fluxo aponta envio para outra UC.
+      const energiaInjetadaCalc =
+        typeof parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes === 'number'
+          ? parsed.medicao_e_creditos.energia_injetada_geracao.kwh_injetados_mes
+          : safeParseFloat(
+              parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes,
+              0,
+            )
+      const compensadosMesCalc =
+        typeof parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh === 'number'
+          ? parsed.medicao_e_creditos.creditos.creditos_compensados_mes_atual_kwh
+          : safeParseFloat(
+              parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh,
+              safeParseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh, 0),
+            )
+      const saldoAtualInstalacaoCalc =
+        typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
+          ? parsed.medicao_e_creditos.saldo_energia.saldo_atual_instalacao_kwh
+          : safeParseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh, 0)
+
+      const saldoGeradoNaoUsado = Math.max(
+        0,
+        Math.round((energiaInjetadaCalc - compensadosMesCalc) * 100) / 100,
+      )
+
+      if (!parsed.papel_gd) {
+        parsed.papel_gd = {}
+      }
+
+      // Se houve injeção superior ao compensado no mês
+      if (energiaInjetadaCalc > 0 && saldoGeradoNaoUsado > 0) {
+        // Se a instalação não teve acréscimo de saldo compatível no próprio saldo (ex: saldo atual é zero ou menor que o excedente, ou fatura indica rateio)
+        const acumulouProprio = saldoAtualInstalacaoCalc >= saldoGeradoNaoUsado
+        if (!acumulouProprio) {
+          // Os créditos foram para outra UC do arranjo (autoconsumo remoto)
+          parsed.papel_gd.participacao_geracao_percentual = 0
+          parsed.papel_gd.percentual_energia_fica_instalacao =
+            energiaInjetadaCalc > 0
+              ? Math.round((compensadosMesCalc / energiaInjetadaCalc) * 1000) / 10
+              : 0
+          parsed.papel_gd.kwh_enviados_outras_ucs = saldoGeradoNaoUsado
+          parsed.papel_gd.kwh_retidos_instalacao = compensadosMesCalc
+          parsed.papel_gd.fluxo_creditos_detalhe = `${formatNumeroBR(saldoGeradoNaoUsado)} kWh gerados e não consumidos aqui foram creditados em outra(s) UC(s) do arranjo (autoconsumo remoto).`
+        } else {
+          // Acumulou no próprio saldo da instalação
+          parsed.papel_gd.participacao_geracao_percentual = 100
+          parsed.papel_gd.percentual_energia_fica_instalacao = 100
+          parsed.papel_gd.kwh_enviados_outras_ucs = 0
+          parsed.papel_gd.kwh_retidos_instalacao = energiaInjetadaCalc
+          parsed.papel_gd.fluxo_creditos_detalhe = `100% dos créditos gerados (${formatNumeroBR(energiaInjetadaCalc)} kWh) permaneceram nesta instalação.`
+        }
+      } else if (energiaInjetadaCalc > 0 && compensadosMesCalc >= energiaInjetadaCalc) {
+        // 100% da injeção foi compensada aqui
         parsed.papel_gd.participacao_geracao_percentual = 100
         parsed.papel_gd.percentual_energia_fica_instalacao = 100
         parsed.papel_gd.kwh_enviados_outras_ucs = 0
         parsed.papel_gd.kwh_retidos_instalacao = energiaInjetadaCalc
-        parsed.papel_gd.fluxo_creditos_detalhe = `100% dos créditos gerados (${formatNumeroBR(energiaInjetadaCalc)} kWh) permaneceram nesta instalação.`
+        parsed.papel_gd.fluxo_creditos_detalhe = `Toda a energia injetada no ciclo (${formatNumeroBR(energiaInjetadaCalc)} kWh) foi compensada nesta própria instalação.`
       }
-    } else if (energiaInjetadaCalc > 0 && compensadosMesCalc >= energiaInjetadaCalc) {
-      // 100% da injeção foi compensada aqui
-      parsed.papel_gd.participacao_geracao_percentual = 100
-      parsed.papel_gd.percentual_energia_fica_instalacao = 100
-      parsed.papel_gd.kwh_enviados_outras_ucs = 0
-      parsed.papel_gd.kwh_retidos_instalacao = energiaInjetadaCalc
-      parsed.papel_gd.fluxo_creditos_detalhe = `Toda a energia injetada no ciclo (${formatNumeroBR(energiaInjetadaCalc)} kWh) foi compensada nesta própria instalação.`
-    }
 
-    // Se historico_consumo estiver dentro de medicao_e_creditos ou na raiz de parsed, unificar
-    if (parsed.medicao_e_creditos?.historico_consumo && !parsed.historico_consumo) {
-      parsed.historico_consumo = parsed.medicao_e_creditos.historico_consumo
-    }
-    if (parsed.historico_consumo && !parsed.medicao_e_creditos?.historico_consumo) {
-      if (!parsed.medicao_e_creditos) parsed.medicao_e_creditos = {}
-      parsed.medicao_e_creditos.historico_consumo = parsed.historico_consumo
-    }
-
-    // Gerar token único criptográfico/aleatório para a análise
-    const token = $security.randomString(32)
-
-    // Extrair indicadores principais para resumo rápido
-    const totalPagar =
-      typeof parsed.totais?.total_a_pagar_rs === 'number'
-        ? parsed.totais.total_a_pagar_rs
-        : safeParseFloat(parsed.totais?.total_a_pagar_rs, 0)
-    const consumoKwh =
-      typeof parsed.medicao_e_creditos?.energia_ativa_consumida?.consumo_mes_kwh === 'number'
-        ? parsed.medicao_e_creditos.energia_ativa_consumida.consumo_mes_kwh
-        : safeParseFloat(parsed.medicao_e_creditos?.energia_ativa_consumida?.consumo_mes_kwh, 0)
-    const injetadaKwh =
-      typeof parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes === 'number'
-        ? parsed.medicao_e_creditos.energia_injetada_geracao.kwh_injetados_mes
-        : safeParseFloat(parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes, 0)
-    const creditosKwh =
-      typeof parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh === 'number'
-        ? parsed.medicao_e_creditos.creditos.total_creditos_recebidos_kwh
-        : safeParseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh, 0)
-    const saldoKwh =
-      typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
-        ? parsed.medicao_e_creditos.saldo_energia.saldo_atual_instalacao_kwh
-        : safeParseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh, 0)
-    const saldoExpirar =
-      typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_a_expirar_proximo_mes_kwh === 'number'
-        ? parsed.medicao_e_creditos.saldo_energia.saldo_a_expirar_proximo_mes_kwh
-        : safeParseFloat(
-            parsed.medicao_e_creditos?.saldo_energia?.saldo_a_expirar_proximo_mes_kwh,
-            0,
-          )
-    const economiaRs =
-      typeof parsed.indicadores?.economia_estimada_mes_rs === 'number'
-        ? parsed.indicadores.economia_estimada_mes_rs
-        : safeParseFloat(parsed.indicadores?.economia_estimada_mes_rs, 0)
-
-    const ucFatura =
-      parsed.dados_cadastrais_fatura?.uc || clienteUcCadastrada || 'não informado na fatura'
-    const competencia = parsed.periodo?.mes_referencia || 'Mês Atual'
-    const vencimento = parsed.periodo?.vencimento || ''
-    const papelUc = parsed.papel_gd?.papel_uc || 'mista'
-
-    // Salvar registro na coleção analises_fatura
-    const analisesCol = $app.findCollectionByNameOrId('analises_fatura')
-    const analiseRec = new Record(analisesCol)
-    analiseRec.set('token', token)
-    if (clienteId) analiseRec.set('cliente_id', clienteId)
-    analiseRec.set(
-      'cliente_nome',
-      clienteNome || parsed.dados_cadastrais_fatura?.titular || 'Cliente',
-    )
-    analiseRec.set('uc', ucFatura)
-    analiseRec.set('competencia', competencia)
-    analiseRec.set('vencimento', vencimento)
-    analiseRec.set('total_pagar', totalPagar)
-    analiseRec.set('consumo_kwh', consumoKwh)
-    analiseRec.set('energia_injetada_kwh', injetadaKwh)
-    analiseRec.set('creditos_compensados_kwh', creditosKwh)
-    analiseRec.set('saldo_energia_kwh', saldoKwh)
-    analiseRec.set('saldo_expirar_kwh', saldoExpirar)
-    analiseRec.set('economia_estimada_rs', economiaRs)
-    analiseRec.set('papel_uc', papelUc)
-    analiseRec.set(
-      'arquivos_nomes',
-      arquivos.map((a) => a.file_name),
-    )
-    analiseRec.set('dados_completos', parsed)
-    analiseRec.set('whatsapp_enviado', false)
-
-    $app.save(analiseRec)
-
-    // Se houver cliente vinculado, podemos atualizar consumo médio ou campos se estavam vazios
-    if (clienteRecord) {
-      try {
-        if (!clienteRecord.getString('uc') && ucFatura && ucFatura !== 'não informado na fatura') {
-          clienteRecord.set('uc', ucFatura)
-        }
-        if (consumoKwh > 0 && !clienteRecord.getFloat('consumo_kwh_mes')) {
-          clienteRecord.set('consumo_kwh_mes', consumoKwh)
-        }
-        $app.save(clienteRecord)
-      } catch (errCliUp) {
-        console.log('[ANALISE COMPLETA] Atualização do cliente falhou:', errCliUp)
+      // Se historico_consumo estiver dentro de medicao_e_creditos ou na raiz de parsed, unificar
+      if (parsed.medicao_e_creditos?.historico_consumo && !parsed.historico_consumo) {
+        parsed.historico_consumo = parsed.medicao_e_creditos.historico_consumo
       }
+      if (parsed.historico_consumo && !parsed.medicao_e_creditos?.historico_consumo) {
+        if (!parsed.medicao_e_creditos) parsed.medicao_e_creditos = {}
+        parsed.medicao_e_creditos.historico_consumo = parsed.historico_consumo
+      }
+
+      // Gerar token único criptográfico/aleatório para a análise
+      const token = $security.randomString(32)
+
+      // Extrair indicadores principais para resumo rápido
+      const totalPagar =
+        typeof parsed.totais?.total_a_pagar_rs === 'number'
+          ? parsed.totais.total_a_pagar_rs
+          : safeParseFloat(parsed.totais?.total_a_pagar_rs, 0)
+      const consumoKwh =
+        typeof parsed.medicao_e_creditos?.energia_ativa_consumida?.consumo_mes_kwh === 'number'
+          ? parsed.medicao_e_creditos.energia_ativa_consumida.consumo_mes_kwh
+          : safeParseFloat(parsed.medicao_e_creditos?.energia_ativa_consumida?.consumo_mes_kwh, 0)
+      const injetadaKwh =
+        typeof parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes === 'number'
+          ? parsed.medicao_e_creditos.energia_injetada_geracao.kwh_injetados_mes
+          : safeParseFloat(
+              parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes,
+              0,
+            )
+      const creditosKwh =
+        typeof parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh === 'number'
+          ? parsed.medicao_e_creditos.creditos.total_creditos_recebidos_kwh
+          : safeParseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh, 0)
+      const saldoKwh =
+        typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
+          ? parsed.medicao_e_creditos.saldo_energia.saldo_atual_instalacao_kwh
+          : safeParseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh, 0)
+      const saldoExpirar =
+        typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_a_expirar_proximo_mes_kwh ===
+        'number'
+          ? parsed.medicao_e_creditos.saldo_energia.saldo_a_expirar_proximo_mes_kwh
+          : safeParseFloat(
+              parsed.medicao_e_creditos?.saldo_energia?.saldo_a_expirar_proximo_mes_kwh,
+              0,
+            )
+      const economiaRs =
+        typeof parsed.indicadores?.economia_estimada_mes_rs === 'number'
+          ? parsed.indicadores.economia_estimada_mes_rs
+          : safeParseFloat(parsed.indicadores?.economia_estimada_mes_rs, 0)
+
+      const ucFatura =
+        parsed.dados_cadastrais_fatura?.uc || clienteUcCadastrada || 'não informado na fatura'
+      const competencia = parsed.periodo?.mes_referencia || 'Mês Atual'
+      const vencimento = parsed.periodo?.vencimento || ''
+      const papelUc = parsed.papel_gd?.papel_uc || 'mista'
+
+      // Salvar registro na coleção analises_fatura
+      const analisesCol = $app.findCollectionByNameOrId('analises_fatura')
+      const analiseRec = new Record(analisesCol)
+      analiseRec.set('token', token)
+      if (clienteId) analiseRec.set('cliente_id', clienteId)
+      analiseRec.set(
+        'cliente_nome',
+        clienteNome || parsed.dados_cadastrais_fatura?.titular || 'Cliente',
+      )
+      analiseRec.set('uc', ucFatura)
+      analiseRec.set('competencia', competencia)
+      analiseRec.set('vencimento', vencimento)
+      analiseRec.set('total_pagar', totalPagar)
+      analiseRec.set('consumo_kwh', consumoKwh)
+      analiseRec.set('energia_injetada_kwh', injetadaKwh)
+      analiseRec.set('creditos_compensados_kwh', creditosKwh)
+      analiseRec.set('saldo_energia_kwh', saldoKwh)
+      analiseRec.set('saldo_expirar_kwh', saldoExpirar)
+      analiseRec.set('economia_estimada_rs', economiaRs)
+      analiseRec.set('papel_uc', papelUc)
+      analiseRec.set(
+        'arquivos_nomes',
+        arquivos.map((a) => a.file_name),
+      )
+      analiseRec.set('dados_completos', parsed)
+      analiseRec.set('whatsapp_enviado', false)
+
+      $app.save(analiseRec)
+
+      // Se houver cliente vinculado, podemos atualizar consumo médio ou campos se estavam vazios
+      if (clienteRecord) {
+        try {
+          if (
+            !clienteRecord.getString('uc') &&
+            ucFatura &&
+            ucFatura !== 'não informado na fatura'
+          ) {
+            clienteRecord.set('uc', ucFatura)
+          }
+          if (consumoKwh > 0 && !clienteRecord.getFloat('consumo_kwh_mes')) {
+            clienteRecord.set('consumo_kwh_mes', consumoKwh)
+          }
+          $app.save(clienteRecord)
+        } catch (errCliUp) {
+          console.log('[ANALISE COMPLETA] Atualização do cliente falhou:', errCliUp)
+        }
+      }
+
+      const elapsedMs = Date.now() - reqStart
+
+      return e.json(200, {
+        ok: true,
+        token: token,
+        analise_id: analiseRec.id,
+        model_used: modelUsed,
+        elapsed_ms: elapsedMs,
+        data: parsed,
+      })
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err)
+      console.log('[ANALISE COMPLETA] Erro:', msg)
+      return e.json(500, {
+        ok: false,
+        error: `Erro ao processar análise completa: ${msg}`,
+      })
     }
-
-    const elapsedMs = Date.now() - reqStart
-
-    return e.json(200, {
-      ok: true,
-      token: token,
-      analise_id: analiseRec.id,
-      model_used: modelUsed,
-      elapsed_ms: elapsedMs,
-      data: parsed,
-    })
-  } catch (err) {
-    const msg = err && err.message ? err.message : String(err)
-    console.log('[ANALISE COMPLETA] Erro:', msg)
-    return e.json(500, {
-      ok: false,
-      error: `Erro ao processar análise completa: ${msg}`,
-    })
-  }
-})
+  },
+  $apis.requireAuth(),
+)
 
 // Rota pública para acessar análise completa pelo token único (para o cliente ou link direto)
 routerAdd('GET', '/backend/v1/relatorio-fatura-publico/{token}', (e) => {
