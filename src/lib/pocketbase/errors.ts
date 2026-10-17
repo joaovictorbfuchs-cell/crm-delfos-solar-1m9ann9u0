@@ -20,32 +20,48 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const err = error as Record<string, any>
-    if (err.status === 401 || err.status === 403) return true
-    if (err.statusCode === 401 || err.statusCode === 403) return true
-    if (err.response?.status === 401 || err.response?.status === 403) return true
-    const message = typeof err.message === 'string' ? err.message.toLowerCase() : ''
-    if (
-      message.includes('token is expired') ||
-      message.includes('login expirou') ||
-      message.includes('sessão expirada') ||
-      message.includes('failed to authenticate') ||
-      message.includes('unauthorized') ||
-      message.includes('forbidden')
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+/**
+ * Identifica se um erro retornado pelo PocketBase / chamadas de API corresponde
+ * a sessão/token expirado, 401 Unauthorized ou 403 Forbidden.
+ */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // ClientResponseError ou objeto com status / statusCode / response.status
+  const anyErr = error as any
+  const status =
+    anyErr.status ?? anyErr.statusCode ?? anyErr.response?.status ?? anyErr.response?.statusCode
+
+  if (status === 401 || status === 403) {
+    return true
+  }
+
+  const message = (
+    anyErr.message ||
+    anyErr.response?.message ||
+    (typeof error === 'string' ? error : '')
+  ).toLowerCase()
+
+  if (
+    message.includes('token is expired') ||
+    message.includes('token expired') ||
+    message.includes('failed to authenticate') ||
+    message.includes('login expirou') ||
+    message.includes('sessão expirada') ||
+    message.includes('sessao expirada') ||
+    message.includes('unauthorized') ||
+    message.includes('jwt')
+  ) {
+    return true
+  }
+
+  return false
 }
