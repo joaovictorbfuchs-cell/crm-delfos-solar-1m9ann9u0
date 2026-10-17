@@ -50,7 +50,7 @@ export default function Login() {
   const [forgotError, setForgotError] = useState<string | null>(null)
 
   // Inicialização defensiva: enquanto o AuthContext estiver verificando a sessão (isLoading),
-  // exibe o spinner com a identidade visual da Delfos Solar e NÃO tenta redirecionamento condicional prematuro
+  // exibe o spinner com a identidade visual da Delfos e NÃO tenta redirecionamento condicional prematuro
   if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-[#F8FAF9] to-slate-100 flex flex-col justify-center items-center p-4">
@@ -138,10 +138,8 @@ export default function Login() {
           <div className="mb-3 py-1 px-4 flex items-center justify-center hover:scale-105 transition-transform duration-300">
             <DelfosLogo height={72} />
           </div>
-          <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Painel de Acesso</h1>
-          <p className="text-xs text-emerald-800 font-semibold mt-1">
-            CRM & Gestão Operacional de Usinas Fotovoltaicas
-          </p>
+          <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Delfos</h1>
+          <p className="text-xs text-emerald-800 font-semibold mt-1">Gestão & Operação Integrada</p>
         </div>
 
         {isSessaoExpiradaNav && !error && !isForgotMode && (
@@ -152,7 +150,7 @@ export default function Login() {
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
             <div className="flex-1">
               <strong className="block font-bold text-amber-950">Sua sessão expirou.</strong>
-              <span>Faça login novamente para continuar seu trabalho no Delfos Solar.</span>
+              <span>Faça login novamente para continuar seu trabalho no Delfos.</span>
             </div>
           </div>
         )}
@@ -256,8 +254,8 @@ export default function Login() {
                   </div>
                   <p className="leading-relaxed">
                     Se o endereço <strong>{forgotEmail}</strong> estiver cadastrado no sistema
-                    Delfos Solar, um e-mail com o link de redefinição de senha foi enviado.
-                    Verifique sua caixa de entrada e spam.
+                    Delfos, um e-mail com o link de redefinição de senha foi enviado. Verifique sua
+                    caixa de entrada e spam.
                   </p>
                 </div>
 
@@ -373,7 +371,7 @@ export default function Login() {
 
         <div className="mt-6 pt-3 text-center">
           <p className="text-[11px] text-gray-400">
-            Acesso exclusivo para colaboradores da Delfos Solar (Erechim/RS)
+            Acesso exclusivo para colaboradores Delfos (Erechim/RS)
           </p>
         </div>
       </div>

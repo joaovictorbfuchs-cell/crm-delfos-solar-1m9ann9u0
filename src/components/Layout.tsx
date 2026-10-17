@@ -145,7 +145,7 @@ export default function Layout() {
       case '/gerenciar-usuarios':
         return 'Gerenciar Usuários'
       default:
-        return 'Delfos Solar CRM'
+        return 'Delfos'
     }
   }
 
@@ -333,7 +333,7 @@ export default function Layout() {
           <NavLink
             to={isInstalador ? '/servicos-campo' : '/'}
             className="flex items-center justify-center group overflow-hidden py-0.5"
-            title="Delfos Solar - Ir para o início"
+            title="Delfos - Ir para o início"
           >
             <DelfosLogo
               height={34}
@@ -463,7 +463,7 @@ export default function Layout() {
             </a>
             <span
               className="text-[9px] font-mono text-gray-400 text-center cursor-default"
-              title={`Delfos Solar v${APP_VERSION}`}
+              title={`Delfos v${APP_VERSION}`}
             >
               v{APP_VERSION}
             </span>
@@ -483,7 +483,7 @@ export default function Layout() {
               ) : (
                 <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
                   <Wrench className="w-4 h-4 text-emerald-600" />
-                  <span>Painel do Instalador — Serviços de Campo Delfos Solar</span>
+                  <span>Painel do Instalador — Serviços de Campo Delfos</span>
                 </div>
               )}
             </div>

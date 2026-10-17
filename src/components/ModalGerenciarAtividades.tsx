@@ -658,9 +658,7 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
 
         {/* Footer */}
         <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
-          <span className="text-[11px] text-gray-500">
-            Delfos Solar CRM • Configuração de Atividades
-          </span>
+          <span className="text-[11px] text-gray-500">Delfos • Configuração de Atividades</span>
           <Button
             type="button"
             variant="outline"

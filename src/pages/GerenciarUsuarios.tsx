@@ -661,7 +661,7 @@ export default function GerenciarUsuarios() {
               <span>Novo Usuário do Sistema</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500">
-              Cadastre um colaborador e defina o perfil de acesso no CRM Delfos Solar.
+              Cadastre um colaborador e defina o perfil de acesso no Delfos.
             </DialogDescription>
           </DialogHeader>
 

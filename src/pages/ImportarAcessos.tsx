@@ -357,7 +357,7 @@ export function ImportarAcessos() {
     }
 
     const confirmou = window.confirm(
-      `Confirma a gravação de ${itensValidos.length} inversores/acessos no CRM Delfos Solar?`,
+      `Confirma a gravação de ${itensValidos.length} inversores/acessos no Delfos?`,
     )
     if (!confirmou) return
 

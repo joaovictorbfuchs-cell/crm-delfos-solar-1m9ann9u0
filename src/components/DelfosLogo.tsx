@@ -66,7 +66,7 @@ export const DelfosLogo: React.FC<DelfosLogoProps> = ({
         height: typeof height === 'number' ? `${height}px` : height,
         width: width ? (typeof width === 'number' ? `${width}px` : width) : 'auto',
       }}
-      aria-label="Delfos Solar Logo"
+      aria-label="Delfos Logo"
       role="img"
     >
       <defs>
@@ -120,27 +120,14 @@ export const DelfosLogo: React.FC<DelfosLogoProps> = ({
         <g fill="#0A539E">
           <text
             x="260"
-            y="160"
+            y="168"
             textAnchor="middle"
             fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-            fontSize="94"
+            fontSize="100"
             fontWeight="900"
-            letterSpacing="0.22em"
+            letterSpacing="0.18em"
           >
             delfos
-          </text>
-
-          {/* Texto Inferior: "solar" */}
-          <text
-            x="264"
-            y="200"
-            textAnchor="middle"
-            fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-            fontSize="25"
-            fontWeight="800"
-            letterSpacing="0.68em"
-          >
-            solar
           </text>
         </g>
       )}

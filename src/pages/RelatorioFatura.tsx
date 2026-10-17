@@ -1242,7 +1242,7 @@ export const RelatorioFaturaPage: React.FC = () => {
         {/* Rodapé do Relatório */}
         <footer className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-gray-700">Delfos Solar CRM</span>
+            <span className="font-semibold text-gray-700">Delfos</span>
             <span>•</span>
             <span>
               Relatório emitido em {new Date(registro.created).toLocaleDateString('pt-BR')}

@@ -140,8 +140,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   <div>
                     <p className="font-bold text-amber-950">Sua sessão expirou</p>
                     <p className="text-[11px] text-amber-800">
-                      Faça login novamente para continuar seu trabalho com segurança no Delfos
-                      Solar.
+                      Faça login novamente para continuar seu trabalho com segurança no Delfos.
                     </p>
                   </div>
                 </div>
@@ -167,7 +166,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <div className="max-w-md">
                 <h4 className="text-base font-bold text-amber-950 mb-1">Sua sessão expirou</h4>
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  Faça login novamente para continuar seu trabalho com segurança no Delfos Solar.
+                  Faça login novamente para continuar seu trabalho com segurança no Delfos.
                 </p>
               </div>
               <div className="flex items-center gap-2 mt-1">

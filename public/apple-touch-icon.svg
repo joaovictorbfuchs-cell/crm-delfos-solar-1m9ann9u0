@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180" fill="none">
+  <defs>
+    <linearGradient id="apple-delfos-top" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#0B5AA8" />
+      <stop offset="25%" stopColor="#12789E" />
+      <stop offset="50%" stopColor="#2E9E43" />
+      <stop offset="78%" stopColor="#7EBE32" />
+      <stop offset="100%" stopColor="#FCD200" />
+    </linearGradient>
+
+    <linearGradient id="apple-delfos-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#FCD200" />
+      <stop offset="22%" stopColor="#DECA09" />
+      <stop offset="55%" stopColor="#2E9E43" />
+      <stop offset="82%" stopColor="#12789E" />
+      <stop offset="100%" stopColor="#0B5AA8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo branco suave para ícone iOS -->
+  <rect width="180" height="180" rx="40" fill="#FFFFFF" />
+
+  <!-- Swoosh Superior -->
+  <path
+    d="M 18 62 C 34 32, 60 14, 90 14 C 124 14, 152 32, 164 56 C 144 34, 118 22, 90 22 C 60 22, 34 36, 18 62 Z"
+    fill="url(#apple-delfos-top)"
+  />
+
+  <!-- Swoosh Inferior -->
+  <path
+    d="M 18 118 C 34 144, 60 162, 90 162 C 122 162, 148 144, 164 124 C 146 150, 118 170, 90 170 C 58 170, 32 150, 18 118 Z"
+    fill="url(#apple-delfos-bottom)"
+  />
+
+  <!-- Letra 'd' emblemática -->
+  <text
+    x="90"
+    y="118"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    font-size="96"
+    font-weight="900"
+    fill="#0A539E"
+  >d</text>
+</svg>

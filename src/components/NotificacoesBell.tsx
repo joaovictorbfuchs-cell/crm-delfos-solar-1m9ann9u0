@@ -301,7 +301,7 @@ export function NotificacoesBell() {
         {/* Rodapé informativo */}
         <div className="border-t px-4 py-2 bg-gray-50/70 dark:bg-gray-900/50 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
           <span>Varredura automática ativa</span>
-          <span className="text-[10px] text-gray-400">Delfos Solar CRM</span>
+          <span className="text-[10px] text-gray-400">Delfos</span>
         </div>
       </PopoverContent>
     </Popover>

@@ -1685,8 +1685,8 @@ export default function ImportarClientes() {
                   </h3>
                 </div>
                 <p className="text-xs text-gray-500">
-                  Revise o balanço final antes de gravar os dados no CRM Delfos Solar. O botão
-                  "Confirmar Importação" salvará apenas os registros aprovados.
+                  Revise o balanço final antes de gravar os dados no Delfos. O botão "Confirmar
+                  Importação" salvará apenas os registros aprovados.
                 </p>
               </div>
 
