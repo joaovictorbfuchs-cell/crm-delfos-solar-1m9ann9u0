@@ -1,8 +1,9 @@
 import React from 'react'
 import logoPng from '@/assets/delfos-solar-09ea2.png'
 import logoOficialPng from '@/assets/prancheta-1-049a2.png'
+import logoDelfosNovaMarcaPng from '@/assets/delfos-solar-5b5ce.png'
 
-export { logoPng as delfosLogoAsset, logoOficialPng }
+export { logoPng as delfosLogoAsset, logoOficialPng, logoDelfosNovaMarcaPng }
 
 export interface DelfosLogoProps {
   className?: string

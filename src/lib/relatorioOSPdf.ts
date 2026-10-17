@@ -1,3 +1,4 @@
+import logoDelfosPngInline from '@/assets/delfos-solar-5b5ce.png?inline'
 import { OrdemServico, Cliente, Sistema, OSChecklistItem } from '@/types/crm'
 import { otimizarImagemParaImpressao } from '@/lib/propostaImageOptimizer'
 import {
@@ -302,6 +303,14 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       padding-bottom: 14px;
       margin-bottom: 12px;
     }
+    .brand-logo-img {
+      height: 46px;
+      max-width: 140px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
     .brand-logo-circle {
       width: 46px;
       height: 46px;
@@ -408,7 +417,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     <!-- 1. Cabeçalho Timbrado -->
     <header class="timbrado-header">
       <div class="timbrado-top">
-        <div class="brand-logo-circle">D</div>
+        <img src="${logoDelfosPngInline}" alt="Delfos Solar" class="brand-logo-img" />
         <div class="brand-text">
           <h1>DELFOS ENGENHARIA SOLAR</h1>
           <p>Engenharia &amp; Operação de Usinas Fotovoltaicas</p>

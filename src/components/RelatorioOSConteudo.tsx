@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { Printer, Share2, Check, Loader2, AlertTriangle, Camera, X, FileCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
+import logoDelfosPng from '@/assets/delfos-solar-5b5ce.png'
 import { getRodapeComercialRelatorioOS } from '@/services/configuracoesService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/contexts/AuthContext'
@@ -306,13 +307,12 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         {/* 1. Cabeçalho Timbrado */}
         <header className="bg-[#0E2A47] text-white rounded-t-xl p-7 sm:p-8 shadow-[0_4px_16px_rgba(14,42,71,0.12)] print:rounded-t-md print:p-5 print:shadow-none print-color-exact">
           <div className="flex items-center justify-between gap-5 flex-wrap border-b border-white/15 pb-4 mb-4">
-            <div className="flex items-center gap-4">
-              <div
-                className="w-[52px] h-[52px] rounded-full bg-[#C9A227] text-[#0E2A47] font-black text-2xl flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.25)] shrink-0 select-none print-color-exact"
-                aria-hidden="true"
-              >
-                D
-              </div>
+            <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+              <img
+                src={logoDelfosPng}
+                alt="Delfos Solar"
+                className="h-12 sm:h-14 w-auto max-w-[200px] object-contain shrink-0 select-none"
+              />
               <div>
                 <h1 className="m-0 text-xl sm:text-[1.35rem] font-extrabold tracking-[0.04em] text-white leading-tight">
                   DELFOS ENGENHARIA SOLAR

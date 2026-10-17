@@ -31,36 +31,31 @@ export function getErrorMessage(error: unknown): string {
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (err.status === 401 || err.status === 403) return true
-    if (err.statusCode === 401 || err.statusCode === 403) return true
-    if (err.response && typeof err.response === 'object') {
-      const resp = err.response as Record<string, unknown>
-      if (resp.status === 401 || resp.status === 403) return true
-    }
-    if (typeof err.message === 'string') {
-      const msg = err.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('login expirou') ||
-        msg.includes('sessão expirada') ||
-        msg.includes('sessao expirada') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('token expired')
-      ) {
-        return true
-      }
-    }
-  }
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
+    const errObj = error as Record<string, unknown>
+    const status = (errObj.status ??
+      errObj.statusCode ??
+      (errObj.response && typeof errObj.response === 'object'
+        ? (errObj.response as Record<string, unknown>).status
+        : undefined)) as number | undefined
+
+    if (status === 401 || status === 403) return true
+
+    const message = (
+      typeof errObj.message === 'string'
+        ? errObj.message
+        : errObj.response && typeof errObj.response === 'object'
+          ? String((errObj.response as Record<string, unknown>).message || '')
+          : ''
+    ).toLowerCase()
+
     if (
-      msg.includes('token is expired') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('sessao expirada') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('token expired')
+      message.includes('token is expired') ||
+      message.includes('token expired') ||
+      message.includes('failed to authenticate') ||
+      message.includes('sessão expirada') ||
+      message.includes('sessao expirada') ||
+      message.includes('login expirou') ||
+      message.includes('invalid token')
     ) {
       return true
     }

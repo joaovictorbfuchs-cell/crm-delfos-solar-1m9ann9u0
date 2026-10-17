@@ -1,4 +1,5 @@
 import React from 'react'
+import logoDelfosPng from '@/assets/delfos-solar-5b5ce.png'
 import {
   Document,
   Page,
@@ -66,6 +67,12 @@ const styles = StyleSheet.create({
   brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  brandLogoImage: {
+    width: 58,
+    height: 34,
+    objectFit: 'contain',
+    marginRight: 10,
   },
   brandLogoCircle: {
     width: 32,
@@ -586,9 +593,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
         <View style={styles.timbradoHeader} wrap={false}>
           <View style={styles.timbradoTop}>
             <View style={styles.brandGroup}>
-              <View style={styles.brandLogoCircle}>
-                <Text style={styles.brandLogoLetter}>D</Text>
-              </View>
+              <Image src={logoDelfosPng} style={styles.brandLogoImage} />
               <View>
                 <Text style={styles.brandTitle}>DELFOS ENGENHARIA SOLAR</Text>
                 <Text style={styles.brandSub}>
