@@ -37,6 +37,11 @@ import {
 } from 'lucide-react'
 import type { Cliente, PropostaOM, UsinaCliente } from '@/types/crm'
 import { fetchUsinasByClienteId } from '@/services/crmService'
+import { Checkbox } from '@/components/ui/checkbox'
+import type { DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
+import { abrirProcuracaoImpressao } from '@/lib/procuracaoGenerator'
+import { gerarProcuracaoPdfBlobBase64 } from '@/components/BotaoBaixarProcuracaoPDF'
+import { blobParaDataUriBase64 } from '@/lib/pdfBlobUtils'
 import {
   type DadosContratoOM,
   type PlanoContratoOM,

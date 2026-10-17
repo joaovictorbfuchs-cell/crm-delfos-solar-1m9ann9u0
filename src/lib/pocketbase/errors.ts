@@ -25,5 +25,28 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response && typeof errObj.response === 'object') {
+      const resp = errObj.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
+    const msg = String(errObj.message || '')
+    if (
+      msg.includes('Token is expired') ||
+      msg.includes('Login expirou') ||
+      msg.includes('Sessão expirada') ||
+      msg.includes('Failed to authenticate')
+    ) {
+      return true
+    }
+  }
+  return false
 }

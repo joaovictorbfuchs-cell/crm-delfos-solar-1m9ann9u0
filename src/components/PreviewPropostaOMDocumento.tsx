@@ -39,6 +39,9 @@ export interface PreviewPropostaOMDocumentoProps {
   onAceiteDocumentoChange?: (value: string) => void
   aceiteConfirmado?: boolean
   onAceiteConfirmadoChange?: (value: boolean) => void
+  onAprovarProposta?: () => void
+  onGerarContrato?: () => void
+  onElaborarProcuracao?: () => void
 }
 
 const formatarBRL = (valor?: number) =>
@@ -101,6 +104,9 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
   onAceiteDocumentoChange,
   aceiteConfirmado = false,
   onAceiteConfirmadoChange,
+  onAprovarProposta,
+  onGerarContrato,
+  onElaborarProcuracao,
 }) => {
   const c = normalizarConteudoPropostaOM(conteudo)
   const { cliente, tecnico, parametros, calculos } = dados
@@ -187,10 +193,48 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {onAprovarProposta &&
+            !['aprovada', 'aprovado'].includes((statusProposta || '').toLowerCase()) && (
+              <button
+                type="button"
+                onClick={onAprovarProposta}
+                disabled={isSubmitting}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-60"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Aprovar proposta</span>
+              </button>
+            )}
+
+          {['aprovada', 'aprovado'].includes((statusProposta || '').toLowerCase()) && (
+            <>
+              {onGerarContrato && (
+                <button
+                  type="button"
+                  onClick={onGerarContrato}
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Gerar contrato O&amp;M</span>
+                </button>
+              )}
+              {onElaborarProcuracao && (
+                <button
+                  type="button"
+                  onClick={onElaborarProcuracao}
+                  className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+                >
+                  <Award className="w-4 h-4" />
+                  <span>Elaborar procuração</span>
+                </button>
+              )}
+            </>
+          )}
+
           <button
             type="button"
             onClick={onImprimir || handleImprimir}
-            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir / Salvar PDF</span>

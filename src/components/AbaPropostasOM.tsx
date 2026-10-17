@@ -18,12 +18,20 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
 import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
+import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
 import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
 import { normalizarNomePlanoOM } from '@/lib/planosOM'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useToast } from '@/hooks/use-toast'
 import type { PropostaOM, Cliente } from '@/types/crm'
 
 export interface AbaPropostasOMProps {
@@ -35,8 +43,18 @@ export interface AbaPropostasOMProps {
 export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
   filtroStatusExterno = 'todos',
 }) => {
-  const { propostasOM, clientes, sistemas, usuarios, removePropostaOM, isLoading, refreshData } =
-    useClientes()
+  const {
+    propostasOM,
+    clientes,
+    sistemas,
+    usuarios,
+    removePropostaOM,
+    updatePropostaOM,
+    isLoading,
+    refreshData,
+  } = useClientes()
+  const { toast } = useToast()
+  const [atualizandoStatusId, setAtualizandoStatusId] = useState<string | null>(null)
 
   // Estados de busca e filtros
   const [busca, setBusca] = useState('')
@@ -51,9 +69,15 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
   const [isNovaPropostaOpen, setIsNovaPropostaOpen] = useState(false)
   const [propostaParaVisualizar, setPropostaParaVisualizar] = useState<PropostaOM | null>(null)
   const [propostaParaContrato, setPropostaParaContrato] = useState<PropostaOM | null>(null)
+  const [propostaParaProcuracao, setPropostaParaProcuracao] = useState<PropostaOM | null>(null)
   const clientePropostaContrato = propostaParaContrato
     ? propostaParaContrato.expand?.cliente_id ||
       clientes.find((cliente) => cliente.id === propostaParaContrato.cliente_id) ||
+      null
+    : null
+  const clientePropostaProcuracao = propostaParaProcuracao
+    ? propostaParaProcuracao.expand?.cliente_id ||
+      clientes.find((cliente) => cliente.id === propostaParaProcuracao.cliente_id) ||
       null
     : null
 
@@ -170,6 +194,59 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
     dataInicio,
     dataFim,
   ])
+
+  const opcoesStatusOM = [
+    {
+      valor: 'Proposta Enviada',
+      label: 'Proposta Enviada',
+      cor: 'bg-blue-100 text-blue-800 border-blue-200',
+    },
+    {
+      valor: 'Visualização',
+      label: 'Visualização',
+      cor: 'bg-amber-100 text-amber-800 border-amber-200',
+    },
+    {
+      valor: 'Aprovada',
+      label: 'Aprovada',
+      cor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    },
+    { valor: 'Perdida', label: 'Perdida', cor: 'bg-rose-100 text-rose-800 border-rose-200' },
+  ]
+
+  const getStatusBadgeStyle = (status?: string) => {
+    const s = (status || '').toLowerCase().trim()
+    if (s === 'aprovada' || s === 'aprovado') {
+      return 'bg-emerald-100 text-emerald-800 border-emerald-200'
+    }
+    if (s === 'visualização' || s === 'visualizacao') {
+      return 'bg-amber-100 text-amber-800 border-amber-200'
+    }
+    if (s === 'perdida' || s === 'recusada' || s === 'rejeitada') {
+      return 'bg-rose-100 text-rose-800 border-rose-200'
+    }
+    return 'bg-blue-100 text-blue-800 border-blue-200'
+  }
+
+  const handleAlterarStatus = async (propId: string, novoStatus: string) => {
+    try {
+      setAtualizandoStatusId(propId)
+      await updatePropostaOM(propId, { status: novoStatus })
+      toast({
+        title: 'Status atualizado',
+        description: `Proposta O&M alterada para "${novoStatus}".`,
+      })
+    } catch (err) {
+      console.error('Erro ao atualizar status da proposta O&M:', err)
+      toast({
+        title: 'Erro ao alterar status',
+        description: 'Não foi possível atualizar o status da proposta O&M.',
+        variant: 'destructive',
+      })
+    } finally {
+      setAtualizandoStatusId(null)
+    }
+  }
 
   const handleExcluir = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -562,11 +639,45 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
                         </td>
 
                         {/* Status */}
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                            <FileCheck className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span>{prop.status || 'Proposta Enviada'}</span>
-                          </span>
+                        <td
+                          className="py-3 px-3 text-center whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                disabled={atualizandoStatusId === prop.id}
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-500 whitespace-nowrap cursor-pointer ${getStatusBadgeStyle(
+                                  prop.status,
+                                )}`}
+                                title="Clique para alterar o status"
+                              >
+                                <FileCheck className="w-3 h-3 shrink-0" />
+                                <span>{prop.status || 'Proposta Enviada'}</span>
+                                <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="center"
+                              className="w-44 text-xs font-medium"
+                            >
+                              {opcoesStatusOM.map((op) => (
+                                <DropdownMenuItem
+                                  key={op.valor}
+                                  onClick={() => handleAlterarStatus(prop.id, op.valor)}
+                                  className="flex items-center justify-between cursor-pointer py-1.5"
+                                >
+                                  <span>{op.label}</span>
+                                  {(prop.status || 'Proposta Enviada') === op.valor && (
+                                    <span className="text-[10px] text-emerald-600 font-bold">
+                                      ✓
+                                    </span>
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
 
                         {/* Data */}
@@ -660,6 +771,8 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
         }}
         initialClienteId={propostaParaVisualizar?.cliente_id}
         initialProposta={propostaParaVisualizar}
+        onAbrirContrato={(prop) => setPropostaParaContrato(prop)}
+        onAbrirProcuracao={(prop) => setPropostaParaProcuracao(prop)}
       />
       {clientePropostaContrato && propostaParaContrato && (
         <ModalGerarContratoOM
@@ -669,6 +782,16 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
           }}
           cliente={clientePropostaContrato}
           propostaOM={propostaParaContrato}
+        />
+      )}
+      {clientePropostaProcuracao && propostaParaProcuracao && (
+        <ModalGerarProcuracaoOM
+          open={Boolean(propostaParaProcuracao)}
+          onOpenChange={(open) => {
+            if (!open) setPropostaParaProcuracao(null)
+          }}
+          cliente={clientePropostaProcuracao}
+          propostaOM={propostaParaProcuracao}
         />
       )}
     </div>

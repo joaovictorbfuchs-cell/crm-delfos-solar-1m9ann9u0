@@ -34,6 +34,16 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   ConteudoPropostaOM,
   getConteudoPropostaOMDefaults,
   normalizarConteudoPropostaOM,
@@ -44,6 +54,8 @@ interface ModalNovaPropostaOMProps {
   onClose: () => void
   initialClienteId?: string
   initialProposta?: PropostaOM | null
+  onAbrirContrato?: (proposta: PropostaOM) => void
+  onAbrirProcuracao?: (proposta: PropostaOM) => void
 }
 
 export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
@@ -51,6 +63,8 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   onClose,
   initialClienteId,
   initialProposta,
+  onAbrirContrato,
+  onAbrirProcuracao,
 }) => {
   const {
     clientes,
@@ -91,6 +105,64 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [activeTab, setActiveTab] = useState<'parametros' | 'preview' | 'edicao'>('parametros')
   const [planoEscolhido, setPlanoEscolhido] = useState<any>('Completo')
   const [conteudoOM, setConteudoOM] = useState<ConteudoPropostaOM>(getConteudoPropostaOMDefaults())
+  // Aprovação da proposta O&M: sequência aprovar → contrato → procuração
+  const [aprovacaoDialogOpen, setAprovacaoDialogOpen] = useState(false)
+  const [statusAtual, setStatusAtual] = useState<string>(
+    initialProposta?.status || 'Proposta Enviada',
+  )
+  const [aprovando, setAprovando] = useState(false)
+
+  useEffect(() => {
+    if (initialProposta?.status) setStatusAtual(initialProposta.status)
+  }, [initialProposta?.status])
+
+  const jaAprovada = ['aprovada', 'aprovado'].includes((statusAtual || '').toLowerCase())
+  const clienteAprovavel = clienteAtual && propostaSalvaId
+
+  const handleAprovarProposta = async () => {
+    if (!clienteAtual) return
+    setAprovando(true)
+    try {
+      // Garante que a proposta exista/esteja salva antes de aprovar
+      let proposta = propostaSalvaId ? null : null
+      let propostaFinal: PropostaOM | null = proposta as any
+      if (!propostaSalvaId) {
+        propostaFinal = await handleSalvarProposta(false)
+        if (!propostaFinal) {
+          setAprovando(false)
+          return
+        }
+      }
+      const idAlvo = propostaSalvaId || propostaFinal?.id
+      if (!idAlvo) {
+        setAprovando(false)
+        return
+      }
+      await updatePropostaOM(idAlvo, { status: 'Aprovada' })
+      setStatusAtual('Aprovada')
+      setAprovacaoDialogOpen(false)
+      toast.success('Proposta O&M aprovada! Já é possível gerar o contrato e a procuração.')
+      try {
+        await addTimelineOM({
+          cliente_id: clienteAtual.id,
+          tipo: 'interacao',
+          titulo: 'Proposta O&M aprovada',
+          descricao: 'Proposta O&M marcada como Aprovada no CRM.',
+          data: new Date().toISOString(),
+          autor: user?.name || 'Equipe Comercial Delfos Solar',
+          status_tag: 'Aprovada',
+          referencia_id: idAlvo,
+        })
+      } catch (errTime) {
+        console.error('Erro ao adicionar timeline de aprovação:', errTime)
+      }
+    } catch (err) {
+      console.error('Erro ao aprovar proposta O&M:', err)
+      toast.error('Não foi possível aprovar a proposta O&M. Tente novamente.')
+    } finally {
+      setAprovando(false)
+    }
+  }
 
   // Cliente atual selecionado
   useEffect(() => {
@@ -593,14 +665,41 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               onSelecionarPlano={(plano) => setPlanoEscolhido(plano)}
               onEnviarLink={handleEnviarLinkWhatsApp}
               onEnviarPdf={handleEnviarPdfWhatsApp}
-              somenteLeitura={['aprovado', 'aprovada'].includes(
-                (initialProposta?.status || '').toLowerCase(),
-              )}
-              statusProposta={initialProposta?.status || 'Proposta Enviada'}
-              isSubmitting={isSubmitting || Boolean(isSendingAction)}
-              aceiteRegistrado={['aprovado', 'aprovada'].includes(
-                (initialProposta?.status || '').toLowerCase(),
-              )}
+              somenteLeitura={jaAprovada}
+              statusProposta={statusAtual}
+              isSubmitting={isSubmitting || Boolean(isSendingAction) || aprovando}
+              aceiteRegistrado={jaAprovada}
+              onAprovarProposta={
+                clienteAprovavel && !jaAprovada ? () => setAprovacaoDialogOpen(true) : undefined
+              }
+              onGerarContrato={
+                jaAprovada && clienteAtual
+                  ? () => {
+                      const propostaAtual: PropostaOM = {
+                        ...(initialProposta || ({} as PropostaOM)),
+                        id: propostaSalvaId,
+                        cliente_id: clienteAtual.id,
+                        status: 'Aprovada',
+                        plano_escolhido: planoEscolhido,
+                      }
+                      onAbrirContrato?.(propostaAtual)
+                    }
+                  : undefined
+              }
+              onElaborarProcuracao={
+                jaAprovada && clienteAtual
+                  ? () => {
+                      const propostaAtual: PropostaOM = {
+                        ...(initialProposta || ({} as PropostaOM)),
+                        id: propostaSalvaId,
+                        cliente_id: clienteAtual.id,
+                        status: 'Aprovada',
+                        plano_escolhido: planoEscolhido,
+                      }
+                      onAbrirProcuracao?.(propostaAtual)
+                    }
+                  : undefined
+              }
             />{' '}
           </div>
         ) : activeTab === 'edicao' ? (
@@ -1333,6 +1432,31 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog de confirmação da aprovação */}
+      <AlertDialog open={aprovacaoDialogOpen} onOpenChange={setAprovacaoDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar aprovação da proposta O&amp;M</AlertDialogTitle>
+            <AlertDialogDescription>
+              A proposta será marcada como <strong>Aprovada</strong> no CRM. Em seguida você poderá
+              gerar o contrato O&amp;M e, se necessário, elaborar a procuração.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={aprovando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={aprovando}
+              onClick={(e) => {
+                e.preventDefault()
+                handleAprovarProposta()
+              }}
+            >
+              {aprovando ? 'Aprovando...' : 'Confirmar aprovação'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
