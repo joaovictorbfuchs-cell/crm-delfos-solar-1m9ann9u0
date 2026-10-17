@@ -389,7 +389,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           responsavel_id: responsavelId || user?.id || undefined,
           responsavel_nome: responsavelNome,
           status: 'pendente',
-          negocio_id: selectedNegocioId || undefined,
+          negocio_id:
+            selectedCategoria !== 'manutencao' ? selectedNegocioId || undefined : undefined,
           usina_id: selectedUsinaId || undefined,
           ...defaultsManutencao,
         })
@@ -686,8 +687,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                 />
               </div>
 
-              {/* Seletor de Vínculo de Negócio Comercial (Opcional) */}
-              {negociosDoCliente.length > 0 && (
+              {/* Seletor de Vínculo de Negócio Comercial (Opcional) - oculto para categoria manutenção */}
+              {negociosDoCliente.length > 0 && selectedCategoria !== 'manutencao' && (
                 <div className="sm:col-span-12 p-2 rounded-xl bg-amber-50/60 border border-amber-200/80">
                   <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between mb-1">
                     <span className="flex items-center gap-1">

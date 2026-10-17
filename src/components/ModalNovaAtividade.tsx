@@ -663,8 +663,11 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       // Sanitização estrita de relations (omitir completamente quando vazias para não quebrar no PocketBase)
       const usinaIdLimpa =
         selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : undefined
+      // Atividades de manutenção não possuem vínculo de negócio na criação
       const negocioIdLimpo =
-        selectedNegocioId && selectedNegocioId.trim() ? selectedNegocioId.trim() : undefined
+        selectedCategoria !== 'manutencao' && selectedNegocioId && selectedNegocioId.trim()
+          ? selectedNegocioId.trim()
+          : undefined
       const responsavelIdLimpo =
         responsavelId && responsavelId.trim() ? responsavelId.trim() : undefined
 
@@ -1065,8 +1068,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
             </div>
           </div>
 
-          {/* Seletor de Vínculo de Negócio Comercial (Opcional, com auto-sugestão quando único em andamento) */}
-          {negociosDoCliente.length > 0 && (
+          {/* Seletor de Vínculo de Negócio Comercial (Opcional, com auto-sugestão quando único em andamento) - oculto em atividades de manutenção */}
+          {negociosDoCliente.length > 0 && selectedCategoria !== 'manutencao' && (
             <div className="space-y-1 p-3 bg-amber-50/50 rounded-xl border border-amber-200/80">
               <label className="text-xs font-semibold text-gray-800 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">

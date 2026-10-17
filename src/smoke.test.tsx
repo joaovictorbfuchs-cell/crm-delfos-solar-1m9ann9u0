@@ -2492,4 +2492,21 @@ describe('Login e App Smoke Tests', () => {
     expect(docxStr).toContain('Cliente Unificado Solar')
     expect(docxStr).toContain('40') // MARGIN_HORIZONTAL_007CM_DXA (0,07cm)
   })
+
+  it('ModalNovaAtividade oculta seletor de "Negócio Vinculado" quando categoria é manutenção e apenasManutencao é true', async () => {
+    const { ModalNovaAtividade } = await import('@/components/ModalNovaAtividade')
+
+    const htmlModalManutencao = renderToStaticMarkup(
+      React.createElement(ModalNovaAtividade, {
+        isOpen: true,
+        onClose: () => {},
+        apenasManutencao: true,
+        initialTipo: 'manutencao_preventiva',
+        initialClienteId: 'cli-teste-1',
+      }),
+    )
+
+    // O campo de Negócio Vinculado NÃO deve ser renderizado quando a categoria for manutenção
+    expect(htmlModalManutencao).not.toContain('Negócio Vinculado')
+  })
 })
