@@ -23,6 +23,7 @@ import {
   ChevronDown,
   X,
   MessageCircle,
+  ShieldCheck,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
@@ -36,6 +37,9 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AbaPropostasOM } from '@/components/AbaPropostasOM'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
+import { ModalSelecionarClienteContratoOM } from '@/components/ModalSelecionarClienteContratoOM'
+import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
+import type { PropostaOM } from '@/types/crm'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -183,6 +187,10 @@ export const Orcamentos: React.FC = () => {
   const [filtroStatusSolar, setFiltroStatusSolar] = useState<string>('todos')
   const [filtroStatusOM, setFiltroStatusOM] = useState<string>('todos')
   const [popoverFiltroAberto, setPopoverFiltroAberto] = useState<boolean>(false)
+  const [isModalSelecionarClienteContratoOpen, setIsModalSelecionarClienteContratoOpen] =
+    useState<boolean>(false)
+  const [propostaParaContratoHub, setPropostaParaContratoHub] = useState<PropostaOM | null>(null)
+  const [clientePropostaContratoHub, setClientePropostaContratoHub] = useState<Cliente | null>(null)
 
   // Aba do Hub de Propostas: 'solar' | 'om' | 'baterias' | 'carregadores'
   // Sincronizada com o query param ?aba=om, ?aba=solar, etc.
@@ -898,6 +906,13 @@ export const Orcamentos: React.FC = () => {
                 <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Nova proposta O&amp;M</span>
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setIsModalSelecionarClienteContratoOpen(true)}
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>Novo Contrato O&amp;M</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1585,6 +1600,35 @@ export const Orcamentos: React.FC = () => {
       />
 
       <ModalNovaPropostaOM isOpen={isModalNovaOMOpen} onClose={() => setIsModalNovaOMOpen(false)} />
+
+      {/* Modal Selecionar Cliente para Novo Contrato O&M no Hub de Propostas */}
+      <ModalSelecionarClienteContratoOM
+        open={isModalSelecionarClienteContratoOpen}
+        onOpenChange={setIsModalSelecionarClienteContratoOpen}
+        onContratoIniciado={(cli, propAprovada) => {
+          setClientePropostaContratoHub(cli)
+          setPropostaParaContratoHub(propAprovada)
+        }}
+        onCriarPropostaParaCliente={(clienteId) => {
+          setClienteParaNovoOrcamento(clienteId)
+          setIsModalNovaOMOpen(true)
+        }}
+      />
+
+      {/* Modal Canônico de Geração de Contrato O&M (Revisão -> Tabela Anexo II -> Pré-visualização A4) */}
+      {clientePropostaContratoHub && propostaParaContratoHub && (
+        <ModalGerarContratoOM
+          open={Boolean(propostaParaContratoHub)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPropostaParaContratoHub(null)
+              setClientePropostaContratoHub(null)
+            }
+          }}
+          cliente={clientePropostaContratoHub}
+          propostaOM={propostaParaContratoHub}
+        />
+      )}
     </div>
   )
 }

@@ -28,39 +28,47 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Identifica se um erro retornado pelo PocketBase / chamadas de API corresponde
- * a sessão/token expirado, 401 Unauthorized ou 403 Forbidden.
- */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
 
-  // ClientResponseError ou objeto com status / statusCode / response.status
-  const anyErr = error as any
-  const status =
-    anyErr.status ?? anyErr.statusCode ?? anyErr.response?.status ?? anyErr.response?.statusCode
+  if (typeof err === 'object') {
+    const candidate = err as Record<string, unknown>
 
-  if (status === 401 || status === 403) {
-    return true
+    if (candidate.status === 401 || candidate.status === 403) return true
+    if (candidate.statusCode === 401 || candidate.statusCode === 403) return true
+
+    if (candidate.response && typeof candidate.response === 'object') {
+      const resp = candidate.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
+
+    if (typeof candidate.message === 'string') {
+      const msg = candidate.message.toLowerCase()
+      if (
+        msg.includes('token') ||
+        msg.includes('expired') ||
+        msg.includes('expirou') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('unauthorized')
+      ) {
+        return true
+      }
+    }
   }
 
-  const message = (
-    anyErr.message ||
-    anyErr.response?.message ||
-    (typeof error === 'string' ? error : '')
-  ).toLowerCase()
-
-  if (
-    message.includes('token is expired') ||
-    message.includes('token expired') ||
-    message.includes('failed to authenticate') ||
-    message.includes('login expirou') ||
-    message.includes('sessão expirada') ||
-    message.includes('sessao expirada') ||
-    message.includes('unauthorized') ||
-    message.includes('jwt')
-  ) {
-    return true
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase()
+    if (
+      msg.includes('token') ||
+      msg.includes('expired') ||
+      msg.includes('expirou') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('unauthorized')
+    ) {
+      return true
+    }
   }
 
   return false

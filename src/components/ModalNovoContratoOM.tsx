@@ -20,12 +20,8 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
     d.setFullYear(d.getFullYear() + 1)
     return d.toISOString().split('T')[0]
   })
-  const [proximaTitulo, setProximaTitulo] = useState('Inspeção preventiva semestral')
-  const [proximaData, setProximaData] = useState(() => {
-    const d = new Date()
-    d.setMonth(d.getMonth() + 1)
-    return d.toISOString().split('T')[0]
-  })
+  const [proximaTitulo, setProximaTitulo] = useState('')
+  const [proximaData, setProximaData] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -92,12 +88,8 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
         proxima_atividade_titulo: proximaTitulo?.trim() || undefined,
         proxima_atividade_data: isoProxData,
         observacoes: observacoes?.trim() || undefined,
-        servicos_realizados: ['Monitoramento da geração em horários comerciais'],
-        servicos_agendados: [
-          'Relatório mensal de desempenho',
-          'Inspeção preventiva anual',
-          'Reaperto de conexões e grampos',
-        ],
+        servicos_realizados: [],
+        servicos_agendados: ['Relatório mensal de desempenho', 'Reaperto de conexões e grampos'],
       })
 
       onClose()

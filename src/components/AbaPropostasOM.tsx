@@ -14,11 +14,13 @@ import {
   Eye,
   X,
   ChevronDown,
+  ShieldCheck,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
 import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
 import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
+import { ModalSelecionarClienteContratoOM } from '@/components/ModalSelecionarClienteContratoOM'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
 import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
@@ -70,6 +72,11 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
   const [propostaParaVisualizar, setPropostaParaVisualizar] = useState<PropostaOM | null>(null)
   const [propostaParaContrato, setPropostaParaContrato] = useState<PropostaOM | null>(null)
   const [propostaParaProcuracao, setPropostaParaProcuracao] = useState<PropostaOM | null>(null)
+  const [isModalSelecionarClienteContratoOpen, setIsModalSelecionarClienteContratoOpen] =
+    useState(false)
+  const [clienteCriarPropostaId, setClienteCriarPropostaId] = useState<string | undefined>(
+    undefined,
+  )
   const clientePropostaContrato = propostaParaContrato
     ? propostaParaContrato.expand?.cliente_id ||
       clientes.find((cliente) => cliente.id === propostaParaContrato.cliente_id) ||
@@ -399,6 +406,17 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
                   painelFiltrosAberto ? 'rotate-180 text-emerald-700' : ''
                 }`}
               />
+            </button>
+
+            {/* Botão Novo Contrato O&M na Aba O&M do Hub de Propostas */}
+            <button
+              type="button"
+              onClick={() => setIsModalSelecionarClienteContratoOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition-all shrink-0 cursor-pointer"
+              title="Gerar contrato O&M canônico a partir de proposta aprovada"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Novo Contrato O&amp;M</span>
             </button>
           </div>
         </div>
@@ -768,11 +786,25 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
         onClose={() => {
           setIsNovaPropostaOpen(false)
           setPropostaParaVisualizar(null)
+          setClienteCriarPropostaId(undefined)
         }}
-        initialClienteId={propostaParaVisualizar?.cliente_id}
+        initialClienteId={clienteCriarPropostaId || propostaParaVisualizar?.cliente_id}
         initialProposta={propostaParaVisualizar}
         onAbrirContrato={(prop) => setPropostaParaContrato(prop)}
         onAbrirProcuracao={(prop) => setPropostaParaProcuracao(prop)}
+      />
+
+      {/* Modal Selecionar Cliente para Novo Contrato O&M (fluxo canônico) */}
+      <ModalSelecionarClienteContratoOM
+        open={isModalSelecionarClienteContratoOpen}
+        onOpenChange={setIsModalSelecionarClienteContratoOpen}
+        onContratoIniciado={(_cli, propAprovada) => {
+          setPropostaParaContrato(propAprovada)
+        }}
+        onCriarPropostaParaCliente={(clienteId) => {
+          setClienteCriarPropostaId(clienteId)
+          setIsNovaPropostaOpen(true)
+        }}
       />
       {clientePropostaContrato && propostaParaContrato && (
         <ModalGerarContratoOM
