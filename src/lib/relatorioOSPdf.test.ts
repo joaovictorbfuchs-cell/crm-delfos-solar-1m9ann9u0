@@ -115,7 +115,7 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
   })
 
   it('renderiza blocos dinâmicos e pendências customizadas quando informados', () => {
-    const html = gerarHtmlRelatorioOS({
+    const html = gerarHTMLRelatorioOS({
       os: {
         id: 'os-blocos-123',
         numero_os: '999',

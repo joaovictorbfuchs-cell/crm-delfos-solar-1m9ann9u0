@@ -30,6 +30,7 @@ const LazyBotaoBaixarRelatorioFicha = React.lazy(
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft,
@@ -56,6 +57,9 @@ import {
   Loader2,
   Send,
   Trash2,
+  Plus,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 const LazyModalEnviarRelatorioCliente = React.lazy(
   () => import('@/components/ModalEnviarRelatorioCliente'),
@@ -122,6 +126,7 @@ import {
   getTipoAtividadeConfig,
   ATIVIDADES_PADRAO,
   encontrarMatchTipoCustom,
+  BLOCOS_RELATORIO_LIMPEZA_PADRAO,
 } from '@/constants/atividadesTipos'
 import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import { fetchUsinasByClienteId } from '@/services/crmService'
@@ -438,6 +443,49 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // 5. Detalhes da execução
   const [detalhesExecucao, setDetalhesExecucao] = useState<string>(os.detalhes_execucao || '')
 
+  // 6. Blocos do Relatório Técnico e Pendências/Recomendações
+  const extrairBlocosIniciais = (
+    rawBlocos: unknown,
+  ): import('@/types/crm').BlocoRelatorioTipoItem[] => {
+    let parsed: any[] = []
+    if (Array.isArray(rawBlocos)) {
+      parsed = rawBlocos
+    } else if (typeof rawBlocos === 'string' && rawBlocos.trim()) {
+      try {
+        const json = JSON.parse(rawBlocos)
+        if (Array.isArray(json)) parsed = json
+      } catch {
+        parsed = []
+      }
+    }
+    return parsed
+      .filter((b) => b && (typeof b.texto === 'string' || typeof b.titulo === 'string'))
+      .map((b, idx) => ({
+        id: String(b.id || `bloco-${Date.now()}-${idx}`),
+        titulo: String(b.titulo || ''),
+        texto: String(b.texto || ''),
+        ordem: typeof b.ordem === 'number' ? b.ordem : idx + 1,
+      }))
+  }
+
+  const [blocosRelatorio, setBlocosRelatorio] = useState<
+    import('@/types/crm').BlocoRelatorioTipoItem[]
+  >(() => extrairBlocosIniciais(os.blocos_relatorio))
+  const [pendenciasRecomendacoes, setPendenciasRecomendacoes] = useState<string>(
+    typeof os.pendencias_recomendacoes === 'string' ? os.pendencias_recomendacoes : '',
+  )
+
+  // Sincronizar blocos e pendências quando a OS for atualizada externamente
+  useEffect(() => {
+    const blocosDaOs = extrairBlocosIniciais(os.blocos_relatorio)
+    if (blocosDaOs.length > 0) {
+      setBlocosRelatorio(blocosDaOs)
+    }
+    if (typeof os.pendencias_recomendacoes === 'string') {
+      setPendenciasRecomendacoes(os.pendencias_recomendacoes)
+    }
+  }, [os?.id, os?.blocos_relatorio, os?.pendencias_recomendacoes])
+
   // Confirmação de Finalização
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -610,6 +658,30 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           }
           return getDefaultChecklist((os?.tipo_servico as any) || 'Manutenção')
         })
+
+        // Inicialização dos Blocos do Relatório a partir do tipo correspondente se a OS ainda não tiver blocos
+        const blocosSalvosNaOs = extrairBlocosIniciais(os?.blocos_relatorio)
+        if (blocosSalvosNaOs.length === 0) {
+          const blocosDoTipo = extrairBlocosIniciais(match?.blocos_relatorio)
+          if (blocosDoTipo.length > 0) {
+            setBlocosRelatorio((curr) => (curr.length === 0 ? blocosDoTipo : curr))
+          } else {
+            // Se for limpeza ou padrão compatível, pode usar o padrão canônico caso ainda não tenha
+            const normNome = String(match?.nome || os?.tipo_servico || os?.tipo || '').toLowerCase()
+            if (normNome.includes('limpeza')) {
+              setBlocosRelatorio((curr) =>
+                curr.length === 0
+                  ? BLOCOS_RELATORIO_LIMPEZA_PADRAO.map((b, idx) => ({
+                      id: b.id || `bloco-${idx + 1}`,
+                      titulo: b.titulo,
+                      texto: b.texto,
+                      ordem: b.ordem || idx + 1,
+                    }))
+                  : curr,
+              )
+            }
+          }
+        }
       })
       .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
       .finally(() => setLoadingCatalogo(false))
@@ -921,6 +993,44 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
+  // Handlers para edição dos blocos do relatório
+  const handleAdicionarBlocoRelatorio = () => {
+    if (!podeEditarOS) return
+    setBlocosRelatorio((prev) => [
+      ...prev,
+      {
+        id: `bloco-${Date.now()}-${prev.length + 1}`,
+        titulo: '',
+        texto: '',
+        ordem: prev.length + 1,
+      },
+    ])
+  }
+
+  const handleRemoverBlocoRelatorio = (id: string) => {
+    if (!podeEditarOS) return
+    setBlocosRelatorio((prev) =>
+      prev.filter((b) => b.id !== id).map((b, idx) => ({ ...b, ordem: idx + 1 })),
+    )
+  }
+
+  const handleAtualizarBlocoRelatorio = (id: string, campo: 'titulo' | 'texto', valor: string) => {
+    if (!podeEditarOS) return
+    setBlocosRelatorio((prev) => prev.map((b) => (b.id === id ? { ...b, [campo]: valor } : b)))
+  }
+
+  const handleMoverBlocoRelatorio = (index: number, direcao: 'cima' | 'baixo') => {
+    if (!podeEditarOS) return
+    setBlocosRelatorio((prev) => {
+      const targetIndex = direcao === 'cima' ? index - 1 : index + 1
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev
+      const novaLista = [...prev]
+      const [removido] = novaLista.splice(index, 1)
+      novaLista.splice(targetIndex, 0, removido)
+      return novaLista.map((b, idx) => ({ ...b, ordem: idx + 1 }))
+    })
+  }
+
   // Salvar rascunho / alterações intermediárias
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const handleSalvarRascunho = async () => {
@@ -937,11 +1047,20 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     try {
       const filesToUpload = novasFotos.map((nf) => nf.file)
       const targetInstalador = instaladores.find((i) => i.id === responsavelId)
+      const blocosPayload = blocosRelatorio.map((b, idx) => ({
+        id: b.id,
+        titulo: b.titulo.trim(),
+        texto: b.texto.trim(),
+        ordem: typeof b.ordem === 'number' ? b.ordem : idx + 1,
+      }))
+
       const payload: Partial<OrdemServico> = {
         instrucoes: instrucoesTexto,
         checklist,
         detalhes_execucao: detalhesExecucao,
         usina_id: selectedUsinaId || undefined,
+        blocos_relatorio: blocosPayload,
+        pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
       }
       if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
         payload.responsavel_usuario_id = responsavelId
@@ -1291,10 +1410,19 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   .join(', ')
               : undefined
 
+        const blocosParaSalvar = blocosRelatorio.map((b, idx) => ({
+          id: b.id,
+          titulo: b.titulo.trim(),
+          texto: b.texto.trim(),
+          ordem: typeof b.ordem === 'number' ? b.ordem : idx + 1,
+        }))
+
         const osAtualizadaParaPdf: OrdemServico = {
           ...os,
           checklist,
           detalhes_execucao: detalhesExecucao,
+          blocos_relatorio: blocosParaSalvar,
+          pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
           concluida_em: new Date().toISOString(),
           status: 'concluida',
         }
@@ -1315,9 +1443,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         )
       }
 
+      const blocosFinalizacao = blocosRelatorio.map((b, idx) => ({
+        id: b.id,
+        titulo: b.titulo.trim(),
+        texto: b.texto.trim(),
+        ordem: typeof b.ordem === 'number' ? b.ordem : idx + 1,
+      }))
+
       const finalized = await finalizarOrdemServico(os.id, {
         checklist,
         detalhes_execucao: detalhesExecucao,
+        blocos_relatorio: blocosFinalizacao,
+        pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
         newPhotos: filesToUpload.length > 0 ? filesToUpload : undefined,
         relatorioPdfFile,
         cliente_id: os.cliente_id,
@@ -2246,6 +2383,149 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           placeholder="Ex: Realizada lavagem de 30 placas com água deionizada. Medições de Voc em 385V string 1 e 390V string 2. Inversor operando com geração nominal de 11.8 kW. Nenhum hotspot detectado na termografia..."
           className="min-h-[130px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y disabled:opacity-75 disabled:cursor-not-allowed"
         />
+      </div>
+
+      {/* 6. CONTEÚDO DO RELATÓRIO TÉCNICO (BLOCOS DINÂMICOS & PENDÊNCIAS) */}
+      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-wrap gap-2">
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
+              <FileCode2 className="w-5 h-5 text-emerald-600" />
+              6. Conteúdo do Relatório Técnico
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Blocos de texto renderizados no relatório para o cliente (web, PDF e impressão).
+            </p>
+          </div>
+          {podeEditarOS && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAdicionarBlocoRelatorio}
+              className="h-8 text-xs font-semibold border-emerald-300 text-emerald-800 hover:bg-emerald-50 inline-flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Adicionar Bloco</span>
+            </Button>
+          )}
+        </div>
+
+        {/* Lista de Blocos Editáveis */}
+        <div className="space-y-3">
+          {blocosRelatorio.length > 0 ? (
+            blocosRelatorio.map((bloco, idx) => (
+              <div
+                key={bloco.id || idx}
+                className="bg-gray-50/80 border border-gray-200 rounded-xl p-3 sm:p-4 space-y-2.5 relative group"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-[11px] font-bold text-slate-500 bg-white border border-gray-200 px-2 py-0.5 rounded-md shrink-0">
+                      Bloco #{idx + 1}
+                    </span>
+                    <Input
+                      type="text"
+                      value={bloco.titulo}
+                      onChange={(e) =>
+                        handleAtualizarBlocoRelatorio(bloco.id, 'titulo', e.target.value)
+                      }
+                      disabled={!podeEditarOS}
+                      placeholder="Título do bloco (opcional, ex: Metodologia, Diagnóstico, Produtos)"
+                      className="h-8 text-xs sm:text-sm font-semibold bg-white border-gray-200 rounded-lg flex-1"
+                    />
+                  </div>
+
+                  {podeEditarOS && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleMoverBlocoRelatorio(idx, 'cima')}
+                        disabled={idx === 0}
+                        title="Subir bloco"
+                        className="w-7 h-7 rounded-md bg-white border border-gray-200 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center text-slate-600 transition-colors"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoverBlocoRelatorio(idx, 'baixo')}
+                        disabled={idx === blocosRelatorio.length - 1}
+                        title="Descer bloco"
+                        className="w-7 h-7 rounded-md bg-white border border-gray-200 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center text-slate-600 transition-colors"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoverBlocoRelatorio(bloco.id)}
+                        title="Remover bloco"
+                        className="w-7 h-7 rounded-md bg-white border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <Textarea
+                  value={bloco.texto}
+                  onChange={(e) => handleAtualizarBlocoRelatorio(bloco.id, 'texto', e.target.value)}
+                  disabled={!podeEditarOS}
+                  placeholder="Conteúdo descritivo do bloco no relatório..."
+                  className="min-h-[80px] text-xs sm:text-sm bg-white border-gray-200 rounded-lg p-2.5 leading-relaxed resize-y disabled:opacity-75 disabled:cursor-not-allowed"
+                />
+              </div>
+            ))
+          ) : (
+            <div className="py-6 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-center p-4">
+              <FileCode2 className="w-8 h-8 text-gray-300 mb-1.5" />
+              <p className="text-xs sm:text-sm font-semibold text-gray-600">
+                Nenhum bloco de texto cadastrado para este relatório
+              </p>
+              <p className="text-[11px] text-gray-400 max-w-sm mt-0.5">
+                Você pode adicionar seções descritivas customizadas que aparecerão logo após o
+                checklist no relatório.
+              </p>
+              {podeEditarOS && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAdicionarBlocoRelatorio}
+                  className="mt-3 h-8 text-xs font-semibold border-emerald-300 text-emerald-800 hover:bg-emerald-50 inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar primeiro bloco</span>
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Campo de Texto Livre: Pendências e Recomendações */}
+        <div className="pt-2 border-t border-gray-100 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <span>Pendências e Recomendações</span>
+              <span className="text-[11px] font-normal text-gray-400">(Opcional)</span>
+            </label>
+            <span className="text-[11px] text-gray-400">
+              {pendenciasRecomendacoes.length} caracteres
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-500 leading-relaxed">
+            Se preenchido, este texto livre substituirá a mensagem padrão de conformidade no
+            relatório final entregue ao cliente.
+          </p>
+          <Textarea
+            value={pendenciasRecomendacoes}
+            onChange={(e) => setPendenciasRecomendacoes(e.target.value)}
+            disabled={!podeEditarOS}
+            placeholder="Ex: Identificado conector MC4 com leve oxidação no módulo 12; recomendamos substituição na próxima visita preventiva. Módulos limpos com sucesso, sem pendências operacionais imediatas."
+            className="min-h-[100px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y disabled:opacity-75 disabled:cursor-not-allowed"
+          />
+        </div>
       </div>
 
       {/* Banner de Aviso de Somente Leitura pós-conclusão para Não-Admin */}
