@@ -1183,8 +1183,9 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
               </span>
             </div>
             <p className="text-[11px] text-sky-800/80 leading-relaxed">
-              Blocos descritivos e técnicos deste tipo de atividade que renderizam no Relatório da OS logo após o checklist.
-              A equipe de campo pode editar os textos na OS sem alterar o padrão da matriz.
+              Blocos descritivos e técnicos deste tipo de atividade que renderizam no Relatório da
+              OS logo após o checklist. A equipe de campo pode editar os textos na OS sem alterar o
+              padrão da matriz.
             </p>
 
             {/* Inclusão de novo bloco de relatório */}
@@ -1264,7 +1265,9 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                       </div>
                       <button
                         type="button"
-                        onClick={() => setBlocosRelatorio((prev) => prev.filter((_, i) => i !== idx))}
+                        onClick={() =>
+                          setBlocosRelatorio((prev) => prev.filter((_, i) => i !== idx))
+                        }
                         className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer"
                         title="Remover bloco do relatório"
                       >
@@ -1288,7 +1291,8 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
               </div>
             ) : (
               <p className="text-[11px] text-sky-800/70 italic">
-                Nenhum bloco de texto pré-cadastrado. Se deixar vazio, o relatório deste tipo será enxuto (sem blocos fixos).
+                Nenhum bloco de texto pré-cadastrado. Se deixar vazio, o relatório deste tipo será
+                enxuto (sem blocos fixos).
               </p>
             )}
           </div>
