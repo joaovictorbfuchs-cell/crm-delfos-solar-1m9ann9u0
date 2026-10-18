@@ -98,9 +98,7 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).toContain('Inspeção visual dos módulos solares')
     expect(html).toContain('Reaperto dos conectores MC4 e quadros CA/CC')
     expect(html).toContain('Executado integralmente')
-
-    // Observações / Resultado em poucas palavras
-    expect(html).toContain('Limpeza de 18 módulos realizada com água desmineralizada')
+    expect(html).not.toContain('Avaliação dos componentes do sistema')
 
     // Fotos
     expect(html).toContain('data:image/jpeg;base64,/9j/4AAQSkZJRg==')
@@ -114,5 +112,31 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(file.name).toBe('Relatorio_OS_123456.pdf')
     expect(file.type).toBe('application/pdf')
     expect(file.size).toBeGreaterThan(0)
+  })
+
+  it('renderiza blocos dinâmicos e pendências customizadas quando informados', () => {
+    const html = gerarHtmlRelatorioOS({
+      os: {
+        id: 'os-blocos-123',
+        numero_os: '999',
+        tipo: 'manutencao_preventiva',
+        blocos_relatorio: [
+          {
+            id: 'b1',
+            titulo: 'Diagnóstico Geral',
+            texto: 'Inversor operando com 98% de rendimento.',
+          },
+          { id: 'b2', titulo: '', texto: 'Parágrafo descritivo sem título específico.' },
+          { id: 'b3', titulo: 'Bloco Vazio', texto: '   ' },
+        ],
+        pendencias_recomendacoes: 'Substituir conector MC4 da string 2 na próxima semana.',
+      } as any,
+    })
+
+    expect(html).toContain('DIAGNÓSTICO GERAL')
+    expect(html).toContain('Inversor operando com 98% de rendimento.')
+    expect(html).toContain('Parágrafo descritivo sem título específico.')
+    expect(html).not.toContain('Bloco Vazio')
+    expect(html).toContain('Substituir conector MC4 da string 2 na próxima semana.')
   })
 })

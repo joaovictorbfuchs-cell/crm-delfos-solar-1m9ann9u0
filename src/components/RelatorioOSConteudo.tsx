@@ -489,10 +489,10 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 5. Serviços Executados e Condição do Sistema por Componente (Unificados) */}
+        {/* 5. Serviços executados */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
           <h3 className="m-0 mb-4 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
-            Serviços executados e condição do sistema por componente
+            Serviços executados
           </h3>
 
           <div className="overflow-x-auto">
@@ -575,60 +575,23 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             </div>
           </div>
 
-          {/* Avaliação dos 6 componentes canônicos na mesma seção */}
-          <div className="mt-6 pt-5 border-t border-[#EBF0F7]">
-            <h4 className="m-0 mb-3 text-sm font-bold text-[#0E2A47] uppercase tracking-wider">
-              Avaliação dos componentes do sistema
-            </h4>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm border border-[#DDE4EE] rounded-lg overflow-hidden custom-rel-table">
-                <thead>
-                  <tr className="bg-[#F1F5F9] text-[#0E2A47] print-color-exact">
-                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                      Componente
-                    </th>
-                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                      Abrangência / Método
-                    </th>
-                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                      Condição observada
-                    </th>
-                    <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                      Evidência
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {relatorio.componentes.map((comp, idx) => (
-                    <tr
-                      key={idx}
-                      className={`border-b border-[#DDE4EE] ${
-                        idx % 2 === 1 ? 'bg-[#FAFCFE]' : 'bg-white'
-                      }`}
-                    >
-                      <td data-label="Componente" className="p-3 text-xs sm:text-sm">
-                        <strong className="text-[#0E2A47] font-bold">{comp.componente}</strong>
-                      </td>
-                      <td
-                        data-label="Abrangência / Método"
-                        className="p-3 text-xs sm:text-sm text-[#536377]"
-                      >
-                        {comp.abrangencia}
-                      </td>
-                      <td data-label="Condição observada" className="p-3 text-xs sm:text-sm">
-                        <span className="inline-block bg-[#EBF3FC] text-[#0F5195] border border-[#B9D5F5] font-semibold text-xs px-2 py-0.5 rounded-md print-color-exact">
-                          {comp.condicao}
-                        </span>
-                      </td>
-                      <td data-label="Evidência" className="p-3 text-xs sm:text-sm text-[#536377]">
-                        {comp.evidencia}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Blocos do relatório configurados na OS (logo após a tabela do checklist) */}
+          {relatorio.blocosRelatorio && relatorio.blocosRelatorio.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-[#EBF0F7] space-y-4">
+              {relatorio.blocosRelatorio.map((bloco) => (
+                <div key={bloco.id} className="bg-[#F8FAFD] border border-[#E2E8F0] rounded-lg p-4">
+                  {bloco.titulo && (
+                    <h4 className="m-0 mb-1.5 text-xs font-bold text-[#0E2A47] uppercase tracking-wider">
+                      {bloco.titulo}
+                    </h4>
+                  )}
+                  <p className="m-0 text-xs sm:text-sm text-[#2C3E50] leading-relaxed whitespace-pre-wrap">
+                    {bloco.texto}
+                  </p>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </section>
 
         {/* 6. Registro Fotográfico */}
@@ -694,10 +657,16 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           <h3 className="m-0 mb-3 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
             Pendências e recomendações
           </h3>
-          <div className="bg-[#F1F9F4] border border-[#B8E4C7] rounded-lg p-3.5 text-[#0E5325] text-sm print-color-exact">
-            <strong className="font-bold">✓ Conformidade técnica:</strong>{' '}
-            {relatorio.conformidadeTecnica}
-          </div>
+          {relatorio.pendenciasRecomendacoes ? (
+            <div className="bg-[#F8FAFD] border border-[#DDE4EE] rounded-lg p-3.5 text-[#1A2332] text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+              {relatorio.pendenciasRecomendacoes}
+            </div>
+          ) : (
+            <div className="bg-[#F1F9F4] border border-[#B8E4C7] rounded-lg p-3.5 text-[#0E5325] text-sm print-color-exact">
+              <strong className="font-bold">✓ Conformidade técnica:</strong>{' '}
+              {relatorio.conformidadeTecnica}
+            </div>
+          )}
           <div className="mt-3.5 text-sm font-semibold text-[#0E2A47]">
             📅 Próxima manutenção prevista:{' '}
             <strong className="font-bold">{relatorio.proximaManutencao}</strong> (semestral,

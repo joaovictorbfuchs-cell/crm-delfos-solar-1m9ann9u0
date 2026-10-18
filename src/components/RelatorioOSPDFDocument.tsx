@@ -753,41 +753,50 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             </View>
           </View>
 
-          {/* Avaliação dos 6 componentes do sistema */}
-          <View
-            style={{ marginTop: 10, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#EBF0F7' }}
-          >
-            <Text
-              style={[
-                styles.sectionTitle,
-                { fontSize: 8.5, marginBottom: 4, textTransform: 'uppercase' },
-              ]}
+          {/* Blocos do relatório configurados na OS (logo após a tabela do checklist) */}
+          {relatorio.blocosRelatorio && relatorio.blocosRelatorio.length > 0 && (
+            <View
+              style={{ marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#EBF0F7' }}
             >
-              Avaliação dos componentes do sistema
-            </Text>
-            <View style={styles.tableHeaderRow}>
-              <Text style={[styles.thText, { flex: 2.5 }]}>Componente</Text>
-              <Text style={[styles.thText, { flex: 2 }]}>Abrangência / Método</Text>
-              <Text style={[styles.thText, { flex: 3 }]}>Condição observada</Text>
-              <Text style={[styles.thText, { flex: 1.5 }]}>Evidência</Text>
-            </View>
-            {relatorio.componentes.map((comp, idx) => (
-              <View key={idx} style={idx % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
-                <Text style={[styles.tdText, { flex: 2.5, fontFamily: 'Helvetica-Bold' }]}>
-                  {comp.componente}
-                </Text>
-                <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>
-                  {comp.abrangencia}
-                </Text>
-                <View style={{ flex: 3, alignItems: 'flex-start' }}>
-                  <Text style={styles.badgeNormal}>{comp.condicao}</Text>
+              {relatorio.blocosRelatorio.map((bloco) => (
+                <View
+                  key={bloco.id}
+                  style={{
+                    backgroundColor: '#F8FAFD',
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0',
+                    borderRadius: 4,
+                    padding: 6,
+                    marginBottom: 5,
+                  }}
+                >
+                  {bloco.titulo ? (
+                    <Text
+                      style={{
+                        fontSize: 7.5,
+                        fontFamily: 'Helvetica-Bold',
+                        color: '#0E2A47',
+                        textTransform: 'uppercase',
+                        marginBottom: 2,
+                      }}
+                    >
+                      {bloco.titulo}
+                    </Text>
+                  ) : null}
+                  <Text
+                    style={{
+                      fontSize: 7.2,
+                      fontFamily: 'Helvetica',
+                      color: '#2C3E50',
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {bloco.texto}
+                  </Text>
                 </View>
-                <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>
-                  {comp.evidencia}
-                </Text>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* 6. Registro Fotográfico */}
@@ -815,11 +824,35 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
         {/* 7. Pendências e Recomendações */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Pendências e recomendações</Text>
-          <View style={styles.boxSuccess}>
-            <Text style={{ fontFamily: 'Helvetica-Bold' }}>
-              ✓ Conformidade técnica: {relatorio.conformidadeTecnica}
-            </Text>
-          </View>
+          {relatorio.pendenciasRecomendacoes ? (
+            <View
+              style={{
+                backgroundColor: '#F8FAFD',
+                borderWidth: 1,
+                borderColor: '#DDE4EE',
+                borderRadius: 4,
+                padding: 6,
+                marginBottom: 6,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: 'Helvetica',
+                  fontSize: 7.5,
+                  color: '#1A2332',
+                  lineHeight: 1.4,
+                }}
+              >
+                {relatorio.pendenciasRecomendacoes}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.boxSuccess}>
+              <Text style={{ fontFamily: 'Helvetica-Bold' }}>
+                ✓ Conformidade técnica: {relatorio.conformidadeTecnica}
+              </Text>
+            </View>
+          )}
           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#0E2A47' }}>
             📅 Próxima manutenção prevista: {relatorio.proximaManutencao} (semestral, conforme plano
             de manutenção).

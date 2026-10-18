@@ -201,20 +201,21 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     )
     .join('')
 
-  const componentesRowsHtml = rel.componentes
-    .map(
-      (c) => `
-    <tr>
-      <td data-label="Componente" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; font-weight: 700; color: #0E2A47;">${c.componente}</td>
-      <td data-label="Abrangência / Método" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${c.abrangencia}</td>
-      <td data-label="Condição observada" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE;">
-        <span style="display: inline-block; background: #EBF3FC; color: #0F5195; border: 1px solid #B9D5F5; font-weight: 600; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px;">${c.condicao}</span>
-      </td>
-      <td data-label="Evidência" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${c.evidencia}</td>
-    </tr>
-  `,
-    )
-    .join('')
+  const blocosRelatorioHtml =
+    rel.blocosRelatorio && rel.blocosRelatorio.length > 0
+      ? `<div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #E2E8F0;">
+        ${rel.blocosRelatorio
+          .map(
+            (b) => `
+          <div style="background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">
+            ${b.titulo ? `<h4 style="margin: 0 0 6px; font-size: 0.82rem; font-weight: 700; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.04em;">${b.titulo}</h4>` : ''}
+            <p style="margin: 0; font-size: 0.85rem; color: #2C3E50; line-height: 1.5; white-space: pre-wrap;">${b.texto}</p>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>`
+      : ''
 
   const fotosCardsHtml = rel.fotos
     .slice(0, 3)
@@ -478,9 +479,9 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </p>
     </section>
 
-    <!-- 5. Serviços Executados e Condição do Sistema por Componente (Unificados) -->
+    <!-- 5. Serviços executados -->
     <section class="rep-card">
-      <h3 class="section-title">Serviços executados e condição do sistema por componente</h3>
+      <h3 class="section-title">Serviços executados</h3>
       <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
         <thead>
           <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
@@ -505,21 +506,8 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
         </div>
       </div>
 
-      <!-- Avaliação dos 6 componentes canônicos -->
-      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #E2E8F0;">
-        <h4 style="margin: 0 0 10px; font-size: 0.88rem; font-weight: 700; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.04em;">Avaliação dos componentes do sistema</h4>
-        <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-          <thead>
-            <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
-              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Componente</th>
-              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Abrangência / Método</th>
-              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Condição observada</th>
-              <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Evidência</th>
-            </tr>
-          </thead>
-          <tbody>${componentesRowsHtml}</tbody>
-        </table>
-      </div>
+      <!-- Blocos do relatório configurados na OS (logo após a tabela do checklist) -->
+      ${blocosRelatorioHtml}
     </section>
 
     <!-- 6. Registro Fotográfico -->
@@ -531,9 +519,15 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     <!-- 7. Pendências e Recomendações -->
     <section class="rep-card">
       <h3 class="section-title">Pendências e recomendações</h3>
-      <div style="background: #F1F9F4; border: 1px solid #B8E4C7; border-radius: 8px; padding: 12px 14px; color: #0E5325; font-size: 0.88rem;">
+      ${
+        rel.pendenciasRecomendacoes
+          ? `<div style="background: #F8FAFD; border: 1px solid #DDE4EE; border-radius: 8px; padding: 12px 14px; color: #1A2332; font-size: 0.88rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 8px;">
+        ${rel.pendenciasRecomendacoes}
+      </div>`
+          : `<div style="background: #F1F9F4; border: 1px solid #B8E4C7; border-radius: 8px; padding: 12px 14px; color: #0E5325; font-size: 0.88rem;">
         <strong>✓ Conformidade técnica:</strong> ${rel.conformidadeTecnica}
-      </div>
+      </div>`
+      }
       <div style="margin-top: 10px; font-size: 0.88rem; font-weight: 600; color: var(--navy-dark);">
         📅 Próxima manutenção prevista: <strong>${rel.proximaManutencao}</strong> (semestral, conforme plano de manutenção).
       </div>

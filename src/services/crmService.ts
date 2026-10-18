@@ -4443,6 +4443,8 @@ export async function finalizarOrdemServico(
   dadosFinalizacao: {
     checklist?: import('@/types/crm').OSChecklistItem[]
     detalhes_execucao: string
+    blocos_relatorio?: import('@/types/crm').BlocoRelatorioTipoItem[]
+    pendencias_recomendacoes?: string
     newPhotos?: File[]
     relatorioPdfFile?: File
     cliente_id?: string
@@ -4459,6 +4461,12 @@ export async function finalizarOrdemServico(
   }
   if (dadosFinalizacao.checklist) {
     payload.checklist = dadosFinalizacao.checklist
+  }
+  if (dadosFinalizacao.blocos_relatorio !== undefined) {
+    payload.blocos_relatorio = dadosFinalizacao.blocos_relatorio
+  }
+  if (dadosFinalizacao.pendencias_recomendacoes !== undefined) {
+    payload.pendencias_recomendacoes = dadosFinalizacao.pendencias_recomendacoes
   }
   if (dadosFinalizacao.origem) {
     payload.origem = dadosFinalizacao.origem
