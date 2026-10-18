@@ -82,26 +82,40 @@ export interface CentralAtividadesData {
  * 3. 'administrativo_pos_venda' -> Atividades Administrativas
  */
 /**
- * Helper com critério estrutural (por campos, nunca por texto de título) para determinar
- * se um registro da coleção 'atividades' é válido para exibição na Central de Atividades.
- *
- * Regras:
- * a) Excluir qualquer registro onde tipo, subtipo ou tipo_unificado seja 'mudanca_estagio'.
- * b) Excluir tipo='anotacao' com autor='Sistema Delfos' e status='concluida' sem data agendada
- *    (registros automáticos de mesclagem de clientes).
- * c) Excluir tipo='anotacao' com autor OU responsavel_nome='IA Extrator Delfos' sem data
- *    (dados importados por extração de documento).
- * d) Excluir QUALQUER registro sem o campo atv.data preenchido — regra do usuário:
- *    "somente as que têm prazo". Por isso, a extração de data NUNCA deve usar fallback
- *    para atv.created: dataStr = atv.data apenas.
+ * Conjunto canônico de tipos de logs comerciais de envio/geração de documentos
+ * que não possuem prazo de execução de tarefa e pertencem exclusivamente
+ * ao histórico do cliente (não devem poluir a Central nem o Calendário).
  */
-export function isRegistroValidoCentral(atv: Atividade): boolean {
+export const TIPOS_LOGS_COMERCIAIS_IGNORADOS: ReadonlySet<string> = new Set([
+  'proposta',
+  'gerar_procuracao',
+  'gerar_contrato',
+  'orcamento',
+  'mensagem_enviada',
+])
+
+/**
+ * Helper com critério estrutural (por campos, nunca por texto de título) para determinar
+ * se um registro é válido para exibição na Central de Atividades e no Calendário.
+ *
+ * Regras do usuário:
+ * a) Excluir qualquer registro onde tipo, subtipo ou tipo_unificado seja 'mudanca_estagio'.
+ * b) Excluir registros da 'timeline_om' (interações e relatórios automáticos).
+ * c) Excluir logs comerciais de envio/geração ('proposta', 'gerar_procuracao', 'gerar_contrato', 'orcamento', 'mensagem_enviada').
+ * d) Excluir tipo='anotacao' com autor='Sistema Delfos' e status='concluida' sem data agendada (mesclagem de clientes).
+ * e) Excluir tipo='anotacao' com autor OU responsavel_nome='IA Extrator Delfos' sem data (extração de documento).
+ * f) Excluir QUALQUER registro sem o campo data preenchido — regra do usuário:
+ *    "somente as que têm prazo para executar". A data NUNCA deve usar fallback para created.
+ */
+export function isRegistroValidoCentral(
+  atv: Atividade | CentralAtividadeItem | Partial<Atividade & CentralAtividadeItem>,
+): boolean {
   if (!atv) return false
 
   // a) Excluir registros de mudança de etapa do funil
-  const tipoStr = (atv.tipo || '').toString().toLowerCase().trim()
-  const subtipoStr = (atv.subtipo || '').toString().toLowerCase().trim()
-  const tipoUnificadoStr = (atv.tipo_unificado || '').toString().toLowerCase().trim()
+  const tipoStr = ((atv as any).tipo || (atv as any).tipoId || '').toString().toLowerCase().trim()
+  const subtipoStr = ((atv as any).subtipo || '').toString().toLowerCase().trim()
+  const tipoUnificadoStr = ((atv as any).tipo_unificado || '').toString().toLowerCase().trim()
   if (
     tipoStr === 'mudanca_estagio' ||
     subtipoStr === 'mudanca_estagio' ||
@@ -110,15 +124,36 @@ export function isRegistroValidoCentral(atv: Atividade): boolean {
     return false
   }
 
-  // d) Excluir QUALQUER registro sem o campo atv.data preenchido ("somente as que têm prazo")
+  // b) Excluir registros da timeline_om (interações automáticas / relatórios de histórico)
+  const origemStr = ((atv as any).origem || (atv as any).fonte || '')
+    .toString()
+    .toLowerCase()
+    .trim()
+  if (origemStr === 'timeline_om' || tipoStr === 'timeline_om') {
+    return false
+  }
+
+  // c) Excluir logs comerciais de envio/geração de documentos sem prazo de execução de tarefa
+  if (
+    TIPOS_LOGS_COMERCIAIS_IGNORADOS.has(tipoStr) ||
+    TIPOS_LOGS_COMERCIAIS_IGNORADOS.has(subtipoStr) ||
+    TIPOS_LOGS_COMERCIAIS_IGNORADOS.has(tipoUnificadoStr)
+  ) {
+    return false
+  }
+
+  // d) Excluir QUALQUER registro sem o campo data preenchido ("somente as que têm prazo para executar")
   const dataPreenchida = typeof atv.data === 'string' && atv.data.trim() !== ''
   if (!dataPreenchida) {
     return false
   }
 
-  // b) Excluir mesclagem de clientes: anotacao + Sistema Delfos + concluída sem data agendada
-  const autorStr = (atv.autor || '').trim()
-  const statusStr = (atv.status || '').toString().toLowerCase().trim()
+  // e) Excluir mesclagem de clientes: anotacao + Sistema Delfos + concluída sem data agendada
+  const autorStr = ((atv as any).autor || '').trim()
+  const statusStr = ((atv as any).statusRaw || (atv as any).status || '')
+    .toString()
+    .toLowerCase()
+    .trim()
   if (
     tipoStr === 'anotacao' &&
     autorStr === 'Sistema Delfos' &&
@@ -127,8 +162,8 @@ export function isRegistroValidoCentral(atv: Atividade): boolean {
     return false
   }
 
-  // c) Excluir importação/extração de documentos: anotacao + IA Extrator Delfos
-  const respStr = (atv.responsavel_nome || '').trim()
+  // f) Excluir importação/extração de documentos: anotacao + IA Extrator Delfos
+  const respStr = ((atv as any).responsavel_nome || (atv as any).responsavel || '').trim()
   if (
     tipoStr === 'anotacao' &&
     (autorStr === 'IA Extrator Delfos' || respStr === 'IA Extrator Delfos')
@@ -616,52 +651,9 @@ export async function carregarCentralAtividades(
     }
   }
 
-  // E. Linha do Tempo O&M (coleção 'timeline_om') com FALLBACK de leitura
-  if (timelineOMRes.status === 'fulfilled') {
-    for (const t of timelineOMRes.value) {
-      const chaveImportacao = `timeline_om_${t.id}`
-      const chavePiloto = `piloto-timeline_om-${t.id}`
-      const chavePiloto2 = `piloto2-timeline_om-${t.id}`
-      const chaveSuffix = `timeline_om-${t.id}`
-      const jaExiste =
-        chavesUnificadasSet.has(chaveImportacao) ||
-        chavesUnificadasSet.has(chavePiloto) ||
-        chavesUnificadasSet.has(chavePiloto2) ||
-        Array.from(chavesUnificadasSet).some((k) => k.endsWith(chaveSuffix))
-      if (jaExiste) {
-        continue // Já lido da estrutura unificada
-      }
-
-      const dataStr = t.data || t.created
-      const cliNome = getClienteNome(t.cliente_id)
-      const usinaNome = getUsinaNome(undefined, t.cliente_id)
-      const responsavel = t.autor || 'Equipe Delfos'
-
-      items.push({
-        id: `timeline_${t.id}`,
-        origemId: t.id,
-        registroOriginalId: t.id,
-        fonte: 'timeline_om',
-        categoriaId: 'administrativo_pos_venda',
-        categoriaNome: 'Administrativas',
-        tipoAtividade: `Linha do Tempo O&M: ${t.tipo || 'Registro'}`,
-        tipoId: 'timeline_om',
-        subtipo: t.tipo,
-        origem: 'timeline_om',
-        chaveImportacao,
-        clienteId: t.cliente_id,
-        clienteNome: cliNome,
-        usinaNome,
-        status: formatarStatus(t.status_tag || 'registrado'),
-        statusRaw: t.status_tag || 'registrado',
-        responsavel,
-        data: dataStr,
-        titulo: t.titulo || 'Registro da Linha do Tempo O&M',
-        descricao: t.descricao,
-        rotaOriginal: t.cliente_id ? `/clientes?openId=${t.cliente_id}&tab=om` : '/manutencoes',
-      })
-    }
-  }
+  // E. Linha do Tempo O&M (coleção 'timeline_om'):
+  // Excluída por decisão do usuário — registros de timeline_om são interações automáticas
+  // e relatórios históricos sem prazo de execução de tarefa; pertencem unicamente ao histórico do cliente.
 
   // F. Anomalias O&M (coleção 'anomalias_om') com FALLBACK de leitura
   if (anomaliasOMRes.status === 'fulfilled') {

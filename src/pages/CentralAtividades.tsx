@@ -58,6 +58,7 @@ import {
   filtrarCentralAtividades,
   bulkAtualizarResponsavelCentral,
   bulkExcluirItensCentral,
+  isRegistroValidoCentral,
   type CentralAtividadeItem,
   type CentralAtividadeFonte,
   type CentralAtividadesFiltros,
@@ -293,10 +294,10 @@ export default function CentralAtividadesPage() {
   }, [allItems])
 
   // Converter itens da central para o formato Atividade esperado pelo AtividadesCalendario
-  // Somente itens que possuem data válida/preenchida vão para o calendário (sem fallback de created)
+  // Aplica a mesma regra de validação isRegistroValidoCentral para garantir consistência total
   const atividadesParaCalendario = useMemo<Atividade[]>(() => {
     return filteredItems
-      .filter((it) => typeof it.data === 'string' && it.data.trim() !== '')
+      .filter((it) => isRegistroValidoCentral(it))
       .map((it) => {
         const atividadeNativaEditavel = it.fonte === 'atividade' && !it.id.startsWith('unif_')
         return {

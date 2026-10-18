@@ -18,6 +18,7 @@ import { formatDateTime } from '@/lib/formatters'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { updateAtividade } from '@/services/crmService'
+import { isRegistroValidoCentral } from '@/services/centralAtividadesService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { useToast } from '@/hooks/use-toast'
 import { ModalDetalhesAtividade } from './ModalDetalhesAtividade'
@@ -232,11 +233,11 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
     })
   }, [atividadesMescladas, usuarioSelecionadoId, usuarios])
 
-  // Agrupamento de atividades por data ISO YYYY-MM-DD
+  // Agrupamento de atividades por data ISO YYYY-MM-DD (aplica isRegistroValidoCentral como blindagem adicional)
   const atividadesPorData = useMemo(() => {
     const map = new Map<string, Atividade[]>()
     for (const atv of atividadesDoUsuario) {
-      if (!atv.data) continue
+      if (!isRegistroValidoCentral(atv)) continue
       const isoDate = atv.data.slice(0, 10)
       const list = map.get(isoDate) || []
       list.push(atv)

@@ -294,6 +294,79 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
   })
 
   describe('isRegistroValidoCentral - filtro de registros de sistema e sem prazo', () => {
+    it('registros de logs comerciais (proposta, gerar_procuracao, gerar_contrato, orcamento, mensagem_enviada) são EXCLUÍDOS', () => {
+      const atvProposta = {
+        id: 'atv_prop_1',
+        tipo: 'proposta',
+        titulo: 'Proposta Comercial Enviada',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvProposta)).toBe(false)
+
+      const atvProcuracao = {
+        id: 'atv_proc_1',
+        tipo: 'gerar_procuracao',
+        titulo: 'Procuração Gerada',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvProcuracao)).toBe(false)
+
+      const atvContrato = {
+        id: 'atv_cont_1',
+        tipo: 'gerar_contrato',
+        titulo: 'Contrato O&M Gerado',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvContrato)).toBe(false)
+
+      const atvOrcamento = {
+        id: 'atv_orc_1',
+        tipo: 'orcamento',
+        titulo: 'Orçamento Criado',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvOrcamento)).toBe(false)
+
+      const atvMensagem = {
+        id: 'atv_msg_1',
+        tipo: 'mensagem_enviada',
+        titulo: 'Mensagem Enviada por WhatsApp',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvMensagem)).toBe(false)
+    })
+
+    it('registros com origem ou tipo timeline_om são EXCLUÍDOS', () => {
+      const atvTimelineOrigem = {
+        id: 'atv_tl_1',
+        tipo: 'outro',
+        origem: 'timeline_om',
+        titulo: 'Proposta O&M enviada por WhatsApp',
+        data: '2026-04-10 10:00:00',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvTimelineOrigem)).toBe(false)
+
+      const atvTimelineTipo = {
+        id: 'atv_tl_2',
+        tipo: 'timeline_om',
+        titulo: 'Proposta O&M atualizada',
+        data: '2026-04-10 10:00:00',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvTimelineTipo)).toBe(false)
+    })
+
     it('mesclagem de clientes (anotacao + Sistema Delfos + concluída sem data) é EXCLUÍDA', () => {
       const atvMesclagemSemData = {
         id: 'atv_mesclagem_1',
@@ -509,7 +582,34 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
           data: '',
           created: '2026-04-01 10:00:00',
         },
-        // 5. Atividade comercial com prazo (deve aparecer)
+        // 5. Log comercial de proposta (deve ser excluído)
+        {
+          id: 'atv_log_proposta',
+          tipo: 'proposta',
+          titulo: 'Proposta Comercial Criada',
+          data: '2026-04-05 10:00:00',
+          status: 'concluida',
+          created: '2026-04-05 10:00:00',
+        },
+        // 6. Log comercial de procuração (deve ser excluído)
+        {
+          id: 'atv_log_procuracao',
+          tipo: 'gerar_procuracao',
+          titulo: 'Procuração O&M Gerada',
+          data: '2026-04-06 10:00:00',
+          status: 'concluida',
+          created: '2026-04-06 10:00:00',
+        },
+        // 7. Log comercial de contrato (deve ser excluído)
+        {
+          id: 'atv_log_contrato',
+          tipo: 'gerar_contrato',
+          titulo: 'Contrato O&M Gerado',
+          data: '2026-04-07 10:00:00',
+          status: 'concluida',
+          created: '2026-04-07 10:00:00',
+        },
+        // 8. Atividade comercial com prazo (deve aparecer)
         {
           id: 'atv_comercial_valida',
           cliente_id: 'c_valid',
@@ -519,7 +619,7 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
           status: 'pendente',
           created: '2026-04-01 10:00:00',
         },
-        // 6. Atividade de manutenção com prazo (deve aparecer)
+        // 9. Atividade de manutenção com prazo (deve aparecer)
         {
           id: 'atv_manut_valida',
           cliente_id: 'c_valid',
@@ -558,6 +658,45 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
       expect(ids).not.toContain('atv_mesclagem')
       expect(ids).not.toContain('atv_ia')
       expect(ids).not.toContain('atv_sem_prazo')
+      expect(ids).not.toContain('atv_log_proposta')
+      expect(ids).not.toContain('atv_log_procuracao')
+      expect(ids).not.toContain('atv_log_contrato')
+    })
+
+    it('itens da coleção timeline_om não entram nos itens consolidados', async () => {
+      vi.spyOn(pb, 'collection').mockImplementation((colName: string) => {
+        return {
+          getFullList: vi.fn().mockImplementation(async () => {
+            if (colName === 'atividades') return []
+            if (colName === 'ordens_servico') return []
+            if (colName === 'manutencoes') return []
+            if (colName === 'servicos_avulsos') return []
+            if (colName === 'timeline_om')
+              return [
+                {
+                  id: 'tl_1',
+                  cliente_id: 'c1',
+                  tipo: 'interacao',
+                  titulo: 'Proposta O&M enviada por WhatsApp',
+                  data: '2026-04-01 10:00:00',
+                  status_tag: 'registrado',
+                  autor: 'Equipe Delfos',
+                  created: '2026-04-01 10:00:00',
+                },
+              ]
+            if (colName === 'anomalias_om') return []
+            if (colName === 'clientes') return [{ id: 'c1', nome: 'Cliente 1' }]
+            if (colName === 'usinas') return []
+            return []
+          }),
+        } as any
+      })
+
+      const data = await carregarCentralAtividades()
+      const timelineItens = data.items.filter(
+        (it) => it.fonte === 'timeline_om' || it.id.includes('tl_1'),
+      )
+      expect(timelineItens).toHaveLength(0)
     })
   })
 })
