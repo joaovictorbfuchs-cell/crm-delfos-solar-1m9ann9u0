@@ -1,7 +1,9 @@
 // Barrel canônico para o SDK PocketBase e utilitários de erro do Delfos
 // Centraliza exports para evitar quebras por importação relativa concorrente
 
-export { default as pb, pb } from './client'
+import pbDefault, { pb } from './client'
+export default pbDefault
+export { pb }
 export {
   isAuthSessionError,
   extractFieldErrors,

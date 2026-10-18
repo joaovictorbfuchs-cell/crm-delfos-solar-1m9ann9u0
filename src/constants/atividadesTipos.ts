@@ -522,6 +522,23 @@ export function deduplicarTiposAtividades(
  *    com match por alias ou nome normalizado do padrão
  * 4. tipo_servico com match por alias ou normalização
  */
+export const BLOCOS_RELATORIO_LIMPEZA_PADRAO = [
+  {
+    id: 'bloco_metodologia_limpeza',
+    titulo: 'Metodologia de Limpeza',
+    texto:
+      'Lavagem técnica com água desmineralizada/filtrada, escovação manual com cerdas macias, sem abrasivos, sem choque térmico nos módulos.',
+    ordem: 1,
+  },
+  {
+    id: 'bloco_produtos_cuidados',
+    titulo: 'Produtos & Cuidados',
+    texto:
+      'Água tratada, sem solventes ou produtos ácidos/alcalinos que degradem o revestimento antirreflexo ou anulem garantias do fabricante.',
+    ordem: 2,
+  },
+]
+
 export function encontrarMatchTipoCustom(
   params: {
     tipo_custom_id?: string | null
@@ -534,6 +551,7 @@ export function encontrarMatchTipoCustom(
     nome: string
     categoria?: string
     checklist?: unknown
+    blocos_relatorio?: unknown
     orientacoes_tecnicas?: string
   }>,
 ): {
@@ -541,6 +559,7 @@ export function encontrarMatchTipoCustom(
   nome: string
   categoria?: string
   checklist?: unknown
+  blocos_relatorio?: unknown
   orientacoes_tecnicas?: string
 } | null {
   if (!Array.isArray(tiposCustom) || tiposCustom.length === 0) return null

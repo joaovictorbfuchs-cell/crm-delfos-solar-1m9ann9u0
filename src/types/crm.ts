@@ -47,6 +47,13 @@ export interface TipoAtividadeChecklistItem {
   concluido?: boolean
 }
 
+export interface BlocoRelatorioTipoItem {
+  id: string
+  titulo: string
+  texto: string
+  ordem: number
+}
+
 export interface TipoAtividadeCustomItem extends RecordModel {
   id: string
   collectionId: string
@@ -64,6 +71,7 @@ export interface TipoAtividadeCustomItem extends RecordModel {
   orientacoes_tecnicas?: string
   links_uteis?: string
   checklist?: TipoAtividadeChecklistItem[]
+  blocos_relatorio?: BlocoRelatorioTipoItem[]
   documento_modelo?: string
   ativo?: boolean
   created: string
@@ -1419,6 +1427,8 @@ export interface OrdemServico extends RecordModel {
   instrucoes?: string
   checklist?: OSChecklistItem[]
   detalhes_execucao?: string
+  blocos_relatorio?: BlocoRelatorioTipoItem[]
+  pendencias_recomendacoes?: string
   fotos?: string[]
   concluida_em?: string
   relatorio_pdf?: string
