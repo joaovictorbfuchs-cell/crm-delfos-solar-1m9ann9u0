@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useToast } from '@/hooks/use-toast'
 import {
   Sheet,
   SheetContent,
@@ -72,9 +73,15 @@ const ITEMS_PER_PAGE = 25
 
 type CentralViewMode = 'tabela' | 'calendario'
 
+function formatarDataHoraInputLocal(data: Date): string {
+  const ajusteFuso = new Date(data.getTime() - data.getTimezoneOffset() * 60_000)
+  return ajusteFuso.toISOString().slice(0, 16)
+}
+
 export default function CentralAtividadesPage() {
   const navigate = useNavigate()
-  const { clientes, openFichaCliente, usuarios } = useClientes()
+  const { clientes, openFichaCliente, usuarios, updateAtividadeStatus } = useClientes()
+  const { toast } = useToast()
 
   // Estado dos dados brutos
   const [loading, setLoading] = useState(true)
@@ -91,7 +98,21 @@ export default function CentralAtividadesPage() {
 
   // Modais
   const [modalNovaAtividadeOpen, setModalNovaAtividadeOpen] = useState(false)
+  const [initialDataHora, setInitialDataHora] = useState<string | undefined>(undefined)
+  const [initialHorarioInicio, setInitialHorarioInicio] = useState<string | undefined>(undefined)
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
+
+  const abrirModalNovaAtividade = (dataSelecionada?: Date) => {
+    const dataInicial = dataSelecionada ? new Date(dataSelecionada) : new Date()
+    // O botão de um dia/mês não informa horário; usar 08:00 como padrão de agenda.
+    if (dataSelecionada && dataInicial.getHours() === 0 && dataInicial.getMinutes() === 0) {
+      dataInicial.setHours(8, 0, 0, 0)
+    }
+    const dataHoraLocal = formatarDataHoraInputLocal(dataInicial)
+    setInitialDataHora(dataHoraLocal)
+    setInitialHorarioInicio(dataHoraLocal.slice(11, 16))
+    setModalNovaAtividadeOpen(true)
+  }
 
   // Drawer lateral de filtros combinados
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
@@ -276,48 +297,70 @@ export default function CentralAtividadesPage() {
   const atividadesParaCalendario = useMemo<Atividade[]>(() => {
     return filteredItems
       .filter((it) => typeof it.data === 'string' && it.data.trim() !== '')
-      .map((it) => ({
-        id: it.origemId || it.id,
-        collectionId: 'atividades',
-        collectionName: 'atividades',
-        cliente_id: it.clienteId || '',
-        responsavel_id: it.responsavelId || '',
-        responsavel_nome: it.responsavel,
-        autor: it.responsavel,
-        tipo: (it.tipoId || it.subtipo || 'contato_ligacao') as any,
-        categoria: it.categoriaId,
-        status: (it.statusRaw === 'concluida' ||
-        it.statusRaw === 'concluido' ||
-        it.status === 'Concluído'
-          ? 'concluida'
-          : 'pendente') as AtividadeStatus,
-        titulo: it.titulo,
-        descricao: it.descricao || '',
-        data: it.data,
-        created: it.data,
-        updated: it.data,
-        expand: it.clienteId
-          ? {
-              cliente_id: {
-                id: it.clienteId,
-                nome: it.clienteNome,
-              } as any,
-            }
-          : undefined,
-      }))
+      .map((it) => {
+        const atividadeNativaEditavel = it.fonte === 'atividade' && !it.id.startsWith('unif_')
+        return {
+          // Itens de outras coleções usam IDs sintéticos e ficam somente para consulta neste calendário.
+          id: atividadeNativaEditavel ? it.origemId : it.id,
+          collectionId: 'atividades',
+          collectionName: atividadeNativaEditavel ? 'atividades' : `central_${it.fonte}`,
+          cliente_id: it.clienteId || '',
+          responsavel_id: it.responsavelId || '',
+          responsavel_nome: it.responsavel,
+          autor: it.responsavel,
+          tipo: (it.tipoId || it.subtipo || 'contato_ligacao') as any,
+          categoria: it.categoriaId,
+          status: (it.statusRaw === 'concluida' ||
+          it.statusRaw === 'concluido' ||
+          it.status === 'Concluído'
+            ? 'concluida'
+            : 'pendente') as AtividadeStatus,
+          titulo: it.titulo,
+          descricao: it.descricao || '',
+          data: it.data,
+          created: it.data,
+          updated: it.data,
+          expand: it.clienteId
+            ? {
+                cliente_id: {
+                  id: it.clienteId,
+                  nome: it.clienteNome,
+                } as any,
+              }
+            : undefined,
+        }
+      })
   }, [filteredItems])
 
   const [usuarioCalendarioFiltro, setUsuarioCalendarioFiltro] = useState<string>('todos')
 
-  // Callback para alternar status pelo calendário
+  // Callback para alternar status apenas em atividades nativas da coleção `atividades`.
   const handleToggleStatusCalendario = async (id: string, currentStatus: string) => {
-    // Procura no ClientesContext se existir a função updateAtividadeStatus
+    const item = allItems.find(
+      (candidate) =>
+        candidate.fonte === 'atividade' &&
+        !candidate.id.startsWith('unif_') &&
+        candidate.origemId === id,
+    )
+    if (!item) return
+
+    const statusAtual = currentStatus.toLowerCase()
+    const novoStatus: AtividadeStatus =
+      statusAtual === 'concluida' || statusAtual === 'concluido' ? 'pendente' : 'concluida'
+
     try {
-      // Como a central integra múltiplas fontes, tenta atualizar pelo pb se for atividade padrão
-      // e recarrega os dados da Central
+      await updateAtividadeStatus(item.origemId, novoStatus)
       await fetchData(true)
+      toast({
+        title: novoStatus === 'concluida' ? 'Atividade concluída' : 'Atividade reaberta',
+      })
     } catch (err) {
-      console.warn('Não foi possível alterar status diretamente:', err)
+      console.error('Não foi possível alterar o status da atividade:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atualizar atividade',
+        description: 'Não foi possível salvar a alteração de status.',
+      })
     }
   }
 
@@ -439,6 +482,17 @@ export default function CentralAtividadesPage() {
     if (item.rotaOriginal) {
       navigate(item.rotaOriginal)
     }
+  }
+
+  const handleCliqueItemCalendario = (atividade: Atividade) => {
+    const item = allItems.find((candidate) => {
+      const atividadeNativaEditavel =
+        candidate.fonte === 'atividade' && !candidate.id.startsWith('unif_')
+      return atividadeNativaEditavel
+        ? candidate.origemId === atividade.id
+        : candidate.id === atividade.id
+    })
+    if (item) handleNavegarOriginal(item)
   }
 
   // Indicador visual de Status (bolinha colorida + legenda ao lado)
@@ -641,7 +695,7 @@ export default function CentralAtividadesPage() {
 
           <Button
             type="button"
-            onClick={() => setModalNovaAtividadeOpen(true)}
+            onClick={() => abrirModalNovaAtividade()}
             className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Criar nova atividade no CRM"
           >
@@ -721,8 +775,10 @@ export default function CentralAtividadesPage() {
           onSelectUsuario={setUsuarioCalendarioFiltro}
           onToggleStatus={handleToggleStatusCalendario}
           onOpenCliente={openFichaCliente}
-          onAddAtividadeDia={() => setModalNovaAtividadeOpen(true)}
+          onAddAtividadeDia={abrirModalNovaAtividade}
           onAtividadeUpdated={() => fetchData(true)}
+          canEditAtividade={(atividade) => atividade.collectionName === 'atividades'}
+          onCardClickCustom={handleCliqueItemCalendario}
         />
       ) : (
         <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-xs overflow-hidden">
@@ -1188,6 +1244,8 @@ export default function CentralAtividadesPage() {
       {/* 4. Modal Nova Atividade (Formulário com 3 Categorias e 2 etapas) */}
       <ModalNovaAtividade
         isOpen={modalNovaAtividadeOpen}
+        initialDataHora={initialDataHora}
+        initialHorarioInicio={initialHorarioInicio}
         onClose={() => {
           setModalNovaAtividadeOpen(false)
           fetchData(true)

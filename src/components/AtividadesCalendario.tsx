@@ -32,6 +32,7 @@ export interface AtividadesCalendarioProps {
   onAddAtividadeDia?: (date: Date) => void
   onAtividadeUpdated?: (updated: Atividade) => void
   onCardClickCustom?: (atividade: Atividade) => void
+  canEditAtividade?: (atividade: Atividade) => boolean
 }
 
 export type CalendarViewMode = 'semana' | 'dia' | 'mes'
@@ -110,6 +111,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   onAddAtividadeDia,
   onAtividadeUpdated,
   onCardClickCustom,
+  canEditAtividade,
 }) => {
   const { toast } = useToast()
 
@@ -401,6 +403,11 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   // DRAG & DROP: Reposicionar atividade em outro horário / dia
   // ==========================================================
   const handleDragStart = (e: React.DragEvent, atividadeId: string) => {
+    const atividade = atividadesMescladas.find((item) => item.id === atividadeId)
+    if (atividade && canEditAtividade && !canEditAtividade(atividade)) {
+      e.preventDefault()
+      return
+    }
     e.dataTransfer.setData('text/plain', atividadeId)
     e.dataTransfer.effectAllowed = 'move'
     setDraggingAtividadeId(atividadeId)
@@ -431,7 +438,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
     if (!atvId) return
 
     const atv = atividadesMescladas.find((a) => a.id === atvId)
-    if (!atv) return
+    if (!atv || (canEditAtividade && !canEditAtividade(atv))) return
 
     // Preserva minutos originais arredondados para múltiplos de 5
     let minutos = 0
@@ -491,6 +498,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   const handleResizeStart = (e: React.MouseEvent, atv: Atividade) => {
     e.stopPropagation()
     e.preventDefault()
+    if (canEditAtividade && !canEditAtividade(atv)) return
     const duracaoAtual = getDuracaoMinutos(atv)
     setResizing({
       atividadeId: atv.id,
@@ -585,7 +593,12 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   // Abertura do modal de edição da atividade ou callback customizado (ex: Serviços de Campo)
   const handleCardClick = (e: React.MouseEvent, atv: Atividade) => {
     e.stopPropagation()
-    if (onCardClickCustom) {
+    const podeEditar = !canEditAtividade || canEditAtividade(atv)
+    if (onCardClickCustom && !podeEditar) {
+      onCardClickCustom(atv)
+      return
+    }
+    if (onCardClickCustom && !canEditAtividade) {
       onCardClickCustom(atv)
       return
     }
@@ -837,7 +850,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                           return (
                             <div
                               key={`allday-${atv.id}`}
-                              draggable
+                              draggable={!canEditAtividade || canEditAtividade(atv)}
                               onDragStart={(e) => handleDragStart(e, atv.id)}
                               onDragEnd={handleDragEnd}
                               onClick={(e) => handleCardClick(e, atv)}
@@ -1020,7 +1033,9 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                       return (
                         <div
                           key={`card-${atv.id}`}
-                          draggable={!isBeingResized}
+                          draggable={
+                            (!canEditAtividade || canEditAtividade(atv)) && !isBeingResized
+                          }
                           onDragStart={(e) => handleDragStart(e, atv.id)}
                           onDragEnd={handleDragEnd}
                           onClick={(e) => handleCardClick(e, atv)}
@@ -1059,23 +1074,25 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                                 </span>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onToggleStatus(atv.id, atv.status || 'pendente')
-                                }}
-                                className="p-0.5 rounded text-gray-400 hover:text-emerald-600 shrink-0"
-                                title={
-                                  isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'
-                                }
-                              >
-                                {isConcluida ? (
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                ) : (
-                                  <Circle className="w-3 h-3 text-gray-300 group-hover:text-gray-400" />
-                                )}
-                              </button>
+                              {(!canEditAtividade || canEditAtividade(atv)) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onToggleStatus(atv.id, atv.status || 'pendente')
+                                  }}
+                                  className="p-0.5 rounded text-gray-400 hover:text-emerald-600 shrink-0"
+                                  title={
+                                    isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'
+                                  }
+                                >
+                                  {isConcluida ? (
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <Circle className="w-3 h-3 text-gray-300 group-hover:text-gray-400" />
+                                  )}
+                                </button>
+                              )}
                             </div>
 
                             {/* Título */}
@@ -1102,14 +1119,16 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             )}
                           </div>
                           {/* Alça inferior de redimensionamento (resize handle bem fininha) */}
-                          <div
-                            data-testid={`resize-handle-atv-${atv.id}`}
-                            onMouseDown={(e) => handleResizeStart(e, atv)}
-                            className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
-                            title="Arraste para aumentar ou reduzir o tempo previsto"
-                          >
-                            <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 transition-all pointer-events-none shadow-2xs" />
-                          </div>
+                          {(!canEditAtividade || canEditAtividade(atv)) && (
+                            <div
+                              data-testid={`resize-handle-atv-${atv.id}`}
+                              onMouseDown={(e) => handleResizeStart(e, atv)}
+                              className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
+                              title="Arraste para aumentar ou reduzir o tempo previsto"
+                            >
+                              <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 transition-all pointer-events-none shadow-2xs" />
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -1235,7 +1254,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                         return (
                           <div
                             key={atv.id}
-                            draggable
+                            draggable={!canEditAtividade || canEditAtividade(atv)}
                             onDragStart={(e) => handleDragStart(e, atv.id)}
                             onDragEnd={handleDragEnd}
                             onClick={(e) => handleCardClick(e, atv)}
@@ -1365,25 +1384,27 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onToggleStatus(atv.id, atv.status || 'pendente')
-                            }}
-                            className={`p-1 rounded-md transition-colors shrink-0 ${
-                              isConcluida
-                                ? 'text-emerald-600 hover:bg-emerald-50'
-                                : 'text-gray-400 hover:text-emerald-600 hover:bg-gray-100'
-                            }`}
-                            title={isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'}
-                          >
-                            {isConcluida ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <Circle className="w-4 h-4" />
-                            )}
-                          </button>
+                          {(!canEditAtividade || canEditAtividade(atv)) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onToggleStatus(atv.id, atv.status || 'pendente')
+                              }}
+                              className={`p-1 rounded-md transition-colors shrink-0 ${
+                                isConcluida
+                                  ? 'text-emerald-600 hover:bg-emerald-50'
+                                  : 'text-gray-400 hover:text-emerald-600 hover:bg-gray-100'
+                              }`}
+                              title={isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'}
+                            >
+                              {isConcluida ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <Circle className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                         </div>
 
                         {atv.descricao && (
