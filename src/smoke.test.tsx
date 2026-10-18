@@ -914,6 +914,7 @@ describe('Login e App Smoke Tests', () => {
     expect(clientModule.default).toBeDefined()
     expect(clientModule.pb).toBeDefined()
     expect(clientModule.default).toBe(clientModule.pb)
+    expect(typeof clientModule.isAuthSessionError).toBe('function')
 
     const errorsModule = await import('@/lib/pocketbase/errors')
     expect(typeof errorsModule.isAuthSessionError).toBe('function')
@@ -921,6 +922,14 @@ describe('Login e App Smoke Tests', () => {
     expect(errorsModule.isAuthSessionError({ status: 403 })).toBe(true)
     expect(errorsModule.isAuthSessionError({ message: 'Token is expired' })).toBe(true)
     expect(errorsModule.isAuthSessionError({ status: 200 })).toBe(false)
+
+    const fallbackErrorsModule = await import('@/lib/errors')
+    expect(typeof fallbackErrorsModule.isAuthSessionError).toBe('function')
+
+    const barrelModule = await import('@/lib/pocketbase/index')
+    expect(barrelModule.default).toBeDefined()
+    expect(barrelModule.pb).toBeDefined()
+    expect(typeof barrelModule.isAuthSessionError).toBe('function')
   })
 
   it('emailService e lib/emailService exportam recurso unificado de envio Resend com remetente da empresa', async () => {
