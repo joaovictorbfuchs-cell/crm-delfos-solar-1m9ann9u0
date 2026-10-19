@@ -57,9 +57,6 @@ export interface RelatorioOSCanonicalData {
   manualFabricante: string
   ressalvasObservadas: string
 
-  // Blocos dinâmicos do relatório por tipo de serviço
-  blocosRelatorio: Array<{ id: string; titulo: string; texto: string; ordem?: number }>
-
   // Condição do sistema por componente
   componentes: ComponenteCondicaoRelatorio[]
 
@@ -363,29 +360,6 @@ export function compilarDadosRelatorioOS(
   const manualFabricante = `Procedimento padrão ${marcaModulos} / ${inversor}`
   const ressalvasObservadas = 'Nenhuma sujidade remanescente identificada'
 
-  // Blocos do relatório configurados na OS (ou tipo de atividade)
-  let rawBlocos: any[] = []
-  if (Array.isArray(os?.blocos_relatorio)) {
-    rawBlocos = os.blocos_relatorio
-  } else if (typeof os?.blocos_relatorio === 'string' && os.blocos_relatorio.trim()) {
-    try {
-      const parsed = JSON.parse(os.blocos_relatorio)
-      if (Array.isArray(parsed)) rawBlocos = parsed
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const blocosRelatorio = rawBlocos
-    .filter((b) => b && typeof b.texto === 'string' && b.texto.trim().length > 0)
-    .map((b, idx) => ({
-      id: String(b.id || `bloco-${idx}`),
-      titulo: String(b.titulo || '').trim(),
-      texto: String(b.texto || '').trim(),
-      ordem: typeof b.ordem === 'number' ? b.ordem : idx + 1,
-    }))
-    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
-
   const pendenciasRecomendacoes =
     typeof os?.pendencias_recomendacoes === 'string' &&
     os.pendencias_recomendacoes.trim().length > 0
@@ -548,7 +522,6 @@ export function compilarDadosRelatorioOS(
     metodoExecutado,
     manualFabricante,
     ressalvasObservadas,
-    blocosRelatorio,
     componentes,
     fotos,
     conformidadeTecnica,

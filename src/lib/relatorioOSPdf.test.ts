@@ -114,29 +114,17 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(file.size).toBeGreaterThan(0)
   })
 
-  it('renderiza blocos dinâmicos e pendências customizadas quando informados', () => {
+  it('renderiza pendências customizadas quando informadas e não renderiza blocos pré-cadastrados removidos', () => {
     const html = gerarHTMLRelatorioOS({
       os: {
         id: 'os-blocos-123',
         numero_os: '999',
         tipo: 'manutencao_preventiva',
-        blocos_relatorio: [
-          {
-            id: 'b1',
-            titulo: 'Diagnóstico Geral',
-            texto: 'Inversor operando com 98% de rendimento.',
-          },
-          { id: 'b2', titulo: '', texto: 'Parágrafo descritivo sem título específico.' },
-          { id: 'b3', titulo: 'Bloco Vazio', texto: '   ' },
-        ],
         pendencias_recomendacoes: 'Substituir conector MC4 da string 2 na próxima semana.',
       } as any,
     })
 
-    expect(html).toContain('DIAGNÓSTICO GERAL')
-    expect(html).toContain('Inversor operando com 98% de rendimento.')
-    expect(html).toContain('Parágrafo descritivo sem título específico.')
-    expect(html).not.toContain('Bloco Vazio')
     expect(html).toContain('Substituir conector MC4 da string 2 na próxima semana.')
+    expect(html).not.toContain('Diagnóstico Geral')
   })
 })

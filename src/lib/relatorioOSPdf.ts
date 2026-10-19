@@ -201,22 +201,6 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     )
     .join('')
 
-  const blocosRelatorioHtml =
-    rel.blocosRelatorio && rel.blocosRelatorio.length > 0
-      ? `<div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #E2E8F0;">
-        ${rel.blocosRelatorio
-          .map(
-            (b) => `
-          <div style="background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">
-            ${b.titulo ? `<h4 style="margin: 0 0 6px; font-size: 0.82rem; font-weight: 700; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.04em;">${b.titulo}</h4>` : ''}
-            <p style="margin: 0; font-size: 0.85rem; color: #2C3E50; line-height: 1.5; white-space: pre-wrap;">${b.texto}</p>
-          </div>
-        `,
-          )
-          .join('')}
-      </div>`
-      : ''
-
   const fotosCardsHtml = rel.fotos
     .slice(0, 3)
     .map(
@@ -505,9 +489,6 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
           <div><strong style="color: var(--navy-dark);">Ressalvas observadas:</strong> ${rel.ressalvasObservadas}</div>
         </div>
       </div>
-
-      <!-- Blocos do relatório configurados na OS (logo após a tabela do checklist) -->
-      ${blocosRelatorioHtml}
     </section>
 
     <!-- 6. Registro Fotográfico -->
