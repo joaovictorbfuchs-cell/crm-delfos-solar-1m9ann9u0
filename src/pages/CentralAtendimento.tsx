@@ -291,6 +291,36 @@ export const CentralAtendimento: React.FC = () => {
   // Separar conversas nas 3 colunas especificadas
   // 1. Fila de Novos: status === 'novo' (mensagens recebidas ainda não vinculadas a cliente ou pendentes de atendimento)
   // 2. Em Atendimento: status === 'em_atendimento' || status === 'aguardando_cliente'
+  // Resolução do nome do contato por telefone (contato adicional prioritário quando houver correspondência)
+  const getNomeExibicaoConversa = (conv: WhatsAppConversa, cli?: Cliente | null) => {
+    if (conv.numero) {
+      const safeContatos = Array.isArray(contatosAdicionais) ? contatosAdicionais : []
+      const cliIdAlvo = conv.cliente_id || (cli ? cli.id : null)
+
+      // 1. Prioriza contatos adicionais vinculados ao cliente
+      if (cliIdAlvo) {
+        for (const ca of safeContatos) {
+          if (((ca as any).cliente || (ca as any).cliente_id) === cliIdAlvo) {
+            const tel = ca.telefone || (ca as any).whatsapp
+            if (tel && compararTelefonesFlexivel(conv.numero, tel) !== 'nenhum') {
+              return ca.nome
+            }
+          }
+        }
+      }
+
+      // 2. Fallback: qualquer contato adicional cujo telefone coincida
+      for (const ca of safeContatos) {
+        const tel = ca.telefone || (ca as any).whatsapp
+        if (tel && compararTelefonesFlexivel(conv.numero, tel) !== 'nenhum') {
+          return ca.nome
+        }
+      }
+    }
+
+    return cli ? cli.nome : formatWhatsAppPhone(conv.numero)
+  }
+
   // 3. Resolvidos: status === 'resolvido' (finalizadas nas últimas 24 horas, ou resolvidas recentemente)
   const conversasClassificadas = useMemo(() => {
     const rawTerm = searchTerm.trim()
@@ -1298,7 +1328,7 @@ export const CentralAtendimento: React.FC = () => {
                               {conv.foto_perfil ? (
                                 <img
                                   src={conv.foto_perfil}
-                                  alt={cli ? cli.nome : conv.numero}
+                                  alt={getNomeExibicaoConversa(conv, cli)}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.currentTarget.style.display = 'none'
@@ -1310,7 +1340,7 @@ export const CentralAtendimento: React.FC = () => {
                             </div>
                             <div className="min-w-0">
                               <div className="font-bold text-xs text-gray-900 truncate">
-                                {cli ? cli.nome : formatWhatsAppPhone(conv.numero)}
+                                {getNomeExibicaoConversa(conv, cli)}
                               </div>
                               <div className="text-[10px] text-gray-500 font-mono">
                                 {formatWhatsAppPhone(conv.numero)}
@@ -1494,21 +1524,24 @@ export const CentralAtendimento: React.FC = () => {
                               {conv.foto_perfil ? (
                                 <img
                                   src={conv.foto_perfil}
-                                  alt={cli?.nome || conv.numero}
+                                  alt={getNomeExibicaoConversa(conv, cli)}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.currentTarget.style.display = 'none'
                                   }}
                                 />
-                              ) : cli?.nome ? (
-                                cli.nome.substring(0, 2).toUpperCase()
+                              ) : getNomeExibicaoConversa(conv, cli) ? (
+                                getNomeExibicaoConversa(conv, cli)
+                                  .trim()
+                                  .substring(0, 2)
+                                  .toUpperCase()
                               ) : (
                                 <Users className="w-4 h-4" />
                               )}
                             </div>
                             <div className="min-w-0">
                               <div className="font-bold text-xs text-gray-900 truncate flex items-center gap-1.5">
-                                <span>{cli?.nome || formatWhatsAppPhone(conv.numero)}</span>
+                                <span>{getNomeExibicaoConversa(conv, cli)}</span>
                                 {hasNovaMensagem && (
                                   <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-600 text-white">
                                     Nova mensagem
@@ -1591,7 +1624,7 @@ export const CentralAtendimento: React.FC = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="font-bold text-xs text-gray-900 truncate">
-                              {cli?.nome || formatWhatsAppPhone(conv.numero)}
+                              {getNomeExibicaoConversa(conv, cli)}
                             </div>
                             <div className="text-[10px] text-gray-500 font-mono">
                               {formatWhatsAppPhone(conv.numero)}

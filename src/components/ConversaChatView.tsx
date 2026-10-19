@@ -38,6 +38,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { aplicarPrefixoMensagemManual, removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
+import { compararTelefonesFlexivel } from '@/lib/reconhecimentoRemetenteWhatsApp'
 import { GravadorAudioWhatsApp } from '@/components/GravadorAudioWhatsApp'
 import { useToast } from '@/hooks/use-toast'
 
@@ -172,6 +173,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     finalizarAtendimento,
     orcamentosSolar,
     openFichaCliente,
+    contatosAdicionais,
   } = useClientes()
 
   const { toast } = useToast()
@@ -527,6 +529,45 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     }
   }
 
+  // Resolução de contato adicional para exibição no cabeçalho quando o número bater com um contato adicional
+  const contatoAdicionalCorrespondente = useMemo(() => {
+    if (!conversa.numero) return null
+    const safeContatos = Array.isArray(contatosAdicionais) ? contatosAdicionais : []
+    const cliIdAlvo = conversa.cliente_id || (cliente ? cliente.id : null)
+
+    // 1. Filtrar preferencialmente os contatos adicionais do cliente vinculado
+    const contatosCandidatos = cliIdAlvo
+      ? safeContatos.filter((ca) => ((ca as any).cliente || (ca as any).cliente_id) === cliIdAlvo)
+      : safeContatos
+
+    for (const ca of contatosCandidatos) {
+      const tel = ca.telefone || (ca as any).whatsapp
+      if (tel && compararTelefonesFlexivel(conversa.numero, tel) !== 'nenhum') {
+        return ca
+      }
+    }
+
+    // 2. Fallback: se não encontrou nos do cliente alvo (ou se não tinha cliente_id), buscar em todos
+    if (cliIdAlvo && contatosCandidatos !== safeContatos) {
+      for (const ca of safeContatos) {
+        const tel = ca.telefone || (ca as any).whatsapp
+        if (tel && compararTelefonesFlexivel(conversa.numero, tel) !== 'nenhum') {
+          return ca
+        }
+      }
+    }
+
+    return null
+  }, [conversa.numero, conversa.cliente_id, cliente, contatosAdicionais])
+
+  // Nome principal a ser exibido no cabeçalho (contato adicional tem precedência se o telefone casar)
+  const nomeExibicaoCabecalho = useMemo(() => {
+    if (contatoAdicionalCorrespondente?.nome) {
+      return contatoAdicionalCorrespondente.nome
+    }
+    return cliente?.nome || formatWhatsAppPhone(conversa.numero)
+  }, [contatoAdicionalCorrespondente, cliente, conversa.numero])
+
   // Status visual / online do cabeçalho WhatsApp
   const contatoSubtitulo = useMemo(() => {
     if (conversa.status === 'em_atendimento') {
@@ -541,17 +582,18 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     return 'disponível no WhatsApp'
   }, [conversa])
 
-  // Identificação do contato para o avatar
+  // Identificação do contato para o avatar (segue o nome exibido: contato adicional se houver, ou cliente)
   const contatoIniciais = useMemo(() => {
-    if (cliente?.nome) {
-      const parts = cliente.nome.trim().split(/\s+/)
+    const nomeBase = contatoAdicionalCorrespondente?.nome || cliente?.nome
+    if (nomeBase) {
+      const parts = nomeBase.trim().split(/\s+/)
       if (parts.length >= 2) {
         return (parts[0][0] + parts[1][0]).toUpperCase()
       }
-      return cliente.nome.substring(0, 2).toUpperCase()
+      return nomeBase.substring(0, 2).toUpperCase()
     }
     return 'WA'
-  }, [cliente])
+  }, [contatoAdicionalCorrespondente, cliente])
 
   return (
     <div className="flex flex-col h-full max-h-full min-h-0 bg-[#f0f2f5] rounded-2xl border border-gray-200 shadow-sm overflow-hidden select-none">
@@ -578,7 +620,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
             {conversa.foto_perfil ? (
               <img
                 src={conversa.foto_perfil}
-                alt={cliente?.nome || conversa.numero}
+                alt={nomeExibicaoCabecalho}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   // Fallback para as iniciais se a URL externa falhar/expirar
@@ -594,9 +636,9 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
               <h2
                 className="text-sm font-semibold text-[#111b21] truncate cursor-pointer hover:underline"
                 onClick={() => cliente && openFichaCliente(cliente.id, 'historico')}
-                title={cliente?.nome || conversa.numero}
+                title={nomeExibicaoCabecalho}
               >
-                {cliente?.nome || formatWhatsAppPhone(conversa.numero)}
+                {nomeExibicaoCabecalho}
               </h2>
             </div>
             <p className="text-[12px] text-[#667781] truncate leading-tight">{contatoSubtitulo}</p>
@@ -757,7 +799,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       {cliente && (
         <div className="bg-[#f7f8fa] border-b border-gray-200/60 px-4 py-1.5 flex items-center justify-between text-[11px] text-[#667781] select-text">
           <div className="flex items-center gap-3 truncate">
-            <span className="font-semibold text-gray-800">{cliente.nome}</span>
+            <span className="font-semibold text-gray-800">Cliente: {cliente.nome}</span>
             {cliente.cidade && (
               <span className="truncate">
                 • {cliente.cidade} - {cliente.estado || 'RS'}
