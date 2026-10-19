@@ -30,14 +30,26 @@ export function getErrorMessage(error: unknown): string {
 
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  if (typeof error === 'object' && error !== null && 'status' in error) {
-    const status = (error as { status?: unknown }).status
-    return status === 401 || status === 403
-  }
-  return false
+
+  const errObj = error as Record<string, unknown>
+  const status = Number(
+    errObj?.status ??
+      (errObj?.response as Record<string, unknown> | undefined)?.status ??
+      errObj?.statusCode,
+  )
+  if (status === 401 || status === 403) return true
+
+  const msg = typeof errObj?.message === 'string' ? errObj.message : String(error)
+  const lower = msg.toLowerCase()
+  return (
+    lower.includes('token is expired') ||
+    lower.includes('expired or invalid') ||
+    lower.includes('login expirou') ||
+    lower.includes('sessão expirada') ||
+    lower.includes('failed to authenticate') ||
+    lower.includes('unauthorized') ||
+    lower.includes('forbidden')
+  )
 }
 
 export function formatPbError(error: unknown): string {
@@ -46,20 +58,11 @@ export function formatPbError(error: unknown): string {
 
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.isAbort === true || error.status === 0
-  }
-  if (error instanceof Error && error.name === 'AbortError') return true
-  if (typeof error === 'object' && error !== null && 'name' in error) {
-    return (error as { name?: unknown }).name === 'AbortError'
-  }
-  return false
+  const errObj = error as Record<string, unknown>
+  return Boolean(
+    errObj?.isAbort ||
+    (typeof errObj?.message === 'string' && errObj.message.toLowerCase().includes('autocancelled')),
+  )
 }
 
-export default {
-  extractFieldErrors,
-  getErrorMessage,
-  isAuthSessionError,
-  formatPbError,
-  isAbortError,
-}
+export default isAuthSessionError

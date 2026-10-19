@@ -7,6 +7,14 @@ export interface FotoRegistroRelatorio {
   subtitulo: string
   descricao: string
   dataHora: string
+  item_checklist_id?: string
+  item_checklist_texto?: string
+}
+
+export interface GrupoFotosEtapaRelatorio {
+  itemChecklistId?: string
+  itemChecklistTexto: string
+  fotos: FotoRegistroRelatorio[]
 }
 
 export interface ServicoExecutadoRelatorio {
@@ -62,6 +70,8 @@ export interface RelatorioOSCanonicalData {
 
   // Registro fotográfico
   fotos: FotoRegistroRelatorio[]
+  fotosPorEtapa?: GrupoFotosEtapaRelatorio[]
+  fotosGeraisSemEtapa?: FotoRegistroRelatorio[]
 
   // Pendências e recomendações
   conformidadeTecnica: string
@@ -409,33 +419,72 @@ export function compilarDadosRelatorioOS(
   // Registro fotográfico: fotos reais ou modelo demonstrativo
   const fotosUrls = fotosDataUrls || []
   const fotos: FotoRegistroRelatorio[] = []
+
+  // Metadados persistidos das fotos (vínculo com etapas do checklist)
+  const fotosMetadadosRaw = Array.isArray(os?.fotos_metadados)
+    ? os.fotos_metadados
+    : typeof os?.fotos_metadados === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(os.fotos_metadados)
+            return Array.isArray(parsed) ? parsed : []
+          } catch {
+            return []
+          }
+        })()
+      : []
+
   if (fotosUrls.length > 0) {
     fotosUrls.forEach((url, i) => {
       const idx = i + 1
+      const meta = fotosMetadadosRaw[i] || {}
+      const itemChecklistId = meta.item_checklist_id || undefined
+      const itemChecklistTexto = meta.item_checklist_texto || undefined
+      const legendaCustom = meta.legenda ? String(meta.legenda).trim() : ''
+
       let titulo = `Foto #${idx}`
-      let subtitulo = `Registro da OS ${osCodigo}`
-      let desc = 'Registro fotográfico das condições de campo durante a execução dos serviços.'
-      if (idx === 1) {
-        titulo = 'Foto #1 — Antes da limpeza'
-        subtitulo = `Módulos ${marcaModulos} (${estruturaFormatada})`
-        desc = `Vista geral dos ${qtdModulos} módulos ${marcaModulos} antes do procedimento de manutenção. Presença de camada de poeira e fuligem acumulada.`
-      } else if (idx === 2) {
-        titulo = 'Foto #2 — Depois da limpeza'
-        subtitulo = `Módulos ${marcaModulos} — Conclusão do Procedimento`
-        desc =
-          'Superfície dos módulos após lavagem e escovação técnica com cerdas macias e água limpa. Remoção completa de impurezas sem uso de abrasivos.'
-      } else if (idx === 3) {
-        titulo = 'Foto #3 — Conectores e fixadores'
-        subtitulo = 'Inspeção Mecânica e Conexões MC4'
-        desc = `Inspeção detalhada de suportes mecânicos, fixadores no ${estruturaFormatada.toLowerCase()} e integridade dos conectores MC4.`
+      let subtitulo = itemChecklistTexto
+        ? `Etapa: ${itemChecklistTexto}`
+        : `Registro da OS ${osCodigo}`
+      let desc =
+        legendaCustom ||
+        'Registro fotográfico das condições de campo durante a execução dos serviços.'
+
+      if (!itemChecklistTexto && !legendaCustom) {
+        if (idx === 1) {
+          titulo = 'Foto #1 — Antes da limpeza'
+          subtitulo = `Módulos ${marcaModulos} (${estruturaFormatada})`
+          desc = `Vista geral dos ${qtdModulos} módulos ${marcaModulos} antes do procedimento de manutenção. Presença de camada de poeira e fuligem acumulada.`
+        } else if (idx === 2) {
+          titulo = 'Foto #2 — Depois da limpeza'
+          subtitulo = `Módulos ${marcaModulos} — Conclusão do Procedimento`
+          desc =
+            'Superfície dos módulos após lavagem e escovação técnica com cerdas macias e água limpa. Remoção completa de impurezas sem uso de abrasivos.'
+        } else if (idx === 3) {
+          titulo = 'Foto #3 — Conectores e fixadores'
+          subtitulo = 'Inspeção Mecânica e Conexões MC4'
+          desc = `Inspeção detalhada de suportes mecânicos, fixadores no ${estruturaFormatada.toLowerCase()} e integridade dos conectores MC4.`
+        }
+      } else if (itemChecklistTexto) {
+        titulo = `Foto #${idx} — ${itemChecklistTexto}`
       }
+
+      const dataHoraStr = meta.data_hora
+        ? new Date(meta.data_hora).toLocaleString('pt-BR', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+          }) + ' • Técnico executor'
+        : `${dataAtendimento} às ${horarioInicio} • Técnico executor`
+
       fotos.push({
-        id: String(idx),
+        id: meta.id || String(idx),
         url,
         titulo,
         subtitulo,
         descricao: desc,
-        dataHora: `${dataAtendimento} às ${horarioInicio} • Técnico executor`,
+        dataHora: dataHoraStr,
+        item_checklist_id: itemChecklistId,
+        item_checklist_texto: itemChecklistTexto,
       })
     })
   } else {
@@ -468,6 +517,34 @@ export function compilarDadosRelatorioOS(
       },
     )
   }
+
+  // Agrupamento de fotos por etapa do checklist:
+  // Etapas que possuem fotos vinculadas formam grupos específicos.
+  // Fotos sem vínculo com etapa ficam no grupo geral de fotos da OS.
+  const fotosPorEtapaMap = new Map<
+    string,
+    { itemChecklistId?: string; itemChecklistTexto: string; fotos: FotoRegistroRelatorio[] }
+  >()
+  const fotosGeraisSemEtapa: FotoRegistroRelatorio[] = []
+
+  fotos.forEach((f) => {
+    if (f.item_checklist_id || f.item_checklist_texto) {
+      const chave = f.item_checklist_id || f.item_checklist_texto || 'etapa'
+      const texto = f.item_checklist_texto || 'Etapa do Checklist'
+      if (!fotosPorEtapaMap.has(chave)) {
+        fotosPorEtapaMap.set(chave, {
+          itemChecklistId: f.item_checklist_id,
+          itemChecklistTexto: texto,
+          fotos: [],
+        })
+      }
+      fotosPorEtapaMap.get(chave)!.fotos.push(f)
+    } else {
+      fotosGeraisSemEtapa.push(f)
+    }
+  })
+
+  const fotosPorEtapa: GrupoFotosEtapaRelatorio[] = Array.from(fotosPorEtapaMap.values())
 
   // Cálculo da próxima manutenção prevista (+6 meses)
   let proximaManutencao = '15/04/2027'
@@ -524,6 +601,8 @@ export function compilarDadosRelatorioOS(
     ressalvasObservadas,
     componentes,
     fotos,
+    fotosPorEtapa,
+    fotosGeraisSemEtapa,
     conformidadeTecnica,
     proximaManutencao,
     pendenciasRecomendacoes,

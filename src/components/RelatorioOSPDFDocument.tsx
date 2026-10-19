@@ -754,26 +754,105 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           </View>
         </View>
 
-        {/* 6. Registro Fotográfico */}
+        {/* 6. Registro Fotográfico — com agrupamento por etapa do checklist */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Registro fotográfico</Text>
-          <View style={styles.photosGrid}>
-            {relatorio.fotos.slice(0, 3).map((foto, idx) => (
-              <View key={foto.id} style={idx === 2 ? styles.photoCardLast : styles.photoCard}>
-                {foto.url ? (
-                  <Image src={foto.url} style={styles.photoThumbImage} />
-                ) : (
-                  <View style={styles.photoThumbBox}>
-                    <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+
+          {/* Fotos agrupadas por etapa do checklist */}
+          {relatorio.fotosPorEtapa && relatorio.fotosPorEtapa.length > 0 && (
+            <View style={{ marginBottom: 6 }}>
+              {relatorio.fotosPorEtapa.map((grupo, gIdx) => (
+                <View
+                  key={`pdf-grupo-${grupo.itemChecklistId || gIdx}`}
+                  style={{ marginBottom: 6 }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: 'Helvetica-Bold',
+                      fontSize: 7.5,
+                      color: '#0E2A47',
+                      backgroundColor: '#F8FAFD',
+                      padding: 3,
+                      borderRadius: 3,
+                      marginBottom: 3,
+                    }}
+                  >
+                    • Fotos — {grupo.itemChecklistTexto} ({grupo.fotos.length})
+                  </Text>
+                  <View style={styles.photosGrid}>
+                    {grupo.fotos.slice(0, 3).map((foto, idx) => (
+                      <View
+                        key={foto.id}
+                        style={
+                          idx === Math.min(grupo.fotos.length, 3) - 1
+                            ? styles.photoCardLast
+                            : styles.photoCard
+                        }
+                      >
+                        {foto.url ? (
+                          <Image src={foto.url} style={styles.photoThumbImage} />
+                        ) : (
+                          <View style={styles.photoThumbBox}>
+                            <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+                          </View>
+                        )}
+                        <View style={styles.photoCaption}>
+                          <Text style={styles.photoCaptionTitle}>{foto.subtitulo}</Text>
+                          <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
+                        </View>
+                      </View>
+                    ))}
                   </View>
-                )}
-                <View style={styles.photoCaption}>
-                  <Text style={styles.photoCaptionTitle}>{foto.subtitulo}</Text>
-                  <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
                 </View>
+              ))}
+            </View>
+          )}
+
+          {/* Fotos Gerais (sem etapa vinculada ou fallback tradicional) */}
+          {(!relatorio.fotosPorEtapa ||
+            relatorio.fotosPorEtapa.length === 0 ||
+            (relatorio.fotosGeraisSemEtapa && relatorio.fotosGeraisSemEtapa.length > 0)) && (
+            <View>
+              {relatorio.fotosPorEtapa && relatorio.fotosPorEtapa.length > 0 && (
+                <Text
+                  style={{
+                    fontFamily: 'Helvetica-Bold',
+                    fontSize: 7,
+                    color: '#536377',
+                    textTransform: 'uppercase',
+                    marginBottom: 3,
+                  }}
+                >
+                  Outras fotos do atendimento
+                </Text>
+              )}
+              <View style={styles.photosGrid}>
+                {(relatorio.fotosGeraisSemEtapa && relatorio.fotosGeraisSemEtapa.length > 0
+                  ? relatorio.fotosGeraisSemEtapa
+                  : relatorio.fotos
+                )
+                  .slice(0, 3)
+                  .map((foto, idx, arr) => (
+                    <View
+                      key={foto.id}
+                      style={idx === arr.length - 1 ? styles.photoCardLast : styles.photoCard}
+                    >
+                      {foto.url ? (
+                        <Image src={foto.url} style={styles.photoThumbImage} />
+                      ) : (
+                        <View style={styles.photoThumbBox}>
+                          <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+                        </View>
+                      )}
+                      <View style={styles.photoCaption}>
+                        <Text style={styles.photoCaptionTitle}>{foto.subtitulo}</Text>
+                        <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
+                      </View>
+                    </View>
+                  ))}
               </View>
-            ))}
-          </View>
+            </View>
+          )}
         </View>
 
         {/* 7. Pendências e Recomendações */}

@@ -58,7 +58,9 @@ import {
   Send,
   Trash2,
   Plus,
+  Paperclip,
 } from 'lucide-react'
+import type { FotoMetadadoItem } from '@/types/crm'
 const LazyModalEnviarRelatorioCliente = React.lazy(
   () => import('@/components/ModalEnviarRelatorioCliente'),
 )
@@ -428,14 +430,45 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [fotosSalvas, setFotosSalvas] = useState<string[]>(() =>
     normalizarFotosIniciais(os?.fotos, (os as any)?.foto_medidor),
   )
-  const [novasFotos, setNovasFotos] = useState<{ file: File; previewUrl: string }[]>([])
+  const [novasFotos, setNovasFotos] = useState<
+    { file: File; previewUrl: string; item_checklist_id?: string; item_checklist_texto?: string }[]
+  >([])
   const [fotoParaRemover, setFotoParaRemover] = useState<string | null>(null)
   const [isRemovendoFotoSalva, setIsRemovendoFotoSalva] = useState(false)
 
-  // Sincronizar estado local de fotos salvas sempre que a OS recebida por props mudar (ou novo id)
+  // Metadados das fotos salvas (vínculo com etapas do checklist)
+  const [fotosMetadados, setFotosMetadados] = useState<FotoMetadadoItem[]>(() => {
+    if (Array.isArray(os?.fotos_metadados)) return os.fotos_metadados
+    if (typeof os?.fotos_metadados === 'string') {
+      try {
+        const parsed = JSON.parse(os.fotos_metadados)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  })
+
+  // Sincronizar estado local de fotos salvas e metadados sempre que a OS recebida por props mudar
   useEffect(() => {
     setFotosSalvas(normalizarFotosIniciais(os?.fotos, (os as any)?.foto_medidor))
-  }, [os?.id, os?.fotos, (os as any)?.foto_medidor])
+    if (Array.isArray(os?.fotos_metadados)) {
+      setFotosMetadados(os.fotos_metadados)
+    } else if (typeof os?.fotos_metadados === 'string') {
+      try {
+        const parsed = JSON.parse(os.fotos_metadados)
+        if (Array.isArray(parsed)) setFotosMetadados(parsed)
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [os?.id, os?.fotos, (os as any)?.foto_medidor, os?.fotos_metadados])
+
+  // Refs e estado para captura de fotos vinculadas a um item do checklist específico
+  const checklistCameraInputRef = useRef<HTMLInputElement>(null)
+  const checklistFileInputRef = useRef<HTMLInputElement>(null)
+  const [activeChecklistItemId, setActiveChecklistItemId] = useState<string | null>(null)
 
   // 5. Detalhes da execução
   const [detalhesExecucao, setDetalhesExecucao] = useState<string>(os.detalhes_execucao || '')
@@ -854,12 +887,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     )
   }
 
-  // Upload/Captura de fotos
+  // Upload/Captura de fotos gerais
   const handlePhotoCaptured = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    const added: { file: File; previewUrl: string }[] = []
+    const added: {
+      file: File
+      previewUrl: string
+      item_checklist_id?: string
+      item_checklist_texto?: string
+    }[] = []
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       const previewUrl = URL.createObjectURL(file)
@@ -871,7 +909,39 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       title: `${added.length} foto(s) capturada(s)!`,
       description: 'As fotos serão anexadas à Ordem de Serviço.',
     })
-    // limpa o input para permitir capturar a mesma foto de novo se quiser
+    e.target.value = ''
+  }
+
+  // Upload/Captura de foto vinculada a uma etapa específica do checklist
+  const handleChecklistPhotoCaptured = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0 || !activeChecklistItemId) return
+
+    const itemAlvo = checklist.find((c) => c.id === activeChecklistItemId)
+    const textoEtapa = itemAlvo?.item || 'Etapa do Checklist'
+
+    const added: {
+      file: File
+      previewUrl: string
+      item_checklist_id?: string
+      item_checklist_texto?: string
+    }[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const previewUrl = URL.createObjectURL(file)
+      added.push({
+        file,
+        previewUrl,
+        item_checklist_id: activeChecklistItemId,
+        item_checklist_texto: textoEtapa,
+      })
+    }
+
+    setNovasFotos((prev) => [...prev, ...added])
+    toast({
+      title: `${added.length} foto(s) vinculada(s) à etapa! 📸`,
+      description: `Etapa: "${textoEtapa.slice(0, 35)}..."`,
+    })
     e.target.value = ''
   }
 
@@ -900,18 +970,31 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
       const isFotoMedidor = (os as any)?.foto_medidor === nomeDoArquivo
 
+      // Atualiza também os metadados removendo a foto excluída
+      const novosMetadados = fotosMetadados.filter(
+        (m) => m.arquivo !== nomeDoArquivo && m.id !== nomeDoArquivo,
+      )
+
       if (isFotoMedidor) {
-        await pb.collection(colecao).update(os.id, { foto_medidor: null })
+        await pb.collection(colecao).update(os.id, {
+          foto_medidor: null,
+          fotos_metadados: novosMetadados,
+        })
       } else {
-        await pb.collection(colecao).update(os.id, { 'fotos-': [nomeDoArquivo] })
+        await pb.collection(colecao).update(os.id, {
+          'fotos-': [nomeDoArquivo],
+          fotos_metadados: novosMetadados,
+        })
       }
 
       const novasFotosSalvas = fotosSalvas.filter((f) => f !== nomeDoArquivo)
       setFotosSalvas(novasFotosSalvas)
+      setFotosMetadados(novosMetadados)
 
       const osAtualizada: OrdemServico = {
         ...os,
         fotos: novasFotosSalvas,
+        fotos_metadados: novosMetadados,
         ...(isFotoMedidor ? { foto_medidor: undefined } : {}),
       }
 

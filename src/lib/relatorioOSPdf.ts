@@ -201,10 +201,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     )
     .join('')
 
-  const fotosCardsHtml = rel.fotos
-    .slice(0, 3)
-    .map(
-      (f) => `
+  const renderCardFotoHtml = (f: import('@/lib/relatorioOSCanonical').FotoRegistroRelatorio) => `
     <div style="background: #F4F7FA; border: 1px solid #DDE4EE; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;">
       ${
         f.url
@@ -220,9 +217,45 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
         <div style="margin-top: 6px; font-size: 0.7rem; color: #8896A6;">${f.dataHora}</div>
       </div>
     </div>
-  `,
-    )
-    .join('')
+  `
+
+  const fotosAgrupadasHtml =
+    rel.fotosPorEtapa && rel.fotosPorEtapa.length > 0
+      ? `
+      <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px;">
+        ${rel.fotosPorEtapa
+          .map(
+            (grupo) => `
+          <div style="background: #F8FAFD; border: 1px solid #DDE4EE; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 0.85rem; font-weight: 800; color: #0E2A47; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              <span style="color: #16A34A;">●</span> Fotos — ${grupo.itemChecklistTexto} (${grupo.fotos.length})
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              ${grupo.fotos.slice(0, 3).map(renderCardFotoHtml).join('')}
+            </div>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+      ${
+        rel.fotosGeraisSemEtapa && rel.fotosGeraisSemEtapa.length > 0
+          ? `
+        <div style="font-size: 0.8rem; font-weight: 700; color: #536377; text-transform: uppercase; margin-bottom: 6px;">
+          Outras fotos do atendimento
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          ${rel.fotosGeraisSemEtapa.slice(0, 3).map(renderCardFotoHtml).join('')}
+        </div>
+      `
+          : ''
+      }
+    `
+      : `
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+        ${rel.fotos.slice(0, 3).map(renderCardFotoHtml).join('')}
+      </div>
+    `
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -494,7 +527,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     <!-- 6. Registro Fotográfico -->
     <section class="rep-card">
       <h3 class="section-title">Registro fotográfico</h3>
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">${fotosCardsHtml}</div>
+      ${fotosAgrupadasHtml}
     </section>
 
     <!-- 7. Pendências e Recomendações -->

@@ -1103,6 +1103,7 @@ export interface Atividade extends RecordModel {
   origem?: string
   chave_importacao?: string
   registro_original_id?: string
+  fotos_metadados?: FotoMetadadoItem[]
   created: string
   updated: string
   expand?: {

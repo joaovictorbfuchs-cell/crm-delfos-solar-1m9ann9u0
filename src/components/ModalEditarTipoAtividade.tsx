@@ -64,6 +64,8 @@ import {
   Trash2,
   ExternalLink,
   Link2,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 
 // Ícones disponíveis para seleção no tipo de atividade
@@ -1078,16 +1080,57 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                           />
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setChecklistItems((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                        className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer self-center"
-                        title="Remover item do checklist"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-0.5 shrink-0 self-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (idx === 0) return
+                            setChecklistItems((prev) => {
+                              const copy = [...prev]
+                              const temp = copy[idx - 1]
+                              copy[idx - 1] = copy[idx]
+                              copy[idx] = temp
+                              return copy
+                            })
+                          }}
+                          disabled={idx === 0}
+                          className="p-1 text-gray-400 hover:text-amber-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors cursor-pointer"
+                          title="Mover etapa para cima"
+                          aria-label="Subir etapa"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (idx === checklistItems.length - 1) return
+                            setChecklistItems((prev) => {
+                              const copy = [...prev]
+                              const temp = copy[idx + 1]
+                              copy[idx + 1] = copy[idx]
+                              copy[idx] = temp
+                              return copy
+                            })
+                          }}
+                          disabled={idx === checklistItems.length - 1}
+                          className="p-1 text-gray-400 hover:text-amber-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors cursor-pointer"
+                          title="Mover etapa para baixo"
+                          aria-label="Descer etapa"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setChecklistItems((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors cursor-pointer ml-1"
+                          title="Remover item do checklist"
+                          aria-label="Remover item do checklist"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Novo campo: Descritivo para o cliente */}
