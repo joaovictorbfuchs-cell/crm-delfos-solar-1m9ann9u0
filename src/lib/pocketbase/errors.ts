@@ -29,40 +29,37 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!(error instanceof ClientResponseError)) return false
-  if (error.status === 401 || error.status === 403) return true
-  const msg = (error.message || '').toLowerCase()
-  return (
-    msg.includes('failed to authenticate') ||
-    msg.includes('the request requires valid record authorization token') ||
-    msg.includes('token has expired') ||
-    msg.includes('invalid token')
-  )
-}
-
-export function isAbortError(error: unknown): boolean {
+  if (!error) return false
   if (error instanceof ClientResponseError) {
-    return error.isAbort || error.status === 0
+    return error.status === 401 || error.status === 403
   }
-  if (error instanceof Error && error.name === 'AbortError') {
-    return true
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const status = (error as { status?: unknown }).status
+    return status === 401 || status === 403
   }
   return false
 }
 
-export function formatPbError(error: unknown, fallback = 'Erro na operação'): string {
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
   if (error instanceof ClientResponseError) {
-    const fieldMsg = getErrorMessage(error)
-    return fieldMsg || error.message || fallback
+    return error.isAbort === true || error.status === 0
   }
-  if (error instanceof Error) return error.message
-  return fallback
+  if (error instanceof Error && error.name === 'AbortError') return true
+  if (typeof error === 'object' && error !== null && 'name' in error) {
+    return (error as { name?: unknown }).name === 'AbortError'
+  }
+  return false
 }
 
 export default {
   extractFieldErrors,
   getErrorMessage,
   isAuthSessionError,
-  isAbortError,
   formatPbError,
+  isAbortError,
 }

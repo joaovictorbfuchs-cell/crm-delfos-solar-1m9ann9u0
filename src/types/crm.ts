@@ -1396,6 +1396,15 @@ export interface OSChecklistItem {
   concluido: boolean
 }
 
+export interface FotoMetadadoItem {
+  id?: string
+  arquivo?: string // nome do arquivo gerado pelo PB
+  item_checklist_id?: string // vínculo ao ID da etapa do checklist
+  item_checklist_texto?: string // rótulo/texto do item na época do vínculo
+  legenda?: string // legenda ou contexto opcional da foto
+  data_hora?: string // timestamp de captura
+}
+
 export interface OSTemplate extends RecordModel {
   id: string
   collectionId: string
@@ -1430,6 +1439,7 @@ export interface OrdemServico extends RecordModel {
   blocos_relatorio?: BlocoRelatorioTipoItem[]
   pendencias_recomendacoes?: string
   fotos?: string[]
+  fotos_metadados?: FotoMetadadoItem[]
   concluida_em?: string
   relatorio_pdf?: string
   origem?: string

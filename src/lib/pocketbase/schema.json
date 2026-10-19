@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-19T18:54:36.840Z",
+  "generatedAt": "2026-10-19T21:21:43.173Z",
   "collections": [
     {
       "name": "users",
@@ -1277,6 +1277,12 @@
         {
           "name": "sem_retorno_leitura_media",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fotos_metadados",
+          "type": "json",
           "required": false,
           "system": false
         }
@@ -4484,6 +4490,12 @@
         {
           "name": "pendencias_recomendacoes",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fotos_metadados",
+          "type": "json",
           "required": false,
           "system": false
         }

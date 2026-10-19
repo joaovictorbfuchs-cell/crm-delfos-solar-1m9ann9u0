@@ -4095,6 +4095,11 @@ export async function updateAtividadeComoOrdemServico(
     payloadAtividade.checklist = normalizeChecklist(data.checklist)
   }
 
+  // Fotos com metadados (vínculo com itens do checklist)
+  if (data.fotos_metadados !== undefined) {
+    payloadAtividade.fotos_metadados = data.fotos_metadados
+  }
+
   // Responsável
   if (data.responsavel_usuario_id !== undefined) {
     payloadAtividade.responsavel_id = data.responsavel_usuario_id || null
@@ -4445,6 +4450,7 @@ export async function finalizarOrdemServico(
     detalhes_execucao: string
     blocos_relatorio?: import('@/types/crm').BlocoRelatorioTipoItem[]
     pendencias_recomendacoes?: string
+    fotos_metadados?: import('@/types/crm').FotoMetadadoItem[]
     newPhotos?: File[]
     relatorioPdfFile?: File
     cliente_id?: string
@@ -4467,6 +4473,9 @@ export async function finalizarOrdemServico(
   }
   if (dadosFinalizacao.pendencias_recomendacoes !== undefined) {
     payload.pendencias_recomendacoes = dadosFinalizacao.pendencias_recomendacoes
+  }
+  if (dadosFinalizacao.fotos_metadados !== undefined) {
+    payload.fotos_metadados = dadosFinalizacao.fotos_metadados
   }
   if (dadosFinalizacao.origem) {
     payload.origem = dadosFinalizacao.origem
