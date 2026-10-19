@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, ShieldCheck, Calendar, DollarSign, User, Zap } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { resolverValoresPlanosContratoOM, mapearPlanoPropostaParaContrato } from '@/lib/planosOM'
 import type { OMPlanoTipo, OMStatusPlano } from '@/types/crm'
 
 interface ModalNovoContratoOMProps {
@@ -9,7 +10,7 @@ interface ModalNovoContratoOMProps {
 }
 
 export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen, onClose }) => {
-  const { clientes, contratosOM, addContratoOM } = useClientes()
+  const { clientes, contratosOM, propostasOM, addContratoOM } = useClientes()
 
   const [clienteId, setClienteId] = useState('')
   const [plano, setPlano] = useState<OMPlanoTipo>('Essencial')
@@ -32,11 +33,70 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
     (c) => !contratosOM.some((cont) => cont.cliente_id === c.id),
   )
 
+  // Proposta O&M do cliente selecionado (se houver, prioriza aprovada)
+  const propostaClienteSelecionado = React.useMemo(() => {
+    if (!clienteId || !propostasOM) return null
+    const list = propostasOM.filter((p) => p.cliente_id === clienteId)
+    const aprovada = list.find((p) => {
+      const s = (p.status || '').toLowerCase()
+      return s === 'aprovada' || s === 'aprovado' || s === 'fechada' || s === 'fechado'
+    })
+    return aprovada || list[0] || null
+  }, [clienteId, propostasOM])
+
+  const planosClienteResolvidos = React.useMemo(() => {
+    const c = clientes.find((x) => x.id === clienteId)
+    return resolverValoresPlanosContratoOM(propostaClienteSelecionado, {
+      potenciaKwp: Number(propostaClienteSelecionado?.potencia_kwp || c?.potencia_kwp || 0),
+      distanciaKm: Number(propostaClienteSelecionado?.distancia_km || 0),
+      valorKm: Number(propostaClienteSelecionado?.valor_km || 0),
+      numeroModulos: Number(propostaClienteSelecionado?.numero_modulos || c?.placas_qtd || 0),
+      geracaoMensalKwh: Number(
+        propostaClienteSelecionado?.geracao_mensal_kwh || c?.geracao_media_mensal_kwh || 0,
+      ),
+      valorKwh: Number(propostaClienteSelecionado?.valor_kwh || 0),
+      valorPorPlaca: Number(propostaClienteSelecionado?.valor_por_placa || 9),
+    })
+  }, [clienteId, clientes, propostaClienteSelecionado])
+
+  const handleClienteChange = (novoClienteId: string) => {
+    setClienteId(novoClienteId)
+    if (!novoClienteId) return
+    const c = clientes.find((x) => x.id === novoClienteId)
+    const prop =
+      (propostasOM || []).find(
+        (p) =>
+          p.cliente_id === novoClienteId &&
+          ['aprovada', 'aprovado', 'fechada', 'fechado'].includes((p.status || '').toLowerCase()),
+      ) || (propostasOM || []).find((p) => p.cliente_id === novoClienteId)
+    const resolvidos = resolverValoresPlanosContratoOM(prop, {
+      potenciaKwp: Number(prop?.potencia_kwp || c?.potencia_kwp || 0),
+      distanciaKm: Number(prop?.distancia_km || 0),
+      valorKm: Number(prop?.valor_km || 0),
+      numeroModulos: Number(prop?.numero_modulos || c?.placas_qtd || 0),
+      geracaoMensalKwh: Number(prop?.geracao_mensal_kwh || c?.geracao_media_mensal_kwh || 0),
+      valorKwh: Number(prop?.valor_kwh || 0),
+      valorPorPlaca: Number(prop?.valor_por_placa || 9),
+    })
+    const planoInicial: OMPlanoTipo = prop?.plano_escolhido
+      ? (mapearPlanoPropostaParaContrato(prop.plano_escolhido) as OMPlanoTipo)
+      : resolvidos.planoSugerido
+    setPlano(planoInicial)
+    const chave =
+      planoInicial === 'Inspeção'
+        ? 'Prevenção'
+        : (planoInicial as 'Essencial' | 'Prevenção' | 'Completo')
+    setValorMensal(resolvidos[chave].mensal)
+  }
+
   const handlePlanoChange = (novoPlano: OMPlanoTipo) => {
     setPlano(novoPlano)
-    if (novoPlano === 'Essencial') setValorMensal(250)
-    else if (novoPlano === 'Prevenção') setValorMensal(450)
-    else if (novoPlano === 'Completo') setValorMensal(1200)
+    const chave =
+      novoPlano === 'Inspeção' ? 'Prevenção' : (novoPlano as 'Essencial' | 'Prevenção' | 'Completo')
+    const info = planosClienteResolvidos[chave]
+    if (info) {
+      setValorMensal(info.mensal)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,7 +196,7 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
             <select
               required
               value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
+              onChange={(e) => handleClienteChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
             >
               <option value="">Selecione um cliente...</option>

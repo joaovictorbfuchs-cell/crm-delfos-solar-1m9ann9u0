@@ -25,5 +25,30 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  if (error && typeof error === 'object' && 'status' in error) {
+    const s = (error as { status: unknown }).status
+    return s === 401 || s === 403
+  }
+  return false
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (error instanceof ClientResponseError) {
+    return error.isAbort || error.status === 0
+  }
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true
+  }
+  return false
+}
+
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
 }

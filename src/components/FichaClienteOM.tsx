@@ -35,7 +35,11 @@ import {
   formatCurrencyBRL,
 } from '@/lib/formatters'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
-import { calcularTodosPlanosOM } from '@/lib/planosOM'
+import {
+  calcularTodosPlanosOM,
+  resolverValoresPlanosContratoOM,
+  mapearPlanoPropostaParaContrato,
+} from '@/lib/planosOM'
 import type { OMPlanoTipo, OMStatusPlano, PropostaOM, UsinaCliente, ContratoOM } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
@@ -161,7 +165,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
   // Modal Oferecer / Criar Contrato de Plano
   const [modalOferecerPlano, setModalOferecerPlano] = useState(false)
   const [novoPlanoTipo, setNovoPlanoTipo] = useState<OMPlanoTipo>('Essencial')
-  const [novoPlanoValorMensal, setNovoPlanoValorMensal] = useState<number>(190)
+  const [novoPlanoValorMensal, setNovoPlanoValorMensal] = useState<number>(0)
   const [novoPlanoObs, setNovoPlanoObs] = useState('')
 
   // Modal Seletor de Contratação O&M a partir da Proposta do Cliente
@@ -185,8 +189,8 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
     }
 
     const infoPlano = opcoesPlanosUltimaProposta[planoContratacaoEscolhido]
-    const valorMensal = infoPlano?.mensal || 190
-    const valorTotal = infoPlano?.anual || valorMensal * 12
+    const valorMensal = infoPlano?.mensal ?? 0
+    const valorTotal = infoPlano?.anual ?? Math.round(valorMensal * 12 * 100) / 100
 
     if (onDispararGerarContrato) {
       onDispararGerarContrato(ultimaPropostaOM, planoContratacaoEscolhido, valorMensal, valorTotal)
@@ -298,24 +302,44 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
     )
   }, [propostasCliente])
 
+  // Resolução canônica unificada de planos e valores a partir da proposta aprovada
+  const planosResolvidosPropostaAprovada = useMemo(() => {
+    if (!propostaAprovada) return null
+    return resolverValoresPlanosContratoOM(propostaAprovada, {
+      potenciaKwp: Number(propostaAprovada.potencia_kwp || cliente?.potencia_kwp || 0),
+      distanciaKm: Number(propostaAprovada.distancia_km || 0),
+      valorKm: Number(propostaAprovada.valor_km || 0),
+      numeroModulos: Number(propostaAprovada.numero_modulos || cliente?.placas_qtd || 0),
+      geracaoMensalKwh: Number(
+        propostaAprovada.geracao_mensal_kwh || cliente?.geracao_media_mensal_kwh || 0,
+      ),
+      valorKwh: Number(propostaAprovada.valor_kwh || 0),
+      valorPorPlaca: Number(propostaAprovada.valor_por_placa || 9),
+    })
+  }, [propostaAprovada, cliente])
+
   // Handler canônico para "+ Adicionar Contrato O&M"
   const handleAdicionarContratoOM = () => {
     // 1. Se houver proposta O&M aprovada, dispara o fluxo canônico (revisão -> Anexo II -> pré-visualização A4)
     if (propostaAprovada) {
-      const plano =
-        (propostaAprovada.plano_escolhido as 'Essencial' | 'Inspeção' | 'Completo') || 'Inspeção'
-      let valorMensal = propostaAprovada.valor_mensal_plano
-      if (!valorMensal) {
-        if (plano === 'Essencial') valorMensal = propostaAprovada.valor_plano_essencial || 190
-        else if (plano === 'Inspeção' || (plano as string) === 'Prevenção')
-          valorMensal = propostaAprovada.valor_plano_inspecao || 450
-        else if (plano === 'Completo') valorMensal = propostaAprovada.valor_plano_completo || 1450
-        else valorMensal = 190
-      }
-      const valorTotal = propostaAprovada.valor_anual_plano || valorMensal * 12
+      const planoContrato = propostaAprovada.plano_escolhido
+        ? (mapearPlanoPropostaParaContrato(propostaAprovada.plano_escolhido) as
+            | 'Essencial'
+            | 'Prevenção'
+            | 'Completo')
+        : planosResolvidosPropostaAprovada?.planoSugerido || 'Prevenção'
+
+      const infoPlano = planosResolvidosPropostaAprovada
+        ? planosResolvidosPropostaAprovada[planoContrato]
+        : null
+
+      const valorMensal = infoPlano ? infoPlano.mensal : propostaAprovada.valor_mensal_plano || 0
+      const valorTotal = infoPlano
+        ? infoPlano.anual
+        : propostaAprovada.valor_anual_plano || Math.round(valorMensal * 12 * 100) / 100
 
       if (onDispararGerarContrato) {
-        onDispararGerarContrato(propostaAprovada, plano, valorMensal, valorTotal)
+        onDispararGerarContrato(propostaAprovada, planoContrato, valorMensal, valorTotal)
       } else {
         setModalContratoOpen(true)
       }
@@ -405,8 +429,8 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
     const vencimento = new Date()
     vencimento.setFullYear(vencimento.getFullYear() + 1)
 
-    const valorMensal = Number(novoPlanoValorMensal) || 190
-    const valorAnual = valorMensal * 12
+    const valorMensal = Number(novoPlanoValorMensal) || 0
+    const valorAnual = Math.round(valorMensal * 12 * 100) / 100
 
     await addContratoOM({
       cliente_id: cliente.id,
@@ -1347,15 +1371,35 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
                   onChange={(e) => {
                     const val = e.target.value as OMPlanoTipo
                     setNovoPlanoTipo(val)
-                    if (val === 'Essencial') setNovoPlanoValorMensal(190)
-                    if (val === 'Prevenção') setNovoPlanoValorMensal(450)
-                    if (val === 'Completo') setNovoPlanoValorMensal(1450)
+                    if (planosResolvidosPropostaAprovada) {
+                      const chaveContrato =
+                        val === 'Inspeção'
+                          ? 'Prevenção'
+                          : (val as 'Essencial' | 'Prevenção' | 'Completo')
+                      const info = planosResolvidosPropostaAprovada[chaveContrato]
+                      if (info) setNovoPlanoValorMensal(info.mensal)
+                    }
                   }}
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 text-xs bg-white"
                 >
-                  <option value="Essencial">Essencial (R$ 190/mês)</option>
-                  <option value="Prevenção">Prevenção (R$ 450/mês)</option>
-                  <option value="Completo">Completo (R$ 1.450/mês)</option>
+                  <option value="Essencial">
+                    Essencial
+                    {planosResolvidosPropostaAprovada
+                      ? ` (${formatCurrency(planosResolvidosPropostaAprovada.Essencial.mensal)}/mês)`
+                      : ''}
+                  </option>
+                  <option value="Prevenção">
+                    Prevenção
+                    {planosResolvidosPropostaAprovada
+                      ? ` (${formatCurrency(planosResolvidosPropostaAprovada.Prevenção.mensal)}/mês)`
+                      : ''}
+                  </option>
+                  <option value="Completo">
+                    Completo
+                    {planosResolvidosPropostaAprovada
+                      ? ` (${formatCurrency(planosResolvidosPropostaAprovada.Completo.mensal)}/mês)`
+                      : ''}
+                  </option>
                 </select>
               </div>
 
@@ -1483,8 +1527,9 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
                 cliente_id: cliente.id,
                 plano: (dados.planoSelecionado as OMPlanoTipo) || 'Essencial',
                 status: 'Ativo',
-                valor_mensal: dados.valorMensal || 190,
-                valor_anual: dados.valorTotal || (dados.valorMensal || 190) * 12,
+                valor_mensal: dados.valorMensal || 0,
+                valor_anual:
+                  dados.valorTotal || Math.round((dados.valorMensal || 0) * 12 * 100) / 100,
                 data_inicio: hoje.toISOString(),
                 data_vencimento: vencimento.toISOString(),
                 servicos_realizados: [],

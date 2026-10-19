@@ -11,6 +11,9 @@ import {
   PISO_BASE_OM,
   VALOR_PADRAO_POR_PLACA,
   VALOR_FIXO_PLACAS_ATE_34,
+  mapearPlanoPropostaParaContrato,
+  mapearPlanoContratoParaProposta,
+  resolverValoresPlanosContratoOM,
 } from './planosOM'
 import { calcularPropostaOM } from './propostaOMGenerator'
 
@@ -38,6 +41,105 @@ describe('Planos O&M - Módulo Centralizado e Fórmulas Exatas do Usuário', () 
     expect(normalizarNomePlanoOM('inspecao')).toBe('Inspeção')
     expect(normalizarNomePlanoOM('Completo')).toBe('Completo')
     expect(normalizarNomePlanoOM('Essencial')).toBe('Essencial')
+  })
+
+  describe('Mapeamento e Unificação Proposta O&M <-> Contrato O&M', () => {
+    it('mapeia Inspeção da proposta para Prevenção no contrato', () => {
+      expect(mapearPlanoPropostaParaContrato('Inspeção')).toBe('Prevenção')
+      expect(mapearPlanoPropostaParaContrato('inspecao')).toBe('Prevenção')
+      expect(mapearPlanoPropostaParaContrato('Prevenção')).toBe('Prevenção')
+      expect(mapearPlanoPropostaParaContrato('Completo')).toBe('Completo')
+      expect(mapearPlanoPropostaParaContrato('Essencial')).toBe('Essencial')
+      expect(mapearPlanoPropostaParaContrato(null)).toBe('Essencial')
+    })
+
+    it('mapeia Prevenção do contrato para Inspeção na proposta/cálculo', () => {
+      expect(mapearPlanoContratoParaProposta('Prevenção')).toBe('Inspeção')
+      expect(mapearPlanoContratoParaProposta('Inspeção')).toBe('Inspeção')
+      expect(mapearPlanoContratoParaProposta('Completo')).toBe('Completo')
+      expect(mapearPlanoContratoParaProposta('Essencial')).toBe('Essencial')
+    })
+
+    it('caso real do usuário: proposta aprovada com valores calculados/salvos da proposta (ex: 256.81/mês e 3081.72/ano no Completo)', () => {
+      const propostaAprovada = {
+        plano_escolhido: 'Completo',
+        valor_mensal_plano: 256.81,
+        valor_anual_plano: 3081.72,
+        valor_plano_essencial: 76.81,
+        valor_plano_inspecao: 166.81,
+        valor_plano_completo: 256.81,
+        numero_modulos: 20,
+        geracao_mensal_kwh: 1000,
+      }
+
+      const res = resolverValoresPlanosContratoOM(propostaAprovada)
+      expect(res.planoSugerido).toBe('Completo')
+      expect(res.Completo.mensal).toBe(256.81)
+      expect(res.Completo.anual).toBe(3081.72)
+      expect(res.Completo.fonte).toBe('campo_plano')
+
+      // Dropdown labels usam os valores da proposta e NUNCA fallbacks fixos 190, 450, 1450
+      expect(res.Essencial.mensal).toBe(76.81)
+      expect(res.Prevenção.mensal).toBe(166.81)
+      expect(res.Prevenção.planoProposta).toBe('Inspeção')
+      expect(res.Prevenção.fonte).toBe('campo_plano')
+    })
+
+    it('prioriza valores negociados da proposta sobre campos e fórmula', () => {
+      const propostaComNegociado = {
+        plano_escolhido: 'Inspeção',
+        valores_negociados_json: JSON.stringify({
+          Essencial: 120,
+          Inspeção: 280,
+          Completo: 500,
+        }),
+        valor_plano_essencial: 80,
+        valor_plano_inspecao: 200,
+        valor_plano_completo: 350,
+      }
+
+      const res = resolverValoresPlanosContratoOM(propostaComNegociado)
+      expect(res.planoSugerido).toBe('Prevenção')
+      expect(res.Essencial.mensal).toBe(120)
+      expect(res.Essencial.fonte).toBe('negociado')
+      expect(res.Prevenção.mensal).toBe(280)
+      expect(res.Prevenção.fonte).toBe('negociado')
+      expect(res.Completo.mensal).toBe(500)
+      expect(res.Completo.fonte).toBe('negociado')
+    })
+
+    it('usa cálculo por fórmula quando campos da proposta estão ausentes e não há negociado, sem fallbacks fixos 190/450/1450', () => {
+      const propostaSemValoresSalvos = {
+        plano_escolhido: 'Inspeção',
+        distancia_km: 15,
+        valor_km: 2.5,
+        numero_modulos: 20,
+        geracao_mensal_kwh: 1000,
+        valor_kwh: 0.92,
+      }
+
+      const res = resolverValoresPlanosContratoOM(propostaSemValoresSalvos)
+      // Base = 49.90, Visita = 350 + 75 = 425 -> Rateio Inspeção = 35.42 -> 85.32
+      expect(res.planoSugerido).toBe('Prevenção')
+      expect(res.Essencial.mensal).toBe(49.9)
+      expect(res.Prevenção.mensal).toBe(85.32)
+      expect(res.Completo.mensal).toBe(120.73)
+      expect(res.Essencial.fonte).toBe('formula')
+      expect(res.Prevenção.fonte).toBe('formula')
+      expect(res.Completo.fonte).toBe('formula')
+
+      // Valores não são os antigos hardcoded 190, 450, 1450
+      expect(res.Essencial.mensal).not.toBe(190)
+      expect(res.Prevenção.mensal).not.toBe(450)
+      expect(res.Completo.mensal).not.toBe(1450)
+    })
+
+    it('caso sem nenhuma informação: aplica piso mínimo R$ 49,90 e nunca 190/450/1450', () => {
+      const res = resolverValoresPlanosContratoOM(null)
+      expect(res.Essencial.mensal).toBe(49.9)
+      expect(res.Prevenção.mensal).toBe(49.9)
+      expect(res.Completo.mensal).toBe(49.9)
+    })
   })
 
   describe('Fórmulas exatas definidas pelo usuário', () => {

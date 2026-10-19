@@ -2590,8 +2590,11 @@ export const FichaClienteDrawer: React.FC = () => {
                             : dadosBase.localInstalacao || 'Telhado',
                         planoSelecionado:
                           contrato.plano || dadosBase.planoSelecionado || 'Essencial',
-                        valorMensal: contrato.valor_mensal || dadosBase.valorMensal || 190,
-                        valorTotal: contrato.valor_anual || dadosBase.valorTotal || 2280,
+                        valorMensal: contrato.valor_mensal ?? dadosBase.valorMensal ?? 0,
+                        valorTotal:
+                          contrato.valor_anual ??
+                          dadosBase.valorTotal ??
+                          (contrato.valor_mensal ?? dadosBase.valorMensal ?? 0) * 12,
                       })
                       setModoVisualizacaoContratoDireta(true)
                       setModalContratoOMOpen(true)

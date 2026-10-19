@@ -296,3 +296,229 @@ export const PLANOS_OM_VALORES_BASE: Record<PlanoOMChave, { mensal: number; anua
   Inspeção: { mensal: 74.9, anual: 74.9 * 12 },
   Completo: { mensal: 99.9, anual: 99.9 * 12 },
 }
+
+/**
+ * Mapeia o plano da proposta O&M ('Inspeção', 'Prevenção', etc.) para a chave de contrato ('Prevenção').
+ */
+export function mapearPlanoPropostaParaContrato(
+  plano?: string | null,
+): 'Essencial' | 'Prevenção' | 'Completo' {
+  if (!plano) return 'Essencial'
+  const lower = plano.trim().toLowerCase()
+  if (lower.includes('insp') || lower.includes('prev')) return 'Prevenção'
+  if (lower.includes('comp')) return 'Completo'
+  return 'Essencial'
+}
+
+/**
+ * Mapeia a chave de plano do contrato ('Prevenção', 'Essencial', 'Completo')
+ * para a chave correspondente do catálogo de cálculo O&M ('Inspeção', 'Essencial', 'Completo').
+ */
+export function mapearPlanoContratoParaProposta(plano?: string | null): PlanoOMChave {
+  if (!plano) return 'Essencial'
+  const lower = plano.trim().toLowerCase()
+  if (lower.includes('prev') || lower.includes('insp')) return 'Inspeção'
+  if (lower.includes('comp')) return 'Completo'
+  return 'Essencial'
+}
+
+/**
+ * Interface mínima aceita para resolução de valores a partir de uma proposta O&M ou dados técnicos equivalentes.
+ */
+export interface PropostaOMValoresSource {
+  distancia_km?: number | null
+  valor_km?: number | null
+  numero_modulos?: number | null
+  geracao_mensal_kwh?: number | null
+  valor_kwh?: number | null
+  valor_por_placa?: number | null
+  potencia_kwp?: number | null
+  plano_escolhido?: string | null
+  valor_mensal_plano?: number | null
+  valor_anual_plano?: number | null
+  valor_plano_essencial?: number | null
+  valor_plano_inspecao?: number | null
+  valor_plano_completo?: number | null
+  valores_negociados_json?: unknown
+}
+
+export interface PlanoResolvidoContratoOM {
+  planoContrato: 'Essencial' | 'Prevenção' | 'Completo'
+  planoProposta: PlanoOMChave
+  mensal: number
+  anual: number
+  fonte: 'negociado' | 'campo_plano' | 'formula' | 'valor_mensal_plano' | 'base_piso'
+}
+
+export interface TodosPlanosResolvidosContratoOM {
+  Essencial: PlanoResolvidoContratoOM
+  Prevenção: PlanoResolvidoContratoOM
+  Completo: PlanoResolvidoContratoOM
+  planoSugerido: 'Essencial' | 'Prevenção' | 'Completo'
+}
+
+/**
+ * Unifica a leitura de valores dos 3 planos O&M num ÚNICO critério de prioridade:
+ * 1. Valores negociados da proposta (valores_negociados_json[chave])
+ * 2. Campos de valor por plano da proposta (valor_plano_essencial / valor_plano_inspecao / valor_plano_completo)
+ *    * se o plano escolhido da proposta coincidir, valor_mensal_plano também é considerado para esse plano
+ * 3. Cálculo pela fórmula O&M (Base = (geração × kWh) ÷ 60 com piso R$ 49,90 nos 3 planos;
+ *    Essencial = Base; Inspeção/Prevenção = Base + ajuste_placas/deslocamento; Completo dobra parte)
+ * 4. Fallback final pela Base com piso (R$ 49,90) - NUNCA 190 / 450 / 1450 hardcoded.
+ */
+export function resolverValoresPlanosContratoOM(
+  proposta?: PropostaOMValoresSource | null,
+  parametrosExtras?: Partial<ParametrosCalculoPlanoOM>,
+): TodosPlanosResolvidosContratoOM {
+  // 1. Extrai eventuais valores negociados gravados em JSON
+  let negociados: Record<string, number | null> = {}
+  if (proposta?.valores_negociados_json) {
+    try {
+      negociados =
+        typeof proposta.valores_negociados_json === 'string'
+          ? JSON.parse(proposta.valores_negociados_json)
+          : (proposta.valores_negociados_json as Record<string, number | null>)
+    } catch {
+      negociados = {}
+    }
+  }
+
+  // 2. Parâmetros consolidados para o cálculo da fórmula (usina/proposta)
+  const paramsCalculo: ParametrosCalculoPlanoOM = {
+    distanciaKm: Number(proposta?.distancia_km ?? parametrosExtras?.distanciaKm ?? 0),
+    valorKm: Number(proposta?.valor_km ?? parametrosExtras?.valorKm ?? 0),
+    numeroModulos: Number(proposta?.numero_modulos ?? parametrosExtras?.numeroModulos ?? 0),
+    geracaoMensalKwh: Number(
+      proposta?.geracao_mensal_kwh ?? parametrosExtras?.geracaoMensalKwh ?? 0,
+    ),
+    valorKwh: Number(proposta?.valor_kwh ?? parametrosExtras?.valorKwh ?? 0),
+    valorPorPlaca: Number(proposta?.valor_por_placa ?? parametrosExtras?.valorPorPlaca ?? 9),
+    valoresNegociados: {
+      ...negociados,
+      ...parametrosExtras?.valoresNegociados,
+    },
+  }
+
+  // Calcula valores dinâmicos dos 3 planos via fórmula canônica
+  const calculados = calcularTodosPlanosOM(paramsCalculo)
+
+  const planoEscolhidoProposta = proposta?.plano_escolhido
+    ? mapearPlanoPropostaParaContrato(proposta.plano_escolhido)
+    : null
+
+  function resolverParaPlano(
+    planoContrato: 'Essencial' | 'Prevenção' | 'Completo',
+  ): PlanoResolvidoContratoOM {
+    const chaveProposta: PlanoOMChave = mapearPlanoContratoParaProposta(planoContrato)
+    const calc = calculados[chaveProposta]
+
+    // Prioridade 1: valor negociado da proposta
+    const negociadoChave =
+      paramsCalculo.valoresNegociados?.[chaveProposta] ??
+      (planoContrato === 'Prevenção'
+        ? (paramsCalculo.valoresNegociados as Record<string, unknown>)?.['Prevenção']
+        : undefined)
+    if (
+      negociadoChave !== undefined &&
+      negociadoChave !== null &&
+      !isNaN(Number(negociadoChave)) &&
+      Number(negociadoChave) > 0
+    ) {
+      const mensal = Math.round(Number(negociadoChave) * 100) / 100
+      return {
+        planoContrato,
+        planoProposta: chaveProposta,
+        mensal,
+        anual: Math.round(mensal * 12 * 100) / 100,
+        fonte: 'negociado',
+      }
+    }
+
+    // Prioridade 2: campos de valor por plano da proposta O&M
+    let campoValor: number | null | undefined = null
+    if (planoContrato === 'Essencial') {
+      campoValor = proposta?.valor_plano_essencial
+    } else if (planoContrato === 'Prevenção') {
+      campoValor = proposta?.valor_plano_inspecao
+    } else if (planoContrato === 'Completo') {
+      campoValor = proposta?.valor_plano_completo
+    }
+
+    if (
+      campoValor !== undefined &&
+      campoValor !== null &&
+      !isNaN(Number(campoValor)) &&
+      Number(campoValor) > 0
+    ) {
+      const mensal = Math.round(Number(campoValor) * 100) / 100
+      // Se este for o plano escolhido e a proposta tiver valor_anual_plano explícito, preserva-o
+      const anualExpl =
+        planoEscolhidoProposta === planoContrato &&
+        proposta?.valor_anual_plano &&
+        Number(proposta.valor_anual_plano) > 0
+          ? Number(proposta.valor_anual_plano)
+          : Math.round(mensal * 12 * 100) / 100
+      return {
+        planoContrato,
+        planoProposta: chaveProposta,
+        mensal,
+        anual: anualExpl,
+        fonte: 'campo_plano',
+      }
+    }
+
+    // Se este for o plano escolhido da proposta e houver valor_mensal_plano geral registrado
+    if (
+      planoEscolhidoProposta === planoContrato &&
+      proposta?.valor_mensal_plano &&
+      Number(proposta.valor_mensal_plano) > 0
+    ) {
+      const mensal = Math.round(Number(proposta.valor_mensal_plano) * 100) / 100
+      const anual =
+        proposta?.valor_anual_plano && Number(proposta.valor_anual_plano) > 0
+          ? Number(proposta.valor_anual_plano)
+          : Math.round(mensal * 12 * 100) / 100
+      return {
+        planoContrato,
+        planoProposta: chaveProposta,
+        mensal,
+        anual,
+        fonte: 'valor_mensal_plano',
+      }
+    }
+
+    // Prioridade 3: valor calculado pela fórmula canônica O&M
+    if (calc && calc.mensal > 0) {
+      return {
+        planoContrato,
+        planoProposta: chaveProposta,
+        mensal: calc.mensal,
+        anual: calc.anual,
+        fonte: calc.isNegociado ? 'negociado' : 'formula',
+      }
+    }
+
+    // Prioridade 4: piso mínimo O&M
+    return {
+      planoContrato,
+      planoProposta: chaveProposta,
+      mensal: PISO_BASE_OM,
+      anual: Math.round(PISO_BASE_OM * 12 * 100) / 100,
+      fonte: 'base_piso',
+    }
+  }
+
+  const essencialRes = resolverParaPlano('Essencial')
+  const prevencaoRes = resolverParaPlano('Prevenção')
+  const completoRes = resolverParaPlano('Completo')
+
+  const planoSugerido: 'Essencial' | 'Prevenção' | 'Completo' =
+    planoEscolhidoProposta || 'Prevenção'
+
+  return {
+    Essencial: essencialRes,
+    Prevenção: prevencaoRes,
+    Completo: completoRes,
+    planoSugerido,
+  }
+}

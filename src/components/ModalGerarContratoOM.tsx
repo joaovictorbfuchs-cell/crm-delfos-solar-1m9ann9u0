@@ -59,6 +59,7 @@ import {
   abrirContratoImpressao,
 } from '@/lib/contratoGenerator'
 import { estimarDistanciaDelfosCliente } from '@/lib/calculoDeslocamentoAtividades'
+import { resolverValoresPlanosContratoOM, mapearPlanoPropostaParaContrato } from '@/lib/planosOM'
 const LazyBotaoBaixarContratoOMPDF = React.lazy(
   () => import('@/components/BotaoBaixarContratoOMPDF'),
 )
@@ -126,8 +127,8 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
 
   // Plano e Valores
   const [formPlano, setFormPlano] = useState<PlanoContratoOM>('Essencial')
-  const [formValorTotal, setFormValorTotal] = useState<number>(2280)
-  const [formValorMensal, setFormValorMensal] = useState<number>(190)
+  const [formValorTotal, setFormValorTotal] = useState<number>(0)
+  const [formValorMensal, setFormValorMensal] = useState<number>(0)
   const [formDataExtenso, setFormDataExtenso] = useState('')
 
   // Valores dos Serviços Adicionais (Anexo II)
@@ -236,9 +237,37 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
         setFormEnderecoInstalacaoDiferente(
           initialDados.enderecoInstalacaoDiferente || cliente.usina_endereco || '',
         )
-        setFormPlano(initialDados.planoSelecionado || 'Essencial')
-        setFormValorTotal(initialDados.valorTotal || 2280)
-        setFormValorMensal(initialDados.valorMensal || 190)
+        const planosResolvidosInit = resolverValoresPlanosContratoOM(propostaOM, {
+          potenciaKwp: potInicial,
+          distanciaKm: distInicial,
+          valorKm: kmValInicial,
+          valorKwh: kwhValInicial,
+          valorPorPlaca: placaValInicial,
+          numeroModulos: Number(
+            initialDados.numeroModulos || cliente.placas_qtd || propostaOM?.numero_modulos || 0,
+          ),
+          geracaoMensalKwh: Number(
+            propostaOM?.geracao_mensal_kwh || cliente.geracao_media_mensal_kwh || 0,
+          ),
+        })
+
+        const planoEscolhidoInit = (initialDados.planoSelecionado ||
+          planosResolvidosInit.planoSugerido) as PlanoContratoOM
+        const infoPlanoInit = planosResolvidosInit[planoEscolhidoInit]
+
+        setFormPlano(planoEscolhidoInit)
+        setFormValorMensal(
+          initialDados.valorMensal !== undefined && initialDados.valorMensal !== null
+            ? Number(initialDados.valorMensal)
+            : infoPlanoInit.mensal,
+        )
+        setFormValorTotal(
+          initialDados.valorTotal !== undefined && initialDados.valorTotal !== null
+            ? Number(initialDados.valorTotal)
+            : initialDados.valorMensal !== undefined && initialDados.valorMensal !== null
+              ? Math.round(Number(initialDados.valorMensal) * 12 * 100) / 100
+              : infoPlanoInit.anual,
+        )
         setFormDataExtenso(initialDados.dataPorExtenso || formatarDataExtenso(new Date()))
         setFormServicosAdicionais(initialDados.servicosAdicionais || SERVICOS_ADICIONAIS_PADRAO)
 
@@ -304,34 +333,26 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
       const telhadoTipo = (cliente.telhado_tipo || '').toLowerCase()
       const localEfetivo: 'Telhado' | 'Solo' = telhadoTipo.includes('solo') ? 'Solo' : 'Telhado'
 
-      // Plano e valores da proposta aprovada quando houver (utilizando valores salvos/ajustados da proposta)
-      let planoDef: PlanoContratoOM = 'Essencial'
-      let valorMensalDef = 190
-      let valorTotalDef = 2280
+      // Resolução canônica de planos e valores a partir da proposta aprovada (valores negociados > campos de plano > fórmula O&M)
+      const planosResolvidos = resolverValoresPlanosContratoOM(propostaOM, {
+        potenciaKwp: potInicial,
+        distanciaKm: distInicial,
+        valorKm: kmValInicial,
+        valorKwh: kwhValInicial,
+        valorPorPlaca: placaValInicial,
+        numeroModulos: Number(modulosEfetivo) || 0,
+        geracaoMensalKwh: Number(
+          propostaOM?.geracao_mensal_kwh || cliente.geracao_media_mensal_kwh || 0,
+        ),
+      })
 
-      if (propostaOM) {
-        const planoTexto = (propostaOM.plano_escolhido || '').toLowerCase()
-        if (planoTexto.includes('preven') || planoTexto.includes('inspec')) {
-          planoDef = 'Prevenção'
-          valorMensalDef = propostaOM.valor_plano_inspecao || propostaOM.valor_mensal_plano || 450
-          valorTotalDef =
-            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
-        } else if (propostaOM.plano_escolhido === 'Completo') {
-          planoDef = 'Completo'
-          valorMensalDef = propostaOM.valor_plano_completo || propostaOM.valor_mensal_plano || 1450
-          valorTotalDef =
-            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
-        } else if (propostaOM.plano_escolhido === 'Essencial') {
-          planoDef = 'Essencial'
-          valorMensalDef = propostaOM.valor_plano_essencial || propostaOM.valor_mensal_plano || 190
-          valorTotalDef =
-            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
-        } else if (propostaOM.valor_mensal_plano) {
-          valorMensalDef = propostaOM.valor_mensal_plano
-          valorTotalDef =
-            propostaOM.valor_anual_plano || Math.round(valorMensalDef * 12 * 100) / 100
-        }
-      }
+      const planoDef: PlanoContratoOM = propostaOM?.plano_escolhido
+        ? (mapearPlanoPropostaParaContrato(propostaOM.plano_escolhido) as PlanoContratoOM)
+        : planosResolvidos.planoSugerido
+
+      const planoInfoDef = planosResolvidos[planoDef]
+      const valorMensalDef = planoInfoDef.mensal
+      const valorTotalDef = planoInfoDef.anual
 
       setFormNome(nomeEfetivo)
       setFormCpfCnpj(docEfetivo)
@@ -356,22 +377,38 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     }
   }, [open, cliente, propostaOM, initialDados, modoVisualizacaoDireta])
 
-  // Altera valores quando o plano for mudado na etapa de revisão se o usuário não inseriu custom
-  // (prioriza valores salvos da proposta O&M quando disponíveis)
+  // Mapa dinâmico dos 3 planos com valores canônicos da proposta aprovada / usina
+  const planosResolvidosAtuais = useMemo(() => {
+    return resolverValoresPlanosContratoOM(propostaOM, {
+      potenciaKwp: Number(paramPotenciaKwp) || 0,
+      distanciaKm: Number(paramDistanciaKm) || 0,
+      valorKm: Number(paramValorKm) || 0,
+      valorKwh: Number(paramValorKwh) || 0,
+      valorPorPlaca: Number(paramValorPorPlaca) || 9,
+      numeroModulos: Number(formNumModulos) || 0,
+      geracaoMensalKwh: Number(
+        propostaOM?.geracao_mensal_kwh || cliente.geracao_media_mensal_kwh || 0,
+      ),
+    })
+  }, [
+    propostaOM,
+    paramPotenciaKwp,
+    paramDistanciaKm,
+    paramValorKm,
+    paramValorKwh,
+    paramValorPorPlaca,
+    formNumModulos,
+    cliente.geracao_media_mensal_kwh,
+  ])
+
+  // Altera valores quando o plano for mudado na etapa de revisão
+  // (usa exatamente os valores resolvidos da proposta aprovada para o plano selecionado)
   const handlePlanoChange = (novoPlano: PlanoContratoOM) => {
     setFormPlano(novoPlano)
-    if (novoPlano === 'Essencial') {
-      const v = propostaOM?.valor_plano_essencial || 190
-      setFormValorMensal(v)
-      setFormValorTotal(Math.round(v * 12 * 100) / 100)
-    } else if (novoPlano === 'Prevenção') {
-      const v = propostaOM?.valor_plano_inspecao || 450
-      setFormValorMensal(v)
-      setFormValorTotal(Math.round(v * 12 * 100) / 100)
-    } else if (novoPlano === 'Completo') {
-      const v = propostaOM?.valor_plano_completo || 1450
-      setFormValorMensal(v)
-      setFormValorTotal(Math.round(v * 12 * 100) / 100)
+    const info = planosResolvidosAtuais[novoPlano]
+    if (info) {
+      setFormValorMensal(info.mensal)
+      setFormValorTotal(info.anual)
     }
   }
 
@@ -901,9 +938,15 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                     onChange={(e) => handlePlanoChange(e.target.value as PlanoContratoOM)}
                     className="w-full h-9 px-3 rounded-lg border border-gray-300 text-xs bg-white mt-1 font-bold text-emerald-800"
                   >
-                    <option value="Essencial">Essencial (R$ 190,00/mês)</option>
-                    <option value="Prevenção">Prevenção (R$ 450,00/mês)</option>
-                    <option value="Completo">Completo (R$ 1.450,00/mês)</option>
+                    <option value="Essencial">
+                      Essencial ({formatCurrency(planosResolvidosAtuais.Essencial.mensal)}/mês)
+                    </option>
+                    <option value="Prevenção">
+                      Prevenção ({formatCurrency(planosResolvidosAtuais.Prevenção.mensal)}/mês)
+                    </option>
+                    <option value="Completo">
+                      Completo ({formatCurrency(planosResolvidosAtuais.Completo.mensal)}/mês)
+                    </option>
                   </select>
                   <p className="text-[10px] text-gray-400 mt-1">
                     Substitui «PlanoSelecionado» e define o Anexo I.
