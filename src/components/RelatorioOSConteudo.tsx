@@ -574,24 +574,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Blocos do relatório configurados na OS (logo após a tabela do checklist) */}
-          {relatorio.blocosRelatorio && relatorio.blocosRelatorio.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-[#EBF0F7] space-y-4">
-              {relatorio.blocosRelatorio.map((bloco) => (
-                <div key={bloco.id} className="bg-[#F8FAFD] border border-[#E2E8F0] rounded-lg p-4">
-                  {bloco.titulo && (
-                    <h4 className="m-0 mb-1.5 text-xs font-bold text-[#0E2A47] uppercase tracking-wider">
-                      {bloco.titulo}
-                    </h4>
-                  )}
-                  <p className="m-0 text-xs sm:text-sm text-[#2C3E50] leading-relaxed whitespace-pre-wrap">
-                    {bloco.texto}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
         </section>
 
         {/* 6. Registro Fotográfico */}

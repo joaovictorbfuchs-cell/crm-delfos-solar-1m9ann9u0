@@ -14,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   CATEGORIAS_ATIVIDADES,
   ATIVIDADES_PADRAO,
-  BLOCOS_RELATORIO_LIMPEZA_PADRAO,
   normalizarNomeTipo,
   correspondemAoMesmoTipo,
   type TipoAtividadeDef,
@@ -25,7 +24,6 @@ import type {
   AtividadeCategoriaId,
   CatalogoTipoExecucao,
   TipoAtividadeChecklistItem,
-  BlocoRelatorioTipoItem,
   TipoAtividadeCustomItem,
 } from '@/types/crm'
 import {
@@ -439,10 +437,6 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   // Checklist dinâmico
   const [checklistItems, setChecklistItems] = useState<TipoAtividadeChecklistItem[]>([])
   const [novoItemChecklist, setNovoItemChecklist] = useState('')
-  // Conteúdo do relatório (blocos pré-cadastrados por tipo)
-  const [blocosRelatorio, setBlocosRelatorio] = useState<BlocoRelatorioTipoItem[]>([])
-  const [novoBlocoTitulo, setNovoBlocoTitulo] = useState('')
-  const [novoBlocoTexto, setNovoBlocoTexto] = useState('')
   // Links úteis dinâmicos
   const [listaLinksUteis, setListaLinksUteis] = useState<
     Array<{ id: string; titulo: string; url: string }>
@@ -543,33 +537,6 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       }
       setNovoItemChecklist('')
 
-      // Carregar blocos do relatório pré-cadastrados
-      if (
-        Array.isArray(atividadeParaEditar.blocos_relatorio) &&
-        atividadeParaEditar.blocos_relatorio.length > 0
-      ) {
-        setBlocosRelatorio(
-          atividadeParaEditar.blocos_relatorio.map((b, i) => ({
-            id: b.id || `bloco_${Date.now()}_${i}`,
-            titulo: b.titulo || '',
-            texto: b.texto || '',
-            ordem: typeof b.ordem === 'number' ? b.ordem : i + 1,
-          })),
-        )
-      } else {
-        // Fallback para tipo limpeza se for padrão
-        const isLimpeza =
-          (atividadeParaEditar.nome || '').toLowerCase().includes('limpeza') ||
-          (atividadeParaEditar.nome || '').toLowerCase().includes('lavagem')
-        if (isLimpeza) {
-          setBlocosRelatorio(BLOCOS_RELATORIO_LIMPEZA_PADRAO)
-        } else {
-          setBlocosRelatorio([])
-        }
-      }
-      setNovoBlocoTitulo('')
-      setNovoBlocoTexto('')
-
       // Carregar links úteis existentes
       if (atividadeParaEditar.links_uteis) {
         const linhas = atividadeParaEditar.links_uteis
@@ -635,17 +602,6 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       )
       setChecklistItems(checksPadrao)
       setNovoItemChecklist('')
-      const isLimpezaPadrao =
-        padraoParaEditar.id === 'limpeza' ||
-        padraoParaEditar.id === 'limpeza_manutencao' ||
-        padraoParaEditar.tituloPadrao.toLowerCase().includes('limpeza')
-      if (isLimpezaPadrao) {
-        setBlocosRelatorio(BLOCOS_RELATORIO_LIMPEZA_PADRAO)
-      } else {
-        setBlocosRelatorio([])
-      }
-      setNovoBlocoTitulo('')
-      setNovoBlocoTexto('')
       setListaLinksUteis([])
       setNovoLinkTitulo('')
       setNovoLinkUrl('')
@@ -666,9 +622,6 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setLinksUteis('')
       setChecklistItems([])
       setNovoItemChecklist('')
-      setBlocosRelatorio([])
-      setNovoBlocoTitulo('')
-      setNovoBlocoTexto('')
       setListaLinksUteis([])
       setNovoLinkTitulo('')
       setNovoLinkUrl('')
@@ -728,10 +681,6 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
         orientacoes_tecnicas: orientacoesTecnicas.trim() || undefined,
         links_uteis: linksConsolidados || undefined,
         checklist: checklistItems,
-        blocos_relatorio: blocosRelatorio.map((b, idx) => ({
-          ...b,
-          ordem: typeof b.ordem === 'number' && b.ordem > 0 ? b.ordem : idx + 1,
-        })),
         ativo,
       }
 
@@ -1167,132 +1116,6 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
               <p className="text-[11px] text-amber-800/70 italic">
                 Nenhum item adicionado ao checklist ainda. Digite acima e clique em Adicionar ou
                 pressione Enter.
-              </p>
-            )}
-          </div>
-
-          {/* Seção Conteúdo do Relatório: Blocos de texto pré-cadastrados por tipo */}
-          <div className="space-y-2 p-3.5 rounded-xl bg-sky-50/60 border border-sky-200">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-sky-600" />
-                <span>Conteúdo do relatório ({blocosRelatorio.length} blocos pré-cadastrados)</span>
-              </Label>
-              <span className="text-[10px] text-sky-700 font-medium">
-                Herdados ao abrir a OS e editáveis por OS
-              </span>
-            </div>
-            <p className="text-[11px] text-sky-800/80 leading-relaxed">
-              Blocos descritivos e técnicos deste tipo de atividade que renderizam no Relatório da
-              OS logo após o checklist. A equipe de campo pode editar os textos na OS sem alterar o
-              padrão da matriz.
-            </p>
-
-            {/* Inclusão de novo bloco de relatório */}
-            <div className="space-y-2 p-2.5 bg-white rounded-lg border border-sky-200/80">
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                <div className="sm:col-span-12">
-                  <Input
-                    placeholder="Título do bloco (Ex: Metodologia de Limpeza, Produtos & Cuidados...)"
-                    value={novoBlocoTitulo}
-                    onChange={(e) => setNovoBlocoTitulo(e.target.value)}
-                    className="text-xs bg-white font-semibold"
-                  />
-                </div>
-                <div className="sm:col-span-12">
-                  <Textarea
-                    rows={2}
-                    placeholder="Texto descritivo pré-cadastrado do bloco..."
-                    value={novoBlocoTexto}
-                    onChange={(e) => setNovoBlocoTexto(e.target.value)}
-                    className="text-xs bg-white resize-none"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    if (novoBlocoTitulo.trim() || novoBlocoTexto.trim()) {
-                      const proximaOrdem = blocosRelatorio.length + 1
-                      setBlocosRelatorio((prev) => [
-                        ...prev,
-                        {
-                          id: `bloco_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-                          titulo: novoBlocoTitulo.trim() || `Bloco ${proximaOrdem}`,
-                          texto: novoBlocoTexto.trim(),
-                          ordem: proximaOrdem,
-                        },
-                      ])
-                      setNovoBlocoTitulo('')
-                      setNovoBlocoTexto('')
-                    }
-                  }}
-                  disabled={!novoBlocoTitulo.trim() && !novoBlocoTexto.trim()}
-                  className="h-8 px-3 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shrink-0 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Adicionar Bloco ao Relatório
-                </Button>
-              </div>
-            </div>
-
-            {/* Lista de blocos pré-cadastrados */}
-            {blocosRelatorio.length > 0 ? (
-              <div className="space-y-2 pt-1">
-                {blocosRelatorio.map((bloco, idx) => (
-                  <div
-                    key={bloco.id || idx}
-                    className="p-2.5 rounded-lg bg-white border border-sky-200 text-xs shadow-2xs space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className="w-5 h-5 rounded-md bg-sky-100 text-sky-800 text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
-                        <Input
-                          value={bloco.titulo}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            setBlocosRelatorio((prev) =>
-                              prev.map((b, i) => (i === idx ? { ...b, titulo: val } : b)),
-                            )
-                          }}
-                          className="h-7 text-xs bg-sky-50/40 border border-sky-200 focus:border-sky-500 font-bold text-sky-950 px-2 rounded-md"
-                          placeholder="Título do bloco"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setBlocosRelatorio((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                        className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer"
-                        title="Remover bloco do relatório"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <Textarea
-                      rows={2}
-                      value={bloco.texto}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setBlocosRelatorio((prev) =>
-                          prev.map((b, i) => (i === idx ? { ...b, texto: val } : b)),
-                        )
-                      }}
-                      className="text-xs bg-gray-50/50 border border-gray-200 focus:bg-white text-gray-800 resize-none rounded-md"
-                      placeholder="Texto do bloco..."
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[11px] text-sky-800/70 italic">
-                Nenhum bloco de texto pré-cadastrado. Se deixar vazio, o relatório deste tipo será
-                enxuto (sem blocos fixos).
               </p>
             )}
           </div>

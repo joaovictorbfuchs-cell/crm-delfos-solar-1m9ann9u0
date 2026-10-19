@@ -752,51 +752,6 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
               </Text>
             </View>
           </View>
-
-          {/* Blocos do relatório configurados na OS (logo após a tabela do checklist) */}
-          {relatorio.blocosRelatorio && relatorio.blocosRelatorio.length > 0 && (
-            <View
-              style={{ marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#EBF0F7' }}
-            >
-              {relatorio.blocosRelatorio.map((bloco) => (
-                <View
-                  key={bloco.id}
-                  style={{
-                    backgroundColor: '#F8FAFD',
-                    borderWidth: 1,
-                    borderColor: '#E2E8F0',
-                    borderRadius: 4,
-                    padding: 6,
-                    marginBottom: 5,
-                  }}
-                >
-                  {bloco.titulo ? (
-                    <Text
-                      style={{
-                        fontSize: 7.5,
-                        fontFamily: 'Helvetica-Bold',
-                        color: '#0E2A47',
-                        textTransform: 'uppercase',
-                        marginBottom: 2,
-                      }}
-                    >
-                      {bloco.titulo}
-                    </Text>
-                  ) : null}
-                  <Text
-                    style={{
-                      fontSize: 7.2,
-                      fontFamily: 'Helvetica',
-                      color: '#2C3E50',
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {bloco.texto}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         {/* 6. Registro Fotográfico */}
