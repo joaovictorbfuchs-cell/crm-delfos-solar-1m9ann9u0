@@ -99,6 +99,11 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).toContain('Reaperto dos conectores MC4 e quadros CA/CC')
     expect(html).toContain('Executado integralmente')
     expect(html).not.toContain('Avaliação dos componentes do sistema')
+    expect(html).not.toContain('Nota técnica: Situação do atendimento')
+    expect(html).not.toContain('Detalhes da limpeza')
+    expect(html).not.toContain('Conclusão técnica')
+    expect(html).not.toContain('>Local / Ativo<')
+    expect(html).not.toContain('>Quantidade<')
 
     // Fotos
     expect(html).toContain('data:image/jpeg;base64,/9j/4AAQSkZJRg==')

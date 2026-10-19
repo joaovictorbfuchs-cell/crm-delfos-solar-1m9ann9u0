@@ -694,10 +694,6 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
               </View>
             </View>
           </View>
-          <Text style={styles.statusNote}>
-            * Nota técnica: Situação do atendimento refere-se ao escopo da visita. Condição do
-            sistema refere-se ao estado operacional observado. São avaliações independentes.
-          </Text>
         </View>
 
         {/* 5. Serviços Executados e Condição do Sistema por Componente (Unificados) */}
@@ -706,52 +702,21 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             Serviços executados e condição do sistema por componente
           </Text>
           <View style={styles.tableHeaderRow}>
-            <Text style={[styles.thText, { flex: 3 }]}>Atividade</Text>
-            <Text style={[styles.thText, { flex: 2 }]}>Local / Ativo</Text>
-            <Text style={[styles.thText, { flex: 1.5 }]}>Quantidade</Text>
+            <Text style={[styles.thText, { flex: 4 }]}>Atividade</Text>
             <Text style={[styles.thText, { flex: 2, textAlign: 'center' }]}>Situação</Text>
-            <Text style={[styles.thText, { flex: 1.5 }]}>Evidência</Text>
+            <Text style={[styles.thText, { flex: 2 }]}>Evidência</Text>
           </View>
           {relatorio.servicosExecutados.map((item, idx) => (
             <View key={idx} style={idx % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
-              <Text style={[styles.tdText, { flex: 3, fontFamily: 'Helvetica-Bold' }]}>
+              <Text style={[styles.tdText, { flex: 4, fontFamily: 'Helvetica-Bold' }]}>
                 {item.atividade}
-              </Text>
-              <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>{item.localAtivo}</Text>
-              <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>
-                {item.quantidade}
               </Text>
               <View style={{ flex: 2, alignItems: 'center' }}>
                 <Text style={styles.badgeDone}>{item.situacao}</Text>
               </View>
-              <Text style={[styles.tdText, { flex: 1.5, color: '#536377' }]}>{item.evidencia}</Text>
+              <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>{item.evidencia}</Text>
             </View>
           ))}
-
-          {/* Sub-box: Detalhes da Limpeza */}
-          <View style={styles.subBox}>
-            <Text style={styles.subBoxTitle}>Detalhes da limpeza</Text>
-            <View style={styles.subBoxGridRow}>
-              <Text style={styles.subBoxItem}>
-                <Text style={styles.subBoxStrong}>Módulos previstos / atendidos: </Text>
-                {relatorio.modulosPrevistosAtendidos}
-              </Text>
-              <Text style={styles.subBoxItem}>
-                <Text style={styles.subBoxStrong}>Método executado: </Text>
-                {relatorio.metodoExecutado}
-              </Text>
-            </View>
-            <View style={styles.subBoxGridRow}>
-              <Text style={styles.subBoxItem}>
-                <Text style={styles.subBoxStrong}>Manual do fabricante: </Text>
-                {relatorio.manualFabricante}
-              </Text>
-              <Text style={styles.subBoxItem}>
-                <Text style={styles.subBoxStrong}>Ressalvas observadas: </Text>
-                {relatorio.ressalvasObservadas}
-              </Text>
-            </View>
-          </View>
         </View>
 
         {/* 6. Registro Fotográfico — com agrupamento por etapa do checklist */}
@@ -891,36 +856,6 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             📅 Próxima manutenção prevista: {relatorio.proximaManutencao} (semestral, conforme plano
             de manutenção).
           </Text>
-        </View>
-
-        {/* 8. Conclusão Técnica */}
-        <View style={styles.repCard} wrap={false}>
-          <Text style={styles.sectionTitle}>Conclusão técnica</Text>
-          <Text
-            style={{ fontFamily: 'Helvetica', fontSize: 7.8, color: '#1A2332', lineHeight: 1.45 }}
-          >
-            {relatorio.conclusaoNarrativa}
-          </Text>
-          <View style={styles.conclusionMeta}>
-            <Text style={styles.conclusionMetaItem}>
-              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0E2A47' }}>
-                Situação do serviço:{' '}
-              </Text>
-              {relatorio.conclusaoSituacao}
-            </Text>
-            <Text style={styles.conclusionMetaItem}>
-              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0E2A47' }}>
-                • Condição no escopo:{' '}
-              </Text>
-              {relatorio.conclusaoCondicao}
-            </Text>
-            <Text style={styles.conclusionMetaItem}>
-              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0E2A47' }}>
-                • Desempenho energético:{' '}
-              </Text>
-              {relatorio.conclusaoDesempenho}
-            </Text>
-          </View>
         </View>
 
         {/* 9. Próximos Passos */}

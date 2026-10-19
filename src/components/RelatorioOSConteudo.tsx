@@ -481,11 +481,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                 </div>
               </div>
             </div>
-
-            <p className="m-0 text-xs text-[#536377] leading-snug italic">
-              * Nota técnica: Situação do atendimento refere-se ao escopo da visita. Condição do
-              sistema refere-se ao estado operacional observado. São avaliações independentes.
-            </p>
           </div>
         </section>
 
@@ -501,12 +496,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                 <tr className="bg-[#F1F5F9] text-[#0E2A47] print-color-exact">
                   <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
                     Atividade
-                  </th>
-                  <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                    Local / Ativo
-                  </th>
-                  <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
-                    Quantidade
                   </th>
                   <th className="text-left p-3 font-bold text-xs border-b-2 border-[#DDE4EE]">
                     Situação
@@ -527,15 +516,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                     <td data-label="Atividade" className="p-3 text-xs sm:text-sm font-medium">
                       {item.atividade}
                     </td>
-                    <td
-                      data-label="Local / Ativo"
-                      className="p-3 text-xs sm:text-sm text-[#536377]"
-                    >
-                      {item.localAtivo}
-                    </td>
-                    <td data-label="Quantidade" className="p-3 text-xs sm:text-sm text-[#536377]">
-                      {item.quantidade}
-                    </td>
                     <td data-label="Situação" className="p-3 text-xs sm:text-sm">
                       <span className="inline-block bg-[#E8F7EE] text-[#126330] border border-[#B8E4C7] font-bold text-xs px-2 py-0.5 rounded-md whitespace-nowrap print-color-exact">
                         {item.situacao}
@@ -548,31 +528,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                 ))}
               </tbody>
             </table>
-          </div>
-
-          {/* Sub-box: Detalhes da Limpeza */}
-          <div className="mt-4 p-4 bg-[#F8FAFD] border border-[#E2E8F0] rounded-lg">
-            <div className="text-xs font-bold text-[#0E2A47] uppercase tracking-wider mb-2">
-              Detalhes da limpeza
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              <div>
-                <strong className="text-[#0E2A47]">Módulos previstos / atendidos:</strong>{' '}
-                <span className="text-[#536377]">{relatorio.modulosPrevistosAtendidos}</span>
-              </div>
-              <div>
-                <strong className="text-[#0E2A47]">Método executado:</strong>{' '}
-                <span className="text-[#536377]">{relatorio.metodoExecutado}</span>
-              </div>
-              <div>
-                <strong className="text-[#0E2A47]">Manual do fabricante adotado:</strong>{' '}
-                <span className="text-[#536377]">{relatorio.manualFabricante}</span>
-              </div>
-              <div>
-                <strong className="text-[#0E2A47]">Ressalvas observadas:</strong>{' '}
-                <span className="text-[#536377]">{relatorio.ressalvasObservadas}</span>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -746,31 +701,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             📅 Próxima manutenção prevista:{' '}
             <strong className="font-bold">{relatorio.proximaManutencao}</strong> (semestral,
             conforme plano de manutenção).
-          </div>
-        </section>
-
-        {/* 8. Conclusão Técnica */}
-        <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">
-          <h3 className="m-0 mb-3 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
-            Conclusão técnica
-          </h3>
-          <p className="m-0 mb-3 text-xs sm:text-sm leading-relaxed text-[#1A2332]">
-            {relatorio.conclusaoNarrativa}
-          </p>
-
-          <div className="flex flex-wrap gap-x-5 gap-y-2 bg-[#F5F8FC] border border-[#D7E2F0] rounded-lg p-3 text-xs print-color-exact">
-            <div>
-              <strong className="text-[#0E2A47]">Situação do serviço:</strong>{' '}
-              <span>{relatorio.conclusaoSituacao}</span>
-            </div>
-            <div>
-              <strong className="text-[#0E2A47]">• Condição no escopo avaliado:</strong>{' '}
-              <span>{relatorio.conclusaoCondicao}</span>
-            </div>
-            <div>
-              <strong className="text-[#0E2A47]">• Desempenho energético:</strong>{' '}
-              <span>{relatorio.conclusaoDesempenho}</span>
-            </div>
           </div>
         </section>
 

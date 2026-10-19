@@ -190,8 +190,6 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       (s) => `
     <tr>
       <td data-label="Atividade" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; font-weight: 600; color: #1A2332;">${s.atividade}</td>
-      <td data-label="Local / Ativo" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${s.localAtivo}</td>
-      <td data-label="Quantidade" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${s.quantidade}</td>
       <td data-label="Situação" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE;">
         <span style="display: inline-block; background: #E8F7EE; color: #126330; border: 1px solid #B8E4C7; font-weight: 700; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; white-space: nowrap;">${s.situacao}</span>
       </td>
@@ -491,9 +489,6 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
           </div>
         </div>
       </div>
-      <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; font-style: italic; margin: 10px 0 0;">
-        * Nota técnica: Situação do atendimento refere-se ao escopo da visita. Condição do sistema refere-se ao estado operacional observado. São avaliações independentes.
-      </p>
     </section>
 
     <!-- 5. Serviços executados -->
@@ -503,25 +498,12 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
         <thead>
           <tr style="background: #F1F5F9; color: var(--navy-dark); font-weight: 700;">
             <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Atividade</th>
-            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Local / Ativo</th>
-            <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Quantidade</th>
             <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Situação</th>
             <th style="padding: 9px 12px; text-align: left; font-size: 0.78rem; border-bottom: 2px solid var(--border-color);">Evidência</th>
           </tr>
         </thead>
         <tbody>${servicosRowsHtml}</tbody>
       </table>
-
-      <!-- Detalhes da Limpeza -->
-      <div style="margin-top: 14px; padding: 12px 14px; background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px;">
-        <div style="font-size: 0.8rem; font-weight: 700; color: var(--navy-dark); text-transform: uppercase; margin-bottom: 6px;">Detalhes da limpeza</div>
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; font-size: 0.8rem;">
-          <div><strong style="color: var(--navy-dark);">Módulos previstos / atendidos:</strong> ${rel.modulosPrevistosAtendidos}</div>
-          <div><strong style="color: var(--navy-dark);">Método executado:</strong> ${rel.metodoExecutado}</div>
-          <div><strong style="color: var(--navy-dark);">Manual do fabricante:</strong> ${rel.manualFabricante}</div>
-          <div><strong style="color: var(--navy-dark);">Ressalvas observadas:</strong> ${rel.ressalvasObservadas}</div>
-        </div>
-      </div>
     </section>
 
     <!-- 6. Registro Fotográfico -->
@@ -547,16 +529,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
     </section>
 
-    <!-- 8. Conclusão Técnica -->
-    <section class="rep-card">
-      <h3 class="section-title">Conclusão técnica</h3>
-      <p style="margin: 0 0 10px; font-size: 0.9rem; line-height: 1.6;">${rel.conclusaoNarrativa}</p>
-      <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; background: #F5F8FC; border: 1px solid #D7E2F0; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem;">
-        <div><strong style="color: var(--navy-dark);">Situação do serviço:</strong> ${rel.conclusaoSituacao}</div>
-        <div><strong style="color: var(--navy-dark);">• Condição no escopo avaliado:</strong> ${rel.conclusaoCondicao}</div>
-        <div><strong style="color: var(--navy-dark);">• Desempenho energético:</strong> ${rel.conclusaoDesempenho}</div>
-      </div>
-    </section>
+
 
     <!-- 9. Próximos Passos -->
     <section class="rep-card">
