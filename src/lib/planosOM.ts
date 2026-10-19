@@ -89,6 +89,7 @@ export interface ParametrosCalculoPlanoOM {
   geracaoMensalKwh?: number
   valorKwh?: number
   valorPorPlaca?: number
+  potenciaKwp?: number
   /** Valores manuais negociados para sobrepor o cálculo padrão da fórmula */
   valoresNegociados?: Partial<Record<PlanoOMChave, number | null>>
 }

@@ -26,13 +26,6 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
   const [observacoes, setObservacoes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!isOpen) return null
-
-  // Clientes que ainda não têm contrato de O&M
-  const clientesDisponiveis = clientes.filter(
-    (c) => !contratosOM.some((cont) => cont.cliente_id === c.id),
-  )
-
   // Proposta O&M do cliente selecionado (se houver, prioriza aprovada)
   const propostaClienteSelecionado = React.useMemo(() => {
     if (!clienteId || !propostasOM) return null
@@ -58,6 +51,13 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
       valorPorPlaca: Number(propostaClienteSelecionado?.valor_por_placa || 9),
     })
   }, [clienteId, clientes, propostaClienteSelecionado])
+
+  if (!isOpen) return null
+
+  // Clientes que ainda não têm contrato de O&M
+  const clientesDisponiveis = clientes.filter(
+    (c) => !contratosOM.some((cont) => cont.cliente_id === c.id),
+  )
 
   const handleClienteChange = (novoClienteId: string) => {
     setClienteId(novoClienteId)

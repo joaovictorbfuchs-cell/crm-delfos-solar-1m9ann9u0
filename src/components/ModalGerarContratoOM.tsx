@@ -237,6 +237,21 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
         setFormEnderecoInstalacaoDiferente(
           initialDados.enderecoInstalacaoDiferente || cliente.usina_endereco || '',
         )
+
+        // Carrega parâmetros para cálculo de sugestão a partir da proposta ou cliente
+        const potInicial = propostaOM?.potencia_kwp || cliente.potencia_kwp || 0
+        const distInicial =
+          propostaOM?.distancia_km ??
+          estimarDistanciaDelfosCliente(cliente.endereco || '', cliente.cidade || '').distanciaKm
+        const kmValInicial = propostaOM?.valor_km ?? 2.5
+        const kwhValInicial = propostaOM?.valor_kwh ?? 0.92
+        const placaValInicial = propostaOM?.valor_por_placa ?? 9.0
+        setParamPotenciaKwp(potInicial)
+        setParamDistanciaKm(distInicial)
+        setParamValorKm(kmValInicial)
+        setParamValorKwh(kwhValInicial)
+        setParamValorPorPlaca(placaValInicial)
+
         const planosResolvidosInit = resolverValoresPlanosContratoOM(propostaOM, {
           potenciaKwp: potInicial,
           distanciaKm: distInicial,
@@ -270,20 +285,6 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
         )
         setFormDataExtenso(initialDados.dataPorExtenso || formatarDataExtenso(new Date()))
         setFormServicosAdicionais(initialDados.servicosAdicionais || SERVICOS_ADICIONAIS_PADRAO)
-
-        // Carrega parâmetros para cálculo de sugestão a partir da proposta ou cliente
-        const potInicial = propostaOM?.potencia_kwp || cliente.potencia_kwp || 0
-        const distInicial =
-          propostaOM?.distancia_km ??
-          estimarDistanciaDelfosCliente(cliente.endereco || '', cliente.cidade || '').distanciaKm
-        const kmValInicial = propostaOM?.valor_km ?? 2.5
-        const kwhValInicial = propostaOM?.valor_kwh ?? 0.92
-        const placaValInicial = propostaOM?.valor_por_placa ?? 9.0
-        setParamPotenciaKwp(potInicial)
-        setParamDistanciaKm(distInicial)
-        setParamValorKm(kmValInicial)
-        setParamValorKwh(kwhValInicial)
-        setParamValorPorPlaca(placaValInicial)
 
         setEtapa(modoVisualizacaoDireta ? 'previsualizacao' : 'revisao')
         return
