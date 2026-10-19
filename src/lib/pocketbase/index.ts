@@ -10,5 +10,6 @@ export {
   getErrorMessage,
   formatPbError,
   isAbortError,
+  type FieldErrors,
 } from './errors'
 export type { ClientResponseError } from 'pocketbase'
