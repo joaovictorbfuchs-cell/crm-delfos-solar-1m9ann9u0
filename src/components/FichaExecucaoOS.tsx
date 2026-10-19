@@ -955,6 +955,118 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     })
   }
 
+  // Aciona a câmera traseira vinculando diretamente ao item de checklist clicado
+  const handleTirarFotoChecklistItem = (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActiveChecklistItemId(itemId)
+    setTimeout(() => {
+      checklistCameraInputRef.current?.click()
+    }, 10)
+  }
+
+  // Aciona o seletor de arquivos múltiplos vinculando diretamente ao item de checklist clicado
+  const handleAnexarFotosChecklistItem = (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActiveChecklistItemId(itemId)
+    setTimeout(() => {
+      checklistFileInputRef.current?.click()
+    }, 10)
+  }
+
+  // Alteração de vínculo de etapa em foto já salva
+  const handleVincularFotoSalva = (fotoNome: string, novoItemChecklistId: string) => {
+    const itemEncontrado = checklist.find((c) => c.id === novoItemChecklistId)
+    const novoTexto = itemEncontrado?.item || ''
+
+    setFotosMetadados((prev) => {
+      const indexExistente = prev.findIndex((m) => m.arquivo === fotoNome || m.id === fotoNome)
+      if (indexExistente >= 0) {
+        const atualizado = [...prev]
+        if (!novoItemChecklistId) {
+          // Desvincular / sem vínculo
+          atualizado[indexExistente] = {
+            ...atualizado[indexExistente],
+            item_checklist_id: undefined,
+            item_checklist_texto: undefined,
+          }
+        } else {
+          atualizado[indexExistente] = {
+            ...atualizado[indexExistente],
+            arquivo: fotoNome,
+            item_checklist_id: novoItemChecklistId,
+            item_checklist_texto: novoTexto,
+          }
+        }
+        return atualizado
+      } else {
+        // Criar novo metadado para a foto salva
+        if (!novoItemChecklistId) return prev
+        return [
+          ...prev,
+          {
+            id: fotoNome,
+            arquivo: fotoNome,
+            item_checklist_id: novoItemChecklistId,
+            item_checklist_texto: novoTexto,
+            data_hora: new Date().toISOString(),
+          },
+        ]
+      }
+    })
+
+    toast({
+      title: novoItemChecklistId ? 'Foto vinculada à etapa!' : 'Foto desvinculada (geral)',
+      description: novoItemChecklistId
+        ? `Etapa: "${(novoTexto || '').slice(0, 35)}..."`
+        : 'A foto agora faz parte do acervo geral da OS.',
+    })
+  }
+
+  // Alteração de vínculo de etapa em nova foto (em upload na sessão)
+  const handleVincularNovaFoto = (fotoIndex: number, novoItemChecklistId: string) => {
+    const itemEncontrado = checklist.find((c) => c.id === novoItemChecklistId)
+    const novoTexto = itemEncontrado?.item || ''
+
+    setNovasFotos((prev) =>
+      prev.map((nf, idx) => {
+        if (idx !== fotoIndex) return nf
+        return {
+          ...nf,
+          item_checklist_id: novoItemChecklistId || undefined,
+          item_checklist_texto: novoItemChecklistId ? novoTexto : undefined,
+        }
+      }),
+    )
+
+    toast({
+      title: novoItemChecklistId ? 'Foto vinculada à etapa!' : 'Foto desvinculada (geral)',
+      description: novoItemChecklistId
+        ? `Etapa: "${(novoTexto || '').slice(0, 35)}..."`
+        : 'A foto agora faz parte do acervo geral da OS.',
+    })
+  }
+
+  /**
+   * Helper que compila a lista consolidada de fotos_metadados para salvar rascunho ou finalizar OS.
+   * Mescla os metadados existentes/editados das fotos salvas com os metadados das novas fotos em upload.
+   */
+  const compilarMetadadosFinais = (): FotoMetadadoItem[] => {
+    const resultado: FotoMetadadoItem[] = [...fotosMetadados]
+
+    // Para cada nova foto, adicionamos um item de metadado (mesmo se sem vínculo, ou com item_checklist_id)
+    novasFotos.forEach((nf, idx) => {
+      resultado.push({
+        id: `upload-${Date.now()}-${idx}`,
+        arquivo: nf.file.name,
+        item_checklist_id: nf.item_checklist_id || undefined,
+        item_checklist_texto: nf.item_checklist_texto || undefined,
+        data_hora: new Date().toISOString(),
+      })
+    })
+
+    return resultado
+  }
+
   // Remoção de foto já salva e persistida no PocketBase (com confirmação)
   const handleConfirmarRemoverFotoSalva = async () => {
     if (!fotoParaRemover || !os?.id) return
@@ -1036,6 +1148,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const targetInstalador = instaladores.find((i) => i.id === responsavelId)
       const blocosPayload = Array.isArray(os.blocos_relatorio) ? os.blocos_relatorio : undefined
 
+      const metadadosConsolidados = compilarMetadadosFinais()
+
       const payload: Partial<OrdemServico> = {
         instrucoes: instrucoesTexto,
         checklist,
@@ -1043,6 +1157,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         usina_id: selectedUsinaId || undefined,
         ...(blocosPayload !== undefined ? { blocos_relatorio: blocosPayload } : {}),
         pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
+        fotos_metadados: metadadosConsolidados,
       }
       if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
         payload.responsavel_usuario_id = responsavelId
@@ -1057,11 +1172,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const fotosDoRetorno = normalizarFotosIniciais(updated.fotos, (updated as any)?.foto_medidor)
       // Mesclar fotos salvas anteriores com as novas fotos retornadas pelo backend (garantindo unicidade)
       const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
+      const metadadosSalvos = Array.isArray(updated.fotos_metadados)
+        ? (updated.fotos_metadados as FotoMetadadoItem[])
+        : metadadosConsolidados
       const updatedComFotos: OrdemServico = {
         ...updated,
         fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
+        fotos_metadados: metadadosSalvos,
       }
       setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
+      setFotosMetadados(metadadosSalvos)
       setNovasFotos([])
       onOSUpdated(updatedComFotos)
       toast({
@@ -1418,12 +1538,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       }
 
       const blocosFinalizacao = Array.isArray(os.blocos_relatorio) ? os.blocos_relatorio : undefined
+      const metadadosConsolidados = compilarMetadadosFinais()
 
       const finalized = await finalizarOrdemServico(os.id, {
         checklist,
         detalhes_execucao: detalhesExecucao,
         ...(blocosFinalizacao !== undefined ? { blocos_relatorio: blocosFinalizacao } : {}),
         pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
+        fotos_metadados: metadadosConsolidados,
         newPhotos: filesToUpload.length > 0 ? filesToUpload : undefined,
         relatorioPdfFile,
         cliente_id: os.cliente_id,
@@ -1437,11 +1559,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         (finalized as any)?.foto_medidor,
       )
       const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
+      const metadadosFinalizados = Array.isArray(finalized.fotos_metadados)
+        ? (finalized.fotos_metadados as FotoMetadadoItem[])
+        : metadadosConsolidados
       const finalizedComFotos: OrdemServico = {
         ...finalized,
         fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
+        fotos_metadados: metadadosFinalizados,
       }
       setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
+      setFotosMetadados(metadadosFinalizados)
       setNovasFotos([])
 
       setShowConfirmModal(false)
@@ -2137,39 +2264,111 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           />
         </div>
 
-        {/* Lista de Itens do Checklist com Botões Grandes para Toque Mobile */}
-        <div className="space-y-2">
+        {/* Inputs ocultos globais para acionamento via botões por etapa */}
+        <input
+          ref={checklistCameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple
+          className="hidden"
+          onChange={handleChecklistPhotoCaptured}
+        />
+        <input
+          ref={checklistFileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleChecklistPhotoCaptured}
+        />
+
+        {/* Lista de Itens do Checklist com Botões Grandes para Toque Mobile e Ações de Foto por Etapa */}
+        <div className="space-y-2.5">
           {checklistRenderizado.map((item, index) => {
             const isChecked = Boolean(item?.concluido)
+            const itemId = item.id || `item-${index}`
+
+            // Contagem de fotos vinculadas a este item específico do checklist
+            const countSalvasEtapa = fotosMetadados.filter(
+              (m) => m.item_checklist_id === item.id,
+            ).length
+            const countNovasEtapa = novasFotos.filter(
+              (nf) => nf.item_checklist_id === item.id,
+            ).length
+            const totalFotosEtapa = countSalvasEtapa + countNovasEtapa
+
             return (
-              <button
-                key={item.id || index}
-                type="button"
-                onClick={() => handleToggleChecklist(item.id)}
-                disabled={!podeEditarOS}
-                className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all flex items-center gap-3.5 select-none ${
-                  !podeEditarOS ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+              <div
+                key={itemId}
+                onClick={() => {
+                  if (podeEditarOS) handleToggleChecklist(item.id)
+                }}
+                className={`w-full text-left p-3 sm:p-3.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 select-none ${
+                  !podeEditarOS ? 'cursor-default opacity-85' : 'cursor-pointer'
                 } ${
                   isChecked
-                    ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-semibold shadow-2xs'
+                    ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 font-semibold shadow-2xs'
                     : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-800'
                 }`}
               >
-                <div
-                  className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
-                    isChecked
-                      ? 'bg-emerald-600 border-emerald-700 text-white shadow-2xs'
-                      : 'bg-white border-gray-300 text-transparent'
-                  }`}
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
+                {/* Lado esquerdo: checkbox e texto da etapa */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+                      isChecked
+                        ? 'bg-emerald-600 border-emerald-700 text-white shadow-2xs'
+                        : 'bg-white border-gray-300 text-transparent'
+                    }`}
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                  </div>
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap flex-1">
+                    <span
+                      className={`text-xs sm:text-sm ${isChecked ? 'line-through text-gray-600' : ''}`}
+                    >
+                      {item.item}
+                    </span>
+                    {/* Badge discreta de contagem de fotos vinculadas à etapa */}
+                    {totalFotosEtapa > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0"
+                        title={`${totalFotosEtapa} foto(s) vinculada(s) a esta etapa`}
+                      >
+                        <Camera className="w-3 h-3 text-emerald-700" />
+                        <span>{totalFotosEtapa}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <span
-                  className={`text-xs sm:text-sm flex-1 ${isChecked ? 'line-through text-gray-600' : ''}`}
-                >
-                  {item.item}
-                </span>
-              </button>
+
+                {/* Lado direito: botões rápidos de foto da etapa (câmera + anexo) */}
+                {podeEditarOS && (
+                  <div
+                    className="flex items-center gap-1 shrink-0 ml-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => handleTirarFotoChecklistItem(item.id, e)}
+                      className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
+                      title={`Tirar foto na hora para: "${item.item}"`}
+                      aria-label="Tirar foto na hora com a câmera"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleAnexarFotosChecklistItem(item.id, e)}
+                      className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border border-slate-200 hover:border-slate-700 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
+                      title={`Anexar fotos do dispositivo para: "${item.item}"`}
+                      aria-label="Anexar fotos da galeria ou arquivos"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
@@ -2232,9 +2431,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </div>
         )}
 
-        {/* Grade de Fotos (Salvas + Novas) */}
+        {/* Grade de Fotos (Salvas + Novas) com Seletor de Vínculo a Etapa */}
         {fotosSalvas.length > 0 || novasFotos.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 pt-2">
             {/* Fotos já persistidas no PocketBase */}
             {fotosSalvas.map((fotoNome, idx) => {
               // Garante que o objeto passado para pb.files.getURL contenha collectionId ou collectionName resolvido
@@ -2247,75 +2446,146 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   (os.origem === 'atividades' ? 'atividades' : 'ordens_servico'),
               }
               const fileUrl = pb.files.getURL(recordRef, fotoNome)
+
+              // Metadado existente para esta foto salva
+              const metadadoFoto = fotosMetadados.find(
+                (m) => m.arquivo === fotoNome || m.id === fotoNome,
+              )
+              const etapaVinculadaId = metadadoFoto?.item_checklist_id || ''
+
               return (
                 <div
                   key={`saved-${idx}`}
-                  className="relative group rounded-xl overflow-hidden aspect-square border border-gray-200 bg-gray-100 shadow-2xs"
+                  className="flex flex-col rounded-xl overflow-hidden border border-gray-200 bg-white shadow-2xs transition-shadow hover:shadow-sm"
                 >
-                  <img
-                    src={fileUrl}
-                    alt={`Foto ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Overlay no hover com link para abrir foto e botão para remover */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                    <a
-                      href={fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-white text-xs font-bold underline pointer-events-auto px-2 py-1 bg-black/30 rounded-md hover:bg-black/50"
-                    >
-                      Ver foto
-                    </a>
+                  <div className="relative group aspect-square bg-gray-100 overflow-hidden">
+                    <img
+                      src={fileUrl}
+                      alt={`Foto ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Overlay no hover com link para abrir foto e botão para remover */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      <a
+                        href={fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-white text-xs font-bold underline pointer-events-auto px-2 py-1 bg-black/40 rounded-md hover:bg-black/60"
+                      >
+                        Ver foto
+                      </a>
+                    </div>
+
+                    {/* Botão de lixeira (excluir foto salva) no canto superior direito com overlay no hover */}
+                    {podeEditarOS && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setFotoParaRemover(fotoNome)
+                        }}
+                        className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer z-10"
+                        title="Remover foto da ordem de serviço"
+                        aria-label="Remover foto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    <span className="absolute bottom-1.5 right-1.5 bg-black/65 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded pointer-events-none">
+                      Salva
+                    </span>
+
+                    {/* Indicador visual se já tem etapa vinculada */}
+                    {etapaVinculadaId && (
+                      <span className="absolute top-1.5 left-1.5 bg-emerald-700/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs max-w-[80%] truncate">
+                        {metadadoFoto?.item_checklist_texto || 'Vinculada'}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Botão de lixeira (excluir foto salva) no canto superior direito com overlay no hover */}
-                  {podeEditarOS && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setFotoParaRemover(fotoNome)
-                      }}
-                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer z-10"
-                      title="Remover foto da ordem de serviço"
-                      aria-label="Remover foto"
+                  {/* Seletor de vínculo a etapa do checklist */}
+                  <div className="p-2 bg-slate-50 border-t border-gray-100 flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                      Vínculo à etapa:
+                    </label>
+                    <select
+                      value={etapaVinculadaId}
+                      onChange={(e) => handleVincularFotoSalva(fotoNome, e.target.value)}
+                      disabled={!podeEditarOS}
+                      className="w-full text-[11px] py-1 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 font-medium focus:outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed truncate"
+                      title="Vincular a etapa do checklist"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-
-                  <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded pointer-events-none">
-                    Salva
-                  </span>
+                      <option value="">Sem vínculo / foto geral</option>
+                      {checklistRenderizado.map((chk, chkIdx) => (
+                        <option key={chk.id || `chk-saved-${chkIdx}`} value={chk.id}>
+                          {chkIdx + 1}. {chk.item}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )
             })}
 
             {/* Novas Fotos da Sessão */}
-            {novasFotos.map((nf, idx) => (
-              <div
-                key={`new-${idx}`}
-                className="relative group rounded-xl overflow-hidden aspect-square border-2 border-emerald-500 bg-gray-100 shadow-2xs"
-              >
-                <img
-                  src={nf.previewUrl}
-                  alt={`Nova foto ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemoverNovaFoto(idx)}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow-md hover:bg-red-700 transition-colors"
-                  title="Remover foto"
+            {novasFotos.map((nf, idx) => {
+              const etapaNovaId = nf.item_checklist_id || ''
+
+              return (
+                <div
+                  key={`new-${idx}`}
+                  className="flex flex-col rounded-xl overflow-hidden border-2 border-emerald-500 bg-white shadow-2xs transition-shadow hover:shadow-sm"
                 >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-                <span className="absolute bottom-1 right-1 bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                  Nova
-                </span>
-              </div>
-            ))}
+                  <div className="relative group aspect-square bg-gray-100 overflow-hidden">
+                    <img
+                      src={nf.previewUrl}
+                      alt={`Nova foto ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoverNovaFoto(idx)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow-md hover:bg-red-700 transition-colors z-10 cursor-pointer"
+                      title="Remover foto"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="absolute bottom-1.5 right-1.5 bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                      Nova
+                    </span>
+
+                    {/* Indicador visual se já tem etapa vinculada */}
+                    {etapaNovaId && (
+                      <span className="absolute top-1.5 left-1.5 bg-emerald-700/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs max-w-[80%] truncate">
+                        {nf.item_checklist_texto || 'Vinculada'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Seletor de vínculo a etapa do checklist para novas fotos */}
+                  <div className="p-2 bg-emerald-50/60 border-t border-emerald-100 flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold text-emerald-800 uppercase tracking-wider">
+                      Vínculo à etapa:
+                    </label>
+                    <select
+                      value={etapaNovaId}
+                      onChange={(e) => handleVincularNovaFoto(idx, e.target.value)}
+                      disabled={!podeEditarOS}
+                      className="w-full text-[11px] py-1 px-1.5 rounded-lg border border-emerald-200 bg-white text-gray-800 font-medium focus:outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed truncate"
+                      title="Vincular a etapa do checklist"
+                    >
+                      <option value="">Sem vínculo / foto geral</option>
+                      {checklistRenderizado.map((chk, chkIdx) => (
+                        <option key={chk.id || `chk-new-${chkIdx}`} value={chk.id}>
+                          {chkIdx + 1}. {chk.item}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ) : (
           <div className="py-8 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-center p-4">
