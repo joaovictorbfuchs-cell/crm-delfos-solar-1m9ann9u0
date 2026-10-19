@@ -29,50 +29,40 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-
-  const errObj = error as any
-  const status = errObj.status || errObj.statusCode || errObj.response?.status
-  if (status === 401 || status === 403) return true
-
-  const message = String(errObj.message || errObj.response?.message || '').toLowerCase()
-  if (
-    message.includes('token is expired') ||
-    message.includes('token expired') ||
-    message.includes('failed to authenticate') ||
-    message.includes('sessão expirada') ||
-    message.includes('sessao expirada') ||
-    message.includes('login expirou')
-  ) {
-    return true
-  }
-
-  return false
+  if (!(error instanceof ClientResponseError)) return false
+  if (error.status === 401 || error.status === 403) return true
+  const msg = (error.message || '').toLowerCase()
+  return (
+    msg.includes('failed to authenticate') ||
+    msg.includes('the request requires valid record authorization token') ||
+    msg.includes('token has expired') ||
+    msg.includes('invalid token')
+  )
 }
 
 export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  const errObj = error as any
-  if (errObj.name === 'AbortError' || errObj.isAbort) return true
-  const message = String(errObj.message || '').toLowerCase()
-  return message.includes('autocancelled') || message.includes('the user aborted a request')
+  if (error instanceof ClientResponseError) {
+    return error.isAbort || error.status === 0
+  }
+  if (error instanceof Error && error.name === 'AbortError') {
+    return true
+  }
+  return false
 }
 
-export function formatPbError(
-  error: unknown,
-  fallback = 'Ocorreu um erro ao processar a requisição.',
-): string {
-  if (!error) return fallback
-  const msg = getErrorMessage(error)
-  return msg && msg !== 'An unexpected error occurred.' ? msg : fallback
+export function formatPbError(error: unknown, fallback = 'Erro na operação'): string {
+  if (error instanceof ClientResponseError) {
+    const fieldMsg = getErrorMessage(error)
+    return fieldMsg || error.message || fallback
+  }
+  if (error instanceof Error) return error.message
+  return fallback
 }
 
-const pocketbaseErrors = {
+export default {
   extractFieldErrors,
   getErrorMessage,
   isAuthSessionError,
   isAbortError,
   formatPbError,
 }
-
-export default pocketbaseErrors

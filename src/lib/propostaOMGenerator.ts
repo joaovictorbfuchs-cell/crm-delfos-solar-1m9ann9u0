@@ -798,7 +798,11 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
             </div>
             <div class="plan-anual">Anual: ${formatBRL(calculos.planos.Essencial?.anual)}</div>
             <ul class="plan-benefits">
-              ${c.secao4.beneficiosEssencial.map((b: string) => `<li><span style="color:#16A34A;">✓</span> ${b}</li>`).join('')}
+              ${(Array.isArray(c.secao4.beneficiosEssencial) ? c.secao4.beneficiosEssencial : [])
+                .map((b: string) => (typeof b === 'string' ? b.trim() : String(b ?? '').trim()))
+                .filter((b: string) => b.length > 0)
+                .map((b: string) => `<li><span style="color:#16A34A;">✓</span> ${b}</li>`)
+                .join('')}
             </ul>
           </div>
           <button type="button" class="plan-btn ${planoAtivo === 'Essencial' ? 'selected' : 'unselected'}" data-selecionar-plano="Essencial">
@@ -816,7 +820,11 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
             </div>
             <div class="plan-anual">Anual: ${formatBRL(calculos.planos.Inspeção?.anual)}</div>
             <ul class="plan-benefits">
-              ${c.secao4.beneficiosInspecao.map((b: string) => `<li><span style="color:#16A34A;">✓</span> ${b}</li>`).join('')}
+              ${(Array.isArray(c.secao4.beneficiosInspecao) ? c.secao4.beneficiosInspecao : [])
+                .map((b: string) => (typeof b === 'string' ? b.trim() : String(b ?? '').trim()))
+                .filter((b: string) => b.length > 0)
+                .map((b: string) => `<li><span style="color:#16A34A;">✓</span> ${b}</li>`)
+                .join('')}
             </ul>
           </div>
           <button type="button" class="plan-btn ${planoAtivo === 'Inspeção' ? 'selected' : 'unselected'}" data-selecionar-plano="Inspeção">
@@ -835,7 +843,14 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
             </div>
             <div class="plan-anual">Anual: ${formatBRL(calculos.planos.Completo?.anual)}</div>
             <ul class="plan-benefits">
-              ${c.secao4.beneficiosCompleto.map((b: string) => `<li><span style="color:#16A34A;font-weight:bold;">✓</span> ${b}</li>`).join('')}
+              ${(Array.isArray(c.secao4.beneficiosCompleto) ? c.secao4.beneficiosCompleto : [])
+                .map((b: string) => (typeof b === 'string' ? b.trim() : String(b ?? '').trim()))
+                .filter((b: string) => b.length > 0)
+                .map(
+                  (b: string) =>
+                    `<li><span style="color:#16A34A;font-weight:bold;">✓</span> ${b}</li>`,
+                )
+                .join('')}
             </ul>
           </div>
           <button type="button" class="plan-btn ${planoAtivo === 'Completo' ? 'selected' : 'unselected'}" data-selecionar-plano="Completo">

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { FileText, RotateCcw } from 'lucide-react'
+import { FileText, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import {
   ConteudoPropostaOM,
   getConteudoPropostaOMDefaults,
@@ -239,24 +239,91 @@ export const PainelEdicaoConteudoOM: React.FC<PainelEdicaoConteudoOMProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             {(
               [
-                ['Essencial', dados.secao4.beneficiosEssencial],
-                ['Inspeção', dados.secao4.beneficiosInspecao],
-                ['Completo', dados.secao4.beneficiosCompleto],
+                ['Essencial', dados.secao4.beneficiosEssencial, 'beneficiosEssencial'],
+                ['Inspeção', dados.secao4.beneficiosInspecao, 'beneficiosInspecao'],
+                ['Completo', dados.secao4.beneficiosCompleto, 'beneficiosCompleto'],
               ] as const
-            ).map(([plano, beneficios]) => (
-              <div key={plano} className="rounded-xl border border-gray-200 p-3 space-y-2">
-                <h4 className="font-bold text-gray-800">Plano {plano}</h4>
-                {beneficios.map((beneficio, index) => (
-                  <Campo
-                    key={`${plano}-${index}`}
-                    label={`Benefício ${index + 1}`}
-                    path={`secao4.beneficios${plano === 'Inspeção' ? 'Inspecao' : plano}.${index}`}
-                    value={beneficio}
-                    multiline
-                  />
-                ))}
-              </div>
-            ))}
+            ).map(([plano, beneficios, propNome]) => {
+              const handleAdicionarBeneficio = () => {
+                const novaLista = [...beneficios, '']
+                updateField(`secao4.${propNome}`, novaLista)
+              }
+
+              const handleRemoverBeneficio = (indice: number) => {
+                const novaLista = beneficios.filter((_, i) => i !== indice)
+                updateField(`secao4.${propNome}`, novaLista)
+              }
+
+              const handleEditarBeneficio = (indice: number, novoTexto: string) => {
+                const novaLista = [...beneficios]
+                novaLista[indice] = novoTexto
+                updateField(`secao4.${propNome}`, novaLista)
+              }
+
+              return (
+                <div
+                  key={plano}
+                  className="rounded-xl border border-gray-200 p-3 space-y-2.5 flex flex-col justify-between bg-white"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
+                      <h4 className="font-bold text-gray-800">Plano {plano}</h4>
+                      <span className="text-[10px] text-gray-500 font-medium">
+                        {beneficios.length} {beneficios.length === 1 ? 'benefício' : 'benefícios'}
+                      </span>
+                    </div>
+
+                    {beneficios.length === 0 ? (
+                      <p className="text-[11px] text-gray-400 italic py-2 text-center">
+                        Nenhum benefício cadastrado para este plano.
+                      </p>
+                    ) : (
+                      beneficios.map((beneficio, index) => (
+                        <div key={`${plano}-${index}`} className="relative group">
+                          <div className="flex items-start gap-1.5">
+                            <div className="flex-1 min-w-0">
+                              <label className="block min-w-0">
+                                <span className="font-semibold text-gray-700 block mb-1 text-[11px]">
+                                  Benefício {index + 1}
+                                </span>
+                                <textarea
+                                  rows={2}
+                                  disabled={disabled}
+                                  value={beneficio ?? ''}
+                                  onChange={(e) => handleEditarBeneficio(index, e.target.value)}
+                                  placeholder={`Descreva o benefício ${index + 1}...`}
+                                  className="w-full px-2.5 py-1.5 border rounded-lg border-gray-300 bg-white text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 disabled:bg-gray-100 disabled:text-gray-500 resize-y"
+                                />
+                              </label>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoverBeneficio(index)}
+                              disabled={disabled}
+                              title={`Remover Benefício ${index + 1}`}
+                              aria-label={`Remover Benefício ${index + 1} do Plano ${plano}`}
+                              className="mt-6 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 shrink-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAdicionarBeneficio}
+                    disabled={disabled}
+                    className="w-full mt-2 py-1.5 px-3 border border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adicionar benefício</span>
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </Secao>
 

@@ -156,12 +156,15 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
   }
 
   const beneficiosDoPlano = (itens: string[]) =>
-    itens.map((item) =>
-      item.replace(
-        '{numeroModulos}',
-        tecnico.numeroModulos ? String(tecnico.numeroModulos) : 'conforme projeto',
-      ),
-    )
+    (Array.isArray(itens) ? itens : [])
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item ?? '').trim()))
+      .filter((item) => item.length > 0)
+      .map((item) =>
+        item.replace(
+          '{numeroModulos}',
+          tecnico.numeroModulos ? String(tecnico.numeroModulos) : 'conforme projeto',
+        ),
+      )
 
   return (
     <div

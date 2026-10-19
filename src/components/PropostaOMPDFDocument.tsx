@@ -294,12 +294,15 @@ export const PropostaOMPDFDocument: React.FC<PropostaOMPDFDocumentProps> = ({
     return calculos.planos[calcKey]
   }
   const benefitsWithModules = (items: string[]) =>
-    items.map((item) =>
-      item.replace(
-        '{numeroModulos}',
-        tecnico.numeroModulos ? String(tecnico.numeroModulos) : 'conforme projeto',
-      ),
-    )
+    (Array.isArray(items) ? items : [])
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item ?? '').trim()))
+      .filter((item) => item.length > 0)
+      .map((item) =>
+        item.replace(
+          '{numeroModulos}',
+          tecnico.numeroModulos ? String(tecnico.numeroModulos) : 'conforme projeto',
+        ),
+      )
   const heading = (number: number, title: string, subtitle?: string) => (
     <View style={styles.sectionHeading} wrap={false}>
       <Text style={styles.sectionNumber}>{number}</Text>

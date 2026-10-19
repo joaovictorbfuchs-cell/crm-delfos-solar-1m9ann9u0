@@ -433,6 +433,47 @@ export function normalizarConteudoPropostaOM(
   const secao5Salva = salvo.secao5 || {}
   const secao7Salva = salvo.secao7 || {}
 
+  // Extrai lista de benefícios tolerando array legado ou campos fixos beneficio_1/beneficio_2/beneficio_3
+  const extrairBeneficiosPlano = (
+    listaBruta: unknown,
+    camposFixosObjeto: Record<string, any> | undefined,
+    chavePrefixo: string,
+    beneficiosLegadosPlano: string[],
+    beneficiosPadrao: string[],
+  ): string[] => {
+    let itens: string[] = []
+    if (Array.isArray(listaBruta)) {
+      if (arraysIguais(listaBruta, beneficiosLegadosPlano)) {
+        return padraoBeneficiosLimpos(beneficiosPadrao)
+      }
+      itens = listaBruta.map((v) => (typeof v === 'string' ? v : String(v ?? '')))
+    } else if (camposFixosObjeto && typeof camposFixosObjeto === 'object') {
+      // Tolera possíveis formatos com campos fixos (ex: beneficio_1, beneficio_2, ...)
+      const fixos: string[] = []
+      for (let i = 1; i <= 20; i++) {
+        const val =
+          camposFixosObjeto[`${chavePrefixo}_${i}`] ??
+          camposFixosObjeto[`beneficio_${i}`] ??
+          camposFixosObjeto[`beneficio${i}`]
+        if (typeof val === 'string' && val.trim().length > 0) {
+          fixos.push(val)
+        }
+      }
+      if (fixos.length > 0) {
+        itens = fixos
+      } else {
+        itens = [...beneficiosPadrao]
+      }
+    } else {
+      itens = [...beneficiosPadrao]
+    }
+
+    return itens
+  }
+
+  const padraoBeneficiosLimpos = (itens: string[]) =>
+    itens.map((s) => (typeof s === 'string' ? s : String(s ?? '')))
+
   return {
     corPrimaria: salvo.corPrimaria || padrao.corPrimaria,
     corSecundaria: salvo.corSecundaria || padrao.corSecundaria,
@@ -522,24 +563,27 @@ export function normalizarConteudoPropostaOM(
     secao4: {
       ...padrao.secao4,
       ...secao4Salva,
-      beneficiosEssencial: arraysIguais(
+      beneficiosEssencial: extrairBeneficiosPlano(
         secao4Salva.beneficiosEssencial,
+        secao4Salva,
+        'beneficio_essencial',
         beneficiosLegados.essencial,
-      )
-        ? padrao.secao4.beneficiosEssencial
-        : Array.isArray(secao4Salva.beneficiosEssencial)
-          ? secao4Salva.beneficiosEssencial
-          : padrao.secao4.beneficiosEssencial,
-      beneficiosInspecao: arraysIguais(secao4Salva.beneficiosInspecao, beneficiosLegados.inspecao)
-        ? padrao.secao4.beneficiosInspecao
-        : Array.isArray(secao4Salva.beneficiosInspecao)
-          ? secao4Salva.beneficiosInspecao
-          : padrao.secao4.beneficiosInspecao,
-      beneficiosCompleto: arraysIguais(secao4Salva.beneficiosCompleto, beneficiosLegados.completo)
-        ? padrao.secao4.beneficiosCompleto
-        : Array.isArray(secao4Salva.beneficiosCompleto)
-          ? secao4Salva.beneficiosCompleto
-          : padrao.secao4.beneficiosCompleto,
+        padrao.secao4.beneficiosEssencial,
+      ),
+      beneficiosInspecao: extrairBeneficiosPlano(
+        secao4Salva.beneficiosInspecao,
+        secao4Salva,
+        'beneficio_inspecao',
+        beneficiosLegados.inspecao,
+        padrao.secao4.beneficiosInspecao,
+      ),
+      beneficiosCompleto: extrairBeneficiosPlano(
+        secao4Salva.beneficiosCompleto,
+        secao4Salva,
+        'beneficio_completo',
+        beneficiosLegados.completo,
+        padrao.secao4.beneficiosCompleto,
+      ),
     },
     secao5: {
       ...padrao.secao5,
