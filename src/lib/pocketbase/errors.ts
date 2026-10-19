@@ -31,97 +31,48 @@ export function getErrorMessage(error: unknown): string {
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
 
-  // Checagem de status direto ou response.status
-  const status =
-    (typeof error === 'object' &&
-    error !== null &&
-    'status' in error &&
-    typeof (error as { status: unknown }).status === 'number'
-      ? (error as { status: number }).status
-      : undefined) ??
-    (typeof error === 'object' &&
-    error !== null &&
-    'statusCode' in error &&
-    typeof (error as { statusCode: unknown }).statusCode === 'number'
-      ? (error as { statusCode: number }).statusCode
-      : undefined) ??
-    (typeof error === 'object' &&
-    error !== null &&
-    'response' in error &&
-    typeof (error as { response: unknown }).response === 'object' &&
-    (error as { response: Record<string, unknown> }).response !== null &&
-    typeof (error as { response: { status?: unknown } }).response.status === 'number'
-      ? (error as { response: { status: number } }).response.status
-      : undefined)
-
+  const errObj = error as any
+  const status = errObj.status || errObj.statusCode || errObj.response?.status
   if (status === 401 || status === 403) return true
 
-  // Checagem textual na mensagem de erro
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'object' &&
-          error !== null &&
-          'message' in error &&
-          typeof (error as { message: unknown }).message === 'string'
-        ? (error as { message: string }).message
-        : ''
+  const message = String(errObj.message || errObj.response?.message || '').toLowerCase()
+  if (
+    message.includes('token is expired') ||
+    message.includes('token expired') ||
+    message.includes('failed to authenticate') ||
+    message.includes('sessão expirada') ||
+    message.includes('sessao expirada') ||
+    message.includes('login expirou')
+  ) {
+    return true
+  }
 
-  if (!message) return false
-
-  const lower = message.toLowerCase()
-  return (
-    lower.includes('token is expired') ||
-    lower.includes('token expired') ||
-    lower.includes('failed to authenticate') ||
-    lower.includes('sessão expirada') ||
-    lower.includes('sessao expirada') ||
-    lower.includes('login expirou') ||
-    lower.includes('não autorizado') ||
-    lower.includes('nao autorizado') ||
-    lower.includes('unauthorized') ||
-    lower.includes('forbidden')
-  )
+  return false
 }
 
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof DOMException && error.name === 'AbortError') return true
-  if (typeof error === 'object' && error !== null) {
-    if ('isAbort' in error && Boolean((error as { isAbort: unknown }).isAbort)) return true
-    if ('name' in error && (error as { name: unknown }).name === 'AbortError') return true
-    if ('message' in error && typeof (error as { message: unknown }).message === 'string') {
-      const msg = (error as { message: string }).message.toLowerCase()
-      if (
-        msg.includes('autocancelled') ||
-        msg.includes('auto-cancelled') ||
-        msg.includes('aborted')
-      )
-        return true
-    }
-  }
-  return false
+  const errObj = error as any
+  if (errObj.name === 'AbortError' || errObj.isAbort) return true
+  const message = String(errObj.message || '').toLowerCase()
+  return message.includes('autocancelled') || message.includes('the user aborted a request')
 }
 
 export function formatPbError(
   error: unknown,
-  fallbackMessage = 'Ocorreu um erro na requisição.',
+  fallback = 'Ocorreu um erro ao processar a requisição.',
 ): string {
-  if (!error) return fallbackMessage
-  const extracted = getErrorMessage(error)
-  if (extracted && extracted !== 'An unexpected error occurred.') {
-    return extracted
-  }
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-  return fallbackMessage
+  if (!error) return fallback
+  const msg = getErrorMessage(error)
+  return msg && msg !== 'An unexpected error occurred.' ? msg : fallback
 }
 
-export default {
+const pocketbaseErrors = {
   extractFieldErrors,
   getErrorMessage,
   isAuthSessionError,
   isAbortError,
   formatPbError,
 }
+
+export default pocketbaseErrors

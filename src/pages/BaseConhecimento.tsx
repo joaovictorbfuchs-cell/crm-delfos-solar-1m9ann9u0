@@ -33,6 +33,7 @@ import {
   excluirCategoria,
   criarArtigo,
   atualizarArtigo,
+  alterarCategoriaArtigo,
   excluirArtigo,
   getAnexoUrl,
   perguntarAssistenteDelfos,
@@ -50,7 +51,23 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from '@/hooks/use-toast'
+import { FolderSymlink, MoreVertical } from 'lucide-react'
 
 export default function BaseConhecimento() {
   const { isAdmin } = useAuth()
@@ -77,12 +94,14 @@ export default function BaseConhecimento() {
   // Modais de Artigo
   const [modalArtigoOpen, setModalArtigoOpen] = useState(false)
   const [artigoEditando, setArtigoEditando] = useState<KnowledgeArticle | null>(null)
+  const [artCategoriaId, setArtCategoriaId] = useState<string>('')
   const [artTitulo, setArtTitulo] = useState('')
   const [artConteudo, setArtConteudo] = useState('')
   const [artTags, setArtTags] = useState('')
   const [artAnexos, setArtAnexos] = useState<File[]>([])
   const [salvandoArtigo, setSalvandoArtigo] = useState(false)
   const [mensagemProgresso, setMensagemProgresso] = useState<string | null>(null)
+  const [trocandoCategoriaId, setTrocandoCategoriaId] = useState<string | null>(null)
 
   // Carregar dados iniciais
   const carregarCategorias = async (selecionarId?: string) => {
@@ -259,11 +278,12 @@ export default function BaseConhecimento() {
 
   // Ações de Artigo
   const abrirNovoArtigo = () => {
-    if (!categoriaSelecionada) {
-      toast({ title: 'Selecione uma categoria primeiro', variant: 'destructive' })
+    if (!categoriaSelecionada && categorias.length === 0) {
+      toast({ title: 'Crie uma categoria primeiro', variant: 'destructive' })
       return
     }
     setArtigoEditando(null)
+    setArtCategoriaId(categoriaSelecionada ? categoriaSelecionada.id : categorias[0]?.id || '')
     setArtTitulo('')
     setArtConteudo('')
     setArtTags('')
@@ -274,6 +294,7 @@ export default function BaseConhecimento() {
 
   const abrirEditarArtigo = (artigo: KnowledgeArticle) => {
     setArtigoEditando(artigo)
+    setArtCategoriaId(artigo.categoria_id || categoriaSelecionada?.id || '')
     setArtTitulo(artigo.titulo)
     setArtConteudo(artigo.conteudo)
     setArtTags(artigo.tags || '')
@@ -282,20 +303,80 @@ export default function BaseConhecimento() {
     setModalArtigoOpen(true)
   }
 
+  const handleTrocarCategoriaDireto = async (artigo: KnowledgeArticle, novaCatId: string) => {
+    if (!novaCatId || artigo.categoria_id === novaCatId) return
+
+    const novaCat = categorias.find((c) => c.id === novaCatId)
+    setTrocandoCategoriaId(artigo.id)
+    try {
+      await alterarCategoriaArtigo(artigo.id, novaCatId)
+      toast({
+        title: 'Categoria alterada',
+        description: `O artigo "${artigo.titulo}" foi movido para "${novaCat?.titulo || 'nova categoria'}".`,
+      })
+
+      // Atualiza o artigo visualizando se for o mesmo
+      const expandAtualizado = novaCat
+        ? { ...(artigo.expand || {}), categoria_id: novaCat }
+        : artigo.expand
+      const artigoAtualizado: KnowledgeArticle = {
+        ...artigo,
+        categoria_id: novaCatId,
+        expand: expandAtualizado,
+      }
+
+      if (artigoVisualizando?.id === artigo.id) {
+        setArtigoVisualizando(artigoAtualizado)
+      }
+
+      // Se estivemos filtrando pela categoria antiga e não na busca geral, remove da lista atual
+      if (categoriaSelecionada && categoriaSelecionada.id !== novaCatId && !termoBusca) {
+        setArtigos((prev) => {
+          const restantes = prev.filter((a) => a.id !== artigo.id)
+          if (artigoVisualizando?.id === artigo.id) {
+            setArtigoVisualizando(restantes[0] || null)
+          }
+          return restantes
+        })
+      } else {
+        setArtigos((prev) => prev.map((a) => (a.id === artigo.id ? artigoAtualizado : a)))
+      }
+
+      // Recarrega contadores de categorias
+      await carregarCategorias(categoriaSelecionada?.id)
+    } catch (err: any) {
+      console.error('[BaseConhecimento] Erro ao trocar categoria:', err)
+      toast({
+        title: 'Erro ao trocar categoria',
+        description: err?.message || 'Não foi possível mover o artigo para outra categoria.',
+        variant: 'destructive',
+      })
+    } finally {
+      setTrocandoCategoriaId(null)
+    }
+  }
+
   const handleSalvarArtigo = async () => {
     if (!artTitulo.trim() || !artConteudo.trim()) {
       toast({ title: 'Título e conteúdo são obrigatórios', variant: 'destructive' })
       return
     }
 
-    if (!categoriaSelecionada) return
+    const categoriaIdDestino = artCategoriaId || categoriaSelecionada?.id
+    if (!categoriaIdDestino) {
+      toast({ title: 'Selecione uma categoria para o artigo', variant: 'destructive' })
+      return
+    }
 
     setSalvandoArtigo(true)
     try {
+      let artigoSalvo: KnowledgeArticle | null = null
+
       if (artigoEditando) {
-        await atualizarArtigo(
+        artigoSalvo = await atualizarArtigo(
           artigoEditando.id,
           {
+            categoria_id: categoriaIdDestino,
             titulo: artTitulo.trim(),
             conteudo: artConteudo.trim(),
             tags: artTags.trim(),
@@ -312,9 +393,9 @@ export default function BaseConhecimento() {
         )
         toast({ title: 'Artigo atualizado com sucesso!' })
       } else {
-        await criarArtigo(
+        artigoSalvo = await criarArtigo(
           {
-            categoria_id: categoriaSelecionada.id,
+            categoria_id: categoriaIdDestino,
             titulo: artTitulo.trim(),
             conteudo: artConteudo.trim(),
             tags: artTags.trim(),
@@ -333,23 +414,40 @@ export default function BaseConhecimento() {
       }
 
       setModalArtigoOpen(false)
+
+      // Se a categoria foi alterada na edição e a categoria da tela difere, selecionamos a nova categoria para o usuário vê-lo
+      const categoriaMudou = artigoEditando && artigoEditando.categoria_id !== categoriaIdDestino
+      if (
+        categoriaMudou ||
+        !categoriaSelecionada ||
+        categoriaSelecionada.id !== categoriaIdDestino
+      ) {
+        const novaCatObj = categorias.find((c) => c.id === categoriaIdDestino)
+        if (novaCatObj) {
+          setCategoriaSelecionada(novaCatObj)
+        }
+      }
+
       // Recarregar artigos da categoria
       try {
+        const catParaCarregar = categoriaMudou
+          ? categoriaIdDestino
+          : categoriaSelecionada?.id || categoriaIdDestino
         const arts = await listarArtigos({
-          categoriaId: categoriaSelecionada.id,
+          categoriaId: catParaCarregar,
           busca: termoBusca,
         })
         setArtigos(arts)
         if (arts.length > 0) {
-          const selecionado = artigoEditando
-            ? arts.find((a) => a.id === artigoEditando.id) || arts[0]
+          const selecionado = artigoSalvo
+            ? arts.find((a) => a.id === artigoSalvo.id) || arts[0]
             : arts[0]
           setArtigoVisualizando(selecionado)
         }
       } catch (errList) {
         console.warn('[BaseConhecimento] Erro ao recarregar artigos após salvar:', errList)
       }
-      carregarCategorias(categoriaSelecionada.id).catch(() => {})
+      carregarCategorias(categoriaIdDestino).catch(() => {})
     } catch (err: any) {
       console.error('[BaseConhecimento] Erro ao salvar artigo:', err)
       toast({
@@ -654,6 +752,77 @@ export default function BaseConhecimento() {
                             <Paperclip className="w-3.5 h-3.5" />
                           </span>
                         )}
+
+                        {isAdmin && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                                title="Ações do artigo"
+                                disabled={trocandoCategoriaId === art.id}
+                              >
+                                {trocandoCategoriaId === art.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                                ) : (
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 text-xs">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  abrirEditarArtigo(art)
+                                }}
+                                className="cursor-pointer gap-2"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-gray-600" />
+                                <span>Editar artigo</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                                Mover para categoria:
+                              </DropdownMenuLabel>
+                              {categorias.map((cat) => {
+                                const isCurrentCat = cat.id === art.categoria_id
+                                return (
+                                  <DropdownMenuItem
+                                    key={cat.id}
+                                    disabled={isCurrentCat}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleTrocarCategoriaDireto(art, cat.id)
+                                    }}
+                                    className={`cursor-pointer gap-2 text-xs ${
+                                      isCurrentCat ? 'font-bold text-emerald-700 bg-emerald-50' : ''
+                                    }`}
+                                  >
+                                    <FolderSymlink className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span className="truncate">{cat.titulo}</span>
+                                    {isCurrentCat && (
+                                      <span className="text-[10px] text-emerald-600 ml-auto font-normal">
+                                        (atual)
+                                      </span>
+                                    )}
+                                  </DropdownMenuItem>
+                                )
+                              })}
+
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleExcluirArtigo(art)
+                                }}
+                                className="cursor-pointer gap-2 text-red-600 focus:text-red-700 focus:bg-red-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Excluir artigo</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </div>
 
@@ -698,6 +867,58 @@ export default function BaseConhecimento() {
 
                   {isAdmin && (
                     <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Seletor rápido de Categoria no topo da visualização */}
+                      <div className="flex items-center gap-1">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={trocandoCategoriaId === artigoVisualizando.id}
+                              className="h-8 text-xs border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/60 text-emerald-800 gap-1.5"
+                              title="Trocar categoria deste artigo"
+                            >
+                              {trocandoCategoriaId === artigoVisualizando.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                              ) : (
+                                <FolderSymlink className="w-3.5 h-3.5 text-emerald-700" />
+                              )}
+                              <span className="hidden sm:inline font-semibold">
+                                Mover categoria
+                              </span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 text-xs">
+                            <DropdownMenuLabel className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                              Trocar para categoria:
+                            </DropdownMenuLabel>
+                            {categorias.map((cat) => {
+                              const isCurrentCat = cat.id === artigoVisualizando.categoria_id
+                              return (
+                                <DropdownMenuItem
+                                  key={cat.id}
+                                  disabled={isCurrentCat}
+                                  onClick={() =>
+                                    handleTrocarCategoriaDireto(artigoVisualizando, cat.id)
+                                  }
+                                  className={`cursor-pointer gap-2 ${
+                                    isCurrentCat ? 'font-bold text-emerald-700 bg-emerald-50' : ''
+                                  }`}
+                                >
+                                  {renderIconeCategoria(cat.icone, 'w-3.5 h-3.5 text-emerald-600')}
+                                  <span className="truncate">{cat.titulo}</span>
+                                  {isCurrentCat && (
+                                    <span className="text-[10px] text-emerald-600 ml-auto font-normal">
+                                      (atual)
+                                    </span>
+                                  )}
+                                </DropdownMenuItem>
+                              )
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
                       <Button
                         size="sm"
                         variant="outline"
@@ -927,15 +1148,38 @@ export default function BaseConhecimento() {
               {artigoEditando ? 'Editar Artigo' : 'Novo Artigo na Base de Conhecimento'}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              {categoriaSelecionada && (
-                <span>
-                  Categoria: <strong>{categoriaSelecionada.titulo}</strong>
-                </span>
-              )}
+              Preencha as informações do artigo e selecione a categoria desejada.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {/* Seletor de Categoria no Formulário */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-800 flex items-center justify-between">
+                <span>Categoria do Artigo *</span>
+                {artigoEditando && (
+                  <span className="text-[11px] font-normal text-emerald-700">
+                    Você pode trocar a categoria deste artigo
+                  </span>
+                )}
+              </label>
+              <Select value={artCategoriaId} onValueChange={setArtCategoriaId}>
+                <SelectTrigger className="text-xs h-9 bg-white">
+                  <SelectValue placeholder="Selecione a categoria..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categorias.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id} className="text-xs cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        {renderIconeCategoria(cat.icone, 'w-3.5 h-3.5 text-emerald-600')}
+                        <span>{cat.titulo}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-800">Título do Artigo *</label>
               <Input

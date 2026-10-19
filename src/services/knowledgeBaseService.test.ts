@@ -3,6 +3,8 @@ import {
   listarCategorias,
   listarArtigos,
   criarArtigo,
+  atualizarArtigo,
+  alterarCategoriaArtigo,
   getAnexoUrl,
   dispararIndexacaoArtigoEmSegundoPlano,
   truncarTextoExtraido,
@@ -183,5 +185,39 @@ describe('Base de Conhecimento & Verificação Crítica Delfos CRM', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 150))
     globalThis.fetch = originalFetch
+  })
+
+  it('alterarCategoriaArtigo atualiza categoria_id no PocketBase sem regerar embedding indevidamente', async () => {
+    const mockAtualizado = {
+      id: 'art-troca-cat',
+      categoria_id: 'cat-nova-456',
+      titulo: 'Artigo Movido',
+      conteudo: 'Conteúdo preservado',
+      embedding: [0.1, 0.2, 0.3],
+    }
+
+    const spyUpdate = vi
+      .spyOn(pb.collection('knowledge_articles'), 'update')
+      .mockResolvedValue(mockAtualizado as any)
+
+    const res = await alterarCategoriaArtigo('art-troca-cat', 'cat-nova-456')
+
+    expect(spyUpdate).toHaveBeenCalledWith(
+      'art-troca-cat',
+      { categoria_id: 'cat-nova-456' },
+      { expand: 'categoria_id,criado_por' },
+    )
+    expect(res.categoria_id).toBe('cat-nova-456')
+
+    spyUpdate.mockRestore()
+  })
+
+  it('alterarCategoriaArtigo lança erro se parâmetros forem inválidos', async () => {
+    await expect(alterarCategoriaArtigo('', 'cat-123')).rejects.toThrow(
+      'ID do artigo e da nova categoria são obrigatórios',
+    )
+    await expect(alterarCategoriaArtigo('art-123', '')).rejects.toThrow(
+      'ID do artigo e da nova categoria são obrigatórios',
+    )
   })
 })

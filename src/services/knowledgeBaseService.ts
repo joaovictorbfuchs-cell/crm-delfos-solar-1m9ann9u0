@@ -408,8 +408,42 @@ export async function atualizarArtigo(
   onProgresso?.('Atualizando artigo...')
   const record = await pb.collection('knowledge_articles').update<KnowledgeArticle>(id, formData)
 
-  // Disparo em segundo plano da atualização do embedding, sem bloquear a resposta da tela
-  dispararIndexacaoArtigoEmSegundoPlano(record.id)
+  // Disparo em segundo plano da atualização do embedding apenas se conteúdo/título/anexos mudaram
+  const mudouConteudo = Boolean(
+    dados.titulo ||
+    dados.conteudo ||
+    dados.tags !== undefined ||
+    dados.texto_extraido !== undefined ||
+    (dados.novosAnexos && dados.novosAnexos.length > 0),
+  )
+
+  if (mudouConteudo) {
+    dispararIndexacaoArtigoEmSegundoPlano(record.id)
+  }
+
+  return record
+}
+
+/**
+ * Altera a categoria de um artigo diretamente sem regerar embedding (categoria não é indexada)
+ */
+export async function alterarCategoriaArtigo(
+  artigoId: string,
+  novaCategoriaId: string,
+): Promise<KnowledgeArticle> {
+  if (!artigoId || !novaCategoriaId) {
+    throw new Error('ID do artigo e da nova categoria são obrigatórios')
+  }
+
+  const record = await pb.collection('knowledge_articles').update<KnowledgeArticle>(
+    artigoId,
+    {
+      categoria_id: novaCategoriaId,
+    },
+    {
+      expand: 'categoria_id,criado_por',
+    },
+  )
 
   return record
 }
