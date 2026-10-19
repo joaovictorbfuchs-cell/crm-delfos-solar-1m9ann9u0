@@ -2518,4 +2518,119 @@ describe('Login e App Smoke Tests', () => {
     // O campo de Negócio Vinculado NÃO deve ser renderizado quando a categoria for manutenção
     expect(htmlModalManutencao).not.toContain('Negócio Vinculado')
   })
+
+  it('rota /propostas e Orcamentos montam no DOM sem crash com dados reais e filtros ativos', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-admin-propostas', {
+      id: 'usr-admin-propostas',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Admin Propostas',
+      email: 'admin.prop@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    const originalGetFullListOrc = pb.collection('orcamentos_solar').getFullList
+    const originalGetFullListPropOM = pb.collection('propostas_om').getFullList
+    const originalGetFullListCli = pb.collection('clientes').getFullList
+
+    pb.collection('clientes').getFullList = vi.fn().mockResolvedValue([
+      {
+        id: 'cli-prop-1',
+        collectionId: 'clientes',
+        nome: 'Cliente Solar Propostas Teste',
+        cidade: 'Erechim',
+        tipo_cliente: 'residencial',
+        telefone: '54999990000',
+      },
+    ]) as any
+
+    pb.collection('orcamentos_solar').getFullList = vi.fn().mockResolvedValue([
+      {
+        id: 'orc-real-test-1',
+        collectionId: 'orcamentos_solar',
+        cliente_id: 'cli-prop-1',
+        numero_revisao: 1,
+        autor: 'Daniel Rotava',
+        potencia_kwp: 30.8,
+        numero_placas: 56,
+        potencia_placa_wp: 550,
+        valor_investimento: 64321.74,
+        custo_por_kwp: 2088.36,
+        geracao_mensal_kwh: 2827,
+        economia_1_mes: 3128.59,
+        payback_meses: 20,
+        status: 'Em elaboração',
+        data_orcamento: '2026-09-30 14:30:32.359Z',
+        created: '2026-09-30 14:30:30.308Z',
+        expand: {
+          cliente_id: {
+            id: 'cli-prop-1',
+            nome: 'Cliente Solar Propostas Teste',
+            cidade: 'Erechim',
+          },
+        },
+      },
+    ]) as any
+
+    pb.collection('propostas_om').getFullList = vi.fn().mockResolvedValue([
+      {
+        id: 'prop-om-real-1',
+        collectionId: 'propostas_om',
+        cliente_id: 'cli-prop-1',
+        autor: 'João Victor Bagetti Fuchs',
+        numero_proposta: 'OM-2026-003',
+        plano_escolhido: 'Completo',
+        potencia_kwp: 122.56,
+        numero_modulos: 201,
+        geracao_mensal_kwh: 15933,
+        valor_kwh: 0.92,
+        distancia_km: 15,
+        valor_km: 2.5,
+        valor_por_placa: 0,
+        valor_ativo_protegido: 14658.36,
+        valor_plano_essencial: 244.31,
+        valor_plano_inspecao: 250.56,
+        valor_plano_completo: 256.81,
+        valor_mensal_plano: 256.81,
+        status: 'Proposta Enviada',
+        data_proposta: '2026-10-16 11:38:11.591Z',
+        created: '2026-10-12 00:33:38.523Z',
+        valores_negociados_json: '{"Completo":256.81,"Essencial":244.31,"Inspeção":250.56}',
+        expand: {
+          cliente_id: {
+            id: 'cli-prop-1',
+            nome: 'Cliente Solar Propostas Teste',
+            cidade: 'Erechim',
+          },
+        },
+      },
+    ]) as any
+
+    window.history.pushState({}, 'Hub de Propostas', '/propostas')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+    pb.collection('clientes').getFullList = originalGetFullListCli
+    pb.collection('orcamentos_solar').getFullList = originalGetFullListOrc
+    pb.collection('propostas_om').getFullList = originalGetFullListPropOM
+
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+    expect(container).not.toBeNull()
+
+    const text = container?.textContent || ''
+    expect(text).not.toContain('Ops! Algo deu errado')
+    expect(text).toContain('Propostas')
+    expect(text).toContain('Cliente Solar Propostas Teste')
+  })
 })
