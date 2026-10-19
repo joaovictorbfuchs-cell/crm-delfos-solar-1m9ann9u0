@@ -284,9 +284,6 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
             </div>
           </div>
           <div className="flex flex-col items-start sm:items-end text-xs">
-            <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-extrabold text-[11px] uppercase tracking-wide">
-              {c.secao1.badgeEmissao || 'Documento Oficial'}
-            </span>
             <span className="text-gray-700 text-[11px] mt-1.5 font-semibold text-right">
               Proposta nº {numeroProposta}
               {negocioTitulo && (
@@ -553,19 +550,7 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
             titulo={c.secao8.titulo}
             subtitulo="Seleção do plano, aceite preliminar e contratação"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {c.secao8.passos.map((passo) => (
-              <div
-                key={passo.numero}
-                className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-1"
-              >
-                <div className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">
-                  {passo.numero}. {passo.titulo}
-                </div>
-                <p className="text-[11px] text-gray-600 leading-snug m-0">{passo.descricao}</p>
-              </div>
-            ))}
-          </div>
+
           <div className="space-y-3 rounded-xl bg-slate-50 border border-gray-200 p-4">
             <h3 className="text-xs font-bold uppercase tracking-wide text-gray-900">
               Selecione o plano desejado para contratação
