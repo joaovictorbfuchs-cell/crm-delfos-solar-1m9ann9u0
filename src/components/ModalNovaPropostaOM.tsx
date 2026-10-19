@@ -1260,10 +1260,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                         <span className="text-gray-400 select-none">•</span>
                         <span>Verificação semestral de anomalias</span>
                       </li>
-                      <li className="flex items-start gap-1.5">
-                        <span className="text-gray-400 select-none">•</span>
-                        <span>Suporte técnico limitado VIP</span>
-                      </li>
                     </ul>
                   </div>
                 </div>{' '}
