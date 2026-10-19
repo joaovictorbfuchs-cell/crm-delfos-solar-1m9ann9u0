@@ -113,6 +113,25 @@ export default function BaseConhecimento() {
     carregarCategorias()
   }, [])
 
+  // Atualizar visualização do artigo em tempo real caso ele termine de ser indexado em segundo plano
+  useEffect(() => {
+    const handleArtigoIndexado = (ev: Event) => {
+      const customEv = ev as CustomEvent<{ articleId?: string }>
+      const id = customEv.detail?.articleId
+      if (!id) return
+
+      setArtigos((prev) => prev.map((art) => (art.id === id ? { ...art, embedding: [1] } : art)))
+      setArtigoVisualizando((atual) =>
+        atual && atual.id === id ? { ...atual, embedding: [1] } : atual,
+      )
+    }
+
+    window.addEventListener('delfos:artigo-indexado', handleArtigoIndexado)
+    return () => {
+      window.removeEventListener('delfos:artigo-indexado', handleArtigoIndexado)
+    }
+  }, [])
+
   // Carregar artigos quando mudar categoria ou termo de busca
   useEffect(() => {
     let ativo = true
@@ -611,14 +630,31 @@ export default function BaseConhecimento() {
                       >
                         {art.titulo}
                       </h3>
-                      {hasAnexos && (
-                        <span
-                          className="shrink-0 text-emerald-600"
-                          title={`${art.anexos?.length} anexo(s)`}
-                        >
-                          <Paperclip className="w-3.5 h-3.5" />
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {art.embedding ? (
+                          <span
+                            className="inline-flex items-center text-[10px] text-emerald-600 font-semibold"
+                            title="Indexado para busca semântica"
+                          >
+                            <Sparkles className="w-3 h-3 text-emerald-600" />
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center text-[10px] text-amber-600 font-semibold"
+                            title="Em fila de indexação semântica"
+                          >
+                            <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
+                          </span>
+                        )}
+                        {hasAnexos && (
+                          <span
+                            className="shrink-0 text-emerald-600"
+                            title={`${art.anexos?.length} anexo(s)`}
+                          >
+                            <Paperclip className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <p className="text-[11px] text-gray-500 line-clamp-2 mt-1 leading-normal">
@@ -758,14 +794,26 @@ export default function BaseConhecimento() {
                 </div>
               )}
 
-              {/* Dica do Assistente IA */}
+              {/* Dica do Assistente IA e Status de Indexação */}
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-start gap-3">
                 <Bot className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
-                <div className="text-xs text-emerald-900 leading-normal">
-                  <span className="font-bold block mb-0.5">Assistente Inteligente Delfos:</span>
-                  Este artigo e o conteúdo extraído dos anexos já estão indexados. Você pode fazer
-                  perguntas sobre este conteúdo no botão flutuante no canto inferior direito a
-                  qualquer momento.
+                <div className="text-xs text-emerald-900 leading-normal flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-bold">Assistente Inteligente Delfos:</span>
+                    {artigoVisualizando.embedding ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                        <Sparkles className="w-3 h-3 text-emerald-600" /> Busca semântica ativa
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                        <Loader2 className="w-3 h-3 animate-spin text-amber-600" /> Indexando em
+                        segundo plano
+                      </span>
+                    )}
+                  </div>
+                  Este artigo e o conteúdo extraído dos anexos alimentam a busca semântica e por
+                  palavras-chave do Assistente Delfos. O assistente funciona normalmente mesmo
+                  durante o processo de indexação.
                 </div>
               </div>
             </div>

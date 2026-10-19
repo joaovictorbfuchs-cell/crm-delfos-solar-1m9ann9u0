@@ -31,6 +31,7 @@ export interface KnowledgeArticle {
   criado_por?: string
   autor_nome?: string
   tags?: string
+  embedding?: number[] | string | null
   created: string
   updated?: string
   expand?: {
@@ -349,6 +350,10 @@ export async function criarArtigo(
 
   onProgresso?.('Salvando artigo na Base de Conhecimento...')
   const record = await pb.collection('knowledge_articles').create<KnowledgeArticle>(formData)
+
+  // Disparo em segundo plano da geração de embedding para busca semântica, sem bloquear o salvamento
+  dispararIndexacaoArtigoEmSegundoPlano(record.id)
+
   return record
 }
 
@@ -402,6 +407,10 @@ export async function atualizarArtigo(
 
   onProgresso?.('Atualizando artigo...')
   const record = await pb.collection('knowledge_articles').update<KnowledgeArticle>(id, formData)
+
+  // Disparo em segundo plano da atualização do embedding, sem bloquear a resposta da tela
+  dispararIndexacaoArtigoEmSegundoPlano(record.id)
+
   return record
 }
 
@@ -415,6 +424,63 @@ export async function excluirArtigo(id: string): Promise<boolean> {
 /**
  * Retorna URL de download do anexo
  */
+/**
+ * Dispara a indexação/geração de embedding de um artigo em segundo plano (fire-and-forget com retry)
+ * Nunca lança exceção para não quebrar a experiência do usuário
+ */
+export function dispararIndexacaoArtigoEmSegundoPlano(articleId: string): void {
+  if (!articleId) return
+
+  const executar = async () => {
+    const baseUrl = import.meta.env.VITE_POCKETBASE_URL || ''
+    const token = pb.authStore.token
+    if (!baseUrl) return
+
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 35000)
+
+      const res = await fetch(`${baseUrl}/backend/v1/gerar-embedding-artigo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: token } : {}),
+        },
+        body: JSON.stringify({ article_id: articleId }),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId))
+
+      if (res.ok) {
+        console.info(
+          `[knowledgeBaseService] Embedding gerado em segundo plano para artigo ${articleId}`,
+        )
+        // Notifica eventuais ouvintes da UI que a indexação terminou
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('delfos:artigo-indexado', { detail: { articleId } }))
+        }
+      } else {
+        console.warn(
+          `[knowledgeBaseService] Backend retornou ${res.status} ao gerar embedding de ${articleId}`,
+        )
+      }
+    } catch (err) {
+      console.warn(
+        `[knowledgeBaseService] Aviso: indexação em segundo plano adiada para o cron job (artigo ${articleId}):`,
+        err,
+      )
+    }
+  }
+
+  // Executa assincronamente fora da call stack atual
+  if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
+    window.setTimeout(() => {
+      executar().catch(() => {})
+    }, 100)
+  } else {
+    executar().catch(() => {})
+  }
+}
+
 export function getAnexoUrl(article: KnowledgeArticle, filename: string): string {
   try {
     if (!article || !filename) return '#'

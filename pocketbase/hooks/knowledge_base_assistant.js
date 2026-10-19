@@ -20,12 +20,29 @@
  *    - Gera e armazena o embedding do artigo UMA ÚNICA VEZ na criação/edição.
  */
 
-// Hook para gerar embedding do artigo UMA VEZ na criação
-onRecordAfterCreateSuccess((e) => {
+// Endpoint dedicado não-bloqueante para gerar ou regenerar o embedding de um artigo em segundo plano
+routerAdd('POST', '/backend/v1/gerar-embedding-artigo', (e) => {
   try {
-    const record = e.record
-    const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
+    const authUser = e.auth
+    if (!authUser || !authUser.id) {
+      return e.json(401, { error: 'Autenticação necessária', ok: false })
+    }
 
+    const body = e.requestInfo().body || {}
+    const articleId = (body.article_id || body.id || '').trim()
+
+    if (!articleId) {
+      return e.json(400, { error: 'article_id é obrigatório', ok: false })
+    }
+
+    let record = null
+    try {
+      record = $app.findRecordById('knowledge_articles', articleId)
+    } catch (notFound) {
+      return e.json(404, { error: 'Artigo não encontrado', ok: false })
+    }
+
+    const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
     const titulo = record.getString('titulo') || ''
     const conteudo = record.getString('conteudo') || ''
     const textoExtraido = record.getString('texto_extraido') || ''
@@ -65,7 +82,7 @@ onRecordAfterCreateSuccess((e) => {
           }
         }
       } catch (callErr) {
-        console.log('[ASSISTENTE DELFOS CREATE] Erro embedding gemini-embedding-001:', callErr)
+        console.log('[ASSISTENTE DELFOS] Erro embedding gemini-embedding-001:', callErr)
       }
     }
 
@@ -81,82 +98,108 @@ onRecordAfterCreateSuccess((e) => {
     if (vec && Array.isArray(vec) && vec.length > 0) {
       record.set('embedding', vec)
       $app.save(record)
-      console.log(`[ASSISTENTE DELFOS] Embedding gerado com sucesso ao criar artigo "${titulo}"`)
+      console.log(
+        `[ASSISTENTE DELFOS] Embedding gerado com sucesso para artigo "${titulo}" (${articleId})`,
+      )
     }
-  } catch (err) {
-    console.log('[ASSISTENTE DELFOS] Erro ao gerar embedding no create do artigo:', err)
-  }
-  return e.next()
-}, 'knowledge_articles')
 
-// Hook para regenerar embedding quando o artigo for editado
-onRecordAfterUpdateSuccess((e) => {
+    return e.json(200, {
+      ok: true,
+      article_id: articleId,
+      embedding_gerado: Boolean(vec && vec.length > 0),
+      dimensoes: vec ? vec.length : 0,
+    })
+  } catch (err) {
+    console.log('[ASSISTENTE DELFOS] Erro em /backend/v1/gerar-embedding-artigo:', err)
+    return e.json(500, { ok: false, error: String(err) })
+  }
+})
+
+// Cron job para indexar artigos pendentes (sem embedding) a cada 10 minutos
+cronAdd('indexar_artigos_conhecimento_pendentes', '*/10 * * * *', () => {
   try {
-    const record = e.record
+    const arts = $app.findRecordsByFilter(
+      'knowledge_articles',
+      'embedding = null || embedding = ""',
+      '-created',
+      10,
+      0,
+    )
+    if (!arts || arts.length === 0) return
+
     const geminiApiKey = ($os.getenv('GEMINI_API_KEY') || '').trim()
 
-    const titulo = record.getString('titulo') || ''
-    const conteudo = record.getString('conteudo') || ''
-    const textoExtraido = record.getString('texto_extraido') || ''
-    const tags = record.getString('tags') || ''
-
-    const textoArtigo = (
-      `Título: ${titulo}\nTags: ${tags}\nConteúdo: ${conteudo.slice(0, 1500)}\n` +
-      (textoExtraido ? `Texto anexos: ${textoExtraido.slice(0, 2000)}` : '')
-    ).trim()
-
-    const sanitized = String(textoArtigo).slice(0, 4000).trim()
-    let vec = null
-
-    if (sanitized && geminiApiKey) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${geminiApiKey}`
-      const payload = {
-        model: 'models/gemini-embedding-001',
-        content: {
-          parts: [{ text: sanitized }],
-        },
-      }
-
+    for (let i = 0; i < arts.length; i++) {
       try {
-        const res = $http.send({
-          url: url,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          timeout: 15,
-        })
+        const record = arts[i]
+        const titulo = record.getString('titulo') || ''
+        const conteudo = record.getString('conteudo') || ''
+        const textoExtraido = record.getString('texto_extraido') || ''
+        const tags = record.getString('tags') || ''
 
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          const data = res.json || JSON.parse(res.raw || '{}')
-          const values = data?.embedding?.values || data?.embeddings?.[0]?.values || data?.values
-          if (values && Array.isArray(values) && values.length > 0) {
-            vec = values
+        const textoArtigo = (
+          `Título: ${titulo}\nTags: ${tags}\nConteúdo: ${conteudo.slice(0, 1500)}\n` +
+          (textoExtraido ? `Texto anexos: ${textoExtraido.slice(0, 2000)}` : '')
+        ).trim()
+
+        const sanitized = String(textoArtigo).slice(0, 4000).trim()
+        if (!sanitized) continue
+
+        let vec = null
+
+        if (geminiApiKey) {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${geminiApiKey}`
+          const payload = {
+            model: 'models/gemini-embedding-001',
+            content: {
+              parts: [{ text: sanitized }],
+            },
+          }
+
+          try {
+            const res = $http.send({
+              url: url,
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              timeout: 15,
+            })
+
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              const data = res.json || JSON.parse(res.raw || '{}')
+              const values =
+                data?.embedding?.values || data?.embeddings?.[0]?.values || data?.values
+              if (values && Array.isArray(values) && values.length > 0) {
+                vec = values
+              }
+            }
+          } catch (callErr) {
+            console.log('[CRON INDEXADOR] Erro embedding:', callErr)
           }
         }
-      } catch (callErr) {
-        console.log('[ASSISTENTE DELFOS UPDATE] Erro embedding gemini-embedding-001:', callErr)
+
+        if (!vec && typeof $ai !== 'undefined' && typeof $ai.embed === 'function') {
+          try {
+            const aiRes = $ai.embed({ input: sanitized.slice(0, 2700) })
+            if (aiRes?.data?.[0]?.embedding) {
+              vec = aiRes.data[0].embedding
+            }
+          } catch (_) {}
+        }
+
+        if (vec && Array.isArray(vec) && vec.length > 0) {
+          record.set('embedding', vec)
+          $app.save(record)
+          console.log(`[CRON INDEXADOR] Artigo "${titulo}" indexado com sucesso`)
+        }
+      } catch (procErr) {
+        console.log('[CRON INDEXADOR] Falha ao indexar artigo ' + arts[i].id + ':', procErr)
       }
     }
-
-    if (!vec && sanitized && typeof $ai !== 'undefined' && typeof $ai.embed === 'function') {
-      try {
-        const aiRes = $ai.embed({ input: sanitized.slice(0, 2700) })
-        if (aiRes?.data?.[0]?.embedding) {
-          vec = aiRes.data[0].embedding
-        }
-      } catch (_) {}
-    }
-
-    if (vec && Array.isArray(vec) && vec.length > 0) {
-      record.set('embedding', vec)
-      $app.save(record)
-      console.log(`[ASSISTENTE DELFOS] Embedding atualizado para artigo "${titulo}"`)
-    }
-  } catch (err) {
-    console.log('[ASSISTENTE DELFOS] Erro ao atualizar embedding do artigo:', err)
+  } catch (cronErr) {
+    console.log('[CRON INDEXADOR] Erro no job de indexação:', cronErr)
   }
-  return e.next()
-}, 'knowledge_articles')
+})
 
 routerAdd('POST', '/backend/v1/assistente-delfos', (e) => {
   try {

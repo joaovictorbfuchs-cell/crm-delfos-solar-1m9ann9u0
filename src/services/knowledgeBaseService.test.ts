@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   listarCategorias,
   listarArtigos,
+  criarArtigo,
   getAnexoUrl,
+  dispararIndexacaoArtigoEmSegundoPlano,
   truncarTextoExtraido,
   MAX_TEXTO_EXTRAIDO_LENGTH,
 } from '@/services/knowledgeBaseService'
@@ -126,6 +128,60 @@ describe('Base de Conhecimento & Verificação Crítica Delfos CRM', () => {
     expect(res.resposta).toContain('ultrapassaram o limite de leitura')
     expect(res.error).toContain('Input too long')
 
+    globalThis.fetch = originalFetch
+  })
+
+  it('criarArtigo salva registro imediatamente e agenda indexação em segundo plano sem travar', async () => {
+    const mockCriado = {
+      id: 'art-novo-123',
+      categoria_id: 'yic90bj6dns9uzy',
+      titulo: 'Artigo Rápido',
+      conteudo: 'Conteúdo salvo sem espera',
+      created: '2026-10-19',
+    }
+
+    const spyCreate = vi
+      .spyOn(pb.collection('knowledge_articles'), 'create')
+      .mockResolvedValue(mockCriado as any)
+
+    const originalFetch = globalThis.fetch
+    let fetchChamado = false
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      fetchChamado = true
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true }) })
+    }) as any
+
+    const progressoMsgs: string[] = []
+    const salvo = await criarArtigo(
+      {
+        categoria_id: 'yic90bj6dns9uzy',
+        titulo: 'Artigo Rápido',
+        conteudo: 'Conteúdo salvo sem espera',
+      },
+      (msg) => progressoMsgs.push(msg),
+    )
+
+    expect(salvo.id).toBe('art-novo-123')
+    expect(spyCreate).toHaveBeenCalledTimes(1)
+    expect(progressoMsgs).toContain('Salvando artigo na Base de Conhecimento...')
+
+    // Aguardar o setTimeout do dispararIndexacaoArtigoEmSegundoPlano
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    expect(fetchChamado).toBe(true)
+
+    spyCreate.mockRestore()
+    globalThis.fetch = originalFetch
+  })
+
+  it('dispararIndexacaoArtigoEmSegundoPlano tolera falhas silenciosamente sem quebrar a UI', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network offline')) as any
+
+    expect(() => {
+      dispararIndexacaoArtigoEmSegundoPlano('art-qualquer')
+    }).not.toThrow()
+
+    await new Promise((resolve) => setTimeout(resolve, 150))
     globalThis.fetch = originalFetch
   })
 })
