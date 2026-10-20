@@ -44,15 +44,15 @@ vi.mock('@/components/ModalGerenciarWhatsAppTemplates', () => ({
   ModalGerenciarWhatsAppTemplates: () => null,
 }))
 
-describe('Layout Desktop - Sidebar com Mais Opções', () => {
-  it('renderiza os itens principais fixos na sidebar desktop e NÃO renderiza botão Mais Opções', () => {
+describe('Layout Desktop - Sidebar Reorganizada (Ordem Oficial)', () => {
+  it('renderiza os itens na ordem aprovada (incluindo Integrações, Financeiro e link direto Configurações sem flyout)', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Layout />
       </MemoryRouter>,
     )
 
-    // Itens principais fixos (incluindo Configurações na sequência principal)
+    // Itens principais fixos: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços, O&M, Clientes, Contatos, Integrações, Financeiro, Configurações
     expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Comercial').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Propostas').length).toBeGreaterThan(0)
@@ -62,67 +62,41 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     expect(screen.getAllByText('O&M').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Clientes').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Contatos').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Integrações').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Financeiro').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Configurações').length).toBeGreaterThan(0)
 
-    // Botão de três pontinhos / Mais Opções removido completamente
-    expect(screen.queryByText('Mais Opções')).toBeNull()
-    expect(screen.queryByRole('button', { name: /Mais Opções/i })).toBeNull()
+    // Configurações agora é link direto para /configuracoes e NÃO tem mais flyout / menu flutuante nem botão de trigger
+    const linkConfiguracoes = screen.getByRole('link', { name: /Configurações/i })
+    expect(linkConfiguracoes).not.toBeNull()
+    expect(linkConfiguracoes.getAttribute('href')).toBe('/configuracoes')
+
+    // Links de Integrações e Financeiro
+    const linkIntegracoes = screen.getByRole('link', { name: /Integrações/i })
+    expect(linkIntegracoes.getAttribute('href')).toBe('/integracoes')
+
+    const linkFinanceiro = screen.getByRole('link', { name: /Financeiro/i })
+    expect(linkFinanceiro.getAttribute('href')).toBe('/financeiro')
+
+    // Sem menu flutuante / dialog de flyout de configurações
+    expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
   })
 
-  it('ao clicar em Configurações abre menu flutuante ao lado com as opções do grupo', () => {
+  it('Configurações não abre flyout ao ser clicado, comportando-se como link de rota direta', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Layout />
       </MemoryRouter>,
     )
 
-    const botaoConfiguracoes = screen.getByRole('button', { name: /Configurações/i })
-    expect(botaoConfiguracoes).not.toBeNull()
+    const linkConfiguracoes = screen.getByRole('link', { name: /Configurações/i })
+    fireEvent.click(linkConfiguracoes)
 
-    // Inicialmente o popover não deve estar aberto
-    expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
-
-    // Clica para abrir o flyout
-    fireEvent.click(botaoConfiguracoes)
-
-    // O flyout abre
-    const dialog = screen.getByRole('dialog', { name: /Menu Configurações/i })
-    expect(dialog).not.toBeNull()
-
-    // Verifica as opções do flyout
-    expect(screen.getByText('Automações')).not.toBeNull()
-    expect(screen.getByText('Mensagens WhatsApp')).not.toBeNull()
-    expect(screen.getByText('Cadastro de equipamentos')).not.toBeNull()
-    expect(screen.getByText('Ativos das usinas')).not.toBeNull()
-    expect(screen.getByText('Galeria de usinas')).not.toBeNull()
-    expect(screen.getByText('Fornecedores')).not.toBeNull()
-    expect(screen.getByText('Importar Clientes')).not.toBeNull()
-    expect(screen.getByText('Gerenciar usuários')).not.toBeNull()
-    expect(screen.getByText('Base de Conhecimento')).not.toBeNull()
-
-    // Fecha pelo botão de fechar (X)
-    const botaoFechar = screen.getByRole('button', { name: /Fechar/i })
-    fireEvent.click(botaoFechar)
-
+    // Não deve disparar nenhum dialog de flyout
     expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
   })
 
-  it('fecha o flyout Configurações com a tecla Escape', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <Layout />
-      </MemoryRouter>,
-    )
-
-    const botaoConfiguracoes = screen.getByRole('button', { name: /Configurações/i })
-    fireEvent.click(botaoConfiguracoes)
-    expect(screen.getByRole('dialog', { name: /Menu Configurações/i })).not.toBeNull()
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
-  })
-
-  it('instalador vê APENAS Serviços (sem Configurações, sem flyout e sem três pontinhos)', async () => {
+  it('instalador vê APENAS Serviços (sem Configurações, sem Integrações, sem Financeiro)', async () => {
     // Sobrescrever mock para perfil instalador
     const authModule = vi.spyOn(await import('@/contexts/AuthContext'), 'useAuth')
     authModule.mockReturnValue({
@@ -142,9 +116,9 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     // Instalador vê apenas Serviços
     expect(screen.getAllByText('Serviços').length).toBeGreaterThan(0)
     expect(screen.queryByText('Configurações')).toBeNull()
+    expect(screen.queryByText('Integrações')).toBeNull()
+    expect(screen.queryByText('Financeiro')).toBeNull()
     expect(screen.queryByText('Mais Opções')).toBeNull()
-    expect(screen.queryByRole('button', { name: /Configurações/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Mais Opções/i })).toBeNull()
     expect(screen.queryByRole('dialog', { name: /Menu Configurações/i })).toBeNull()
   })
 })

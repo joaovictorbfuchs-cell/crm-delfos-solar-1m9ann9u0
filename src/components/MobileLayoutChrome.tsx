@@ -27,6 +27,9 @@ import {
   BookOpen,
   Layers,
   RefreshCw,
+  Plug,
+  Wallet,
+  Settings,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -168,6 +171,15 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     }
     if (location.pathname === '/gerenciar-usuarios') {
       return { id: 'gerenciar-usuarios', label: 'Gerenciar Usuários', isFunil: false }
+    }
+    if (location.pathname === '/integracoes') {
+      return { id: 'integracoes', label: 'Integrações', isFunil: false }
+    }
+    if (location.pathname === '/financeiro') {
+      return { id: 'financeiro', label: 'Financeiro', isFunil: false }
+    }
+    if (location.pathname === '/configuracoes') {
+      return { id: 'configuracoes', label: 'Configurações', isFunil: false }
     }
     return { id: 'crm', label: 'Comercial', isFunil: true }
   }, [location.pathname])
@@ -355,8 +367,16 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
           ],
         },
         {
+          title: 'Conexões & Finanças',
+          items: [
+            { label: 'Integrações', path: '/integracoes', icon: Plug },
+            { label: 'Financeiro', path: '/financeiro', icon: Wallet },
+          ],
+        },
+        {
           title: 'Configurações & Gestão',
           items: [
+            { label: 'Painel de Configurações', path: '/configuracoes', icon: Settings },
             { label: 'Automações do CRM', path: '/automacoes', icon: Zap },
             { label: 'Mensagens WhatsApp', path: '/mensagens-whatsapp', icon: WhatsAppIcon },
             { label: 'Equipamentos', path: '/equipamentos', icon: Cpu },

@@ -54,6 +54,9 @@ const RelatorioOSPreview = lazyWithRetry(() => import('./pages/RelatorioOSPrevie
 const PropostaOMPublica = lazyWithRetry(() => import('./pages/PropostaOMPublica'))
 const BaseConhecimento = lazyWithRetry(() => import('./pages/BaseConhecimento'))
 const MensagensWhatsApp = lazyWithRetry(() => import('./pages/MensagensWhatsApp'))
+const Configuracoes = lazyWithRetry(() => import('./pages/Configuracoes'))
+const Integracoes = lazyWithRetry(() => import('./pages/Integracoes'))
+const Financeiro = lazyWithRetry(() => import('./pages/Financeiro'))
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'))
 
 const App = () => (
@@ -381,6 +384,37 @@ const App = () => (
                   <ProtectedRoute requiredRole="admin">
                     <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Base de Conhecimento">
                       <BaseConhecimento />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Novas rotas da reorganização do CRM: Configurações, Integrações e Financeiro */}
+              <Route
+                path="/configuracoes"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar as Configurações do CRM">
+                      <Configuracoes />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/integracoes"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Central de Integrações">
+                      <Integracoes />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financeiro"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Gestão Financeira">
+                      <Financeiro />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }

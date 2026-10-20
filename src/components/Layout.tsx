@@ -29,6 +29,8 @@ import {
   Contact,
   Layers,
   RefreshCw,
+  Plug,
+  Wallet,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -54,13 +56,6 @@ export function Layout({ children }: LayoutProps = {}) {
   const location = useLocation()
   const navigate = useNavigate()
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
-  const [configuracoesOpen, setConfiguracoesOpen] = useState(false)
-  const configuracoesRef = useRef<HTMLDivElement>(null)
-  const configuracoesButtonRef = useRef<HTMLButtonElement>(null)
-  const [flyoutPosition, setFlyoutPosition] = useState<{ top: number; left: number }>({
-    top: 0,
-    left: 88,
-  })
   const [isRefreshingGlobal, setIsRefreshingGlobal] = useState(false)
 
   const handleGlobalRefresh = async () => {
@@ -150,83 +145,15 @@ export function Layout({ children }: LayoutProps = {}) {
         return 'Gerenciar Usuários'
       case '/mensagens-whatsapp':
         return 'Mensagens WhatsApp'
+      case '/integracoes':
+        return 'Central de Integrações'
+      case '/financeiro':
+        return 'Gestão Financeira'
+      case '/configuracoes':
+        return 'Configurações & Cadastros'
       default:
         return 'Delfos'
     }
-  }
-
-  // Atualizar a posição do flyout ao abrir ou ao redimensionar / rolar
-  useLayoutEffect(() => {
-    if (!configuracoesOpen) return
-
-    const updatePosition = () => {
-      if (configuracoesButtonRef.current) {
-        const rect = configuracoesButtonRef.current.getBoundingClientRect()
-        // Posicionar à direita do botão (+8px de respiro), alinhando verticalmente com o centro/topo
-        const left = rect.right + 8
-        // Evitar que o flyout ultrapasse o topo ou a base da viewport
-        // O card tem ~430px de altura máxima
-        const cardHeightEstimate = 430
-        let top = rect.top - 48
-        if (top + cardHeightEstimate > window.innerHeight - 16) {
-          top = Math.max(16, window.innerHeight - cardHeightEstimate - 16)
-        }
-        if (top < 16) {
-          top = 16
-        }
-        setFlyoutPosition({ top, left })
-      }
-    }
-
-    updatePosition()
-    window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
-    return () => {
-      window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
-    }
-  }, [configuracoesOpen])
-
-  // Fechar o menu flutuante "Configurações" ao navegar ou clicar fora
-  useEffect(() => {
-    setConfiguracoesOpen(false)
-  }, [location.pathname])
-
-  useEffect(() => {
-    if (!configuracoesOpen) return
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node
-      const isInsideTrigger = configuracoesRef.current && configuracoesRef.current.contains(target)
-      const isInsideFlyout = document
-        .getElementById('configuracoes-flyout-portal')
-        ?.contains(target)
-
-      if (!isInsideTrigger && !isInsideFlyout) {
-        setConfiguracoesOpen(false)
-      }
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setConfiguracoesOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [configuracoesOpen])
-
-  interface NavSubItem {
-    name: string
-    path: string
-    icon: React.ElementType
-    badge?: number
-    description?: string
   }
 
   interface NavItem {
@@ -236,70 +163,9 @@ export function Layout({ children }: LayoutProps = {}) {
     badge?: number
   }
 
-  // 8 opções exatas solicitadas no menu flutuante ao lado do item Configurações
-  const configuracoesItems: NavSubItem[] = [
-    {
-      name: 'Automações',
-      path: '/automacoes',
-      icon: Zap,
-      description: 'Fluxos automáticos e gatilhos',
-    },
-    {
-      name: 'Mensagens WhatsApp',
-      path: '/mensagens-whatsapp',
-      icon: MessageSquare,
-      description: 'Modelos e templates de mensagens',
-    },
-    {
-      name: 'Cadastro de equipamentos',
-      path: '/equipamentos',
-      icon: Cpu,
-      description: 'Módulos, inversores e estruturas',
-    },
-    {
-      name: 'Ativos das usinas',
-      path: '/ativos',
-      icon: Cpu,
-      description: 'Inversores instalados e seriais',
-    },
-    {
-      name: 'Galeria de usinas',
-      path: '/instalacoes-galeria',
-      icon: Images,
-      description: 'Fotos das obras finalizadas',
-    },
-    {
-      name: 'Fornecedores',
-      path: '/fornecedores',
-      icon: Truck,
-      description: 'Distribuidores e parceiros solares',
-    },
-    {
-      name: 'Importar Clientes',
-      path: '/importar-clientes',
-      icon: FileSpreadsheet,
-      description: 'Pipedrive, Conta Azul e CSV',
-    },
-    {
-      name: 'Gerenciar usuários',
-      path: '/gerenciar-usuarios',
-      icon: UserCog,
-      description: 'Perfis de acesso e equipe',
-    },
-    {
-      name: 'Base de Conhecimento',
-      path: '/base-conhecimento',
-      icon: BookOpen,
-      description: 'Documentos e procedimentos',
-    },
-  ]
-
-  const isConfiguracoesActive = configuracoesItems.some((sub) => location.pathname === sub.path)
-
   // Itens principais fixos visíveis na sidebar desktop
   // Para instalador: apenas "Serviços"
-  // Para admin: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços, O&M, Clientes, Contatos
-  // (Configurações fica na sequência logo abaixo de Contatos, controlado como item com menu flutuante)
+  // Ordem aprovada para admin: Dashboard, Comercial, Propostas, Atividades, Projetos, Serviços de Campo, O&M, Clientes, Contatos, Integrações, Financeiro, Configurações
   const navItems: NavItem[] = isInstalador
     ? [{ name: 'Serviços', path: '/servicos-campo', icon: Wrench }]
     : [
@@ -312,6 +178,9 @@ export function Layout({ children }: LayoutProps = {}) {
         { name: 'O&M', path: '/manutencoes', icon: ShieldCheck },
         { name: 'Clientes', path: '/clientes', icon: Users },
         { name: 'Contatos', path: '/contatos', icon: Contact },
+        { name: 'Integrações', path: '/integracoes', icon: Plug },
+        { name: 'Financeiro', path: '/financeiro', icon: Wallet },
+        { name: 'Configurações', path: '/configuracoes', icon: Settings },
       ]
 
   const isManutencoesSectionActive =
@@ -372,7 +241,19 @@ export function Layout({ children }: LayoutProps = {}) {
                 (itemPath === '/minhas-os' && location.pathname === '/minhas-os') ||
                 (itemPath === '/planos-om' &&
                   (location.pathname === '/planos-om' ||
-                    location.pathname === '/planos-monitoramento'))
+                    location.pathname === '/planos-monitoramento')) ||
+                (itemPath === '/configuracoes' &&
+                  (location.pathname === '/configuracoes' ||
+                    location.pathname === '/automacoes' ||
+                    location.pathname === '/mensagens-whatsapp' ||
+                    location.pathname === '/equipamentos' ||
+                    location.pathname === '/ativos' ||
+                    location.pathname === '/instalacoes-galeria' ||
+                    location.pathname === '/fornecedores' ||
+                    location.pathname === '/importar-clientes' ||
+                    location.pathname === '/importar-acessos' ||
+                    location.pathname === '/gerenciar-usuarios' ||
+                    location.pathname === '/base-conhecimento'))
 
               return (
                 <div key={`${item.name}-${itemPath}`} className="w-full">
@@ -404,42 +285,6 @@ export function Layout({ children }: LayoutProps = {}) {
                 </div>
               )
             })}
-
-            {/* Item "Configurações" na sequência principal abaixo de "Contatos" (apenas para Admin) */}
-            {/* Ao clicar, abre menu flutuante (flyout) ao lado do item com as 8 opções */}
-            {isAdmin && (
-              <div ref={configuracoesRef} className="w-full relative">
-                <button
-                  ref={configuracoesButtonRef}
-                  type="button"
-                  onClick={() => setConfiguracoesOpen((prev) => !prev)}
-                  title="Configurações e Gestão"
-                  aria-label="Configurações"
-                  aria-haspopup="dialog"
-                  aria-expanded={configuracoesOpen}
-                  className={`flex flex-col items-center justify-center text-center rounded-md px-1 py-1 w-full transition-all duration-150 relative group cursor-pointer ${
-                    configuracoesOpen || isConfiguracoesActive
-                      ? 'bg-[#DCFCE7] text-[#166534] font-bold shadow-xs'
-                      : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
-                  }`}
-                >
-                  <div className="relative flex items-center justify-center">
-                    <Settings
-                      className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
-                        configuracoesOpen ? 'rotate-45' : 'group-hover:scale-110'
-                      } ${
-                        configuracoesOpen || isConfiguracoesActive
-                          ? 'text-[#16A34A]'
-                          : 'text-gray-500 group-hover:text-[#16A34A]'
-                      }`}
-                    />
-                  </div>
-                  <span className="text-[10px] font-medium leading-none mt-1 px-0.5 truncate max-w-full">
-                    Configurações
-                  </span>
-                </button>
-              </div>
-            )}
           </div>
         </nav>
 
@@ -603,92 +448,6 @@ export function Layout({ children }: LayoutProps = {}) {
           {children || <Outlet />}
         </main>
       </div>
-
-      {/* Flyout Popover flutuante de Configurações renderizado via Portal direto no document.body
-          - Z-index altíssimo (z-[9999]), sem qualquer corte por overflow da sidebar
-          - Posicionado ao lado do botão Configurações usando getBoundingClientRect
-          - Card branco, cantos arredondados (rounded-xl), sombra projetada (shadow-2xl), borda sutil
-          - Exatamente as 8 opções solicitadas, com ícone à esquerda e destaque verde na rota ativa */}
-      {isAdmin &&
-        configuracoesOpen &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            id="configuracoes-flyout-portal"
-            role="dialog"
-            aria-label="Menu Configurações"
-            style={{
-              position: 'fixed',
-              top: `${flyoutPosition.top}px`,
-              left: `${flyoutPosition.left}px`,
-            }}
-            className="w-72 max-h-[85vh] flex flex-col bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-[9999] animate-in fade-in-0 zoom-in-95 duration-150 origin-top-left"
-          >
-            {/* Cabeçalho do Card Popover */}
-            <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-emerald-50 text-[#16A34A] flex items-center justify-center">
-                  <Settings className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-sm font-semibold text-gray-800">Configurações</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setConfiguracoesOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
-                title="Fechar menu"
-                aria-label="Fechar"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Lista das 8 opções no Flyout com ícone à esquerda + rótulo + destaque verde na ativa */}
-            <div className="py-1 overflow-y-auto flex-1 overscroll-contain">
-              {configuracoesItems.map((sub) => {
-                const SubIcon = sub.icon
-                const isSubActive = location.pathname === sub.path
-
-                return (
-                  <NavLink
-                    key={sub.name}
-                    to={sub.path}
-                    onClick={() => setConfiguracoesOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2 text-xs transition-colors duration-150 group ${
-                      isSubActive
-                        ? 'bg-emerald-50 text-[#166534] font-semibold border-l-3 border-[#16A34A]'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-emerald-800'
-                    }`}
-                  >
-                    <div
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                        isSubActive
-                          ? 'bg-emerald-100 text-[#16A34A]'
-                          : 'bg-gray-100 text-gray-500 group-hover:bg-emerald-50 group-hover:text-[#16A34A]'
-                      }`}
-                    >
-                      <SubIcon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium leading-snug truncate">
-                        {sub.name}
-                      </div>
-                      {sub.description && (
-                        <div className="text-[11px] text-gray-400 font-normal truncate">
-                          {sub.description}
-                        </div>
-                      )}
-                    </div>
-                    {isSubActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] shrink-0" />
-                    )}
-                  </NavLink>
-                )
-              })}
-            </div>
-          </div>,
-          document.body,
-        )}
 
       {/* Assistente Inteligente Delfos (Chat com RAG na Base de Conhecimento - Visível para Admin) */}
       {isAdmin && <AssistenteDelfosChat />}

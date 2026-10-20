@@ -1,0 +1,640 @@
+import React, { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import {
+  CATEGORIAS_ATIVIDADES,
+  ATIVIDADES_PADRAO,
+  normalizarNomeTipo,
+  correspondemAoMesmoTipo,
+  type TipoAtividadeDef,
+} from '@/constants/atividadesTipos'
+import { useClientes } from '@/contexts/ClientesContext'
+import type {
+  AtividadeCategoriaId,
+  TipoAtividadeCustomItem,
+  TipoAtividadeChecklistItem,
+} from '@/types/crm'
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Lock,
+  Layers,
+  Sparkles,
+  Info,
+  Loader2,
+  Briefcase,
+  Wrench,
+  FileSpreadsheet,
+} from 'lucide-react'
+import { ModalEditarTipoAtividade } from '@/components/ModalEditarTipoAtividade'
+
+export interface GerenciadorPadroesAtividadesProps {
+  onSuccess?: () => void
+  showTitle?: boolean
+}
+
+export const GerenciadorPadroesAtividades: React.FC<GerenciadorPadroesAtividadesProps> = ({
+  onSuccess,
+  showTitle = true,
+}) => {
+  const { tiposAtividadesCustom, addTipoAtividadeCustom, removeTipoAtividadeCustom } = useClientes()
+
+  const [activeCategoryTab, setActiveCategoryTab] = useState<AtividadeCategoriaId>('comercial')
+  const [novoNome, setNovoNome] = useState('')
+  const [novaCategoria, setNovaCategoria] = useState<AtividadeCategoriaId>('comercial')
+  const [novaDescricao, setNovaDescricao] = useState('')
+  const [novoValorBase, setNovoValorBase] = useState('')
+  const [novoValorPorPlaca, setNovoValorPorPlaca] = useState('')
+  const [novoChecklistItems, setNovoChecklistItems] = useState<TipoAtividadeChecklistItem[]>([])
+  const [novoChecklistInput, setNovoChecklistInput] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  // Estados para edição de atividades (padrão e personalizadas)
+  const [isEditarOpen, setIsEditarOpen] = useState(false)
+  const [customParaEditar, setCustomParaEditar] = useState<TipoAtividadeCustomItem | null>(null)
+  const [padraoParaEditar, setPadraoParaEditar] = useState<TipoAtividadeDef | null>(null)
+  const [edicaoChave, setEdicaoChave] = useState<string>('')
+
+  const handleAbrirEdicaoCustom = (custom: TipoAtividadeCustomItem) => {
+    setCustomParaEditar(custom)
+    setPadraoParaEditar(null)
+    setEdicaoChave(`custom_${custom.id}_${Date.now()}`)
+    setIsEditarOpen(true)
+  }
+
+  const handleAbrirEdicaoPadrao = (tipoPadrao: TipoAtividadeDef) => {
+    const nomePadraoNorm = normalizarNomeTipo(tipoPadrao.tituloPadrao)
+    const existenteNoBanco = tiposAtividadesCustom.find((t) => {
+      if (t.categoria !== tipoPadrao.categoria) return false
+      const nomeCustomNorm = normalizarNomeTipo(t.nome)
+      if (nomeCustomNorm === nomePadraoNorm) return true
+      if (correspondemAoMesmoTipo(t.nome, tipoPadrao.tituloPadrao)) return true
+      return false
+    })
+
+    if (existenteNoBanco) {
+      setCustomParaEditar(existenteNoBanco)
+      setPadraoParaEditar(tipoPadrao)
+      setEdicaoChave(`custom_padrao_${existenteNoBanco.id}_${Date.now()}`)
+    } else {
+      setCustomParaEditar(null)
+      setPadraoParaEditar(tipoPadrao)
+      setEdicaoChave(`padrao_${tipoPadrao.id}_${Date.now()}`)
+    }
+    setIsEditarOpen(true)
+  }
+
+  const handleCriar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoNome.trim()) {
+      setFormError('Por favor, informe o nome do tipo de atividade.')
+      return
+    }
+
+    setFormError(null)
+    setIsSubmitting(true)
+    try {
+      const numValorBase = novoValorBase.trim() ? parseFloat(novoValorBase.replace(',', '.')) : 0
+      const numValorPorPlaca = novoValorPorPlaca.trim()
+        ? parseFloat(novoValorPorPlaca.replace(',', '.'))
+        : 0
+
+      const payload = {
+        nome: novoNome.trim(),
+        categoria: novaCategoria,
+        descricao: novaDescricao.trim() || undefined,
+        valor_base: !isNaN(numValorBase) && numValorBase > 0 ? numValorBase : 0,
+        valor_por_placa: !isNaN(numValorPorPlaca) && numValorPorPlaca > 0 ? numValorPorPlaca : 0,
+        checklist: novoChecklistItems,
+      }
+
+      const nomeNorm = normalizarNomeTipo(novoNome)
+      const existente = (tiposAtividadesCustom || []).find(
+        (t) => normalizarNomeTipo(t.nome) === nomeNorm,
+      )
+
+      if (existente?.id) {
+        const { updateTipoAtividadeCustom } = await import('@/services/crmService')
+        await updateTipoAtividadeCustom(existente.id, payload)
+      } else {
+        await addTipoAtividadeCustom(payload)
+      }
+
+      setActiveCategoryTab(novaCategoria)
+      setNovoNome('')
+      setNovaDescricao('')
+      setNovoValorBase('')
+      setNovoValorPorPlaca('')
+      setNovoChecklistItems([])
+      setNovoChecklistInput('')
+      if (onSuccess) onSuccess()
+    } catch (err: unknown) {
+      console.error('Erro ao cadastrar novo tipo de atividade:', err)
+      setFormError(
+        err instanceof Error ? err.message : 'Falha ao cadastrar novo tipo de atividade.',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleExcluir = async (id: string, nome: string) => {
+    if (!window.confirm(`Tem certeza que deseja apagar o tipo de atividade "${nome}"?`)) {
+      return
+    }
+    setDeletingId(id)
+    try {
+      await removeTipoAtividadeCustom(id)
+      if (onSuccess) onSuccess()
+    } catch (err) {
+      console.error('Erro ao remover tipo:', err)
+      alert('Não foi possível remover este tipo.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const customizadosDaCategoria = tiposAtividadesCustom.filter(
+    (t) => t.categoria === activeCategoryTab,
+  )
+
+  const padroesDaCategoria = ATIVIDADES_PADRAO.filter((p) => {
+    if (p.categoria !== activeCategoryTab) return false
+    const normP = normalizarNomeTipo(p.tituloPadrao)
+    const sobrescrito = customizadosDaCategoria.some((c) => {
+      const normC = normalizarNomeTipo(c.nome)
+      if (normC === normP) return true
+      if (correspondemAoMesmoTipo(p.tituloPadrao, c.nome)) return true
+      return false
+    })
+    return !sobrescrito
+  })
+
+  const currentCategoryDef = CATEGORIAS_ATIVIDADES.find((c) => c.id === activeCategoryTab)
+
+  return (
+    <div className="space-y-6">
+      {showTitle && (
+        <div className="flex items-center gap-3 border-b border-gray-200 pb-4">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-700 border border-amber-200">
+            <Layers className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Padrões de Atividades</h2>
+            <p className="text-xs text-gray-500">
+              Configure os tipos de atividades do CRM, preços base e itens de checklist padrão.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Formulário de Criação */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="h-4 w-4 text-amber-600" />
+          <h3 className="text-sm font-semibold text-gray-800">Cadastrar Novo Tipo de Atividade</h3>
+        </div>
+
+        <form onSubmit={handleCriar} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <div className="sm:col-span-6 space-y-1">
+              <Label htmlFor="nome-tipo" className="text-xs font-medium text-gray-700">
+                Nome da Atividade *
+              </Label>
+              <Input
+                id="nome-tipo"
+                placeholder="Ex: Auditoria de Fatura, Vistoria com Drone..."
+                value={novoNome}
+                onChange={(e) => setNovoNome(e.target.value)}
+                className="text-xs bg-white"
+              />
+            </div>
+
+            <div className="sm:col-span-6 space-y-1">
+              <Label htmlFor="categoria-tipo" className="text-xs font-medium text-gray-700">
+                Categoria *
+              </Label>
+              <select
+                id="categoria-tipo"
+                value={novaCategoria}
+                onChange={(e) => {
+                  const nova = e.target.value as AtividadeCategoriaId
+                  setNovaCategoria(nova)
+                  setActiveCategoryTab(nova)
+                }}
+                className="w-full text-xs h-9 rounded-md border border-input bg-white px-3 py-1 text-gray-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+              >
+                {CATEGORIAS_ATIVIDADES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="sm:col-span-6 space-y-1">
+              <Label htmlFor="valor-base-tipo" className="text-xs font-medium text-gray-700">
+                Preço Base Sugerido (R$)
+              </Label>
+              <Input
+                id="valor-base-tipo"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ex: 250,00"
+                value={novoValorBase}
+                onChange={(e) => setNovoValorBase(e.target.value)}
+                className="text-xs bg-white"
+              />
+            </div>
+
+            <div className="sm:col-span-6 space-y-1">
+              <Label htmlFor="valor-placa-tipo" className="text-xs font-medium text-gray-700">
+                Valor por Placa (R$, opcional)
+              </Label>
+              <Input
+                id="valor-placa-tipo"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ex: 12,50"
+                value={novoValorPorPlaca}
+                onChange={(e) => setNovoValorPorPlaca(e.target.value)}
+                className="text-xs bg-white"
+              />
+            </div>
+
+            <div className="sm:col-span-12 space-y-1">
+              <Label htmlFor="desc-tipo" className="text-xs font-medium text-gray-700">
+                Descrição / Instrução (opcional)
+              </Label>
+              <Input
+                id="desc-tipo"
+                placeholder="Orientações breves para a equipe ao agendar essa atividade"
+                value={novaDescricao}
+                onChange={(e) => setNovaDescricao(e.target.value)}
+                className="text-xs bg-white"
+              />
+            </div>
+
+            {/* Checklist inicial para novo tipo de atividade */}
+            <div className="sm:col-span-12 space-y-2 pt-1 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-gray-700">
+                  Checklist da Atividade ({novoChecklistItems.length} itens)
+                </Label>
+                <span className="text-[10px] text-gray-400">
+                  Inicie com checklist vazio ou adicione os checks necessários
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Adicionar item ao checklist (ex: Verificar aperto de bornes)..."
+                  value={novoChecklistInput}
+                  onChange={(e) => setNovoChecklistInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (novoChecklistInput.trim()) {
+                        setNovoChecklistItems((prev) => [
+                          ...prev,
+                          {
+                            id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                            texto: novoChecklistInput.trim(),
+                            concluido: false,
+                          },
+                        ])
+                        setNovoChecklistInput('')
+                      }
+                    }
+                  }}
+                  className="text-xs bg-white"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (novoChecklistInput.trim()) {
+                      setNovoChecklistItems((prev) => [
+                        ...prev,
+                        {
+                          id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                          texto: novoChecklistInput.trim(),
+                          concluido: false,
+                        },
+                      ])
+                      setNovoChecklistInput('')
+                    }
+                  }}
+                  disabled={!novoChecklistInput.trim()}
+                  className="h-8 px-3 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shrink-0 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Adicionar Check
+                </Button>
+              </div>
+
+              {novoChecklistItems.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  {novoChecklistItems.map((chk, idx) => (
+                    <div
+                      key={chk.id || idx}
+                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-slate-200 text-xs shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="text-gray-800 font-medium truncate">{chk.texto}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNovoChecklistItems((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0 cursor-pointer"
+                        title="Remover check"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {formError && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 p-2 rounded-md">
+              {formError}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSubmitting || !novoNome.trim()}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs gap-1.5 h-8 px-4"
+            >
+              {isSubmitting ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Salvando...
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Adicionar Atividade
+                </span>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* Abas das 3 Categorias */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-600">
+            Atividades por Categoria
+          </h4>
+          <span className="text-xs text-gray-400">
+            {padroesDaCategoria.length + customizadosDaCategoria.length} tipos cadastrados
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 border-b border-gray-200 pb-3">
+          {CATEGORIAS_ATIVIDADES.map((cat) => {
+            const isActive = activeCategoryTab === cat.id
+            const customCount = tiposAtividadesCustom.filter((t) => t.categoria === cat.id).length
+            const IconComponent =
+              cat.id === 'comercial'
+                ? Briefcase
+                : cat.id === 'manutencao'
+                  ? Wrench
+                  : FileSpreadsheet
+
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setActiveCategoryTab(cat.id)}
+                className={`flex items-center gap-2 p-2.5 rounded-lg text-left transition-all text-xs font-medium border ${
+                  isActive
+                    ? 'bg-amber-50/80 border-amber-300 text-amber-950 shadow-xs'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <IconComponent
+                  className={`h-4 w-4 shrink-0 ${isActive ? 'text-amber-600' : 'text-gray-400'}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="truncate font-semibold">{cat.nome}</div>
+                  <div className="text-[10px] text-gray-400">
+                    {customCount > 0 ? `+${customCount} personalizadas` : 'Padrão Delfos'}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Lista de Atividades da Categoria Selecionada */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-xs text-gray-500 bg-blue-50/60 border border-blue-100 p-2.5 rounded-lg">
+          <Info className="h-4 w-4 text-blue-600 shrink-0" />
+          <span>
+            Exibindo tipos de <strong>{currentCategoryDef?.nome}</strong>. Tipos padrão são mantidos
+            pelo sistema para integridade dos relatórios e não podem ser apagados.
+          </span>
+        </div>
+
+        {/* Tipos Personalizados da Categoria */}
+        {customizadosDaCategoria.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3 text-amber-600" />
+              Personalizadas ({customizadosDaCategoria.length})
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {customizadosDaCategoria.map((custom) => (
+                <div
+                  key={custom.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-amber-200 bg-amber-50/30 hover:bg-amber-50/60 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-900 truncate">
+                          {custom.nome}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] py-0 h-4 bg-amber-100 text-amber-800 border-amber-300"
+                        >
+                          Personalizada
+                        </Badge>
+                      </div>
+                      {custom.descricao && (
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                          {custom.descricao}
+                        </p>
+                      )}
+                      {(Number(custom.valor_base) > 0 || Number(custom.valor_por_placa) > 0) && (
+                        <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-2">
+                          {Number(custom.valor_base) > 0 && (
+                            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1 rounded">
+                              Base: R${' '}
+                              {Number(custom.valor_base).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                              })}
+                            </span>
+                          )}
+                          {Number(custom.valor_por_placa) > 0 && (
+                            <span className="font-semibold text-sky-700 bg-sky-50 px-1 rounded">
+                              R${' '}
+                              {Number(custom.valor_por_placa).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                              })}
+                              /placa
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleAbrirEdicaoCustom(custom)}
+                      className="h-7 w-7 text-amber-700 hover:text-amber-800 hover:bg-amber-100/60"
+                      title={`Editar "${custom.nome}"`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={deletingId === custom.id}
+                      onClick={() => handleExcluir(custom.id, custom.nome)}
+                      className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      title="Apagar tipo de atividade personalizado"
+                    >
+                      {deletingId === custom.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tipos Padrão do Sistema */}
+        <div className="space-y-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+            <Lock className="h-3 w-3 text-gray-400" />
+            Padrão do Sistema ({padroesDaCategoria.length})
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {padroesDaCategoria.map((tipo) => {
+              const Icon = tipo.icon
+              return (
+                <div
+                  key={tipo.id}
+                  className="flex items-center justify-between p-2.5 rounded-lg border border-gray-200 bg-white hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={`p-1.5 rounded-md shrink-0 ${tipo.iconBg || 'bg-gray-100 text-gray-700'}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs font-medium text-gray-900 block truncate">
+                        {tipo.tituloPadrao}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400 block truncate">
+                          {tipo.descricaoAjuda}
+                        </span>
+                        {tipo.valor_base !== undefined && tipo.valor_base > 0 && (
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1 rounded shrink-0">
+                            R${' '}
+                            {tipo.valor_base.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        )}
+                        {tipo.valor_por_placa !== undefined && tipo.valor_por_placa > 0 && (
+                          <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-1 rounded shrink-0">
+                            R${' '}
+                            {tipo.valor_por_placa.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                            })}
+                            /placa
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleAbrirEdicaoPadrao(tipo)}
+                      className="h-7 w-7 text-gray-600 hover:text-amber-700 hover:bg-amber-50"
+                      title={`Editar atividade padrão "${tipo.tituloPadrao}"`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <div className="p-1 text-gray-300" title="Atividade padrão do sistema">
+                      <Lock className="h-3.5 w-3.5" />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal de Edição de Atividades (Padrão ou Personalizadas) */}
+      <ModalEditarTipoAtividade
+        key={edicaoChave || 'editor_tipo_atividade'}
+        open={isEditarOpen}
+        onOpenChange={(openState) => {
+          setIsEditarOpen(openState)
+          if (!openState) {
+            setCustomParaEditar(null)
+            setPadraoParaEditar(null)
+          }
+        }}
+        atividadeParaEditar={customParaEditar}
+        padraoParaEditar={padraoParaEditar}
+        onSuccess={onSuccess}
+      />
+    </div>
+  )
+}
+
+export default GerenciadorPadroesAtividades
