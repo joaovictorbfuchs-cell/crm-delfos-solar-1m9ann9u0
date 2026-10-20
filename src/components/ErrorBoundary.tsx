@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { isChunkLoadError, reloadPageForChunkUpdate } from '@/lib/lazyWithRetry'
 
 export interface ErrorBoundaryProps {
   children: ReactNode
@@ -59,12 +60,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     } catch {
       // Ignora erro de logging
     }
+
     if (this.props.onError) {
       try {
         this.props.onError(error, errorInfo)
       } catch (cbErr) {
         console.error('Erro no callback onError do ErrorBoundary:', cbErr)
       }
+    }
+
+    // Se o erro for do tipo "Failed to fetch dynamically imported module" (chunk desatualizado após deploy),
+    // tenta recarregar a página uma única vez de forma transparente para atualizar os assets
+    if (isChunkLoadError(error)) {
+      console.warn(
+        '[ErrorBoundary] ChunkLoadError detectado. Tentando recarregar a página para obter a versão atualizada...',
+      )
+      reloadPageForChunkUpdate()
     }
   }
 

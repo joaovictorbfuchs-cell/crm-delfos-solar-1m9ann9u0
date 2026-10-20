@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react'
+import { Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
@@ -9,6 +9,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import Layout from './components/Layout'
 import { Loader2 } from 'lucide-react'
+import { lazyWithRetry } from '@/lib/lazyWithRetry'
 
 // Fallback de carregamento leve centralizado para as páginas lazy
 const PageLoadingFallback = () => (
@@ -20,39 +21,39 @@ const PageLoadingFallback = () => (
   </div>
 )
 
-// Code-splitting das páginas com React.lazy para reduzir drasticamente o grafo estático do Vite/Rollup
-// e evitar erro de OOM (exit code 137) no build de produção.
-const Index = lazy(() => import('./pages/Index'))
-const Comercial = lazy(() => import('./pages/Comercial'))
-const Projetos = lazy(() => import('./pages/Projetos'))
-const Manutencoes = lazy(() => import('./pages/Manutencoes'))
-const OrdensServico = lazy(() => import('./pages/OrdensServico'))
-const Clientes = lazy(() => import('./pages/Clientes'))
-const ClientesPosVendas = lazy(() => import('./pages/ClientesPosVendas'))
-const ContatosView = lazy(() => import('./pages/Contatos'))
-const Fornecedores = lazy(() => import('./pages/Fornecedores'))
-const Orcamentos = lazy(() => import('./pages/Orcamentos'))
-const InstalacoesGaleriaPage = lazy(() => import('./pages/InstalacoesGaleria'))
-const EquipamentosPage = lazy(() => import('./pages/Equipamentos'))
-const AtivosPage = lazy(() => import('./pages/Ativos'))
-const AutomacoesPage = lazy(() => import('./pages/Automacoes'))
-const Atividades = lazy(() => import('./pages/Atividades'))
-const CentralAtividades = lazy(() => import('./pages/CentralAtividades'))
-const ExecucaoOS = lazy(() => import('./pages/ExecucaoOS'))
-const MinhasOS = lazy(() => import('./pages/MinhasOS'))
-const CentralAtendimento = lazy(() => import('./pages/CentralAtendimento'))
-const ImportarClientes = lazy(() => import('./pages/ImportarClientes'))
-const ImportarContatosGoogle = lazy(() => import('./pages/ImportarContatosGoogle'))
-const ImportarAcessos = lazy(() => import('./pages/ImportarAcessos'))
-const GerenciarUsuarios = lazy(() => import('./pages/GerenciarUsuarios'))
-const Login = lazy(() => import('./pages/Login'))
-const RedefinirSenha = lazy(() => import('./pages/RedefinirSenha'))
-const RelatorioFaturaPage = lazy(() => import('./pages/RelatorioFatura'))
-const RelatorioOSPublico = lazy(() => import('./pages/RelatorioOSPublico'))
-const RelatorioOSPreview = lazy(() => import('./pages/RelatorioOSPreview'))
-const PropostaOMPublica = lazy(() => import('./pages/PropostaOMPublica'))
-const BaseConhecimento = lazy(() => import('./pages/BaseConhecimento'))
-const NotFound = lazy(() => import('./pages/NotFound'))
+// Code-splitting resiliente das páginas com lazyWithRetry:
+// Garante retry imediato e auto-reload caso o navegador tente buscar um chunk com hash antigo após um novo deploy.
+const Index = lazyWithRetry(() => import('./pages/Index'))
+const Comercial = lazyWithRetry(() => import('./pages/Comercial'))
+const Projetos = lazyWithRetry(() => import('./pages/Projetos'))
+const Manutencoes = lazyWithRetry(() => import('./pages/Manutencoes'))
+const OrdensServico = lazyWithRetry(() => import('./pages/OrdensServico'))
+const Clientes = lazyWithRetry(() => import('./pages/Clientes'))
+const ClientesPosVendas = lazyWithRetry(() => import('./pages/ClientesPosVendas'))
+const ContatosView = lazyWithRetry(() => import('./pages/Contatos'))
+const Fornecedores = lazyWithRetry(() => import('./pages/Fornecedores'))
+const Orcamentos = lazyWithRetry(() => import('./pages/Orcamentos'))
+const InstalacoesGaleriaPage = lazyWithRetry(() => import('./pages/InstalacoesGaleria'))
+const EquipamentosPage = lazyWithRetry(() => import('./pages/Equipamentos'))
+const AtivosPage = lazyWithRetry(() => import('./pages/Ativos'))
+const AutomacoesPage = lazyWithRetry(() => import('./pages/Automacoes'))
+const Atividades = lazyWithRetry(() => import('./pages/Atividades'))
+const CentralAtividades = lazyWithRetry(() => import('./pages/CentralAtividades'))
+const ExecucaoOS = lazyWithRetry(() => import('./pages/ExecucaoOS'))
+const MinhasOS = lazyWithRetry(() => import('./pages/MinhasOS'))
+const CentralAtendimento = lazyWithRetry(() => import('./pages/CentralAtendimento'))
+const ImportarClientes = lazyWithRetry(() => import('./pages/ImportarClientes'))
+const ImportarContatosGoogle = lazyWithRetry(() => import('./pages/ImportarContatosGoogle'))
+const ImportarAcessos = lazyWithRetry(() => import('./pages/ImportarAcessos'))
+const GerenciarUsuarios = lazyWithRetry(() => import('./pages/GerenciarUsuarios'))
+const Login = lazyWithRetry(() => import('./pages/Login'))
+const RedefinirSenha = lazyWithRetry(() => import('./pages/RedefinirSenha'))
+const RelatorioFaturaPage = lazyWithRetry(() => import('./pages/RelatorioFatura'))
+const RelatorioOSPublico = lazyWithRetry(() => import('./pages/RelatorioOSPublico'))
+const RelatorioOSPreview = lazyWithRetry(() => import('./pages/RelatorioOSPreview'))
+const PropostaOMPublica = lazyWithRetry(() => import('./pages/PropostaOMPublica'))
+const BaseConhecimento = lazyWithRetry(() => import('./pages/BaseConhecimento'))
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'))
 
 const App = () => (
   <BrowserRouter>
@@ -202,7 +203,9 @@ const App = () => (
                 path="/projetos"
                 element={
                   <ProtectedRoute requiredRole="admin">
-                    <Projetos />
+                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a página de Projetos">
+                      <Projetos />
+                    </ErrorBoundary>
                   </ProtectedRoute>
                 }
               />

@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react'
 import { DelfosLogo } from '@/components/DelfosLogo'
+import { isChunkLoadError, reloadPageForChunkUpdate } from '@/lib/lazyWithRetry'
 
 interface Props {
   children: ReactNode
@@ -28,6 +29,12 @@ export class RootErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('[RootErrorBoundary] Erro crítico na raiz capturado:', error, errorInfo)
+    if (isChunkLoadError(error)) {
+      console.warn(
+        '[RootErrorBoundary] ChunkLoadError capturado na raiz. Tentando recarga automática...',
+      )
+      reloadPageForChunkUpdate()
+    }
   }
 
   handleReload = () => {
