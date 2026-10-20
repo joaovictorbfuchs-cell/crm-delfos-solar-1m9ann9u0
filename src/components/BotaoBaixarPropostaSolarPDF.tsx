@@ -128,4 +128,54 @@ export async function gerarPropostaSolarPdfBase64(
   return await blobParaDataUriBase64(blob)
 }
 
+/**
+ * Gera o PDF oficial da proposta solar (Blob + Base64 + fileName), compatível com envio por e-mail (Resend)
+ * e WhatsApp (Z-API). Aceita dados da proposta e HTML opcional pré-renderizado.
+ */
+export async function gerarPropostaSolarPdfBlobBase64(
+  dados: PropostaSolarPDFInput | PropostaTecnicoComercialDados,
+  htmlFornecido?: string,
+  nomeArquivoSugerido?: string,
+): Promise<{ blob: Blob; base64: string; fileName: string }> {
+  const rawNome =
+    'cliente' in dados && dados.cliente?.nome
+      ? dados.cliente.nome
+      : (dados as any)?.capa?.nomeCliente || 'cliente'
+  const safeName = String(rawNome)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .substring(0, 40)
+  const fileName = nomeArquivoSugerido || `Proposta_Solar_Delfos_${safeName}.pdf`
+
+  // Tenta gerar primariamente via HTML oficial unificado para paridade total
+  try {
+    const html = obterHTMLDaProposta(dados, htmlFornecido)
+    const base64ComHeader = await renderizarHTMLParaPdfBase64(html, fileName, {
+      scale: 1.5,
+      imageQuality: 0.85,
+      compressJsPdf: true,
+      timeoutMs: 30000,
+    })
+    if (base64ComHeader) {
+      const cleanB64 = base64ComHeader.includes(',')
+        ? base64ComHeader.split(',')[1]
+        : base64ComHeader
+      const mime = /data:([^;]+)/.exec(base64ComHeader)?.[1] || 'application/pdf'
+      const bin = atob(cleanB64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      const blob = new Blob([bytes], { type: mime })
+      return { blob, base64: base64ComHeader, fileName }
+    }
+  } catch (err) {
+    console.warn('Fallback para @react-pdf em gerarPropostaSolarPdfBlobBase64:', err)
+  }
+
+  // Fallback para @react-pdf/renderer
+  const blob = await gerarPropostaSolarPdfBlob(dados)
+  const base64 = await blobParaDataUriBase64(blob)
+  return { blob, base64, fileName }
+}
+
 export default BotaoBaixarPropostaSolarPDF

@@ -1,7 +1,25 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Printer, Share2, Check, Loader2, AlertTriangle, Camera, X, FileCheck } from 'lucide-react'
+import {
+  Printer,
+  Share2,
+  Check,
+  Loader2,
+  AlertTriangle,
+  Camera,
+  X,
+  FileCheck,
+  Mail,
+  MailCheck,
+  AlertCircle,
+  Send,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import logoDelfosPng from '@/assets/delfos-solar-5b5ce.png'
 import { getRodapeComercialRelatorioOS } from '@/services/configuracoesService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
@@ -12,15 +30,28 @@ import {
   type RelatorioOSCanonicalData,
   type FotoRegistroRelatorio,
 } from '@/lib/relatorioOSCanonical'
+import { gerarRelatorioOSPdfBlobBase64 } from '@/components/BotaoBaixarRelatorioOSPDF'
+import { enviarEmail } from '@/lib/emailService'
+import { createAtividade } from '@/services/crmService'
+import { getRodapeComercialConfig } from '@/lib/relatorioOSCanonical'
+import type { OrdemServico, Cliente, Sistema } from '@/types/crm'
+
+const DEFAULT_EMAIL_FROM = '"Delfos Solar" <solar@updates.delfos.eng.br>'
 
 export interface RelatorioOSConteudoProps {
   id?: string
+  osProp?: OrdemServico | any
+  clienteProp?: Cliente | any
+  sistemaProp?: Sistema | any
   showHeaderActions?: boolean
   requireAuth?: boolean
 }
 
 export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   id,
+  osProp,
+  clienteProp,
+  sistemaProp,
   showHeaderActions = true,
   requireAuth = false,
 }) => {
@@ -35,6 +66,14 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   const [fotosUrls, setFotosUrls] = useState<string[]>([])
   const [linkCopiado, setLinkCopiado] = useState(false)
   const [fotoModal, setFotoModal] = useState<FotoRegistroRelatorio | null>(null)
+
+  // Estado do modal "Enviar por e-mail"
+  const [modalEmailAberto, setModalEmailAberto] = useState(false)
+  const [destinatarioEmail, setDestinatarioEmail] = useState('')
+  const [assuntoEmail, setAssuntoEmail] = useState('')
+  const [mensagemEmail, setMensagemEmail] = useState('')
+  const [enviandoEmail, setEnviandoEmail] = useState(false)
+  const [emailEnviadoSucesso, setEmailEnviadoSucesso] = useState(false)
 
   useEffect(() => {
     if (requireAuth && authLoading) return
@@ -112,7 +151,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         setOs(registro)
 
         // Extrai cliente vinculado
-        let cliObj =
+        const clienteFinal =
+          clienteProp ||
           registro.expand?.cliente_id ||
           (registro.cliente_id
             ? await pb
@@ -120,7 +160,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                 .getOne(registro.cliente_id)
                 .catch(() => null)
             : null)
-        if (isMounted) setCliente(cliObj)
+        if (isMounted) setCliente(clienteFinal)
 
         // Checa se cliente tem contrato O&M ativo
         const clienteIdFinal = cliObj?.id || registro.cliente_id
@@ -145,12 +185,19 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         }
 
         // Extrai usina / sistema vinculado
-        let usinaObj = registro.expand?.usina_id || registro.expand?.sistema_id || null
-        if (!usinaObj && registro.usina_id) {
+        let usinaObj =
+          sistemaProp || registro.expand?.usina_id || registro.expand?.sistema_id || null
+        if (!usinaObj && (registro.usina_id || registro.sistema_id)) {
+          const targetId = registro.usina_id || registro.sistema_id
           usinaObj = await pb
             .collection('usinas')
-            .getOne(registro.usina_id)
-            .catch(() => null)
+            .getOne(targetId)
+            .catch(async () => {
+              return await pb
+                .collection('sistemas')
+                .getOne(targetId)
+                .catch(() => null)
+            })
         }
         if (isMounted) setUsina(usinaObj)
 
@@ -191,7 +238,14 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
     return () => {
       isMounted = false
     }
-  }, [id, requireAuth, authLoading, isAuthenticated, navigate])
+  }, [id, osProp, clienteProp, sistemaProp, requireAuth, authLoading, isAuthenticated, navigate])
+
+  // Inicializa dados passados via props imediatamente para renderização rápida
+  useEffect(() => {
+    if (osProp) setOs(osProp)
+    if (clienteProp) setCliente(clienteProp)
+    if (sistemaProp) setUsina(sistemaProp)
+  }, [osProp, clienteProp, sistemaProp])
 
   // Fecha modal com Escape
   useEffect(() => {
@@ -222,6 +276,148 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
   const handleBaixarPdf = () => {
     window.print()
+  }
+
+  // Prepara abertura do modal de envio por e-mail com defaults inteligentes
+  const handleAbrirModalEmail = () => {
+    const emailDestino =
+      cliente?.email ||
+      cliente?.titular_email ||
+      clienteProp?.email ||
+      clienteProp?.titular_email ||
+      os?.expand?.cliente_id?.email ||
+      ''
+    const clienteNome = cliente?.nome || clienteProp?.nome || relatorio.clienteNome || 'Cliente'
+    const osCod = relatorio.osCodigo || 'OS'
+
+    setDestinatarioEmail(emailDestino)
+    setAssuntoEmail(`Relatório de Atendimento Delfos Solar — OS ${osCod}`)
+    setMensagemEmail(
+      `Olá, ${clienteNome}!\n\n` +
+        `Segue em anexo o Relatório de Atendimento e Condição do Sistema referente à Ordem de Serviço ${osCod}.\n\n` +
+        `Nele você encontra o resumo das atividades executadas pela nossa equipe técnica, as evidências fotográficas e as recomendações de manutenção para garantir o máximo desempenho e segurança da sua usina solar.\n\n` +
+        `Qualquer dúvida estamos à disposição!\n\n` +
+        `Atenciosamente,\n` +
+        `Delfos Engenharia Solar\n` +
+        `solar@updates.delfos.eng.br | (54) 99129-2121`,
+    )
+    setEmailEnviadoSucesso(false)
+    setModalEmailAberto(true)
+  }
+
+  const validarEmail = (emailStr: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr.trim())
+  }
+
+  const handleConfirmarEnvioEmail = async () => {
+    const destinoLimpo = destinatarioEmail.trim()
+    if (!destinoLimpo) {
+      toast.error('Informe o e-mail do destinatário.')
+      return
+    }
+    if (!validarEmail(destinoLimpo)) {
+      toast.error('Formato de e-mail inválido. Por favor, revise o endereço.')
+      return
+    }
+    if (!assuntoEmail.trim()) {
+      toast.error('Informe o assunto do e-mail.')
+      return
+    }
+
+    setEnviandoEmail(true)
+    try {
+      // 1. Gera o PDF do relatório oficial em Base64
+      toast.info('Gerando PDF do relatório para anexo...')
+      const rodapeCfg = getRodapeComercialConfig()
+      const { base64, fileName } = await gerarRelatorioOSPdfBlobBase64(
+        {
+          os,
+          cliente,
+          sistema: usina,
+          fotosDataUrls: fotosUrls,
+          rodapeComercial: rodapeCfg,
+        },
+        undefined,
+        `Relatorio_OS_${relatorio.osCodigo || 'Atendimento'}.pdf`,
+      )
+
+      // Extrai apenas o base64 puro (sem o prefixo data:application/pdf;base64,)
+      const pureBase64 = base64.includes(',') ? base64.split(',')[1] : base64
+
+      // 2. Constrói HTML do e-mail
+      const htmlCorpo = `
+        <div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #1a2332;">
+          <div style="background-color: #0E2A47; padding: 20px; border-radius: 8px 8px 0 0; color: #ffffff; text-align: center;">
+            <h2 style="margin: 0; font-size: 18px; color: #ffffff; letter-spacing: 0.5px;">DELFOS ENGENHARIA SOLAR</h2>
+            <p style="margin: 4px 0 0; font-size: 12px; color: #C2D3E8;">Relatório de Atendimento e Condição do Sistema</p>
+          </div>
+          <div style="background: #ffffff; border: 1px solid #dde4ee; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
+            <p style="margin-top: 0; white-space: pre-line; color: #2c3e50;">${mensagemEmail.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+            <div style="margin-top: 24px; padding: 12px 16px; background-color: #f7f9fc; border-left: 4px solid #C9A227; border-radius: 4px; font-size: 12px; color: #536377;">
+              <strong>Documento anexado:</strong> ${fileName}<br />
+              <strong>OS Vinculada:</strong> ${relatorio.osCodigo} • <strong>Data:</strong> ${relatorio.dataAtendimento}
+            </div>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0 16px;" />
+            <p style="margin: 0; font-size: 11px; color: #8a9bb0; text-align: center;">
+              Delfos Engenharia Solar • Rua Espírito Santo, 275 – Erechim/RS • (54) 99129-2121<br />
+              solar@updates.delfos.eng.br • www.delfos.eng.br
+            </p>
+          </div>
+        </div>
+      `
+
+      // 3. Dispara envio via emailService
+      const res = await enviarEmail({
+        from: DEFAULT_EMAIL_FROM,
+        to: destinoLimpo,
+        subject: assuntoEmail.trim(),
+        text: mensagemEmail,
+        html: htmlCorpo,
+        attachments: [
+          {
+            filename: fileName,
+            content: pureBase64,
+          },
+        ],
+      })
+
+      if (!res.success) {
+        throw new Error(res.error || 'Falha ao enviar e-mail pelo servidor.')
+      }
+
+      // 4. Registra atividade no CRM para o histórico do cliente
+      const clienteIdParaAtividade =
+        cliente?.id || clienteProp?.id || os?.cliente_id || os?.expand?.cliente_id?.id
+      if (clienteIdParaAtividade) {
+        try {
+          await createAtividade({
+            cliente_id: clienteIdParaAtividade,
+            tipo: 'email',
+            titulo: `Relatório da OS ${relatorio.osCodigo} enviado por e-mail`,
+            descricao:
+              `Relatório de Atendimento enviado para ${destinoLimpo}.\n` +
+              `Assunto: ${assuntoEmail.trim()}\n` +
+              `Arquivo anexado: ${fileName}\n` +
+              (res.id ? `ID Resend: ${res.id}` : ''),
+            data_prevista: new Date().toISOString(),
+            status: 'concluida',
+          })
+        } catch (crmErr) {
+          console.warn('Não foi possível registrar atividade no CRM:', crmErr)
+        }
+      }
+
+      setEmailEnviadoSucesso(true)
+      toast.success(`Relatório enviado com sucesso para ${destinoLimpo}!`)
+      setTimeout(() => {
+        setModalEmailAberto(false)
+      }, 1500)
+    } catch (err: any) {
+      console.error('Erro ao enviar relatório por e-mail:', err)
+      toast.error(err?.message || 'Falha ao enviar e-mail. Tente novamente.')
+    } finally {
+      setEnviandoEmail(false)
+    }
   }
 
   if (loading) {
@@ -256,7 +452,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
   return (
     <div className="relatorio-os-root min-h-screen bg-[#F7F9FC] text-[#1A2332] font-sans antialiased pb-12 print:bg-white print:p-0">
-      {/* Botão flutuante Baixar PDF (dourado, pílula, oculto na impressão) */}
+      {/* Barra de ações flutuante (fixed top-4 right-4 z-50, oculta na impressão) */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2 print:hidden">
         {showHeaderActions && (
           <Button
@@ -276,6 +472,17 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             </span>
           </Button>
         )}
+
+        {/* Botão Enviar por e-mail (ao lado de Baixar PDF) */}
+        <Button
+          type="button"
+          onClick={handleAbrirModalEmail}
+          aria-label="Enviar Relatório por E-mail"
+          className="h-10 px-3.5 sm:px-4 bg-[#0E2A47] hover:bg-[#163e68] text-white font-bold text-xs sm:text-sm border border-[#163e68] rounded-full cursor-pointer shadow-md hover:shadow-lg transition-all gap-1.5"
+        >
+          <Mail className="w-4 h-4 text-[#C9A227]" />
+          <span>Enviar por e-mail</span>
+        </Button>
 
         <button
           type="button"
@@ -766,6 +973,173 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Conferência e Disparo "Enviar por E-mail" */}
+      <Dialog open={modalEmailAberto} onOpenChange={setModalEmailAberto}>
+        <DialogContent className="max-w-xl p-0 overflow-hidden border border-slate-200 shadow-2xl">
+          {/* Header */}
+          <div className="bg-[#0E2A47] text-white p-5 flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[#C9A227]/20 border border-[#C9A227]/40 flex items-center justify-center shrink-0">
+                <Mail className="w-5 h-5 text-[#C9A227]" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-white tracking-tight">
+                  Enviar Relatório por E-mail
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-300 mt-0.5">
+                  Ordem de Serviço {relatorio.osCodigo} • {relatorio.clienteNome}
+                </DialogDescription>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+            {/* Aviso se o cliente não possui e-mail cadastrado */}
+            {!cliente?.email && !cliente?.titular_email && !clienteProp?.email && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-semibold">
+                    Cliente sem e-mail cadastrado no sistema.
+                  </strong>
+                  <p className="mt-0.5 text-amber-800">
+                    Digite o endereço de e-mail do destinatário abaixo para prosseguir com o envio.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Remetente fixo padrão */}
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-slate-700 block">Remetente oficial:</span>
+                <span className="text-slate-500 font-mono text-[11px]">{DEFAULT_EMAIL_FROM}</span>
+              </div>
+              <Badge
+                variant="outline"
+                className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]"
+              >
+                Resend verificado
+              </Badge>
+            </div>
+
+            {/* Campo Destinatário */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="destinatario-email"
+                className="text-xs font-semibold text-slate-800 flex items-center justify-between"
+              >
+                <span>E-mail do Destinatário *</span>
+                {destinatarioEmail && !validarEmail(destinatarioEmail) && (
+                  <span className="text-[11px] text-rose-600 font-normal">
+                    Formato de e-mail inválido
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="destinatario-email"
+                type="email"
+                placeholder="exemplo@cliente.com.br"
+                value={destinatarioEmail}
+                onChange={(e) => setDestinatarioEmail(e.target.value)}
+                disabled={enviandoEmail}
+                className={`text-sm ${
+                  destinatarioEmail && !validarEmail(destinatarioEmail)
+                    ? 'border-rose-400 focus-visible:ring-rose-400'
+                    : 'border-slate-300'
+                }`}
+              />
+            </div>
+
+            {/* Campo Assunto */}
+            <div className="space-y-1.5">
+              <Label htmlFor="assunto-email" className="text-xs font-semibold text-slate-800">
+                Assunto do E-mail *
+              </Label>
+              <Input
+                id="assunto-email"
+                type="text"
+                placeholder="Assunto da mensagem"
+                value={assuntoEmail}
+                onChange={(e) => setAssuntoEmail(e.target.value)}
+                disabled={enviandoEmail}
+                className="text-sm border-slate-300"
+              />
+            </div>
+
+            {/* Campo Mensagem */}
+            <div className="space-y-1.5">
+              <Label htmlFor="mensagem-email" className="text-xs font-semibold text-slate-800">
+                Mensagem Explicativa (editável)
+              </Label>
+              <textarea
+                id="mensagem-email"
+                rows={6}
+                value={mensagemEmail}
+                onChange={(e) => setMensagemEmail(e.target.value)}
+                disabled={enviandoEmail}
+                className="w-full text-xs leading-relaxed p-3 rounded-md border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-[#0E2A47] text-slate-800 resize-y"
+              />
+            </div>
+
+            {/* Informação sobre o anexo */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-3">
+              <div className="w-8 h-8 rounded-md bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+                <FileCheck className="w-4 h-4 text-rose-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-800 truncate">
+                  Relatorio_OS_{relatorio.osCodigo || 'Atendimento'}.pdf
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Gerado automaticamente via PDF oficial com fotos e parecer técnico
+                </p>
+              </div>
+            </div>
+
+            {emailEnviadoSucesso && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-emerald-800 text-xs font-semibold">
+                <MailCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>E-mail enviado com sucesso e registrado no histórico do cliente!</span>
+              </div>
+            )}
+          </div>
+
+          {/* Rodapé com botões de ação */}
+          <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModalEmailAberto(false)}
+              disabled={enviandoEmail}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmarEnvioEmail}
+              disabled={enviandoEmail || !destinatarioEmail.trim()}
+              className="bg-[#0E2A47] hover:bg-[#163e68] text-white font-semibold text-xs gap-1.5"
+            >
+              {enviandoEmail ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Enviando e-mail...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5 text-[#C9A227]" />
+                  <span>Disparar e-mail agora</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

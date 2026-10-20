@@ -3168,7 +3168,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-slate-100">
-              <RelatorioOSConteudo id={os.id} showHeaderActions={true} requireAuth={false} />
+              <RelatorioOSConteudo
+                id={os.id}
+                osProp={os}
+                clienteProp={cliente}
+                sistemaProp={sistema}
+                showHeaderActions={true}
+                requireAuth={false}
+              />
             </div>
           </DialogContent>
         </Dialog>

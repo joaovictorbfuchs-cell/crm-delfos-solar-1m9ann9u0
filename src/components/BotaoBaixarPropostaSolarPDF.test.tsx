@@ -3,6 +3,7 @@ import {
   BotaoBaixarPropostaSolarPDF,
   gerarPropostaSolarPdfBlob,
   gerarPropostaSolarPdfBase64,
+  gerarPropostaSolarPdfBlobBase64,
 } from './BotaoBaixarPropostaSolarPDF'
 
 describe('BotaoBaixarPropostaSolarPDF', () => {
@@ -10,6 +11,7 @@ describe('BotaoBaixarPropostaSolarPDF', () => {
     expect(typeof BotaoBaixarPropostaSolarPDF).toBe('function')
     expect(typeof gerarPropostaSolarPdfBlob).toBe('function')
     expect(typeof gerarPropostaSolarPdfBase64).toBe('function')
+    expect(typeof gerarPropostaSolarPdfBlobBase64).toBe('function')
   })
 
   it('gerarPropostaSolarPdfBase64 gera documento completo via renderizarHTMLParaPdfBase64', async () => {
