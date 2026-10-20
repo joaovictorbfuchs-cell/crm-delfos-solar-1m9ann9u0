@@ -73,24 +73,7 @@ const LazyPDFDownload = lazy(async () => {
           onClick={onClick}
           className="inline-flex"
         >
-          {({ loading }: { loading: boolean }) => (
-            <Button
-              type="button"
-              size="sm"
-              disabled={loading}
-              className={
-                className ||
-                'bg-[#C9A227] hover:bg-[#dbae26] text-[#0E2A47] text-xs font-bold gap-1.5 rounded-full border border-[#B38E1D] shadow-[0_4px_14px_rgba(201,162,39,0.4)] transition-all hover:-translate-y-0.5 cursor-pointer'
-              }
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              <span>{loading ? 'Preparando PDF...' : rotulo}</span>
-            </Button>
-          )}
+          {({ loading }: { loading: boolean }) => null}
         </PDFDownloadLink>
       )
     },
