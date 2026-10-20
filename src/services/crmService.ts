@@ -5194,3 +5194,8 @@ export const DEFAULT_SOLARVIEW_CONFIG = {
   link_texto:
     'Baixe o app Solarview para acompanhar a geração do seu sistema em tempo real na palma da mão!',
 }
+
+export const crmService = {
+  deleteAtividade,
+  deleteOrdemServico,
+}

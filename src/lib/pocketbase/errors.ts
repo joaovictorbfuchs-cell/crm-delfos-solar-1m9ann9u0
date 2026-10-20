@@ -25,5 +25,43 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as {
+      status?: number
+      statusCode?: number
+      response?: { status?: number }
+      message?: string
+    }
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response?.status === 401 || errObj.response?.status === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('invalid token') ||
+        msg.includes('login expirou') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('failed to authenticate')
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const err = error as { name?: string; isAbort?: boolean }
+  return err.name === 'AbortError' || err.isAbort === true
 }
