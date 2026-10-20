@@ -104,7 +104,50 @@ export const VARIAVEIS_WHATSAPP_SISTEMA: Record<string, VariavelTemplateInfo> = 
   },
 }
 
-export type CategoriaTemplate = 'Operacional' | 'Comercial' | 'Atendimento' | 'Pós-Vendas' | 'Geral'
+export type CategoriaTemplate =
+  | 'Comercial'
+  | 'Atendimento'
+  | 'O&M & Pós-Venda'
+  | 'Financeiro/Cobrança'
+  | 'Operacional/RGE'
+  | 'Operacional'
+  | 'Pós-Vendas'
+  | 'Geral'
+
+export type EtapaTemplate =
+  | '1º contato'
+  | 'Orçamento enviado'
+  | 'Follow-up Fase 1'
+  | 'Follow-up Fase 2'
+  | 'Follow-up Fase 3'
+  | 'Break-up'
+  | 'Visita técnica'
+  | 'Assinatura/documentos'
+  | 'Pós-instalação'
+  | 'Renovação O&M'
+  | 'Cobrança'
+
+export const CATEGORIAS_WHATSAPP_CANONICAS: CategoriaTemplate[] = [
+  'Comercial',
+  'Atendimento',
+  'O&M & Pós-Venda',
+  'Financeiro/Cobrança',
+  'Operacional/RGE',
+]
+
+export const ETAPAS_WHATSAPP_CANONICAS: EtapaTemplate[] = [
+  '1º contato',
+  'Orçamento enviado',
+  'Follow-up Fase 1',
+  'Follow-up Fase 2',
+  'Follow-up Fase 3',
+  'Break-up',
+  'Visita técnica',
+  'Assinatura/documentos',
+  'Pós-instalação',
+  'Renovação O&M',
+  'Cobrança',
+]
 
 export interface UsoFluxoInfo {
   identificador: string
@@ -128,7 +171,7 @@ export const USOS_FLUXOS_WHATSAPP: Record<string, UsoFluxoInfo> = {
       'Utilizado no botão "Enviar lembrete WhatsApp" do modal e listagem de Auto Leitura RGE e no webhook operacional.',
     tipoFluxo: 'sistema_bloqueado',
     origemEnvio: 'Envio Manual',
-    categoriaSugerida: 'Operacional',
+    categoriaSugerida: 'Operacional/RGE',
     slugPadrao: 'lembrete_auto_leitura_rge',
     variaveisRecomendadas: ['nome_cliente', 'usina', 'numero_uc', 'endereco', 'data_leitura'],
   },
@@ -139,7 +182,7 @@ export const USOS_FLUXOS_WHATSAPP: Record<string, UsoFluxoInfo> = {
       'Utilizado no botão "Enviar OS por WhatsApp" e nos disparos automáticos ao atribuir instalador à Ordem de Serviço.',
     tipoFluxo: 'sistema_bloqueado',
     origemEnvio: 'Manual & Automático',
-    categoriaSugerida: 'Operacional',
+    categoriaSugerida: 'Operacional/RGE',
     slugPadrao: 'os_atribuida_instalador',
     variaveisRecomendadas: [
       'nome_cliente',
@@ -168,7 +211,7 @@ export const USOS_FLUXOS_WHATSAPP: Record<string, UsoFluxoInfo> = {
       'Disparado pelo cron a cada 2 minutos checando visitas técnicas agendadas para o dia seguinte (+24h).',
     tipoFluxo: 'sistema_bloqueado',
     origemEnvio: 'Disparo Automático',
-    categoriaSugerida: 'Atendimento',
+    categoriaSugerida: 'Operacional/RGE',
     slugPadrao: 'lembrete_visita_tecnica',
     variaveisRecomendadas: ['nome_cliente', 'data', 'endereco'],
   },
@@ -179,7 +222,7 @@ export const USOS_FLUXOS_WHATSAPP: Record<string, UsoFluxoInfo> = {
       'Disparado pelo worker de automação para clientes com instalação concluída há mais de 7 dias.',
     tipoFluxo: 'sistema_bloqueado',
     origemEnvio: 'Disparo Automático',
-    categoriaSugerida: 'Pós-Vendas',
+    categoriaSugerida: 'O&M & Pós-Venda',
     slugPadrao: 'followup_pos_venda',
     variaveisRecomendadas: ['nome_cliente', 'endereco', 'data'],
   },
@@ -273,20 +316,23 @@ export function renderizarPreviewTemplate(
 
   // Mesclar com defaults conhecidos
   const valores: Record<string, string> = {
+    nome: 'Carlos Alberto',
     nome_cliente: 'Carlos Alberto Mendes',
+    empresa: 'Delfos Solar',
+    valor: 'R$ 38.500,00',
+    data: '26/10/2026',
     usina: 'Usina Solar Fazenda Progresso',
     numero_uc: '7001458923',
     endereco: 'Rua das Camélias, 350 - Centro, Erechim/RS',
     tipo_servico: 'Manutenção Preventiva Semestral',
-    data_agendada: '28/09/2026',
+    data_agendada: '28/10/2026',
     nome_instalador: 'Carlos Mendes',
     id_os: 'OS-2026-089',
     valor_proposta: 'R$ 38.500,00',
-    data: '26/09/2026 às 14:00',
-    data_leitura: '29/09/2026',
+    data_leitura: '29/10/2026',
     protocolo_rge: '2026-RGE-9812457',
     responsavel: 'João Victor',
-    titulo: 'Auto Leitura RGE - Ciclo Setembro/2026',
+    titulo: 'Auto Leitura RGE - Ciclo Outubro/2026',
     cliente_nome: 'Carlos Alberto Mendes',
     empresa_nome: 'Delfos Solar',
     ...valoresExemploCustom,
@@ -296,6 +342,13 @@ export function renderizarPreviewTemplate(
     resultado = resultado.replace(new RegExp(`\\{\\{${chave}\\}\\}`, 'gi'), val)
     resultado = resultado.replace(new RegExp(`\\{${chave}\\}`, 'gi'), val)
   })
+
+  // Suporte também a placeholders em colchetes comuns
+  resultado = resultado.replace(/\[nome do cliente\]/gi, valores.nome_cliente)
+  resultado = resultado.replace(/\[nome da empresa\]/gi, valores.empresa)
+  resultado = resultado.replace(/\[cidade\]/gi, 'Erechim')
+  resultado = resultado.replace(/\[potência\]/gi, '75,5 kWp')
+  resultado = resultado.replace(/\[data atual\]/gi, valores.data)
 
   // Se restaram placeholders desconhecidos {algo} ou {{algo}}, preencher amigavelmente
   resultado = resultado.replace(/\{+([a-zA-Z0-9_]+)\}+/g, '[$1]')

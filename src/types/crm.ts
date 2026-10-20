@@ -715,6 +715,8 @@ export interface WhatsAppTemplate extends RecordModel {
   conteudo: string
   tipo_gatilho?: string
   categoria?: string
+  etapa?: string
+  origem_base_conhecimento?: boolean
   variaveis_disponiveis?: string[] | string
   ativo?: boolean
   created: string
