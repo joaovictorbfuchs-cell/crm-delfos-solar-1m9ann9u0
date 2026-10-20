@@ -53,6 +53,7 @@ const RelatorioOSPublico = lazyWithRetry(() => import('./pages/RelatorioOSPublic
 const RelatorioOSPreview = lazyWithRetry(() => import('./pages/RelatorioOSPreview'))
 const PropostaOMPublica = lazyWithRetry(() => import('./pages/PropostaOMPublica'))
 const BaseConhecimento = lazyWithRetry(() => import('./pages/BaseConhecimento'))
+const MensagensWhatsApp = lazyWithRetry(() => import('./pages/MensagensWhatsApp'))
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'))
 
 const App = () => (
@@ -296,6 +297,16 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="admin">
                     <AutomacoesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mensagens-whatsapp"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar as Mensagens de WhatsApp">
+                      <MensagensWhatsApp />
+                    </ErrorBoundary>
                   </ProtectedRoute>
                 }
               />

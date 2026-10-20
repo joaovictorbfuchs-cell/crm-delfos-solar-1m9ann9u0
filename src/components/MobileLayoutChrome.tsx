@@ -157,6 +157,9 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     if (location.pathname === '/automacoes') {
       return { id: 'automacoes', label: 'Automações do CRM', isFunil: false }
     }
+    if (location.pathname === '/mensagens-whatsapp') {
+      return { id: 'mensagens-whatsapp', label: 'Mensagens WhatsApp', isFunil: false }
+    }
     if (location.pathname === '/equipamentos') {
       return { id: 'equipamentos', label: 'Equipamentos', isFunil: false }
     }
@@ -355,6 +358,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
           title: 'Configurações & Gestão',
           items: [
             { label: 'Automações do CRM', path: '/automacoes', icon: Zap },
+            { label: 'Mensagens WhatsApp', path: '/mensagens-whatsapp', icon: WhatsAppIcon },
             { label: 'Equipamentos', path: '/equipamentos', icon: Cpu },
             { label: 'Ativos das Usinas', path: '/ativos', icon: Cpu },
             { label: 'Galeria de Usinas', path: '/instalacoes-galeria', icon: Images },

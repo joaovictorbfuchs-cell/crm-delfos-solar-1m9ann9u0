@@ -69,7 +69,7 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     expect(screen.queryByRole('button', { name: /Mais Opções/i })).toBeNull()
   })
 
-  it('ao clicar em Configurações abre menu flutuante ao lado com as 8 opções exatas', () => {
+  it('ao clicar em Configurações abre menu flutuante ao lado com as opções do grupo', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Layout />
@@ -89,8 +89,9 @@ describe('Layout Desktop - Sidebar com Mais Opções', () => {
     const dialog = screen.getByRole('dialog', { name: /Menu Configurações/i })
     expect(dialog).not.toBeNull()
 
-    // Verifica exatamente as 8 opções do flyout
+    // Verifica as opções do flyout
     expect(screen.getByText('Automações')).not.toBeNull()
+    expect(screen.getByText('Mensagens WhatsApp')).not.toBeNull()
     expect(screen.getByText('Cadastro de equipamentos')).not.toBeNull()
     expect(screen.getByText('Ativos das usinas')).not.toBeNull()
     expect(screen.getByText('Galeria de usinas')).not.toBeNull()

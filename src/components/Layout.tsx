@@ -44,7 +44,11 @@ import packageJson from '../../package.json'
 
 const APP_VERSION = (packageJson as { version?: string })?.version || '0.0.710'
 
-export default function Layout() {
+interface LayoutProps {
+  children?: React.ReactNode
+}
+
+export function Layout({ children }: LayoutProps = {}) {
   const { user, userProfile, isAdmin, isInstalador, logout } = useAuth()
   const { whatsAppConversas, profissionais, refreshData } = useClientes()
   const location = useLocation()
@@ -144,6 +148,8 @@ export default function Layout() {
         return 'Biblioteca de Instalações'
       case '/gerenciar-usuarios':
         return 'Gerenciar Usuários'
+      case '/mensagens-whatsapp':
+        return 'Mensagens WhatsApp'
       default:
         return 'Delfos'
     }
@@ -237,6 +243,12 @@ export default function Layout() {
       path: '/automacoes',
       icon: Zap,
       description: 'Fluxos automáticos e gatilhos',
+    },
+    {
+      name: 'Mensagens WhatsApp',
+      path: '/mensagens-whatsapp',
+      icon: MessageSquare,
+      description: 'Modelos e templates de mensagens',
     },
     {
       name: 'Cadastro de equipamentos',
@@ -588,7 +600,7 @@ export default function Layout() {
                 : 'max-lg:pt-[4.5rem] max-lg:pb-20'
           } ${isInstalador ? 'max-lg:pb-6' : ''}`}
         >
-          <Outlet />
+          {children || <Outlet />}
         </main>
       </div>
 
@@ -697,3 +709,5 @@ export default function Layout() {
     </div>
   )
 }
+
+export default Layout
