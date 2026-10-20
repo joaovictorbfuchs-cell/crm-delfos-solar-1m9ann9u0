@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ArrowRight,
   GripVertical,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -28,7 +29,9 @@ interface CalendarioExecucaoOSProps {
   ordens: OrdemServico[]
   onSelectOS: (os: OrdemServico) => void
   onOSUpdated?: (updatedOS: OrdemServico) => void
+  onDeleteOS?: (os: OrdemServico) => void
   isInstalador?: boolean
+  isAdmin?: boolean
   instaladorNome?: string
   leftControlsSlot?: React.ReactNode
   rightActionsSlot?: React.ReactNode
@@ -773,7 +776,9 @@ function CalendarioExecucaoOSContent({
   ordens,
   onSelectOS: onSelectOSRaw,
   onOSUpdated,
+  onDeleteOS,
   isInstalador,
+  isAdmin,
   instaladorNome,
   leftControlsSlot,
   rightActionsSlot,
@@ -1975,8 +1980,24 @@ function CalendarioExecucaoOSContent({
                             </div>
 
                             {/* Nome do Cliente */}
-                            <div className="text-[10px] sm:text-xs font-semibold text-gray-900 truncate group-hover:text-emerald-800 transition-colors">
-                              {clienteNome}
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[10px] sm:text-xs font-semibold text-gray-900 truncate group-hover:text-emerald-800 transition-colors">
+                                {clienteNome}
+                              </span>
+                              {isAdmin && onDeleteOS && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onDeleteOS(os)
+                                  }}
+                                  className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer shrink-0"
+                                  title="Excluir atividade / OS"
+                                  aria-label="Excluir atividade / OS"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         )
@@ -2099,7 +2120,23 @@ function CalendarioExecucaoOSContent({
                                 <div className="flex items-center gap-1 truncate">
                                   <span className="truncate">{clienteNome}</span>
                                 </div>
-                                <span className="text-[9px] text-gray-400 shrink-0">Dia todo</span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span className="text-[9px] text-gray-400">Dia todo</span>
+                                  {isAdmin && onDeleteOS && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        onDeleteOS(os)
+                                      }}
+                                      className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                      title="Excluir atividade / OS"
+                                      aria-label="Excluir atividade / OS"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             )
                           })
@@ -2375,6 +2412,20 @@ function CalendarioExecucaoOSContent({
                                   >
                                     {tipoServico}
                                   </span>
+                                  {isAdmin && onDeleteOS && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        onDeleteOS(os)
+                                      }}
+                                      className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                      title="Excluir atividade / OS"
+                                      aria-label="Excluir atividade / OS"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -2552,10 +2603,26 @@ function CalendarioExecucaoOSContent({
                           </span>
                         </div>
 
-                        <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
-                          <Clock className="w-3.5 h-3.5 text-gray-500" />
-                          {horario}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
+                            <Clock className="w-3.5 h-3.5 text-gray-500" />
+                            {horario}
+                          </span>
+                          {isAdmin && onDeleteOS && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDeleteOS(os)
+                              }}
+                              className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Excluir atividade / OS"
+                              aria-label="Excluir atividade / OS"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Nome do Cliente */}
@@ -2694,10 +2761,26 @@ function CalendarioExecucaoOSContent({
                           </span>
                         </div>
 
-                        <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
-                          <Clock className="w-3.5 h-3.5 text-gray-500" />
-                          {horario}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
+                            <Clock className="w-3.5 h-3.5 text-gray-500" />
+                            {horario}
+                          </span>
+                          {isAdmin && onDeleteOS && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDeleteOS(os)
+                              }}
+                              className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Excluir atividade / OS"
+                              aria-label="Excluir atividade / OS"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Nome do Cliente */}

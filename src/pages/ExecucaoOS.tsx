@@ -1550,7 +1550,9 @@ function ExecucaoOSContent() {
               ordens={ordensCalendario}
               onSelectOS={(os) => setSelectedOS(os)}
               onOSUpdated={handleOSUpdated}
+              onDeleteOS={(os) => setOsParaExcluir(os)}
               isInstalador={isInstalador}
+              isAdmin={isAdmin}
               instaladorNome={userProfile?.name}
               leftControlsSlot={renderTabsNavegacao()}
               rightActionsSlot={renderAcoesPrimarias()}

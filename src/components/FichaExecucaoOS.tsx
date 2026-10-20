@@ -523,6 +523,40 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Confirmação de Exclusão da Atividade / OS (Apenas Admin)
+  const [modalExcluirAberto, setModalExcluirAberto] = useState(false)
+  const [isExcluindoOS, setIsExcluindoOS] = useState(false)
+
+  const handleConfirmarExclusaoOS = async () => {
+    if (!os?.id) return
+    setIsExcluindoOS(true)
+    try {
+      if (os.origem === 'atividades') {
+        const { deleteAtividade } = await import('@/services/crmService')
+        await deleteAtividade(os.id)
+      } else {
+        const { deleteOrdemServico } = await import('@/services/crmService')
+        await deleteOrdemServico(os.id)
+      }
+      const safeId = typeof os.id === 'string' ? os.id.slice(0, 8) : ''
+      toast({
+        title: 'Registro Excluído',
+        description: `OS/Atividade #${safeId} foi removida com sucesso.`,
+      })
+      setModalExcluirAberto(false)
+      onBack()
+    } catch (err) {
+      console.error('Erro ao excluir OS na ficha:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o registro.',
+      })
+    } finally {
+      setIsExcluindoOS(false)
+    }
+  }
+
   // Carrega lista de usinas do cliente para seleção/edição e validação de usina obrigatória
   useEffect(() => {
     let cancelado = false
@@ -1650,15 +1684,30 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     <div className="max-w-3xl mx-auto space-y-3 pb-24">
       {/* Barra de Navegação Superior Sticky da Ficha (compacta, sem espaço extra) */}
       <div className="bg-white rounded-xl px-3 py-2 border border-gray-200 shadow-2xs flex items-center justify-between sticky top-0 z-20">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-          title="Voltar para Lista"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Voltar</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
+            title="Voltar para Lista"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Voltar</span>
+          </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setModalExcluirAberto(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors shadow-2xs cursor-pointer"
+              title="Excluir ordem de serviço / atividade"
+              aria-label="Excluir ordem de serviço / atividade"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Excluir</span>
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           {os.status === 'concluida' && (
@@ -2963,6 +3012,61 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AlertDialog de Confirmação para Excluir OS/Atividade (Apenas Admin) */}
+      {isAdmin && (
+        <AlertDialog
+          open={modalExcluirAberto}
+          onOpenChange={(open) => {
+            if (!open && !isExcluindoOS) setModalExcluirAberto(false)
+          }}
+        >
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-gray-900 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-600 shrink-0" />
+                <span>Excluir Ordem de Serviço</span>
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs sm:text-sm text-gray-600">
+                Deseja realmente excluir a{' '}
+                <strong className="text-gray-900 font-semibold">
+                  Ordem de Serviço #{typeof os?.id === 'string' ? os.id.slice(0, 8) : ''} —{' '}
+                  {cliente?.nome || cliente?.razao_social || os?.endereco || 'Cliente Solar'}
+                </strong>
+                ? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-2">
+              <AlertDialogCancel
+                disabled={isExcluindoOS}
+                onClick={() => setModalExcluirAberto(false)}
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleConfirmarExclusaoOS()
+                }}
+                disabled={isExcluindoOS}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold inline-flex items-center gap-2 cursor-pointer focus:ring-red-600"
+              >
+                {isExcluindoOS ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir</span>
+                  </>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {/* Modal de Confirmação de Finalização */}
       {showConfirmModal && (
