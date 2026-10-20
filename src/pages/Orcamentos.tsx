@@ -36,6 +36,8 @@ import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AbaPropostasOM } from '@/components/AbaPropostasOM'
+import { AbaPropostasCarregadores } from '@/components/AbaPropostasCarregadores'
+import { ModalGerarPropostaCarregador } from '@/components/ModalGerarPropostaCarregador'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
 import { ModalSelecionarClienteContratoOM } from '@/components/ModalSelecionarClienteContratoOM'
 import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
@@ -193,7 +195,7 @@ export const Orcamentos: React.FC = () => {
   const [clientePropostaContratoHub, setClientePropostaContratoHub] = useState<Cliente | null>(null)
 
   // Aba do Hub de Propostas: 'solar' | 'om' | 'baterias' | 'carregadores'
-  // Sincronizada com o query param ?aba=om, ?aba=solar, etc.
+  // Sincronizada com o query param ?aba=om, ?aba=solar, ?aba=carregadores etc.
   const abaParam = searchParams.get('aba')
   const abaAtivaHub = useMemo<'solar' | 'om' | 'baterias' | 'carregadores'>(() => {
     if (abaParam === 'om') return 'om'
@@ -202,17 +204,22 @@ export const Orcamentos: React.FC = () => {
     return 'solar'
   }, [abaParam])
 
-  const handleMudarAbaHub = (novaAba: 'solar' | 'om') => {
+  const handleMudarAbaHub = (novaAba: 'solar' | 'om' | 'carregadores') => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       if (novaAba === 'om') {
         next.set('aba', 'om')
+      } else if (novaAba === 'carregadores') {
+        next.set('aba', 'carregadores')
       } else {
         next.delete('aba')
       }
       return next
     })
   }
+
+  // Modal para criar nova proposta de carregador veicular direto pelo botão +
+  const [isModalNovoCarregadorOpen, setIsModalNovoCarregadorOpen] = useState<boolean>(false)
 
   // Suporte a abrir proposta via query param (?propostaId=... ou ?clienteId=...)
   useEffect(() => {
@@ -613,18 +620,21 @@ export const Orcamentos: React.FC = () => {
             </span>
           </div>
 
-          {/* Aba 4: Carregadores Veiculares (Desabilitada / Em breve) */}
-          <div
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
-            title="Módulo de Carregadores Veiculares em desenvolvimento"
-            aria-disabled="true"
+          {/* Aba 4: Carregadores Veiculares (Ativa) */}
+          <button
+            type="button"
+            onClick={() => handleMudarAbaHub('carregadores')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              abaAtivaHub === 'carregadores'
+                ? 'bg-[#047857] text-white shadow-sm'
+                : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
+            }`}
           >
-            <Zap className="w-4 h-4 text-gray-400 shrink-0" />
+            <Zap
+              className={`w-4 h-4 shrink-0 ${abaAtivaHub === 'carregadores' ? 'text-white' : 'text-emerald-600'}`}
+            />
             <span>Carregadores Veiculares</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200/60 text-gray-500">
-              Em breve
-            </span>
-          </div>
+          </button>
         </div>
 
         {/* Ações da Linha das Abas: Botão Filtro (apenas ícone) + Botão + com Menu */}
@@ -913,6 +923,13 @@ export const Orcamentos: React.FC = () => {
                 <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
                 <span>Novo Contrato O&amp;M</span>
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setIsModalNovoCarregadorOpen(true)}
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors border-t border-gray-100"
+              >
+                <Zap className="w-4 h-4 text-[#047857] shrink-0" />
+                <span>Nova proposta Carregador</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -921,6 +938,8 @@ export const Orcamentos: React.FC = () => {
       {/* Conteúdo Dinâmico por Aba */}
       {abaAtivaHub === 'om' ? (
         <AbaPropostasOM filtroStatusExterno={filtroStatusOM} />
+      ) : abaAtivaHub === 'carregadores' ? (
+        <AbaPropostasCarregadores />
       ) : (
         <div className="space-y-5 w-full">
           {/* Barra de Ações Rápidas Energia Solar */}
@@ -1600,6 +1619,11 @@ export const Orcamentos: React.FC = () => {
       />
 
       <ModalNovaPropostaOM isOpen={isModalNovaOMOpen} onClose={() => setIsModalNovaOMOpen(false)} />
+
+      <ModalGerarPropostaCarregador
+        open={isModalNovoCarregadorOpen}
+        onOpenChange={setIsModalNovoCarregadorOpen}
+      />
 
       {/* Modal Selecionar Cliente para Novo Contrato O&M no Hub de Propostas */}
       <ModalSelecionarClienteContratoOM

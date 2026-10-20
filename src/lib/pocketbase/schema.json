@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20T18:46:32.085Z",
+  "generatedAt": "2026-10-20T22:36:45.176Z",
   "collections": [
     {
       "name": "users",
@@ -7065,6 +7065,275 @@
         "CREATE INDEX idx_docs_contrato_om_contrato_id ON documentos_contrato_om (contrato_id)",
         "CREATE INDEX idx_docs_contrato_om_categoria ON documentos_contrato_om (categoria)",
         "CREATE INDEX idx_docs_contrato_om_ativo ON documentos_contrato_om (ativo)"
+      ]
+    },
+    {
+      "name": "propostas_carregador",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "numero_proposta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "negocios"
+        },
+        {
+          "name": "data_emissao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "validade_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Em elaboração", "Enviado ao cliente", "Aprovado", "Rejeitado"]
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_documento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_contato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco_instalacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_acompanhante",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_local",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_proprio_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_proprio_max",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_publico_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_publico_max",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao_selecionada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao1_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao1_potencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao1_tensao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao1_tempo_recarga",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao1_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao2_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao2_potencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao2_tensao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao2_tempo_recarga",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao2_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_estacao_materiais",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_servicos_engenharia",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "condicoes_pagamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_execucao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "garantias",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "premissas_orcamento_previo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "engenheiro_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "engenheiro_crea",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_prop_carregador_cli ON propostas_carregador (cliente_id)",
+        "CREATE INDEX idx_prop_carregador_num ON propostas_carregador (numero_proposta)",
+        "CREATE INDEX idx_prop_carregador_status ON propostas_carregador (status)"
       ]
     }
   ]

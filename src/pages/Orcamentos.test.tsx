@@ -190,7 +190,7 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
     expect(screen.getByText('Fazenda Santa Rita')).toBeDefined()
   })
 
-  it('exibe o Hub de Propostas com abas: Energia Solar, O&M, Baterias (Em breve) e Carregadores Veiculares (Em breve)', () => {
+  it('exibe o Hub de Propostas com abas: Energia Solar, O&M, Baterias (Em breve) e Carregadores Veiculares (Ativa)', () => {
     render(
       <MemoryRouter initialEntries={['/propostas']}>
         <Orcamentos />
@@ -199,17 +199,31 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
 
     // Título do Hub
     expect(screen.getByRole('heading', { name: 'Propostas' })).toBeDefined()
-    expect(screen.getByText('Hub Unificado')).toBeDefined()
+    expect(
+      screen.getByText('Central de geração e acompanhamento de propostas comerciais'),
+    ).toBeDefined()
 
     // Abas visíveis
     expect(screen.getByRole('button', { name: /Energia Solar/i })).toBeDefined()
     expect(screen.getByRole('button', { name: /O&M/i })).toBeDefined()
     expect(screen.getByText('Baterias')).toBeDefined()
-    expect(screen.getByText('Carregadores Veiculares')).toBeDefined()
+    expect(screen.getByRole('button', { name: /Carregadores Veiculares/i })).toBeDefined()
 
-    // Badges 'Em breve' nas abas desabilitadas
+    // Badge 'Em breve' na aba Baterias
     const badgesEmBreve = screen.getAllByText('Em breve')
-    expect(badgesEmBreve.length).toBe(2)
+    expect(badgesEmBreve.length).toBe(1)
+  })
+
+  it('permite abrir a aba Carregadores Veiculares via ?aba=carregadores e exibe a central Wallbox', () => {
+    render(
+      <MemoryRouter initialEntries={['/propostas?aba=carregadores']}>
+        <Orcamentos />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Propostas de Carregadores Veiculares')).toBeDefined()
+    expect(screen.getByText(/Infraestrutura Wallbox NBR 5410 & 17019/i)).toBeDefined()
+    expect(screen.getByRole('button', { name: /Nova Proposta de Carregador/i })).toBeDefined()
   })
 
   it('abre na aba O&M quando acessado via ?aba=om e exibe lista isolada de O&M sem misturar com solar', () => {
@@ -326,9 +340,10 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
     const btnFiltro = screen.getByRole('button', { name: 'Filtrar por status' })
     expect(btnFiltro).toBeDefined()
 
-    // Clicar no botão + abre dropdown com "Nova proposta Solar" e "Nova proposta O&M"
+    // Clicar no botão + abre dropdown com "Nova proposta Solar", "Nova proposta O&M" e "Nova proposta Carregador"
     fireEvent.click(btnMais)
     expect(screen.getByText('Nova proposta Solar')).toBeDefined()
     expect(screen.getByText('Nova proposta O&M')).toBeDefined()
+    expect(screen.getByText('Nova proposta Carregador')).toBeDefined()
   })
 })

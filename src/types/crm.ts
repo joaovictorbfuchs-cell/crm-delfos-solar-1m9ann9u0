@@ -1740,3 +1740,78 @@ export interface EmailRGEItem extends RecordModel {
   created: string
   updated: string
 }
+
+// -------------------------------------------------------------
+// Tipos para Propostas de Carregadores Veiculares (Wallbox)
+// -------------------------------------------------------------
+
+export type PropostaCarregadorStatus =
+  | 'Em elaboração'
+  | 'Enviado ao cliente'
+  | 'Aprovado'
+  | 'Rejeitado'
+
+export interface PropostaCarregador extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  numero_proposta?: string
+  cliente_id: string
+  negocio_id?: string
+  data_emissao?: string
+  validade_dias?: number
+  status: PropostaCarregadorStatus
+  autor?: string
+
+  // Dados do cliente e instalação
+  cliente_nome?: string
+  cliente_documento?: string
+  cliente_contato?: string
+  endereco_instalacao?: string
+  responsavel_acompanhante?: string
+  tipo_local?: string
+
+  // Projeção de economia
+  custo_proprio_min?: number
+  custo_proprio_max?: number
+  custo_publico_min?: number
+  custo_publico_max?: number
+
+  // Opções de carregador
+  opcao_selecionada?: string
+  opcao1_titulo?: string
+  opcao1_potencia?: string
+  opcao1_tensao?: string
+  opcao1_tempo_recarga?: string
+  opcao1_valor?: number
+
+  opcao2_titulo?: string
+  opcao2_potencia?: string
+  opcao2_tensao?: string
+  opcao2_tempo_recarga?: string
+  opcao2_valor?: number
+
+  // Investimento e Condições Comerciais
+  valor_estacao_materiais?: number
+  valor_servicos_engenharia?: number
+  valor_total?: number
+  condicoes_pagamento?: string
+
+  // Prazos, Garantia & Engenheiro Responsável
+  prazo_execucao?: string
+  garantias?: string
+  premissas_orcamento_previo?: string
+  engenheiro_nome?: string
+  engenheiro_crea?: string
+
+  observacoes?: string
+  dados_json?: Record<string, unknown>
+
+  created: string
+  updated: string
+
+  expand?: {
+    cliente_id?: Cliente
+    negocio_id?: Negocio
+  }
+}

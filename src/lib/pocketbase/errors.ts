@@ -28,42 +28,37 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Identifica se um erro recebido é de autenticação ou sessão expirada (status 401/403 ou mensagens de token inválido).
- * Salvaguarda crítica autônoma para blindagem contra ErrorBoundary no CRM Delfos.
- */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    // Abort/autocancel não são erros de expiração de sessão
-    if (err.isAbort || err.name === 'AbortError') return false
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
     if (
-      typeof err.message === 'string' &&
-      (err.message.includes('aborted') || err.message.includes('autocancelled'))
-    ) {
-      return false
-    }
-    if (
-      err.status === 401 ||
-      err.status === 403 ||
-      err.statusCode === 401 ||
-      err.statusCode === 403
+      errObj.response &&
+      typeof errObj.response === 'object' &&
+      ((errObj.response as Record<string, unknown>).status === 401 ||
+        (errObj.response as Record<string, unknown>).status === 403)
     ) {
       return true
     }
-    if (err.response && typeof err.response === 'object') {
-      const resp = err.response as Record<string, unknown>
-      if (resp.status === 401 || resp.status === 403) return true
-    }
-    const msg = String(err.message || '').toLowerCase()
+    const msg = String(errObj.message || '')
     if (
-      msg.includes('token is expired') ||
-      msg.includes('token expired') ||
-      msg.includes('expired or invalid') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('failed to authenticate')
+      msg.includes('Token is expired') ||
+      msg.includes('Login expirou') ||
+      msg.includes('Sessão expirada') ||
+      msg.includes('Failed to authenticate')
+    ) {
+      return true
+    }
+  }
+  if (error instanceof Error) {
+    const msg = error.message
+    if (
+      msg.includes('Token is expired') ||
+      msg.includes('Login expirou') ||
+      msg.includes('Sessão expirada') ||
+      msg.includes('Failed to authenticate')
     ) {
       return true
     }
@@ -71,21 +66,15 @@ export function isAuthSessionError(error: unknown): boolean {
   return false
 }
 
-/**
- * Identifica se um erro é decorrente de cancelamento/abort de requisição HTTP (autocancellation do PocketBase).
- */
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (err.isAbort === true) return true
-    if (err.name === 'AbortError') return true
-    if ((err.originalError as any)?.name === 'AbortError') return true
-    const msg = String(err.message || '').toLowerCase()
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
     if (
-      msg.includes('autocancelled') ||
-      msg.includes('request was aborted') ||
-      msg.includes('the request was cancelled')
+      String(errObj.message || '').includes('autocancelled') ||
+      String(errObj.message || '').includes('aborted')
     ) {
       return true
     }
@@ -93,12 +82,6 @@ export function isAbortError(error: unknown): boolean {
   return false
 }
 
-/**
- * Formata um erro retornado pelo PocketBase em mensagem amigável para exibição em toasts e alertas.
- */
-export function formatPbError(error: unknown, fallback = 'Ocorreu um erro na requisição'): string {
-  if (!error) return fallback
-  if (typeof error === 'string') return error
-  const msg = getErrorMessage(error)
-  return msg || fallback
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
 }
