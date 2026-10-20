@@ -272,7 +272,21 @@ export function compilarDadosRelatorioOS(
   // Limpa o texto de detalhes
   const observacoesLimpas = detalhesRaw.replace(/\[INÍCIO DO ATENDIMENTO:[^\]]+\]\s*/gi, '').trim()
 
-  // Serviços executados: baseados no checklist da OS ou nos padrões do modelo
+  // Metadados persistidos das fotos (vínculo com etapas do checklist)
+  const fotosMetadadosRaw: any[] = Array.isArray(os?.fotos_metadados)
+    ? os.fotos_metadados
+    : typeof os?.fotos_metadados === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(os.fotos_metadados)
+            return Array.isArray(parsed) ? parsed : []
+          } catch {
+            return []
+          }
+        })()
+      : []
+
+  // Checklist da OS
   let checklistItens: OSChecklistItem[] = []
   if (Array.isArray(os?.checklist)) {
     checklistItens = os.checklist
@@ -285,9 +299,141 @@ export function compilarDadosRelatorioOS(
     }
   }
 
+  // Registro fotográfico: lista plana de fotos na mesma ordem em que aparecem no Registro Fotográfico
+  const fotosUrls = fotosDataUrls || []
+  const fotos: FotoRegistroRelatorio[] = []
+
+  // Contadores para numeração sequencial dentro de cada atividade e fotos gerais
+  const contagemPorEtapa = new Map<string, number>()
+  let contadorGeralFotos = 0
+
+  if (fotosUrls.length > 0) {
+    fotosUrls.forEach((url, i) => {
+      const meta = fotosMetadadosRaw[i] || {}
+      const itemChecklistId = meta.item_checklist_id || undefined
+      const itemChecklistTexto = meta.item_checklist_texto || undefined
+      const legendaCustom = meta.legenda ? String(meta.legenda).trim() : ''
+      const numeroGlobal = i + 1
+
+      // Determinar a qual atividade do checklist este item se refere (índice 1-based)
+      let atividadeNum: number | null = null
+      if (itemChecklistId && checklistItens.length > 0) {
+        const foundIdx = checklistItens.findIndex((chk) => chk.id === itemChecklistId)
+        if (foundIdx >= 0) {
+          atividadeNum = foundIdx + 1
+        }
+      }
+
+      let titulo = `Foto ${numeroGlobal}`
+      let subtitulo = itemChecklistTexto
+        ? `Etapa: ${itemChecklistTexto}`
+        : `Registro da OS ${osCodigo}`
+      let desc =
+        legendaCustom ||
+        'Registro fotográfico das condições de campo durante a execução dos serviços.'
+
+      if (atividadeNum !== null) {
+        const chaveAtiv = itemChecklistId || `ativ-${atividadeNum}`
+        const proxM = (contagemPorEtapa.get(chaveAtiv) || 0) + 1
+        contagemPorEtapa.set(chaveAtiv, proxM)
+        titulo = `Atividade ${atividadeNum} — Foto ${proxM}`
+        subtitulo = itemChecklistTexto || `Atividade ${atividadeNum}`
+      } else if (itemChecklistTexto) {
+        const proxM = (contagemPorEtapa.get(itemChecklistTexto) || 0) + 1
+        contagemPorEtapa.set(itemChecklistTexto, proxM)
+        titulo = `${itemChecklistTexto} — Foto ${proxM}`
+        subtitulo = itemChecklistTexto
+      } else {
+        contadorGeralFotos += 1
+        titulo = `Foto ${contadorGeralFotos}`
+        subtitulo = `Registro da OS ${osCodigo}`
+      }
+
+      const dataHoraStr = meta.data_hora
+        ? new Date(meta.data_hora).toLocaleString('pt-BR', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+          }) + ' • Técnico executor'
+        : `${dataAtendimento} às ${horarioInicio} • Técnico executor`
+
+      fotos.push({
+        id: meta.id || String(numeroGlobal),
+        url,
+        titulo,
+        subtitulo,
+        descricao: desc,
+        dataHora: dataHoraStr,
+        item_checklist_id: itemChecklistId,
+        item_checklist_texto: itemChecklistTexto,
+      })
+    })
+  } else {
+    // 3 registros padrão com placeholder ilustrativo elegante
+    fotos.push(
+      {
+        id: '1',
+        url: '',
+        titulo: 'Atividade 1 — Foto 1',
+        subtitulo: `Módulos ${marcaModulos} (${estruturaFormatada})`,
+        descricao: `Vista geral dos ${qtdModulos} módulos ${marcaModulos} antes do procedimento de manutenção. Presença de camada de poeira e sujidade superficial pré-intervenção.`,
+        dataHora: `${dataAtendimento} às ${horarioInicio} • Técnico executor`,
+        item_checklist_id: checklistItens[0]?.id,
+        item_checklist_texto: checklistItens[0]?.item,
+      },
+      {
+        id: '2',
+        url: '',
+        titulo: 'Atividade 1 — Foto 2',
+        subtitulo: `Módulos ${marcaModulos} — Conclusão`,
+        descricao:
+          'Superfície dos módulos após lavagem e escovação técnica com cerdas macias e água limpa. Remoção completa de impurezas conforme manual técnico.',
+        dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
+        item_checklist_id: checklistItens[0]?.id,
+        item_checklist_texto: checklistItens[0]?.item,
+      },
+      {
+        id: '3',
+        url: '',
+        titulo: 'Atividade 2 — Foto 1',
+        subtitulo: 'Estrutura e Conexões MC4',
+        descricao: `Inspeção detalhada de fixadores no ${estruturaFormatada.toLowerCase()} e integridade do chicote elétrico acessível do arranjo.`,
+        dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
+        item_checklist_id: checklistItens[1]?.id,
+        item_checklist_texto: checklistItens[1]?.item,
+      },
+    )
+  }
+
+  // Mapear números das fotos vinculadas para cada etapa (1-based no registro fotográfico geral)
+  const formatarEvidenciaEtapa = (
+    itemId?: string,
+    fallbackEvidencia = 'Registro no checklist',
+  ): string => {
+    if (!itemId) return fallbackEvidencia
+    const indicesFotos: number[] = []
+    fotos.forEach((f, idx) => {
+      if (f.item_checklist_id === itemId) {
+        indicesFotos.push(idx + 1)
+      }
+    })
+    if (indicesFotos.length === 0) {
+      return 'Registro no checklist'
+    }
+    if (indicesFotos.length === 1) {
+      return `Foto ${indicesFotos[0]}`
+    }
+    if (indicesFotos.length === 2) {
+      return `Fotos ${indicesFotos[0]} e ${indicesFotos[1]}`
+    }
+    const ult = indicesFotos[indicesFotos.length - 1]
+    const ant = indicesFotos.slice(0, -1).join(', ')
+    return `Fotos ${ant} e ${ult}`
+  }
+
+  // Serviços executados: baseados no checklist da OS ou nos padrões do modelo
   let servicosExecutados: ServicoExecutadoRelatorio[] = []
   if (checklistItens.length > 0) {
-    servicosExecutados = checklistItens.map((item, idx) => {
+    servicosExecutados = checklistItens.map((item) => {
       const text = item.item || ''
       const rawDescCliente =
         (item as any).descricao_cliente || (item as any).descricaoCliente || undefined
@@ -319,14 +465,16 @@ export function compilarDadosRelatorioOS(
         qtd = `${qtdModulos} módulos`
       }
 
+      const isConcluido = Boolean(item.concluido)
+
       return {
         // No relatório ao cliente, o descritivo para o cliente substitui a instrução interna quando preenchido
         atividade: descCliente || text,
         descricaoCliente: descCliente,
         localAtivo,
         quantidade: qtd,
-        situacao: item.concluido ? 'Executado integralmente' : 'Pendente',
-        evidencia: idx === 0 ? 'Fotos #1 e #2' : idx === 1 ? 'Foto #3' : 'Registro no checklist',
+        situacao: isConcluido ? 'Executado' : 'Pendente',
+        evidencia: formatarEvidenciaEtapa(item.id),
       }
     })
   }
@@ -340,8 +488,8 @@ export function compilarDadosRelatorioOS(
           'Lavagem técnica dos módulos fotovoltaicos com água desmineralizada/filtrada e escova macia.',
         localAtivo: estruturaFormatada,
         quantidade: `${qtdModulos} módulos`,
-        situacao: 'Executado integralmente',
-        evidencia: 'Fotos #1 e #2',
+        situacao: 'Executado',
+        evidencia: formatarEvidenciaEtapa(undefined, 'Fotos 1 e 2'),
       },
       {
         atividade: 'Verificação de conectores MC4 e fixadores',
@@ -349,8 +497,8 @@ export function compilarDadosRelatorioOS(
           'Inspeção mecânica dos pontos de fixação e integridade dos conectores elétricos da usina.',
         localAtivo: 'Estrutura de fixação',
         quantidade: `${qtdModulos} módulos`,
-        situacao: 'Executado integralmente',
-        evidencia: 'Foto #3',
+        situacao: 'Executado',
+        evidencia: formatarEvidenciaEtapa(undefined, 'Foto 3'),
       },
       {
         atividade: 'Verificação de conexões e reaperto de disjuntores',
@@ -358,7 +506,7 @@ export function compilarDadosRelatorioOS(
           'Reaperto preventivo de bornes, terminais e disjuntores do quadro de proteção.',
         localAtivo: 'Quadro DC/CA',
         quantidade: '1 quadro',
-        situacao: 'Executado integralmente',
+        situacao: 'Executado',
         evidencia: 'Registro no checklist',
       },
     ]
@@ -382,19 +530,19 @@ export function compilarDadosRelatorioOS(
       componente: 'Módulos fotovoltaicos',
       abrangencia: 'Inspeção visual + limpeza',
       condicao: 'Sem anomalia aparente na avaliação realizada',
-      evidencia: 'Fotos #1–#3',
+      evidencia: 'Fotos 1–3',
     },
     {
       componente: 'Estruturas e fixações',
       abrangencia: 'Inspeção visual',
       condicao: 'Sem anomalia aparente na avaliação realizada',
-      evidencia: 'Foto #3',
+      evidencia: 'Foto 3',
     },
     {
       componente: 'Cabos e conectores acessíveis',
       abrangencia: 'Inspeção visual',
       condicao: 'Sem anomalia aparente na avaliação realizada',
-      evidencia: 'Foto #3',
+      evidencia: 'Foto 3',
     },
     {
       componente: 'Inversor e sinalizações',
@@ -416,111 +564,7 @@ export function compilarDadosRelatorioOS(
     },
   ]
 
-  // Registro fotográfico: fotos reais ou modelo demonstrativo
-  const fotosUrls = fotosDataUrls || []
-  const fotos: FotoRegistroRelatorio[] = []
-
-  // Metadados persistidos das fotos (vínculo com etapas do checklist)
-  const fotosMetadadosRaw = Array.isArray(os?.fotos_metadados)
-    ? os.fotos_metadados
-    : typeof os?.fotos_metadados === 'string'
-      ? (() => {
-          try {
-            const parsed = JSON.parse(os.fotos_metadados)
-            return Array.isArray(parsed) ? parsed : []
-          } catch {
-            return []
-          }
-        })()
-      : []
-
-  if (fotosUrls.length > 0) {
-    fotosUrls.forEach((url, i) => {
-      const idx = i + 1
-      const meta = fotosMetadadosRaw[i] || {}
-      const itemChecklistId = meta.item_checklist_id || undefined
-      const itemChecklistTexto = meta.item_checklist_texto || undefined
-      const legendaCustom = meta.legenda ? String(meta.legenda).trim() : ''
-
-      let titulo = `Foto #${idx}`
-      let subtitulo = itemChecklistTexto
-        ? `Etapa: ${itemChecklistTexto}`
-        : `Registro da OS ${osCodigo}`
-      let desc =
-        legendaCustom ||
-        'Registro fotográfico das condições de campo durante a execução dos serviços.'
-
-      if (!itemChecklistTexto && !legendaCustom) {
-        if (idx === 1) {
-          titulo = 'Foto #1 — Antes da limpeza'
-          subtitulo = `Módulos ${marcaModulos} (${estruturaFormatada})`
-          desc = `Vista geral dos ${qtdModulos} módulos ${marcaModulos} antes do procedimento de manutenção. Presença de camada de poeira e fuligem acumulada.`
-        } else if (idx === 2) {
-          titulo = 'Foto #2 — Depois da limpeza'
-          subtitulo = `Módulos ${marcaModulos} — Conclusão do Procedimento`
-          desc =
-            'Superfície dos módulos após lavagem e escovação técnica com cerdas macias e água limpa. Remoção completa de impurezas sem uso de abrasivos.'
-        } else if (idx === 3) {
-          titulo = 'Foto #3 — Conectores e fixadores'
-          subtitulo = 'Inspeção Mecânica e Conexões MC4'
-          desc = `Inspeção detalhada de suportes mecânicos, fixadores no ${estruturaFormatada.toLowerCase()} e integridade dos conectores MC4.`
-        }
-      } else if (itemChecklistTexto) {
-        titulo = `Foto #${idx} — ${itemChecklistTexto}`
-      }
-
-      const dataHoraStr = meta.data_hora
-        ? new Date(meta.data_hora).toLocaleString('pt-BR', {
-            dateStyle: 'short',
-            timeStyle: 'short',
-          }) + ' • Técnico executor'
-        : `${dataAtendimento} às ${horarioInicio} • Técnico executor`
-
-      fotos.push({
-        id: meta.id || String(idx),
-        url,
-        titulo,
-        subtitulo,
-        descricao: desc,
-        dataHora: dataHoraStr,
-        item_checklist_id: itemChecklistId,
-        item_checklist_texto: itemChecklistTexto,
-      })
-    })
-  } else {
-    // 3 registros padrão com placeholder ilustrativo elegante
-    fotos.push(
-      {
-        id: '1',
-        url: '',
-        titulo: 'Foto #1 — Antes da limpeza',
-        subtitulo: `Módulos ${marcaModulos} (${estruturaFormatada})`,
-        descricao: `Vista geral dos ${qtdModulos} módulos ${marcaModulos} antes do procedimento de manutenção. Presença de camada de poeira e sujidade superficial pré-intervenção.`,
-        dataHora: `${dataAtendimento} às ${horarioInicio} • Técnico executor`,
-      },
-      {
-        id: '2',
-        url: '',
-        titulo: 'Foto #2 — Depois da limpeza',
-        subtitulo: `Módulos ${marcaModulos} — Conclusão`,
-        descricao:
-          'Superfície dos módulos após lavagem e escovação técnica com cerdas macias e água limpa. Remoção completa de impurezas conforme manual técnico.',
-        dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
-      },
-      {
-        id: '3',
-        url: '',
-        titulo: 'Foto #3 — Conectores e fixadores',
-        subtitulo: 'Estrutura e Conexões MC4',
-        descricao: `Inspeção detalhada de fixadores no ${estruturaFormatada.toLowerCase()} e integridade do chicote elétrico acessível do arranjo.`,
-        dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
-      },
-    )
-  }
-
-  // Agrupamento de fotos por etapa do checklist:
-  // Etapas que possuem fotos vinculadas formam grupos específicos.
-  // Fotos sem vínculo com etapa ficam no grupo geral de fotos da OS.
+  // Agrupamento de fotos por etapa do checklist (mantido para compatibilidade onde necessário):
   const fotosPorEtapaMap = new Map<
     string,
     { itemChecklistId?: string; itemChecklistTexto: string; fotos: FotoRegistroRelatorio[] }

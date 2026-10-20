@@ -186,74 +186,62 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   const rel = compilarDadosRelatorioOS(os, cliente, sistema, fotosDataUrls)
 
   const servicosRowsHtml = rel.servicosExecutados
-    .map(
-      (s) => `
+    .map((s) => {
+      const isExecutado = s.situacao === 'Executado' || s.situacao === 'Executado integralmente'
+      const badgeStyle = isExecutado
+        ? 'background: #E8F7EE; color: #126330; border: 1px solid #B8E4C7;'
+        : 'background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;'
+      const badgeTexto = isExecutado ? 'Executado' : 'Pendente'
+
+      return `
     <tr>
       <td data-label="Atividade" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; font-weight: 600; color: #1A2332;">${s.atividade}</td>
       <td data-label="Situação" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE;">
-        <span style="display: inline-block; background: #E8F7EE; color: #126330; border: 1px solid #B8E4C7; font-weight: 700; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; white-space: nowrap;">${s.situacao}</span>
+        <span style="display: inline-block; ${badgeStyle} font-weight: 700; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; white-space: nowrap;">${badgeTexto}</span>
       </td>
       <td data-label="Evidência" style="padding: 10px 12px; border-bottom: 1px solid #DDE4EE; color: #536377;">${s.evidencia}</td>
     </tr>
-  `,
-    )
+  `
+    })
     .join('')
 
-  const renderCardFotoHtml = (f: import('@/lib/relatorioOSCanonical').FotoRegistroRelatorio) => `
-    <div style="background: #F4F7FA; border: 1px solid #DDE4EE; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;">
+  const renderCardFotoHtml = (
+    f: import('@/lib/relatorioOSCanonical').FotoRegistroRelatorio,
+    idx: number,
+  ) => {
+    const fotoNumGeral = idx + 1
+    return `
+    <div style="background: #F4F7FA; border: 1px solid #DDE4EE; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; position: relative;">
       ${
         f.url
-          ? `<div style="height: 140px; background: #0E2A47; overflow: hidden;"><img src="${f.url}" alt="${f.titulo}" style="width:100%; height:100%; object-fit:cover;" /></div>`
-          : `<div style="height: 140px; background: linear-gradient(135deg, #224364 0%, #0E2A47 100%); color: #FFF; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; text-align: center;">
+          ? `<div style="height: 140px; background: #0E2A47; overflow: hidden; position: relative;">
+              <img src="${f.url}" alt="${f.titulo}" style="width:100%; height:100%; object-fit:cover;" />
+              <span style="position: absolute; top: 6px; left: 6px; background: rgba(14, 42, 71, 0.85); color: #FFF; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Foto ${fotoNumGeral}</span>
+            </div>`
+          : `<div style="height: 140px; background: linear-gradient(135deg, #224364 0%, #0E2A47 100%); color: #FFF; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; text-align: center; position: relative;">
+              <span style="position: absolute; top: 6px; left: 6px; background: rgba(255, 255, 255, 0.2); color: #FFF; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Foto ${fotoNumGeral}</span>
               <div style="font-size: 1.5rem; margin-bottom: 4px;">📷</div>
               <div style="font-size: 0.8rem; font-weight: 700; color: #FFFFFF;">${f.titulo}</div>
             </div>`
       }
-      <div style="padding: 10px 12px; font-size: 0.75rem; color: #536377; background: #FFFFFF; border-top: 1px solid #EAEFF5; flex-grow: 1;">
-        <strong style="display: block; color: #0E2A47; font-size: 0.8rem; margin-bottom: 2px;">${f.subtitulo}</strong>
-        ${f.descricao}
-        <div style="margin-top: 6px; font-size: 0.7rem; color: #8896A6;">${f.dataHora}</div>
+      <div style="padding: 10px 12px; font-size: 0.75rem; color: #536377; background: #FFFFFF; border-top: 1px solid #EAEFF5; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <strong style="display: block; color: #0E2A47; font-size: 0.8rem; margin-bottom: 2px;">${f.titulo}</strong>
+          ${f.subtitulo && f.subtitulo !== f.titulo ? `<span style="display: block; color: #166534; font-weight: 600; font-size: 0.75rem; margin-bottom: 4px;">${f.subtitulo}</span>` : ''}
+          <div style="font-size: 0.75rem; color: #64748B; line-height: 1.3;">${f.descricao || ''}</div>
+        </div>
+        <div style="margin-top: 8px; font-size: 0.7rem; color: #8896A6; border-top: 1px solid #F1F5F9; padding-top: 4px;">${f.dataHora}</div>
       </div>
     </div>
   `
+  }
 
-  const fotosAgrupadasHtml =
-    rel.fotosPorEtapa && rel.fotosPorEtapa.length > 0
-      ? `
-      <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px;">
-        ${rel.fotosPorEtapa
-          .map(
-            (grupo) => `
-          <div style="background: #F8FAFD; border: 1px solid #DDE4EE; border-radius: 8px; padding: 12px;">
-            <div style="font-size: 0.85rem; font-weight: 800; color: #0E2A47; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-              <span style="color: #16A34A;">●</span> Fotos — ${grupo.itemChecklistTexto} (${grupo.fotos.length})
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-              ${grupo.fotos.slice(0, 3).map(renderCardFotoHtml).join('')}
-            </div>
-          </div>
-        `,
-          )
-          .join('')}
-      </div>
-      ${
-        rel.fotosGeraisSemEtapa && rel.fotosGeraisSemEtapa.length > 0
-          ? `
-        <div style="font-size: 0.8rem; font-weight: 700; color: #536377; text-transform: uppercase; margin-bottom: 6px;">
-          Outras fotos do atendimento
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-          ${rel.fotosGeraisSemEtapa.slice(0, 3).map(renderCardFotoHtml).join('')}
-        </div>
-      `
-          : ''
-      }
-    `
-      : `
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-        ${rel.fotos.slice(0, 3).map(renderCardFotoHtml).join('')}
-      </div>
-    `
+  // Grid contínuo com todas as fotos sem colapso
+  const fotosGridHtml = `
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+      ${rel.fotos.map((f, i) => renderCardFotoHtml(f, i)).join('')}
+    </div>
+  `
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -508,8 +496,13 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
 
     <!-- 6. Registro Fotográfico -->
     <section class="rep-card">
-      <h3 class="section-title">Registro fotográfico</h3>
-      ${fotosAgrupadasHtml}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #EBF0F7; padding-bottom: 6px;">
+        <h3 class="section-title" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">Registro fotográfico</h3>
+        <span style="font-size: 0.78rem; font-weight: 700; color: var(--navy-dark); background: #F1F5F9; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border-color);">
+          ${rel.fotos.length} ${rel.fotos.length === 1 ? 'foto registrada' : 'fotos registradas'}
+        </span>
+      </div>
+      ${fotosGridHtml}
     </section>
 
     <!-- 7. Pendências e Recomendações -->

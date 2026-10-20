@@ -327,6 +327,19 @@ const styles = StyleSheet.create({
     fontSize: 6.5,
     textAlign: 'center',
   },
+  badgePending: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderStyle: 'solid',
+    borderRadius: 3,
+    paddingVertical: 1.5,
+    paddingHorizontal: 4,
+    color: '#92400E',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
+    textAlign: 'center',
+  },
   badgeNormal: {
     backgroundColor: '#EBF3FC',
     borderWidth: 1,
@@ -376,20 +389,22 @@ const styles = StyleSheet.create({
   // Fotos
   photosGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 4,
   },
   photoCard: {
-    flex: 1,
+    width: '31.3%',
     backgroundColor: '#F4F7FA',
     borderWidth: 1,
     borderColor: '#DDE4EE',
     borderStyle: 'solid',
     borderRadius: 6,
     overflow: 'hidden',
-    marginRight: 6,
+    marginRight: '3%',
+    marginBottom: 6,
   },
-  photoCardLast: {
-    flex: 1,
+  photoCardLastInRow: {
+    width: '31.3%',
     backgroundColor: '#F4F7FA',
     borderWidth: 1,
     borderColor: '#DDE4EE',
@@ -397,9 +412,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden',
     marginRight: 0,
+    marginBottom: 6,
   },
   photoThumbBox: {
-    height: 70,
+    height: 68,
     backgroundColor: '#163e68',
     justifyContent: 'center',
     alignItems: 'center',
@@ -407,7 +423,7 @@ const styles = StyleSheet.create({
   },
   photoThumbImage: {
     width: '100%',
-    height: 70,
+    height: 68,
     objectFit: 'cover',
   },
   photoThumbTag: {
@@ -712,112 +728,96 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
                 {item.atividade}
               </Text>
               <View style={{ flex: 2, alignItems: 'center' }}>
-                <Text style={styles.badgeDone}>{item.situacao}</Text>
+                <Text
+                  style={
+                    item.situacao === 'Executado' || item.situacao === 'Executado integralmente'
+                      ? styles.badgeDone
+                      : styles.badgePending
+                  }
+                >
+                  {item.situacao === 'Executado' || item.situacao === 'Executado integralmente'
+                    ? 'Executado'
+                    : 'Pendente'}
+                </Text>
               </View>
               <Text style={[styles.tdText, { flex: 2, color: '#536377' }]}>{item.evidencia}</Text>
             </View>
           ))}
         </View>
 
-        {/* 6. Registro Fotográfico — com agrupamento por etapa do checklist */}
+        {/* 6. Registro Fotográfico — Grid único contínuo com todas as fotos anexadas */}
         <View style={styles.repCard} wrap={false}>
-          <Text style={styles.sectionTitle}>Registro fotográfico</Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Registro fotográfico</Text>
+            <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 7, color: '#536377' }}>
+              {relatorio.fotos.length}{' '}
+              {relatorio.fotos.length === 1 ? 'foto registrada' : 'fotos registradas'}
+            </Text>
+          </View>
 
-          {/* Fotos agrupadas por etapa do checklist */}
-          {relatorio.fotosPorEtapa && relatorio.fotosPorEtapa.length > 0 && (
-            <View style={{ marginBottom: 6 }}>
-              {relatorio.fotosPorEtapa.map((grupo, gIdx) => (
+          {/* Grid contínuo de 3 colunas no PDF A4 com todas as fotos */}
+          <View style={styles.photosGrid}>
+            {relatorio.fotos.map((foto, idx) => {
+              const isLastInRow = (idx + 1) % 3 === 0
+              const fotoNumGeral = idx + 1
+              return (
                 <View
-                  key={`pdf-grupo-${grupo.itemChecklistId || gIdx}`}
-                  style={{ marginBottom: 6 }}
+                  key={foto.id || `pdf-foto-${idx}`}
+                  style={isLastInRow ? styles.photoCardLastInRow : styles.photoCard}
                 >
-                  <Text
-                    style={{
-                      fontFamily: 'Helvetica-Bold',
-                      fontSize: 7.5,
-                      color: '#0E2A47',
-                      backgroundColor: '#F8FAFD',
-                      padding: 3,
-                      borderRadius: 3,
-                      marginBottom: 3,
-                    }}
-                  >
-                    • Fotos — {grupo.itemChecklistTexto} ({grupo.fotos.length})
-                  </Text>
-                  <View style={styles.photosGrid}>
-                    {grupo.fotos.slice(0, 3).map((foto, idx) => (
+                  {foto.url ? (
+                    <View style={{ position: 'relative' }}>
+                      <Image src={foto.url} style={styles.photoThumbImage} />
                       <View
-                        key={foto.id}
-                        style={
-                          idx === Math.min(grupo.fotos.length, 3) - 1
-                            ? styles.photoCardLast
-                            : styles.photoCard
-                        }
+                        style={{
+                          position: 'absolute',
+                          top: 2,
+                          left: 2,
+                          backgroundColor: 'rgba(14, 42, 71, 0.85)',
+                          borderRadius: 2,
+                          paddingHorizontal: 3,
+                          paddingVertical: 1,
+                        }}
                       >
-                        {foto.url ? (
-                          <Image src={foto.url} style={styles.photoThumbImage} />
-                        ) : (
-                          <View style={styles.photoThumbBox}>
-                            <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
-                          </View>
-                        )}
-                        <View style={styles.photoCaption}>
-                          <Text style={styles.photoCaptionTitle}>{foto.subtitulo}</Text>
-                          <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Fotos Gerais (sem etapa vinculada ou fallback tradicional) */}
-          {(!relatorio.fotosPorEtapa ||
-            relatorio.fotosPorEtapa.length === 0 ||
-            (relatorio.fotosGeraisSemEtapa && relatorio.fotosGeraisSemEtapa.length > 0)) && (
-            <View>
-              {relatorio.fotosPorEtapa && relatorio.fotosPorEtapa.length > 0 && (
-                <Text
-                  style={{
-                    fontFamily: 'Helvetica-Bold',
-                    fontSize: 7,
-                    color: '#536377',
-                    textTransform: 'uppercase',
-                    marginBottom: 3,
-                  }}
-                >
-                  Outras fotos do atendimento
-                </Text>
-              )}
-              <View style={styles.photosGrid}>
-                {(relatorio.fotosGeraisSemEtapa && relatorio.fotosGeraisSemEtapa.length > 0
-                  ? relatorio.fotosGeraisSemEtapa
-                  : relatorio.fotos
-                )
-                  .slice(0, 3)
-                  .map((foto, idx, arr) => (
-                    <View
-                      key={foto.id}
-                      style={idx === arr.length - 1 ? styles.photoCardLast : styles.photoCard}
-                    >
-                      {foto.url ? (
-                        <Image src={foto.url} style={styles.photoThumbImage} />
-                      ) : (
-                        <View style={styles.photoThumbBox}>
-                          <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
-                        </View>
-                      )}
-                      <View style={styles.photoCaption}>
-                        <Text style={styles.photoCaptionTitle}>{foto.subtitulo}</Text>
-                        <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
+                        <Text
+                          style={{ fontFamily: 'Helvetica-Bold', fontSize: 5.5, color: '#FFFFFF' }}
+                        >
+                          Foto {fotoNumGeral}
+                        </Text>
                       </View>
                     </View>
-                  ))}
-              </View>
-            </View>
-          )}
+                  ) : (
+                    <View style={styles.photoThumbBox}>
+                      <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+                    </View>
+                  )}
+                  <View style={styles.photoCaption}>
+                    <Text style={styles.photoCaptionTitle}>{foto.titulo}</Text>
+                    {foto.subtitulo && foto.subtitulo !== foto.titulo ? (
+                      <Text
+                        style={[
+                          styles.photoCaptionDesc,
+                          { fontFamily: 'Helvetica-Bold', color: '#166534', marginBottom: 1 },
+                        ]}
+                      >
+                        {foto.subtitulo}
+                      </Text>
+                    ) : null}
+                    {foto.descricao ? (
+                      <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              )
+            })}
+          </View>
         </View>
 
         {/* 7. Pendências e Recomendações */}

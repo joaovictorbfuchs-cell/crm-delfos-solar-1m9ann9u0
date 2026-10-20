@@ -517,9 +517,16 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                       {item.atividade}
                     </td>
                     <td data-label="Situação" className="p-3 text-xs sm:text-sm">
-                      <span className="inline-block bg-[#E8F7EE] text-[#126330] border border-[#B8E4C7] font-bold text-xs px-2 py-0.5 rounded-md whitespace-nowrap print-color-exact">
-                        {item.situacao}
-                      </span>
+                      {item.situacao === 'Executado' ||
+                      item.situacao === 'Executado integralmente' ? (
+                        <span className="inline-block bg-[#E8F7EE] text-[#126330] border border-[#B8E4C7] font-bold text-xs px-2 py-0.5 rounded-md whitespace-nowrap print-color-exact">
+                          Executado
+                        </span>
+                      ) : (
+                        <span className="inline-block bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] font-bold text-xs px-2 py-0.5 rounded-md whitespace-nowrap print-color-exact">
+                          Pendente
+                        </span>
+                      )}
                     </td>
                     <td data-label="Evidência" className="p-3 text-xs sm:text-sm text-[#536377]">
                       {item.evidencia}
@@ -531,155 +538,92 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 6. Registro Fotográfico — com agrupamento por etapa do checklist */}
-        <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4 space-y-5">
-          <div>
-            <h3 className="m-0 mb-1 text-base font-bold text-[#0E2A47] flex items-center gap-2 border-b-2 border-[#EBF0F7] pb-2">
-              Registro fotográfico
-            </h3>
-            <p className="text-xs text-[#536377] mb-0 print:hidden">
-              Clique em qualquer foto para visualizar os detalhes ampliados. Fotos vinculadas a
-              etapas específicas aparecem agrupadas abaixo.
-            </p>
+        {/* 6. Registro Fotográfico — Grid único contínuo de todas as fotos */}
+        <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4 space-y-4">
+          <div className="flex items-center justify-between border-b-2 border-[#EBF0F7] pb-2 flex-wrap gap-2">
+            <div>
+              <h3 className="m-0 text-base font-bold text-[#0E2A47] flex items-center gap-2">
+                Registro fotográfico
+              </h3>
+              <p className="text-xs text-[#536377] mt-0.5 mb-0 print:hidden">
+                Todas as fotos do atendimento listadas continuamente. Clique em qualquer foto para
+                ampliar.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-[#0E2A47] bg-[#F1F5F9] px-2.5 py-1 rounded-full border border-[#DDE4EE]">
+              {relatorio.fotos.length}{' '}
+              {relatorio.fotos.length === 1 ? 'foto registrada' : 'fotos registradas'}
+            </span>
           </div>
 
-          {/* Fotos agrupadas por etapa do checklist */}
-          {relatorio.fotosPorEtapa && relatorio.fotosPorEtapa.length > 0 && (
-            <div className="space-y-4">
-              {relatorio.fotosPorEtapa.map((grupo, gIdx) => (
+          {/* Grid contínuo 3-4 colunas em tela sem colapso */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {relatorio.fotos.map((foto, idx) => {
+              const fotoNumGeral = idx + 1
+              return (
                 <div
-                  key={`grupo-etapa-${grupo.itemChecklistId || gIdx}`}
-                  className="bg-[#F8FAFD] border border-[#DDE4EE] rounded-xl p-3.5 sm:p-4 space-y-3"
+                  key={foto.id || `foto-${idx}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setFotoModal(foto)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setFotoModal(foto)
+                    }
+                  }}
+                  className="bg-white border border-[#DDE4EE] hover:border-[#BACEDB] rounded-xl overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all flex flex-col group print:cursor-default print:border-[#D0D0D0] print:rounded-md print:hover:translate-y-0 shadow-2xs"
                 >
-                  <div className="flex items-center gap-2 border-b border-[#E2E8F0] pb-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
-                    <h4 className="m-0 text-xs sm:text-sm font-bold text-[#0E2A47]">
-                      Fotos — {grupo.itemChecklistTexto}
-                    </h4>
-                    <span className="text-[10px] text-gray-500 font-semibold ml-auto bg-white px-2 py-0.5 rounded border border-gray-200">
-                      {grupo.fotos.length} {grupo.fotos.length === 1 ? 'foto' : 'fotos'}
-                    </span>
-                  </div>
+                  {foto.url ? (
+                    <div className="aspect-4/3 bg-slate-900 overflow-hidden relative print:aspect-4/3">
+                      <img
+                        src={foto.url}
+                        alt={foto.titulo}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      {/* Badge com o número geral da foto correspondente à evidência */}
+                      <span className="absolute top-2 left-2 bg-[#0E2A47]/85 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
+                        Foto {fotoNumGeral}
+                      </span>
+                      <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded print:hidden">
+                        Ampliar 🔍
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="aspect-4/3 bg-linear-to-br from-[#224364] to-[#0E2A47] text-white flex flex-col items-center justify-center p-3 text-center relative print:aspect-4/3 print-color-exact">
+                      <span className="absolute top-2 left-2 bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded">
+                        Foto {fotoNumGeral}
+                      </span>
+                      <Camera className="w-7 h-7 text-[#C9A227] mb-1.5" />
+                      <div className="text-xs font-bold leading-tight px-1">{foto.titulo}</div>
+                    </div>
+                  )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {grupo.fotos.map((foto) => (
-                      <div
-                        key={foto.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setFotoModal(foto)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            setFotoModal(foto)
-                          }
-                        }}
-                        className="bg-white border border-[#DDE4EE] hover:border-[#BACEDB] rounded-xl overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all flex flex-col group print:cursor-default print:border-[#D0D0D0] print:rounded-md print:hover:translate-y-0 shadow-2xs"
-                      >
-                        {foto.url ? (
-                          <div className="h-36 bg-slate-900 overflow-hidden relative print:h-28">
-                            <img
-                              src={foto.url}
-                              alt={foto.titulo}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                            <span className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 rounded print:hidden">
-                              Ampliar 🔍
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="h-36 bg-linear-to-br from-[#224364] to-[#0E2A47] text-white flex flex-col items-center justify-center p-4 text-center relative print:h-28 print-color-exact">
-                            <Camera className="w-7 h-7 text-[#C9A227] mb-1.5" />
-                            <div className="text-xs font-bold leading-tight">{foto.titulo}</div>
-                          </div>
-                        )}
-                        <div className="p-2.5 bg-white border-t border-[#EAEFF5] text-xs text-[#536377] grow flex flex-col justify-between">
-                          <div>
-                            <strong className="block text-[#0E2A47] font-bold text-xs mb-0.5">
-                              {foto.subtitulo}
-                            </strong>
-                            <p className="m-0 text-[11px] leading-tight line-clamp-2">
-                              {foto.descricao}
-                            </p>
-                          </div>
-                          <div className="mt-2 text-[10px] text-[#536377] font-medium">
-                            {foto.dataHora}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Fotos Gerais (sem etapa vinculada ou todas caso nenhuma tenha etapa) */}
-          {(relatorio.fotosGeraisSemEtapa && relatorio.fotosGeraisSemEtapa.length > 0) ||
-          !relatorio.fotosPorEtapa ||
-          relatorio.fotosPorEtapa.length === 0 ? (
-            <div className="space-y-2">
-              {relatorio.fotosPorEtapa && relatorio.fotosPorEtapa.length > 0 && (
-                <div className="text-xs font-bold text-[#0E2A47] uppercase tracking-wider pt-2 border-t border-gray-100">
-                  Outras Fotos do Atendimento (Gerais)
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {(relatorio.fotosGeraisSemEtapa && relatorio.fotosGeraisSemEtapa.length > 0
-                  ? relatorio.fotosGeraisSemEtapa
-                  : relatorio.fotos
-                ).map((foto) => (
-                  <div
-                    key={foto.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setFotoModal(foto)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        setFotoModal(foto)
-                      }
-                    }}
-                    className="bg-[#F4F7FA] border border-[#DDE4EE] hover:border-[#BACEDB] rounded-xl overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all flex flex-col group print:cursor-default print:border-[#D0D0D0] print:rounded-md print:hover:translate-y-0"
-                  >
-                    {foto.url ? (
-                      <div className="h-40 bg-slate-900 overflow-hidden relative print:h-32">
-                        <img
-                          src={foto.url}
-                          alt={foto.titulo}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <span className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 rounded print:hidden">
-                          Ampliar 🔍
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="h-40 bg-linear-to-br from-[#224364] to-[#0E2A47] text-white flex flex-col items-center justify-center p-4 text-center relative print:h-32 print-color-exact">
-                        <Camera className="w-8 h-8 text-[#C9A227] mb-2" />
-                        <div className="text-xs font-bold leading-tight">{foto.titulo}</div>
-                        <span className="absolute bottom-2 right-2 bg-black/45 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded print:hidden">
-                          Ampliar 🔍
-                        </span>
-                      </div>
-                    )}
-                    <div className="p-3 bg-white border-t border-[#EAEFF5] text-xs text-[#536377] grow flex flex-col justify-between">
-                      <div>
-                        <strong className="block text-[#0E2A47] font-bold text-xs mb-0.5">
+                  {/* Legenda: Atividade N — Foto M ou Foto M */}
+                  <div className="p-2.5 bg-white border-t border-[#EAEFF5] text-xs text-[#536377] grow flex flex-col justify-between gap-1.5">
+                    <div>
+                      <strong className="block text-[#0E2A47] font-bold text-xs leading-snug">
+                        {foto.titulo}
+                      </strong>
+                      {foto.subtitulo && foto.subtitulo !== foto.titulo && (
+                        <span className="block text-[11px] text-emerald-800 font-semibold mt-0.5">
                           {foto.subtitulo}
-                        </strong>
-                        <p className="m-0 text-[11px] leading-tight line-clamp-2">
+                        </span>
+                      )}
+                      {foto.descricao && (
+                        <p className="m-0 mt-1 text-[11px] text-gray-600 leading-tight line-clamp-2">
                           {foto.descricao}
                         </p>
-                      </div>
-                      <div className="mt-2 text-[10px] text-[#536377] font-medium">
-                        {foto.dataHora}
-                      </div>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-[#536377] font-medium pt-1 border-t border-gray-100">
+                      {foto.dataHora}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+                </div>
+              )
+            })}
+          </div>
         </section>
 
         {/* 7. Pendências e Recomendações */}

@@ -28,6 +28,35 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort === true || errObj.name === 'AbortError') return true
+    const message = String(errObj.message || '').toLowerCase()
+    if (
+      message.includes('autocancelled') ||
+      message.includes('request was cancelled') ||
+      message.includes('abort')
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+export function formatPbError(error: unknown, fallbackMessage = 'Erro na operação'): string {
+  if (!error) return fallbackMessage
+  if (isAbortError(error)) return 'Operação cancelada.'
+  if (isAuthSessionError(error)) return 'Sua sessão expirou. Faça login novamente.'
+  const extracted = getErrorMessage(error)
+  if (extracted && extracted !== 'An unexpected error occurred.') {
+    return extracted
+  }
+  if (error instanceof Error && error.message) return error.message
+  return fallbackMessage
+}
+
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {

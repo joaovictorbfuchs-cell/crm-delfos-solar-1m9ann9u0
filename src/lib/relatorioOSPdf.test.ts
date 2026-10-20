@@ -97,7 +97,8 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     // Checklist e serviços executados
     expect(html).toContain('Inspeção visual dos módulos solares')
     expect(html).toContain('Reaperto dos conectores MC4 e quadros CA/CC')
-    expect(html).toContain('Executado integralmente')
+    expect(html).toContain('Executado')
+    expect(html).toContain('Pendente')
     expect(html).not.toContain('Avaliação dos componentes do sistema')
     expect(html).not.toContain('Nota técnica: Situação do atendimento')
     expect(html).not.toContain('Detalhes da limpeza')

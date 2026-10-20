@@ -391,18 +391,52 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   })
 
   // 3. Checklist
+  // Ref para controlar a inicialização por OS e flag de interação do usuário para evitar
+  // que re-renders ou callbacks (ex: onOSUpdated após salvar rascunho) revertam checks marcados localmente.
+  const currentOsIdRef = useRef<string | undefined>(os?.id)
+  const checklistInteractedRef = useRef<boolean>(false)
+  const checklistRef = useRef<OSChecklistItem[]>([])
+
   const [checklist, setChecklist] = useState<OSChecklistItem[]>(() => {
     const normalizado = normalizeChecklist(os?.checklist)
-    if (normalizado && normalizado.length > 0) {
-      return normalizado
-    }
-    return getDefaultChecklist(os?.tipo_servico || 'Manutenção')
+    const inicial =
+      normalizado && normalizado.length > 0
+        ? normalizado
+        : getDefaultChecklist(os?.tipo_servico || 'Manutenção')
+    checklistRef.current = inicial
+    return inicial
   })
 
-  // Sincronizar checklist quando a OS selecionada/recebida atualizar (ex: carregamento posterior ou alteração remota)
+  // Manter checklistRef sincronizado com o state
   useEffect(() => {
+    checklistRef.current = checklist
+  }, [checklist])
+
+  // Sincronizar checklist quando a OS trocar de ID (navegação para outra OS)
+  // ou na primeira carga se o usuário AINDA NÃO interagiu.
+  useEffect(() => {
+    if (currentOsIdRef.current !== os?.id) {
+      // Mudou de OS: resetar flag e carregar dados da nova OS
+      currentOsIdRef.current = os?.id
+      checklistInteractedRef.current = false
+      const normalizado = normalizeChecklist(os?.checklist)
+      const novo =
+        normalizado && normalizado.length > 0
+          ? normalizado
+          : getDefaultChecklist(os?.tipo_servico || 'Manutenção')
+      checklistRef.current = novo
+      setChecklist(novo)
+      return
+    }
+
+    // Mesma OS: se o usuário já interagiu localmente, NUNCA sobrescrever com props
+    if (checklistInteractedRef.current) {
+      return
+    }
+
     const normalizado = normalizeChecklist(os?.checklist)
     if (normalizado && normalizado.length > 0) {
+      checklistRef.current = normalizado
       setChecklist(normalizado)
     }
   }, [os?.id, os?.checklist])
@@ -628,6 +662,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         }
 
         // Resolução estrita do checklist:
+        // Guarda 0: Se o usuário já interagiu com o checklist nesta OS, NUNCA sobrescrever!
+        if (checklistInteractedRef.current) {
+          return
+        }
+
         // Guarda 1: NUNCA redefinir o checklist se o checklist salvo já tem itens marcados como concluídos
         const checklistSalvo = os?.checklist ? normalizeChecklist(os.checklist) : []
         const temItemConcluido = checklistSalvo.some((it) => it.concluido)
@@ -882,9 +921,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Toggle de item do checklist
   const handleToggleChecklist = (id: string) => {
     if (!podeEditarOS) return // leitura se concluída e não-admin
-    setChecklist((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, concluido: !item.concluido } : item)),
-    )
+    checklistInteractedRef.current = true
+    setChecklist((prev) => {
+      const proximo = prev.map((item) =>
+        item.id === id ? { ...item, concluido: !item.concluido } : item,
+      )
+      checklistRef.current = proximo
+      return proximo
+    })
   }
 
   // Upload/Captura de fotos gerais
@@ -1149,10 +1193,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const blocosPayload = Array.isArray(os.blocos_relatorio) ? os.blocos_relatorio : undefined
 
       const metadadosConsolidados = compilarMetadadosFinais()
+      const checklistAtual = checklistRef.current?.length > 0 ? checklistRef.current : checklist
 
       const payload: Partial<OrdemServico> = {
         instrucoes: instrucoesTexto,
-        checklist,
+        checklist: checklistAtual,
         detalhes_execucao: detalhesExecucao,
         usina_id: selectedUsinaId || undefined,
         ...(blocosPayload !== undefined ? { blocos_relatorio: blocosPayload } : {}),
@@ -1494,6 +1539,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     setIsSubmitting(true)
     try {
       const filesToUpload = novasFotos.map((nf) => nf.file)
+      const checklistAtual = checklistRef.current?.length > 0 ? checklistRef.current : checklist
 
       // Geração automática do PDF do relatório (não bloqueante caso ocorra falha na renderização)
       let relatorioPdfFile: File | undefined = undefined
@@ -1514,7 +1560,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
         const osAtualizadaParaPdf: OrdemServico = {
           ...os,
-          checklist,
+          checklist: checklistAtual,
           detalhes_execucao: detalhesExecucao,
           pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
           concluida_em: new Date().toISOString(),
@@ -1541,7 +1587,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const metadadosConsolidados = compilarMetadadosFinais()
 
       const finalized = await finalizarOrdemServico(os.id, {
-        checklist,
+        checklist: checklistAtual,
         detalhes_execucao: detalhesExecucao,
         ...(blocosFinalizacao !== undefined ? { blocos_relatorio: blocosFinalizacao } : {}),
         pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
