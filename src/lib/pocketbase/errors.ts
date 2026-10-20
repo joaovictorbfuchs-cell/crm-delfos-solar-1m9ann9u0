@@ -1,77 +1,49 @@
 import { ClientResponseError } from 'pocketbase'
 
-export type FieldErrors = Record<string, string>
-
-/**
- * Identifica se um erro é decorrente de sessão inválida, token expirado ou erro 401/403.
- * Usado amplamente no Delfos Solar para evitar telas brancas e disparar refresh de sessão.
- */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-
-  // Status numérico direto ou em objeto aninhado
-  const errObj = error as {
-    status?: unknown
-    statusCode?: unknown
-    response?: { status?: unknown }
-    message?: unknown
-    name?: unknown
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const errorObj = err as Record<string, unknown>
+    if (errorObj.status === 401 || errorObj.status === 403) return true
+    if (errorObj.statusCode === 401 || errorObj.statusCode === 403) return true
+    if (typeof errorObj.response === 'object' && errorObj.response !== null) {
+      const resp = errorObj.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
+    const message = typeof errorObj.message === 'string' ? errorObj.message.toLowerCase() : ''
+    if (message.includes('token') && (message.includes('expired') || message.includes('invalid'))) {
+      return true
+    }
+    if (message.includes('login expirou') || message.includes('sessão expirada')) {
+      return true
+    }
+    if (message.includes('failed to authenticate')) {
+      return true
+    }
   }
-
-  const status = Number(errObj.status || errObj.statusCode || errObj.response?.status)
-  if (status === 401 || status === 403) {
-    return true
-  }
-
-  // Verificação por mensagem de erro ou erro típico do PocketBase
-  const msg = String(errObj.message || error || '').toLowerCase()
-  if (
-    msg.includes('failed to authenticate') ||
-    msg.includes('token is expired') ||
-    msg.includes('token expired') ||
-    msg.includes('invalid token') ||
-    msg.includes('login expirou') ||
-    msg.includes('sessão expirada') ||
-    msg.includes('sessao expirada') ||
-    msg.includes('the request requires higher permissions') ||
-    msg.includes('higher permissions') ||
-    msg.includes('the request requires valid')
-  ) {
-    return true
-  }
-
   return false
 }
 
-/**
- * Identifica erros de autocancelação de requisição (abort / autocancel)
- */
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  const errObj = error as { isAbort?: unknown; name?: unknown; message?: unknown }
-  if (errObj.isAbort === true) return true
-  if (errObj.name === 'AbortError') return true
-  const msg = String(errObj.message || '').toLowerCase()
-  return msg.includes('autocancelled') || msg.includes('the request was autocancelled')
+export function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const errorObj = err as Record<string, unknown>
+    if (errorObj.isAbort === true) return true
+    if (errorObj.name === 'AbortError') return true
+    const message = typeof errorObj.message === 'string' ? errorObj.message.toLowerCase() : ''
+    if (message.includes('autocancelled') || message.includes('request was aborted')) {
+      return true
+    }
+  }
+  return false
 }
 
-/**
- * Formata erro do PocketBase de forma amigável
- */
-export function formatPbError(
-  error: unknown,
-  fallback = 'Ocorreu um erro ao processar a requisição.',
-): string {
-  if (!error) return fallback
-  const detailed = getErrorMessage(error)
-  if (detailed && detailed !== 'An unexpected error occurred.') {
-    return detailed
-  }
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-  return fallback
+export function formatPbError(error: unknown, fallback = 'Erro na operação'): string {
+  const msg = getErrorMessage(error)
+  return msg && msg !== 'An unexpected error occurred.' ? msg : fallback
 }
+
+export type FieldErrors = Record<string, string>
 
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}

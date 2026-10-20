@@ -229,5 +229,23 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(html).toContain('Tirar foto (câmera)')
       expect(html).toContain('Escolher da galeria')
     })
+
+    it('valida exports críticos de pocketbase para salvaguardas contra regressão', async () => {
+      const errors = await import('@/lib/pocketbase/errors')
+      expect(typeof errors.isAuthSessionError).toBe('function')
+      expect(typeof errors.isAbortError).toBe('function')
+      expect(typeof errors.formatPbError).toBe('function')
+
+      const client = await import('@/lib/pocketbase/client')
+      expect(client.default).toBeDefined()
+      expect(client.pb).toBeDefined()
+      expect(typeof client.isAuthSessionError).toBe('function')
+
+      expect(errors.isAuthSessionError({ status: 401 })).toBe(true)
+      expect(errors.isAuthSessionError({ status: 403 })).toBe(true)
+      expect(errors.isAuthSessionError({ message: 'The request was aborted' })).toBe(false)
+      expect(errors.isAbortError({ isAbort: true })).toBe(true)
+      expect(errors.isAbortError({ name: 'AbortError' })).toBe(true)
+    })
   })
 })

@@ -1209,11 +1209,12 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }, 10)
   }
 
-  // Alteração de vínculo de etapa em foto já salva
-  const handleVincularFotoSalva = (fotoNome: string, novoItemChecklistId: string) => {
+  // Alteração de vínculo de etapa em foto já salva (persiste imediatamente no PocketBase)
+  const handleVincularFotoSalva = async (fotoNome: string, novoItemChecklistId: string) => {
     const itemEncontrado = checklist.find((c) => c.id === novoItemChecklistId)
     const novoTexto = itemEncontrado?.item || ''
 
+    let novosMetadados: FotoMetadadoItem[] = []
     setFotosMetadados((prev) => {
       const indexExistente = prev.findIndex((m) => m.arquivo === fotoNome || m.id === fotoNome)
       if (indexExistente >= 0) {
@@ -1233,11 +1234,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             item_checklist_texto: novoTexto,
           }
         }
+        novosMetadados = atualizado
         return atualizado
       } else {
         // Criar novo metadado para a foto salva
-        if (!novoItemChecklistId) return prev
-        return [
+        if (!novoItemChecklistId) {
+          novosMetadados = prev
+          return prev
+        }
+        novosMetadados = [
           ...prev,
           {
             id: fotoNome,
@@ -1247,8 +1252,30 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             data_hora: new Date().toISOString(),
           },
         ]
+        return novosMetadados
       }
     })
+
+    // Persiste alteração de vínculo direto no banco PocketBase
+    if (os?.id) {
+      try {
+        const colecao =
+          os.collectionName ||
+          (os.collectionId === 'atividades' || os.origem === 'atividades'
+            ? 'atividades'
+            : 'ordens_servico')
+        await pb.collection(colecao).update(os.id, {
+          fotos_metadados: novosMetadados,
+        })
+        const osAtualizada: OrdemServico = {
+          ...os,
+          fotos_metadados: novosMetadados,
+        }
+        onOSUpdated(osAtualizada)
+      } catch (err) {
+        console.warn('Erro ao persistir novo vínculo de etapa da foto no banco:', err)
+      }
+    }
 
     toast({
       title: novoItemChecklistId ? 'Foto vinculada à etapa!' : 'Foto desvinculada (geral)',
@@ -2623,7 +2650,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   >
                     <button
                       type="button"
-                      disabled={isUploadingFoto && uploadingEtapaId === item.id}
+                      disabled={isUploadingFoto}
                       onClick={(e) => handleTirarFotoChecklistItem(item.id, e)}
                       className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       title={`Tirar foto na hora para: "${item.item}"`}
@@ -2637,13 +2664,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                     </button>
                     <button
                       type="button"
-                      disabled={isUploadingFoto && uploadingEtapaId === item.id}
+                      disabled={isUploadingFoto}
                       onClick={(e) => handleAnexarFotosChecklistItem(item.id, e)}
                       className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border border-slate-200 hover:border-slate-700 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       title={`Anexar fotos do dispositivo para: "${item.item}"`}
                       aria-label="Anexar fotos da galeria ou arquivos"
                     >
-                      <Paperclip className="w-4 h-4" />
+                      {isUploadingFoto && uploadingEtapaId === item.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
+                      ) : (
+                        <Paperclip className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 )}
