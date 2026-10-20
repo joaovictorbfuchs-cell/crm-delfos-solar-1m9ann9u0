@@ -24,6 +24,7 @@ import { PainelEdicaoConteudoOM } from '@/components/PainelEdicaoConteudoOM'
 import { sendWhatsAppDocumento, sendWhatsAppMensagem } from '@/services/crmService'
 import { criarLinkPropostaOM } from '@/services/propostaOMPublicaService'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
+import { enviarEmail, DEFAULT_EMAIL_FROM } from '@/lib/emailService'
 import {
   Dialog,
   DialogContent,
@@ -99,6 +100,14 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     link?: string
     base64?: string
     fileName?: string
+  }>(null)
+  const [emailConfirmation, setEmailConfirmation] = useState<null | {
+    email: string
+    assunto: string
+    mensagem: string
+    proposalId: string
+    base64: string
+    fileName: string
   }>(null)
   const [propostaSalvaId, setPropostaSalvaId] = useState<string>(initialProposta?.id || '')
   // Abre pelos dados da proposta; o documento fica disponível na etapa seguinte.
@@ -500,7 +509,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const handleEnviarPdfWhatsApp = async () => {
     if (!clienteAtual) return
     const telefone = clienteAtual.whatsapp || clienteAtual.telefone || ''
-    if (telefone.replace(/\\D/g, '').length < 10) {
+    if (telefone.replace(/\D/g, '').length < 10) {
       toast.error('Cadastre um WhatsApp válido para este cliente antes de enviar o PDF.')
       return
     }
@@ -537,6 +546,143 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     }
   }
 
+  const handleEnviarEmailClick = async () => {
+    if (!clienteAtual) return
+    const emailInicial = clienteAtual.email || clienteAtual.titular_email || ''
+    setIsSendingAction('pdf')
+    try {
+      const saved = await handleSalvarProposta(false)
+      if (!saved) return
+      const dadosPdf = montarPDFSalvo(saved)
+      if (!dadosPdf) throw new Error('Não foi possível montar os dados do PDF.')
+      const { base64, fileName } = await import('@/components/BotaoBaixarPropostaOMPDF').then(
+        ({ gerarPropostaOMPdfOficialBlobBase64 }) => gerarPropostaOMPdfOficialBlobBase64(dadosPdf),
+      )
+      const primeiroNome = (clienteAtual.nome_fantasia || clienteAtual.nome || 'Cliente').split(
+        ' ',
+      )[0]
+      const planoNome = normalizarNomePlanoOM(saved.plano_escolhido || planoEscolhido)
+      setEmailConfirmation({
+        email: emailInicial,
+        assunto: `Proposta de Gestão e Manutenção O&M — Plano ${planoNome} — Delfos Solar`,
+        mensagem: `Olá ${primeiroNome},\n\nEsperamos que esteja bem!\n\nEncaminhamos em anexo a este e-mail a Proposta Comercial de Gestão e Manutenção (O&M) da Usina Fotovoltaica elaborada pela Delfos Solar para sua conferência.\n\nFicamos à total disposição para esclarecer qualquer dúvida e apoiar na escolha do plano ideal.\n\nAtenciosamente,\n${user?.name || 'Equipe Delfos Solar'}`,
+        proposalId: saved.id,
+        base64,
+        fileName:
+          fileName ||
+          `Proposta_OM_Delfos_${(clienteAtual.nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+      })
+    } catch (err: any) {
+      console.error('Falha ao preparar PDF para envio por e-mail:', err)
+      toast.error(err?.message || 'Não foi possível preparar a proposta para envio por e-mail.')
+    } finally {
+      setIsSendingAction(null)
+    }
+  }
+
+  const handleConfirmarEnvioEmail = async () => {
+    if (!clienteAtual || !emailConfirmation) return
+    const emailLimpo = emailConfirmation.email.trim()
+    if (!emailLimpo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpo)) {
+      toast.error('Informe um e-mail válido para envio da proposta.')
+      return
+    }
+    const assuntoLimpo = emailConfirmation.assunto.trim()
+    if (!assuntoLimpo) {
+      toast.error('Informe o assunto do e-mail.')
+      return
+    }
+    const mensagemLimpa = emailConfirmation.mensagem.trim()
+    if (!mensagemLimpa) {
+      toast.error('Informe o texto da mensagem do e-mail.')
+      return
+    }
+
+    setIsSendingAction('pdf')
+    try {
+      const cleanBase64 = emailConfirmation.base64.includes(',')
+        ? emailConfirmation.base64.split(',')[1]
+        : emailConfirmation.base64
+      const nomeArquivo = emailConfirmation.fileName
+
+      const linhasTexto = mensagemLimpa.split('\n')
+      const corpoParagrafos = linhasTexto
+        .map((linha) =>
+          linha.trim()
+            ? `<p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #334155;">${linha}</p>`
+            : '<div style="height: 10px;"></div>',
+        )
+        .join('')
+
+      const corpoHtml = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head><meta charset="UTF-8" /></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1E293B; background-color: #F8FAFC; margin: 0; padding: 20px;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <div style="background-color: #0F172A; padding: 24px; border-bottom: 3px solid #16A34A; text-align: center;">
+              <h1 style="color: #FFFFFF; font-size: 20px; margin: 0; font-weight: 800; letter-spacing: 0.05em;">DELFOS SOLAR</h1>
+              <p style="color: #22C55E; font-size: 11px; margin: 4px 0 0 0; font-weight: 700; text-transform: uppercase;">Operação, Manutenção & Eficiência Solar</p>
+            </div>
+            <div style="padding: 24px;">
+              ${corpoParagrafos}
+              <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 13px; color: #166534; font-weight: bold;">
+                  📎 A Proposta Comercial O&M completa em formato PDF está anexada a este e-mail.
+                </p>
+                <p style="margin: 6px 0 0 0; font-size: 11px; color: #15803D;">
+                  Arquivo: <strong>${nomeArquivo}</strong>
+                </p>
+              </div>
+              <p style="font-size: 12px; color: #64748B; margin-top: 24px; padding-top: 16px; border-top: 1px solid #F1F5F9;">
+                Dúvidas ou esclarecimentos adicionais? Entre em contato pelo WhatsApp (54) 99129-2121 ou responda a este e-mail.
+              </p>
+            </div>
+            <div style="background-color: #F8FAFC; padding: 14px 24px; font-size: 11px; color: #64748B; text-align: center; border-top: 1px solid #E2E8F0;">
+              Delfos Engenharia Ltda • Rua Espírito Santo, 275 – Erechim/RS • www.delfos.eng.br
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+
+      const res = await enviarEmail({
+        destinatario: emailLimpo,
+        assunto: assuntoLimpo,
+        corpoHtml,
+        from: DEFAULT_EMAIL_FROM,
+        anexo: {
+          filename: nomeArquivo,
+          content: cleanBase64,
+        },
+      })
+
+      if (res.ok || res.sucesso) {
+        toast.success(`Proposta O&M em PDF enviada com sucesso por e-mail para ${emailLimpo}!`)
+        try {
+          await createAtividade({
+            cliente_id: clienteAtual.id,
+            tipo: 'gerar_proposta',
+            titulo: 'Proposta O&M Enviada via E-mail',
+            descricao: `Proposta O&M em PDF (${nomeArquivo}) enviada para ${clienteAtual.nome} no e-mail ${emailLimpo} via Resend (ID: ${res.id || 'ok'}).`,
+            data: new Date().toISOString(),
+            status: 'concluida',
+            autor: user?.name || 'CRM Delfos Solar',
+          })
+        } catch (atvErr) {
+          console.warn('Falha ao registrar atividade de envio por e-mail no histórico:', atvErr)
+        }
+        setEmailConfirmation(null)
+      } else {
+        toast.error(res.error || 'Falha ao enviar e-mail com a proposta.')
+      }
+    } catch (err: any) {
+      console.error('Erro ao enviar proposta O&M por e-mail:', err)
+      toast.error(err?.message || 'Falha na conexão ao enviar proposta via e-mail.')
+    } finally {
+      setIsSendingAction(null)
+    }
+  }
   const handleConfirmarEnvioWhatsApp = async () => {
     if (!clienteAtual || !whatsAppConfirmation) return
     const telefone = whatsAppConfirmation.phone.trim()
@@ -665,6 +811,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               onSelecionarPlano={(plano) => setPlanoEscolhido(plano)}
               onEnviarLink={handleEnviarLinkWhatsApp}
               onEnviarPdf={handleEnviarPdfWhatsApp}
+              onEnviarEmail={handleEnviarEmailClick}
               somenteLeitura={jaAprovada}
               statusProposta={statusAtual}
               isSubmitting={isSubmitting || Boolean(isSendingAction) || aprovando}
@@ -1424,6 +1571,118 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
             >
               {isSendingAction ? 'Enviando…' : 'Confirmar envio'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Conferência de E-mail (Resend) da Proposta O&M */}
+      <Dialog
+        open={Boolean(emailConfirmation)}
+        onOpenChange={(open) => {
+          if (!open && !isSendingAction) setEmailConfirmation(null)
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Confirmar envio da Proposta O&M por E-mail</DialogTitle>
+            <DialogDescription>
+              Confira o e-mail de destino, assunto e edite a mensagem. O PDF oficial da proposta
+              está anexado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {emailConfirmation && (
+            <div className="space-y-4">
+              <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600 flex items-center justify-between">
+                <span className="font-semibold text-gray-700">Remetente Oficial:</span>
+                <span className="font-mono text-[11px] text-gray-800 font-medium">
+                  {DEFAULT_EMAIL_FROM}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="om-email-dest" className="text-sm font-medium">
+                  E-mail do Destinatário
+                </label>
+                <input
+                  id="om-email-dest"
+                  type="email"
+                  value={emailConfirmation.email}
+                  onChange={(event) =>
+                    setEmailConfirmation({ ...emailConfirmation, email: event.target.value })
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="cliente@exemplo.com.br"
+                />
+                {(!emailConfirmation.email.trim() ||
+                  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailConfirmation.email.trim())) && (
+                  <p className="text-xs text-amber-600">
+                    Aviso: informe um e-mail válido antes de confirmar o disparo.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="om-email-assunto" className="text-sm font-medium">
+                  Assunto do E-mail
+                </label>
+                <input
+                  id="om-email-assunto"
+                  type="text"
+                  value={emailConfirmation.assunto}
+                  onChange={(event) =>
+                    setEmailConfirmation({ ...emailConfirmation, assunto: event.target.value })
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="om-email-message" className="text-sm font-medium">
+                  Mensagem do E-mail
+                </label>
+                <textarea
+                  id="om-email-message"
+                  rows={5}
+                  value={emailConfirmation.mensagem}
+                  onChange={(event) =>
+                    setEmailConfirmation({
+                      ...emailConfirmation,
+                      mensagem: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="rounded-md bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800 break-all">
+                📎 Anexo PDF: <strong>{emailConfirmation.fileName}</strong>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <button
+              type="button"
+              onClick={() => setEmailConfirmation(null)}
+              disabled={Boolean(isSendingAction)}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmarEnvioEmail}
+              disabled={
+                !emailConfirmation ||
+                !emailConfirmation.email.trim() ||
+                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailConfirmation.email.trim()) ||
+                Boolean(isSendingAction)
+              }
+              className="rounded-md bg-sky-700 hover:bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {isSendingAction ? 'Enviando por E-mail…' : 'Confirmar e Enviar E-mail'}
             </button>
           </DialogFooter>
         </DialogContent>

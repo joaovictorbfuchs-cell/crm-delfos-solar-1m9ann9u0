@@ -28,37 +28,25 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    const status =
-      (errObj.status as number) ||
-      ((errObj.response as Record<string, unknown>)?.status as number) ||
-      (errObj.statusCode as number)
-    if (status === 401 || status === 403) return true
-    const msg = String(errObj.message || '')
-    if (
-      msg.includes('Token is expired') ||
-      msg.includes('Login expirou') ||
-      msg.includes('Sessão expirada') ||
-      msg.includes('Failed to authenticate') ||
-      msg.includes('The request requires valid record authorization token')
-    ) {
-      return true
-    }
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (err instanceof ClientResponseError) {
+    if (err.status === 401 || err.status === 403) return true
   }
-  return false
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as Record<string, unknown>
+  const message =
+    err instanceof Error
+      ? err.message
+      : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : String(err)
+  const lower = message.toLowerCase()
   return (
-    err.isAbort === true || err.name === 'AbortError' || err.message === 'The request was aborted'
+    lower.includes('token expired') ||
+    lower.includes('token is expired') ||
+    lower.includes('session expired') ||
+    lower.includes('sessão expirada') ||
+    lower.includes('failed to authenticate') ||
+    lower.includes('the request requires valid record authorization') ||
+    lower.includes('the request requires valid admin authorization')
   )
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
 }

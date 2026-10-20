@@ -3,6 +3,7 @@ import {
   Award,
   CheckCircle2,
   Download,
+  Mail,
   Phone,
   Printer,
   Share2,
@@ -30,6 +31,7 @@ export interface PreviewPropostaOMDocumentoProps {
   onImprimir?: () => void
   onEnviarLink?: () => void
   onEnviarPdf?: () => void
+  onEnviarEmail?: () => void
   somenteLeitura?: boolean
   statusProposta?: string
   coletaAceiteCliente?: boolean
@@ -95,6 +97,7 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
   onImprimir,
   onEnviarLink,
   onEnviarPdf,
+  onEnviarEmail,
   somenteLeitura = false,
   statusProposta,
   coletaAceiteCliente = false,
@@ -262,6 +265,18 @@ export const PreviewPropostaOMDocumento: React.FC<PreviewPropostaOMDocumentoProp
             >
               <Download className="w-4 h-4" />
               <span>Enviar proposta PDF (WhatsApp)</span>
+            </button>
+          )}
+          {onEnviarEmail && (
+            <button
+              type="button"
+              onClick={onEnviarEmail}
+              disabled={isSubmitting}
+              className="px-3 py-2 bg-sky-700 hover:bg-sky-800 text-white border border-sky-600 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-60 shadow-sm"
+              title="Conferir destinatário, assunto, mensagem e enviar proposta O&M em PDF anexa por e-mail"
+            >
+              <Mail className="w-4 h-4" />
+              <span>Enviar por e-mail</span>
             </button>
           )}
         </div>

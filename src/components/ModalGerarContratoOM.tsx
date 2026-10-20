@@ -34,6 +34,8 @@ import {
   Phone,
   Factory,
   Calculator,
+  Mail,
+  MailCheck,
 } from 'lucide-react'
 import type { Cliente, PropostaOM, UsinaCliente } from '@/types/crm'
 import { fetchUsinasByClienteId } from '@/services/crmService'
@@ -68,6 +70,7 @@ import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { sendWhatsAppDocumento, createAtividade } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
+import { enviarEmail, DEFAULT_EMAIL_FROM } from '@/lib/emailService'
 import {
   resolverNumeroDestinoCliente,
   resolverNumeroDestinoClienteSync,
@@ -463,9 +466,14 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   }, [formTelefone])
 
   const temTelefoneValido = telefoneApenasDigitos.length >= 10
+  const temEmailValido = useMemo(() => {
+    const limpo = (formEmail || '').trim()
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpo)
+  }, [formEmail])
 
   const [atividadeRegistrada, setAtividadeRegistrada] = useState(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
 
   const registrarAtividadeEmissao = (dados: DadosContratoOM) => {
     if (!atividadeRegistrada) {
@@ -557,6 +565,12 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   const [whatsappTelefoneEditado, setWhatsappTelefoneEditado] = useState('')
   const [whatsappMensagemEditada, setWhatsappMensagemEditada] = useState('')
 
+  // Submodal de conferência e envio de E-mail via Resend com PDF anexo
+  const [modalConferenciaEmailOpen, setModalConferenciaEmailOpen] = useState(false)
+  const [emailDestinoEditado, setEmailDestinoEditado] = useState('')
+  const [emailAssuntoEditado, setEmailAssuntoEditado] = useState('')
+  const [emailMensagemEditada, setEmailMensagemEditada] = useState('')
+
   // 1. Callback de download com @react-pdf/renderer
   const handleDownloadPDFClick = () => {
     registrarAtividadeEmissao(dadosConsolidados)
@@ -571,6 +585,149 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     setWhatsappTelefoneEditado(formTelefone || '')
     setWhatsappMensagemEditada(mensagemTexto)
     setModalConferenciaWhatsAppOpen(true)
+  }
+
+  // 2b. Abrir Modal de Conferência de E-mail ao clicar no botão "Enviar por e-mail"
+  const handleAbrirConferenciaEmail = () => {
+    const primeiroNome = (dadosConsolidados.nomeRazaoSocial || 'Cliente').split(' ')[0]
+    const emailInicial =
+      formEmail ||
+      cliente.email ||
+      cliente.titular_email ||
+      propostaOM?.expand?.cliente_id?.email ||
+      ''
+    const assuntoInicial = `Contrato de Operação e Manutenção (O&M) — Plano ${dadosConsolidados.planoSelecionado} — Delfos Solar`
+    const mensagemTexto = `Olá ${primeiroNome},\n\nEsperamos que esteja bem!\n\nEncaminhamos em anexo a este e-mail o Contrato de Prestação de Serviços de Operação e Manutenção (O&M) da Delfos Solar referente ao Plano ${dadosConsolidados.planoSelecionado}, no valor mensal de ${formatCurrency(dadosConsolidados.valorMensal)} (${dadosConsolidados.valorEscritoMensal}), para sua conferência e assinatura.\n\nFicamos à total disposição para esclarecer qualquer dúvida referente às cláusulas e coberturas.\n\nAtenciosamente,\nEquipe Delfos Solar`
+
+    setEmailDestinoEditado(emailInicial)
+    setEmailAssuntoEditado(assuntoInicial)
+    setEmailMensagemEditada(mensagemTexto)
+    setModalConferenciaEmailOpen(true)
+  }
+
+  // 3b. Confirmar e Enviar Documento via E-mail (Resend) com PDF oficial gerado (@react-pdf/renderer)
+  const handleConfirmarEnvioEmail = async () => {
+    const emailLimpo = (emailDestinoEditado || '').trim()
+    if (!emailLimpo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpo)) {
+      toast.error('Informe um endereço de e-mail válido para o envio.')
+      return
+    }
+
+    const assuntoLimpo = (emailAssuntoEditado || '').trim()
+    if (!assuntoLimpo) {
+      toast.error('Informe o assunto do e-mail.')
+      return
+    }
+
+    const mensagemLimpa = (emailMensagemEditada || '').trim()
+    if (!mensagemLimpa) {
+      toast.error('Informe o corpo da mensagem do e-mail.')
+      return
+    }
+
+    setIsSendingEmail(true)
+    try {
+      // 1. Gera o PDF oficial em Base64 Data URI via @react-pdf/renderer
+      const { gerarContratoOMPdfBlobBase64 } = await import('@/components/BotaoBaixarContratoOMPDF')
+      const { base64, fileName } = await gerarContratoOMPdfBlobBase64(dadosConsolidados)
+      if (!base64) {
+        toast.error('Não foi possível gerar o PDF oficial do contrato para envio.')
+        setIsSendingEmail(false)
+        return
+      }
+
+      // Limpa cabeçalho de data URI base64 se presente
+      const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64
+      const nomeArquivoFinal =
+        fileName ||
+        `Contrato_OM_Delfos_${dadosConsolidados.planoSelecionado}_${(dadosConsolidados.nomeRazaoSocial || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+
+      // 2. Monta HTML corporativo estilizado Delfos Solar
+      const linhasTexto = mensagemLimpa.split('\n')
+      const corpoParagrafos = linhasTexto
+        .map((linha) =>
+          linha.trim()
+            ? `<p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #334155;">${linha}</p>`
+            : '<div style="height: 10px;"></div>',
+        )
+        .join('')
+
+      const corpoHtml = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head><meta charset="UTF-8" /></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1E293B; background-color: #F8FAFC; margin: 0; padding: 20px;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <div style="background-color: #0F172A; padding: 24px; border-bottom: 3px solid #16A34A; text-align: center;">
+              <h1 style="color: #FFFFFF; font-size: 20px; margin: 0; font-weight: 800; letter-spacing: 0.05em;">DELFOS SOLAR</h1>
+              <p style="color: #22C55E; font-size: 11px; margin: 4px 0 0 0; font-weight: 700; text-transform: uppercase;">Operação, Manutenção & Eficiência Solar</p>
+            </div>
+            <div style="padding: 24px;">
+              ${corpoParagrafos}
+              <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 13px; color: #166534; font-weight: bold;">
+                  📎 O Contrato de Prestação de Serviços O&M em formato PDF (padrão oficial A4) está anexado a este e-mail.
+                </p>
+                <p style="margin: 6px 0 0 0; font-size: 11px; color: #15803D;">
+                  Arquivo: <strong>${nomeArquivoFinal}</strong>
+                </p>
+              </div>
+              <p style="font-size: 12px; color: #64748B; margin-top: 24px; padding-top: 16px; border-top: 1px solid #F1F5F9;">
+                Dúvidas ou esclarecimentos adicionais? Entre em contato pelo WhatsApp (54) 99129-2121 ou responda a este e-mail.
+              </p>
+            </div>
+            <div style="background-color: #F8FAFC; padding: 14px 24px; font-size: 11px; color: #64748B; text-align: center; border-top: 1px solid #E2E8F0;">
+              Delfos Engenharia Ltda • Rua Espírito Santo, 275 – Erechim/RS • www.delfos.eng.br
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+
+      // 3. Disparar e-mail via recurso unificado reutilizável enviarEmail (Resend)
+      const res = await enviarEmail({
+        destinatario: emailLimpo,
+        assunto: assuntoLimpo,
+        corpoHtml,
+        from: DEFAULT_EMAIL_FROM,
+        anexo: {
+          filename: nomeArquivoFinal,
+          content: cleanBase64,
+        },
+      })
+
+      if (res.ok || res.sucesso) {
+        toast.success(`Contrato O&M em PDF enviado com sucesso por e-mail para ${emailLimpo}!`)
+        registrarAtividadeEmissao(dadosConsolidados)
+
+        // Registrar atividade no histórico/timeline do cliente
+        try {
+          await createAtividade({
+            cliente_id: cliente.id,
+            tipo: 'gerar_contrato',
+            titulo: `Contrato O&M (${dadosConsolidados.planoSelecionado}) Enviado via E-mail`,
+            descricao: `Contrato O&M em PDF (${nomeArquivoFinal}) enviado para ${dadosConsolidados.nomeRazaoSocial} no e-mail ${emailLimpo} via Resend (ID: ${res.id || 'ok'}).`,
+            data: new Date().toISOString(),
+            status: 'concluida',
+            autor: 'CRM Delfos Solar',
+          })
+        } catch (atvErr) {
+          console.warn(
+            'Falha ao registrar atividade de envio de contrato por e-mail no histórico:',
+            atvErr,
+          )
+        }
+
+        setModalConferenciaEmailOpen(false)
+      } else {
+        toast.error(res.error || 'Falha ao enviar e-mail com o contrato O&M.')
+      }
+    } catch (err: any) {
+      console.error('Erro ao disparar e-mail de contrato O&M com PDF anexo:', err)
+      toast.error(err?.message || 'Falha na conexão ao enviar contrato via e-mail.')
+    } finally {
+      setIsSendingEmail(false)
+    }
   }
 
   // 3. Confirmar e Enviar Documento via WhatsApp com PDF oficial gerado (@react-pdf/renderer) e legenda
@@ -1660,18 +1817,45 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                   <Send className="w-4 h-4" />
                   <span>Enviar pelo WhatsApp</span>
                 </Button>
+
+                {/* BOTÃO NOVO ADITIVO: ENVIAR POR E-MAIL (com conferência e envio Resend do PDF oficial) */}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAbrirConferenciaEmail}
+                  className="bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold gap-1.5 shadow-xs transition-transform hover:scale-[1.02]"
+                  title="Conferir e-mail de destino, assunto, mensagem e enviar contrato em PDF anexo por e-mail"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>Enviar por e-mail</span>
+                </Button>
               </div>
             </div>
 
-            {/* Aviso quando o cliente não tiver telefone */}
-            {!temTelefoneValido && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <strong>Atenção:</strong> O cliente não possui telefone de contato válido
-                  cadastrado. O botão <em>Enviar pelo WhatsApp</em> está desabilitado. Você pode
-                  voltar à etapa de revisão e preencher o telefone ou fazer o download do PDF.
-                </div>
+            {/* Avisos quando o cliente não tiver telefone ou e-mail */}
+            {(!temTelefoneValido || !temEmailValido) && (
+              <div className="space-y-2">
+                {!temTelefoneValido && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong>Atenção WhatsApp:</strong> O cliente não possui telefone de contato
+                      válido cadastrado. O botão <em>Enviar pelo WhatsApp</em> está desabilitado.
+                      Você pode voltar à etapa de revisão e preencher o telefone ou fazer o download
+                      do PDF.
+                    </div>
+                  </div>
+                )}
+                {!temEmailValido && (
+                  <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-950 flex items-start gap-2">
+                    <Info className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong>E-mail não cadastrado:</strong> O cliente ainda não possui um e-mail
+                      válido registrado. Ao clicar em <em>Enviar por e-mail</em>, você poderá
+                      informar o e-mail de destino para envio do contrato.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2333,6 +2517,174 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ========================================================================= */}
+      {/* SUBMODAL: CONFERÊNCIA DE E-MAIL, ASSUNTO E MENSAGEM ANTES DO DISPARO RESEND */}
+      {/* ========================================================================= */}
+      {modalConferenciaEmailOpen && (
+        <Dialog
+          open={modalConferenciaEmailOpen}
+          onOpenChange={(v) => {
+            if (!isSendingEmail) setModalConferenciaEmailOpen(v)
+          }}
+        >
+          <DialogContent className="max-w-lg p-0 gap-0 bg-white border border-gray-200 overflow-hidden shadow-2xl">
+            {/* Cabeçalho */}
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-sky-50 via-white to-sky-50/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-700 to-sky-500 text-white flex items-center justify-center shadow-xs">
+                  <Mail className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-bold text-gray-900 tracking-tight">
+                    Conferir e Enviar Contrato O&M por E-mail
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-gray-500">
+                    Disparo oficial via Resend com o PDF do contrato em anexo
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
+
+            {/* Corpo do Modal */}
+            <div className="p-4 sm:p-5 space-y-4">
+              {/* Card do Anexo PDF */}
+              <div className="p-3 bg-sky-50/70 rounded-xl border border-sky-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 bg-sky-100 text-sky-800 rounded-lg shrink-0">
+                    <FileCheck className="w-4 h-4 text-sky-700" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-gray-900 truncate">
+                      Contrato_OM_Delfos_{dadosConsolidados.planoSelecionado}_
+                      {(dadosConsolidados.nomeRazaoSocial || 'Cliente').replace(
+                        /[^a-zA-Z0-9]/g,
+                        '_',
+                      )}
+                      .pdf
+                    </div>
+                    <div className="text-[11px] text-sky-700 font-medium">
+                      PDF do Contrato O&M (Formatação A4 Oficial Delfos)
+                    </div>
+                  </div>
+                </div>
+
+                <Badge className="bg-sky-600 text-white font-bold text-[10px] shrink-0 uppercase tracking-wider">
+                  PDF em anexo
+                </Badge>
+              </div>
+
+              {/* Remetente Oficial Delfos */}
+              <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600 flex items-center justify-between">
+                <span className="font-semibold text-gray-700">Remetente Oficial:</span>
+                <span className="font-mono text-[11px] text-gray-800 font-medium">
+                  {DEFAULT_EMAIL_FROM}
+                </span>
+              </div>
+
+              {/* Campo de E-mail de Destino Editável */}
+              <div>
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1 mb-1.5">
+                  <Mail className="w-3.5 h-3.5 text-sky-600" />
+                  <span>
+                    E-mail do Destinatário <span className="text-rose-500">*</span>
+                  </span>
+                </Label>
+                <Input
+                  type="email"
+                  value={emailDestinoEditado}
+                  onChange={(e) => setEmailDestinoEditado(e.target.value)}
+                  placeholder="cliente@exemplo.com.br"
+                  className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white"
+                  disabled={isSendingEmail}
+                />
+                {(!emailDestinoEditado.trim() ||
+                  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestinoEditado.trim())) && (
+                  <p className="text-[11px] text-amber-700 mt-1 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    Informe um e-mail válido para envio do contrato.
+                  </p>
+                )}
+              </div>
+
+              {/* Campo de Assunto Editável */}
+              <div>
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1 mb-1.5">
+                  <span>
+                    Assunto do E-mail <span className="text-rose-500">*</span>
+                  </span>
+                </Label>
+                <Input
+                  type="text"
+                  value={emailAssuntoEditado}
+                  onChange={(e) => setEmailAssuntoEditado(e.target.value)}
+                  placeholder="Assunto da mensagem..."
+                  className="w-full text-xs font-medium px-3.5 py-2 rounded-xl border border-gray-300 bg-white text-gray-800"
+                  disabled={isSendingEmail}
+                />
+              </div>
+
+              {/* Campo de Mensagem Editável */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Mensagem do E-mail <span className="text-rose-500">*</span>
+                  </Label>
+                  <span className="text-[11px] text-gray-400">Editável</span>
+                </div>
+                <textarea
+                  rows={5}
+                  value={emailMensagemEditada}
+                  onChange={(e) => setEmailMensagemEditada(e.target.value)}
+                  placeholder="Digite a mensagem que acompanhará o documento PDF..."
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 shadow-2xs leading-relaxed"
+                  disabled={isSendingEmail}
+                />
+              </div>
+            </div>
+
+            {/* Rodapé de Ações */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setModalConferenciaEmailOpen(false)}
+                disabled={isSendingEmail}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmarEnvioEmail}
+                disabled={
+                  isSendingEmail ||
+                  !emailDestinoEditado.trim() ||
+                  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestinoEditado.trim()) ||
+                  !emailAssuntoEditado.trim() ||
+                  !emailMensagemEditada.trim()
+                }
+                className="bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold gap-2 shadow-xs transition-transform hover:scale-[1.01]"
+              >
+                {isSendingEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Enviando por E-mail...</span>
+                  </>
+                ) : (
+                  <>
+                    <MailCheck className="w-4 h-4" />
+                    <span>Confirmar e Enviar E-mail</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   )
 }
