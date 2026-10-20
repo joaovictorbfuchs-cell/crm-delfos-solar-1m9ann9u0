@@ -579,7 +579,7 @@ export const Orcamentos: React.FC = () => {
           <button
             type="button"
             onClick={() => handleMudarAbaHub('solar')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 h-10 rounded-xl text-xs font-bold transition-all flex-1 min-w-[170px] cursor-pointer ${
               abaAtivaHub === 'solar'
                 ? 'bg-[#16A34A] text-white shadow-sm'
                 : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
@@ -595,7 +595,7 @@ export const Orcamentos: React.FC = () => {
           <button
             type="button"
             onClick={() => handleMudarAbaHub('om')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 h-10 rounded-xl text-xs font-bold transition-all flex-1 min-w-[170px] cursor-pointer ${
               abaAtivaHub === 'om'
                 ? 'bg-[#16A34A] text-white shadow-sm'
                 : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
@@ -609,7 +609,7 @@ export const Orcamentos: React.FC = () => {
 
           {/* Aba 3: Baterias (Desabilitada / Em breve) */}
           <div
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed shrink-0 select-none opacity-70"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 h-10 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed flex-1 min-w-[170px] select-none opacity-70"
             title="Módulo de Baterias em desenvolvimento"
             aria-disabled="true"
           >
@@ -624,7 +624,7 @@ export const Orcamentos: React.FC = () => {
           <button
             type="button"
             onClick={() => handleMudarAbaHub('carregadores')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 h-10 rounded-xl text-xs font-bold transition-all flex-1 min-w-[170px] cursor-pointer ${
               abaAtivaHub === 'carregadores'
                 ? 'bg-[#047857] text-white shadow-sm'
                 : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
