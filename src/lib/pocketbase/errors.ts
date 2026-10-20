@@ -28,40 +28,66 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as {
-      status?: number
-      statusCode?: number
-      response?: { status?: number }
-      message?: string
-    }
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (errObj.response?.status === 401 || errObj.response?.status === 403) return true
-    if (typeof errObj.message === 'string') {
-      const msg = errObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('invalid token') ||
-        msg.includes('login expirou') ||
-        msg.includes('sessão expirada') ||
-        msg.includes('failed to authenticate')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
 export function formatPbError(error: unknown): string {
   return getErrorMessage(error)
 }
 
 export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as { name?: string; isAbort?: boolean }
-  return err.name === 'AbortError' || err.isAbort === true
+  if (!error) return false
+  if (error instanceof DOMException && error.name === 'AbortError') return true
+  if (typeof error === 'object' && error !== null) {
+    const errObj = error as { name?: string; isAbort?: boolean }
+    if (errObj.name === 'AbortError' || errObj.isAbort === true) return true
+  }
+  return false
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // Se o erro tem status HTTP 401 ou 403
+  if (typeof error === 'object' && error !== null) {
+    const errObj = error as {
+      status?: number
+      statusCode?: number
+      response?: { status?: number; code?: number }
+      message?: string
+    }
+
+    const status =
+      errObj.status ?? errObj.statusCode ?? errObj.response?.status ?? errObj.response?.code
+    if (status === 401 || status === 403) {
+      return true
+    }
+
+    const msg = String(errObj.message || '').toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('sessao expirada') ||
+      msg.includes('login expirou') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('the request requires valid record authorization token')
+    ) {
+      return true
+    }
+  }
+
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('sessao expirada') ||
+      msg.includes('login expirou') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('the request requires valid record authorization token')
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
