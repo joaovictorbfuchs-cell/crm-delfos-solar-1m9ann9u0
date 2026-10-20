@@ -3842,9 +3842,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           'Cliente'
                         ).split(' ')[0]
                         const potenciaStr =
-                          potenciaKwpCalculada > 0
-                            ? ` (${potenciaKwpCalculada.toFixed(2)} kWp)`
-                            : ''
+                          potenciaKwp > 0 ? ` (${potenciaKwp.toFixed(2)} kWp)` : ''
                         setEmailDestinoEditado(emailInicial)
                         setEmailAssuntoEditado(
                           `Proposta Comercial Solar${potenciaStr} — Delfos Solar`,
