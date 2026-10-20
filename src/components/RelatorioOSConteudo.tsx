@@ -21,7 +21,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import logoDelfosPng from '@/assets/delfos-solar-5b5ce.png'
-import { getRodapeComercialRelatorioOS } from '@/services/configuracoesService'
+import {
+  getRodapeComercialRelatorioOS,
+  getRodapeComercialCacheSync,
+} from '@/services/configuracoesService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/contexts/AuthContext'
 import pb from '@/lib/pocketbase/client'
@@ -33,10 +36,9 @@ import {
 import { gerarRelatorioOSPdfBlobBase64 } from '@/components/BotaoBaixarRelatorioOSPDF'
 import { enviarEmail } from '@/lib/emailService'
 import { createAtividade } from '@/services/crmService'
-import { getRodapeComercialConfig } from '@/lib/relatorioOSCanonical'
 import type { OrdemServico, Cliente, Sistema } from '@/types/crm'
 
-const DEFAULT_EMAIL_FROM = '"Delfos Solar" <solar@updates.delfos.eng.br>'
+const DEFAULT_EMAIL_FROM = 'Delfos Solar <solar@updates.delfos.eng.br>'
 
 export interface RelatorioOSConteudoProps {
   id?: string
@@ -163,7 +165,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         if (isMounted) setCliente(clienteFinal)
 
         // Checa se cliente tem contrato O&M ativo
-        const clienteIdFinal = cliObj?.id || registro.cliente_id
+        const clienteIdFinal = clienteFinal?.id || registro.cliente_id
         if (clienteIdFinal) {
           try {
             const contratos = await pb.collection('contratos_om').getList(1, 10, {
@@ -328,18 +330,14 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
     try {
       // 1. Gera o PDF do relatório oficial em Base64
       toast.info('Gerando PDF do relatório para anexo...')
-      const rodapeCfg = getRodapeComercialConfig()
-      const { base64, fileName } = await gerarRelatorioOSPdfBlobBase64(
-        {
-          os,
-          cliente,
-          sistema: usina,
-          fotosDataUrls: fotosUrls,
-          rodapeComercial: rodapeCfg,
-        },
-        undefined,
-        `Relatorio_OS_${relatorio.osCodigo || 'Atendimento'}.pdf`,
-      )
+      const rodapeCfg = getRodapeComercialCacheSync()
+      const { base64, fileName } = await gerarRelatorioOSPdfBlobBase64({
+        os,
+        cliente,
+        sistema: usina,
+        fotosDataUrls: fotosUrls,
+        rodapeComercial: rodapeCfg,
+      })
 
       // Extrai apenas o base64 puro (sem o prefixo data:application/pdf;base64,)
       const pureBase64 = base64.includes(',') ? base64.split(',')[1] : base64
@@ -368,12 +366,12 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
       // 3. Dispara envio via emailService
       const res = await enviarEmail({
+        destinatario: destinoLimpo,
+        assunto: assuntoEmail.trim(),
+        corpoTexto: mensagemEmail,
+        corpoHtml: htmlCorpo,
         from: DEFAULT_EMAIL_FROM,
-        to: destinoLimpo,
-        subject: assuntoEmail.trim(),
-        text: mensagemEmail,
-        html: htmlCorpo,
-        attachments: [
+        anexos: [
           {
             filename: fileName,
             content: pureBase64,
@@ -381,7 +379,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         ],
       })
 
-      if (!res.success) {
+      if (!res.ok && !res.sucesso) {
         throw new Error(res.error || 'Falha ao enviar e-mail pelo servidor.')
       }
 
