@@ -18,6 +18,7 @@ export interface DadosProcuracaoOM {
   municipio: string
   dataPorExtenso: string
   telefone?: string
+  email?: string
 }
 
 export const DADOS_FIXOS_CONTRATADA_PROCURACAO = {
@@ -76,6 +77,7 @@ export function normalizarDadosProcuracao(dados: Partial<DadosProcuracaoOM>): Da
     municipio: (dados.municipio || '').trim() || 'Erechim/RS',
     dataPorExtenso: (dados.dataPorExtenso || '').trim() || formatarDataExtenso(),
     telefone: (dados.telefone || '').trim(),
+    email: (dados.email || '').trim(),
   }
 }
 

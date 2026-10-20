@@ -2122,7 +2122,7 @@ describe('Login e App Smoke Tests', () => {
     expect(text).toContain('60 min')
   })
 
-  it('ModalGerarProcuracaoOM: abre pré-visualização A4, exibe botões Imprimir, Baixar PDF e Enviar pelo WhatsApp com conferência', async () => {
+  it('ModalGerarProcuracaoOM: abre pré-visualização A4, exibe botões Imprimir, Baixar PDF, Enviar pelo WhatsApp e Enviar por e-mail com conferência', async () => {
     const { ModalGerarProcuracaoOM } = await import('@/components/ModalGerarProcuracaoOM')
     const clienteMock: any = {
       id: 'cli-proc-test',
@@ -2130,6 +2130,7 @@ describe('Login e App Smoke Tests', () => {
       cpf: '123.456.789-00',
       telefone: '54999998888',
       whatsapp: '54999998888',
+      email: 'jose.silva@teste.com.br',
       endereco: 'Rua das Flores, 100',
       cidade: 'Erechim',
     }
@@ -2152,6 +2153,7 @@ describe('Login e App Smoke Tests', () => {
     expect(text).toContain('Imprimir')
     expect(text).toContain('Baixar como PDF')
     expect(text).toContain('Enviar pelo WhatsApp')
+    expect(text).toContain('Enviar por e-mail')
   })
 
   it('BlocoRetornosRGE: helpers de normalização e ordenação funcionam perfeitamente', async () => {

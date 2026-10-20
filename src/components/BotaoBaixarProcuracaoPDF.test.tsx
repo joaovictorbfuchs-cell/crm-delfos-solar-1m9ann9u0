@@ -29,7 +29,7 @@ describe('BotaoBaixarProcuracaoPDF — Integração do Botão Baixar como PDF co
     expect(mod.Page).toBeDefined()
   })
 
-  it('deve gerar PDF em Blob e Base64 compatível com WhatsApp/Z-API via gerarProcuracaoPdfBlobBase64', async () => {
+  it('deve gerar PDF em Blob e Base64 compatível com WhatsApp/Z-API e E-mail Resend via gerarProcuracaoPdfBlobBase64', async () => {
     const { gerarProcuracaoPdfBlobBase64 } = await import('./BotaoBaixarProcuracaoPDF')
     const res = await gerarProcuracaoPdfBlobBase64(dadosMock)
 
