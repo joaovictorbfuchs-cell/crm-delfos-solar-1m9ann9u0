@@ -397,6 +397,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const checklistInteractedRef = useRef<boolean>(false)
   const checklistRef = useRef<OSChecklistItem[]>([])
 
+  // Estado e refs para o Salvamento Automático do Checklist
+  // Status: 'idle' | 'saving' | 'saved' | 'error'
+  const [checklistSaveStatus, setChecklistSaveStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle')
+  const checklistAutosaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isChecklistAutosavingRef = useRef<boolean>(false)
+  const lastSavedChecklistJsonRef = useRef<string>('')
+
   const [checklist, setChecklist] = useState<OSChecklistItem[]>(() => {
     const normalizado = normalizeChecklist(os?.checklist)
     const inicial =
@@ -404,6 +413,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         ? normalizado
         : getDefaultChecklist(os?.tipo_servico || 'Manutenção')
     checklistRef.current = inicial
+    lastSavedChecklistJsonRef.current = JSON.stringify(inicial)
     return inicial
   })
 
@@ -419,24 +429,30 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       // Mudou de OS: resetar flag e carregar dados da nova OS
       currentOsIdRef.current = os?.id
       checklistInteractedRef.current = false
+      setChecklistSaveStatus('idle')
+      if (checklistAutosaveTimerRef.current) {
+        clearTimeout(checklistAutosaveTimerRef.current)
+      }
       const normalizado = normalizeChecklist(os?.checklist)
       const novo =
         normalizado && normalizado.length > 0
           ? normalizado
           : getDefaultChecklist(os?.tipo_servico || 'Manutenção')
       checklistRef.current = novo
+      lastSavedChecklistJsonRef.current = JSON.stringify(novo)
       setChecklist(novo)
       return
     }
 
-    // Mesma OS: se o usuário já interagiu localmente, NUNCA sobrescrever com props
-    if (checklistInteractedRef.current) {
+    // Mesma OS: se o usuário já interagiu localmente ou está ocorrendo autosave, NUNCA sobrescrever com props
+    if (checklistInteractedRef.current || isChecklistAutosavingRef.current) {
       return
     }
 
     const normalizado = normalizeChecklist(os?.checklist)
     if (normalizado && normalizado.length > 0) {
       checklistRef.current = normalizado
+      lastSavedChecklistJsonRef.current = JSON.stringify(normalizado)
       setChecklist(normalizado)
     }
   }, [os?.id, os?.checklist])
@@ -522,6 +538,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Confirmação de Finalização
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Limpeza de timers no unmount do componente
+  useEffect(() => {
+    return () => {
+      if (checklistAutosaveTimerRef.current) {
+        clearTimeout(checklistAutosaveTimerRef.current)
+      }
+    }
+  }, [])
 
   // Confirmação de Exclusão da Atividade / OS (Apenas Admin)
   const [modalExcluirAberto, setModalExcluirAberto] = useState(false)
@@ -952,7 +977,62 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
-  // Toggle de item do checklist
+  // Toggle de item do checklist com salvamento automático (autosave discreto)
+  // Marcar/desmarcar persiste na hora (~600ms debounce), sem depender do botão "Salvar rascunho".
+  const persistirChecklistAutosave = async (checklistParaSalvar: OSChecklistItem[]) => {
+    if (!os?.id) return
+
+    const checklistJson = JSON.stringify(checklistParaSalvar)
+    if (checklistJson === lastSavedChecklistJsonRef.current) {
+      return
+    }
+
+    isChecklistAutosavingRef.current = true
+    setChecklistSaveStatus('saving')
+
+    try {
+      const colecao =
+        os.collectionName ||
+        (os.collectionId === 'atividades' || os.origem === 'atividades'
+          ? 'atividades'
+          : 'ordens_servico')
+
+      await pb.collection(colecao).update(os.id, {
+        checklist: checklistParaSalvar,
+      })
+
+      lastSavedChecklistJsonRef.current = checklistJson
+      setChecklistSaveStatus('saved')
+
+      // Discretamente informa o componente pai sem recarregar campos do zero
+      const osAtualizada: OrdemServico = {
+        ...os,
+        checklist: checklistParaSalvar,
+      }
+      onOSUpdated(osAtualizada)
+
+      // Retorna para 'idle' após 2.5s
+      setTimeout(() => {
+        setChecklistSaveStatus((atual) => (atual === 'saved' ? 'idle' : atual))
+      }, 2500)
+    } catch (err) {
+      console.error('Erro no autosave do checklist:', err)
+      setChecklistSaveStatus('error')
+    } finally {
+      isChecklistAutosavingRef.current = false
+    }
+  }
+
+  const agendarAutosaveChecklist = (proximoChecklist: OSChecklistItem[]) => {
+    if (checklistAutosaveTimerRef.current) {
+      clearTimeout(checklistAutosaveTimerRef.current)
+    }
+    setChecklistSaveStatus('saving')
+    checklistAutosaveTimerRef.current = setTimeout(() => {
+      persistirChecklistAutosave(proximoChecklist)
+    }, 600)
+  }
+
   const handleToggleChecklist = (id: string) => {
     if (!podeEditarOS) return // leitura se concluída e não-admin
     checklistInteractedRef.current = true
@@ -961,66 +1041,144 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         item.id === id ? { ...item, concluido: !item.concluido } : item,
       )
       checklistRef.current = proximo
+      // Dispara autosave imediato/debounced com proteção
+      agendarAutosaveChecklist(proximo)
       return proximo
     })
   }
 
-  // Upload/Captura de fotos gerais
-  const handlePhotoCaptured = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+  // Upload imediato de foto(s) para o banco de dados (PocketBase / Skip Cloud)
+  // Ao capturar/anexar (câmera ou galeria), a foto sobe direto vinculada à OS/etapa,
+  // protegendo o instalador caso o app feche no meio do atendimento.
+  const [isUploadingFoto, setIsUploadingFoto] = useState(false)
+  const [uploadingEtapaId, setUploadingEtapaId] = useState<string | null>(null)
 
-    const added: {
-      file: File
-      previewUrl: string
-      item_checklist_id?: string
-      item_checklist_texto?: string
-    }[] = []
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const previewUrl = URL.createObjectURL(file)
-      added.push({ file, previewUrl })
+  const uploadFotosImediato = async (
+    files: FileList | File[],
+    vinculoEtapa?: { id: string; texto: string },
+  ) => {
+    if (!files || files.length === 0 || !os?.id) return
+
+    const listaArquivos = Array.from(files)
+    setIsUploadingFoto(true)
+    if (vinculoEtapa?.id) {
+      setUploadingEtapaId(vinculoEtapa.id)
     }
 
-    setNovasFotos((prev) => [...prev, ...added])
-    toast({
-      title: `${added.length} foto(s) capturada(s)!`,
-      description: 'As fotos serão anexadas à Ordem de Serviço.',
-    })
-    e.target.value = ''
+    try {
+      const colecao =
+        os.collectionName ||
+        (os.collectionId === 'atividades' || os.origem === 'atividades'
+          ? 'atividades'
+          : 'ordens_servico')
+
+      // Criar metadados preliminares para as novas fotos
+      const novosItensMetadados: FotoMetadadoItem[] = listaArquivos.map((file, idx) => ({
+        id: `meta-${Date.now()}-${idx}`,
+        arquivo: file.name,
+        item_checklist_id: vinculoEtapa?.id || undefined,
+        item_checklist_texto: vinculoEtapa?.texto || undefined,
+        data_hora: new Date().toISOString(),
+      }))
+
+      // Combinar com metadados atuais
+      const metadadosAtualizados = [...fotosMetadados, ...novosItensMetadados]
+
+      // FormData com upload real
+      const formData = new FormData()
+      formData.append('fotos_metadados', JSON.stringify(metadadosAtualizados))
+      for (const file of listaArquivos) {
+        formData.append('fotos', file)
+      }
+
+      const updatedRecord = await pb.collection(colecao).update<any>(os.id, formData)
+
+      // Extrair lista final de fotos gravadas no banco
+      const fotosDoBanco = normalizarFotosIniciais(updatedRecord.fotos, updatedRecord.foto_medidor)
+      const fotosConsolidadas = Array.from(new Set([...fotosSalvas, ...fotosDoBanco]))
+
+      // Associar nomes reais gerados pelo PocketBase aos metadados (se PB renomeou arquivos)
+      let metadadosDoBanco: FotoMetadadoItem[] = []
+      if (Array.isArray(updatedRecord.fotos_metadados)) {
+        metadadosDoBanco = updatedRecord.fotos_metadados
+      } else if (typeof updatedRecord.fotos_metadados === 'string') {
+        try {
+          metadadosDoBanco = JSON.parse(updatedRecord.fotos_metadados)
+        } catch {
+          metadadosDoBanco = metadadosAtualizados
+        }
+      } else {
+        metadadosDoBanco = metadadosAtualizados
+      }
+
+      // Se o PocketBase gerou novos nomes em updatedRecord.fotos, sincronizar arquivo do último lote
+      if (fotosDoBanco.length > 0 && metadadosDoBanco.length > 0) {
+        // Garantir que os arquivos recém-adicionados recebam os nomes reais
+        const novosNomes = fotosDoBanco.slice(-listaArquivos.length)
+        if (novosNomes.length === listaArquivos.length) {
+          metadadosDoBanco = metadadosDoBanco.map((m, idx) => {
+            const startIdx = metadadosDoBanco.length - listaArquivos.length
+            if (idx >= startIdx) {
+              const fileIdx = idx - startIdx
+              return { ...m, arquivo: novosNomes[fileIdx] || m.arquivo }
+            }
+            return m
+          })
+        }
+      }
+
+      setFotosSalvas(fotosConsolidadas)
+      setFotosMetadados(metadadosDoBanco)
+
+      const osAtualizada: OrdemServico = {
+        ...os,
+        fotos: fotosConsolidadas,
+        fotos_metadados: metadadosDoBanco,
+      }
+      onOSUpdated(osAtualizada)
+
+      toast({
+        title: vinculoEtapa
+          ? `${listaArquivos.length} foto(s) salva(s) na etapa! 📸`
+          : `${listaArquivos.length} foto(s) enviada(s) e salva(s)! 📸`,
+        description: vinculoEtapa
+          ? `Foto já persistida com segurança em: "${vinculoEtapa.texto.slice(0, 35)}..."`
+          : 'A foto foi salva com sucesso no banco de dados da OS.',
+      })
+    } catch (err: any) {
+      console.error('Erro no upload imediato da foto:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Falha no upload da foto',
+        description:
+          err?.message ||
+          'Não foi possível salvar a foto no banco de dados. Verifique a conexão e tente novamente.',
+      })
+    } finally {
+      setIsUploadingFoto(false)
+      setUploadingEtapaId(null)
+    }
   }
 
-  // Upload/Captura de foto vinculada a uma etapa específica do checklist
-  const handleChecklistPhotoCaptured = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload/Captura de fotos gerais (imediato)
+  const handlePhotoCaptured = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const filesCopy = Array.from(files)
+    e.target.value = ''
+    await uploadFotosImediato(filesCopy)
+  }
+
+  // Upload/Captura de foto vinculada a uma etapa específica do checklist (imediato)
+  const handleChecklistPhotoCaptured = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0 || !activeChecklistItemId) return
-
+    const filesCopy = Array.from(files)
     const itemAlvo = checklist.find((c) => c.id === activeChecklistItemId)
     const textoEtapa = itemAlvo?.item || 'Etapa do Checklist'
-
-    const added: {
-      file: File
-      previewUrl: string
-      item_checklist_id?: string
-      item_checklist_texto?: string
-    }[] = []
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const previewUrl = URL.createObjectURL(file)
-      added.push({
-        file,
-        previewUrl,
-        item_checklist_id: activeChecklistItemId,
-        item_checklist_texto: textoEtapa,
-      })
-    }
-
-    setNovasFotos((prev) => [...prev, ...added])
-    toast({
-      title: `${added.length} foto(s) vinculada(s) à etapa! 📸`,
-      description: `Etapa: "${textoEtapa.slice(0, 35)}..."`,
-    })
+    const etapaId = activeChecklistItemId
     e.target.value = ''
+    await uploadFotosImediato(filesCopy, { id: etapaId, texto: textoEtapa })
   }
 
   const handleRemoverNovaFoto = (index: number) => {
@@ -2337,16 +2495,36 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
       {/* 3. CHECKLIST DE EXECUÇÃO */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <CheckSquare className="w-5 h-5 text-emerald-600" />
             <h3 className="font-bold text-gray-900 text-sm sm:text-base">
               3. Checklist de Execução
             </h3>
           </div>
-          <span className="text-xs font-bold text-gray-600">
-            {concluidosCount} de {totalItens} concluídos ({progressoPct}%)
-          </span>
+          <div className="flex items-center gap-3">
+            {/* Indicador discreto de salvamento automático do checklist */}
+            {checklistSaveStatus === 'saving' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full animate-pulse">
+                <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                <span>Salvando...</span>
+              </span>
+            )}
+            {checklistSaveStatus === 'saved' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full transition-opacity">
+                <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                <span>Salvo</span>
+              </span>
+            )}
+            {checklistSaveStatus === 'error' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 bg-red-50 border border-red-200/80 px-2 py-0.5 rounded-full">
+                <span>Erro ao salvar</span>
+              </span>
+            )}
+            <span className="text-xs font-bold text-gray-600">
+              {concluidosCount} de {totalItens} concluídos ({progressoPct}%)
+            </span>
+          </div>
         </div>
 
         {/* Barra de Progresso Visual */}
@@ -2445,17 +2623,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   >
                     <button
                       type="button"
+                      disabled={isUploadingFoto && uploadingEtapaId === item.id}
                       onClick={(e) => handleTirarFotoChecklistItem(item.id, e)}
-                      className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       title={`Tirar foto na hora para: "${item.item}"`}
                       aria-label="Tirar foto na hora com a câmera"
                     >
-                      <Camera className="w-4 h-4" />
+                      {isUploadingFoto && uploadingEtapaId === item.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
                     </button>
                     <button
                       type="button"
+                      disabled={isUploadingFoto && uploadingEtapaId === item.id}
                       onClick={(e) => handleAnexarFotosChecklistItem(item.id, e)}
-                      className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border border-slate-200 hover:border-slate-700 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border border-slate-200 hover:border-slate-700 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       title={`Anexar fotos do dispositivo para: "${item.item}"`}
                       aria-label="Anexar fotos da galeria ou arquivos"
                     >
@@ -2497,11 +2681,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
             <Button
               type="button"
+              disabled={isUploadingFoto}
               onClick={() => cameraInputRef.current?.click()}
-              className="h-10 px-3.5 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-semibold text-xs sm:text-sm shadow-2xs flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+              className="h-10 px-3.5 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-semibold text-xs sm:text-sm shadow-2xs flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Camera className="w-4 h-4 shrink-0" />
-              <span>Tirar foto (câmera)</span>
+              {isUploadingFoto && !uploadingEtapaId ? (
+                <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4 shrink-0" />
+              )}
+              <span>
+                {isUploadingFoto && !uploadingEtapaId ? 'Salvando foto...' : 'Tirar foto (câmera)'}
+              </span>
             </Button>
 
             {/* Input alternativo para seleção de fotos da galeria */}
@@ -2517,10 +2708,15 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             <Button
               type="button"
               variant="outline"
+              disabled={isUploadingFoto}
               onClick={() => fileInputRef.current?.click()}
-              className="h-10 px-3.5 rounded-xl border-gray-300 hover:border-emerald-600 hover:bg-emerald-50 text-gray-800 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+              className="h-10 px-3.5 rounded-xl border-gray-300 hover:border-emerald-600 hover:bg-emerald-50 text-gray-800 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Upload className="w-4 h-4 text-emerald-700 shrink-0" />
+              {isUploadingFoto && !uploadingEtapaId ? (
+                <Loader2 className="w-4 h-4 text-emerald-700 shrink-0 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 text-emerald-700 shrink-0" />
+              )}
               <span>Escolher da galeria</span>
             </Button>
           </div>

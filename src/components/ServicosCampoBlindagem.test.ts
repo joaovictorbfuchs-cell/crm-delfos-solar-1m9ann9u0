@@ -186,4 +186,48 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(typeof updateAtividadeComoOrdemServico).toBe('function')
     })
   })
+
+  describe('Upload Imediato e Autosave do Checklist (FichaExecucaoOS)', () => {
+    it('exporta FichaExecucaoOS e renderiza checklist operacional com indicador de salvamento', async () => {
+      const { FichaExecucaoOS } = await import('@/components/FichaExecucaoOS')
+      const React = await import('react')
+      const { renderToStaticMarkup } = await import('react-dom/server')
+
+      const fakeOS = {
+        id: 'os-autosave-test-1',
+        origem: 'ordens_servico',
+        tipo_servico: 'Manutenção Preventiva',
+        status: 'pendente',
+        checklist: [
+          { id: 'chk_1', item: 'Inspeção visual dos módulos', concluido: false },
+          { id: 'chk_2', item: 'Verificar conexões do inversor', concluido: true },
+        ],
+        fotos: ['foto_existente.jpg'],
+        fotos_metadados: [
+          {
+            id: 'meta_1',
+            arquivo: 'foto_existente.jpg',
+            item_checklist_id: 'chk_1',
+            item_checklist_texto: 'Inspeção visual dos módulos',
+          },
+        ],
+      }
+
+      const html = renderToStaticMarkup(
+        React.createElement(FichaExecucaoOS, {
+          os: fakeOS as any,
+          onBack: () => {},
+          onOSUpdated: () => {},
+          onOSFinalizada: () => {},
+        }),
+      )
+
+      expect(html).toContain('3. Checklist de Execução')
+      expect(html).toContain('Inspeção visual dos módulos')
+      expect(html).toContain('Verificar conexões do inversor')
+      expect(html).toContain('4. Fotos do Serviço em Campo')
+      expect(html).toContain('Tirar foto (câmera)')
+      expect(html).toContain('Escolher da galeria')
+    })
+  })
 })

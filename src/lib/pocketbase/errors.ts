@@ -2,6 +2,77 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
+/**
+ * Identifica se um erro é decorrente de sessão inválida, token expirado ou erro 401/403.
+ * Usado amplamente no Delfos Solar para evitar telas brancas e disparar refresh de sessão.
+ */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // Status numérico direto ou em objeto aninhado
+  const errObj = error as {
+    status?: unknown
+    statusCode?: unknown
+    response?: { status?: unknown }
+    message?: unknown
+    name?: unknown
+  }
+
+  const status = Number(errObj.status || errObj.statusCode || errObj.response?.status)
+  if (status === 401 || status === 403) {
+    return true
+  }
+
+  // Verificação por mensagem de erro ou erro típico do PocketBase
+  const msg = String(errObj.message || error || '').toLowerCase()
+  if (
+    msg.includes('failed to authenticate') ||
+    msg.includes('token is expired') ||
+    msg.includes('token expired') ||
+    msg.includes('invalid token') ||
+    msg.includes('login expirou') ||
+    msg.includes('sessão expirada') ||
+    msg.includes('sessao expirada') ||
+    msg.includes('the request requires higher permissions') ||
+    msg.includes('higher permissions') ||
+    msg.includes('the request requires valid')
+  ) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Identifica erros de autocancelação de requisição (abort / autocancel)
+ */
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  const errObj = error as { isAbort?: unknown; name?: unknown; message?: unknown }
+  if (errObj.isAbort === true) return true
+  if (errObj.name === 'AbortError') return true
+  const msg = String(errObj.message || '').toLowerCase()
+  return msg.includes('autocancelled') || msg.includes('the request was autocancelled')
+}
+
+/**
+ * Formata erro do PocketBase de forma amigável
+ */
+export function formatPbError(
+  error: unknown,
+  fallback = 'Ocorreu um erro ao processar a requisição.',
+): string {
+  if (!error) return fallback
+  const detailed = getErrorMessage(error)
+  if (detailed && detailed !== 'An unexpected error occurred.') {
+    return detailed
+  }
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+  return fallback
+}
+
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -18,52 +89,6 @@ export function extractFieldErrors(error: unknown): FieldErrors {
     }
   }
   return errors
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    const status = (errObj.status ??
-      (errObj.response as Record<string, unknown> | undefined)?.status ??
-      errObj.statusCode) as number | undefined
-    if (status === 401 || status === 403) return true
-    const message = (errObj.message ||
-      (errObj.response as Record<string, unknown> | undefined)?.message) as string | undefined
-    if (typeof message === 'string') {
-      const lower = message.toLowerCase()
-      if (
-        lower.includes('token is expired') ||
-        lower.includes('token invalid') ||
-        lower.includes('failed to authenticate') ||
-        lower.includes('sessão expirada') ||
-        lower.includes('login expirou') ||
-        lower.includes('unauthorized') ||
-        lower.includes('the request requires valid user authorization token')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError && (error.isAbort || error.status === 0)) return true
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.name === 'AbortError' || errObj.isAbort === true) return true
-  }
-  return false
-}
-
-export function formatPbError(
-  error: unknown,
-  fallbackMessage = 'Ocorreu um erro inesperado',
-): string {
-  const msg = getErrorMessage(error)
-  return msg && msg !== 'An unexpected error occurred.' ? msg : fallbackMessage
 }
 
 export function getErrorMessage(error: unknown): string {
