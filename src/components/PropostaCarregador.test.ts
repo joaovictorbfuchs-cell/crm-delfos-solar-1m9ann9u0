@@ -39,11 +39,35 @@ describe('Propostas de Carregador Veicular (Infraestrutura Wallbox)', () => {
     expect(init.custo_publico_max).toBe(90)
     expect(init.opcao1_valor).toBe(6890)
     expect(init.opcao2_valor).toBe(9450)
-    expect(init.valor_estacao_materiais).toBe(5950)
-    expect(init.valor_servicos_engenharia).toBe(2450)
-    expect(init.valor_total).toBe(8400)
+    expect(init.materiais_infraestrutura?.length).toBeGreaterThan(0)
+    expect(init.subtotal_materiais).toBe(4550)
+    expect(init.valor_servicos_instalacao).toBe(1850)
+    expect(init.valor_servicos_engenharia).toBe(1200)
     expect(init.engenheiro_nome).toContain('João Victor Bagetti Fuchs')
     expect(init.engenheiro_crea).toContain('151894')
+  })
+
+  it('suporta modo de carregador já adquirido: mostra Adquirido sem valor e soma apenas materiais e serviços', () => {
+    const dados = gerarValoresIniciaisPropostaCarregador(null)
+    dados.carregador_adquirido = true
+    dados.modo_carregador = 'adquirido'
+    dados.carregador_modelo = 'Wallbox Pulsar Plus 7,4 kW'
+    dados.carregador_potencia = '7,4 kW (220V)'
+
+    // Materiais: 4550, Instalação: 1850, Engenharia: 1200 -> Total = 7600
+    dados.subtotal_materiais = 4550
+    dados.valor_servicos_instalacao = 1850
+    dados.valor_servicos_engenharia = 1200
+    dados.valor_total = 4550 + 1850 + 1200
+
+    const html = gerarHTMLPropostaCarregador(dados)
+
+    expect(html).toContain('Wallbox Pulsar Plus 7,4 kW')
+    expect(html).toContain('Adquirido')
+    expect(html).toContain('Materiais da Infraestrutura de Instalação')
+    expect(html).toContain('Serviços de Instalação')
+    expect(html).toContain('Serviços de Engenharia')
+    expect(html).toContain('R$&nbsp;7.600,00')
   })
 
   it('calcula data de validade com 10 dias corridos', () => {

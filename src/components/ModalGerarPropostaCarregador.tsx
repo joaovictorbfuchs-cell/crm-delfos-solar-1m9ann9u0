@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -23,14 +23,25 @@ import {
   Check,
   RefreshCw,
   UserPlus,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  ShieldCheck,
+  Layers,
+  Wrench,
+  Search,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
 import type { PropostaCarregador, Cliente } from '@/types/crm'
+import type { Equipamento } from '@/types/equipamentos'
+import { fetchEquipamentos } from '@/services/equipamentosService'
 import {
   gerarValoresIniciaisPropostaCarregador,
   salvarPropostaCarregador,
   type SalvarPropostaCarregadorInput,
+  type ItemMaterialInfraestrutura,
+  MATERIAIS_INFRAESTRUTURA_PADRAO,
 } from '@/services/propostasCarregadorService'
 import { PreviewPropostaCarregadorDocumento } from './PreviewPropostaCarregadorDocumento'
 import { ModalEnviarPropostaCarregadorEmail } from './ModalEnviarPropostaCarregadorEmail'
@@ -74,11 +85,64 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false)
   const [modalNovoClienteOpen, setModalNovoClienteOpen] = useState(false)
 
+  // Lista de equipamentos do sistema
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
+  const [carregandoEquipamentos, setCarregandoEquipamentos] = useState<boolean>(false)
+
+  // Carrega catálogo de equipamentos
+  useEffect(() => {
+    let ativo = true
+    async function loadEquipamentos() {
+      setCarregandoEquipamentos(true)
+      try {
+        const lista = await fetchEquipamentos()
+        if (ativo) {
+          setEquipamentos(lista || [])
+        }
+      } catch (err) {
+        console.error('Erro ao carregar equipamentos:', err)
+      } finally {
+        if (ativo) setCarregandoEquipamentos(false)
+      }
+    }
+    loadEquipamentos()
+    return () => {
+      ativo = false
+    }
+  }, [])
+
   // Sincroniza quando abrir modal ou mudar propostaExistente
   useEffect(() => {
     if (open) {
       if (propostaExistente) {
         setClienteId(propostaExistente.cliente_id)
+
+        // Resgata campos estruturados do dados_json ou compatibilidade
+        const dJson = (propostaExistente.dados_json || {}) as Record<string, any>
+        const modo =
+          dJson.modo_carregador ||
+          (dJson.carregador_adquirido ? 'adquirido' : 'padrao_dois_modelos')
+        const adquirido = Boolean(dJson.carregador_adquirido ?? modo === 'adquirido')
+
+        const mats: ItemMaterialInfraestrutura[] = Array.isArray(dJson.materiais_infraestrutura)
+          ? dJson.materiais_infraestrutura
+          : [...MATERIAIS_INFRAESTRUTURA_PADRAO]
+
+        const subtotalMats =
+          typeof dJson.subtotal_materiais === 'number'
+            ? dJson.subtotal_materiais
+            : mats.reduce((acc, it) => acc + (it.quantidade || 0) * (it.valor_unitario || 0), 0)
+
+        const servInstalacao =
+          typeof dJson.valor_servicos_instalacao === 'number'
+            ? dJson.valor_servicos_instalacao
+            : 1850
+
+        const servEngenharia =
+          typeof dJson.valor_servicos_engenharia === 'number'
+            ? dJson.valor_servicos_engenharia
+            : (propostaExistente.valor_servicos_engenharia ?? 1200)
+
         setFormData({
           id: propostaExistente.id,
           numero_proposta: propostaExistente.numero_proposta,
@@ -101,6 +165,19 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
           custo_publico_min: propostaExistente.custo_publico_min ?? 70,
           custo_publico_max: propostaExistente.custo_publico_max ?? 90,
 
+          // Modo do carregador
+          modo_carregador: modo,
+          carregador_adquirido: adquirido,
+          equipamento_id: dJson.equipamento_id || '',
+          carregador_modelo:
+            dJson.carregador_modelo || propostaExistente.opcao2_titulo || 'Wallbox AC 22 kW',
+          carregador_potencia:
+            dJson.carregador_potencia || propostaExistente.opcao2_potencia || '22 kW (32A)',
+          carregador_valor:
+            typeof dJson.carregador_valor === 'number'
+              ? dJson.carregador_valor
+              : (propostaExistente.opcao2_valor ?? 9450),
+
           opcao_selecionada: propostaExistente.opcao_selecionada ?? 'ambas',
           opcao1_titulo: propostaExistente.opcao1_titulo ?? 'Opção 01: Wallbox AC 7,4 kW',
           opcao1_potencia: propostaExistente.opcao1_potencia ?? '7,4 kW (32A)',
@@ -116,9 +193,17 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
             propostaExistente.opcao2_tempo_recarga ?? '~3h a 4h (bateria 50–60 kWh)',
           opcao2_valor: propostaExistente.opcao2_valor ?? 9450,
 
-          valor_estacao_materiais: propostaExistente.valor_estacao_materiais ?? 5950,
-          valor_servicos_engenharia: propostaExistente.valor_servicos_engenharia ?? 2450,
-          valor_total: propostaExistente.valor_total ?? 8400,
+          // Materiais e Serviços
+          materiais_infraestrutura: mats,
+          subtotal_materiais: subtotalMats,
+          valor_servicos_instalacao: servInstalacao,
+          valor_servicos_engenharia: servEngenharia,
+
+          valor_estacao_materiais:
+            propostaExistente.valor_estacao_materiais ?? subtotalMats + (adquirido ? 0 : 9450),
+          valor_total:
+            propostaExistente.valor_total ??
+            subtotalMats + servInstalacao + servEngenharia + (adquirido ? 0 : 9450),
           condicoes_pagamento: propostaExistente.condicoes_pagamento,
 
           prazo_execucao: propostaExistente.prazo_execucao,
@@ -127,6 +212,7 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
           engenheiro_nome: propostaExistente.engenheiro_nome,
           engenheiro_crea: propostaExistente.engenheiro_crea,
           observacoes: propostaExistente.observacoes,
+          dados_json: dJson,
         })
       } else {
         const cId = clientePreSelecionadoId || ''
@@ -225,19 +311,161 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
     field: K,
     val: SalvarPropostaCarregadorInput[K],
   ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: val,
-    }))
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        [field]: val,
+      }
+      return updated
+    })
   }
 
-  const handleRecalcularTotais = (materiais: number, servicos: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      valor_estacao_materiais: materiais,
-      valor_servicos_engenharia: servicos,
-      valor_total: materiais + servicos,
-    }))
+  // Recalcular totais consolidados
+  const calcularTotalAutomatico = (dados: SalvarPropostaCarregadorInput) => {
+    const mats = dados.materiais_infraestrutura || []
+    const subtotalMats = mats.reduce(
+      (acc, it) => acc + (Number(it.quantidade) || 0) * (Number(it.valor_unitario) || 0),
+      0,
+    )
+    const instalacao = Number(dados.valor_servicos_instalacao) || 0
+    const engenharia = Number(dados.valor_servicos_engenharia) || 0
+
+    let valorCarregador = 0
+    if (dados.modo_carregador === 'adquirido' || dados.carregador_adquirido) {
+      valorCarregador = 0
+    } else {
+      // Se selecionou modelo específico ou dois modelos (usa valor do carregador configurado)
+      valorCarregador = Number(dados.carregador_valor) || 0
+    }
+
+    const total = valorCarregador + subtotalMats + instalacao + engenharia
+    return {
+      subtotal_materiais: subtotalMats,
+      valor_estacao_materiais: subtotalMats + valorCarregador,
+      valor_total: total,
+    }
+  }
+
+  // Atualizar itens de materiais
+  const handleMaterialChange = (
+    index: number,
+    field: keyof ItemMaterialInfraestrutura,
+    val: any,
+  ) => {
+    setFormData((prev) => {
+      const mats = [...(prev.materiais_infraestrutura || [])]
+      if (!mats[index]) return prev
+      mats[index] = {
+        ...mats[index],
+        [field]: field === 'quantidade' || field === 'valor_unitario' ? Number(val) : val,
+      }
+      const novosTotais = calcularTotalAutomatico({
+        ...prev,
+        materiais_infraestrutura: mats,
+      })
+      return {
+        ...prev,
+        materiais_infraestrutura: mats,
+        ...novosTotais,
+      }
+    })
+  }
+
+  const handleAdicionarMaterial = () => {
+    setFormData((prev) => {
+      const mats = [
+        ...(prev.materiais_infraestrutura || []),
+        {
+          id: `mat-${Date.now()}`,
+          descricao: '',
+          quantidade: 1,
+          valor_unitario: 0,
+        },
+      ]
+      const novosTotais = calcularTotalAutomatico({
+        ...prev,
+        materiais_infraestrutura: mats,
+      })
+      return {
+        ...prev,
+        materiais_infraestrutura: mats,
+        ...novosTotais,
+      }
+    })
+  }
+
+  const handleRemoverMaterial = (index: number) => {
+    setFormData((prev) => {
+      const mats = (prev.materiais_infraestrutura || []).filter((_, i) => i !== index)
+      const novosTotais = calcularTotalAutomatico({
+        ...prev,
+        materiais_infraestrutura: mats,
+      })
+      return {
+        ...prev,
+        materiais_infraestrutura: mats,
+        ...novosTotais,
+      }
+    })
+  }
+
+  // Selecionar equipamento do catálogo oficial
+  const handleSelecionarEquipamentoCatalogo = (eqId: string) => {
+    const eq = equipamentos.find((e) => e.id === eqId)
+    if (!eq) {
+      setFormData((prev) => ({
+        ...prev,
+        equipamento_id: '',
+      }))
+      return
+    }
+
+    // Calcula potência legível
+    const potKw =
+      eq.potencia_w > 0
+        ? eq.potencia_w >= 1000
+          ? `${(eq.potencia_w / 1000).toFixed(1)} kW`
+          : `${eq.potencia_w} W`
+        : ''
+    const modeloNome = `${eq.marca} ${eq.modelo}`.trim()
+
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        equipamento_id: eq.id,
+        carregador_modelo: modeloNome,
+        carregador_potencia: potKw || prev.carregador_potencia,
+        // Mantém valor ou define padrão
+        opcao2_titulo: modeloNome,
+        opcao2_potencia: potKw || prev.opcao2_potencia,
+      }
+      const totais = calcularTotalAutomatico(next)
+      return {
+        ...next,
+        ...totais,
+      }
+    })
+
+    toast({
+      title: 'Equipamento selecionado',
+      description: `${eq.marca} ${eq.modelo} vinculado à proposta.`,
+    })
+  }
+
+  // Mudar modo: Dois modelos (padrão) vs. Já adquirido pelo cliente
+  const handleToggleCarregadorAdquirido = (adquirido: boolean) => {
+    setFormData((prev) => {
+      const next: SalvarPropostaCarregadorInput = {
+        ...prev,
+        modo_carregador: adquirido ? 'adquirido' : 'padrao_dois_modelos',
+        carregador_adquirido: adquirido,
+      }
+      const totais = calcularTotalAutomatico(next)
+      return {
+        ...next,
+        ...totais,
+      }
+    })
   }
 
   const handleSalvar = async () => {
@@ -556,142 +784,460 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 </div>
               </div>
 
-              {/* Seção 3: Modelos de Carregador Disponíveis */}
+              {/* Seção 3: Seleção do Carregador & Opção de Já Adquirido */}
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
-                  3. Modelos de Carregador Disponíveis (Valores Editáveis)
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
+                    3. Carregador Veicular (Wallbox)
+                  </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Opção 01 */}
-                  <div className="border border-slate-200 rounded-md p-3.5 bg-slate-50 space-y-2.5">
-                    <div className="font-bold text-xs text-slate-800 uppercase">
-                      Opção 01 — Wallbox 7,4 kW
+                  {/* Toggle: Padrão 2 Opções vs. Cliente Já Possui Carregador */}
+                  <div className="inline-flex items-center rounded-lg bg-slate-100 p-1 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCarregadorAdquirido(false)}
+                      className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                        !formData.carregador_adquirido
+                          ? 'bg-white text-emerald-800 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Fornecer Carregador (Delfos)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCarregadorAdquirido(true)}
+                      className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                        formData.carregador_adquirido
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Cliente Já Possui Carregador (Adquirido)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Se o cliente JÁ TEM o carregador */}
+                {formData.carregador_adquirido ? (
+                  <div className="p-4 rounded-lg bg-amber-50/70 border border-amber-200 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xs font-bold text-amber-900 uppercase">
+                          Opção Única: Carregador Veicular Já Adquirido pelo Cliente
+                        </h4>
+                        <p className="text-xs text-amber-800 mt-0.5">
+                          O cliente já comprou ou possui o equipamento Wallbox. No documento da
+                          proposta e na tabela de investimento, o carregador constará como{' '}
+                          <strong>&quot;Adquirido&quot;</strong> (sem valor monetário), e o
+                          investimento total incluirá estritamente os materiais da infraestrutura
+                          elétrica e os serviços de engenharia e instalação.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-[11px] text-slate-600">Título / Modelo</Label>
-                      <Input
-                        value={formData.opcao1_titulo || ''}
-                        onChange={(e) => handleUpdateField('opcao1_titulo', e.target.value)}
-                        className="mt-0.5 bg-white text-xs"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200/80">
                       <div>
-                        <Label className="text-[11px] text-slate-600">Potência</Label>
+                        <Label className="text-xs font-semibold text-slate-700">
+                          Modelo / Marca do Carregador do Cliente
+                        </Label>
                         <Input
-                          value={formData.opcao1_potencia || ''}
-                          onChange={(e) => handleUpdateField('opcao1_potencia', e.target.value)}
-                          className="mt-0.5 bg-white text-xs"
+                          value={formData.carregador_modelo || ''}
+                          onChange={(e) => handleUpdateField('carregador_modelo', e.target.value)}
+                          placeholder="Ex: Wallbox Pulsar Plus, WEG WEMOB, BMW Wallbox..."
+                          className="mt-1 bg-white text-xs"
                         />
                       </div>
                       <div>
-                        <Label className="text-[11px] text-slate-600">Valor Base (R$)</Label>
+                        <Label className="text-xs font-semibold text-slate-700">
+                          Potência / Tensão do Equipamento
+                        </Label>
                         <Input
-                          type="number"
-                          value={formData.opcao1_valor ?? 6890}
-                          onChange={(e) =>
-                            handleUpdateField('opcao1_valor', Number(e.target.value))
-                          }
-                          className="mt-0.5 bg-white text-xs font-bold"
+                          value={formData.carregador_potencia || ''}
+                          onChange={(e) => handleUpdateField('carregador_potencia', e.target.value)}
+                          placeholder="Ex: 7,4 kW (220V) ou 22 kW (380V)"
+                          className="mt-1 bg-white text-xs"
                         />
                       </div>
                     </div>
                   </div>
-
-                  {/* Opção 02 */}
-                  <div className="border border-emerald-300 rounded-md p-3.5 bg-emerald-50/50 space-y-2.5">
-                    <div className="font-bold text-xs text-[#047857] uppercase flex items-center justify-between">
-                      <span>Opção 02 — Wallbox 22 kW</span>
-                      <span className="text-[10px] bg-[#047857] text-white px-1.5 py-0.5 rounded">
-                        Recomendado
-                      </span>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-slate-600">Título / Modelo</Label>
-                      <Input
-                        value={formData.opcao2_titulo || ''}
-                        onChange={(e) => handleUpdateField('opcao2_titulo', e.target.value)}
-                        className="mt-0.5 bg-white text-xs"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-[11px] text-slate-600">Potência</Label>
-                        <Input
-                          value={formData.opcao2_potencia || ''}
-                          onChange={(e) => handleUpdateField('opcao2_potencia', e.target.value)}
-                          className="mt-0.5 bg-white text-xs"
-                        />
+                ) : (
+                  /* Modo Padrão: Fornecimento com Seletor do Cadastro + Modelos */
+                  <div className="space-y-4">
+                    {/* Seletor que busca no CADASTRO DE EQUIPAMENTOS */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Search className="w-3.5 h-3.5 text-emerald-700" />
+                          Buscar no Cadastro de Equipamentos do Sistema:
+                        </Label>
+                        <span className="text-[11px] text-slate-500">
+                          Catálogo de equipamentos cadastrados em /equipamentos
+                        </span>
                       </div>
-                      <div>
-                        <Label className="text-[11px] text-slate-600">Valor Base (R$)</Label>
-                        <Input
-                          type="number"
-                          value={formData.opcao2_valor ?? 9450}
-                          onChange={(e) =>
-                            handleUpdateField('opcao2_valor', Number(e.target.value))
-                          }
-                          className="mt-0.5 bg-white text-xs font-bold text-[#047857]"
-                        />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2">
+                          <select
+                            value={formData.equipamento_id || ''}
+                            onChange={(e) => handleSelecionarEquipamentoCatalogo(e.target.value)}
+                            className="w-full h-9 px-3 rounded-md border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                          >
+                            <option value="">
+                              {carregandoEquipamentos
+                                ? 'Carregando catálogo de equipamentos...'
+                                : '-- Selecione um equipamento do catálogo (ou preencha abaixo) --'}
+                            </option>
+                            {equipamentos.map((eq) => (
+                              <option key={eq.id} value={eq.id}>
+                                [{eq.tipo.toUpperCase()}] {eq.marca} {eq.modelo} —{' '}
+                                {eq.potencia_w > 0
+                                  ? `${(eq.potencia_w / 1000).toFixed(1)} kW`
+                                  : 'Potência s/ ref'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <Input
+                            type="number"
+                            placeholder="Valor Carregador (R$)"
+                            value={formData.carregador_valor ?? 9450}
+                            onChange={(e) => {
+                              const v = Number(e.target.value)
+                              setFormData((prev) => {
+                                const next = { ...prev, carregador_valor: v, opcao2_valor: v }
+                                const totais = calcularTotalAutomatico(next)
+                                return { ...next, ...totais }
+                              })
+                            }}
+                            className="bg-white text-xs font-bold text-[#047857]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modelos 7,4 kW e 22 kW apresentados na proposta */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Opção 01 */}
+                      <div className="border border-slate-200 rounded-md p-3.5 bg-slate-50 space-y-2.5">
+                        <div className="font-bold text-xs text-slate-800 uppercase">
+                          Opção 01 — Wallbox 7,4 kW
+                        </div>
+                        <div>
+                          <Label className="text-[11px] text-slate-600">Título / Modelo</Label>
+                          <Input
+                            value={formData.opcao1_titulo || ''}
+                            onChange={(e) => handleUpdateField('opcao1_titulo', e.target.value)}
+                            className="mt-0.5 bg-white text-xs"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[11px] text-slate-600">Potência</Label>
+                            <Input
+                              value={formData.opcao1_potencia || ''}
+                              onChange={(e) => handleUpdateField('opcao1_potencia', e.target.value)}
+                              className="mt-0.5 bg-white text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-slate-600">Valor Base (R$)</Label>
+                            <Input
+                              type="number"
+                              value={formData.opcao1_valor ?? 6890}
+                              onChange={(e) =>
+                                handleUpdateField('opcao1_valor', Number(e.target.value))
+                              }
+                              className="mt-0.5 bg-white text-xs font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Opção 02 */}
+                      <div className="border border-emerald-300 rounded-md p-3.5 bg-emerald-50/50 space-y-2.5">
+                        <div className="font-bold text-xs text-[#047857] uppercase flex items-center justify-between">
+                          <span>Opção 02 — Wallbox 22 kW</span>
+                          <span className="text-[10px] bg-[#047857] text-white px-1.5 py-0.5 rounded">
+                            Recomendado
+                          </span>
+                        </div>
+                        <div>
+                          <Label className="text-[11px] text-slate-600">Título / Modelo</Label>
+                          <Input
+                            value={formData.opcao2_titulo || ''}
+                            onChange={(e) => {
+                              const t = e.target.value
+                              setFormData((prev) => ({
+                                ...prev,
+                                opcao2_titulo: t,
+                                carregador_modelo: t,
+                              }))
+                            }}
+                            className="mt-0.5 bg-white text-xs"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[11px] text-slate-600">Potência</Label>
+                            <Input
+                              value={formData.opcao2_potencia || ''}
+                              onChange={(e) => {
+                                const p = e.target.value
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  opcao2_potencia: p,
+                                  carregador_potencia: p,
+                                }))
+                              }}
+                              className="mt-0.5 bg-white text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-slate-600">Valor Base (R$)</Label>
+                            <Input
+                              type="number"
+                              value={formData.opcao2_valor ?? 9450}
+                              onChange={(e) => {
+                                const v = Number(e.target.value)
+                                setFormData((prev) => {
+                                  const next = { ...prev, opcao2_valor: v, carregador_valor: v }
+                                  const totais = calcularTotalAutomatico(next)
+                                  return { ...next, ...totais }
+                                })
+                              }}
+                              className="mt-0.5 bg-white text-xs font-bold text-[#047857]"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+                )}
+              </div>
+
+              {/* Seção 4: Bloco de Cálculo com Lista de Materiais da Infraestrutura */}
+              <div className="border border-slate-200 rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
+                      4. Materiais da Infraestrutura de Instalação (NBR 5410 / NBR 17019)
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Itens adicionáveis com descrição técnica, quantidade e valor unitário com
+                      subtotal automático.
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAdicionarMaterial}
+                    className="text-xs gap-1 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adicionar Item</span>
+                  </Button>
+                </div>
+
+                {/* Tabela de Materiais */}
+                <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-100 text-slate-700 border-b border-slate-200 font-semibold">
+                      <tr>
+                        <th className="py-2.5 px-3 text-left">Descrição do Material</th>
+                        <th className="py-2.5 px-3 text-center w-20">Qtd</th>
+                        <th className="py-2.5 px-3 text-right w-32">Unitário (R$)</th>
+                        <th className="py-2.5 px-3 text-right w-32">Total (R$)</th>
+                        <th className="py-2.5 px-2 text-center w-12">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(formData.materiais_infraestrutura || []).map((mat, idx) => {
+                        const itemTotal = (mat.quantidade || 0) * (mat.valor_unitario || 0)
+                        return (
+                          <tr key={mat.id || idx} className="hover:bg-slate-50/70">
+                            <td className="p-2">
+                              <Input
+                                value={mat.descricao}
+                                onChange={(e) =>
+                                  handleMaterialChange(idx, 'descricao', e.target.value)
+                                }
+                                placeholder="Descrição do material..."
+                                className="h-8 text-xs bg-transparent"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                min={1}
+                                value={mat.quantidade}
+                                onChange={(e) =>
+                                  handleMaterialChange(idx, 'quantidade', e.target.value)
+                                }
+                                className="h-8 text-xs text-center bg-transparent"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                step="any"
+                                value={mat.valor_unitario}
+                                onChange={(e) =>
+                                  handleMaterialChange(idx, 'valor_unitario', e.target.value)
+                                }
+                                className="h-8 text-xs text-right bg-transparent"
+                              />
+                            </td>
+                            <td className="p-2 text-right font-semibold text-slate-800 pr-3">
+                              {itemTotal.toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              })}
+                            </td>
+                            <td className="p-2 text-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoverMaterial(idx)}
+                                className="h-7 w-7 p-0 text-slate-400 hover:text-red-600"
+                                title="Remover item de material"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
+                      <tr>
+                        <td colSpan={3} className="py-2.5 px-3 text-right text-slate-700">
+                          SUBTOTAL DOS MATERIAIS DE INFRAESTRUTURA:
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-emerald-800 text-sm">
+                          {(formData.subtotal_materiais ?? 0).toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          })}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </div>
 
-              {/* Seção 5: Investimento & Condições Comerciais */}
+              {/* Seção 5: Serviços e Consolidação do Investimento */}
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
-                  5. Investimento &amp; Condições Comerciais
+                  5. Serviços e Resumo do Investimento Total
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Carregador */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
+                    <Label className="text-xs text-slate-600">
+                      Carregador Veicular {formData.carregador_adquirido ? '(Já Adquirido)' : ''}
+                    </Label>
+                    <div className="text-sm font-bold text-slate-800 pt-1">
+                      {formData.carregador_adquirido ? (
+                        <span className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-xs">
+                          Adquirido (R$ 0,00)
+                        </span>
+                      ) : (
+                        (formData.carregador_valor ?? 9450).toLocaleString('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Subtotal Materiais */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
+                    <Label className="text-xs text-slate-600">Materiais de Infraestrutura</Label>
+                    <div className="text-sm font-bold text-slate-800 pt-1">
+                      {(formData.subtotal_materiais ?? 0).toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Serviços de Instalação */}
+                  <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-1.5">
                     <Label className="text-xs text-slate-700 font-semibold">
-                      Estação + Materiais (R$)
+                      Serviços de Instalação (R$) *
                     </Label>
                     <Input
                       type="number"
-                      value={formData.valor_estacao_materiais ?? 5950}
+                      value={formData.valor_servicos_instalacao ?? 1850}
                       onChange={(e) => {
-                        const m = Number(e.target.value)
-                        handleRecalcularTotais(m, formData.valor_servicos_engenharia ?? 2450)
+                        const v = Number(e.target.value)
+                        setFormData((prev) => {
+                          const next = { ...prev, valor_servicos_instalacao: v }
+                          const totais = calcularTotalAutomatico(next)
+                          return { ...next, ...totais }
+                        })
                       }}
-                      className="mt-1 font-semibold"
+                      className="h-8 font-semibold text-xs"
                     />
                   </div>
 
-                  <div>
+                  {/* Serviços de Engenharia */}
+                  <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-1.5">
                     <Label className="text-xs text-slate-700 font-semibold">
-                      Serviços de Engenharia (R$)
+                      Serviços de Engenharia (R$) *
                     </Label>
                     <Input
                       type="number"
-                      value={formData.valor_servicos_engenharia ?? 2450}
+                      value={formData.valor_servicos_engenharia ?? 1200}
                       onChange={(e) => {
-                        const s = Number(e.target.value)
-                        handleRecalcularTotais(formData.valor_estacao_materiais ?? 5950, s)
+                        const v = Number(e.target.value)
+                        setFormData((prev) => {
+                          const next = { ...prev, valor_servicos_engenharia: v }
+                          const totais = calcularTotalAutomatico(next)
+                          return { ...next, ...totais }
+                        })
                       }}
-                      className="mt-1 font-semibold"
+                      className="h-8 font-semibold text-xs"
                     />
+                  </div>
+                </div>
+
+                {/* Total Consolidado e Condições */}
+                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-lg space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                        Investimento Total Calculado
+                      </div>
+                      <div className="text-[11px] text-emerald-700">
+                        {formData.carregador_adquirido
+                          ? 'Carregador Adquirido (sem custo) + Materiais + Instalação + Engenharia'
+                          : 'Carregador + Materiais + Instalação + Engenharia'}
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-[#047857]">
+                      {(formData.valor_total ?? 0).toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      })}
+                    </div>
                   </div>
 
                   <div>
-                    <Label className="text-xs text-slate-700 font-semibold">
-                      INVESTIMENTO TOTAL (R$)
-                    </Label>
-                    <Input
-                      type="number"
-                      value={formData.valor_total ?? 8400}
-                      onChange={(e) => handleUpdateField('valor_total', Number(e.target.value))}
-                      className="mt-1 font-bold text-[#047857] bg-emerald-50/50"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-3">
                     <Label className="text-xs text-slate-700 font-semibold">
                       Condições de Pagamento
                     </Label>
@@ -699,7 +1245,8 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                       rows={2}
                       value={formData.condicoes_pagamento || ''}
                       onChange={(e) => handleUpdateField('condicoes_pagamento', e.target.value)}
-                      className="mt-1 text-xs"
+                      placeholder="Ex: Entrada 40% + 60% na conclusão ou em até 12x no cartão de crédito..."
+                      className="mt-1 text-xs bg-white"
                     />
                   </div>
                 </div>

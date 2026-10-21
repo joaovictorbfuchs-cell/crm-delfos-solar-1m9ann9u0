@@ -1,6 +1,13 @@
 import pb from '@/lib/pocketbase/client'
 import type { PropostaCarregador, Cliente } from '@/types/crm'
 
+export interface ItemMaterialInfraestrutura {
+  id: string
+  descricao: string
+  quantidade: number
+  valor_unitario: number
+}
+
 export interface SalvarPropostaCarregadorInput {
   id?: string
   numero_proposta?: string
@@ -25,6 +32,11 @@ export interface SalvarPropostaCarregadorInput {
   custo_publico_min?: number
   custo_publico_max?: number
 
+  // Modo do carregador: 'padrao_dois_modelos' (7,4 kW e 22 kW) ou 'adquirido' (cliente já possui)
+  modo_carregador?: 'padrao_dois_modelos' | 'adquirido'
+  carregador_adquirido?: boolean
+  equipamento_id?: string
+
   // Opções de carregador
   opcao_selecionada?: string
   opcao1_titulo?: string
@@ -39,9 +51,21 @@ export interface SalvarPropostaCarregadorInput {
   opcao2_tempo_recarga?: string
   opcao2_valor?: number
 
-  // Investimento e Condições Comerciais
-  valor_estacao_materiais?: number
+  // Carregador específico selecionado
+  carregador_modelo?: string
+  carregador_potencia?: string
+  carregador_valor?: number
+
+  // Lista de materiais da infraestrutura de instalação
+  materiais_infraestrutura?: ItemMaterialInfraestrutura[]
+  subtotal_materiais?: number
+
+  // Serviços discriminados
+  valor_servicos_instalacao?: number
   valor_servicos_engenharia?: number
+
+  // Investimento e Condições Comerciais (compatibilidade e consolidação)
+  valor_estacao_materiais?: number
   valor_total?: number
   condicoes_pagamento?: string
 
@@ -55,6 +79,51 @@ export interface SalvarPropostaCarregadorInput {
   observacoes?: string
   dados_json?: Record<string, unknown>
 }
+
+export const MATERIAIS_INFRAESTRUTURA_PADRAO: ItemMaterialInfraestrutura[] = [
+  {
+    id: 'mat-1',
+    descricao: 'Cabo flexível antichama de cobre (750V/1kV) 10mm² — até 15 metros',
+    quantidade: 1,
+    valor_unitario: 890,
+  },
+  {
+    id: 'mat-2',
+    descricao: 'Quadro de distribuição sobrepor termoplástico estanque IP65 com trilho DIN',
+    quantidade: 1,
+    valor_unitario: 420,
+  },
+  {
+    id: 'mat-3',
+    descricao: 'Disjuntor termomagnético bipolar/tripolar curva C conforme NBR 5410',
+    quantidade: 1,
+    valor_unitario: 350,
+  },
+  {
+    id: 'mat-4',
+    descricao: 'Interruptor Diferencial Residual (DR Tipo A / sensor DC 6mA integrado)',
+    quantidade: 1,
+    valor_unitario: 1250,
+  },
+  {
+    id: 'mat-5',
+    descricao: 'Dispositivo Protetor de Surtos (DPS Classe II 20/40kA multipolar)',
+    quantidade: 1,
+    valor_unitario: 680,
+  },
+  {
+    id: 'mat-6',
+    descricao: 'Eletrodutos rígidos/metálicos aparentes, conexões, curvas e abraçadeiras',
+    quantidade: 1,
+    valor_unitario: 580,
+  },
+  {
+    id: 'mat-7',
+    descricao: 'Kit de fixação mecânica, prensa-cabos estanques e barra de aterramento',
+    quantidade: 1,
+    valor_unitario: 380,
+  },
+]
 
 /**
  * Carrega a lista de propostas de carregadores veiculares com expansão de cliente e negócio.
@@ -189,6 +258,13 @@ export function gerarValoresIniciaisPropostaCarregador(
     custo_publico_max: 90,
 
     // Seção 3
+    modo_carregador: 'padrao_dois_modelos',
+    carregador_adquirido: false,
+    equipamento_id: '',
+    carregador_modelo: 'Wallbox AC 22 kW Inteligente',
+    carregador_potencia: '22 kW (32A)',
+    carregador_valor: 9450,
+
     opcao_selecionada: 'ambas',
     opcao1_titulo: 'Opção 01: Wallbox AC 7,4 kW',
     opcao1_potencia: '7,4 kW (32A)',
@@ -202,10 +278,17 @@ export function gerarValoresIniciaisPropostaCarregador(
     opcao2_tempo_recarga: '~3h a 4h (bateria 50–60 kWh)',
     opcao2_valor: 9450,
 
-    // Seção 5
+    // Lista de Materiais da Infraestrutura
+    materiais_infraestrutura: [...MATERIAIS_INFRAESTRUTURA_PADRAO],
+    subtotal_materiais: 4550,
+
+    // Serviços discriminados
+    valor_servicos_instalacao: 1850,
+    valor_servicos_engenharia: 1200,
+
+    // Seção 5 (Valores de compatibilidade)
     valor_estacao_materiais: 5950,
-    valor_servicos_engenharia: 2450,
-    valor_total: 8400,
+    valor_total: 7600, // No default com carregador opcional à escolha ou selecionado: subtotal_materiais (4550) + instalacao (1850) + engenharia (1200) = 7600
     condicoes_pagamento:
       '50% de sinal no aceite desta proposta e 50% no comissionamento e entrega técnica operacional. Opção de parcelamento via cartão em até 12x (consulte taxas) ou faturamento direto PJ sob análise prévia.',
 

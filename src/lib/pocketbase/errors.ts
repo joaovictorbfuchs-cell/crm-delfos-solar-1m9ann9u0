@@ -1,45 +1,50 @@
 import { ClientResponseError } from 'pocketbase'
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const errorObj = err as Record<string, any>
-    const status = errorObj.status || errorObj.statusCode || errorObj.response?.status
-    if (status === 401 || status === 403) return true
-    const msg = String(errorObj.message || errorObj.response?.message || '').toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('token invalid') ||
-      msg.includes('invalid token') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    ) {
+export type FieldErrors = Record<string, string>
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, any>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response && (errObj.response.status === 401 || errObj.response.status === 403)) {
       return true
+    }
+    if (errObj.message) {
+      const msg = String(errObj.message).toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('login expirou') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
+      }
     }
   }
   return false
 }
 
-export function isAbortError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const errorObj = err as Record<string, any>
-    if (errorObj.isAbort === true) return true
-    if (errorObj.name === 'AbortError') return true
-    const msg = String(errorObj.message || '').toLowerCase()
-    if (msg.includes('autocancelled') || msg.includes('the request was aborted')) return true
-  }
-  return false
+export function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const errObj = error as Record<string, any>
+  return Boolean(
+    errObj.isAbort ||
+    errObj.name === 'AbortError' ||
+    (typeof errObj.message === 'string' && errObj.message.includes('The request was aborted')),
+  )
 }
 
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+export function formatPbError(
+  error: unknown,
+  fallbackMessage = 'Ocorreu um erro na requisição',
+): string {
+  const msg = getErrorMessage(error)
+  return msg || fallbackMessage
 }
-
-export type FieldErrors = Record<string, string>
 
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}

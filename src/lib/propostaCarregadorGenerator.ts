@@ -34,7 +34,18 @@ export function calcularDataValidade(dataEmissaoStr?: string, validadeDias: numb
  * "Modelo de Proposta — Carregador Veicular Delfos"
  * Perfeito para impressão A4, exportação em PDF e envio em anexo por e-mail.
  */
-export function gerarHTMLPropostaCarregador(dados: SalvarPropostaCarregadorInput): string {
+export interface GerarHTMLPropostaCarregadorOpcoes {
+  /**
+   * Data URL do logo Delfos Solar já otimizado/comprimido.
+   * Quando ausente, é renderizado um fallback vetorial leve do logo.
+   */
+  logoDataUrl?: string
+}
+
+export function gerarHTMLPropostaCarregador(
+  dados: SalvarPropostaCarregadorInput,
+  opcoes?: GerarHTMLPropostaCarregadorOpcoes,
+): string {
   const dataEmissaoFormatada = formatarDataBr(dados.data_emissao) || formatarDataBr(new Date())
   const validadeCalculada = calcularDataValidade(dados.data_emissao, dados.validade_dias || 10)
 
@@ -63,9 +74,52 @@ export function gerarHTMLPropostaCarregador(dados: SalvarPropostaCarregadorInput
   const op2Tempo = dados.opcao2_tempo_recarga || '~3h a 4h (bateria 50–60 kWh)'
   const op2Valor = formatCurrency(dados.opcao2_valor ?? 9450)
 
-  const vMateriais = formatCurrency(dados.valor_estacao_materiais ?? 5950)
-  const vServicos = formatCurrency(dados.valor_servicos_engenharia ?? 2450)
-  const vTotal = formatCurrency(dados.valor_total ?? 8400)
+  // Opção única: carregador já adquirido pelo cliente
+  const isAdquirido = Boolean(dados.carregador_adquirido || dados.modo_carregador === 'adquirido')
+  const carregadorModelo =
+    dados.carregador_modelo || dados.opcao2_titulo || 'Wallbox AC 22 kW Inteligente'
+  const carregadorPotencia = dados.carregador_potencia || dados.opcao2_potencia || '22 kW (32A)'
+  const carregadorValorNum = isAdquirido
+    ? 0
+    : Number(dados.carregador_valor ?? dados.opcao2_valor ?? 9450)
+
+  // Materiais da infraestrutura de instalação
+  const mats = Array.isArray(dados.materiais_infraestrutura) ? dados.materiais_infraestrutura : []
+  const subtotalMateriaisNum =
+    typeof dados.subtotal_materiais === 'number'
+      ? dados.subtotal_materiais
+      : mats.reduce(
+          (acc, it) => acc + (Number(it.quantidade) || 0) * (Number(it.valor_unitario) || 0),
+          0,
+        )
+
+  // Serviços discriminados
+  const vInstalacaoNum = Number(dados.valor_servicos_instalacao ?? 1850)
+  const vEngenhariaNum = Number(dados.valor_servicos_engenharia ?? 1200)
+
+  // Total consolidado: Carregador (0 se adquirido) + Materiais + Instalação + Engenharia
+  const vTotalNum = Number(
+    dados.valor_total ??
+      carregadorValorNum + subtotalMateriaisNum + vInstalacaoNum + vEngenhariaNum,
+  )
+
+  const vCarregador = isAdquirido ? 'Adquirido' : formatCurrency(carregadorValorNum)
+  const subtotalMateriais = formatCurrency(subtotalMateriaisNum)
+  const vInstalacao = formatCurrency(vInstalacaoNum)
+  const vEngenharia = formatCurrency(vEngenhariaNum)
+  const vTotal = formatCurrency(vTotalNum)
+
+  const linhasMateriaisHtml = mats
+    .map((mat, idx) => {
+      const itemTotal = (Number(mat.quantidade) || 0) * (Number(mat.valor_unitario) || 0)
+      return `<tr>
+            <td style="padding-left: 1.6rem; font-size: 0.8rem;">• ${mat.descricao || 'Material de infraestrutura'}</td>
+            <td style="text-align: center; font-size: 0.8rem;">${mat.quantidade} un</td>
+            <td style="text-align: right; font-size: 0.8rem;">${formatCurrency(mat.valor_unitario)}</td>
+            <td style="text-align: right; font-size: 0.8rem; font-weight: 600;">${formatCurrency(itemTotal)}</td>
+          </tr>`
+    })
+    .join('\n          ')
 
   const condicoes =
     dados.condicoes_pagamento ||
@@ -631,14 +685,29 @@ export function gerarHTMLPropostaCarregador(dados: SalvarPropostaCarregadorInput
     <header class="proposal-header">
       <div class="company-brand">
         <div class="logo-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-          </svg>
-          <span>DELFOS ENGENHARIA</span>
+          ${
+            opcoes?.logoDataUrl
+              ? `<img src="${opcoes.logoDataUrl}" alt="Delfos Solar" style="height: 56px; width: auto; object-fit: contain; display: block;" />`
+              : `<svg viewBox="0 0 300 180" style="height: 56px; width: auto; display: block;" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="delfos-grad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#1d4ed8"></stop>
+                <stop offset="0.35" stop-color="#0d9488"></stop>
+                <stop offset="0.6" stop-color="#65a30d"></stop>
+                <stop offset="0.85" stop-color="#eab308"></stop>
+                <stop offset="1" stop-color="#facc15"></stop>
+              </linearGradient>
+            </defs>
+            <ellipse cx="150" cy="90" rx="138" ry="68" fill="none" stroke="url(#delfos-grad)" stroke-width="16"></ellipse>
+            <text x="150" y="106" text-anchor="middle" font-size="60" font-weight="700" fill="#1e3a8a" font-family="Arial, sans-serif">delfos</text>
+            <text x="150" y="140" text-anchor="middle" font-size="18" letter-spacing="10" fill="#1e3a8a" font-family="Arial, sans-serif">solar</text>
+          </svg>`
+          }
+          <span style="font-size: 1.05rem; font-weight: 800; color: var(--slate-900);">DELFOS ENGENHARIA</span>
         </div>
         <div class="company-meta">
           <strong>Delfos Engenharia Ltda</strong> • CNPJ: 21.379.952/0001-38<br>
-          Erechim – RS • Soluções em Engenharia Elétrica &amp; Eletromobilidade
+          Rua Espírito Santo, 275 • Erechim – RS • CEP 99709-296
         </div>
       </div>
 
@@ -735,8 +804,24 @@ export function gerarHTMLPropostaCarregador(dados: SalvarPropostaCarregadorInput
 
     <!-- 5. OPÇÕES DE CARREGADOR -->
     <section class="prop-section" aria-labelledby="sec-options">
-      <h2 id="sec-options" class="prop-section-title">3. Modelos de Carregador Disponíveis</h2>
-      <table class="custom-table">
+      <h2 id="sec-options" class="prop-section-title">3. Carregador Veicular Wallbox</h2>
+      ${
+        isAdquirido
+          ? `<div style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 6px; padding: 1rem 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <div style="font-weight: 700; color: var(--slate-900);">${carregadorModelo}
+              <span style="background: #d97706; color: #ffffff; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 3px; margin-left: 0.4rem;">Adquirido</span>
+            </div>
+            <small style="color: var(--slate-600); display: block; margin-top: 0.25rem;">
+              Equipamento fornecido diretamente pelo cliente. A Delfos Engenharia realizará o comissionamento técnico, fixação, parametrizações elétricas e conexão com a infraestrutura dedicada.
+            </small>
+            ${carregadorPotencia ? `<small style="color: var(--slate-800); font-weight: 600; display: block; margin-top: 0.2rem;">Potência / Tensão informada: ${carregadorPotencia}</small>` : ''}
+          </div>
+          <div style="font-weight: 800; color: #92400e; background: #ffffff; border: 1px solid #fde68a; padding: 0.4rem 0.8rem; border-radius: 4px;">Adquirido</div>
+        </div>
+      </div>`
+          : `<table class="custom-table">
         <thead>
           <tr>
             <th style="width: 25%;">Modelo &amp; Aplicação</th>
@@ -776,7 +861,8 @@ export function gerarHTMLPropostaCarregador(dados: SalvarPropostaCarregadorInput
       </table>
       <div style="font-size: 0.72rem; color: var(--slate-600); margin-top: 0.4rem;">
         *Tempo estimado em função da capacidade interna do inversor onboard do veículo. Ambos os modelos incluem conector padrão Tipo 2 (Tipo Mennekes) com cabo integrado de 5 metros.
-      </div>
+      </div>`
+      }
     </section>
 
     <!-- 6. ESCOPO TÉCNICO DA INSTALAÇÃO -->
@@ -848,39 +934,60 @@ export function gerarHTMLPropostaCarregador(dados: SalvarPropostaCarregadorInput
 
     <!-- 7. INVESTIMENTO -->
     <section class="prop-section" aria-labelledby="sec-investment">
-      <h2 id="sec-investment" class="prop-section-title">5. Investimento &amp; Condições Comerciais</h2>
+      <h2 id="sec-investment" class="prop-section-title">5. Investimento Consolidado &amp; Condições Comerciais</h2>
       
       <table class="custom-table">
         <thead>
           <tr>
-            <th>Descrição dos Itens / Serviços</th>
-            <th style="width: 15%; text-align: center;">Quantidade</th>
-            <th style="width: 25%; text-align: right;">Subtotal</th>
+            <th>Item / Discriminação dos Custos</th>
+            <th style="width: 14%; text-align: center;">Quantidade</th>
+            <th style="width: 16%; text-align: right;">Unitário</th>
+            <th style="width: 18%; text-align: right;">Subtotal</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td>
-              <strong>Estação de Recarga Wallbox + Materiais Elétricos de Proteção</strong><br>
-              <small style="color: var(--slate-600);">Carregador com cabo Tipo 2, quadro dedicado, disjuntor, DR Tipo A, DPS e cabeamento de interligação até 15 metros.</small>
+              <strong>1. Carregador Veicular — ${carregadorModelo}</strong>${isAdquirido ? ' <span style="background: #d97706; color: #ffffff; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 0.12rem 0.45rem; border-radius: 3px;">Adquirido</span>' : ''}<br>
+              <small style="color: var(--slate-600);">${isAdquirido ? 'Equipamento fornecido diretamente pelo cliente (sem custo de aquisição na proposta).' : `Estação Wallbox homologada ${carregadorPotencia} com conector Tipo 2.`}</small>
             </td>
-            <td style="text-align: center;">1 un / lote</td>
-            <td style="text-align: right; font-weight: 600;">
-              ${vMateriais}
+            <td style="text-align: center;">1 un</td>
+            <td style="text-align: right;">${isAdquirido ? '—' : vCarregador}</td>
+            <td style="text-align: right; font-weight: 600; color: ${isAdquirido ? '#92400e' : 'var(--slate-900)'};">
+              ${vCarregador}
             </td>
+          </tr>
+          <tr style="background: #f1f5f9;">
+            <td colspan="4" style="font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em;">2. Materiais da Infraestrutura de Instalação</td>
+          </tr>
+          ${linhasMateriaisHtml || `<tr><td colspan="4" style="text-align: center; font-size: 0.8rem; color: var(--slate-600);">Materiais da infraestrutura elétrica inclusos no escopo (quadro de proteção, disjuntor, DR, DPS e cabeamento).</td></tr>`}
+          <tr style="background: #f8fafc;">
+            <td colspan="3" style="text-align: right; font-weight: 700; font-size: 0.8rem;">Subtotal dos Materiais da Infraestrutura:</td>
+            <td style="text-align: right; font-weight: 700;">${subtotalMateriais}</td>
           </tr>
           <tr>
             <td>
-              <strong>Serviços Técnicos Especializados de Engenharia Delfos</strong><br>
-              <small style="color: var(--slate-600);">Montagem, cabeamento, aterramento, testes elétricos, comissionamento e emissão de ART/CREA-RS.</small>
+              <strong>3. Serviços de Instalação</strong><br>
+              <small style="color: var(--slate-600);">Passagem e fixação de infraestrutura, montagem do quadro elétrico dedicado, fixação mecânica do Wallbox e conexões elétricas.</small>
             </td>
             <td style="text-align: center;">1 serviço</td>
-            <td style="text-align: right; font-weight: 600;">
-              ${vServicos}
+            <td style="text-align: right;">${vInstalacao}</td>
+            <td style="text-align: right; font-weight: 600;">${vInstalacao}</td>
+          </tr>
+          <tr>
+            <td>
+              <strong>4. Serviços de Engenharia</strong><br>
+              <small style="color: var(--slate-600);">Estudo de capacidade e viabilidade de carga, comissionamento com testes funcionais, laudo técnico e emissão de ART/CREA-RS.</small>
             </td>
+            <td style="text-align: center;">1 serviço</td>
+            <td style="text-align: right;">${vEngenharia}</td>
+            <td style="text-align: right; font-weight: 600;">${vEngenharia}</td>
           </tr>
           <tr style="background: #f8fafc; border-top: 2px solid var(--slate-900);">
-            <td style="font-size: 1rem; font-weight: 800;">INVESTIMENTO TOTAL</td>
+            <td colspan="2" style="font-size: 1rem; font-weight: 800;">
+              INVESTIMENTO TOTAL
+              <div style="font-size: 0.72rem; font-weight: 400; color: var(--slate-600);">Composição: ${isAdquirido ? 'Carregador Adquirido (R$ 0,00)' : 'Carregador'} + Materiais + Instalação + Engenharia</div>
+            </td>
             <td style="text-align: center; font-weight: 700;">—</td>
             <td style="text-align: right; font-size: 1.15rem; font-weight: 800; color: var(--accent);">
               ${vTotal}

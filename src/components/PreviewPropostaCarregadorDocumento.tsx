@@ -1,16 +1,26 @@
 import React from 'react'
-import { Zap, Check, ShieldCheck, Clock, Award, AlertCircle, FileCheck } from 'lucide-react'
-import type { SalvarPropostaCarregadorInput } from '@/services/propostasCarregadorService'
+import {
+  Zap,
+  Check,
+  ShieldCheck,
+  Clock,
+  Award,
+  AlertCircle,
+  FileCheck,
+  CheckCircle2,
+} from 'lucide-react'
+import type {
+  SalvarPropostaCarregadorInput,
+  ItemMaterialInfraestrutura,
+} from '@/services/propostasCarregadorService'
 import { formatCurrency } from '@/lib/formatters'
 import { formatarDataBr, calcularDataValidade } from '@/lib/propostaCarregadorGenerator'
+import logoDelfosPng from '@/assets/delfos-solar-a46ea.png'
 
 export interface PreviewPropostaCarregadorDocumentoProps {
   dados: SalvarPropostaCarregadorInput
   editavel?: boolean
-  onChangeField?: <K extends keyof SalvarPropostaCarregadorInput>(
-    field: K,
-    val: SalvarPropostaCarregadorInput[K],
-  ) => void
+  onChangeField?: <K extends keyof SalvarPropostaCarregadorInput>(field: K, val: any) => void
 }
 
 export const PreviewPropostaCarregadorDocumento: React.FC<
@@ -44,9 +54,37 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
   const op2Tempo = dados.opcao2_tempo_recarga || '~3h a 4h (bateria 50–60 kWh)'
   const op2Valor = Number(dados.opcao2_valor ?? 9450)
 
-  const vMateriais = Number(dados.valor_estacao_materiais ?? 5950)
-  const vServicos = Number(dados.valor_servicos_engenharia ?? 2450)
-  const vTotal = Number(dados.valor_total ?? vMateriais + vServicos)
+  // Opção única: carregador já adquirido
+  const isCarregadorAdquirido = Boolean(
+    dados.carregador_adquirido || dados.modo_carregador === 'adquirido',
+  )
+  const carregadorModelo =
+    dados.carregador_modelo || dados.opcao2_titulo || 'Wallbox AC 22 kW Inteligente'
+  const carregadorPotencia = dados.carregador_potencia || dados.opcao2_potencia || '22 kW (32A)'
+  const carregadorValor = isCarregadorAdquirido ? 0 : Number(dados.carregador_valor ?? op2Valor)
+
+  // Lista de materiais e cálculo de subtotal
+  const materiaisList: ItemMaterialInfraestrutura[] =
+    Array.isArray(dados.materiais_infraestrutura) && dados.materiais_infraestrutura.length > 0
+      ? dados.materiais_infraestrutura
+      : []
+
+  const subtotalMateriais =
+    typeof dados.subtotal_materiais === 'number'
+      ? dados.subtotal_materiais
+      : materiaisList.reduce(
+          (acc, it) => acc + (Number(it.quantidade) || 0) * (Number(it.valor_unitario) || 0),
+          0,
+        )
+
+  // Serviços discriminados
+  const vInstalacao = Number(dados.valor_servicos_instalacao ?? 1850)
+  const vEngenharia = Number(dados.valor_servicos_engenharia ?? 1200)
+
+  // Total consolidado: Carregador (0 se adquirido) + Materiais + Instalação + Engenharia
+  const vTotal = Number(
+    dados.valor_total ?? carregadorValor + subtotalMateriais + vInstalacao + vEngenharia,
+  )
 
   const condicoes =
     dados.condicoes_pagamento ||
@@ -77,25 +115,28 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
     >
       {/* 1. CABEÇALHO */}
       <header className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-900 pb-7 mb-7 gap-6">
-        <div className="flex flex-col gap-1.5">
-          <div className="inline-flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-slate-900">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-8 h-8 text-[#047857]"
-            >
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-            <span>DELFOS ENGENHARIA</span>
+        <div className="flex flex-col gap-2">
+          {/* Logo Delfos Solar oficial otimizado */}
+          <div className="flex items-center gap-3">
+            <img
+              src={logoDelfosPng}
+              alt="Delfos Solar Logo"
+              className="h-12 sm:h-14 w-auto object-contain shrink-0"
+              style={{ maxHeight: '56px' }}
+            />
+            <div>
+              <div className="text-xl font-extrabold tracking-tight text-slate-900">
+                DELFOS ENGENHARIA
+              </div>
+              <div className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">
+                Infraestrutura Elétrica &amp; Eletromobilidade
+              </div>
+            </div>
           </div>
-          <div className="text-[13px] text-slate-600 leading-snug">
+          <div className="text-[12px] text-slate-600 leading-snug">
             <strong>Delfos Engenharia Ltda</strong> • CNPJ: 21.379.952/0001-38
             <br />
-            Erechim – RS • Soluções em Engenharia Elétrica &amp; Eletromobilidade
+            Rua Espírito Santo, 275 • Erechim – RS • CEP 99709-296
           </div>
         </div>
 
@@ -348,87 +389,126 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 5. MODELOS DE CARREGADOR DISPONÍVEIS */}
+      {/* 5. MODELOS DE CARREGADOR DISPONÍVEIS OU CARREGADOR ADQUIRIDO */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          3. Modelos de Carregador Disponíveis
+          3. Carregador Veicular Wallbox
         </h2>
 
-        <div className="overflow-x-auto border border-slate-200 rounded-md mt-2">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-100 border-b border-slate-200 text-slate-900 text-xs uppercase font-bold tracking-wider">
-                <th className="p-3 w-[30%]">Modelo &amp; Aplicação</th>
-                <th className="p-3 w-[15%]">Potência</th>
-                <th className="p-3 w-[20%]">Ligação &amp; Rede</th>
-                <th className="p-3 w-[20%]">Tempo Recarga (0–100%)*</th>
-                <th className="p-3 w-[15%] text-right">Investimento Base</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {/* Opção 01 */}
-              <tr className="hover:bg-slate-50/50">
-                <td className="p-3">
-                  <strong className="text-slate-900">{op1Titulo}</strong>
-                  <br />
-                  <span className="text-xs text-slate-600">
-                    Ideal para residências, condomínios e recarga noturna contínua.
-                  </span>
-                </td>
-                <td className="p-3 font-semibold">{op1Potencia}</td>
-                <td className="p-3 text-slate-700">{op1Tensao}</td>
-                <td className="p-3 text-slate-700">{op1Tempo}</td>
-                <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">
-                  {editavel && onChangeField ? (
-                    <input
-                      type="number"
-                      value={op1Valor}
-                      onChange={(e) => onChangeField('opcao1_valor', Number(e.target.value))}
-                      className="w-24 bg-amber-50 border-b border-dashed border-amber-600 text-amber-950 font-bold px-1 py-0.5 rounded text-right focus:outline-none"
-                    />
-                  ) : (
-                    formatCurrency(op1Valor)
-                  )}
-                </td>
-              </tr>
-
-              {/* Opção 02 */}
-              <tr className="bg-[#f0fdf4] hover:bg-emerald-50">
-                <td className="p-3">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <strong className="text-slate-900">{op2Titulo}</strong>
-                    <span className="bg-[#047857] text-white text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
-                      Recomendado
+        {isCarregadorAdquirido ? (
+          /* Opção Única: Carregador Já Adquirido pelo Cliente */
+          <div className="border border-amber-300 bg-amber-50/60 rounded-md p-4 mt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 shrink-0 mt-0.5">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <strong className="text-slate-900 text-sm font-bold">{carregadorModelo}</strong>
+                    <span className="bg-amber-600 text-white text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                      Adquirido
                     </span>
                   </div>
-                  <span className="text-xs text-slate-600">
-                    Alta performance para frotas, comércios, clínicas e recarga rotativa.
-                  </span>
-                </td>
-                <td className="p-3 font-semibold">{op2Potencia}</td>
-                <td className="p-3 text-slate-700">{op2Tensao}</td>
-                <td className="p-3 text-slate-700">{op2Tempo}</td>
-                <td className="p-3 text-right font-bold text-[#047857] whitespace-nowrap">
-                  {editavel && onChangeField ? (
-                    <input
-                      type="number"
-                      value={op2Valor}
-                      onChange={(e) => onChangeField('opcao2_valor', Number(e.target.value))}
-                      className="w-24 bg-amber-50 border-b border-dashed border-amber-600 text-amber-950 font-bold px-1 py-0.5 rounded text-right focus:outline-none"
-                    />
-                  ) : (
-                    formatCurrency(op2Valor)
+                  <div className="text-xs text-slate-600 mt-1">
+                    Equipamento fornecido diretamente pelo cliente. A Delfos Engenharia realizará o
+                    comissionamento técnico, fixação em parede/totem, parametrizações elétricas e
+                    conexão integral com a infraestrutura dedicada.
+                  </div>
+                  {carregadorPotencia && (
+                    <div className="text-xs text-slate-700 font-semibold mt-1">
+                      Potência / Tensão informada: {carregadorPotencia}
+                    </div>
                   )}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="text-[11px] text-slate-600 mt-1.5">
-          *Tempo estimado em função da capacidade interna do inversor onboard do veículo. Ambos os
-          modelos incluem conector padrão Tipo 2 (Tipo Mennekes) com cabo integrado de 5 metros.
-        </div>
+                </div>
+              </div>
+
+              <div className="sm:text-right font-extrabold text-amber-900 text-base shrink-0 bg-white/80 px-3 py-1.5 rounded border border-amber-200 self-start sm:self-auto">
+                Adquirido
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Modo Padrão: 2 Modelos (7,4 kW e 22 kW Recomendado) */
+          <>
+            <div className="overflow-x-auto border border-slate-200 rounded-md mt-2">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-900 text-xs uppercase font-bold tracking-wider">
+                    <th className="p-3 w-[30%]">Modelo &amp; Aplicação</th>
+                    <th className="p-3 w-[15%]">Potência</th>
+                    <th className="p-3 w-[20%]">Ligação &amp; Rede</th>
+                    <th className="p-3 w-[20%]">Tempo Recarga (0–100%)*</th>
+                    <th className="p-3 w-[15%] text-right">Investimento Base</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {/* Opção 01 */}
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="p-3">
+                      <strong className="text-slate-900">{op1Titulo}</strong>
+                      <br />
+                      <span className="text-xs text-slate-600">
+                        Ideal para residências, condomínios e recarga noturna contínua.
+                      </span>
+                    </td>
+                    <td className="p-3 font-semibold">{op1Potencia}</td>
+                    <td className="p-3 text-slate-700">{op1Tensao}</td>
+                    <td className="p-3 text-slate-700">{op1Tempo}</td>
+                    <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                      {editavel && onChangeField ? (
+                        <input
+                          type="number"
+                          value={op1Valor}
+                          onChange={(e) => onChangeField('opcao1_valor', Number(e.target.value))}
+                          className="w-24 bg-amber-50 border-b border-dashed border-amber-600 text-amber-950 font-bold px-1 py-0.5 rounded text-right focus:outline-none"
+                        />
+                      ) : (
+                        formatCurrency(op1Valor)
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Opção 02 */}
+                  <tr className="bg-[#f0fdf4] hover:bg-emerald-50">
+                    <td className="p-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <strong className="text-slate-900">{op2Titulo}</strong>
+                        <span className="bg-[#047857] text-white text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                          Recomendado
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-600">
+                        Alta performance para frotas, comércios, clínicas e recarga rotativa.
+                      </span>
+                    </td>
+                    <td className="p-3 font-semibold">{op2Potencia}</td>
+                    <td className="p-3 text-slate-700">{op2Tensao}</td>
+                    <td className="p-3 text-slate-700">{op2Tempo}</td>
+                    <td className="p-3 text-right font-bold text-[#047857] whitespace-nowrap">
+                      {editavel && onChangeField ? (
+                        <input
+                          type="number"
+                          value={op2Valor}
+                          onChange={(e) => onChangeField('opcao2_valor', Number(e.target.value))}
+                          className="w-24 bg-amber-50 border-b border-dashed border-amber-600 text-amber-950 font-bold px-1 py-0.5 rounded text-right focus:outline-none"
+                        />
+                      ) : (
+                        formatCurrency(op2Valor)
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="text-[11px] text-slate-600 mt-1.5">
+              *Tempo estimado em função da capacidade interna do inversor onboard do veículo. Ambos
+              os modelos incluem conector padrão Tipo 2 (Tipo Mennekes) com cabo integrado de 5
+              metros.
+            </div>
+          </>
+        )}
       </section>
 
       {/* 6. ESCOPO TÉCNICO DA ENGENHARIA DE INSTALAÇÃO */}
@@ -502,97 +582,162 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 7. INVESTIMENTO & CONDIÇÕES COMERCIAIS */}
+      {/* 7. INVESTIMENTO & CONDIÇÕES COMERCIAIS CONSOLIDADOS */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          5. Investimento &amp; Condições Comerciais
+          5. Investimento Consolidado &amp; Condições Comerciais
         </h2>
 
+        {/* Tabela estrita conforme especificação:
+            (i) Valor do Carregador (ou Adquirido sem valor)
+            (ii) Materiais da Infraestrutura (lista com valores)
+            (iii) Valores de Serviços de Instalação e Serviços de Engenharia
+        */}
         <div className="overflow-x-auto border border-slate-200 rounded-md mt-2">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
               <tr className="bg-slate-100 border-b border-slate-200 text-slate-900 text-xs uppercase font-bold tracking-wider">
-                <th className="p-3 w-[60%]">Descrição dos Itens / Serviços</th>
+                <th className="p-3 w-[55%]">Item / Discriminação dos Custos</th>
                 <th className="p-3 w-[15%] text-center">Quantidade</th>
-                <th className="p-3 w-[25%] text-right">Subtotal</th>
+                <th className="p-3 w-[15%] text-right">Unitário</th>
+                <th className="p-3 w-[15%] text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              <tr>
+              {/* (i) Carregador Veicular */}
+              <tr className={isCarregadorAdquirido ? 'bg-amber-50/40' : ''}>
                 <td className="p-3">
-                  <strong className="text-slate-900">
-                    Estação de Recarga Wallbox + Materiais Elétricos de Proteção
-                  </strong>
-                  <br />
+                  <div className="flex items-center gap-2">
+                    <strong className="text-slate-900">
+                      1. Carregador Veicular — {carregadorModelo}
+                    </strong>
+                    {isCarregadorAdquirido && (
+                      <span className="bg-amber-600 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                        Adquirido
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-slate-600">
-                    Carregador com cabo Tipo 2, quadro dedicado, disjuntor, DR Tipo A, DPS e
-                    cabeamento de interligação até 15 metros.
+                    {isCarregadorAdquirido
+                      ? 'Equipamento fornecido diretamente pelo cliente (sem custo de aquisição na proposta).'
+                      : `Estação Wallbox homologada ${carregadorPotencia} com conector Tipo 2.`}
                   </span>
                 </td>
-                <td className="p-3 text-center text-slate-700">1 un / lote</td>
-                <td className="p-3 text-right font-semibold text-slate-900 whitespace-nowrap">
-                  {editavel && onChangeField ? (
-                    <input
-                      type="number"
-                      value={vMateriais}
-                      onChange={(e) => {
-                        const m = Number(e.target.value)
-                        onChangeField('valor_estacao_materiais', m)
-                        onChangeField('valor_total', m + vServicos)
-                      }}
-                      className="w-28 bg-amber-50 border-b border-dashed border-amber-600 text-amber-950 font-bold px-1 py-0.5 rounded text-right focus:outline-none"
-                    />
+                <td className="p-3 text-center text-slate-700">1 un</td>
+                <td className="p-3 text-right text-slate-700">
+                  {isCarregadorAdquirido ? '—' : formatCurrency(carregadorValor)}
+                </td>
+                <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                  {isCarregadorAdquirido ? (
+                    <span className="text-amber-800 font-bold">Adquirido</span>
                   ) : (
-                    formatCurrency(vMateriais)
+                    formatCurrency(carregadorValor)
                   )}
                 </td>
               </tr>
 
-              <tr>
+              {/* (ii) Materiais da Infraestrutura de Instalação */}
+              {materiaisList.length > 0 ? (
+                <>
+                  <tr className="bg-slate-50/80 font-bold text-xs uppercase text-slate-700 border-t border-slate-200">
+                    <td colSpan={4} className="py-2 px-3">
+                      2. Materiais da Infraestrutura de Instalação (Itens Discriminados)
+                    </td>
+                  </tr>
+                  {materiaisList.map((mat, idx) => {
+                    const itemTotal =
+                      (Number(mat.quantidade) || 0) * (Number(mat.valor_unitario) || 0)
+                    return (
+                      <tr key={mat.id || idx} className="hover:bg-slate-50/40 text-xs">
+                        <td className="p-2.5 pl-5 text-slate-800">• {mat.descricao}</td>
+                        <td className="p-2.5 text-center text-slate-600">{mat.quantidade} un</td>
+                        <td className="p-2.5 text-right text-slate-600">
+                          {formatCurrency(mat.valor_unitario)}
+                        </td>
+                        <td className="p-2.5 text-right font-semibold text-slate-800">
+                          {formatCurrency(itemTotal)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  <tr className="bg-slate-100/60 font-semibold text-xs border-t border-slate-200">
+                    <td colSpan={3} className="py-2 px-3 text-right text-slate-700">
+                      Subtotal dos Materiais da Infraestrutura:
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-slate-900">
+                      {formatCurrency(subtotalMateriais)}
+                    </td>
+                  </tr>
+                </>
+              ) : (
+                <tr>
+                  <td className="p-3">
+                    <strong className="text-slate-900">
+                      2. Materiais da Infraestrutura Elétrica
+                    </strong>
+                    <br />
+                    <span className="text-xs text-slate-600">
+                      Quadro de proteção termoplástico, disjuntores, DR Tipo A, DPS e cabeamento de
+                      interligação.
+                    </span>
+                  </td>
+                  <td className="p-3 text-center text-slate-700">1 lote</td>
+                  <td className="p-3 text-right text-slate-700">
+                    {formatCurrency(subtotalMateriais)}
+                  </td>
+                  <td className="p-3 text-right font-semibold text-slate-900">
+                    {formatCurrency(subtotalMateriais)}
+                  </td>
+                </tr>
+              )}
+
+              {/* (iii) Serviços: Instalação e Engenharia */}
+              <tr className="border-t border-slate-200">
                 <td className="p-3">
-                  <strong className="text-slate-900">
-                    Serviços Técnicos Especializados de Engenharia Delfos
-                  </strong>
+                  <strong className="text-slate-900">3. Serviços de Instalação</strong>
                   <br />
                   <span className="text-xs text-slate-600">
-                    Montagem, cabeamento, aterramento, testes elétricos, comissionamento e emissão
-                    de ART/CREA-RS.
+                    Passagem e fixação de infraestrutura, montagem de quadro elétrico dedicado,
+                    fixação mecânica do Wallbox e conexões elétricas.
                   </span>
                 </td>
                 <td className="p-3 text-center text-slate-700">1 serviço</td>
+                <td className="p-3 text-right text-slate-700">{formatCurrency(vInstalacao)}</td>
                 <td className="p-3 text-right font-semibold text-slate-900 whitespace-nowrap">
-                  {editavel && onChangeField ? (
-                    <input
-                      type="number"
-                      value={vServicos}
-                      onChange={(e) => {
-                        const s = Number(e.target.value)
-                        onChangeField('valor_servicos_engenharia', s)
-                        onChangeField('valor_total', vMateriais + s)
-                      }}
-                      className="w-28 bg-amber-50 border-b border-dashed border-amber-600 text-amber-950 font-bold px-1 py-0.5 rounded text-right focus:outline-none"
-                    />
-                  ) : (
-                    formatCurrency(vServicos)
-                  )}
+                  {formatCurrency(vInstalacao)}
                 </td>
               </tr>
 
+              <tr>
+                <td className="p-3">
+                  <strong className="text-slate-900">4. Serviços de Engenharia</strong>
+                  <br />
+                  <span className="text-xs text-slate-600">
+                    Estudo de capacidade e viabilidade de carga, comissionamento com testes
+                    funcionais, emissão de laudo e ART/CREA-RS pelo Engenheiro Responsável.
+                  </span>
+                </td>
+                <td className="p-3 text-center text-slate-700">1 serviço</td>
+                <td className="p-3 text-right text-slate-700">{formatCurrency(vEngenharia)}</td>
+                <td className="p-3 text-right font-semibold text-slate-900 whitespace-nowrap">
+                  {formatCurrency(vEngenharia)}
+                </td>
+              </tr>
+
+              {/* Linha Final de Total */}
               <tr className="bg-[#f8fafc] border-t-2 border-slate-900 font-extrabold">
-                <td className="p-3 text-slate-900 text-base">INVESTIMENTO TOTAL</td>
+                <td colSpan={2} className="p-3 text-slate-900 text-base">
+                  <div>INVESTIMENTO TOTAL</div>
+                  <div className="text-[11px] font-normal text-slate-500">
+                    {isCarregadorAdquirido
+                      ? 'Composição: Carregador Adquirido (R$ 0,00) + Materiais + Instalação + Engenharia'
+                      : 'Composição: Carregador + Materiais + Instalação + Engenharia'}
+                  </div>
+                </td>
                 <td className="p-3 text-center text-slate-500">—</td>
-                <td className="p-3 text-right text-lg text-[#047857] whitespace-nowrap">
-                  {editavel && onChangeField ? (
-                    <input
-                      type="number"
-                      value={vTotal}
-                      onChange={(e) => onChangeField('valor_total', Number(e.target.value))}
-                      className="w-32 bg-amber-50 border-b border-dashed border-amber-600 text-[#047857] font-extrabold px-1 py-0.5 rounded text-right focus:outline-none"
-                    />
-                  ) : (
-                    formatCurrency(vTotal)
-                  )}
+                <td className="p-3 text-right text-xl text-[#047857] whitespace-nowrap">
+                  {formatCurrency(vTotal)}
                 </td>
               </tr>
             </tbody>
