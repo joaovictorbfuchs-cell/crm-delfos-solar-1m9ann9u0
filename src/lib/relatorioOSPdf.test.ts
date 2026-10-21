@@ -204,6 +204,91 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).not.toContain('Diagnóstico Geral')
   })
 
+  it('não deve misturar itens de prefixos diferentes pelo ordinal (ex: chk_limp_1 vs chk_insp_1)', () => {
+    const osMockPrefixosDiferentes: Partial<OrdemServico> = {
+      id: 'os-prefix-diferente',
+      checklist: [
+        { id: 'chk_limp_1', item: 'Lavagem técnica dos módulos', concluido: true },
+        { id: 'chk_insp_1', item: 'Inspeção termográfica das strings', concluido: true },
+      ],
+      fotos_metadados: [
+        {
+          id: 'meta_limp',
+          item_checklist_id: 'chk_limp_1',
+          item_checklist_texto: 'Lavagem técnica dos módulos',
+          arquivo: 'foto_lavagem.jpg',
+        },
+        {
+          id: 'meta_insp',
+          item_checklist_id: 'chk_insp_1',
+          item_checklist_texto: 'Inspeção termográfica das strings',
+          arquivo: 'foto_termica.jpg',
+        },
+      ] as any,
+    }
+
+    const fotosUrls = [
+      'https://cloud.skip.com/api/files/os/123/hash1_foto_lavagem.jpg',
+      'https://cloud.skip.com/api/files/os/123/hash2_foto_termica.jpg',
+    ]
+
+    const html = gerarHTMLRelatorioOS({
+      os: osMockPrefixosDiferentes as OrdemServico,
+      cliente: clienteMock,
+      sistema: sistemaMock,
+      fotosDataUrls: fotosUrls,
+    })
+
+    // Cada item do checklist deve receber a sua respectiva foto única, sem colisão de ordinal '1'
+    expect(html).toContain('Foto 1')
+    expect(html).toContain('Foto 2')
+    // O registro fotográfico deve exibir os dois grupos separados
+    expect(html).toContain('Lavagem técnica dos módulos')
+    expect(html).toContain('Inspeção termográfica das strings')
+  })
+
+  it('casa fotos mesmo quando o PocketBase prefixa hash no upload do arquivo', () => {
+    const osMockHash: Partial<OrdemServico> = {
+      id: 'os-hash-upload',
+      checklist: [
+        { id: 'chk_limp_1', item: 'Lavagem de módulos', concluido: true },
+        { id: 'chk_elet_1', item: 'Medição elétrica', concluido: true },
+      ],
+      fotos_metadados: [
+        {
+          id: 'meta_1',
+          item_checklist_id: 'chk_limp_1',
+          item_checklist_texto: 'Lavagem de módulos',
+          arquivo: 'original_lavagem.jpg',
+        },
+        {
+          id: 'meta_2',
+          item_checklist_id: 'chk_elet_1',
+          item_checklist_texto: 'Medição elétrica',
+          arquivo: 'original_eletrica.jpg',
+        },
+      ] as any,
+    }
+
+    // URL com hash adicionado pelo PocketBase
+    const fotosUrls = [
+      'https://cloud.skip.com/api/files/os_table/rec_abc/xyz789_original_lavagem.jpg?token=test',
+      'https://cloud.skip.com/api/files/os_table/rec_abc/uvw123_original_eletrica.jpg?token=test',
+    ]
+
+    const html = gerarHTMLRelatorioOS({
+      os: osMockHash as OrdemServico,
+      cliente: clienteMock,
+      sistema: sistemaMock,
+      fotosDataUrls: fotosUrls,
+    })
+
+    expect(html).toContain('Foto 1')
+    expect(html).toContain('Foto 2')
+    expect(html).toContain('Lavagem de módulos')
+    expect(html).toContain('Medição elétrica')
+  })
+
   it('deve casar fotos com itens quando IDs usam variantes de prefixo padrão (chk_limp_1 vs chk_1 ou chk_limp_2 vs chk_2)', () => {
     const osMock: Partial<OrdemServico> = {
       id: 'os-prefix-match',

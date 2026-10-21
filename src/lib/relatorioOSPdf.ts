@@ -258,7 +258,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
           <div style="background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; page-break-inside: avoid; break-inside: avoid;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px;">
               <div style="font-size: 0.85rem; font-weight: 800; color: #0E2A47; text-transform: uppercase; letter-spacing: 0.04em;">
-                Registros Gerais de Campo
+                Outros registros fotográficos
               </div>
               <span style="font-size: 0.72rem; font-weight: 700; color: #536377; background: #FFFFFF; border: 1px solid #DDE4EE; border-radius: 10px; padding: 2px 8px;">
                 ${rel.fotosGeraisSemEtapa.length} ${rel.fotosGeraisSemEtapa.length === 1 ? 'foto' : 'fotos'}

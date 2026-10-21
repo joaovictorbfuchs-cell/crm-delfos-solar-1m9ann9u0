@@ -392,6 +392,43 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: 4,
   },
+  photoGroupBlock: {
+    backgroundColor: '#F8FAFD',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'solid',
+    borderRadius: 5,
+    padding: 6,
+    marginBottom: 8,
+  },
+  photoGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3,
+    marginBottom: 5,
+  },
+  photoGroupTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    color: '#0E2A47',
+    textTransform: 'uppercase',
+  },
+  photoGroupCount: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
+    color: '#536377',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDE4EE',
+    borderStyle: 'solid',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
   photoCard: {
     width: '31.3%',
     backgroundColor: '#F4F7FA',
@@ -745,7 +782,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           ))}
         </View>
 
-        {/* 6. Registro Fotográfico — Grid único contínuo com todas as fotos anexadas */}
+        {/* 6. Registro Fotográfico — Agrupado por etapa do checklist com todas as fotos e badges únicos */}
         <View style={styles.repCard} wrap={false}>
           <View
             style={{
@@ -762,46 +799,166 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             </Text>
           </View>
 
-          {/* Grid contínuo de 3 colunas no PDF A4 com todas as fotos */}
-          <View style={styles.photosGrid}>
-            {relatorio.fotos.map((foto, idx) => {
-              const isLastInRow = (idx + 1) % 3 === 0
-              const fotoNumGeral = idx + 1
-              return (
+          {Array.isArray(relatorio.fotosPorEtapa) && relatorio.fotosPorEtapa.length > 0 ? (
+            <View>
+              {relatorio.fotosPorEtapa.map((grupo, gIdx) => (
                 <View
-                  key={foto.id || `pdf-foto-${idx}`}
-                  style={isLastInRow ? styles.photoCardLastInRow : styles.photoCard}
+                  key={grupo.itemChecklistId || `pdf-grupo-${gIdx}`}
+                  style={styles.photoGroupBlock}
                 >
-                  {foto.url ? (
-                    <View style={{ position: 'relative' }}>
-                      <Image src={foto.url} style={styles.photoThumbImage} />
-                      <View
-                        style={{
-                          position: 'absolute',
-                          top: 2,
-                          left: 2,
-                          backgroundColor: 'rgba(14, 42, 71, 0.85)',
-                          borderRadius: 2,
-                          paddingHorizontal: 3,
-                          paddingVertical: 1,
-                        }}
-                      >
-                        <Text
-                          style={{ fontFamily: 'Helvetica-Bold', fontSize: 5.5, color: '#FFFFFF' }}
+                  <View style={styles.photoGroupHeader}>
+                    <Text style={styles.photoGroupTitle}>{grupo.itemChecklistTexto}</Text>
+                    <Text style={styles.photoGroupCount}>
+                      {grupo.fotos.length} {grupo.fotos.length === 1 ? 'foto' : 'fotos'}
+                    </Text>
+                  </View>
+                  <View style={styles.photosGrid}>
+                    {grupo.fotos.map((foto, idx) => {
+                      const isLastInRow = (idx + 1) % 3 === 0
+                      const fotoNumGeral = foto.numeroGlobal || idx + 1
+                      return (
+                        <View
+                          key={foto.id || `pdf-foto-${gIdx}-${idx}`}
+                          style={isLastInRow ? styles.photoCardLastInRow : styles.photoCard}
                         >
-                          Foto {fotoNumGeral}
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={styles.photoThumbBox}>
-                      <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
-                    </View>
-                  )}
+                          {foto.url ? (
+                            <View style={{ position: 'relative' }}>
+                              <Image src={foto.url} style={styles.photoThumbImage} />
+                              <View
+                                style={{
+                                  position: 'absolute',
+                                  top: 2,
+                                  left: 2,
+                                  backgroundColor: 'rgba(14, 42, 71, 0.85)',
+                                  borderRadius: 2,
+                                  paddingHorizontal: 3,
+                                  paddingVertical: 1,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontFamily: 'Helvetica-Bold',
+                                    fontSize: 5.5,
+                                    color: '#FFFFFF',
+                                  }}
+                                >
+                                  Foto {fotoNumGeral}
+                                </Text>
+                              </View>
+                            </View>
+                          ) : (
+                            <View style={styles.photoThumbBox}>
+                              <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+                            </View>
+                          )}
+                        </View>
+                      )
+                    })}
+                  </View>
                 </View>
-              )
-            })}
-          </View>
+              ))}
+
+              {Array.isArray(relatorio.fotosGeraisSemEtapa) &&
+                relatorio.fotosGeraisSemEtapa.length > 0 && (
+                  <View style={styles.photoGroupBlock}>
+                    <View style={styles.photoGroupHeader}>
+                      <Text style={styles.photoGroupTitle}>Outros registros fotográficos</Text>
+                      <Text style={styles.photoGroupCount}>
+                        {relatorio.fotosGeraisSemEtapa.length}{' '}
+                        {relatorio.fotosGeraisSemEtapa.length === 1 ? 'foto' : 'fotos'}
+                      </Text>
+                    </View>
+                    <View style={styles.photosGrid}>
+                      {relatorio.fotosGeraisSemEtapa.map((foto, idx) => {
+                        const isLastInRow = (idx + 1) % 3 === 0
+                        const fotoNumGeral = foto.numeroGlobal || idx + 1
+                        return (
+                          <View
+                            key={foto.id || `pdf-foto-geral-${idx}`}
+                            style={isLastInRow ? styles.photoCardLastInRow : styles.photoCard}
+                          >
+                            {foto.url ? (
+                              <View style={{ position: 'relative' }}>
+                                <Image src={foto.url} style={styles.photoThumbImage} />
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    top: 2,
+                                    left: 2,
+                                    backgroundColor: 'rgba(14, 42, 71, 0.85)',
+                                    borderRadius: 2,
+                                    paddingHorizontal: 3,
+                                    paddingVertical: 1,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontFamily: 'Helvetica-Bold',
+                                      fontSize: 5.5,
+                                      color: '#FFFFFF',
+                                    }}
+                                  >
+                                    Foto {fotoNumGeral}
+                                  </Text>
+                                </View>
+                              </View>
+                            ) : (
+                              <View style={styles.photoThumbBox}>
+                                <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+                              </View>
+                            )}
+                          </View>
+                        )
+                      })}
+                    </View>
+                  </View>
+                )}
+            </View>
+          ) : (
+            <View style={styles.photosGrid}>
+              {relatorio.fotos.map((foto, idx) => {
+                const isLastInRow = (idx + 1) % 3 === 0
+                const fotoNumGeral = foto.numeroGlobal || idx + 1
+                return (
+                  <View
+                    key={foto.id || `pdf-foto-${idx}`}
+                    style={isLastInRow ? styles.photoCardLastInRow : styles.photoCard}
+                  >
+                    {foto.url ? (
+                      <View style={{ position: 'relative' }}>
+                        <Image src={foto.url} style={styles.photoThumbImage} />
+                        <View
+                          style={{
+                            position: 'absolute',
+                            top: 2,
+                            left: 2,
+                            backgroundColor: 'rgba(14, 42, 71, 0.85)',
+                            borderRadius: 2,
+                            paddingHorizontal: 3,
+                            paddingVertical: 1,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: 'Helvetica-Bold',
+                              fontSize: 5.5,
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            Foto {fotoNumGeral}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.photoThumbBox}>
+                        <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
+                      </View>
+                    )}
+                  </View>
+                )
+              })}
+            </View>
+          )}
         </View>
 
         {/* 7. Pendências e Recomendações */}

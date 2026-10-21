@@ -885,8 +885,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                   <div className="bg-[#F8FAFD] border border-[#E2E8F0] rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2 flex-wrap gap-2">
                       <h4 className="m-0 text-xs sm:text-sm font-extrabold text-[#0E2A47] uppercase tracking-wider">
-                        Registros Gerais de Campo
-                      </h4>
+                        Outros registros fotográficos
+                      </h4>{' '}
                       <span className="text-[11px] font-bold text-[#536377] bg-white px-2 py-0.5 rounded-full border border-[#DDE4EE]">
                         {relatorio.fotosGeraisSemEtapa.length}{' '}
                         {relatorio.fotosGeraisSemEtapa.length === 1 ? 'foto' : 'fotos'}

@@ -349,32 +349,75 @@ export function compilarDadosRelatorioOS(
 
   if (fotosUrls.length > 0) {
     fotosUrls.forEach((url, i) => {
-      // 1. Tenta correspondência precisa pelo nome do arquivo contido na URL PocketBase (tolerando encode/decode e hashes gerados pelo PB)
+      // Extrair o nome do arquivo da URL (ex: 'https://.../api/files/.../nome_do_arquivo.jpg?token=...' -> 'nome_do_arquivo.jpg')
+      const extrairNomeArquivoDaUrl = (u: string): string => {
+        try {
+          const limpo = u.split('?')[0].split('#')[0]
+          const partes = limpo.split('/')
+          const ultimo = partes[partes.length - 1] || ''
+          return decodeURIComponent(ultimo).toLowerCase().trim()
+        } catch {
+          return ''
+        }
+      }
+
+      const nomeUrl = extrairNomeArquivoDaUrl(url)
+
+      // Casamento foto→metadado em cascata:
+      // (a) Igualdade exata de m.arquivo === nomeUrl (ou m.arquivo contido na URL decodificada)
       let metaIndex = fotosMetadadosRaw.findIndex((m: any, mIdx: number) => {
         if (!m || metadadosUsados.has(mIdx)) return false
-        const nome = m.arquivo || m.nome_arquivo || m.nome || m.id
-        if (nome && typeof nome === 'string' && nome.trim()) {
-          const nomeClean = nome.trim()
-          try {
-            const decodedUrl = decodeURIComponent(url)
-            if (decodedUrl.includes(nomeClean) || url.includes(nomeClean)) return true
-            const baseNome = nomeClean.replace(/\.[a-zA-Z0-9]+$/, '')
-            if (baseNome.length >= 3 && (decodedUrl.includes(baseNome) || url.includes(baseNome))) {
-              return true
-            }
-          } catch {
-            if (url.includes(nomeClean)) return true
-          }
+        const nomeM = String(m.arquivo || m.nome_arquivo || m.nome || '')
+          .trim()
+          .toLowerCase()
+        if (!nomeM) return false
+        if (nomeUrl && nomeUrl === nomeM) return true
+        try {
+          const decoded = decodeURIComponent(url).toLowerCase()
+          if (decoded.includes(nomeM)) return true
+        } catch {
+          if (url.toLowerCase().includes(nomeM)) return true
         }
         return false
       })
 
-      // 2. Se não encontrou por nome de arquivo, faz fallback por índice direto não utilizado
-      if (metaIndex < 0 && fotosMetadadosRaw[i] && !metadadosUsados.has(i)) {
+      // (b) Sufixo/terminação comum (PocketBase costuma prefixar hash aleatório no upload: [hash]_[nome_original].ext)
+      if (metaIndex < 0) {
+        metaIndex = fotosMetadadosRaw.findIndex((m: any, mIdx: number) => {
+          if (!m || metadadosUsados.has(mIdx)) return false
+          const nomeM = String(m.arquivo || m.nome_arquivo || m.nome || '')
+            .trim()
+            .toLowerCase()
+          if (!nomeM || nomeM.length < 3) return false
+          const baseM = nomeM.replace(/\.[a-z0-9]+$/, '')
+          const baseU = nomeUrl ? nomeUrl.replace(/\.[a-z0-9]+$/, '') : ''
+
+          if (nomeUrl && (nomeUrl.endsWith(nomeM) || nomeM.endsWith(nomeUrl))) return true
+          if (baseM.length >= 3 && baseU && (baseU.endsWith(baseM) || baseM.endsWith(baseU)))
+            return true
+          try {
+            const decoded = decodeURIComponent(url).toLowerCase()
+            if (baseM.length >= 3 && decoded.includes(baseM)) return true
+          } catch {
+            /* ignore */
+          }
+          return false
+        })
+      }
+
+      // (c) Alinhamento posicional: se mesma quantidade ou se o índice i está livre
+      if (
+        metaIndex < 0 &&
+        fotosMetadadosRaw.length === fotosUrls.length &&
+        fotosMetadadosRaw[i] &&
+        !metadadosUsados.has(i)
+      ) {
+        metaIndex = i
+      } else if (metaIndex < 0 && fotosMetadadosRaw[i] && !metadadosUsados.has(i)) {
         metaIndex = i
       }
 
-      // 3. Se o índice exato já foi usado, busca o primeiro metadado ainda livre
+      // (d) Primeiro metadado livre ainda não consumido
       if (metaIndex < 0) {
         metaIndex = fotosMetadadosRaw.findIndex((_, mIdx) => !metadadosUsados.has(mIdx))
       }
@@ -387,12 +430,17 @@ export function compilarDadosRelatorioOS(
         meta = fotosMetadadosRaw[i] || {}
       }
 
+      // Fonte primária do vínculo é SEMPRE o item_checklist_id / etapa dos metadados
       let itemChecklistId: string | undefined = meta.item_checklist_id
         ? String(meta.item_checklist_id).trim()
-        : undefined
+        : meta.etapa
+          ? String(meta.etapa).trim()
+          : undefined
       let itemChecklistTexto: string | undefined = meta.item_checklist_texto
         ? String(meta.item_checklist_texto).trim()
-        : undefined
+        : meta.etapa_texto
+          ? String(meta.etapa_texto).trim()
+          : undefined
       const legendaCustom = meta.legenda ? String(meta.legenda).trim() : ''
       const numeroGlobal = i + 1
 
@@ -407,56 +455,83 @@ export function compilarDadosRelatorioOS(
         // 1. Por ID exato
         if (itemChecklistId) {
           matchedChecklistIdx = checklistItens.findIndex(
-            (chk) => String(chk.id) === itemChecklistId,
+            (chk) => String(chk.id).trim() === itemChecklistId,
           )
         }
 
-        // 2. Por ID tolerando variantes de prefixo padrão (ex: "chk_limp_2" vs "chk_2" ou ordinal numérico no final)
+        // 2. Por prefixo coincidente + ordinal numérico
+        // Ex: meta "chk_limp_1" só casa com chk "chk_limp_1" (ou mesmo prefixo 'chk_limp_').
+        // NUNCA casar "chk_insp_1" com "chk_limp_1" apenas pelo ordinal final '1'!
         if (matchedChecklistIdx < 0 && itemChecklistId) {
-          const numMetaMatch = itemChecklistId.match(/(\d+)$/)
-          if (numMetaMatch && numMetaMatch[1]) {
-            const metaOrdinal = parseInt(numMetaMatch[1], 10)
-            const idxPorNumId = checklistItens.findIndex((chk) => {
-              const chkNumMatch = String(chk.id).match(/(\d+)$/)
-              return chkNumMatch && parseInt(chkNumMatch[1], 10) === metaOrdinal
+          const matchMetaPrefixo = itemChecklistId.match(/^(.*?)_?(\d+)$/)
+          if (matchMetaPrefixo) {
+            const prefixoMeta = matchMetaPrefixo[1].toLowerCase()
+            const ordinalMeta = parseInt(matchMetaPrefixo[2], 10)
+
+            matchedChecklistIdx = checklistItens.findIndex((chk) => {
+              const chkIdStr = String(chk.id || '').trim()
+              const matchChkPrefixo = chkIdStr.match(/^(.*?)_?(\d+)$/)
+              if (!matchChkPrefixo) return false
+              const prefixoChk = matchChkPrefixo[1].toLowerCase()
+              const ordinalChk = parseInt(matchChkPrefixo[2], 10)
+
+              // Só compara ordinal se os prefixos forem equivalentes (ou ambos genéricos tipo 'chk' / 'item')
+              const prefixosIguais =
+                prefixoMeta === prefixoChk ||
+                (prefixoMeta.startsWith('chk_') &&
+                  prefixoChk.startsWith('chk_') &&
+                  prefixoMeta === prefixoChk) ||
+                ((prefixoMeta === 'chk' || prefixoMeta === 'item' || prefixoMeta === '') &&
+                  (prefixoChk === 'chk' || prefixoChk === 'item' || prefixoChk === ''))
+
+              return prefixosIguais && ordinalMeta === ordinalChk
             })
-            if (idxPorNumId >= 0) {
-              matchedChecklistIdx = idxPorNumId
-            } else if (metaOrdinal >= 1 && metaOrdinal <= checklistItens.length) {
-              matchedChecklistIdx = metaOrdinal - 1
-            }
           }
         }
 
-        // 3. Por correspondência de texto tolerante a acentos/caixa alta/baixa
-        // Compara itemChecklistTexto com chk.item (texto técnico) e com chk.descricao_cliente
+        // 3. Casamento textual bidirecional:
+        // O texto do metadado pode ser a variante cliente (descricao_cliente) ou técnica (item.item).
+        // Normaliza e testa contido/contém em AMBAS as variantes.
         if (matchedChecklistIdx < 0 && textoMetaNorm) {
+          // 3a. Igualdade total com item ou descricao_cliente
           matchedChecklistIdx = checklistItens.findIndex((chk) => {
             const tItemNorm = normalizarTexto(chk.item)
             const tDescNorm = normalizarTexto((chk as any).descricao_cliente)
-            return tItemNorm === textoMetaNorm || tDescNorm === textoMetaNorm
+            return (
+              (tItemNorm && tItemNorm === textoMetaNorm) ||
+              (tDescNorm && tDescNorm === textoMetaNorm)
+            )
           })
 
-          if (matchedChecklistIdx < 0 && textoMetaNorm.length >= 5) {
+          // 3b. Contido / contém bidirecional
+          if (matchedChecklistIdx < 0 && textoMetaNorm.length >= 4) {
             matchedChecklistIdx = checklistItens.findIndex((chk) => {
               const tItemNorm = normalizarTexto(chk.item)
               const tDescNorm = normalizarTexto((chk as any).descricao_cliente)
-              return (
-                (tItemNorm &&
-                  (tItemNorm.includes(textoMetaNorm) || textoMetaNorm.includes(tItemNorm))) ||
-                (tDescNorm &&
-                  (tDescNorm.includes(textoMetaNorm) || textoMetaNorm.includes(tDescNorm)))
-              )
+              const matchItem =
+                tItemNorm &&
+                tItemNorm.length >= 4 &&
+                (tItemNorm.includes(textoMetaNorm) || textoMetaNorm.includes(tItemNorm))
+              const matchDesc =
+                tDescNorm &&
+                tDescNorm.length >= 4 &&
+                (tDescNorm.includes(textoMetaNorm) || textoMetaNorm.includes(tDescNorm))
+              return Boolean(matchItem || matchDesc)
             })
           }
         }
 
-        // 4. Se itemChecklistId for na verdade o texto do item
+        // 4. Se itemChecklistId for na verdade o texto do item ou da descrição
         if (matchedChecklistIdx < 0 && idMetaNorm && idMetaNorm.length >= 4) {
           matchedChecklistIdx = checklistItens.findIndex((chk) => {
             const tItemNorm = normalizarTexto(chk.item)
             const tDescNorm = normalizarTexto((chk as any).descricao_cliente)
-            return tItemNorm === idMetaNorm || tDescNorm === idMetaNorm
+            return (
+              tItemNorm === idMetaNorm ||
+              tDescNorm === idMetaNorm ||
+              (tItemNorm && (tItemNorm.includes(idMetaNorm) || idMetaNorm.includes(tItemNorm))) ||
+              (tDescNorm && (tDescNorm.includes(idMetaNorm) || idMetaNorm.includes(tDescNorm)))
+            )
           })
         }
 
@@ -572,13 +647,18 @@ export function compilarDadosRelatorioOS(
     const dNorm = normalizarTexto(itemDescCliente)
     const idNorm = itemId ? String(itemId).trim() : ''
 
-    // Ordinal numérico deste item se houver
+    // Prefixo e ordinal numérico deste item se houver
+    let prefixoEsperado = ''
     let ordinalEsperado: number | null = null
     if (idNorm) {
-      const m = idNorm.match(/(\d+)$/)
-      if (m && m[1]) ordinalEsperado = parseInt(m[1], 10)
+      const matchP = idNorm.match(/^(.*?)_?(\d+)$/)
+      if (matchP) {
+        prefixoEsperado = matchP[1].toLowerCase()
+        ordinalEsperado = parseInt(matchP[2], 10)
+      }
     }
     if (ordinalEsperado === null && itemIdx !== undefined) {
+      prefixoEsperado = 'chk'
       ordinalEsperado = itemIdx + 1
     }
 
@@ -594,51 +674,78 @@ export function compilarDadosRelatorioOS(
         pertence = true
       }
 
-      // 2. Por ordinal do ID (ex.: chk_limp_2 casando com chk_2 ou vice-versa)
+      // 2. Por prefixo coincidente + ordinal do ID (ex: chk_limp_2 casando com chk_limp_2, mas NÃO chk_insp_2)
       if (!pertence && ordinalEsperado !== null && fIdNorm) {
-        const mF = fIdNorm.match(/(\d+)$/)
-        if (mF && mF[1] && parseInt(mF[1], 10) === ordinalEsperado) {
-          pertence = true
+        const matchF = fIdNorm.match(/^(.*?)_?(\d+)$/)
+        if (matchF) {
+          const prefixoF = matchF[1].toLowerCase()
+          const ordF = parseInt(matchF[2], 10)
+          const prefixosCompativeis =
+            prefixoEsperado === prefixoF ||
+            (prefixoEsperado.startsWith('chk_') &&
+              prefixoF.startsWith('chk_') &&
+              prefixoEsperado === prefixoF) ||
+            ((prefixoEsperado === 'chk' || prefixoEsperado === 'item' || prefixoEsperado === '') &&
+              (prefixoF === 'chk' || prefixoF === 'item' || prefixoF === ''))
+
+          if (prefixosCompativeis && ordF === ordinalEsperado) {
+            pertence = true
+          }
         }
       }
 
-      // 3. Por texto do item técnico ou descrição do cliente
+      // 3. Por texto do item técnico ou descrição do cliente (bidirecional)
       if (!pertence && fTextoNorm) {
         if (
           tNorm &&
-          (fTextoNorm === tNorm || fTextoNorm.includes(tNorm) || tNorm.includes(fTextoNorm))
+          (fTextoNorm === tNorm ||
+            (fTextoNorm.length >= 4 &&
+              tNorm.length >= 4 &&
+              (fTextoNorm.includes(tNorm) || tNorm.includes(fTextoNorm))))
         ) {
           pertence = true
         } else if (
           dNorm &&
-          (fTextoNorm === dNorm || fTextoNorm.includes(dNorm) || dNorm.includes(fTextoNorm))
+          (fTextoNorm === dNorm ||
+            (fTextoNorm.length >= 4 &&
+              dNorm.length >= 4 &&
+              (fTextoNorm.includes(dNorm) || dNorm.includes(fTextoNorm))))
         ) {
           pertence = true
         }
       }
 
-      // 4. Por f.item_checklist_id contendo texto da etapa
+      // 4. Por f.item_checklist_id contendo texto da etapa ou descrição
       if (!pertence && fIdNorm) {
         const fIdTextNorm = normalizarTexto(fIdNorm)
         if (
           tNorm &&
           fIdTextNorm &&
-          (fIdTextNorm === tNorm || fIdTextNorm.includes(tNorm) || tNorm.includes(fIdTextNorm))
+          (fIdTextNorm === tNorm ||
+            (fIdTextNorm.length >= 4 &&
+              tNorm.length >= 4 &&
+              (fIdTextNorm.includes(tNorm) || tNorm.includes(fIdTextNorm))))
         ) {
           pertence = true
         } else if (
           dNorm &&
           fIdTextNorm &&
-          (fIdTextNorm === dNorm || fIdTextNorm.includes(dNorm) || dNorm.includes(fIdTextNorm))
+          (fIdTextNorm === dNorm ||
+            (fIdTextNorm.length >= 4 &&
+              dNorm.length >= 4 &&
+              (fIdTextNorm.includes(dNorm) || dNorm.includes(fIdTextNorm))))
         ) {
           pertence = true
         }
       }
 
-      // 5. Fallback por chave ordinal tipo chk_X
+      // 5. Fallback por chave ordinal se o fIdNorm for genérico tipo chk_X ou X
       if (!pertence && itemIdx !== undefined) {
         const chaveIdx = `chk_${itemIdx + 1}`
-        if (fIdNorm === chaveIdx || fIdNorm === String(itemIdx + 1)) {
+        if (
+          fIdNorm === chaveIdx ||
+          (fIdNorm === String(itemIdx + 1) && (!prefixoEsperado || prefixoEsperado === 'chk'))
+        ) {
           pertence = true
         }
       }
@@ -651,6 +758,8 @@ export function compilarDadosRelatorioOS(
     if (indicesFotos.length === 0) {
       return fallbackEvidencia
     }
+    // Ordenar numericamente os índices das fotos
+    indicesFotos.sort((a, b) => a - b)
     if (indicesFotos.length === 1) {
       return `Foto ${indicesFotos[0]}`
     }
@@ -829,30 +938,43 @@ export function compilarDadosRelatorioOS(
       grupoDestino = fotosPorEtapaMap.get(fId)
     }
 
-    // 2. Tenta casar por ordinal numérico do ID (ex: chk_limp_2 casando com chk_2 ou vice-versa)
+    // 2. Tenta casar por prefixo coincidente + ordinal numérico
     if (!grupoDestino && fId) {
-      const mF = fId.match(/(\d+)$/)
-      if (mF && mF[1]) {
-        const ord = parseInt(mF[1], 10)
+      const mF = fId.match(/^(.*?)_?(\d+)$/)
+      if (mF) {
+        const prefixoF = mF[1].toLowerCase()
+        const ordF = parseInt(mF[2], 10)
         for (const [chave, g] of fotosPorEtapaMap.entries()) {
-          const mChave = chave.match(/(\d+)$/)
-          if (mChave && mChave[1] && parseInt(mChave[1], 10) === ord) {
-            grupoDestino = g
-            break
+          const mChave = chave.match(/^(.*?)_?(\d+)$/)
+          if (mChave) {
+            const prefixoChave = mChave[1].toLowerCase()
+            const ordChave = parseInt(mChave[2], 10)
+            const prefixosCompativeis =
+              prefixoF === prefixoChave ||
+              (prefixoF.startsWith('chk_') &&
+                prefixoChave.startsWith('chk_') &&
+                prefixoF === prefixoChave) ||
+              ((prefixoF === 'chk' || prefixoF === 'item' || prefixoF === '') &&
+                (prefixoChave === 'chk' || prefixoChave === 'item' || prefixoChave === ''))
+            if (prefixosCompativeis && ordF === ordChave) {
+              grupoDestino = g
+              break
+            }
           }
         }
       }
     }
 
-    // 3. Tenta casar por texto da etapa (com normalização tolerante a acentos e caixa)
+    // 3. Tenta casar por texto da etapa (com normalização tolerante a acentos e caixa, bidirecional)
     if (!grupoDestino && fTextoNorm) {
       for (const g of fotosPorEtapaMap.values()) {
         const gTextoNorm = normalizarTexto(g.itemChecklistTexto)
         if (
           gTextoNorm &&
           (gTextoNorm === fTextoNorm ||
-            gTextoNorm.includes(fTextoNorm) ||
-            fTextoNorm.includes(gTextoNorm))
+            (gTextoNorm.length >= 4 &&
+              fTextoNorm.length >= 4 &&
+              (gTextoNorm.includes(fTextoNorm) || fTextoNorm.includes(gTextoNorm))))
         ) {
           grupoDestino = g
           break
