@@ -8,12 +8,23 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
     const esperado = $secrets.get('PIPEDRIVE_IMPORT_SECRET') || ''
     const info = e.requestInfo()
     const hdrs = info.headers || {}
-    const recebido = hdrs['x-import-secret'] || hdrs['X-Import-Secret'] || ''
-    if (!esperado || String(recebido) !== esperado) {
-      return e.json(401, { erro: 'nao autorizado' })
+    let recebido = ''
+    for (const k in hdrs) {
+      if (String(k).toLowerCase() === 'x-import-secret') recebido = String(hdrs[k])
     }
-
     const body = info.body || {}
+    if (!recebido && body && body._secret) recebido = String(body._secret)
+    if (!esperado || !recebido || String(recebido) !== esperado) {
+      const vistos = []
+      for (const k2 in hdrs) {
+        vistos.push(String(k2))
+      }
+      return e.json(401, {
+        erro: 'nao autorizado',
+        tem_secret_configurado: esperado !== '',
+        headers_recebidos: vistos,
+      })
+    }
     const acao = String(body.acao || 'consultar')
     const registros = Array.isArray(body.registros) ? body.registros : []
     const atualizar = body.atualizar === true
