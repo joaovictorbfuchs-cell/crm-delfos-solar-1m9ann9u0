@@ -250,6 +250,12 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(errors.isAbortError({ name: 'AbortError' })).toBe(true)
     })
 
+    it('garante que a rota /servicos-campo e o componente ExecucaoOS podem ser importados para montagem', async () => {
+      const page = await import('@/pages/ExecucaoOS')
+      expect(page.default).toBeDefined()
+      expect(typeof page.default).toBe('function')
+    })
+
     it('valida inclusão do bloco de avaliação no Google quando solicitarAvaliacaoGoogle é true', async () => {
       const { compilarDadosRelatorioOS } = await import('@/lib/relatorioOSCanonical')
       const fakeOSComAvaliacao: any = {
