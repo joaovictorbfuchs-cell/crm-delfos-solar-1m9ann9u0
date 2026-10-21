@@ -1007,6 +1007,41 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
+        {/* 11. Solicitação de Avaliação no Google (Apenas quando ativo) */}
+        {relatorio.solicitarAvaliacaoGoogle && (
+          <section className="bg-linear-to-r from-amber-50/70 via-white to-amber-50/50 border-2 border-amber-300/80 rounded-xl p-5 sm:p-6 shadow-[0_2px_12px_rgba(201,162,39,0.12)] print:shadow-none print:rounded-md print:p-4 print-color-exact">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-base sm:text-lg">⭐</span>
+                  <h3 className="m-0 text-sm sm:text-base font-extrabold text-[#0E2A47] tracking-tight">
+                    {relatorio.avaliacaoGoogleTitulo || 'Sua opinião vale muito para nós'}
+                  </h3>
+                </div>
+                <p className="m-0 text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                  {relatorio.avaliacaoGoogleTexto ||
+                    'Ficamos felizes em atender você! Se o serviço foi do seu agrado, reserve 15 segundos para avaliar nossa equipe no Google — isso é muito importante para continuarmos entregando um atendimento de qualidade.'}
+                </p>
+              </div>
+
+              {relatorio.avaliacaoGoogleLink && (
+                <div className="shrink-0 flex items-center">
+                  <a
+                    href={relatorio.avaliacaoGoogleLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#C9A227] hover:bg-[#b5901f] text-[#0E2A47] font-bold text-xs sm:text-sm shadow-sm transition-all hover:shadow-md cursor-pointer print:border print:border-[#B38E1D]"
+                    title="Avaliar a Delfos Solar no Google (leva 15 segundos)"
+                  >
+                    <span>Avaliar no Google</span>
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  </a>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* 14. Rodapé Timbrado */}
         <footer className="bg-[#0E2A47] text-white rounded-b-xl p-6 sm:p-7 text-xs leading-relaxed shadow-[0_4px_16px_rgba(14,42,71,0.1)] print:rounded-b-md print:p-5 print:shadow-none print-color-exact">
           <p className="m-0 mb-1 text-[#D2DFEE]">

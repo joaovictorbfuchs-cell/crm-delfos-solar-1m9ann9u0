@@ -1045,6 +1045,65 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
           </Text>
         </View>
 
+        {/* 11. Bloco de Avaliação no Google (Apenas quando o toggle estiver ativo) */}
+        {relatorio.solicitarAvaliacaoGoogle && (
+          <View
+            style={{
+              backgroundColor: '#FFFDF5',
+              borderWidth: 1.5,
+              borderColor: '#E5D38A',
+              borderRadius: 6,
+              padding: 8,
+              marginBottom: 8,
+            }}
+            wrap={false}
+          >
+            <Text
+              style={{
+                fontFamily: 'Helvetica-Bold',
+                fontSize: 8.5,
+                color: '#0E2A47',
+                marginBottom: 2,
+              }}
+            >
+              ⭐ {relatorio.avaliacaoGoogleTitulo || 'Sua opinião vale muito para nós'}
+            </Text>
+            <Text
+              style={{
+                fontFamily: 'Helvetica',
+                fontSize: 7.2,
+                color: '#2C3E50',
+                lineHeight: 1.35,
+                marginBottom: 4,
+              }}
+            >
+              {relatorio.avaliacaoGoogleTexto ||
+                'Ficamos felizes em atender você! Se o serviço foi do seu agrado, reserve 15 segundos para avaliar nossa equipe no Google — isso é muito importante para continuarmos entregando um atendimento de qualidade.'}
+            </Text>
+            {relatorio.avaliacaoGoogleLink && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                <Link
+                  src={relatorio.avaliacaoGoogleLink}
+                  style={{
+                    backgroundColor: '#C9A227',
+                    color: '#0E2A47',
+                    fontFamily: 'Helvetica-Bold',
+                    fontSize: 7.2,
+                    paddingTop: 3,
+                    paddingBottom: 3,
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    borderRadius: 4,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Avaliar no Google → {relatorio.avaliacaoGoogleLink}
+                </Link>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* 14. Rodapé Timbrado */}
         <View style={styles.timbradoFooter} wrap={false}>
           <Text style={styles.footerText}>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T21:40:23.781Z",
+  "generatedAt": "2026-10-21T22:06:16.665Z",
   "collections": [
     {
       "name": "users",
@@ -1283,6 +1283,24 @@
         {
           "name": "fotos_metadados",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solicitar_avaliacao_google",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_google_texto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_google_link",
+          "type": "text",
           "required": false,
           "system": false
         }
@@ -4508,6 +4526,24 @@
         {
           "name": "fotos_metadados",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solicitar_avaliacao_google",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_google_texto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_google_link",
+          "type": "text",
           "required": false,
           "system": false
         }

@@ -96,6 +96,12 @@ export interface RelatorioOSCanonicalData {
   // Recebimento do cliente
   formaEDataEnvio: string
   recebidoPor: string
+
+  // Solicitação de Avaliação no Google
+  solicitarAvaliacaoGoogle?: boolean
+  avaliacaoGoogleTitulo?: string
+  avaliacaoGoogleTexto?: string
+  avaliacaoGoogleLink?: string
 }
 
 /**
@@ -1056,6 +1062,21 @@ export function compilarDadosRelatorioOS(
   const clientePossuiContratoOMAtivo = opcoes?.clientePossuiContratoOMAtivo ?? false
   const exibirPlanoOM = !clientePossuiContratoOMAtivo
 
+  // Solicitação de Avaliação no Google (100% aditivo, ativado apenas se explicitamente marcado como true)
+  const solicitarAvaliacaoGoogle = Boolean(
+    os?.solicitar_avaliacao_google === true ||
+    (os as any)?.solicitarAvaliacaoGoogle === true ||
+    os?.solicitar_avaliacao_google === 'true',
+  )
+  const linkAvaliacaoPadrao = 'https://g.page/r/CTsVOsKTsWCTEBM/review'
+  const tituloAvaliacaoPadrao = 'Sua opinião vale muito para nós'
+  const textoAvaliacaoPadrao =
+    'Ficamos felizes em atender você! Se o serviço foi do seu agrado, reserve 15 segundos para avaliar nossa equipe no Google — isso é muito importante para continuarmos entregando um atendimento de qualidade.'
+
+  const avaliacaoGoogleTitulo = safeStr(os?.avaliacao_google_titulo) || tituloAvaliacaoPadrao
+  const avaliacaoGoogleTexto = safeStr(os?.avaliacao_google_texto) || textoAvaliacaoPadrao
+  const avaliacaoGoogleLink = safeStr(os?.avaliacao_google_link) || linkAvaliacaoPadrao
+
   return {
     numeroRelatorio,
     osCodigo,
@@ -1097,5 +1118,9 @@ export function compilarDadosRelatorioOS(
     planoOmContato,
     formaEDataEnvio,
     recebidoPor,
+    solicitarAvaliacaoGoogle,
+    avaliacaoGoogleTitulo,
+    avaliacaoGoogleTexto,
+    avaliacaoGoogleLink,
   }
 }

@@ -2,85 +2,6 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
-/**
- * Identifica erros de sessão/autenticação expirada ou inválida (status 401/403 ou mensagens correlatas).
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-
-  // Se for abort/autocancel, nunca é erro de autenticação
-  if (isAbortError(err)) return false
-
-  if (err instanceof ClientResponseError) {
-    if (err.status === 401 || err.status === 403) return true
-    const msg = (err.message || '').toLowerCase()
-    return (
-      msg.includes('token is expired') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('invalid auth') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada')
-    )
-  }
-
-  if (typeof err === 'object' && err !== null) {
-    const obj = err as Record<string, unknown>
-    const status = Number(
-      obj.status ?? obj.statusCode ?? (obj.response as Record<string, unknown>)?.status,
-    )
-    if (status === 401 || status === 403) return true
-
-    const msg = String(obj.message || obj.error || '').toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('invalid auth') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada')
-    ) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
- * Identifica se a requisição foi abortada ou autocancelada pelo PocketBase / Fetch API.
- */
-export function isAbortError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object' && err !== null) {
-    const obj = err as Record<string, unknown>
-    if (obj.isAbort === true || obj.name === 'AbortError') return true
-    const msg = String(obj.message || '').toLowerCase()
-    if (
-      msg.includes('autocancelled') ||
-      msg.includes('the request was aborted') ||
-      msg.includes('aborterror')
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
-/**
- * Formata um erro do PocketBase em mensagem amigável legível.
- */
-export function formatPbError(
-  error: unknown,
-  fallback = 'Erro na operação com o servidor.',
-): string {
-  if (isAbortError(error)) return 'A requisição foi cancelada.'
-  if (isAuthSessionError(error)) return 'Sua sessão expirou. Faça login novamente.'
-  return getErrorMessage(error) || fallback
-}
-
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -103,6 +24,58 @@ export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
-  const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+  const msers = Object.values(extractFieldErrors(error))
+  return msers.length > 0 ? msers.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
+}
+
+/**
+ * Identifica se um erro de rede/SDK é decorrente de sessão inválida, expirada ou não autorizada (401/403).
+ */
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+
+  if (typeof err === 'object') {
+    const obj = err as Record<string, any>
+    const status = obj.status ?? obj.statusCode ?? obj.response?.status
+    if (status === 401 || status === 403) return true
+
+    if (obj.isAbort || obj.name === 'AbortError' || obj.message === 'The request was aborted') {
+      return false
+    }
+
+    const msg = String(obj.message || obj.error || '').toLowerCase()
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('sessao expirada') ||
+      msg.includes('login expirou') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden')
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Identifica se uma requisição foi abortada/autocancelada intencionalmente.
+ */
+export function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const obj = err as Record<string, any>
+    if (obj.isAbort === true) return true
+    if (obj.name === 'AbortError') return true
+    const msg = String(obj.message || '').toLowerCase()
+    if (msg.includes('aborted') || msg.includes('autocancelled')) return true
+  }
+  return false
 }

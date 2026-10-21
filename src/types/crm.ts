@@ -1441,6 +1441,9 @@ export interface OrdemServico extends RecordModel {
   detalhes_execucao?: string
   blocos_relatorio?: BlocoRelatorioTipoItem[]
   pendencias_recomendacoes?: string
+  solicitar_avaliacao_google?: boolean
+  avaliacao_google_texto?: string
+  avaliacao_google_link?: string
   fotos?: string[]
   fotos_metadados?: FotoMetadadoItem[]
   concluida_em?: string

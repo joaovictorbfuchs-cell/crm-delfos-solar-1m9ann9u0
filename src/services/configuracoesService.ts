@@ -7,6 +7,19 @@ export const STORAGE_KEY_RODAPE_COMERCIAL = 'delfos_rodape_comercial_relatorio_o
 export const STORAGE_KEY_OFERTA_LIMPEZA_MENSAGEM = 'delfos_oferta_limpeza_mensagem_padrao'
 export const STORAGE_KEY_OFERTA_LIMPEZA_PERCENTUAL = 'delfos_oferta_limpeza_percentual_perda_padrao'
 export const CHAVE_OFERTA_LIMPEZA_PADRAO = 'oferta_limpeza_config_padrao'
+export const CHAVE_AVALIACAO_GOOGLE_PADRAO = 'avaliacao_google_config_padrao'
+export const STORAGE_KEY_AVALIACAO_GOOGLE = 'delfos_avaliacao_google_config_padrao'
+
+export const LINK_AVALIACAO_GOOGLE_PADRAO = 'https://g.page/r/CTsVOsKTsWCTEBM/review'
+export const TITULO_AVALIACAO_GOOGLE_PADRAO = 'Sua opinião vale muito para nós'
+export const TEXTO_AVALIACAO_GOOGLE_PADRAO =
+  'Ficamos felizes em atender você! Se o serviço foi do seu agrado, reserve 15 segundos para avaliar nossa equipe no Google — isso é muito importante para continuarmos entregando um atendimento de qualidade.'
+
+export interface AvaliacaoGoogleConfigPadrao {
+  titulo: string
+  texto: string
+  link: string
+}
 
 export interface RodapeComercialConfig {
   titulo: string
@@ -279,6 +292,150 @@ export async function setRodapeComercialRelatorioOS(
     }
   } catch (err) {
     console.error('[configuracoesService] Erro ao persistir rodape_comercial no PocketBase:', err)
+  }
+
+  return finalConfig
+}
+
+/**
+ * Obtém a configuração padrão do bloco de avaliação no Google para o Relatório de OS.
+ * Busca no PocketBase ('avaliacao_google_config_padrao') -> localStorage -> fallback do sistema.
+ */
+export async function getAvaliacaoGoogleConfigPadrao(): Promise<AvaliacaoGoogleConfigPadrao> {
+  const padrao: AvaliacaoGoogleConfigPadrao = {
+    titulo: TITULO_AVALIACAO_GOOGLE_PADRAO,
+    texto: TEXTO_AVALIACAO_GOOGLE_PADRAO,
+    link: LINK_AVALIACAO_GOOGLE_PADRAO,
+  }
+
+  try {
+    const record = await pb
+      .collection('configuracoes')
+      .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_AVALIACAO_GOOGLE_PADRAO}"`, {
+        requestKey: null,
+      })
+
+    if (record) {
+      let cfg: AvaliacaoGoogleConfigPadrao | null = null
+      if (record.dados && typeof record.dados === 'object') {
+        cfg = {
+          titulo: String(record.dados.titulo || padrao.titulo),
+          texto: String(record.dados.texto || record.valor || padrao.texto),
+          link: String(record.dados.link || padrao.link),
+        }
+      } else if (record.valor) {
+        cfg = {
+          ...padrao,
+          texto: record.valor,
+        }
+      }
+
+      if (cfg) {
+        try {
+          localStorage.setItem(STORAGE_KEY_AVALIACAO_GOOGLE, JSON.stringify(cfg))
+        } catch {
+          /* ignore */
+        }
+        return cfg
+      }
+    }
+  } catch (err) {
+    console.warn('[configuracoesService] Falha ao ler avaliacao_google_config_padrao:', err)
+  }
+
+  return getAvaliacaoGoogleConfigCacheSync()
+}
+
+/**
+ * Leitura síncrona do cache local de avaliação no Google.
+ */
+export function getAvaliacaoGoogleConfigCacheSync(): AvaliacaoGoogleConfigPadrao {
+  const padrao: AvaliacaoGoogleConfigPadrao = {
+    titulo: TITULO_AVALIACAO_GOOGLE_PADRAO,
+    texto: TEXTO_AVALIACAO_GOOGLE_PADRAO,
+    link: LINK_AVALIACAO_GOOGLE_PADRAO,
+  }
+
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY_AVALIACAO_GOOGLE)
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      if (parsed && typeof parsed === 'object') {
+        return {
+          titulo: String(parsed.titulo || padrao.titulo),
+          texto: String(parsed.texto || padrao.texto),
+          link: String(parsed.link || padrao.link),
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return padrao
+}
+
+/**
+ * Salva a configuração padrão do bloco de avaliação no Google no PocketBase e localStorage.
+ */
+export async function setAvaliacaoGoogleConfigPadrao(
+  config: Partial<AvaliacaoGoogleConfigPadrao>,
+): Promise<AvaliacaoGoogleConfigPadrao> {
+  const finalConfig: AvaliacaoGoogleConfigPadrao = {
+    titulo: (config.titulo ?? TITULO_AVALIACAO_GOOGLE_PADRAO).trim(),
+    texto: (config.texto ?? TEXTO_AVALIACAO_GOOGLE_PADRAO).trim(),
+    link: (config.link ?? LINK_AVALIACAO_GOOGLE_PADRAO).trim(),
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY_AVALIACAO_GOOGLE, JSON.stringify(finalConfig))
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    let recordExistente: ConfiguracaoItem | null = null
+    try {
+      recordExistente = await pb
+        .collection('configuracoes')
+        .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_AVALIACAO_GOOGLE_PADRAO}"`, {
+          requestKey: null,
+        })
+    } catch {
+      recordExistente = null
+    }
+
+    const payload = {
+      chave: CHAVE_AVALIACAO_GOOGLE_PADRAO,
+      valor: finalConfig.texto,
+      dados: finalConfig,
+      descricao: 'Configuração padrão de solicitação de avaliação no Google para o Relatório da OS',
+    }
+
+    if (recordExistente?.id) {
+      await pb.collection('configuracoes').update(recordExistente.id, payload, { requestKey: null })
+    } else {
+      try {
+        await pb.collection('configuracoes').create(payload, { requestKey: null })
+      } catch (createErr) {
+        const itemRecente = await pb
+          .collection('configuracoes')
+          .getFirstListItem<ConfiguracaoItem>(`chave = "${CHAVE_AVALIACAO_GOOGLE_PADRAO}"`, {
+            requestKey: null,
+          })
+        if (itemRecente?.id) {
+          await pb.collection('configuracoes').update(itemRecente.id, payload, { requestKey: null })
+        } else {
+          throw createErr
+        }
+      }
+    }
+  } catch (err) {
+    console.error(
+      '[configuracoesService] Erro ao persistir avaliacao_google_config_padrao no PocketBase:',
+      err,
+    )
+    throw err
   }
 
   return finalConfig

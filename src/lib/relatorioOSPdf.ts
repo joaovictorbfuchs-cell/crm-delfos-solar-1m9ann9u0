@@ -587,6 +587,33 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </p>
     </section>
 
+    ${
+      rel.solicitarAvaliacaoGoogle
+        ? `<!-- 11. Solicitação de Avaliação no Google (Apenas quando ativo) -->
+    <section class="rep-card" style="background: linear-gradient(135deg, #FFFDF5 0%, #FFFFFF 100%); border: 1.5px solid #E5D38A; padding: 16px 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div style="flex: 1; min-width: 240px;">
+          <div style="font-size: 0.95rem; font-weight: 800; color: #0E2A47; margin-bottom: 4px;">
+            ⭐ ${rel.avaliacaoGoogleTitulo || 'Sua opinião vale muito para nós'}
+          </div>
+          <p style="font-size: 0.82rem; color: #2C3E50; line-height: 1.5; margin: 0;">
+            ${rel.avaliacaoGoogleTexto || 'Ficamos felizes em atender você! Se o serviço foi do seu agrado, reserve 15 segundos para avaliar nossa equipe no Google — isso é muito importante para continuarmos entregando um atendimento de qualidade.'}
+          </p>
+        </div>
+        ${
+          rel.avaliacaoGoogleLink
+            ? `<div>
+          <a href="${rel.avaliacaoGoogleLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #C9A227; color: #0E2A47; font-weight: 800; font-size: 0.85rem; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #B38E1D;">
+            Avaliar no Google
+          </a>
+        </div>`
+            : ''
+        }
+      </div>
+    </section>`
+        : ''
+    }
+
     <!-- 14. Rodapé Timbrado -->
     <footer class="timbrado-footer">
       <p style="margin: 0 0 4px; color: #D2DFEE;"><strong style="color: #FFFFFF;">Documento oficial Delfos Solar</strong> — Atendimento técnico autorizado em estrita conformidade com as normas ABNT NBR 16690 e NR-10 (Segurança em Instalações e Serviços em Eletricidade).</p>
