@@ -4450,6 +4450,9 @@ export async function finalizarOrdemServico(
     detalhes_execucao: string
     blocos_relatorio?: import('@/types/crm').BlocoRelatorioTipoItem[]
     pendencias_recomendacoes?: string
+    solicitar_avaliacao_google?: boolean
+    avaliacao_google_texto?: string
+    avaliacao_google_link?: string
     fotos_metadados?: import('@/types/crm').FotoMetadadoItem[]
     newPhotos?: File[]
     relatorioPdfFile?: File
@@ -4473,6 +4476,15 @@ export async function finalizarOrdemServico(
   }
   if (dadosFinalizacao.pendencias_recomendacoes !== undefined) {
     payload.pendencias_recomendacoes = dadosFinalizacao.pendencias_recomendacoes
+  }
+  if (dadosFinalizacao.solicitar_avaliacao_google !== undefined) {
+    payload.solicitar_avaliacao_google = dadosFinalizacao.solicitar_avaliacao_google
+  }
+  if (dadosFinalizacao.avaliacao_google_texto !== undefined) {
+    payload.avaliacao_google_texto = dadosFinalizacao.avaliacao_google_texto
+  }
+  if (dadosFinalizacao.avaliacao_google_link !== undefined) {
+    payload.avaliacao_google_link = dadosFinalizacao.avaliacao_google_link
   }
   if (dadosFinalizacao.fotos_metadados !== undefined) {
     payload.fotos_metadados = dadosFinalizacao.fotos_metadados

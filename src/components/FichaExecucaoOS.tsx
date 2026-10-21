@@ -32,6 +32,17 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import {
+  getAvaliacaoGoogleConfigPadrao,
+  getAvaliacaoGoogleConfigCacheSync,
+  setAvaliacaoGoogleConfigPadrao,
+  LINK_AVALIACAO_GOOGLE_PADRAO,
+  TITULO_AVALIACAO_GOOGLE_PADRAO,
+  TEXTO_AVALIACAO_GOOGLE_PADRAO,
+} from '@/services/configuracoesService'
 import {
   ArrowLeft,
   Camera,
@@ -534,6 +545,73 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       setPendenciasRecomendacoes(os.pendencias_recomendacoes)
     }
   }, [os?.id, os?.pendencias_recomendacoes])
+
+  // 7. Solicitação de Avaliação no Google (por OS e padrão global)
+  const [solicitarAvaliacaoGoogle, setSolicitarAvaliacaoGoogle] = useState<boolean>(() => {
+    return Boolean(
+      os.solicitar_avaliacao_google === true ||
+      (os as any)?.solicitarAvaliacaoGoogle === true ||
+      os.solicitar_avaliacao_google === 'true',
+    )
+  })
+  const [avaliacaoGoogleTexto, setAvaliacaoGoogleTexto] = useState<string>(() => {
+    if (typeof os.avaliacao_google_texto === 'string' && os.avaliacao_google_texto.trim()) {
+      return os.avaliacao_google_texto
+    }
+    const padraoCache = getAvaliacaoGoogleConfigCacheSync()
+    return padraoCache.texto || TEXTO_AVALIACAO_GOOGLE_PADRAO
+  })
+  const [avaliacaoGoogleLink, setAvaliacaoGoogleLink] = useState<string>(() => {
+    if (typeof os.avaliacao_google_link === 'string' && os.avaliacao_google_link.trim()) {
+      return os.avaliacao_google_link
+    }
+    const padraoCache = getAvaliacaoGoogleConfigCacheSync()
+    return padraoCache.link || LINK_AVALIACAO_GOOGLE_PADRAO
+  })
+  const [salvarAvaliacaoComoPadrao, setSalvarAvaliacaoComoPadrao] = useState<boolean>(false)
+
+  // Sincronizar estados da avaliação com atualização externa da OS e carregar padrão do backend se vazio
+  useEffect(() => {
+    if (os.solicitar_avaliacao_google !== undefined) {
+      setSolicitarAvaliacaoGoogle(
+        Boolean(
+          os.solicitar_avaliacao_google === true ||
+          (os as any)?.solicitarAvaliacaoGoogle === true ||
+          os.solicitar_avaliacao_google === 'true',
+        ),
+      )
+    }
+    if (typeof os.avaliacao_google_texto === 'string' && os.avaliacao_google_texto.trim()) {
+      setAvaliacaoGoogleTexto(os.avaliacao_google_texto)
+    }
+    if (typeof os.avaliacao_google_link === 'string' && os.avaliacao_google_link.trim()) {
+      setAvaliacaoGoogleLink(os.avaliacao_google_link)
+    }
+  }, [
+    os?.id,
+    os?.solicitar_avaliacao_google,
+    os?.avaliacao_google_texto,
+    os?.avaliacao_google_link,
+  ])
+
+  // Busca padrão atualizado do PocketBase para preenchimento consistente caso campos estejam vazios
+  useEffect(() => {
+    let cancelado = false
+    getAvaliacaoGoogleConfigPadrao()
+      .then((cfg) => {
+        if (cancelado) return
+        setAvaliacaoGoogleTexto((prev) =>
+          prev && prev.trim() ? prev : cfg.texto || TEXTO_AVALIACAO_GOOGLE_PADRAO,
+        )
+        setAvaliacaoGoogleLink((prev) =>
+          prev && prev.trim() ? prev : cfg.link || LINK_AVALIACAO_GOOGLE_PADRAO,
+        )
+      })
+      .catch((err) => console.warn('Erro ao carregar padrão de avaliação no Google:', err))
+    return () => {
+      cancelado = true
+    }
+  }, [])
 
   // Confirmação de Finalização
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -1422,6 +1500,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         usina_id: selectedUsinaId || undefined,
         ...(blocosPayload !== undefined ? { blocos_relatorio: blocosPayload } : {}),
         pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
+        solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
+        avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
+        avaliacao_google_link: avaliacaoGoogleLink.trim(),
         fotos_metadados: metadadosConsolidados,
       }
       if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
@@ -1448,6 +1529,19 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
       setFotosMetadados(metadadosSalvos)
       setNovasFotos([])
+      // Se marcou "Salvar como padrão", grava no banco e no cache via setAvaliacaoGoogleConfigPadrao
+      if (salvarAvaliacaoComoPadrao) {
+        try {
+          await setAvaliacaoGoogleConfigPadrao({
+            texto: avaliacaoGoogleTexto.trim() || TEXTO_AVALIACAO_GOOGLE_PADRAO,
+            link: avaliacaoGoogleLink.trim() || LINK_AVALIACAO_GOOGLE_PADRAO,
+          })
+          setSalvarAvaliacaoComoPadrao(false)
+        } catch (padraoErr) {
+          console.warn('Erro ao salvar padrão global de avaliação:', padraoErr)
+        }
+      }
+
       onOSUpdated(updatedComFotos)
       toast({
         title: 'Progresso salvo!',
@@ -1783,6 +1877,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           checklist: checklistAtual,
           detalhes_execucao: detalhesExecucao,
           pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
+          solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
+          avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
+          avaliacao_google_link: avaliacaoGoogleLink.trim(),
           concluida_em: new Date().toISOString(),
           status: 'concluida',
         }
@@ -1811,6 +1908,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         detalhes_execucao: detalhesExecucao,
         ...(blocosFinalizacao !== undefined ? { blocos_relatorio: blocosFinalizacao } : {}),
         pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
+        solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
+        avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
+        avaliacao_google_link: avaliacaoGoogleLink.trim(),
         fotos_metadados: metadadosConsolidados,
         newPhotos: filesToUpload.length > 0 ? filesToUpload : undefined,
         relatorioPdfFile,
@@ -1819,6 +1919,19 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         tecnico_nome: os.atribuida_a,
         origem: os.origem,
       })
+
+      // Se marcou "Salvar como padrão", grava no banco e no cache
+      if (salvarAvaliacaoComoPadrao) {
+        try {
+          await setAvaliacaoGoogleConfigPadrao({
+            texto: avaliacaoGoogleTexto.trim() || TEXTO_AVALIACAO_GOOGLE_PADRAO,
+            link: avaliacaoGoogleLink.trim() || LINK_AVALIACAO_GOOGLE_PADRAO,
+          })
+          setSalvarAvaliacaoComoPadrao(false)
+        } catch (padraoErr) {
+          console.warn('Erro ao salvar padrão global de avaliação na conclusão:', padraoErr)
+        }
+      }
 
       const fotosDoRetorno = normalizarFotosIniciais(
         finalized.fotos,
@@ -2975,6 +3088,111 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           placeholder="Ex: Identificado conector MC4 com leve oxidação no módulo 12; recomendamos substituição na próxima visita preventiva. Módulos limpos com sucesso, sem pendências operacionais imediatas."
           className="min-h-[100px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y disabled:opacity-75 disabled:cursor-not-allowed"
         />
+      </div>
+
+      {/* 7. SOLICITAÇÃO DE AVALIAÇÃO NO GOOGLE */}
+      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3 gap-3 flex-wrap sm:flex-nowrap">
+          <div className="space-y-0.5">
+            <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
+              <span className="text-amber-500 text-base sm:text-lg">⭐</span>
+              <span>Solicitação de avaliação no Google</span>
+            </h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Exibe um bloco no relatório para o cliente avaliar o atendimento no Google.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-semibold text-gray-600">
+              {solicitarAvaliacaoGoogle ? 'Ativado' : 'Desativado'}
+            </span>
+            <Switch
+              id="switch-avaliacao-google"
+              checked={solicitarAvaliacaoGoogle}
+              onCheckedChange={(checked) => setSolicitarAvaliacaoGoogle(checked)}
+              disabled={!podeEditarOS}
+              className="data-[state=checked]:bg-amber-500"
+            />
+          </div>
+        </div>
+
+        {solicitarAvaliacaoGoogle && (
+          <div className="space-y-4 pt-1 animate-in fade-in duration-200">
+            {/* Mensagem de solicitação */}
+            <div className="space-y-1.5">
+              <Label htmlFor="avaliacao-google-texto" className="text-xs font-bold text-gray-700">
+                Texto da mensagem de avaliação
+              </Label>
+              <Textarea
+                id="avaliacao-google-texto"
+                value={avaliacaoGoogleTexto}
+                onChange={(e) => setAvaliacaoGoogleTexto(e.target.value)}
+                disabled={!podeEditarOS}
+                rows={3}
+                placeholder="Texto explicativo solicitando a avaliação do cliente..."
+                className="text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3 focus:bg-white resize-y disabled:opacity-75 disabled:cursor-not-allowed"
+              />
+              <span className="text-[11px] text-gray-400 block text-right">
+                {avaliacaoGoogleTexto.length} caracteres
+              </span>
+            </div>
+
+            {/* Link do Google */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="avaliacao-google-link"
+                className="text-xs font-bold text-gray-700 flex items-center justify-between"
+              >
+                <span>Link da página de avaliação no Google</span>
+                {avaliacaoGoogleLink && (
+                  <a
+                    href={avaliacaoGoogleLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-semibold text-amber-600 hover:text-amber-700 inline-flex items-center gap-1"
+                  >
+                    <span>Testar link</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </Label>
+              <Input
+                id="avaliacao-google-link"
+                type="url"
+                value={avaliacaoGoogleLink}
+                onChange={(e) => setAvaliacaoGoogleLink(e.target.value)}
+                disabled={!podeEditarOS}
+                placeholder="https://g.page/r/CTsVOsKTsWCTEBM/review"
+                className="text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl h-10 px-3.5 focus:bg-white disabled:opacity-75 disabled:cursor-not-allowed"
+              />
+            </div>
+
+            {/* Checkbox "Salvar como padrão" */}
+            <div className="pt-1 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
+              <label
+                htmlFor="check-salvar-padrao-avaliacao"
+                className="flex items-center gap-2 cursor-pointer select-none text-xs text-gray-700 hover:text-gray-900"
+              >
+                <Checkbox
+                  id="check-salvar-padrao-avaliacao"
+                  checked={salvarAvaliacaoComoPadrao}
+                  onCheckedChange={(checked) => setSalvarAvaliacaoComoPadrao(Boolean(checked))}
+                  disabled={!podeEditarOS}
+                />
+                <span className="font-medium">
+                  Salvar este texto e link como padrão para as próximas Ordens de Serviço
+                </span>
+              </label>
+
+              {salvarAvaliacaoComoPadrao && (
+                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                  Será gravado ao salvar a OS
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Banner de Aviso de Somente Leitura pós-conclusão para Não-Admin */}
