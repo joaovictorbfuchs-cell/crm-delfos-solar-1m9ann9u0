@@ -20,27 +20,6 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as { status?: number; response?: { status?: number }; message?: string }
-  if (err.status === 401 || err.status === 403) return true
-  if (err.response?.status === 401 || err.response?.status === 403) return true
-  return false
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as { isAbort?: boolean; name?: string; message?: string }
-  if (err.isAbort === true) return true
-  if (err.name === 'AbortError') return true
-  if (typeof err.message === 'string' && err.message.toLowerCase().includes('aborted')) return true
-  return false
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'

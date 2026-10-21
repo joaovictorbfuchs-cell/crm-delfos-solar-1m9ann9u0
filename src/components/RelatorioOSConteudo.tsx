@@ -538,7 +538,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             <br />
             Telefone: (54) 99129-2121 • E-mail:{' '}
             <a href="mailto:solar@updates.delfos.eng.br" className="text-[#F3D372] hover:underline">
-              solar@updates.delfos.eng.br
+              contato@delfos.eng.br
             </a>{' '}
             • Web:{' '}
             <a
@@ -1005,10 +1005,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
               <span className="text-sm font-bold text-[#0E2A47]">{relatorio.recebidoPor}</span>
             </div>
           </div>
-          <p className="m-0 text-xs text-[#536377] leading-relaxed border-t border-dashed border-[#DDE4EE] pt-2.5">
-            * Nota: A confirmação registra o recebimento deste documento e das recomendações nele
-            descritas. Não representa certificação técnica da instalação pelo cliente.
-          </p>
         </section>
 
         {/* 14. Rodapé Timbrado */}
@@ -1019,8 +1015,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             (Segurança em Instalações e Serviços em Eletricidade).
           </p>
           <p className="m-0 text-[#D2DFEE]">
-            Central de Operação e Suporte: (54) 99129-2121 • solar@updates.delfos.eng.br • Rua
-            Espírito Santo, 275 – Erechim/RS
+            Central de Operação e Suporte: (54) 99129-2121 • contato@delfos.eng.br • Rua Espírito
+            Santo, 275 – Erechim/RS
           </p>
           <div className="border-t border-white/15 my-3" />
           <div className="flex justify-between flex-wrap gap-2 text-[#A9C2DF] font-semibold text-[11px]">
