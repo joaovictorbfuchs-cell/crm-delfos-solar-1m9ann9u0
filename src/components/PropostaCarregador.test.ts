@@ -102,6 +102,66 @@ describe('Propostas de Carregador Veicular (Infraestrutura Wallbox)', () => {
     expect(reaberta.valor_total).toBe(3440)
   })
 
+  it('preserva a preferência de ocultar valores / exibir apenas valor total consolidado no ciclo salvar -> reabrir', () => {
+    const inputOriginal = gerarValoresIniciaisPropostaCarregador(null)
+    inputOriginal.detalhar_valores = false
+    inputOriginal.exibir_apenas_total = true
+
+    const propostaSalva = converterInputParaPropostaCarregador(inputOriginal, 'cli-456')
+    const reaberta = normalizarPropostaCarregadorParaInput(propostaSalva)
+
+    expect(reaberta.detalhar_valores).toBe(false)
+    expect(reaberta.exibir_apenas_total).toBe(true)
+  })
+
+  it('gera HTML correto quando carregador já foi adquirido pelo cliente (sem listar opções e sem valor monetário do carregador)', () => {
+    const dados = gerarValoresIniciaisPropostaCarregador(null)
+    dados.carregador_adquirido = true
+    dados.modo_carregador = 'adquirido'
+    dados.carregador_modelo = 'Zeeda Energy'
+    dados.carregador_potencia = '7 kW (32A trifásico)'
+    dados.subtotal_materiais = 500
+    dados.valor_servicos = 1200
+    dados.valor_total = 1700
+
+    const html = gerarHTMLPropostaCarregador(dados)
+
+    // Seção 3 Carregador Veicular: NÃO deve listar Opção 01 e Opção 02 Wallbox
+    expect(html).not.toContain('Opção 01: Wallbox AC 7,4 kW')
+    expect(html).not.toContain('Opção 02: Wallbox AC 22 kW')
+    expect(html).not.toContain('Recomendado')
+
+    // Deve exibir o carregador adquirido pelo cliente
+    expect(html).toContain('Zeeda Energy')
+    expect(html).toContain('7 kW (32A trifásico)')
+    expect(html).toContain('Adquirido')
+
+    // Na tabela de investimentos:
+    // Carregador deve constar como Adquirido e sem valor monetário na linha
+    expect(html).toContain('1. Carregador Veicular — Zeeda Energy')
+    expect(html).toContain('Adquirido')
+    expect(html).toContain('Carregador Adquirido (R$ 0,00)')
+    expect(html).toContain('R$&nbsp;1.700,00')
+  })
+
+  it('gera HTML correto no modo ocultar valores por item (exibir apenas o valor total)', () => {
+    const dados = gerarValoresIniciaisPropostaCarregador(null)
+    dados.detalhar_valores = false
+    dados.exibir_apenas_total = true
+    dados.subtotal_materiais = 637
+    dados.valor_servicos = 1063
+    dados.valor_total = 1700
+
+    const html = gerarHTMLPropostaCarregador(dados)
+
+    // A tabela de investimento deve conter "Incluso" para materiais e serviços
+    expect(html).toContain('Incluso')
+    expect(html).toContain('INVESTIMENTO TOTAL')
+    expect(html).toContain('R$&nbsp;1.700,00')
+    // Não deve exibir subtotal separado de materiais
+    expect(html).not.toContain('Subtotal dos Materiais da Infraestrutura:')
+  })
+
   it('calcula data de validade com 10 dias corridos', () => {
     const emissao = '2025-10-24'
     const validade = calcularDataValidade(emissao, 10)

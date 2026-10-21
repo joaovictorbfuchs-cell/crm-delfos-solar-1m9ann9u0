@@ -1791,6 +1791,10 @@ export interface PropostaCarregador extends RecordModel {
   opcao2_tempo_recarga?: string
   opcao2_valor?: number
 
+  // Exibição na proposta comercial
+  detalhar_valores?: boolean
+  exibir_apenas_total?: boolean
+
   // Investimento e Condições Comerciais
   valor_estacao_materiais?: number
   valor_servicos_engenharia?: number

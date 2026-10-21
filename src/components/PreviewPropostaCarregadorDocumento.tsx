@@ -58,10 +58,21 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
   const isCarregadorAdquirido = Boolean(
     dados.carregador_adquirido || dados.modo_carregador === 'adquirido',
   )
-  const carregadorModelo =
-    dados.carregador_modelo || dados.opcao2_titulo || 'Wallbox AC 22 kW Inteligente'
-  const carregadorPotencia = dados.carregador_potencia || dados.opcao2_potencia || '22 kW (32A)'
+  const carregadorModelo = isCarregadorAdquirido
+    ? dados.carregador_modelo || 'Carregador Veicular do Cliente'
+    : dados.carregador_modelo || dados.opcao2_titulo || 'Wallbox AC 22 kW Inteligente'
+  const carregadorPotencia = isCarregadorAdquirido
+    ? dados.carregador_potencia || ''
+    : dados.carregador_potencia || dados.opcao2_potencia || '22 kW (32A)'
   const carregadorValor = isCarregadorAdquirido ? 0 : Number(dados.carregador_valor ?? op2Valor)
+
+  // Modo de exibição: detalhado (padrão) vs ocultar valores por item (apenas valor total consolidado)
+  const dJson = (dados.dados_json || {}) as Record<string, any>
+  const ocultarValoresIndividuais = Boolean(
+    dados.exibir_apenas_total ??
+    dJson.exibir_apenas_total ??
+    (dados.detalhar_valores === false || dJson.detalhar_valores === false),
+  )
 
   // Lista de materiais e cálculo de subtotal
   const materiaisList: ItemMaterialInfraestrutura[] =
@@ -633,17 +644,23 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
                   </div>
                   <span className="text-xs text-slate-600">
                     {isCarregadorAdquirido
-                      ? 'Equipamento fornecido diretamente pelo cliente (sem custo de aquisição na proposta).'
+                      ? 'Equipamento já adquirido pelo cliente (sem valor monetário na proposta).'
                       : `Estação Wallbox homologada ${carregadorPotencia} com conector Tipo 2.`}
                   </span>
                 </td>
                 <td className="p-3 text-center text-slate-700">1 un</td>
                 <td className="p-3 text-right text-slate-700">
-                  {isCarregadorAdquirido ? '—' : formatCurrency(carregadorValor)}
+                  {isCarregadorAdquirido
+                    ? '—'
+                    : ocultarValoresIndividuais
+                      ? 'Incluso'
+                      : formatCurrency(carregadorValor)}
                 </td>
                 <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">
                   {isCarregadorAdquirido ? (
                     <span className="text-amber-800 font-bold">Adquirido</span>
+                  ) : ocultarValoresIndividuais ? (
+                    <span className="text-emerald-700 font-semibold">Incluso</span>
                   ) : (
                     formatCurrency(carregadorValor)
                   )}
@@ -651,7 +668,28 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
               </tr>
 
               {/* (ii) Materiais da Infraestrutura de Instalação */}
-              {materiaisList.length > 0 ? (
+              {ocultarValoresIndividuais ? (
+                /* Modo Oculto: Materiais constam apenas como Incluso, sem valores unitários/subtotais */
+                <tr className="border-t border-slate-200">
+                  <td className="p-3">
+                    <strong className="text-slate-900">
+                      2. Materiais da Infraestrutura Elétrica de Instalação
+                    </strong>
+                    <br />
+                    <span className="text-xs text-slate-600">
+                      {materiaisList.length > 0
+                        ? `Conjunto completo conforme NBR 5410 e NBR 17019 (${materiaisList.length} itens inclusos: quadro termoplástico IP65, disjuntores dedicados, DR Tipo A, DPS Classe II, cabos antichama e eletrodutos).`
+                        : 'Quadro de proteção termoplástico, disjuntores, DR Tipo A, DPS e cabeamento de interligação.'}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center text-slate-700">1 lote</td>
+                  <td className="p-3 text-right text-slate-700">Incluso</td>
+                  <td className="p-3 text-right font-semibold text-emerald-700 whitespace-nowrap">
+                    Incluso
+                  </td>
+                </tr>
+              ) : materiaisList.length > 0 ? (
+                /* Modo Detalhado com Itens de Materiais Discriminados */
                 <>
                   <tr className="bg-slate-50/80 font-bold text-xs uppercase text-slate-700 border-t border-slate-200">
                     <td colSpan={4} className="py-2 px-3">
@@ -684,7 +722,7 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
                   </tr>
                 </>
               ) : (
-                <tr>
+                <tr className="border-t border-slate-200">
                   <td className="p-3">
                     <strong className="text-slate-900">
                       2. Materiais da Infraestrutura Elétrica
@@ -705,7 +743,7 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
                 </tr>
               )}
 
-              {/* (iii) Serviços Unificados de Instalação e Engenharia */}
+              {/* (iii) Serviços de Instalação e Engenharia */}
               <tr className="border-t border-slate-200">
                 <td className="p-3">
                   <strong className="text-slate-900">3. Serviços de Instalação e Engenharia</strong>
@@ -719,7 +757,9 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
                 </td>
                 <td className="p-3 text-center text-slate-700">1 lote</td>
                 <td className="p-3 text-right text-slate-700">
-                  {editavel && onChangeField ? (
+                  {ocultarValoresIndividuais ? (
+                    'Incluso'
+                  ) : editavel && onChangeField ? (
                     <input
                       type="number"
                       value={vServicos}
@@ -736,7 +776,11 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
                   )}
                 </td>
                 <td className="p-3 text-right font-semibold text-slate-900 whitespace-nowrap">
-                  {formatCurrency(vServicos)}
+                  {ocultarValoresIndividuais ? (
+                    <span className="text-emerald-700 font-semibold">Incluso</span>
+                  ) : (
+                    formatCurrency(vServicos)
+                  )}
                 </td>
               </tr>
 

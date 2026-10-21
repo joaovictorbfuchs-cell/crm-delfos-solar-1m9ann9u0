@@ -1052,10 +1052,65 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
 
               {/* Seção 5: Serviços e Consolidação do Investimento */}
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
-                  5. Serviços e Resumo do Investimento Total
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
+                    5. Serviços e Resumo do Investimento Total
+                  </h3>
+
+                  {/* Toggle para Detalhar valores por item vs. Exibir apenas o valor total */}
+                  <div className="inline-flex items-center rounded-lg bg-slate-100 p-1 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          detalhar_valores: true,
+                          exibir_apenas_total: false,
+                        }))
+                      }
+                      className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
+                        !formData.exibir_apenas_total
+                          ? 'bg-white text-emerald-800 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title="Exibe os materiais e serviços discriminados com seus valores unitários e subtotais"
+                    >
+                      Detalhar valores por item
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          detalhar_valores: false,
+                          exibir_apenas_total: true,
+                        }))
+                      }
+                      className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
+                        formData.exibir_apenas_total
+                          ? 'bg-[#047857] text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title="Materiais e serviços constam como 'Incluso' e apenas o INVESTIMENTO TOTAL é exibido na proposta"
+                    >
+                      Exibir apenas o valor total
+                    </button>
+                  </div>
+                </div>
+
+                {formData.exibir_apenas_total && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-900 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#047857] shrink-0" />
+                    <span>
+                      <strong>Modo Valor Total Ativo:</strong> Na proposta gerada (tela, PDF e
+                      WhatsApp), os materiais e serviços serão discriminados como{' '}
+                      <strong>&quot;Incluso&quot;</strong>, sem exibir valores unitários ou
+                      subtotais individuais, constando somente o <strong>INVESTIMENTO TOTAL</strong>
+                      .
+                    </span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Carregador */}

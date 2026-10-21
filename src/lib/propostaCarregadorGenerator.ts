@@ -76,12 +76,23 @@ export function gerarHTMLPropostaCarregador(
 
   // Opção única: carregador já adquirido pelo cliente
   const isAdquirido = Boolean(dados.carregador_adquirido || dados.modo_carregador === 'adquirido')
-  const carregadorModelo =
-    dados.carregador_modelo || dados.opcao2_titulo || 'Wallbox AC 22 kW Inteligente'
-  const carregadorPotencia = dados.carregador_potencia || dados.opcao2_potencia || '22 kW (32A)'
+  const carregadorModelo = isAdquirido
+    ? dados.carregador_modelo || 'Carregador Veicular do Cliente'
+    : dados.carregador_modelo || dados.opcao2_titulo || 'Wallbox AC 22 kW Inteligente'
+  const carregadorPotencia = isAdquirido
+    ? dados.carregador_potencia || ''
+    : dados.carregador_potencia || dados.opcao2_potencia || '22 kW (32A)'
   const carregadorValorNum = isAdquirido
     ? 0
     : Number(dados.carregador_valor ?? dados.opcao2_valor ?? 9450)
+
+  // Modo de exibição: detalhado (padrão) vs ocultar valores por item (apenas valor total consolidado)
+  const dJson = (dados.dados_json || {}) as Record<string, any>
+  const ocultarValoresIndividuais = Boolean(
+    dados.exibir_apenas_total ??
+    dJson.exibir_apenas_total ??
+    (dados.detalhar_valores === false || dJson.detalhar_valores === false),
+  )
 
   // Materiais da infraestrutura de instalação
   const mats = Array.isArray(dados.materiais_infraestrutura) ? dados.materiais_infraestrutura : []
@@ -953,30 +964,46 @@ export function gerarHTMLPropostaCarregador(
           <tr>
             <td>
               <strong>1. Carregador Veicular — ${carregadorModelo}</strong>${isAdquirido ? ' <span style="background: #d97706; color: #ffffff; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 0.12rem 0.45rem; border-radius: 3px;">Adquirido</span>' : ''}<br>
-              <small style="color: var(--slate-600);">${isAdquirido ? 'Equipamento fornecido diretamente pelo cliente (sem custo de aquisição na proposta).' : `Estação Wallbox homologada ${carregadorPotencia} com conector Tipo 2.`}</small>
+              <small style="color: var(--slate-600);">${isAdquirido ? 'Equipamento já adquirido pelo cliente (sem valor monetário na proposta).' : `Estação Wallbox homologada ${carregadorPotencia} com conector Tipo 2.`}</small>
             </td>
             <td style="text-align: center;">1 un</td>
-            <td style="text-align: right;">${isAdquirido ? '—' : vCarregador}</td>
-            <td style="text-align: right; font-weight: 600; color: ${isAdquirido ? '#92400e' : 'var(--slate-900)'};">
-              ${vCarregador}
+            <td style="text-align: right;">${isAdquirido ? '—' : ocultarValoresIndividuais ? 'Incluso' : vCarregador}</td>
+            <td style="text-align: right; font-weight: 600; color: ${isAdquirido ? '#92400e' : ocultarValoresIndividuais ? 'var(--accent)' : 'var(--slate-900)'};">
+              ${isAdquirido ? 'Adquirido' : ocultarValoresIndividuais ? 'Incluso' : vCarregador}
             </td>
           </tr>
-          <tr style="background: #f1f5f9;">
+          ${
+            ocultarValoresIndividuais
+              ? `<tr>
+            <td>
+              <strong>2. Materiais da Infraestrutura Elétrica de Instalação</strong><br>
+              <small style="color: var(--slate-600);">${
+                mats.length > 0
+                  ? `Conjunto completo conforme NBR 5410 e NBR 17019 (${mats.length} itens inclusos: quadro termoplástico IP65, disjuntores dedicados, DR Tipo A, DPS Classe II, cabos antichama e eletrodutos).`
+                  : 'Quadro de proteção termoplástico, disjuntores, DR Tipo A, DPS e cabeamento de interligação.'
+              }</small>
+            </td>
+            <td style="text-align: center;">1 lote</td>
+            <td style="text-align: right;">Incluso</td>
+            <td style="text-align: right; font-weight: 600; color: var(--accent);">Incluso</td>
+          </tr>`
+              : `<tr style="background: #f1f5f9;">
             <td colspan="4" style="font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em;">2. Materiais da Infraestrutura de Instalação</td>
           </tr>
           ${linhasMateriaisHtml || `<tr><td colspan="4" style="text-align: center; font-size: 0.8rem; color: var(--slate-600);">Materiais da infraestrutura elétrica inclusos no escopo (quadro de proteção, disjuntor, DR, DPS e cabeamento).</td></tr>`}
           <tr style="background: #f8fafc;">
             <td colspan="3" style="text-align: right; font-weight: 700; font-size: 0.8rem;">Subtotal dos Materiais da Infraestrutura:</td>
             <td style="text-align: right; font-weight: 700;">${subtotalMateriais}</td>
-          </tr>
+          </tr>`
+          }
           <tr>
             <td>
               <strong>3. Serviços de Instalação e Engenharia</strong><br>
               <small style="color: var(--slate-600);">Passagem e fixação de infraestrutura, montagem de quadro elétrico dedicado, fixação mecânica do Wallbox, conexões elétricas, comissionamento com testes funcionais, laudo técnico e emissão de ART/CREA-RS.</small>
             </td>
             <td style="text-align: center;">1 lote</td>
-            <td style="text-align: right;">${vServicos}</td>
-            <td style="text-align: right; font-weight: 600;">${vServicos}</td>
+            <td style="text-align: right;">${ocultarValoresIndividuais ? 'Incluso' : vServicos}</td>
+            <td style="text-align: right; font-weight: 600; color: ${ocultarValoresIndividuais ? 'var(--accent)' : 'inherit'};">${ocultarValoresIndividuais ? 'Incluso' : vServicos}</td>
           </tr>
           <tr style="background: #f8fafc; border-top: 2px solid var(--slate-900);">
             <td colspan="2" style="font-size: 1rem; font-weight: 800;">

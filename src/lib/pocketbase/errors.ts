@@ -20,16 +20,12 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function getErrorMessage(error: unknown): string {
-  if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'An unexpected error occurred.'
-  }
-  const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const err = error as { status?: number; response?: { status?: number }; message?: string }
+  if (err.status === 401 || err.status === 403) return true
+  if (err.response?.status === 401 || err.response?.status === 403) return true
+  return false
 }
 
 export function isAbortError(error: unknown): boolean {
@@ -41,31 +37,14 @@ export function isAbortError(error: unknown): boolean {
   return false
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const err = error as {
-      status?: number
-      statusCode?: number
-      response?: { status?: number; statusCode?: number }
-      message?: string
-    }
-    if (err.status === 401 || err.status === 403) return true
-    if (err.statusCode === 401 || err.statusCode === 403) return true
-    if (err.response?.status === 401 || err.response?.status === 403) return true
-    if (err.response?.statusCode === 401 || err.response?.statusCode === 403) return true
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
+}
 
-    const msg = typeof err.message === 'string' ? err.message.toLowerCase() : ''
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('token expired') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('login expirou') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('failed to create request context')
-    ) {
-      return true
-    }
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
-  return false
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }

@@ -48,6 +48,17 @@ export const ModalEnviarPropostaCarregadorWhatsApp: React.FC<
   const valorTotalStr = formatCurrency(proposta?.valor_total || 0)
   const clienteNome = proposta?.cliente_nome || 'Cliente'
   const numProp = proposta?.numero_proposta || 'PROP'
+  const isAdquirido = Boolean(
+    proposta?.carregador_adquirido ||
+    (proposta as any)?.modo_carregador === 'adquirido' ||
+    (proposta as any)?.opcao_selecionada === 'adquirido',
+  )
+  const carregadorModelo = isAdquirido
+    ? (proposta as any)?.carregador_modelo || 'Carregador Veicular do Cliente'
+    : (proposta as any)?.carregador_modelo ||
+      (proposta as any)?.opcao2_titulo ||
+      'Wallbox Inteligente'
+  const carregadorPotencia = (proposta as any)?.carregador_potencia || ''
 
   const origem = typeof window !== 'undefined' ? window.location.origin : ''
   const linkVisualizacao = proposta?.id
@@ -63,11 +74,16 @@ export const ModalEnviarPropostaCarregadorWhatsApp: React.FC<
   }, [clienteTelefone, telefone])
 
   useEffect(() => {
+    const linhaCarregador = isAdquirido
+      ? `🔌 *Carregador:* ${carregadorModelo}${carregadorPotencia ? ` (${carregadorPotencia})` : ''} — *Adquirido pelo cliente*\n`
+      : `🔌 *Carregador:* ${carregadorModelo}\n`
+
     if (modoEnvio === 'link') {
       setMensagem(
         `Olá, ${clienteNome}! Tudo bem?\n\n` +
           `Aqui é da *Delfos Engenharia*. Conforme alinhado, elaborei a sua *Proposta Comercial de Infraestrutura de Recarga Veicular (Wallbox)*.\n\n` +
           `📄 *Proposta Nº:* ${numProp}\n` +
+          linhaCarregador +
           `⚡ *Normas:* 100% conforme NBR 5410 e NBR 17019 com ART no CREA-RS\n` +
           `💰 *Investimento Total:* ${valorTotalStr}\n` +
           `⏱️ *Validade das Condições:* 10 dias corridos\n\n` +
@@ -81,13 +97,23 @@ export const ModalEnviarPropostaCarregadorWhatsApp: React.FC<
         `Olá, ${clienteNome}! Tudo bem?\n\n` +
           `Segue o PDF oficial da sua *Proposta Comercial de Infraestrutura de Recarga Veicular (Wallbox)* pela *Delfos Engenharia*.\n\n` +
           `📄 *Proposta Nº:* ${numProp}\n` +
+          linhaCarregador +
           `💰 *Investimento Total:* ${valorTotalStr}\n` +
           `⚡ *Normas:* Conforme NBR 5410 e NBR 17019 com emissão de ART/CREA-RS.\n\n` +
           `Fico à disposição para tirar qualquer dúvida e agendarmos a vistoria técnica!\n\n` +
           `*DELFOS ENGENHARIA SOLAR*`,
       )
     }
-  }, [modoEnvio, clienteNome, numProp, valorTotalStr, linkVisualizacao])
+  }, [
+    modoEnvio,
+    clienteNome,
+    numProp,
+    valorTotalStr,
+    linkVisualizacao,
+    isAdquirido,
+    carregadorModelo,
+    carregadorPotencia,
+  ])
 
   const sanitizarNumero = (num: string): string => {
     const limpo = num.replace(/\D/g, '')

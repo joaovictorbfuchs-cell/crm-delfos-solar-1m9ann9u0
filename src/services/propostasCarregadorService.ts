@@ -65,6 +65,10 @@ export interface SalvarPropostaCarregadorInput {
   valor_servicos_instalacao?: number
   valor_servicos_engenharia?: number
 
+  // Exibição na proposta comercial (detalhar valores por item vs apenas valor total consolidado)
+  detalhar_valores?: boolean
+  exibir_apenas_total?: boolean
+
   // Investimento e Condições Comerciais (compatibilidade e consolidação)
   valor_estacao_materiais?: number
   valor_total?: number
@@ -194,6 +198,10 @@ export async function salvarPropostaCarregador(
       typeof dadosBrutos.valor_servicos_engenharia === 'number'
         ? dadosBrutos.valor_servicos_engenharia
         : 0,
+    detalhar_valores:
+      dadosBrutos.detalhar_valores !== undefined ? dadosBrutos.detalhar_valores : true,
+    exibir_apenas_total:
+      dadosBrutos.exibir_apenas_total !== undefined ? dadosBrutos.exibir_apenas_total : false,
     opcao_selecionada: dadosBrutos.opcao_selecionada,
     opcao1_titulo: dadosBrutos.opcao1_titulo,
     opcao1_potencia: dadosBrutos.opcao1_potencia,
@@ -305,6 +313,8 @@ export function converterInputParaPropostaCarregador(
     valor_servicos: formData.valor_servicos,
     valor_servicos_instalacao: formData.valor_servicos_instalacao,
     valor_servicos_engenharia: formData.valor_servicos_engenharia,
+    detalhar_valores: formData.detalhar_valores,
+    exibir_apenas_total: formData.exibir_apenas_total,
   }
 
   return {
@@ -425,6 +435,11 @@ export function normalizarPropostaCarregadorParaInput(
       ? p.valor_total
       : carregadorValor + subtotalMats + servTotal
 
+  // Preferência de exibição de valores (detalhado vs oculto / apenas total)
+  const exibirApenasTotal = Boolean(dJson.exibir_apenas_total ?? dJson.detalhar_valores === false)
+  const detalharValores =
+    dJson.detalhar_valores !== undefined ? Boolean(dJson.detalhar_valores) : !exibirApenasTotal
+
   return {
     id: p.id,
     numero_proposta: p.numero_proposta,
@@ -472,6 +487,9 @@ export function normalizarPropostaCarregadorParaInput(
     valor_servicos: servTotal,
     valor_servicos_instalacao: servInstalacao,
     valor_servicos_engenharia: servEngenharia,
+
+    detalhar_valores: detalharValores,
+    exibir_apenas_total: exibirApenasTotal,
 
     valor_estacao_materiais: p.valor_estacao_materiais ?? subtotalMats + carregadorValor,
     valor_total: totalRecalculado,
@@ -577,6 +595,10 @@ export function gerarValoresIniciaisPropostaCarregador(
     valor_servicos: 3050, // 1850 + 1200
     valor_servicos_instalacao: 1850,
     valor_servicos_engenharia: 1200,
+
+    // Exibição de valores (detalhado vs apenas total)
+    detalhar_valores: true,
+    exibir_apenas_total: false,
 
     // Seção 5 (Valores de compatibilidade)
     valor_estacao_materiais: 5950,
