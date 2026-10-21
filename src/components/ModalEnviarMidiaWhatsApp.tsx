@@ -170,9 +170,9 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
               ? '[Vídeo]'
               : selectedFile.name),
       )
-      formData.append('status', 'enviando')
-      if (clienteId) formData.append('cliente_id', clienteId)
-      if (conversaId) formData.append('conversa_id', conversaId)
+      formData.append('status', 'pendente')
+      if (clienteId && clienteId.trim()) formData.append('cliente_id', clienteId.trim())
+      if (conversaId && conversaId.trim()) formData.append('conversa_id', conversaId.trim())
 
       let createdMsgRecord = await pb.collection('whatsapp_mensagens').create(formData)
 
