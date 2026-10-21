@@ -154,35 +154,6 @@ export const AbaPropostasCarregadores: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Banner Informativo Superior da Nova Linha de Carregadores */}
-      <div className="relative overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 p-6 text-white shadow-sm">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 backdrop-blur-xs border border-emerald-400/30">
-              <Zap className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Infraestrutura Wallbox NBR 5410 &amp; 17019</span>
-            </div>
-            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">
-              Propostas de Carregadores Veiculares
-            </h2>
-            <p className="text-xs md:text-sm text-emerald-100/80 max-w-2xl leading-relaxed">
-              Gere propostas comerciais de alto padrão para estações de recarga residencial,
-              condominial e corporativa com ancoragem de economia, escopo técnico completo e ART
-              CREA-RS.
-            </p>
-          </div>
-
-          <Button
-            onClick={() => {
-              setPropostaEmEdicao(null)
-              setModalCriarOpen(true)
-            }}
-            className="shrink-0 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold gap-2 shadow-md hover:shadow-lg transition-all"
-          >
-            <Plus className="h-4 w-4 stroke-[3]" />
-            Nova Proposta de Carregador
-          </Button>
-        </div>
-      </div>
 
       {/* Barra de Filtros e Busca */}
       <Card className="border-slate-200 shadow-2xs">
