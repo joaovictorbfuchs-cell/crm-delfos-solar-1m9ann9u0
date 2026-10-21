@@ -12,6 +12,8 @@ import {
   MailCheck,
   AlertCircle,
   Send,
+  Download,
+  MessageSquare,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,6 +78,9 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   const [mensagemEmail, setMensagemEmail] = useState('')
   const [enviandoEmail, setEnviandoEmail] = useState(false)
   const [emailEnviadoSucesso, setEmailEnviadoSucesso] = useState(false)
+
+  // Estado do modal WhatsApp (PDF ou Link HTML)
+  const [modalWhatsAppAberto, setModalWhatsAppAberto] = useState(false)
 
   useEffect(() => {
     if (requireAuth && authLoading) return
@@ -276,8 +281,43 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
     }
   }
 
-  const handleBaixarPdf = () => {
-    window.print()
+  const [baixandoPdf, setBaixandoPdf] = useState(false)
+
+  const handleBaixarPdf = async () => {
+    if (baixandoPdf) return
+    setBaixandoPdf(true)
+    toast.info('Formatando relatório em PDF A4...')
+    try {
+      const { baixarHTMLParaPdf } = await import('@/lib/pdfWhatsAppService')
+      const { gerarHTMLRelatorioOS } = await import('@/lib/relatorioOSPdf')
+      const osIdCurto = relatorio.osCodigo || 'OS'
+      const safeName = String(relatorio.clienteNome || 'Cliente')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .substring(0, 30)
+      const fileName = `Relatorio_OS_${osIdCurto}_${safeName}.pdf`
+
+      const html = gerarHTMLRelatorioOS({
+        os,
+        cliente,
+        sistema: usina,
+        fotosDataUrls: fotosUrls,
+      })
+
+      await baixarHTMLParaPdf(html, fileName, {
+        scale: 1.5,
+        imageQuality: 0.85,
+        compressJsPdf: true,
+        timeoutMs: 35000,
+      })
+      toast.success('Download do PDF concluído!')
+    } catch (err: any) {
+      console.warn('html2pdf falhou ao baixar diretamente, usando window.print():', err)
+      window.print()
+    } finally {
+      setBaixandoPdf(false)
+    }
   }
 
   // Prepara abertura do modal de envio por e-mail com defaults inteligentes
@@ -450,15 +490,15 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
   return (
     <div className="relatorio-os-root min-h-screen bg-[#F7F9FC] text-[#1A2332] font-sans antialiased pb-12 print:bg-white print:p-0">
-      {/* Barra de ações flutuante (fixed top-4 right-4 z-50, oculta na impressão) */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 print:hidden">
+      {/* Barra de ações flutuante (canto superior direito com quebra responsiva e sem sobreposição, oculta na impressão) */}
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex flex-wrap items-center justify-end gap-2 max-w-[calc(100vw-1.5rem)] print:hidden">
         {showHeaderActions && (
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleCopiarLink}
-            className="h-10 px-3 bg-white hover:bg-slate-50 text-[#0E2A47] border-[#DDE4EE] rounded-full shadow-md text-xs font-bold gap-1.5 cursor-pointer"
+            className="h-9 sm:h-10 px-3 bg-white hover:bg-slate-50 text-[#0E2A47] border-[#DDE4EE] rounded-full shadow-md text-xs font-bold gap-1.5 cursor-pointer shrink-0"
           >
             {linkCopiado ? (
               <Check className="w-4 h-4 text-emerald-600" />
@@ -471,40 +511,44 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </Button>
         )}
 
-        {/* Botão Enviar por e-mail (ao lado de Baixar PDF) */}
+        {/* Botão Enviar WhatsApp (PDF ou Link HTML) */}
+        <Button
+          type="button"
+          onClick={() => setModalWhatsAppAberto(true)}
+          aria-label="Enviar Relatório por WhatsApp"
+          className="h-9 sm:h-10 px-3 sm:px-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs sm:text-sm border border-[#1ea952] rounded-full cursor-pointer shadow-md hover:shadow-lg transition-all gap-1.5 shrink-0"
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>WhatsApp</span>
+        </Button>
+
+        {/* Botão Enviar por e-mail */}
         <Button
           type="button"
           onClick={handleAbrirModalEmail}
           aria-label="Enviar Relatório por E-mail"
-          className="h-10 px-3.5 sm:px-4 bg-[#0E2A47] hover:bg-[#163e68] text-white font-bold text-xs sm:text-sm border border-[#163e68] rounded-full cursor-pointer shadow-md hover:shadow-lg transition-all gap-1.5"
+          className="h-9 sm:h-10 px-3 sm:px-4 bg-[#0E2A47] hover:bg-[#163e68] text-white font-bold text-xs sm:text-sm border border-[#163e68] rounded-full cursor-pointer shadow-md hover:shadow-lg transition-all gap-1.5 shrink-0"
         >
           <Mail className="w-4 h-4 text-[#C9A227]" />
-          <span>Enviar por e-mail</span>
+          <span className="hidden sm:inline">Enviar por e-mail</span>
+          <span className="sm:hidden">E-mail</span>
         </Button>
 
-        <button
+        {/* Botão Baixar PDF */}
+        <Button
           type="button"
           onClick={handleBaixarPdf}
+          disabled={baixandoPdf}
           aria-label="Baixar Relatório em PDF"
-          className="inline-flex items-center gap-2 bg-[#C9A227] hover:bg-[#dbae26] text-[#0E2A47] font-bold text-sm border border-[#B38E1D] px-4 py-2.5 rounded-full cursor-pointer shadow-[0_4px_14px_rgba(201,162,39,0.4)] hover:shadow-[0_6px_18px_rgba(201,162,39,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all"
+          className="h-9 sm:h-10 px-3.5 sm:px-4 bg-[#C9A227] hover:bg-[#dbae26] text-[#0E2A47] font-bold text-xs sm:text-sm border border-[#B38E1D] rounded-full cursor-pointer shadow-[0_4px_14px_rgba(201,162,39,0.4)] hover:shadow-[0_6px_18px_rgba(201,162,39,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all gap-1.5 shrink-0"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          <span>Baixar PDF</span>
-        </button>
+          {baixandoPdf ? (
+            <Loader2 className="w-4 h-4 animate-spin text-[#0E2A47]" />
+          ) : (
+            <Download className="w-4 h-4" />
+          )}
+          <span>{baixandoPdf ? 'Gerando...' : 'Baixar PDF'}</span>
+        </Button>
       </div>
 
       {/* Container Principal do Documento */}
@@ -803,28 +847,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                       <div className="text-xs font-bold leading-tight px-1">{foto.titulo}</div>
                     </div>
                   )}
-
-                  {/* Legenda: Atividade N — Foto M ou Foto M */}
-                  <div className="p-2.5 bg-white border-t border-[#EAEFF5] text-xs text-[#536377] grow flex flex-col justify-between gap-1.5">
-                    <div>
-                      <strong className="block text-[#0E2A47] font-bold text-xs leading-snug">
-                        {foto.titulo}
-                      </strong>
-                      {foto.subtitulo && foto.subtitulo !== foto.titulo && (
-                        <span className="block text-[11px] text-emerald-800 font-semibold mt-0.5">
-                          {foto.subtitulo}
-                        </span>
-                      )}
-                      {foto.descricao && (
-                        <p className="m-0 mt-1 text-[11px] text-gray-600 leading-tight line-clamp-2">
-                          {foto.descricao}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-[#536377] font-medium pt-1 border-t border-gray-100">
-                      {foto.dataHora}
-                    </div>
-                  </div>
                 </div>
               )
             })}

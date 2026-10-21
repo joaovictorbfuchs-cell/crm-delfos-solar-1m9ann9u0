@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   photoThumbBox: {
-    height: 68,
+    height: 110,
     backgroundColor: '#163e68',
     justifyContent: 'center',
     alignItems: 'center',
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   photoThumbImage: {
     width: '100%',
-    height: 68,
+    height: 110,
     objectFit: 'cover',
   },
   photoThumbTag: {
@@ -798,22 +798,6 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
                       <Text style={styles.photoThumbTag}>{foto.titulo}</Text>
                     </View>
                   )}
-                  <View style={styles.photoCaption}>
-                    <Text style={styles.photoCaptionTitle}>{foto.titulo}</Text>
-                    {foto.subtitulo && foto.subtitulo !== foto.titulo ? (
-                      <Text
-                        style={[
-                          styles.photoCaptionDesc,
-                          { fontFamily: 'Helvetica-Bold', color: '#166534', marginBottom: 1 },
-                        ]}
-                      >
-                        {foto.subtitulo}
-                      </Text>
-                    ) : null}
-                    {foto.descricao ? (
-                      <Text style={styles.photoCaptionDesc}>{foto.descricao}</Text>
-                    ) : null}
-                  </View>
                 </View>
               )
             })}

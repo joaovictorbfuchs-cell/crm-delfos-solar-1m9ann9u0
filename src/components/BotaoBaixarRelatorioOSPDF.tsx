@@ -29,6 +29,39 @@ export async function gerarRelatorioOSPdfBlobBase64(dados: RelatorioOSPDFDados):
     .substring(0, 25)
   const fileName = `Relatorio_OS_${osIdCurto}_${clienteNomeLimpo}.pdf`
 
+  // 1. Gera primariamente pelo HTML oficial do relatório formatado para PDF A4
+  try {
+    const { gerarHTMLRelatorioOS } = await import('@/lib/relatorioOSPdf')
+    const { renderizarHTMLParaPdfBase64 } = await import('@/lib/pdfWhatsAppService')
+    const html = gerarHTMLRelatorioOS({
+      os: dados.os,
+      cliente: dados.cliente,
+      sistema: dados.sistema,
+      fotosDataUrls: dados.fotosDataUrls || [],
+      inversoresInfo: dados.inversoresInfo,
+      rodapeComercial: dados.rodapeComercial,
+    })
+
+    const base64Html = await renderizarHTMLParaPdfBase64(html, fileName, {
+      scale: 1.5,
+      imageQuality: 0.85,
+      compressJsPdf: true,
+      timeoutMs: 30000,
+    })
+
+    if (base64Html) {
+      const cleanB64 = base64Html.includes(',') ? base64Html.split(',')[1] : base64Html
+      const bin = atob(cleanB64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      const blob = new Blob([bytes], { type: 'application/pdf' })
+      return { blob, base64: base64Html, fileName }
+    }
+  } catch (htmlErr) {
+    console.warn('html2pdf falhou ao gerar base64; usando fallback react-pdf:', htmlErr)
+  }
+
+  // 2. Fallback via @react-pdf/renderer
   const [{ pdf }, { RelatorioOSPDFDocument }] = await Promise.all([
     import('@react-pdf/renderer'),
     import('@/components/RelatorioOSPDFDocument'),

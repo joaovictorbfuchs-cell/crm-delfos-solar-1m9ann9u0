@@ -569,3 +569,40 @@ Responsável Técnico: ${dados?.engenheiro_nome || 'Eng. Eletricista João Victo
     return { base64: '', fallbackText, fileName }
   }
 }
+
+/**
+ * Gera o PDF oficial do Relatório Técnico da OS formatado em A4 a partir do documento HTML oficial.
+ * Reproduz fielmente o mesmo modelo visual do HTML, pronto para download ou disparo por WhatsApp/E-mail.
+ */
+export async function gerarBase64RelatorioOS(
+  dados: import('@/lib/relatorioOSPdf').RelatorioOSDadosInput,
+): Promise<{ base64: string; fileName: string }> {
+  const os = dados?.os || ({} as any)
+  const osIdCurto = os?.id ? String(os.id).slice(-6).toUpperCase() : '000000'
+  const rawNome =
+    dados?.cliente?.nome ||
+    os?.expand?.cliente_id?.nome ||
+    dados?.cliente?.razao_social ||
+    'Cliente'
+  const safeName = String(rawNome)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .substring(0, 30)
+  const fileName = `Relatorio_OS_${osIdCurto}_${safeName}.pdf`
+
+  try {
+    const { gerarHTMLRelatorioOS } = await import('@/lib/relatorioOSPdf')
+    const html = gerarHTMLRelatorioOS(dados)
+    const base64 = await renderizarHTMLParaPdfBase64(html, fileName, {
+      scale: 1.5,
+      imageQuality: 0.85,
+      compressJsPdf: true,
+      timeoutMs: 30000,
+    })
+    return { base64, fileName }
+  } catch (err) {
+    console.error('Erro ao gerar PDF oficial do Relatório de OS via HTML:', err)
+    return { base64: '', fileName }
+  }
+}

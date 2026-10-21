@@ -211,34 +211,25 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   ) => {
     const fotoNumGeral = idx + 1
     return `
-    <div style="background: #F4F7FA; border: 1px solid #DDE4EE; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; position: relative;">
+    <div class="foto-card-rel" style="background: #F4F7FA; border: 1px solid #DDE4EE; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; position: relative; page-break-inside: avoid; break-inside: avoid;">
       ${
         f.url
-          ? `<div style="height: 140px; background: #0E2A47; overflow: hidden; position: relative;">
-              <img src="${f.url}" alt="${f.titulo}" style="width:100%; height:100%; object-fit:cover;" />
+          ? `<div style="height: 180px; background: #0E2A47; overflow: hidden; position: relative;">
+              <img src="${f.url}" alt="Foto ${fotoNumGeral}" style="width:100%; height:100%; object-fit:cover;" />
               <span style="position: absolute; top: 6px; left: 6px; background: rgba(14, 42, 71, 0.85); color: #FFF; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Foto ${fotoNumGeral}</span>
             </div>`
-          : `<div style="height: 140px; background: linear-gradient(135deg, #224364 0%, #0E2A47 100%); color: #FFF; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; text-align: center; position: relative;">
+          : `<div style="height: 180px; background: linear-gradient(135deg, #224364 0%, #0E2A47 100%); color: #FFF; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; text-align: center; position: relative;">
               <span style="position: absolute; top: 6px; left: 6px; background: rgba(255, 255, 255, 0.2); color: #FFF; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Foto ${fotoNumGeral}</span>
               <div style="font-size: 1.5rem; margin-bottom: 4px;">📷</div>
-              <div style="font-size: 0.8rem; font-weight: 700; color: #FFFFFF;">${f.titulo}</div>
             </div>`
       }
-      <div style="padding: 10px 12px; font-size: 0.75rem; color: #536377; background: #FFFFFF; border-top: 1px solid #EAEFF5; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <strong style="display: block; color: #0E2A47; font-size: 0.8rem; margin-bottom: 2px;">${f.titulo}</strong>
-          ${f.subtitulo && f.subtitulo !== f.titulo ? `<span style="display: block; color: #166534; font-weight: 600; font-size: 0.75rem; margin-bottom: 4px;">${f.subtitulo}</span>` : ''}
-          <div style="font-size: 0.75rem; color: #64748B; line-height: 1.3;">${f.descricao || ''}</div>
-        </div>
-        <div style="margin-top: 8px; font-size: 0.7rem; color: #8896A6; border-top: 1px solid #F1F5F9; padding-top: 4px;">${f.dataHora}</div>
-      </div>
     </div>
   `
   }
 
   // Grid contínuo com todas as fotos sem colapso
   const fotosGridHtml = `
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; page-break-inside: auto; break-inside: auto;">
       ${rel.fotos.map((f, i) => renderCardFotoHtml(f, i)).join('')}
     </div>
   `
@@ -1559,7 +1550,25 @@ export async function gerarPdfRelatorioOS(
     rodapeComercial: rodape,
   })
 
-  // 4. Renderização canônica 100% via @react-pdf/renderer (mesmo gerador para Download e WhatsApp)
+  // 4. Renderização formatada para PDF a partir do mesmo documento HTML oficial
+  try {
+    const { renderizarHTMLParaPdfBase64 } = await import('@/lib/pdfWhatsAppService')
+    const base64Html = await renderizarHTMLParaPdfBase64(html, fileName, {
+      scale: 1.5,
+      imageQuality: 0.85,
+      compressJsPdf: true,
+      timeoutMs: 30000,
+    })
+
+    if (base64Html) {
+      const file = dataUriToFile(base64Html, fileName)
+      return { base64: base64Html, file, fileName, html }
+    }
+  } catch (html2pdfErr) {
+    console.warn('html2pdf falhou ao gerar relatório; tentando fallback react-pdf:', html2pdfErr)
+  }
+
+  // Fallback seguro via @react-pdf/renderer se o ambiente não suportar html2pdf
   const [{ pdf }, { RelatorioOSPDFDocument }, { blobParaDataUriBase64 }, React] = await Promise.all(
     [
       import('@react-pdf/renderer'),
@@ -1587,8 +1596,6 @@ export async function gerarPdfRelatorioOS(
     throw new Error('Falha na renderização do PDF do relatório técnico.')
   }
 
-  // 5. Criação do objeto File
   const file = dataUriToFile(base64, fileName)
-
   return { base64, file, fileName, html }
 }
