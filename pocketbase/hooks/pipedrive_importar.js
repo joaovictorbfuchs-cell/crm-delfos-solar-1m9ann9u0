@@ -1,6 +1,7 @@
 // pocketbase/hooks/pipedrive_importar.js
 // Importação controlada de anotações do Pipedrive para o histórico da ficha do cliente
 // (coleção `atividades`, tipo 'anotacao'). Uso interno de operações, protegido por secret.
+// NUNCA cria clientes: só grava em fichas já existentes. Sem pareamento -> relatório.
 // Body JSON: { acao: 'consultar' | 'importar' | 'remover', registros: [...], atualizar?: bool, prefixo?: string }
 // registro: { chave, nomes: [..], data (ISO), autor, titulo, descricao }
 routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
@@ -36,7 +37,7 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
         'atividades',
         'chave_importacao ~ "' + prefixo + '"',
         '',
-        2000,
+        5000,
         0,
       )
       let apagados = 0
@@ -64,6 +65,10 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
         const de = comAcento.charAt(i)
         while (t.indexOf(de) >= 0) t = t.replace(de, acentos.charAt(i))
       }
+      // remove e-mails, urls e o que estiver entre parênteses (nomes de contato)
+      t = t.replace(/[a-z0-9._%+-]+@[a-z0-9.-]+/g, ' ')
+      t = t.replace(/(www\.|https?:)[^ ]*/g, ' ')
+      t = t.replace(/\([^)]*\)/g, ' ')
       t = t.replace(/[^a-z0-9]+/g, ' ')
       const sufixos = [
         'ltda',
@@ -73,7 +78,9 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
         'sa',
         'cia',
         'comercio',
+        'com',
         'industria',
+        'ind',
         'servicos',
         'servico',
         'grupo',
@@ -83,18 +90,48 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
         'projetos',
         'usina',
         'casa',
+        'sede',
+        'novo',
+        'nova',
       ]
       const partes = t.split(' ')
       const limpas = []
       for (const p of partes) {
-        if (p && sufixos.indexOf(p) < 0) limpas.push(p)
+        if (!p) continue
+        if (/^[0-9]+$/.test(p)) continue
+        if (p.length < 2) continue
+        if (sufixos.indexOf(p) >= 0) continue
+        limpas.push(p)
       }
       return limpas.join(' ').replace(/\s+/g, ' ').trim()
+    }
+
+    // distância de edição (Levenshtein) curta, para grafias próximas
+    const lev = function (a, b) {
+      if (a === b) return 0
+      const m = a.length
+      const n = b.length
+      if (Math.abs(m - n) > 2) return 9
+      let ant = []
+      for (let j = 0; j <= n; j++) ant.push(j)
+      for (let i = 1; i <= m; i++) {
+        const atual = [i]
+        for (let j = 1; j <= n; j++) {
+          const custo = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1
+          let v = ant[j] + 1
+          if (atual[j - 1] + 1 < v) v = atual[j - 1] + 1
+          if (ant[j - 1] + custo < v) v = ant[j - 1] + custo
+          atual.push(v)
+        }
+        ant = atual
+      }
+      return ant[n]
     }
 
     // ---------- índice de clientes (nome / razão social / nome fantasia / contato) ----------
     const clientes = $app.findRecordsByFilter('clientes', 'id != ""', '', 20000, 0)
     const idx = {}
+    const porPrimeira = {}
     for (const c of clientes) {
       const nomesCli = [
         c.getString('nome'),
@@ -110,16 +147,63 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
         for (const item of idx[k]) {
           if (item.id === c.id) repetido = true
         }
-        if (!repetido) idx[k].push({ id: c.id, nome: c.getString('nome') })
+        if (repetido) continue
+        const entrada = { id: c.id, nome: c.getString('nome'), chave: k }
+        idx[k].push(entrada)
+        const pk = k.split(' ')
+        const primeira = pk[0]
+        const ultima = pk[pk.length - 1]
+        if (!porPrimeira[primeira]) porPrimeira[primeira] = []
+        porPrimeira[primeira].push({ id: entrada.id, nome: entrada.nome, chave: k, ultima: ultima })
       }
     }
 
+    // pareamento seguro: só casa quando o alvo é ÚNICO. Homônimo/ambíguo -> não casa.
     const achar = function (nomes) {
+      // 1) nome normalizado idêntico, cliente único
       for (const nome of nomes) {
         const k = norm(nome)
-        if (k.length >= 4 && idx[k] && idx[k].length) {
-          return { id: idx[k][0].id, nome: idx[k][0].nome, homonimos: idx[k].length }
+        if (k.length >= 4 && idx[k] && idx[k].length === 1) {
+          return { id: idx[k][0].id, nome: idx[k][0].nome, modo: 'exato' }
         }
+      }
+      // 2) prefixo por palavra, cliente único ("Mirian" -> "Mirian Cararo"; "X - Usina 300" -> "X")
+      for (const nome of nomes) {
+        const k = norm(nome)
+        if (k.length < 4) continue
+        const primeira = k.split(' ')[0]
+        const lista = porPrimeira[primeira] || []
+        let achou = null
+        let repetido = false
+        for (const ent of lista) {
+          let casa = false
+          if (ent.chave.indexOf(k) === 0 && ent.chave.charAt(k.length) === ' ') casa = true
+          if (k.indexOf(ent.chave) === 0 && k.charAt(ent.chave.length) === ' ') casa = true
+          if (!casa) continue
+          if (achou && achou.id !== ent.id) repetido = true
+          if (!achou) achou = { id: ent.id, nome: ent.nome }
+        }
+        if (achou && !repetido) return { id: achou.id, nome: achou.nome, modo: 'prefixo' }
+      }
+      // 3) primeiro nome igual + último nome com grafia próxima (dist <= 2), cliente único
+      for (const nome of nomes) {
+        const k = norm(nome)
+        const pk = k.split(' ')
+        if (pk.length < 2) continue
+        const primeira = pk[0]
+        const ultima = pk[pk.length - 1]
+        if (primeira.length < 3 || ultima.length < 5) continue
+        const lista = porPrimeira[primeira] || []
+        let achou = null
+        let repetido = false
+        for (const ent of lista) {
+          if (!ent.ultima || ent.ultima.length < 5) continue
+          const d = lev(ultima, ent.ultima)
+          if (d < 1 || d > 2) continue
+          if (achou && achou.id !== ent.id) repetido = true
+          if (!achou) achou = { id: ent.id, nome: ent.nome }
+        }
+        if (achou && !repetido) return { id: achou.id, nome: achou.nome, modo: 'nome_proximo' }
       }
       return null
     }
@@ -129,10 +213,17 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
       for (const nome of nomes) {
         const k = norm(nome)
         if (k.length < 6) continue
-        for (const chave in idx) {
+        const primeira = k.split(' ')[0]
+        const lista = porPrimeira[primeira] || []
+        for (const ent of lista) {
           if (saida.length >= 3) break
-          if (chave.indexOf(k) === 0 || k.indexOf(chave) === 0) {
-            saida.push({ id: idx[chave][0].id, nome: idx[chave][0].nome })
+          if (ent.chave === k) continue
+          if (ent.chave.indexOf(k) === 0 || k.indexOf(ent.chave) === 0) {
+            let jaTem = false
+            for (const s of saida) {
+              if (s.id === ent.id) jaTem = true
+            }
+            if (!jaTem) saida.push({ id: ent.id, nome: ent.nome })
           }
         }
       }
@@ -159,7 +250,7 @@ routerAdd('POST', '/backend/v1/pipedrive/importar', (e) => {
             nome_pipedrive: (reg.nomes || [])[0],
             cliente_id: alvo.id,
             cliente_nome: alvo.nome,
-            homonimos: alvo.homonimos,
+            modo: alvo.modo,
           })
         } else {
           naoCasados.push({
