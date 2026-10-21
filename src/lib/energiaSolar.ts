@@ -406,6 +406,7 @@ export interface ParametrosCalculoCustosAba {
   opcaoImposto: 1 | 2
   desconto?: number
   descontoPercentual?: number
+  percentualAdministracaoAuto?: number // fração do total (ex.: 0.15 = 15%, 0.10 = 10%). Padrão: 0.15 (15%)
   percentualIndicacaoAuto?: number // fração do total (ex.: 0 = 0%, 0.01 = 1%). Padrão: 0 (0%)
   manualAdministracao?: boolean
   valorManualAdministracao?: number
@@ -421,9 +422,10 @@ export interface ResultadoCalculoCustosAba {
   baseComDesconto: number // base líquida (somaComImpostos - desconto)
   desconto: number
   percentualDescontoProjeto: number // percentual que o desconto representa sobre o valor total do projeto (0 a 100)
-  administracao: number // 15% do total do projeto (ou reduzido proporcionalmente por desconto, ou valor manual)
+  administracao: number // percentual (padrão 15%) do total do projeto (ou reduzido proporcionalmente por desconto, ou valor manual)
   administracaoSemDesconto: number
   administracaoDescontada: number
+  percentualAdministracaoAuto: number // fração utilizada quando em modo automático (ex: 0.15 = 15%)
   manualAdministracao: boolean
   comissaoComercial: number // 3% do total (com piso de R$ 600), com redução de desconto mantendo piso se couber (ou manual)
   comissaoPura3Pct: number
@@ -482,8 +484,16 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
       ? Math.max(0, Number(params.percentualIndicacaoAuto) || 0)
       : 0
 
+  // Percentual de administração automática configurável por orçamento (fração: 0.15 = 15%, padrão 0.15)
+  const pAdminAuto =
+    params.percentualAdministracaoAuto !== undefined &&
+    params.percentualAdministracaoAuto !== null &&
+    !isNaN(Number(params.percentualAdministracaoAuto))
+      ? Math.max(0, Number(params.percentualAdministracaoAuto))
+      : 0.15
+
   // Frações dinâmicas de cada item sobre o Total (quando em modo automático)
-  const fAdmin = manualAdmin ? 0 : 0.15
+  const fAdmin = manualAdmin ? 0 : pAdminAuto
   const fInd = manualInd ? 0 : pIndAuto
 
   // Base de custos diretos sem materiais dedutíveis
@@ -572,13 +582,13 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
         }
       }
 
-      const adminCalc = manualAdmin ? valManualAdmin : valorTotal * 0.15
+      const adminCalc = manualAdmin ? valManualAdmin : valorTotal * pAdminAuto
       const comissCalc = comissaoSemDesconto
       const indCalc = manualInd ? valManualInd : valorTotal * pIndAuto
       impostos = Math.max(0, 0.16 * (baseSemMateriais + adminCalc + comissCalc + indCalc))
     }
 
-    administracaoSemDesconto = manualAdmin ? valManualAdmin : valorTotal * 0.15
+    administracaoSemDesconto = manualAdmin ? valManualAdmin : valorTotal * pAdminAuto
     indicacaoSemDesconto = manualInd ? valManualInd : valorTotal * pIndAuto
   }
 
@@ -595,10 +605,10 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   }
 
   // Redução proporcional pelo desconto:
-  // Aplica sobre os campos em modo AUTOMÁTICO (alíquotas variáveis: 15%, 3% se acima do piso, pIndAuto).
+  // Aplica sobre os campos em modo AUTOMÁTICO (alíquotas variáveis: pAdminAuto, 3% se acima do piso, pIndAuto).
   // Campos em modo manual são valores fixos definidos pelo usuário e não sofrem redução de alíquota proporcional.
   // Caso todos estejam em modo manual, a taxa variável é 0.
-  const taxaAdminAuto = manualAdmin ? 0 : 0.15
+  const taxaAdminAuto = manualAdmin ? 0 : pAdminAuto
   const taxaComissaoAuto = manualComiss || comissaoUsouPisoMinimo ? 0 : 0.03
   const taxaIndicacaoAuto = manualInd ? 0 : pIndAuto
 
@@ -636,6 +646,7 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
     administracao: Math.round(administracao * 100) / 100,
     administracaoSemDesconto: Math.round(administracaoSemDesconto * 100) / 100,
     administracaoDescontada: Math.round(administracaoDescontada * 100) / 100,
+    percentualAdministracaoAuto: pAdminAuto,
     manualAdministracao: manualAdmin,
     comissaoComercial: Math.round(comissaoComercial * 100) / 100,
     comissaoPura3Pct: Math.round(comissaoPura3Pct * 100) / 100,

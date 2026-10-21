@@ -76,6 +76,12 @@ import { baixarPropostaSolarDocx } from '@/lib/propostaSolarDocxGenerator'
 import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 import { PainelEdicaoConteudoProposta } from '@/components/PainelEdicaoConteudoProposta'
 import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
+import {
+  getPercentualAdministracaoSolarPadrao,
+  getPercentualAdministracaoSolarCacheSync,
+  setPercentualAdministracaoSolarPadrao,
+  PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO_SISTEMA,
+} from '@/services/configuracoesService'
 import { injetarEdicaoNoPreview, setCaminhoConteudo } from '@/lib/propostaEdicaoPreview'
 import { injetarPaginacaoA4 } from '@/lib/propostaPaginacaoA4'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
@@ -293,6 +299,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Modos manuais e valores manuais em R$ para Administração, Comissão e Indicação
   const [manualAdministracao, setManualAdministracao] = useState<boolean>(false)
   const [valorManualAdministracao, setValorManualAdministracao] = useState<number>(0)
+  // Percentual configurável de custos de administração em modo automático (em %, ex.: 15 = 15%)
+  const [percentualAdministracaoAuto, setPercentualAdministracaoAuto] = useState<number>(() =>
+    getPercentualAdministracaoSolarCacheSync(),
+  )
+  const [salvandoPercentualAdminPadrao, setSalvandoPercentualAdminPadrao] = useState<boolean>(false)
   const [manualComissao, setManualComissao] = useState<boolean>(false)
   const [valorManualComissao, setValorManualComissao] = useState<number>(0)
   const [manualIndicacao, setManualIndicacao] = useState<boolean>(false)
@@ -580,6 +591,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           ? Number(initialOrcamento.valor_manual_administracao)
           : initialOrcamento.custo_administracao || 0,
       )
+      // Percentual de administração automática: se salvo na proposta, usa ele; senão usa padrão configurado
+      const pAdminSalvo =
+        initialOrcamento.percentual_administracao_auto !== undefined &&
+        initialOrcamento.percentual_administracao_auto !== null
+          ? Number(initialOrcamento.percentual_administracao_auto)
+          : null
+      if (pAdminSalvo !== null && !isNaN(pAdminSalvo)) {
+        const pAdminPct =
+          pAdminSalvo <= 1 && pAdminSalvo > 0 ? Number((pAdminSalvo * 100).toFixed(2)) : pAdminSalvo
+        setPercentualAdministracaoAuto(pAdminPct)
+      } else {
+        setPercentualAdministracaoAuto(getPercentualAdministracaoSolarCacheSync())
+      }
 
       const isManualComiss = Boolean(initialOrcamento.manual_comissao)
       setManualComissao(isManualComiss)
@@ -772,6 +796,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setMaoDeObraEditadaManualmente(false)
       setManualAdministracao(false)
       setValorManualAdministracao(0)
+      setPercentualAdministracaoAuto(getPercentualAdministracaoSolarCacheSync())
+      // Tenta buscar o percentual padrão mais recente do PocketBase de forma assíncrona
+      getPercentualAdministracaoSolarPadrao()
+        .then((p) => {
+          setPercentualAdministracaoAuto(p)
+        })
+        .catch(() => {})
       setManualComissao(false)
       setValorManualComissao(0)
       setManualIndicacao(false)
@@ -979,6 +1010,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       descontoPercentual,
       manualAdministracao,
       valorManualAdministracao,
+      percentualAdministracaoAuto: (Number(percentualAdministracaoAuto) || 0) / 100,
       manualComissao,
       valorManualComissao,
       percentualIndicacaoAuto: (Number(percentualIndicacaoAuto) || 0) / 100,
@@ -997,6 +1029,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     descontoPercentual,
     manualAdministracao,
     valorManualAdministracao,
+    percentualAdministracaoAuto,
     manualComissao,
     valorManualComissao,
     percentualIndicacaoAuto,
@@ -1372,6 +1405,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         manual_administracao: manualAdministracao,
         manual_comissao: manualComissao,
         manual_indicacao: manualIndicacao,
+        percentual_administracao_auto: (Number(percentualAdministracaoAuto) || 0) / 100,
         percentual_indicacao_auto: (Number(percentualIndicacaoAuto) || 0) / 100,
         valor_manual_administracao: manualAdministracao ? valorManualAdministracao : undefined,
         valor_manual_comissao: manualComissao ? valorManualComissao : undefined,
@@ -2926,11 +2960,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                             }`}
                             title={
                               manualAdministracao
-                                ? 'Clique para voltar ao cálculo automático de 15%'
+                                ? `Clique para voltar ao cálculo automático de ${percentualAdministracaoAuto}%`
                                 : 'Clique para editar o valor manualmente em R$'
                             }
                           >
-                            {manualAdministracao ? 'Manual' : 'Auto (15%)'}
+                            {manualAdministracao
+                              ? 'Manual'
+                              : `Auto (${percentualAdministracaoAuto}%)`}
                           </button>
                         </div>
                       </div>
@@ -2963,12 +2999,73 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                               onClick={() => setManualAdministracao(false)}
                               className="text-blue-700 hover:underline font-semibold"
                             >
-                              Restaurar 15%
+                              Restaurar Auto ({percentualAdministracaoAuto}%)
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <>
+                        <div className="space-y-1.5">
+                          {/* Campo numérico editável em % do percentual automático + botão 'Salvar como padrão' */}
+                          <div className="flex items-center justify-between gap-1 flex-wrap">
+                            <span className="text-[10px] text-gray-500 font-medium">
+                              Taxa padrão:
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <div className="relative w-18">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step={0.5}
+                                  value={
+                                    percentualAdministracaoAuto === 0
+                                      ? '0'
+                                      : percentualAdministracaoAuto || ''
+                                  }
+                                  onChange={(e) =>
+                                    setPercentualAdministracaoAuto(
+                                      Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                                    )
+                                  }
+                                  className="w-full text-xs font-bold pl-1.5 pr-5 py-0.5 rounded border border-emerald-300 bg-emerald-50/30 text-emerald-950 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-right"
+                                  placeholder="15"
+                                  title="Percentual de administração automática (% sobre o total)"
+                                />
+                                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-emerald-700 pointer-events-none">
+                                  %
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={salvandoPercentualAdminPadrao}
+                                onClick={async () => {
+                                  try {
+                                    setSalvandoPercentualAdminPadrao(true)
+                                    const salvo = await setPercentualAdministracaoSolarPadrao(
+                                      percentualAdministracaoAuto,
+                                    )
+                                    setPercentualAdministracaoAuto(salvo)
+                                    toast.success(
+                                      `O percentual padrão de administração foi salvo como ${salvo}% para as próximas propostas.`,
+                                    )
+                                  } catch (err) {
+                                    toast.error(
+                                      'Não foi possível salvar a preferência no servidor.',
+                                    )
+                                  } finally {
+                                    setSalvandoPercentualAdminPadrao(false)
+                                  }
+                                }}
+                                className="text-[9px] font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded transition-colors whitespace-nowrap disabled:opacity-50"
+                                title="Salvar este percentual como padrão para novos orçamentos"
+                              >
+                                {salvandoPercentualAdminPadrao
+                                  ? 'Salvando...'
+                                  : 'Salvar como padrão'}
+                              </button>
+                            </div>
+                          </div>
+
                           <div className="flex items-baseline gap-1.5 flex-wrap">
                             <span className="text-sm font-black text-emerald-800">
                               {formatCurrency(resultadoCustosAba.administracao)}
@@ -2987,17 +3084,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                             className="text-[9px] text-gray-400 truncate"
                             title={
                               resultadoCustosAba.desconto > 0
-                                ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | (Base c/ desc. ${formatCurrency(resultadoCustosAba.baseComDesconto)}) × 15% = ${formatCurrency(resultadoCustosAba.administracao)} (redução de ${formatCurrency(resultadoCustosAba.administracaoDescontada)})`
-                                : '(Soma com materiais e impostos) × 0,15'
+                                ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | (Base c/ desc. ${formatCurrency(resultadoCustosAba.baseComDesconto)}) × ${percentualAdministracaoAuto}% = ${formatCurrency(resultadoCustosAba.administracao)} (redução de ${formatCurrency(resultadoCustosAba.administracaoDescontada)})`
+                                : `(Soma com materiais e impostos) × ${((Number(percentualAdministracaoAuto) || 0) / 100).toLocaleString('pt-BR')}`
                             }
                           >
                             {resultadoCustosAba.administracaoDescontada > 0
-                              ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} (Base c/ desc. × 15%)`
+                              ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} (Base c/ desc. × ${percentualAdministracaoAuto}%)`
                               : resultadoCustosAba.desconto > 0
-                                ? `Base c/ desc. × 15%`
-                                : `(Soma c/ imposto) × 15%`}
+                                ? `Base c/ desc. × ${percentualAdministracaoAuto}%`
+                                : `(Soma c/ imposto) × ${percentualAdministracaoAuto}%`}
                           </p>
-                        </>
+                        </div>
                       )}
                     </div>
 

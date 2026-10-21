@@ -5,6 +5,11 @@ import {
   setValorLimpezaPorPlacaPadrao,
   STORAGE_KEY_VALOR_POR_PLACA,
   VALOR_POR_PLACA_PADRAO_SISTEMA,
+  getPercentualAdministracaoSolarPadrao,
+  getPercentualAdministracaoSolarCacheSync,
+  setPercentualAdministracaoSolarPadrao,
+  STORAGE_KEY_PERCENTUAL_ADMINISTRACAO_SOLAR,
+  PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO_SISTEMA,
 } from './configuracoesService'
 import pb from '@/lib/pocketbase/client'
 
@@ -90,5 +95,93 @@ describe('configuracoesService - valor de limpeza por placa', () => {
     expect(val).toBe(11.5)
     expect(localStorage.getItem(STORAGE_KEY_VALOR_POR_PLACA)).toBe('11.5')
     expect(getValorLimpezaPorPlacaCacheSync()).toBe(11.5)
+  })
+})
+
+describe('configuracoesService - percentual padrão de administração solar', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('retorna 15.0% como padrão quando sem cache e sem PocketBase', async () => {
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      getFirstListItem: vi.fn().mockRejectedValue(new Error('Record not found')),
+    } as any)
+
+    const syncVal = getPercentualAdministracaoSolarCacheSync()
+    expect(syncVal).toBe(PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO_SISTEMA)
+    expect(syncVal).toBe(15.0)
+
+    const asyncVal = await getPercentualAdministracaoSolarPadrao()
+    expect(asyncVal).toBe(15.0)
+  })
+
+  it('salva novo percentual no localStorage e persiste no PocketBase', async () => {
+    const mockUpdate = vi.fn().mockResolvedValue({ id: 'rec_admin_1' })
+    const mockCreate = vi.fn().mockResolvedValue({ id: 'rec_admin_2' })
+    const mockGet = vi.fn().mockResolvedValue({
+      id: 'rec_admin_1',
+      chave: 'percentual_administracao_solar_padrao',
+      valor: '15',
+    })
+
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      getFirstListItem: mockGet,
+      update: mockUpdate,
+      create: mockCreate,
+    } as any)
+
+    const novo = await setPercentualAdministracaoSolarPadrao(20)
+    expect(novo).toBe(20)
+    expect(localStorage.getItem(STORAGE_KEY_PERCENTUAL_ADMINISTRACAO_SOLAR)).toBe('20')
+    expect(mockUpdate).toHaveBeenCalledWith(
+      'rec_admin_1',
+      expect.objectContaining({
+        chave: 'percentual_administracao_solar_padrao',
+        valor: '20',
+        dados: { percentual_administracao: 20 },
+      }),
+      expect.anything(),
+    )
+
+    // A leitura síncrona agora retorna o valor em cache
+    expect(getPercentualAdministracaoSolarCacheSync()).toBe(20)
+  })
+
+  it('cria registro no PocketBase caso ainda não exista ao salvar', async () => {
+    const mockCreate = vi.fn().mockResolvedValue({ id: 'rec_admin_novo' })
+    const mockGet = vi.fn().mockRejectedValue(new Error('Not found'))
+
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      getFirstListItem: mockGet,
+      create: mockCreate,
+    } as any)
+
+    const salvo = await setPercentualAdministracaoSolarPadrao(12.5)
+    expect(salvo).toBe(12.5)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chave: 'percentual_administracao_solar_padrao',
+        valor: '12.5',
+      }),
+      expect.anything(),
+    )
+  })
+
+  it('lê percentual do PocketBase e atualiza o localStorage', async () => {
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      getFirstListItem: vi.fn().mockResolvedValue({
+        id: 'cfg_admin_1',
+        chave: 'percentual_administracao_solar_padrao',
+        valor: '18',
+        dados: { percentual_administracao: 18 },
+      }),
+    } as any)
+
+    const val = await getPercentualAdministracaoSolarPadrao()
+    expect(val).toBe(18)
+    expect(localStorage.getItem(STORAGE_KEY_PERCENTUAL_ADMINISTRACAO_SOLAR)).toBe('18')
+    expect(getPercentualAdministracaoSolarCacheSync()).toBe(18)
   })
 })

@@ -456,6 +456,51 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
     // Indicação (automática) absorve a redução
     expect(resMisto.indicacaoDescontada).toBeGreaterThan(0)
   })
+
+  it('permite configurar percentual automático editável para Administração (ex.: 10% ou 20% em vez de 15% fixo)', () => {
+    // 1. Padrão 15% (sem parâmetro explícito)
+    const resPadrao = calcularCustosAba({
+      materiaisEquipamentos: 10000,
+      maoDeObra: 2000,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+    })
+    expect(resPadrao.percentualAdministracaoAuto).toBe(0.15)
+    expect(resPadrao.administracao).toBeCloseTo(resPadrao.valorTotal * 0.15, 1)
+
+    // 2. Customizado para 10% (0.10)
+    const res10Pct = calcularCustosAba({
+      materiaisEquipamentos: 10000,
+      maoDeObra: 2000,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      percentualAdministracaoAuto: 0.1,
+    })
+    expect(res10Pct.percentualAdministracaoAuto).toBe(0.1)
+    expect(res10Pct.administracao).toBeCloseTo(res10Pct.valorTotal * 0.1, 1)
+    expect(res10Pct.administracao).toBeLessThan(resPadrao.administracao)
+
+    // 3. Customizado para 20% (0.20)
+    const res20Pct = calcularCustosAba({
+      materiaisEquipamentos: 10000,
+      maoDeObra: 2000,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      percentualAdministracaoAuto: 0.2,
+    })
+    expect(res20Pct.percentualAdministracaoAuto).toBe(0.2)
+    expect(res20Pct.administracao).toBeCloseTo(res20Pct.valorTotal * 0.2, 1)
+    expect(res20Pct.administracao).toBeGreaterThan(resPadrao.administracao)
+
+    // A soma total dos custos no modo 20% continua fechando exatamente 100%
+    const soma20 =
+      12400 +
+      res20Pct.impostos +
+      res20Pct.administracao +
+      res20Pct.comissaoComercial +
+      res20Pct.indicacao
+    expect(Math.abs(soma20 - res20Pct.valorTotal)).toBeLessThanOrEqual(0.02)
+  })
 })
 
 describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', () => {

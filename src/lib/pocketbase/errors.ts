@@ -28,34 +28,28 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    const status =
-      errObj.status ?? errObj.statusCode ?? (errObj.response as Record<string, unknown>)?.status
-    if (status === 401 || status === 403) return true
-    const msg = String(errObj.message || '').toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('login expirou') ||
-      msg.includes('the request requires valid user authorization')
-    ) {
-      return true
-    }
-  }
-  return false
+export function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const anyErr = err as { name?: string; isAbort?: boolean; message?: string }
+  return (
+    anyErr.name === 'AbortError' ||
+    anyErr.isAbort === true ||
+    (typeof anyErr.message === 'string' && anyErr.message.toLowerCase().includes('aborted'))
+  )
 }
 
-export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const errObj = error as Record<string, unknown>
-  return Boolean(
-    errObj.isAbort === true ||
-    errObj.name === 'AbortError' ||
-    (typeof errObj.message === 'string' && errObj.message.includes('The request was aborted')),
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const anyErr = err as { status?: number; message?: string }
+  // Não tratar requisição abortada como erro de sessão
+  if (isAbortError(err)) return false
+  if (anyErr.status === 401 || anyErr.status === 403) return true
+  const msg = (anyErr.message || '').toLowerCase()
+  return (
+    msg.includes('auth') ||
+    msg.includes('token') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
   )
 }
 

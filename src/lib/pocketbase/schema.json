@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T23:14:07.984Z",
+  "generatedAt": "2026-10-21T23:45:30.075Z",
   "collections": [
     {
       "name": "users",
@@ -3188,6 +3188,12 @@
           "required": false,
           "system": false,
           "collectionRef": "negocios"
+        },
+        {
+          "name": "percentual_administracao_auto",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

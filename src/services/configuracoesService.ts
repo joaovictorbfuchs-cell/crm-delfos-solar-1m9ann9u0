@@ -2,6 +2,10 @@ import pb from '@/lib/pocketbase/client'
 
 export const STORAGE_KEY_VALOR_POR_PLACA = 'delfos_valor_limpeza_por_placa'
 export const VALOR_POR_PLACA_PADRAO_SISTEMA = 8.0
+export const CHAVE_PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO = 'percentual_administracao_solar_padrao'
+export const STORAGE_KEY_PERCENTUAL_ADMINISTRACAO_SOLAR =
+  'delfos_percentual_administracao_solar_padrao'
+export const PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO_SISTEMA = 15.0
 export const CHAVE_RODAPE_COMERCIAL_RELATORIO_OS = 'rodape_comercial_relatorio_os'
 export const STORAGE_KEY_RODAPE_COMERCIAL = 'delfos_rodape_comercial_relatorio_os'
 export const STORAGE_KEY_OFERTA_LIMPEZA_MENSAGEM = 'delfos_oferta_limpeza_mensagem_padrao'
@@ -295,6 +299,141 @@ export async function setRodapeComercialRelatorioOS(
   }
 
   return finalConfig
+}
+
+/**
+ * Obtém o percentual padrão de custos de administração nos orçamentos solares (ex.: 15%).
+ * Estratégia de resiliência:
+ * 1. Tenta buscar da coleção `configuracoes` no PocketBase (chave: 'percentual_administracao_solar_padrao')
+ * 2. Atualiza o cache local (localStorage)
+ * 3. Se falhar ou estiver offline, usa o localStorage
+ * 4. Fallback final: 15.0 (%)
+ */
+export async function getPercentualAdministracaoSolarPadrao(): Promise<number> {
+  // 1. Tenta recuperar do backend PocketBase
+  try {
+    const record = await pb
+      .collection('configuracoes')
+      .getFirstListItem<ConfiguracaoItem>(
+        `chave = "${CHAVE_PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO}"`,
+        { requestKey: null },
+      )
+
+    if (record) {
+      let num = 0
+      if (typeof record.dados?.percentual_administracao === 'number') {
+        num = record.dados.percentual_administracao
+      } else if (record.valor) {
+        num = parseFloat(record.valor.replace(',', '.'))
+      }
+
+      if (!isNaN(num) && num >= 0) {
+        try {
+          localStorage.setItem(STORAGE_KEY_PERCENTUAL_ADMINISTRACAO_SOLAR, num.toString())
+        } catch {
+          /* ignore */
+        }
+        return num
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '[configuracoesService] Falha ao ler percentual_administracao_solar_padrao do backend, usando cache:',
+      err,
+    )
+  }
+
+  // 2. Fallback para cache local no localStorage
+  return getPercentualAdministracaoSolarCacheSync()
+}
+
+/**
+ * Leitura síncrona do percentual de administração armazenado no cache local (localStorage),
+ * com fallback direto para 15.0%.
+ */
+export function getPercentualAdministracaoSolarCacheSync(): number {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY_PERCENTUAL_ADMINISTRACAO_SOLAR)
+    if (cached !== null && cached !== undefined) {
+      const num = parseFloat(cached)
+      if (!isNaN(num) && num >= 0) {
+        return num
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO_SISTEMA
+}
+
+/**
+ * Salva um novo percentual de administração como o novo padrão durável:
+ * 1. Salva imediatamente no localStorage (cache síncrono para UI instantânea)
+ * 2. Persiste na coleção `configuracoes` do PocketBase (cria ou atualiza o registro)
+ */
+export async function setPercentualAdministracaoSolarPadrao(
+  novoPercentual: number,
+): Promise<number> {
+  const percentualSanitizado = Math.max(0, Math.min(100, Math.round(novoPercentual * 100) / 100))
+
+  // 1. Salva em cache local imediatamente
+  try {
+    localStorage.setItem(
+      STORAGE_KEY_PERCENTUAL_ADMINISTRACAO_SOLAR,
+      percentualSanitizado.toString(),
+    )
+  } catch {
+    /* ignore */
+  }
+
+  // 2. Persiste no PocketBase
+  try {
+    let recordExistente: ConfiguracaoItem | null = null
+    try {
+      recordExistente = await pb
+        .collection('configuracoes')
+        .getFirstListItem<ConfiguracaoItem>(
+          `chave = "${CHAVE_PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO}"`,
+          { requestKey: null },
+        )
+    } catch (_) {
+      recordExistente = null
+    }
+
+    const payload = {
+      chave: CHAVE_PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO,
+      valor: percentualSanitizado.toString(),
+      dados: { percentual_administracao: percentualSanitizado },
+      descricao: 'Percentual padrão de custos de administração nos orçamentos solares (%)',
+    }
+
+    if (recordExistente?.id) {
+      await pb.collection('configuracoes').update(recordExistente.id, payload, { requestKey: null })
+    } else {
+      try {
+        await pb.collection('configuracoes').create(payload, { requestKey: null })
+      } catch (createErr) {
+        const itemRecente = await pb
+          .collection('configuracoes')
+          .getFirstListItem<ConfiguracaoItem>(
+            `chave = "${CHAVE_PERCENTUAL_ADMINISTRACAO_SOLAR_PADRAO}"`,
+            { requestKey: null },
+          )
+        if (itemRecente?.id) {
+          await pb.collection('configuracoes').update(itemRecente.id, payload, { requestKey: null })
+        } else {
+          throw createErr
+        }
+      }
+    }
+  } catch (err) {
+    console.error(
+      '[configuracoesService] Erro ao persistir percentual_administracao_solar_padrao no PocketBase:',
+      err,
+    )
+  }
+
+  return percentualSanitizado
 }
 
 /**
