@@ -502,63 +502,13 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
     <div className="relatorio-os-root min-h-screen bg-[#F7F9FC] text-[#1A2332] font-sans antialiased pb-12 print:bg-white print:p-0">
       {/* Barra de ações flutuante (canto superior direito com quebra responsiva e sem sobreposição, oculta na impressão) */}
       <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex flex-wrap items-center justify-end gap-2 max-w-[calc(100vw-1.5rem)] print:hidden">
-        {showHeaderActions && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleCopiarLink}
-            className="h-9 sm:h-10 px-3 bg-white hover:bg-slate-50 text-[#0E2A47] border-[#DDE4EE] rounded-full shadow-md text-xs font-bold gap-1.5 cursor-pointer shrink-0"
-          >
-            {linkCopiado ? (
-              <Check className="w-4 h-4 text-emerald-600" />
-            ) : (
-              <Share2 className="w-4 h-4 text-[#0E2A47]" />
-            )}
-            <span className="hidden sm:inline">
-              {linkCopiado ? 'Link Copiado!' : 'Compartilhar'}
-            </span>
-          </Button>
-        )}
+        {showHeaderActions && null}
 
         {/* Botão Enviar WhatsApp (PDF ou Link HTML) */}
-        <Button
-          type="button"
-          onClick={() => setModalWhatsAppAberto(true)}
-          aria-label="Enviar Relatório por WhatsApp"
-          className="h-9 sm:h-10 px-3 sm:px-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs sm:text-sm border border-[#1ea952] rounded-full cursor-pointer shadow-md hover:shadow-lg transition-all gap-1.5 shrink-0"
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span>WhatsApp</span>
-        </Button>
 
         {/* Botão Enviar por e-mail */}
-        <Button
-          type="button"
-          onClick={handleAbrirModalEmail}
-          aria-label="Enviar Relatório por E-mail"
-          className="h-9 sm:h-10 px-3 sm:px-4 bg-[#0E2A47] hover:bg-[#163e68] text-white font-bold text-xs sm:text-sm border border-[#163e68] rounded-full cursor-pointer shadow-md hover:shadow-lg transition-all gap-1.5 shrink-0"
-        >
-          <Mail className="w-4 h-4 text-[#C9A227]" />
-          <span className="hidden sm:inline">Enviar por e-mail</span>
-          <span className="sm:hidden">E-mail</span>
-        </Button>
 
         {/* Botão Baixar PDF */}
-        <Button
-          type="button"
-          onClick={handleBaixarPdf}
-          disabled={baixandoPdf}
-          aria-label="Baixar Relatório em PDF"
-          className="h-9 sm:h-10 px-3.5 sm:px-4 bg-[#C9A227] hover:bg-[#dbae26] text-[#0E2A47] font-bold text-xs sm:text-sm border border-[#B38E1D] rounded-full cursor-pointer shadow-[0_4px_14px_rgba(201,162,39,0.4)] hover:shadow-[0_6px_18px_rgba(201,162,39,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all gap-1.5 shrink-0"
-        >
-          {baixandoPdf ? (
-            <Loader2 className="w-4 h-4 animate-spin text-[#0E2A47]" />
-          ) : (
-            <Download className="w-4 h-4" />
-          )}
-          <span>{baixandoPdf ? 'Gerando...' : 'Baixar PDF'}</span>
-        </Button>
       </div>
 
       {/* Container Principal do Documento */}
