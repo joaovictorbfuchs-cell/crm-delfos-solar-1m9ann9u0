@@ -560,6 +560,9 @@ function ExecucaoOSContent() {
             detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
             concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
             origem: 'atividades',
+            solicitar_avaliacao_google: Boolean(atv.solicitar_avaliacao_google),
+            avaliacao_google_texto: atv.avaliacao_google_texto || '',
+            avaliacao_google_link: atv.avaliacao_google_link || '',
             created: atv.created,
             updated: atv.updated,
             expand: {

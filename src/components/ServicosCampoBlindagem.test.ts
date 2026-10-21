@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { safeHorarioStr, formatarDuracao } from '@/components/FichaExecucaoOS'
 import { sanitizeOS } from '@/components/CalendarioExecucaoOS'
 
@@ -277,6 +277,85 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       }
       const canonicalSem = compilarDadosRelatorioOS(fakeOSSemAvaliacao, null, null)
       expect(canonicalSem.solicitarAvaliacaoGoogle).toBe(false)
+    })
+
+    it('updateAtividadeComoOrdemServico e fetchOrdemServicoById persistem e retornam campos de avaliação Google', async () => {
+      const { pb } = await import('@/lib/pocketbase/client')
+      const { updateAtividadeComoOrdemServico, fetchOrdemServicoById } =
+        await import('@/services/crmService')
+
+      let payloadEnviado: any = null
+      const originalCollection = pb.collection.bind(pb)
+      const mockCollection = vi.spyOn(pb, 'collection').mockImplementation((colName: string) => {
+        if (colName === 'atividades') {
+          return {
+            update: vi.fn().mockImplementation(async (id: string, payload: any) => {
+              payloadEnviado = payload
+              return {
+                id,
+                collectionId: 'atividades',
+                collectionName: 'atividades',
+                cliente_id: 'cli-teste-1',
+                titulo: 'Limpeza dos Módulos',
+                tipo: 'limpeza',
+                status: 'em_execucao',
+                solicitar_avaliacao_google: payload.solicitar_avaliacao_google,
+                avaliacao_google_texto: payload.avaliacao_google_texto,
+                avaliacao_google_link: payload.avaliacao_google_link,
+                created: '2026-04-18T10:00:00.000Z',
+                updated: '2026-04-18T10:30:00.000Z',
+              }
+            }),
+            getOne: vi.fn().mockImplementation(async (id: string) => {
+              return {
+                id,
+                collectionId: 'atividades',
+                collectionName: 'atividades',
+                cliente_id: 'cli-teste-1',
+                titulo: 'Manutenção Preventiva',
+                tipo: 'manutencao_preventiva',
+                status: 'pendente',
+                solicitar_avaliacao_google: true,
+                avaliacao_google_texto: 'Avalie nossa equipe!',
+                avaliacao_google_link: 'https://g.page/r/exemplo/review',
+                created: '2026-04-18T10:00:00.000Z',
+                updated: '2026-04-18T10:30:00.000Z',
+              }
+            }),
+          } as any
+        }
+        if (colName === 'ordens_servico') {
+          return {
+            getOne: vi.fn().mockRejectedValue({ status: 404, message: 'Not found' }),
+          } as any
+        }
+        return originalCollection(colName)
+      })
+
+      // 1. Testa persistência via updateAtividadeComoOrdemServico
+      const resultadoUpdate = await updateAtividadeComoOrdemServico('atv-123', {
+        solicitar_avaliacao_google: true,
+        avaliacao_google_texto: 'Deixe sua nota 5 estrelas',
+        avaliacao_google_link: 'https://g.page/r/delfos/review',
+      })
+
+      expect(payloadEnviado).not.toBeNull()
+      expect(payloadEnviado.solicitar_avaliacao_google).toBe(true)
+      expect(payloadEnviado.avaliacao_google_texto).toBe('Deixe sua nota 5 estrelas')
+      expect(payloadEnviado.avaliacao_google_link).toBe('https://g.page/r/delfos/review')
+
+      expect(resultadoUpdate.solicitar_avaliacao_google).toBe(true)
+      expect(resultadoUpdate.avaliacao_google_texto).toBe('Deixe sua nota 5 estrelas')
+      expect(resultadoUpdate.avaliacao_google_link).toBe('https://g.page/r/delfos/review')
+
+      // 2. Testa leitura fallback via fetchOrdemServicoById
+      const resultadoFetch = await fetchOrdemServicoById('atv-123')
+      expect(resultadoFetch).not.toBeNull()
+      expect(resultadoFetch?.solicitar_avaliacao_google).toBe(true)
+      expect(resultadoFetch?.avaliacao_google_texto).toBe('Avalie nossa equipe!')
+      expect(resultadoFetch?.avaliacao_google_link).toBe('https://g.page/r/exemplo/review')
+
+      mockCollection.mockRestore()
     })
   })
 })

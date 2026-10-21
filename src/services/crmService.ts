@@ -4017,6 +4017,9 @@ export async function fetchOrdemServicoById(
           detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
           concluida_em: atv.status === 'concluida' ? atv.updated || atv.data : undefined,
           origem: 'atividades',
+          solicitar_avaliacao_google: Boolean(atv.solicitar_avaliacao_google),
+          avaliacao_google_texto: atv.avaliacao_google_texto || '',
+          avaliacao_google_link: atv.avaliacao_google_link || '',
           created: atv.created,
           updated: atv.updated,
           expand: {
@@ -4126,6 +4129,17 @@ export async function updateAtividadeComoOrdemServico(
   }
   if (data.data_agendada) {
     payloadAtividade.data = data.data_agendada
+  }
+
+  // Solicitação de avaliação no Google
+  if (data.solicitar_avaliacao_google !== undefined) {
+    payloadAtividade.solicitar_avaliacao_google = Boolean(data.solicitar_avaliacao_google)
+  }
+  if (data.avaliacao_google_texto !== undefined) {
+    payloadAtividade.avaliacao_google_texto = String(data.avaliacao_google_texto || '')
+  }
+  if (data.avaliacao_google_link !== undefined) {
+    payloadAtividade.avaliacao_google_link = String(data.avaliacao_google_link || '')
   }
 
   // Arquivo de cronograma ou fotos do serviço em campo
@@ -4309,6 +4323,20 @@ export async function updateAtividadeComoOrdemServico(
       '',
     concluida_em: osStatus === 'concluida' ? atvRecord.updated || atvRecord.data : undefined,
     origem: 'atividades',
+    solicitar_avaliacao_google:
+      atvRecord.solicitar_avaliacao_google !== undefined
+        ? Boolean(atvRecord.solicitar_avaliacao_google)
+        : data.solicitar_avaliacao_google !== undefined
+          ? Boolean(data.solicitar_avaliacao_google)
+          : false,
+    avaliacao_google_texto:
+      atvRecord.avaliacao_google_texto !== undefined
+        ? atvRecord.avaliacao_google_texto || ''
+        : data.avaliacao_google_texto || '',
+    avaliacao_google_link:
+      atvRecord.avaliacao_google_link !== undefined
+        ? atvRecord.avaliacao_google_link || ''
+        : data.avaliacao_google_link || '',
     fotos: Array.isArray(atvRecord.fotos)
       ? atvRecord.fotos
       : atvRecord.fotos
