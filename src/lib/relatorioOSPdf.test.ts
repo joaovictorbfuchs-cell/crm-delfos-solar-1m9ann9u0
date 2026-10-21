@@ -203,4 +203,102 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).toContain('Substituir conector MC4 da string 2 na próxima semana.')
     expect(html).not.toContain('Diagnóstico Geral')
   })
+
+  it('deve casar fotos com itens quando IDs usam variantes de prefixo padrão (chk_limp_1 vs chk_1 ou chk_limp_2 vs chk_2)', () => {
+    const osMock: Partial<OrdemServico> = {
+      id: 'os-prefix-match',
+      checklist: [
+        { id: 'chk_1', item: 'Lavagem técnica dos módulos fotovoltaicos', concluido: true },
+        { id: 'chk_2', item: 'Reaperto preventivo de disjuntores e conectores', concluido: true },
+      ],
+      fotos_metadados: [
+        {
+          id: 'meta_p1',
+          item_checklist_id: 'chk_limp_1',
+          item_checklist_texto: 'Lavagem técnica dos módulos fotovoltaicos',
+          arquivo: 'foto_modulo_lavagem.jpg',
+        },
+        {
+          id: 'meta_p2',
+          item_checklist_id: 'chk_limp_2',
+          item_checklist_texto: 'Reaperto preventivo de disjuntores e conectores',
+          arquivo: 'foto_quadro_disjuntor.jpg',
+        },
+      ] as any,
+    }
+
+    const fotosUrls = [
+      'https://cloud.skip.com/api/files/os/123/foto_modulo_lavagem.jpg',
+      'https://cloud.skip.com/api/files/os/123/foto_quadro_disjuntor.jpg',
+    ]
+
+    const html = gerarHTMLRelatorioOS({
+      os: osMock as OrdemServico,
+      cliente: clienteMock,
+      sistema: sistemaMock,
+      fotosDataUrls: fotosUrls,
+    })
+
+    // Na tabela de serviços executados
+    expect(html).toContain('Foto 1')
+    expect(html).toContain('Foto 2')
+
+    // No registro fotográfico: ambas as etapas devem ter título de grupo
+    expect(html).toContain('Lavagem técnica dos módulos fotovoltaicos')
+    expect(html).toContain('Reaperto preventivo de disjuntores e conectores')
+    expect(html).toContain('foto_modulo_lavagem.jpg')
+    expect(html).toContain('foto_quadro_disjuntor.jpg')
+  })
+
+  it('deve casar fotos por texto técnico e descrição do cliente tolerando acentos e maiúsculas', () => {
+    const osMock: Partial<OrdemServico> = {
+      id: 'os-text-match',
+      checklist: [
+        {
+          id: 'random_uuid_1',
+          item: 'Limpeza dos Módulos',
+          descricao_cliente: 'Lavagem técnica com água desmineralizada',
+          concluido: true,
+        } as any,
+        {
+          id: 'random_uuid_2',
+          item: 'Verificação dos Conectores MC4',
+          descricao_cliente: 'Inspeção mecânica das conexões',
+          concluido: true,
+        } as any,
+      ],
+      fotos_metadados: [
+        {
+          id: 'meta_t1',
+          item_checklist_id: 'outro_id',
+          item_checklist_texto: 'limpeza dos modulos', // sem acento, minúsculo
+          arquivo: 'foto1.jpg',
+        },
+        {
+          id: 'meta_t2',
+          item_checklist_id: 'outro_id_2',
+          item_checklist_texto: 'INSPEÇÃO MECÂNICA DAS CONEXÕES', // bate com descricao_cliente
+          arquivo: 'foto2.jpg',
+        },
+      ] as any,
+    }
+
+    const fotosUrls = [
+      'https://cloud.skip.com/api/files/os/123/foto1.jpg',
+      'https://cloud.skip.com/api/files/os/123/foto2.jpg',
+    ]
+
+    const html = gerarHTMLRelatorioOS({
+      os: osMock as OrdemServico,
+      cliente: clienteMock,
+      sistema: sistemaMock,
+      fotosDataUrls: fotosUrls,
+    })
+
+    // Evidências atribuídas aos itens certos
+    expect(html).toContain('Foto 1')
+    expect(html).toContain('Foto 2')
+    expect(html).toContain('foto1.jpg')
+    expect(html).toContain('foto2.jpg')
+  })
 })

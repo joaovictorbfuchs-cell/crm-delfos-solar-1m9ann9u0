@@ -273,6 +273,18 @@ export function compilarDadosRelatorioOS(
   // Limpa o texto de detalhes
   const observacoesLimpas = detalhesRaw.replace(/\[INÍCIO DO ATENDIMENTO:[^\]]+\]\s*/gi, '').trim()
 
+  // Normalizador de texto para comparação tolerante a acentos, pontuação, múltiplos espaços e caixa alta/baixa
+  const normalizarTexto = (txt?: any): string => {
+    if (!txt) return ''
+    return String(txt)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove diacríticos/acentos
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, ' ') // substitui pontuação por espaço
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
   // Metadados persistidos das fotos (vínculo com etapas do checklist)
   const fotosMetadadosRaw: any[] = Array.isArray(os?.fotos_metadados)
     ? os.fotos_metadados
@@ -287,7 +299,7 @@ export function compilarDadosRelatorioOS(
         })()
       : []
 
-  // Checklist da OS normalizado com ID garantido
+  // Checklist da OS normalizado PRESERVANDO o id original se fornecido
   let checklistItens: OSChecklistItem[] = []
   if (Array.isArray(os?.checklist)) {
     checklistItens = os.checklist
@@ -300,14 +312,31 @@ export function compilarDadosRelatorioOS(
     }
   }
 
-  checklistItens = checklistItens.map((item, idx) => ({
-    ...item,
-    id: item.id ? String(item.id) : `chk_${idx + 1}`,
-    item: String(
-      item.item || (item as any).texto || (item as any).descricao || `Item ${idx + 1}`,
-    ).trim(),
-    concluido: Boolean(item.concluido),
-  }))
+  checklistItens = checklistItens.map((item, idx) => {
+    const rawId =
+      item?.id !== undefined && item?.id !== null && String(item.id).trim() !== ''
+        ? String(item.id).trim()
+        : undefined
+    const rawDescCliente =
+      (item as any)?.descricao_cliente || (item as any)?.descricaoCliente || undefined
+    const descCliente =
+      rawDescCliente && String(rawDescCliente).trim() ? String(rawDescCliente).trim() : undefined
+    const itemTexto = String(
+      item?.item ||
+        (item as any)?.texto ||
+        (item as any)?.descricao ||
+        (item as any)?.nome ||
+        `Item ${idx + 1}`,
+    ).trim()
+
+    return {
+      ...item,
+      id: rawId || `chk_${idx + 1}`,
+      item: itemTexto,
+      concluido: Boolean(item?.concluido),
+      ...(descCliente ? { descricao_cliente: descCliente } : {}),
+    }
+  })
 
   // Registro fotográfico: lista de fotos na mesma ordem em que aparecem no Registro Fotográfico
   const fotosUrls = fotosDataUrls || []
@@ -320,16 +349,21 @@ export function compilarDadosRelatorioOS(
 
   if (fotosUrls.length > 0) {
     fotosUrls.forEach((url, i) => {
-      // 1. Tenta correspondência precisa pelo nome do arquivo contido na URL PocketBase
+      // 1. Tenta correspondência precisa pelo nome do arquivo contido na URL PocketBase (tolerando encode/decode e hashes gerados pelo PB)
       let metaIndex = fotosMetadadosRaw.findIndex((m: any, mIdx: number) => {
         if (!m || metadadosUsados.has(mIdx)) return false
         const nome = m.arquivo || m.nome_arquivo || m.nome || m.id
         if (nome && typeof nome === 'string' && nome.trim()) {
+          const nomeClean = nome.trim()
           try {
             const decodedUrl = decodeURIComponent(url)
-            if (decodedUrl.includes(nome) || url.includes(nome)) return true
+            if (decodedUrl.includes(nomeClean) || url.includes(nomeClean)) return true
+            const baseNome = nomeClean.replace(/\.[a-zA-Z0-9]+$/, '')
+            if (baseNome.length >= 3 && (decodedUrl.includes(baseNome) || url.includes(baseNome))) {
+              return true
+            }
           } catch {
-            if (url.includes(nome)) return true
+            if (url.includes(nomeClean)) return true
           }
         }
         return false
@@ -354,10 +388,10 @@ export function compilarDadosRelatorioOS(
       }
 
       let itemChecklistId: string | undefined = meta.item_checklist_id
-        ? String(meta.item_checklist_id)
+        ? String(meta.item_checklist_id).trim()
         : undefined
       let itemChecklistTexto: string | undefined = meta.item_checklist_texto
-        ? String(meta.item_checklist_texto)
+        ? String(meta.item_checklist_texto).trim()
         : undefined
       const legendaCustom = meta.legenda ? String(meta.legenda).trim() : ''
       const numeroGlobal = i + 1
@@ -367,36 +401,65 @@ export function compilarDadosRelatorioOS(
       let matchedChecklistIdx = -1
 
       if (checklistItens.length > 0) {
+        const idMetaNorm = normalizarTexto(itemChecklistId)
+        const textoMetaNorm = normalizarTexto(itemChecklistTexto)
+
         // 1. Por ID exato
         if (itemChecklistId) {
           matchedChecklistIdx = checklistItens.findIndex(
             (chk) => String(chk.id) === itemChecklistId,
           )
         }
-        // 2. Por texto exato do item
-        if (matchedChecklistIdx < 0 && itemChecklistTexto) {
-          const tAlvo = itemChecklistTexto.trim().toLowerCase()
-          matchedChecklistIdx = checklistItens.findIndex(
-            (chk) => chk.item && chk.item.trim().toLowerCase() === tAlvo,
-          )
-        }
-        // 3. Por itemChecklistId que veio com o texto do item
+
+        // 2. Por ID tolerando variantes de prefixo padrão (ex: "chk_limp_2" vs "chk_2" ou ordinal numérico no final)
         if (matchedChecklistIdx < 0 && itemChecklistId) {
-          const tAlvo = itemChecklistId.trim().toLowerCase()
-          matchedChecklistIdx = checklistItens.findIndex(
-            (chk) => chk.item && chk.item.trim().toLowerCase() === tAlvo,
-          )
-        }
-        // 4. Por chave prefixada tipo "chk_1", "chk-1", "ativ_1", "item_1"
-        if (matchedChecklistIdx < 0 && itemChecklistId) {
-          const mNum = itemChecklistId.match(/(?:chk|item|ativ)[-_]?(\d+)/i)
-          if (mNum && mNum[1]) {
-            const idxNum = parseInt(mNum[1], 10) - 1
-            if (idxNum >= 0 && idxNum < checklistItens.length) {
-              matchedChecklistIdx = idxNum
+          const numMetaMatch = itemChecklistId.match(/(\d+)$/)
+          if (numMetaMatch && numMetaMatch[1]) {
+            const metaOrdinal = parseInt(numMetaMatch[1], 10)
+            const idxPorNumId = checklistItens.findIndex((chk) => {
+              const chkNumMatch = String(chk.id).match(/(\d+)$/)
+              return chkNumMatch && parseInt(chkNumMatch[1], 10) === metaOrdinal
+            })
+            if (idxPorNumId >= 0) {
+              matchedChecklistIdx = idxPorNumId
+            } else if (metaOrdinal >= 1 && metaOrdinal <= checklistItens.length) {
+              matchedChecklistIdx = metaOrdinal - 1
             }
           }
         }
+
+        // 3. Por correspondência de texto tolerante a acentos/caixa alta/baixa
+        // Compara itemChecklistTexto com chk.item (texto técnico) e com chk.descricao_cliente
+        if (matchedChecklistIdx < 0 && textoMetaNorm) {
+          matchedChecklistIdx = checklistItens.findIndex((chk) => {
+            const tItemNorm = normalizarTexto(chk.item)
+            const tDescNorm = normalizarTexto((chk as any).descricao_cliente)
+            return tItemNorm === textoMetaNorm || tDescNorm === textoMetaNorm
+          })
+
+          if (matchedChecklistIdx < 0 && textoMetaNorm.length >= 5) {
+            matchedChecklistIdx = checklistItens.findIndex((chk) => {
+              const tItemNorm = normalizarTexto(chk.item)
+              const tDescNorm = normalizarTexto((chk as any).descricao_cliente)
+              return (
+                (tItemNorm &&
+                  (tItemNorm.includes(textoMetaNorm) || textoMetaNorm.includes(tItemNorm))) ||
+                (tDescNorm &&
+                  (tDescNorm.includes(textoMetaNorm) || textoMetaNorm.includes(tDescNorm)))
+              )
+            })
+          }
+        }
+
+        // 4. Se itemChecklistId for na verdade o texto do item
+        if (matchedChecklistIdx < 0 && idMetaNorm && idMetaNorm.length >= 4) {
+          matchedChecklistIdx = checklistItens.findIndex((chk) => {
+            const tItemNorm = normalizarTexto(chk.item)
+            const tDescNorm = normalizarTexto((chk as any).descricao_cliente)
+            return tItemNorm === idMetaNorm || tDescNorm === idMetaNorm
+          })
+        }
+
         // 5. Por propriedade item_index / etapa_index no metadado
         if (matchedChecklistIdx < 0) {
           const rawIdx = (meta as any).item_index ?? (meta as any).etapa_index
@@ -501,39 +564,81 @@ export function compilarDadosRelatorioOS(
     itemId?: string,
     itemTexto?: string,
     itemIdx?: number,
+    itemDescCliente?: string,
     fallbackEvidencia = 'Registro no checklist',
   ): string => {
     const indicesFotos: number[] = []
-    const textoNormalizado = itemTexto ? itemTexto.trim().toLowerCase() : ''
-    const idNormalizado = itemId ? String(itemId).trim().toLowerCase() : ''
+    const tNorm = normalizarTexto(itemTexto)
+    const dNorm = normalizarTexto(itemDescCliente)
+    const idNorm = itemId ? String(itemId).trim() : ''
+
+    // Ordinal numérico deste item se houver
+    let ordinalEsperado: number | null = null
+    if (idNorm) {
+      const m = idNorm.match(/(\d+)$/)
+      if (m && m[1]) ordinalEsperado = parseInt(m[1], 10)
+    }
+    if (ordinalEsperado === null && itemIdx !== undefined) {
+      ordinalEsperado = itemIdx + 1
+    }
 
     fotos.forEach((f, idx) => {
       const numFoto = f.numeroGlobal || idx + 1
       let pertence = false
 
-      if (itemId && f.item_checklist_id && String(f.item_checklist_id) === String(itemId)) {
+      const fIdNorm = f.item_checklist_id ? String(f.item_checklist_id).trim() : ''
+      const fTextoNorm = normalizarTexto(f.item_checklist_texto)
+
+      // 1. Igualdade direta por ID
+      if (idNorm && fIdNorm && fIdNorm === idNorm) {
         pertence = true
-      } else if (
-        textoNormalizado &&
-        f.item_checklist_texto &&
-        f.item_checklist_texto.trim().toLowerCase() === textoNormalizado
-      ) {
-        pertence = true
-      } else if (
-        textoNormalizado &&
-        f.item_checklist_id &&
-        f.item_checklist_id.trim().toLowerCase() === textoNormalizado
-      ) {
-        pertence = true
-      } else if (
-        idNormalizado &&
-        f.item_checklist_texto &&
-        f.item_checklist_texto.trim().toLowerCase() === idNormalizado
-      ) {
-        pertence = true
-      } else if (itemIdx !== undefined) {
+      }
+
+      // 2. Por ordinal do ID (ex.: chk_limp_2 casando com chk_2 ou vice-versa)
+      if (!pertence && ordinalEsperado !== null && fIdNorm) {
+        const mF = fIdNorm.match(/(\d+)$/)
+        if (mF && mF[1] && parseInt(mF[1], 10) === ordinalEsperado) {
+          pertence = true
+        }
+      }
+
+      // 3. Por texto do item técnico ou descrição do cliente
+      if (!pertence && fTextoNorm) {
+        if (
+          tNorm &&
+          (fTextoNorm === tNorm || fTextoNorm.includes(tNorm) || tNorm.includes(fTextoNorm))
+        ) {
+          pertence = true
+        } else if (
+          dNorm &&
+          (fTextoNorm === dNorm || fTextoNorm.includes(dNorm) || dNorm.includes(fTextoNorm))
+        ) {
+          pertence = true
+        }
+      }
+
+      // 4. Por f.item_checklist_id contendo texto da etapa
+      if (!pertence && fIdNorm) {
+        const fIdTextNorm = normalizarTexto(fIdNorm)
+        if (
+          tNorm &&
+          fIdTextNorm &&
+          (fIdTextNorm === tNorm || fIdTextNorm.includes(tNorm) || tNorm.includes(fIdTextNorm))
+        ) {
+          pertence = true
+        } else if (
+          dNorm &&
+          fIdTextNorm &&
+          (fIdTextNorm === dNorm || fIdTextNorm.includes(dNorm) || dNorm.includes(fIdTextNorm))
+        ) {
+          pertence = true
+        }
+      }
+
+      // 5. Fallback por chave ordinal tipo chk_X
+      if (!pertence && itemIdx !== undefined) {
         const chaveIdx = `chk_${itemIdx + 1}`
-        if (f.item_checklist_id === chaveIdx || f.item_checklist_id === String(itemIdx + 1)) {
+        if (fIdNorm === chaveIdx || fIdNorm === String(itemIdx + 1)) {
           pertence = true
         }
       }
@@ -601,7 +706,7 @@ export function compilarDadosRelatorioOS(
         localAtivo,
         quantidade: qtd,
         situacao: isConcluido ? 'Executado' : 'Pendente',
-        evidencia: formatarEvidenciaEtapa(item.id, text, itemIdx),
+        evidencia: formatarEvidenciaEtapa(item.id, text, itemIdx, descCliente),
       }
     })
   }
@@ -716,29 +821,60 @@ export function compilarDadosRelatorioOS(
       | { itemChecklistId?: string; itemChecklistTexto: string; fotos: FotoRegistroRelatorio[] }
       | undefined
 
-    // 1. Tenta casar com grupo pelo item_checklist_id
-    if (f.item_checklist_id && fotosPorEtapaMap.has(f.item_checklist_id)) {
-      grupoDestino = fotosPorEtapaMap.get(f.item_checklist_id)
+    const fId = f.item_checklist_id ? String(f.item_checklist_id).trim() : ''
+    const fTextoNorm = normalizarTexto(f.item_checklist_texto)
+
+    // 1. Tenta casar com grupo pelo item_checklist_id exato
+    if (fId && fotosPorEtapaMap.has(fId)) {
+      grupoDestino = fotosPorEtapaMap.get(fId)
     }
 
-    // 2. Tenta casar por texto da etapa
-    if (!grupoDestino && f.item_checklist_texto) {
-      const textoAlvo = f.item_checklist_texto.trim().toLowerCase()
+    // 2. Tenta casar por ordinal numérico do ID (ex: chk_limp_2 casando com chk_2 ou vice-versa)
+    if (!grupoDestino && fId) {
+      const mF = fId.match(/(\d+)$/)
+      if (mF && mF[1]) {
+        const ord = parseInt(mF[1], 10)
+        for (const [chave, g] of fotosPorEtapaMap.entries()) {
+          const mChave = chave.match(/(\d+)$/)
+          if (mChave && mChave[1] && parseInt(mChave[1], 10) === ord) {
+            grupoDestino = g
+            break
+          }
+        }
+      }
+    }
+
+    // 3. Tenta casar por texto da etapa (com normalização tolerante a acentos e caixa)
+    if (!grupoDestino && fTextoNorm) {
       for (const g of fotosPorEtapaMap.values()) {
-        if (g.itemChecklistTexto && g.itemChecklistTexto.trim().toLowerCase() === textoAlvo) {
+        const gTextoNorm = normalizarTexto(g.itemChecklistTexto)
+        if (
+          gTextoNorm &&
+          (gTextoNorm === fTextoNorm ||
+            gTextoNorm.includes(fTextoNorm) ||
+            fTextoNorm.includes(gTextoNorm))
+        ) {
           grupoDestino = g
           break
         }
       }
     }
 
-    // 3. Tenta casar se item_checklist_id contiver o texto de algum grupo
-    if (!grupoDestino && f.item_checklist_id) {
-      const idTexto = f.item_checklist_id.trim().toLowerCase()
-      for (const g of fotosPorEtapaMap.values()) {
-        if (g.itemChecklistTexto && g.itemChecklistTexto.trim().toLowerCase() === idTexto) {
-          grupoDestino = g
-          break
+    // 4. Tenta casar se f.item_checklist_id contiver o texto de algum grupo
+    if (!grupoDestino && fId) {
+      const fIdTextNorm = normalizarTexto(fId)
+      if (fIdTextNorm && fIdTextNorm.length >= 4) {
+        for (const g of fotosPorEtapaMap.values()) {
+          const gTextoNorm = normalizarTexto(g.itemChecklistTexto)
+          if (
+            gTextoNorm &&
+            (gTextoNorm === fIdTextNorm ||
+              gTextoNorm.includes(fIdTextNorm) ||
+              fIdTextNorm.includes(gTextoNorm))
+          ) {
+            grupoDestino = g
+            break
+          }
         }
       }
     }
