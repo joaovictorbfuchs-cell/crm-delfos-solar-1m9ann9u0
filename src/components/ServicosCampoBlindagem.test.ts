@@ -235,6 +235,8 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(typeof errors.isAuthSessionError).toBe('function')
       expect(typeof errors.isAbortError).toBe('function')
       expect(typeof errors.formatPbError).toBe('function')
+      expect(typeof errors.extractFieldErrors).toBe('function')
+      expect(typeof errors.getErrorMessage).toBe('function')
 
       const client = await import('@/lib/pocketbase/client')
       expect(client.default).toBeDefined()
@@ -246,6 +248,29 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(errors.isAuthSessionError({ message: 'The request was aborted' })).toBe(false)
       expect(errors.isAbortError({ isAbort: true })).toBe(true)
       expect(errors.isAbortError({ name: 'AbortError' })).toBe(true)
+    })
+
+    it('valida inclusão do bloco de avaliação no Google quando solicitarAvaliacaoGoogle é true', async () => {
+      const { compilarDadosRelatorioOS } = await import('@/lib/relatorioOSCanonical')
+      const fakeOSComAvaliacao: any = {
+        id: 'os-aval-123456',
+        tipo_servico: 'Manutenção Preventiva',
+        solicitar_avaliacao_google: true,
+        avaliacao_google_texto: 'Por favor nos avalie!',
+        avaliacao_google_link: 'https://g.page/r/CTsVOsKTsWCTEBM/review',
+      }
+      const canonicalCom = compilarDadosRelatorioOS(fakeOSComAvaliacao, null, null)
+      expect(canonicalCom.solicitarAvaliacaoGoogle).toBe(true)
+      expect(canonicalCom.avaliacaoGoogleTexto).toBe('Por favor nos avalie!')
+      expect(canonicalCom.avaliacaoGoogleLink).toBe('https://g.page/r/CTsVOsKTsWCTEBM/review')
+
+      const fakeOSSemAvaliacao: any = {
+        id: 'os-aval-789012',
+        tipo_servico: 'Limpeza dos Módulos',
+        solicitar_avaliacao_google: false,
+      }
+      const canonicalSem = compilarDadosRelatorioOS(fakeOSSemAvaliacao, null, null)
+      expect(canonicalSem.solicitarAvaliacaoGoogle).toBe(false)
     })
   })
 })

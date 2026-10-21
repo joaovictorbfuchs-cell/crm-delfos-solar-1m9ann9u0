@@ -6,6 +6,7 @@ import {
   Text,
   View,
   Image,
+  Link,
   StyleSheet,
   type DocumentProps,
 } from '@react-pdf/renderer'

@@ -345,15 +345,27 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
     setDestinatarioEmail(emailDestino)
     setAssuntoEmail(`Relatório de Atendimento Delfos Solar — OS ${osCod}`)
-    setMensagemEmail(
+
+    let msgEmail =
       `Olá, ${clienteNome}!\n\n` +
-        `Segue em anexo o Relatório de Atendimento e Condição do Sistema referente à Ordem de Serviço ${osCod}.\n\n` +
-        `Nele você encontra o resumo das atividades executadas pela nossa equipe técnica, as evidências fotográficas e as recomendações de manutenção para garantir o máximo desempenho e segurança da sua usina solar.\n\n` +
-        `Qualquer dúvida estamos à disposição!\n\n` +
-        `Atenciosamente,\n` +
-        `Delfos Engenharia Solar\n` +
-        `solar@updates.delfos.eng.br | (54) 99129-2121`,
-    )
+      `Segue em anexo o Relatório de Atendimento e Condição do Sistema referente à Ordem de Serviço ${osCod}.\n\n` +
+      `Nele você encontra o resumo das atividades executadas pela nossa equipe técnica, as evidências fotográficas e as recomendações de manutenção para garantir o máximo desempenho e segurança da sua usina solar.\n\n` +
+      `Qualquer dúvida estamos à disposição!\n\n` +
+      `Atenciosamente,\n` +
+      `Delfos Engenharia Solar\n` +
+      `solar@updates.delfos.eng.br | (54) 99129-2121`
+
+    if (relatorio.solicitarAvaliacaoGoogle) {
+      const tit = relatorio.avaliacaoGoogleTitulo
+        ? `⭐ ${relatorio.avaliacaoGoogleTitulo}`
+        : '⭐ Sua opinião vale muito para nós'
+      const txt = relatorio.avaliacaoGoogleTexto || ''
+      const lnk = relatorio.avaliacaoGoogleLink || 'https://g.page/r/CTsVOsKTsWCTEBM/review'
+
+      msgEmail += `\n\n${tit}\n${txt}\n${lnk}`
+    }
+
+    setMensagemEmail(msgEmail)
     setEmailEnviadoSucesso(false)
     setModalEmailAberto(true)
   }
@@ -394,6 +406,22 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       const pureBase64 = base64.includes(',') ? base64.split(',')[1] : base64
 
       // 2. Constrói HTML do e-mail
+      const blocoAvaliacaoEmailHtml = relatorio.solicitarAvaliacaoGoogle
+        ? `
+          <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: bold; color: #92400E;">
+              ⭐ ${relatorio.avaliacaoGoogleTitulo || 'Sua opinião vale muito para nós'}
+            </p>
+            <p style="margin: 0 0 12px 0; font-size: 12px; color: #78350F; line-height: 1.5;">
+              ${relatorio.avaliacaoGoogleTexto || ''}
+            </p>
+            <a href="${relatorio.avaliacaoGoogleLink || 'https://g.page/r/CTsVOsKTsWCTEBM/review'}" target="_blank" rel="noopener noreferrer" style="background-color: #D97706; color: #FFFFFF; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 12px; display: inline-block;">
+              Avaliar no Google (15 segundos)
+            </a>
+          </div>
+        `
+        : ''
+
       const htmlCorpo = `
         <div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #1a2332;">
           <div style="background-color: #0E2A47; padding: 20px; border-radius: 8px 8px 0 0; color: #ffffff; text-align: center;">
@@ -406,6 +434,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
               <strong>Documento anexado:</strong> ${fileName}<br />
               <strong>OS Vinculada:</strong> ${relatorio.osCodigo} • <strong>Data:</strong> ${relatorio.dataAtendimento}
             </div>
+            ${blocoAvaliacaoEmailHtml}
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0 16px;" />
             <p style="margin: 0; font-size: 11px; color: #8a9bb0; text-align: center;">
               Delfos Engenharia Solar • Rua Espírito Santo, 275 – Erechim/RS • (54) 99129-2121<br />

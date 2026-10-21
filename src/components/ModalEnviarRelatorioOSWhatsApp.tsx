@@ -16,6 +16,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { OrdemServico, Cliente, Sistema } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
+import { compilarDadosRelatorioOS } from '@/lib/relatorioOSCanonical'
 import pb from '@/lib/pocketbase/client'
 
 export interface ModalEnviarRelatorioOSWhatsAppProps {
@@ -93,7 +94,20 @@ export const ModalEnviarRelatorioOSWhatsApp: React.FC<ModalEnviarRelatorioOSWhat
     const defaultFileName = 'relatorio-tecnico-os.pdf'
     setNomeArquivo(defaultFileName)
 
-    const msgSugerida = `Olá ${clientePrimeiroNome}! Segue o Relatório Técnico de Execução da Ordem de Serviço #${osIdCurto} (${os.tipo_servico || 'Serviço em Campo'}) realizada pela equipe da Delfos Solar. Qualquer dúvida, estamos à disposição!`
+    const canonical = compilarDadosRelatorioOS(os, cliente, sistema)
+    let msgSugerida = `Olá ${clientePrimeiroNome}! Segue o Relatório Técnico de Execução da Ordem de Serviço #${osIdCurto} (${os.tipo_servico || 'Serviço em Campo'}) realizada pela equipe da Delfos Solar. Qualquer dúvida, estamos à disposição!`
+
+    if (canonical.solicitarAvaliacaoGoogle) {
+      const tituloAvaliacao = canonical.avaliacaoGoogleTitulo
+        ? `⭐ ${canonical.avaliacaoGoogleTitulo}`
+        : '⭐ Sua opinião vale muito para nós'
+      const textoAvaliacao = canonical.avaliacaoGoogleTexto || ''
+      const linkAvaliacao =
+        canonical.avaliacaoGoogleLink || 'https://g.page/r/CTsVOsKTsWCTEBM/review'
+
+      msgSugerida += `\n\n${tituloAvaliacao}\n${textoAvaliacao}\n${linkAvaliacao}`
+    }
+
     setMensagem(msgSugerida)
 
     async function prepararRelatorio() {

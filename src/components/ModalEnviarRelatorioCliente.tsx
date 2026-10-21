@@ -17,6 +17,7 @@ import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { OrdemServico, Cliente, Sistema } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { enviarEmail } from '@/lib/emailService'
+import { compilarDadosRelatorioOS } from '@/lib/relatorioOSCanonical'
 import pb from '@/lib/pocketbase/client'
 
 export interface ModalEnviarRelatorioClienteProps {
@@ -125,7 +126,20 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
     setAssuntoEmail(`Delfos Solar - Relatório Técnico de Execução • OS #${osIdCurto}`)
 
     const urlRelatorioOS = `${window.location.origin}/relatorio-os/${os.id}`
-    const msgSugerida = `Olá ${clientePrimeiroNome}! Segue o Relatório Técnico de Execução da Ordem de Serviço #${osIdCurto} (${os.tipo_servico || 'Serviço em Campo'}) realizada pela equipe da Delfos Solar.\n\nVocê também pode acessar o relatório online pelo link:\n${urlRelatorioOS}\n\nQualquer dúvida, estamos à disposição!`
+    const canonical = compilarDadosRelatorioOS(os, cliente, sistema)
+    let msgSugerida = `Olá ${clientePrimeiroNome}! Segue o Relatório Técnico de Execução da Ordem de Serviço #${osIdCurto} (${os.tipo_servico || 'Serviço em Campo'}) realizada pela equipe da Delfos Solar.\n\nVocê também pode acessar o relatório online pelo link:\n${urlRelatorioOS}\n\nQualquer dúvida, estamos à disposição!`
+
+    if (canonical.solicitarAvaliacaoGoogle) {
+      const tituloAvaliacao = canonical.avaliacaoGoogleTitulo
+        ? `⭐ ${canonical.avaliacaoGoogleTitulo}`
+        : '⭐ Sua opinião vale muito para nós'
+      const textoAvaliacao = canonical.avaliacaoGoogleTexto || ''
+      const linkAvaliacao =
+        canonical.avaliacaoGoogleLink || 'https://g.page/r/CTsVOsKTsWCTEBM/review'
+
+      msgSugerida += `\n\n${tituloAvaliacao}\n${textoAvaliacao}\n${linkAvaliacao}`
+    }
+
     setMensagem(msgSugerida)
 
     setStatusEmail({ status: 'idle' })
@@ -190,6 +204,23 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
           const clienteNome = cliente?.nome || cliente?.razao_social || 'Cliente Solar'
           const osIdCurto = os.id.slice(-6).toUpperCase()
 
+          const canonicalEnvio = compilarDadosRelatorioOS(os, cliente, sistema)
+          const blocoAvaliacaoHtml = canonicalEnvio.solicitarAvaliacaoGoogle
+            ? `
+              <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: bold; color: #92400E;">
+                  ⭐ ${canonicalEnvio.avaliacaoGoogleTitulo || 'Sua opinião vale muito para nós'}
+                </p>
+                <p style="margin: 0 0 12px 0; font-size: 12px; color: #78350F; line-height: 1.5;">
+                  ${canonicalEnvio.avaliacaoGoogleTexto || ''}
+                </p>
+                <a href="${canonicalEnvio.avaliacaoGoogleLink || 'https://g.page/r/CTsVOsKTsWCTEBM/review'}" target="_blank" rel="noopener noreferrer" style="background-color: #D97706; color: #FFFFFF; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 12px; display: inline-block;">
+                  Avaliar no Google (15 segundos)
+                </a>
+              </div>
+            `
+            : ''
+
           const corpoHtml = `
             <!DOCTYPE html>
             <html lang="pt-BR">
@@ -218,6 +249,7 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
                       Ou cole o link no seu navegador: <br /><a href="${linkRelatorio}" style="color: #16A34A;">${linkRelatorio}</a>
                     </p>
                   </div>
+                  ${blocoAvaliacaoHtml}
                   <p style="font-size: 12px; color: #64748B; margin-bottom: 0;">
                     Em caso de dúvidas, estamos à disposição pelo WhatsApp (54) 99129-2121 ou pelo e-mail solar@updates.delfos.eng.br.
                   </p>

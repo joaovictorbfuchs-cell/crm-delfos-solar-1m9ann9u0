@@ -548,11 +548,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // 7. Solicitação de Avaliação no Google (por OS e padrão global)
   const [solicitarAvaliacaoGoogle, setSolicitarAvaliacaoGoogle] = useState<boolean>(() => {
-    return Boolean(
-      os.solicitar_avaliacao_google === true ||
-      (os as any)?.solicitarAvaliacaoGoogle === true ||
-      os.solicitar_avaliacao_google === 'true',
-    )
+    const rawVal: unknown =
+      (os as any)?.solicitar_avaliacao_google ?? (os as any)?.solicitarAvaliacaoGoogle
+    return rawVal === true || rawVal === 'true' || rawVal === 1 || rawVal === '1'
   })
   const [avaliacaoGoogleTexto, setAvaliacaoGoogleTexto] = useState<string>(() => {
     if (typeof os.avaliacao_google_texto === 'string' && os.avaliacao_google_texto.trim()) {
@@ -572,13 +570,14 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Sincronizar estados da avaliação com atualização externa da OS e carregar padrão do backend se vazio
   useEffect(() => {
-    if (os.solicitar_avaliacao_google !== undefined) {
+    if (
+      os.solicitar_avaliacao_google !== undefined ||
+      (os as any)?.solicitarAvaliacaoGoogle !== undefined
+    ) {
+      const rawVal: unknown =
+        (os as any)?.solicitar_avaliacao_google ?? (os as any)?.solicitarAvaliacaoGoogle
       setSolicitarAvaliacaoGoogle(
-        Boolean(
-          os.solicitar_avaliacao_google === true ||
-          (os as any)?.solicitarAvaliacaoGoogle === true ||
-          os.solicitar_avaliacao_google === 'true',
-        ),
+        rawVal === true || rawVal === 'true' || rawVal === 1 || rawVal === '1',
       )
     }
     if (typeof os.avaliacao_google_texto === 'string' && os.avaliacao_google_texto.trim()) {

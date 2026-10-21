@@ -1063,11 +1063,13 @@ export function compilarDadosRelatorioOS(
   const exibirPlanoOM = !clientePossuiContratoOMAtivo
 
   // Solicitação de Avaliação no Google (100% aditivo, ativado apenas se explicitamente marcado como true)
-  const solicitarAvaliacaoGoogle = Boolean(
-    os?.solicitar_avaliacao_google === true ||
-    (os as any)?.solicitarAvaliacaoGoogle === true ||
-    os?.solicitar_avaliacao_google === 'true',
-  )
+  const rawSolicitarAvaliacao: unknown =
+    (os as any)?.solicitar_avaliacao_google ?? (os as any)?.solicitarAvaliacaoGoogle
+  const solicitarAvaliacaoGoogle =
+    rawSolicitarAvaliacao === true ||
+    rawSolicitarAvaliacao === 'true' ||
+    rawSolicitarAvaliacao === 1 ||
+    rawSolicitarAvaliacao === '1'
   const linkAvaliacaoPadrao = 'https://g.page/r/CTsVOsKTsWCTEBM/review'
   const tituloAvaliacaoPadrao = 'Sua opinião vale muito para nós'
   const textoAvaliacaoPadrao =
