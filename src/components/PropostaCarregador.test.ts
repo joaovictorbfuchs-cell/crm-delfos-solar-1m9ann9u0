@@ -186,31 +186,38 @@ describe('Propostas de Carregador Veicular (Infraestrutura Wallbox)', () => {
     expect(html).toContain('NBR 5410')
     expect(html).toContain('NBR 17019')
 
-    // Seção 2 Economia
-    expect(html).toContain('Economia de até 4x no custo por quilômetro')
-    expect(html).toContain('R$ 18 a R$ 25')
-    expect(html).toContain('R$ 70 a R$ 90')
+    // Abertura persuasiva mantida intacta
+    expect(html).toContain('Por que estruturar seu próprio ponto de recarga veicular?')
 
-    // Seção 3 Modelos
+    // Seção Projeção de Economia removida conforme solicitação do usuário
+    expect(html).not.toContain('Economia de até 4x no custo por quilômetro')
+    expect(html).not.toContain('PROJEÇÃO DE ECONOMIA')
+
+    // Seção 2 Modelos (renumerada)
+    expect(html).toContain('2. Carregador Veicular Wallbox')
     expect(html).toContain('Opção 01: Wallbox AC 7,4 kW')
     expect(html).toContain('Opção 02: Wallbox AC 22 kW')
     expect(html).toContain('Recomendado')
 
-    // Seção 4 Escopo Técnico
+    // Seção 3 Escopo Técnico (renumerada)
+    expect(html).toContain('3. Escopo Técnico da Engenharia de Instalação')
     expect(html).toContain('(A) Quadro de Proteção')
     expect(html).toContain('(B) Infraestrutura &amp; Cabeamento')
     expect(html).toContain('(C) Fixação &amp; Comissionamento')
     expect(html).toContain('CREA-RS')
 
-    // Seção 5 Investimento e Condições
+    // Seção 4 Investimento e Condições (renumerada)
+    expect(html).toContain('4. Investimento Consolidado')
     expect(html).toContain('INVESTIMENTO TOTAL')
     expect(html).toContain('50% de sinal no aceite')
 
-    // Seção 7 Responsável Técnico
+    // Seção 6 Responsável Técnico (renumerada)
+    expect(html).toContain('6. Responsabilidade Técnica')
     expect(html).toContain('João Victor Bagetti Fuchs')
     expect(html).toContain('CREA-RS 151894')
 
-    // Seção 8 Próximos Passos
+    // Seção 7 Próximos Passos (renumerada)
+    expect(html).toContain('7. Próximos Passos para Ativação')
     expect(html).toContain('Aceite Formal')
     expect(html).toContain('Sinal (50%)')
     expect(html).toContain('Vistoria &amp; Agenda')

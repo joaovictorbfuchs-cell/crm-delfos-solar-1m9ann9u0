@@ -37,11 +37,6 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
   const respAcomp = dados.responsavel_acompanhante || '[Engº ou Gestor Responsável]'
   const tipoLocal = dados.tipo_local || 'Residencial / Condomínio / Comercial'
 
-  const cPropMin = dados.custo_proprio_min ?? 18
-  const cPropMax = dados.custo_proprio_max ?? 25
-  const cPubMin = dados.custo_publico_min ?? 70
-  const cPubMax = dados.custo_publico_max ?? 90
-
   const op1Titulo = dados.opcao1_titulo || 'Opção 01: Wallbox AC 7,4 kW'
   const op1Potencia = dados.opcao1_potencia || '7,4 kW (32A)'
   const op1Tensao = dados.opcao1_tensao || 'Monofásico / Bifásico 220V'
@@ -324,100 +319,11 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 4. PROJEÇÃO DE ECONOMIA */}
+      {/* 4. MODELOS DE CARREGADOR DISPONÍVEIS OU CARREGADOR ADQUIRIDO */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          2. Projeção de Economia: Ponto Próprio vs. Posto Público
-        </h2>
-        <p className="text-xs text-slate-600 mb-3">
-          *Valores médios de referência para consumo de 16 a 18 kWh a cada 100 km rodados em
-          veículos elétricos médios (tarifa de energia local vs. tarifas de operadores de recarga
-          rápida comercial):
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Card Recarga Própria */}
-          <div className="border border-[#a7f3d0] bg-[#f0fdf4] rounded-md p-4 sm:p-5 relative">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#047857] mb-1">
-              Recarga Própria (Wallbox Delfos)
-            </div>
-            <div className="text-2xl font-extrabold text-[#047857] tracking-tight">
-              {editavel && onChangeField ? (
-                <span className="inline-flex items-center gap-1">
-                  R${' '}
-                  <input
-                    type="number"
-                    value={cPropMin}
-                    onChange={(e) => onChangeField('custo_proprio_min', Number(e.target.value))}
-                    className="w-16 bg-white border border-emerald-300 rounded px-1 text-lg font-bold"
-                  />
-                  <span>a R$</span>
-                  <input
-                    type="number"
-                    value={cPropMax}
-                    onChange={(e) => onChangeField('custo_proprio_max', Number(e.target.value))}
-                    className="w-16 bg-white border border-emerald-300 rounded px-1 text-lg font-bold"
-                  />
-                </span>
-              ) : (
-                `R$ ${cPropMin} a R$ ${cPropMax}`
-              )}
-            </div>
-            <div className="text-xs text-slate-600 mt-1">
-              Custo médio estimado a cada 100 km rodados (tarifa concessionária ou solar)
-            </div>
-          </div>
-
-          {/* Card Eletroposto Público */}
-          <div className="border border-slate-200 bg-white rounded-md p-4 sm:p-5 relative">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-              Eletroposto Público / Rápido Comercial
-            </div>
-            <div className="text-2xl font-extrabold text-slate-600 tracking-tight">
-              {editavel && onChangeField ? (
-                <span className="inline-flex items-center gap-1">
-                  R${' '}
-                  <input
-                    type="number"
-                    value={cPubMin}
-                    onChange={(e) => onChangeField('custo_publico_min', Number(e.target.value))}
-                    className="w-16 bg-slate-50 border border-slate-300 rounded px-1 text-lg font-bold"
-                  />
-                  <span>a R$</span>
-                  <input
-                    type="number"
-                    value={cPubMax}
-                    onChange={(e) => onChangeField('custo_publico_max', Number(e.target.value))}
-                    className="w-16 bg-slate-50 border border-slate-300 rounded px-1 text-lg font-bold"
-                  />
-                </span>
-              ) : (
-                `R$ ${cPubMin} a R$ ${cPubMax}`
-              )}
-            </div>
-            <div className="text-xs text-slate-600 mt-1">
-              Custo médio cobrado por aplicativos e hubs de carregamento por 100 km
-            </div>
-          </div>
-
-          {/* Badge de Destaque */}
-          <div className="sm:col-span-2 bg-[#ecfdf5] border border-dashed border-[#047857] rounded-md p-3.5 flex items-center gap-3 text-sm font-semibold text-[#047857]">
-            <Check className="w-5 h-5 shrink-0 text-[#047857] stroke-[2.5]" />
-            <span>
-              <strong>Economia de até 4x no custo por quilômetro:</strong> o investimento no
-              carregador próprio se amortiza com a economia mensal em combustível e tempo de
-              deslocamento.
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. MODELOS DE CARREGADOR DISPONÍVEIS OU CARREGADOR ADQUIRIDO */}
-      <section className="mb-8 print:break-inside-avoid">
-        <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
-          <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          3. Carregador Veicular Wallbox
+          2. Carregador Veicular Wallbox
         </h2>
 
         {isCarregadorAdquirido ? (
@@ -535,11 +441,11 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         )}
       </section>
 
-      {/* 6. ESCOPO TÉCNICO DA ENGENHARIA DE INSTALAÇÃO */}
+      {/* 5. ESCOPO TÉCNICO DA ENGENHARIA DE INSTALAÇÃO */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-3 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          4. Escopo Técnico da Engenharia de Instalação
+          3. Escopo Técnico da Engenharia de Instalação
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mb-3.5">
@@ -606,11 +512,11 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 7. INVESTIMENTO & CONDIÇÕES COMERCIAIS CONSOLIDADOS */}
+      {/* 6. INVESTIMENTO & CONDIÇÕES COMERCIAIS CONSOLIDADOS */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          5. Investimento Consolidado &amp; Condições Comerciais
+          4. Investimento Consolidado &amp; Condições Comerciais
         </h2>
 
         {/* Tabela estrita conforme especificação:
@@ -819,11 +725,11 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 8. PRAZOS, GARANTIAS & PREMISSAS */}
+      {/* 7. PRAZOS, GARANTIAS & PREMISSAS */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-3 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          6. Prazos, Garantia &amp; Premissas de Instalação
+          5. Prazos, Garantia &amp; Premissas de Instalação
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
@@ -880,11 +786,11 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 9. RESPONSABILIDADE TÉCNICA */}
+      {/* 8. RESPONSABILIDADE TÉCNICA */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-3 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          7. Responsabilidade Técnica
+          6. Responsabilidade Técnica
         </h2>
         <div className="flex items-center justify-between flex-wrap gap-4 bg-[#f8fafc] border border-slate-200 p-4 rounded-md">
           <div>
@@ -923,11 +829,11 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 10. PRÓXIMOS PASSOS PARA ATIVAÇÃO */}
+      {/* 9. PRÓXIMOS PASSOS PARA ATIVAÇÃO */}
       <section className="mb-8 print:break-inside-avoid">
         <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 mb-3 pb-1 border-b border-slate-200">
           <span className="w-1 h-4 bg-[#047857] rounded-xs inline-block" />
-          8. Próximos Passos para Ativação
+          7. Próximos Passos para Ativação
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
@@ -992,7 +898,7 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
         </div>
       </section>
 
-      {/* 11. ASSINATURAS */}
+      {/* 10. ASSINATURAS */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12 mt-10 pt-6 border-t border-slate-200 print:break-inside-avoid">
         <div className="text-center">
           <div className="border-t-2 border-slate-900 pt-2 mb-1">

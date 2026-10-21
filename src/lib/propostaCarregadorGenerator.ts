@@ -57,11 +57,6 @@ export function gerarHTMLPropostaCarregador(
   const respAcomp = dados.responsavel_acompanhante || '[Engº ou Gestor Responsável]'
   const tipoLocal = dados.tipo_local || 'Residencial / Condomínio / Comercial'
 
-  const cPropMin = dados.custo_proprio_min ?? 18
-  const cPropMax = dados.custo_proprio_max ?? 25
-  const cPubMin = dados.custo_publico_min ?? 70
-  const cPubMax = dados.custo_publico_max ?? 90
-
   const op1Titulo = dados.opcao1_titulo || 'Opção 01: Wallbox AC 7,4 kW'
   const op1Potencia = dados.opcao1_potencia || '7,4 kW (32A)'
   const op1Tensao = dados.opcao1_tensao || 'Monofásico / Bifásico 220V'
@@ -788,38 +783,9 @@ export function gerarHTMLPropostaCarregador(
       </div>
     </section>
 
-    <!-- 4. PROJEÇÃO DE ECONOMIA -->
-    <section class="prop-section" aria-labelledby="sec-economy">
-      <h2 id="sec-economy" class="prop-section-title">2. Projeção de Economia: Ponto Próprio vs. Posto Público</h2>
-      <p style="font-size: 0.8125rem; color: var(--slate-600); margin-top: -0.25rem; margin-bottom: 0.75rem;">
-        *Valores médios de referência para consumo de 16 a 18 kWh a cada 100 km rodados em veículos elétricos médios (tarifa de energia local vs. tarifas de operadores de recarga rápida comercial):
-      </p>
-
-      <div class="economy-grid">
-        <div class="economy-card highlight">
-          <div class="economy-card-tag">Recarga Própria (Wallbox Delfos)</div>
-          <div class="economy-price">R$ ${cPropMin} a R$ ${cPropMax}</div>
-          <div class="economy-sub">Custo médio estimado a cada 100 km rodados (tarifa concessionária ou solar)</div>
-        </div>
-
-        <div class="economy-card">
-          <div class="economy-card-tag">Eletroposto Público / Rápido Comercial</div>
-          <div class="economy-price" style="color: var(--slate-600);">R$ ${cPubMin} a R$ ${cPubMax}</div>
-          <div class="economy-sub">Custo médio cobrado por aplicativos e hubs de carregamento por 100 km</div>
-        </div>
-
-        <div class="callout-badge">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span><strong>Economia de até 4x no custo por quilômetro:</strong> o investimento no carregador próprio se amortiza com a economia mensal em combustível e tempo de deslocamento.</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5. OPÇÕES DE CARREGADOR -->
+    <!-- 4. OPÇÕES DE CARREGADOR -->
     <section class="prop-section" aria-labelledby="sec-options">
-      <h2 id="sec-options" class="prop-section-title">3. Carregador Veicular Wallbox</h2>
+      <h2 id="sec-options" class="prop-section-title">2. Carregador Veicular Wallbox</h2>
       ${
         isAdquirido
           ? `<div style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 6px; padding: 1rem 1.25rem;">
@@ -880,9 +846,9 @@ export function gerarHTMLPropostaCarregador(
       }
     </section>
 
-    <!-- 6. ESCOPO TÉCNICO DA INSTALAÇÃO -->
+    <!-- 5. ESCOPO TÉCNICO DA INSTALAÇÃO -->
     <section class="prop-section" aria-labelledby="sec-scope">
-      <h2 id="sec-scope" class="prop-section-title">4. Escopo Técnico da Engenharia de Instalação</h2>
+      <h2 id="sec-scope" class="prop-section-title">3. Escopo Técnico da Engenharia de Instalação</h2>
       
       <div class="scope-grid">
         <!-- Bloco A -->
@@ -947,9 +913,9 @@ export function gerarHTMLPropostaCarregador(
       </div>
     </section>
 
-    <!-- 7. INVESTIMENTO -->
+    <!-- 6. INVESTIMENTO -->
     <section class="prop-section" aria-labelledby="sec-investment">
-      <h2 id="sec-investment" class="prop-section-title">5. Investimento Consolidado &amp; Condições Comerciais</h2>
+      <h2 id="sec-investment" class="prop-section-title">4. Investimento Consolidado &amp; Condições Comerciais</h2>
       
       <table class="custom-table">
         <thead>
@@ -1024,9 +990,9 @@ export function gerarHTMLPropostaCarregador(
       </div>
     </section>
 
-    <!-- 8. PRAZO, GARANTIAS E NÃO INCLUSO -->
+    <!-- 7. PRAZO, GARANTIAS E NÃO INCLUSO -->
     <section class="prop-section" aria-labelledby="sec-terms">
-      <h2 id="sec-terms" class="prop-section-title">6. Prazos, Garantia &amp; Premissas de Instalação</h2>
+      <h2 id="sec-terms" class="prop-section-title">5. Prazos, Garantia &amp; Premissas de Instalação</h2>
       
       <div class="terms-grid">
         <div class="term-card">
@@ -1070,9 +1036,9 @@ export function gerarHTMLPropostaCarregador(
       </div>
     </section>
 
-    <!-- 9. RESPONSÁVEL TÉCNICO -->
+    <!-- 8. RESPONSÁVEL TÉCNICO -->
     <section class="prop-section" aria-labelledby="sec-engineer">
-      <h2 id="sec-engineer" class="prop-section-title">7. Responsabilidade Técnica</h2>
+      <h2 id="sec-engineer" class="prop-section-title">6. Responsabilidade Técnica</h2>
       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem 1.25rem; border-radius: 6px;">
         <div>
           <div style="font-size: 1rem; font-weight: 700; color: var(--slate-900);">
@@ -1088,9 +1054,9 @@ export function gerarHTMLPropostaCarregador(
       </div>
     </section>
 
-    <!-- 10. PRÓXIMOS PASSOS (CTA) -->
+    <!-- 9. PRÓXIMOS PASSOS (CTA) -->
     <section class="prop-section" aria-labelledby="sec-steps">
-      <h2 id="sec-steps" class="prop-section-title">8. Próximos Passos para Ativação</h2>
+      <h2 id="sec-steps" class="prop-section-title">7. Próximos Passos para Ativação</h2>
       
       <div class="steps-container">
         <div class="step-item">
@@ -1131,7 +1097,7 @@ export function gerarHTMLPropostaCarregador(
       </div>
     </section>
 
-    <!-- 11. RODAPÉ & ASSINATURAS -->
+    <!-- 10. RODAPÉ & ASSINATURAS -->
     <section class="signatures-section" aria-label="Assinaturas das Partes">
       <div class="sign-block">
         <div class="sign-line">

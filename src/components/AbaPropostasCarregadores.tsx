@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -11,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Zap,
   Plus,
@@ -21,15 +21,14 @@ import {
   Edit,
   Trash2,
   Calendar,
-  Building,
-  DollarSign,
   Loader2,
   FileText,
-  ExternalLink,
+  MapPin,
+  User,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useClientes } from '@/contexts/ClientesContext'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDateShort } from '@/lib/formatters'
 import { formatarDataBr } from '@/lib/propostaCarregadorGenerator'
 import type { PropostaCarregador } from '@/types/crm'
 import {
@@ -84,7 +83,8 @@ export const AbaPropostasCarregadores: React.FC = () => {
     carregarPropostas()
   }, [])
 
-  const handleExcluir = async (p: PropostaCarregador) => {
+  const handleExcluir = async (p: PropostaCarregador, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
     if (!window.confirm(`Deseja realmente excluir a proposta ${p.numero_proposta}?`)) {
       return
     }
@@ -95,7 +95,7 @@ export const AbaPropostasCarregadores: React.FC = () => {
         title: 'Proposta excluída',
         description: `Proposta ${p.numero_proposta} removida com sucesso.`,
       })
-    } catch (err) {
+    } catch {
       toast({
         title: 'Erro',
         description: 'Falha ao excluir proposta.',
@@ -107,7 +107,9 @@ export const AbaPropostasCarregadores: React.FC = () => {
   const handleMudarStatus = async (
     p: PropostaCarregador,
     novoStatus: PropostaCarregador['status'],
+    e?: React.MouseEvent,
   ) => {
+    if (e) e.stopPropagation()
     try {
       const atualizada = await updateStatusPropostaCarregador(p.id, novoStatus)
       setPropostas((prev) => prev.map((item) => (item.id === p.id ? atualizada : item)))
@@ -115,7 +117,7 @@ export const AbaPropostasCarregadores: React.FC = () => {
         title: 'Status atualizado',
         description: `Proposta ${p.numero_proposta} agora está "${novoStatus}".`,
       })
-    } catch (err) {
+    } catch {
       toast({
         title: 'Erro',
         description: 'Falha ao atualizar status.',
@@ -138,67 +140,50 @@ export const AbaPropostasCarregadores: React.FC = () => {
     })
   }, [propostas, busca, filtroStatus])
 
-  const getBadgeStatusColor = (status: PropostaCarregador['status']) => {
-    switch (status) {
-      case 'Aprovado':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-300'
-      case 'Enviado ao cliente':
-        return 'bg-blue-100 text-blue-800 border-blue-300'
-      case 'Rejeitado':
-        return 'bg-rose-100 text-rose-800 border-rose-300'
-      default:
-        return 'bg-amber-100 text-amber-800 border-amber-300'
-    }
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Banner Informativo Superior da Nova Linha de Carregadores */}
-
-      {/* Barra de Filtros e Busca */}
-      <Card className="border-slate-200 shadow-2xs">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Buscar por cliente, nº ou endereço..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="pl-9 text-xs"
-              />
-            </div>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-full sm:w-48 text-xs bg-white">
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os status</SelectItem>
-                  <SelectItem value="Em elaboração">Em elaboração</SelectItem>
-                  <SelectItem value="Enviado ao cliente">Enviado ao cliente</SelectItem>
-                  <SelectItem value="Aprovado">Aprovado</SelectItem>
-                  <SelectItem value="Rejeitado">Rejeitado</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={carregarPropostas}
-                className="gap-1 text-xs shrink-0"
-                title="Recarregar propostas"
-              >
-                <Loader2 className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
-            </div>
+    <div className="space-y-4 w-full">
+      {/* Barra de Filtros e Busca Padronizada */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="relative flex-1 max-w-xl w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Buscar por cliente, nº ou endereço..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9 text-xs py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white focus:bg-white"
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Grid de Propostas ou Estado Vazio */}
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="w-full sm:w-48 text-xs bg-white rounded-xl border-gray-200">
+                <SelectValue placeholder="Filtrar por status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os status</SelectItem>
+                <SelectItem value="Em elaboração">Em elaboração</SelectItem>
+                <SelectItem value="Enviado ao cliente">Enviado ao cliente</SelectItem>
+                <SelectItem value="Aprovado">Aprovado</SelectItem>
+                <SelectItem value="Rejeitado">Rejeitado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={carregarPropostas}
+              className="gap-1.5 text-xs shrink-0 rounded-xl"
+              title="Recarregar propostas"
+            >
+              <Loader2 className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela de Propostas ou Estado Vazio */}
       {loading ? (
         <div className="flex flex-col items-center justify-center p-12 text-slate-500 space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-[#047857]" />
@@ -230,143 +215,232 @@ export const AbaPropostasCarregadores: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {propostasFiltradas.map((p) => {
-            const clienteObj = clientes.find((c) => c.id === p.cliente_id)
-            return (
-              <Card
-                key={p.id}
-                className="border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all flex flex-col justify-between"
-              >
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="text-xs font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
-                      {p.numero_proposta || 'PROP'}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-semibold ${getBadgeStatusColor(p.status)}`}
-                    >
-                      {p.status}
-                    </Badge>
-                  </div>
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden w-full">
+          <div className="overflow-x-auto">
+            <TooltipProvider delayDuration={150}>
+              <table className="w-full text-left text-xs">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Cliente &amp; Cidade</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Equipamento / Modelo</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Potência</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Investimento Total</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Data</th>
+                    <th className="py-3 px-4 text-right whitespace-nowrap">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {propostasFiltradas.map((p) => {
+                    const clienteObj = clientes.find((c) => c.id === p.cliente_id)
+                    const nomeCliente =
+                      p.cliente_nome ||
+                      clienteObj?.razao_social ||
+                      clienteObj?.nome ||
+                      'Cliente não identificado'
 
-                  <CardTitle className="text-sm font-bold text-slate-900 line-clamp-1">
-                    {p.cliente_nome || clienteObj?.razao_social || clienteObj?.nome || 'Cliente'}
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500 line-clamp-1">
-                    {p.endereco_instalacao || 'Endereço não informado'}
-                  </CardDescription>
-                </CardHeader>
+                    const cidadeStr =
+                      p.endereco_instalacao || clienteObj?.cidade || 'Endereço não informado'
+                    const modeloCarregador =
+                      p.carregador_modelo ||
+                      (p.carregador_adquirido ? 'Carregador Adquirido' : 'Wallbox Homologado')
+                    const potenciaStr =
+                      p.carregador_potencia ||
+                      (p.opcao2_potencia ? p.opcao2_potencia : '7,4 kW / 22 kW')
+                    const valorTotal = p.valor_total || 0
 
-                <CardContent className="p-4 pt-1 space-y-3">
-                  <div className="bg-slate-50 rounded p-2.5 space-y-1.5 text-xs border border-slate-100">
-                    <div className="flex items-center justify-between text-slate-600">
-                      <span>Investimento Total:</span>
-                      <strong className="text-[#047857] text-sm">
-                        {formatCurrency(p.valor_total || 8400)}
-                      </strong>
-                    </div>
+                    return (
+                      <tr
+                        key={p.id}
+                        onClick={() => {
+                          setPropostaVisualizando(p)
+                          setModalVisualizarOpen(true)
+                        }}
+                        className="hover:bg-emerald-50/30 cursor-pointer transition-colors group"
+                      >
+                        {/* Cliente & Cidade */}
+                        <td className="py-3 px-4 min-w-[200px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                              {nomeCliente}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                              {p.numero_proposta || 'PROP'}
+                            </span>
+                            {p.carregador_adquirido && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                Adquirido
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 flex-wrap">
+                            <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="truncate max-w-[280px]">{cidadeStr}</span>
+                            <span className="text-gray-300">•</span>
+                            <span className="capitalize">
+                              {p.tipo_local || 'Residencial / Comercial'}
+                            </span>
+                          </div>
+                        </td>
 
-                    <div className="flex items-center justify-between text-slate-500 text-[11px]">
-                      <span>Emissão:</span>
-                      <span>{formatarDataBr(p.data_emissao) || 'Hoje'}</span>
-                    </div>
+                        {/* Equipamento / Modelo */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <div className="font-semibold text-gray-800 text-[11px] flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-[#047857] shrink-0" />
+                            <span className="truncate max-w-[220px]">{modeloCarregador}</span>
+                          </div>
+                        </td>
 
-                    <div className="flex items-center justify-between text-slate-500 text-[11px]">
-                      <span>Local:</span>
-                      <span>{p.tipo_local || 'Residencial / Comercial'}</span>
-                    </div>
-                  </div>
+                        {/* Potência */}
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <span className="font-bold text-gray-900 text-xs tabular-nums">
+                            {potenciaStr}
+                          </span>
+                        </td>
 
-                  {/* Alterar Status Rápido */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-slate-500 font-medium">Status:</span>
-                    <select
-                      value={p.status}
-                      onChange={(e) =>
-                        handleMudarStatus(p, e.target.value as PropostaCarregador['status'])
-                      }
-                      className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-emerald-500 flex-1"
-                    >
-                      <option value="Em elaboração">Em elaboração</option>
-                      <option value="Enviado ao cliente">Enviado ao cliente</option>
-                      <option value="Aprovado">Aprovado</option>
-                      <option value="Rejeitado">Rejeitado</option>
-                    </select>
-                  </div>
+                        {/* Investimento Total */}
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <div className="font-black text-[#047857] text-sm tabular-nums leading-tight">
+                            {formatCurrency(valorTotal)}
+                          </div>
+                        </td>
 
-                  {/* Barra de Ações Rápidas do Card */}
-                  <div className="grid grid-cols-4 gap-1 pt-1 border-t border-slate-100">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPropostaVisualizando(p)
-                        setModalVisualizarOpen(true)
-                      }}
-                      className="h-8 p-0 text-slate-700 hover:text-[#047857]"
-                      title="Visualizar documento"
-                    >
-                      <FileText className="h-4 w-4" />
-                    </Button>
+                        {/* Seletor Rápido de Status */}
+                        <td
+                          className="py-3 px-3 text-center whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <select
+                            value={p.status}
+                            onChange={(e) =>
+                              handleMudarStatus(
+                                p,
+                                e.target.value as PropostaCarregador['status'],
+                                e as unknown as React.MouseEvent,
+                              )
+                            }
+                            className="text-[11px] font-semibold py-1 px-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:border-gray-300 focus:outline-none shrink-0"
+                            title="Mudar status rapidamente"
+                          >
+                            <option value="Em elaboração">Em elaboração</option>
+                            <option value="Enviado ao cliente">Enviado ao cliente</option>
+                            <option value="Aprovado">Aprovado</option>
+                            <option value="Rejeitado">Rejeitado</option>
+                          </select>
+                        </td>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPropostaParaDisparo(p)
-                        setModalEmailOpen(true)
-                      }}
-                      className="h-8 p-0 text-slate-700 hover:text-[#047857]"
-                      title="Enviar por E-mail"
-                    >
-                      <Mail className="h-4 w-4" />
-                    </Button>
+                        {/* Data */}
+                        <td className="py-3 px-3 text-center text-gray-500 text-[11px] whitespace-nowrap font-medium tabular-nums">
+                          <div className="flex items-center justify-center gap-1">
+                            <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span>{formatDateShort(p.data_emissao || p.created)}</span>
+                          </div>
+                        </td>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPropostaParaDisparo(p)
-                        setModalWhatsAppOpen(true)
-                      }}
-                      className="h-8 p-0 text-slate-700 hover:text-[#25D366]"
-                      title="Enviar via WhatsApp"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
+                        {/* 4 Ícones de Ação mantidos + Excluir */}
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div
+                            className="flex items-center justify-end gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* 1. Visualizar */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPropostaVisualizando(p)
+                                    setModalVisualizarOpen(true)
+                                  }}
+                                  className="p-1.5 rounded-lg bg-gray-50 text-slate-700 border border-gray-200 hover:bg-emerald-50 hover:text-[#047857] hover:border-emerald-300 transition-all shadow-2xs shrink-0 cursor-pointer"
+                                  aria-label="Visualizar proposta"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <span>Visualizar proposta</span>
+                              </TooltipContent>
+                            </Tooltip>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPropostaEmEdicao(p)
-                        setModalCriarOpen(true)
-                      }}
-                      className="h-8 p-0 text-slate-700 hover:text-blue-600"
-                      title="Editar Proposta"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
+                            {/* 2. E-mail */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPropostaParaDisparo(p)
+                                    setModalEmailOpen(true)
+                                  }}
+                                  className="p-1.5 rounded-lg bg-gray-50 text-slate-700 border border-gray-200 hover:bg-emerald-50 hover:text-[#047857] hover:border-emerald-300 transition-all shadow-2xs shrink-0 cursor-pointer"
+                                  aria-label="Enviar por E-mail"
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <span>Enviar por E-mail</span>
+                              </TooltipContent>
+                            </Tooltip>
 
-                  {/* Botão de Excluir */}
-                  <div className="flex justify-end pt-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleExcluir(p)}
-                      className="h-6 px-2 text-[10px] text-slate-400 hover:text-rose-600"
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Excluir
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+                            {/* 3. WhatsApp */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPropostaParaDisparo(p)
+                                    setModalWhatsAppOpen(true)
+                                  }}
+                                  className="p-1.5 rounded-lg bg-gray-50 text-slate-700 border border-gray-200 hover:bg-emerald-50 hover:text-[#25D366] hover:border-emerald-300 transition-all shadow-2xs shrink-0 cursor-pointer"
+                                  aria-label="Enviar via WhatsApp"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <span>Enviar via WhatsApp</span>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* 4. Editar */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPropostaEmEdicao(p)
+                                    setModalCriarOpen(true)
+                                  }}
+                                  className="p-1.5 rounded-lg bg-gray-50 text-slate-700 border border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all shadow-2xs shrink-0 cursor-pointer"
+                                  aria-label="Editar proposta"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <span>Editar proposta</span>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Excluir */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleExcluir(p, e)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0 cursor-pointer ml-1"
+                              title="Excluir proposta"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </TooltipProvider>
+          </div>
         </div>
       )}
 

@@ -643,66 +643,12 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 </div>
               </div>
 
-              {/* Seção 2: Projeção de Economia */}
-              <div className="border border-slate-200 rounded-lg p-4 space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
-                  2. Projeção de Economia (Wallbox Próprio vs. Posto Público)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
-                    <Label className="text-xs text-slate-600">Custo Próprio Mínimo (R$)</Label>
-                    <Input
-                      type="number"
-                      value={formData.custo_proprio_min ?? 18}
-                      onChange={(e) =>
-                        handleUpdateField('custo_proprio_min', Number(e.target.value))
-                      }
-                      className="mt-1 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-slate-600">Custo Próprio Máximo (R$)</Label>
-                    <Input
-                      type="number"
-                      value={formData.custo_proprio_max ?? 25}
-                      onChange={(e) =>
-                        handleUpdateField('custo_proprio_max', Number(e.target.value))
-                      }
-                      className="mt-1 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-slate-600">Posto Público Mínimo (R$)</Label>
-                    <Input
-                      type="number"
-                      value={formData.custo_publico_min ?? 70}
-                      onChange={(e) =>
-                        handleUpdateField('custo_publico_min', Number(e.target.value))
-                      }
-                      className="mt-1 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-slate-600">Posto Público Máximo (R$)</Label>
-                    <Input
-                      type="number"
-                      value={formData.custo_publico_max ?? 90}
-                      onChange={(e) =>
-                        handleUpdateField('custo_publico_max', Number(e.target.value))
-                      }
-                      className="mt-1 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Seção 3: Seleção do Carregador & Opção de Já Adquirido */}
+              {/* Seção 2: Seleção do Carregador & Opção de Já Adquirido */}
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
-                    3. Carregador Veicular (Wallbox)
+                    2. Carregador Veicular (Wallbox)
                   </h3>
 
                   {/* Toggle: Padrão 2 Opções vs. Cliente Já Possui Carregador */}
@@ -935,13 +881,13 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 )}
               </div>
 
-              {/* Seção 4: Bloco de Cálculo com Lista de Materiais da Infraestrutura */}
+              {/* Seção 3: Bloco de Cálculo com Lista de Materiais da Infraestrutura */}
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                       <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
-                      4. Materiais da Infraestrutura de Instalação (NBR 5410 / NBR 17019)
+                      3. Materiais da Infraestrutura de Instalação (NBR 5410 / NBR 17019)
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Itens adicionáveis com descrição técnica, quantidade e valor unitário com
@@ -1050,12 +996,12 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 </div>
               </div>
 
-              {/* Seção 5: Serviços e Consolidação do Investimento */}
+              {/* Seção 4: Serviços e Consolidação do Investimento */}
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />
-                    5. Serviços e Resumo do Investimento Total
+                    4. Serviços e Resumo do Investimento Total
                   </h3>
 
                   {/* Toggle para Detalhar valores por item vs. Exibir apenas o valor total */}
@@ -1217,10 +1163,10 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 </div>
               </div>
 
-              {/* Seção 6 e 7: Prazos, Garantia & Responsabilidade Técnica */}
+              {/* Seção 5 e 6: Prazos, Garantia & Responsabilidade Técnica */}
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />6 &amp; 7. Prazos,
+                  <span className="w-1.5 h-3.5 bg-[#047857] rounded-xs" />5 &amp; 6. Prazos,
                   Garantias &amp; Engenheiro Responsável
                 </h3>
 
