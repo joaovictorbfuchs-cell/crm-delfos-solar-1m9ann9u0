@@ -110,6 +110,76 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).toContain('data:image/jpeg;base64,/9j/4AAQSkZJRg==')
   })
 
+  it('agrega fotos em múltiplos itens do checklist sem sobrescrever e exibe referência "Foto N" em cada item', () => {
+    const osComMultiplasFotos = {
+      id: 'os_multi_fotos',
+      tipo_servico: 'Manutenção' as const,
+      status: 'concluida' as const,
+      checklist: [
+        { id: 'chk_1', item: 'Lavagem dos módulos fotovoltaicos', concluido: true },
+        { id: 'chk_2', item: 'Reaperto de conectores e disjuntores', concluido: true },
+        { id: 'chk_3', item: 'Inspeção do inversor', concluido: true },
+      ],
+      fotos: ['lavagem1.jpg', 'lavagem2.jpg', 'reaperto1.jpg', 'inversor1.jpg'],
+      fotos_metadados: [
+        {
+          arquivo: 'lavagem1.jpg',
+          item_checklist_id: 'chk_1',
+          item_checklist_texto: 'Lavagem dos módulos fotovoltaicos',
+        },
+        {
+          arquivo: 'lavagem2.jpg',
+          item_checklist_id: 'chk_1',
+          item_checklist_texto: 'Lavagem dos módulos fotovoltaicos',
+        },
+        {
+          arquivo: 'reaperto1.jpg',
+          item_checklist_id: 'chk_2',
+          item_checklist_texto: 'Reaperto de conectores e disjuntores',
+        },
+        {
+          arquivo: 'inversor1.jpg',
+          item_checklist_id: 'chk_3',
+          item_checklist_texto: 'Inspeção do inversor',
+        },
+      ],
+    } as any
+
+    const fotosDataUrls = [
+      'data:image/jpeg;base64,foto1lavagem',
+      'data:image/jpeg;base64,foto2lavagem',
+      'data:image/jpeg;base64,foto3reaperto',
+      'data:image/jpeg;base64,foto4inversor',
+    ]
+
+    const html = gerarHTMLRelatorioOS({
+      os: osComMultiplasFotos,
+      cliente: clienteMock,
+      sistema: sistemaMock,
+      fotosDataUrls,
+    })
+
+    // 1. A tabela de serviços executados deve referenciar as fotos corretas para cada item
+    expect(html).toContain('Fotos 1 e 2')
+    expect(html).toContain('Foto 3')
+    expect(html).toContain('Foto 4')
+
+    // 2. Os títulos de grupos fotográficos devem contemplar todos os itens que têm fotos
+    expect(html).toContain('Lavagem dos módulos fotovoltaicos')
+    expect(html).toContain('Reaperto de conectores e disjuntores')
+    expect(html).toContain('Inspeção do inversor')
+
+    // 3. Todas as fotos com seus respectivos badges devem estar presentes no HTML
+    expect(html).toContain('Foto 1')
+    expect(html).toContain('Foto 2')
+    expect(html).toContain('Foto 3')
+    expect(html).toContain('Foto 4')
+    expect(html).toContain('foto1lavagem')
+    expect(html).toContain('foto2lavagem')
+    expect(html).toContain('foto3reaperto')
+    expect(html).toContain('foto4inversor')
+  })
+
   it('converte dataUri base64 para objeto File nativo com sucesso', () => {
     const fakeDataUri = 'data:application/pdf;base64,JVBERi0xLjQKJcTl8uXr'
     const file = dataUriToFile(fakeDataUri, 'Relatorio_OS_123456.pdf')

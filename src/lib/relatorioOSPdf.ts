@@ -207,9 +207,9 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
 
   const renderCardFotoHtml = (
     f: import('@/lib/relatorioOSCanonical').FotoRegistroRelatorio,
-    idx: number,
+    fallbackIdx: number,
   ) => {
-    const fotoNumGeral = idx + 1
+    const fotoNumGeral = f.numeroGlobal || fallbackIdx + 1
     return `
     <div class="foto-card-rel" style="background: #F4F7FA; border: 1px solid #DDE4EE; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; position: relative; page-break-inside: avoid; break-inside: avoid;">
       ${
@@ -227,12 +227,57 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   `
   }
 
-  // Grid contínuo com todas as fotos sem colapso
-  const fotosGridHtml = `
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; page-break-inside: auto; break-inside: auto;">
-      ${rel.fotos.map((f, i) => renderCardFotoHtml(f, i)).join('')}
-    </div>
-  `
+  // Renderiza fotos agrupadas por etapa do checklist com cabeçalho de cada atividade,
+  // ou em grid contínuo com todas as fotos anexadas (garantindo que NENHUM item com fotos fique de fora)
+  const temGruposPorEtapa = Array.isArray(rel.fotosPorEtapa) && rel.fotosPorEtapa.length > 0
+  const fotosGridHtml = temGruposPorEtapa
+    ? `
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        ${rel
+          .fotosPorEtapa!.map(
+            (grupo) => `
+          <div style="background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px;">
+              <div style="font-size: 0.85rem; font-weight: 800; color: #0E2A47; text-transform: uppercase; letter-spacing: 0.04em;">
+                ${grupo.itemChecklistTexto}
+              </div>
+              <span style="font-size: 0.72rem; font-weight: 700; color: #536377; background: #FFFFFF; border: 1px solid #DDE4EE; border-radius: 10px; padding: 2px 8px;">
+                ${grupo.fotos.length} ${grupo.fotos.length === 1 ? 'foto' : 'fotos'}
+              </span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              ${grupo.fotos.map((f, i) => renderCardFotoHtml(f, i)).join('')}
+            </div>
+          </div>
+        `,
+          )
+          .join('')}
+        ${
+          rel.fotosGeraisSemEtapa && rel.fotosGeraisSemEtapa.length > 0
+            ? `
+          <div style="background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px;">
+              <div style="font-size: 0.85rem; font-weight: 800; color: #0E2A47; text-transform: uppercase; letter-spacing: 0.04em;">
+                Registros Gerais de Campo
+              </div>
+              <span style="font-size: 0.72rem; font-weight: 700; color: #536377; background: #FFFFFF; border: 1px solid #DDE4EE; border-radius: 10px; padding: 2px 8px;">
+                ${rel.fotosGeraisSemEtapa.length} ${rel.fotosGeraisSemEtapa.length === 1 ? 'foto' : 'fotos'}
+              </span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              ${rel.fotosGeraisSemEtapa.map((f, i) => renderCardFotoHtml(f, i)).join('')}
+            </div>
+          </div>
+        `
+            : ''
+        }
+      </div>
+    `
+    : `
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; page-break-inside: auto; break-inside: auto;">
+        ${rel.fotos.map((f, i) => renderCardFotoHtml(f, i)).join('')}
+      </div>
+    `
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -1448,18 +1493,29 @@ export async function prepararFotosRelatorio(
 ): Promise<string[]> {
   const urlsParaOtimizar: string[] = []
 
-  // 1. Fotos já salvas no PocketBase
-  if (Array.isArray(os?.fotos) && os.fotos.length > 0) {
-    for (const fotoNome of os.fotos) {
-      if (fotoNome) {
-        try {
-          const url = pb.files.getURL(os, fotoNome)
-          if (url) urlsParaOtimizar.push(url)
-        } catch (e) {
-          console.warn('Erro ao obter URL da foto da OS, usando placeholder:', e)
-          urlsParaOtimizar.push(FOTO_FALLBACK_PLACEHOLDER)
-        }
+  // 1. Fotos já salvas no PocketBase (incluindo foto_medidor se presente e ainda não listada)
+  const listaNomesFotos: string[] = []
+  if (Array.isArray(os?.fotos)) {
+    for (const f of os.fotos) {
+      if (f && typeof f === 'string' && !listaNomesFotos.includes(f)) {
+        listaNomesFotos.push(f)
       }
+    }
+  }
+  if ((os as any)?.foto_medidor && typeof (os as any).foto_medidor === 'string') {
+    const fm = (os as any).foto_medidor
+    if (!listaNomesFotos.includes(fm)) {
+      listaNomesFotos.push(fm)
+    }
+  }
+
+  for (const fotoNome of listaNomesFotos) {
+    try {
+      const url = pb.files.getURL(os, fotoNome)
+      if (url) urlsParaOtimizar.push(url)
+    } catch (e) {
+      console.warn('Erro ao obter URL da foto da OS, usando placeholder:', e)
+      urlsParaOtimizar.push(FOTO_FALLBACK_PLACEHOLDER)
     }
   }
 

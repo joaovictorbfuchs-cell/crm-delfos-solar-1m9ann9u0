@@ -9,6 +9,7 @@ export interface FotoRegistroRelatorio {
   dataHora: string
   item_checklist_id?: string
   item_checklist_texto?: string
+  numeroGlobal?: number
 }
 
 export interface GrupoFotosEtapaRelatorio {
@@ -286,7 +287,7 @@ export function compilarDadosRelatorioOS(
         })()
       : []
 
-  // Checklist da OS
+  // Checklist da OS normalizado com ID garantido
   let checklistItens: OSChecklistItem[] = []
   if (Array.isArray(os?.checklist)) {
     checklistItens = os.checklist
@@ -299,29 +300,116 @@ export function compilarDadosRelatorioOS(
     }
   }
 
-  // Registro fotográfico: lista plana de fotos na mesma ordem em que aparecem no Registro Fotográfico
+  checklistItens = checklistItens.map((item, idx) => ({
+    ...item,
+    id: item.id ? String(item.id) : `chk_${idx + 1}`,
+    item: String(
+      item.item || (item as any).texto || (item as any).descricao || `Item ${idx + 1}`,
+    ).trim(),
+    concluido: Boolean(item.concluido),
+  }))
+
+  // Registro fotográfico: lista de fotos na mesma ordem em que aparecem no Registro Fotográfico
   const fotosUrls = fotosDataUrls || []
   const fotos: FotoRegistroRelatorio[] = []
 
   // Contadores para numeração sequencial dentro de cada atividade e fotos gerais
   const contagemPorEtapa = new Map<string, number>()
   let contadorGeralFotos = 0
+  const metadadosUsados = new Set<number>()
 
   if (fotosUrls.length > 0) {
     fotosUrls.forEach((url, i) => {
-      const meta = fotosMetadadosRaw[i] || {}
-      const itemChecklistId = meta.item_checklist_id || undefined
-      const itemChecklistTexto = meta.item_checklist_texto || undefined
+      // 1. Tenta correspondência precisa pelo nome do arquivo contido na URL PocketBase
+      let metaIndex = fotosMetadadosRaw.findIndex((m: any, mIdx: number) => {
+        if (!m || metadadosUsados.has(mIdx)) return false
+        const nome = m.arquivo || m.nome_arquivo || m.nome || m.id
+        if (nome && typeof nome === 'string' && nome.trim()) {
+          try {
+            const decodedUrl = decodeURIComponent(url)
+            if (decodedUrl.includes(nome) || url.includes(nome)) return true
+          } catch {
+            if (url.includes(nome)) return true
+          }
+        }
+        return false
+      })
+
+      // 2. Se não encontrou por nome de arquivo, faz fallback por índice direto não utilizado
+      if (metaIndex < 0 && fotosMetadadosRaw[i] && !metadadosUsados.has(i)) {
+        metaIndex = i
+      }
+
+      // 3. Se o índice exato já foi usado, busca o primeiro metadado ainda livre
+      if (metaIndex < 0) {
+        metaIndex = fotosMetadadosRaw.findIndex((_, mIdx) => !metadadosUsados.has(mIdx))
+      }
+
+      let meta: any = {}
+      if (metaIndex >= 0) {
+        metadadosUsados.add(metaIndex)
+        meta = fotosMetadadosRaw[metaIndex] || {}
+      } else {
+        meta = fotosMetadadosRaw[i] || {}
+      }
+
+      let itemChecklistId: string | undefined = meta.item_checklist_id
+        ? String(meta.item_checklist_id)
+        : undefined
+      let itemChecklistTexto: string | undefined = meta.item_checklist_texto
+        ? String(meta.item_checklist_texto)
+        : undefined
       const legendaCustom = meta.legenda ? String(meta.legenda).trim() : ''
       const numeroGlobal = i + 1
 
       // Determinar a qual atividade do checklist este item se refere (índice 1-based)
       let atividadeNum: number | null = null
-      if (itemChecklistId && checklistItens.length > 0) {
-        const foundIdx = checklistItens.findIndex((chk) => chk.id === itemChecklistId)
-        if (foundIdx >= 0) {
-          atividadeNum = foundIdx + 1
+      let matchedChecklistIdx = -1
+
+      if (checklistItens.length > 0) {
+        // 1. Por ID exato
+        if (itemChecklistId) {
+          matchedChecklistIdx = checklistItens.findIndex(
+            (chk) => String(chk.id) === itemChecklistId,
+          )
         }
+        // 2. Por texto exato do item
+        if (matchedChecklistIdx < 0 && itemChecklistTexto) {
+          const tAlvo = itemChecklistTexto.trim().toLowerCase()
+          matchedChecklistIdx = checklistItens.findIndex(
+            (chk) => chk.item && chk.item.trim().toLowerCase() === tAlvo,
+          )
+        }
+        // 3. Por itemChecklistId que veio com o texto do item
+        if (matchedChecklistIdx < 0 && itemChecklistId) {
+          const tAlvo = itemChecklistId.trim().toLowerCase()
+          matchedChecklistIdx = checklistItens.findIndex(
+            (chk) => chk.item && chk.item.trim().toLowerCase() === tAlvo,
+          )
+        }
+        // 4. Por chave prefixada tipo "chk_1", "chk-1", "ativ_1", "item_1"
+        if (matchedChecklistIdx < 0 && itemChecklistId) {
+          const mNum = itemChecklistId.match(/(?:chk|item|ativ)[-_]?(\d+)/i)
+          if (mNum && mNum[1]) {
+            const idxNum = parseInt(mNum[1], 10) - 1
+            if (idxNum >= 0 && idxNum < checklistItens.length) {
+              matchedChecklistIdx = idxNum
+            }
+          }
+        }
+        // 5. Por propriedade item_index / etapa_index no metadado
+        if (matchedChecklistIdx < 0) {
+          const rawIdx = (meta as any).item_index ?? (meta as any).etapa_index
+          if (typeof rawIdx === 'number' && rawIdx >= 0 && rawIdx < checklistItens.length) {
+            matchedChecklistIdx = rawIdx
+          }
+        }
+      }
+
+      if (matchedChecklistIdx >= 0) {
+        atividadeNum = matchedChecklistIdx + 1
+        itemChecklistId = checklistItens[matchedChecklistIdx].id
+        itemChecklistTexto = checklistItens[matchedChecklistIdx].item
       }
 
       let titulo = `Foto ${numeroGlobal}`
@@ -365,6 +453,7 @@ export function compilarDadosRelatorioOS(
         dataHora: dataHoraStr,
         item_checklist_id: itemChecklistId,
         item_checklist_texto: itemChecklistTexto,
+        numeroGlobal,
       })
     })
   } else {
@@ -379,6 +468,7 @@ export function compilarDadosRelatorioOS(
         dataHora: `${dataAtendimento} às ${horarioInicio} • Técnico executor`,
         item_checklist_id: checklistItens[0]?.id,
         item_checklist_texto: checklistItens[0]?.item,
+        numeroGlobal: 1,
       },
       {
         id: '2',
@@ -390,6 +480,7 @@ export function compilarDadosRelatorioOS(
         dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
         item_checklist_id: checklistItens[0]?.id,
         item_checklist_texto: checklistItens[0]?.item,
+        numeroGlobal: 2,
       },
       {
         id: '3',
@@ -400,6 +491,7 @@ export function compilarDadosRelatorioOS(
         dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
         item_checklist_id: checklistItens[1]?.id,
         item_checklist_texto: checklistItens[1]?.item,
+        numeroGlobal: 3,
       },
     )
   }
@@ -407,17 +499,52 @@ export function compilarDadosRelatorioOS(
   // Mapear números das fotos vinculadas para cada etapa (1-based no registro fotográfico geral)
   const formatarEvidenciaEtapa = (
     itemId?: string,
+    itemTexto?: string,
+    itemIdx?: number,
     fallbackEvidencia = 'Registro no checklist',
   ): string => {
-    if (!itemId) return fallbackEvidencia
     const indicesFotos: number[] = []
+    const textoNormalizado = itemTexto ? itemTexto.trim().toLowerCase() : ''
+    const idNormalizado = itemId ? String(itemId).trim().toLowerCase() : ''
+
     fotos.forEach((f, idx) => {
-      if (f.item_checklist_id === itemId) {
-        indicesFotos.push(idx + 1)
+      const numFoto = f.numeroGlobal || idx + 1
+      let pertence = false
+
+      if (itemId && f.item_checklist_id && String(f.item_checklist_id) === String(itemId)) {
+        pertence = true
+      } else if (
+        textoNormalizado &&
+        f.item_checklist_texto &&
+        f.item_checklist_texto.trim().toLowerCase() === textoNormalizado
+      ) {
+        pertence = true
+      } else if (
+        textoNormalizado &&
+        f.item_checklist_id &&
+        f.item_checklist_id.trim().toLowerCase() === textoNormalizado
+      ) {
+        pertence = true
+      } else if (
+        idNormalizado &&
+        f.item_checklist_texto &&
+        f.item_checklist_texto.trim().toLowerCase() === idNormalizado
+      ) {
+        pertence = true
+      } else if (itemIdx !== undefined) {
+        const chaveIdx = `chk_${itemIdx + 1}`
+        if (f.item_checklist_id === chaveIdx || f.item_checklist_id === String(itemIdx + 1)) {
+          pertence = true
+        }
+      }
+
+      if (pertence && !indicesFotos.includes(numFoto)) {
+        indicesFotos.push(numFoto)
       }
     })
+
     if (indicesFotos.length === 0) {
-      return 'Registro no checklist'
+      return fallbackEvidencia
     }
     if (indicesFotos.length === 1) {
       return `Foto ${indicesFotos[0]}`
@@ -433,7 +560,7 @@ export function compilarDadosRelatorioOS(
   // Serviços executados: baseados no checklist da OS ou nos padrões do modelo
   let servicosExecutados: ServicoExecutadoRelatorio[] = []
   if (checklistItens.length > 0) {
-    servicosExecutados = checklistItens.map((item) => {
+    servicosExecutados = checklistItens.map((item, itemIdx) => {
       const text = item.item || ''
       const rawDescCliente =
         (item as any).descricao_cliente || (item as any).descricaoCliente || undefined
@@ -474,7 +601,7 @@ export function compilarDadosRelatorioOS(
         localAtivo,
         quantidade: qtd,
         situacao: isConcluido ? 'Executado' : 'Pendente',
-        evidencia: formatarEvidenciaEtapa(item.id),
+        evidencia: formatarEvidenciaEtapa(item.id, text, itemIdx),
       }
     })
   }
@@ -564,31 +691,81 @@ export function compilarDadosRelatorioOS(
     },
   ]
 
-  // Agrupamento de fotos por etapa do checklist (mantido para compatibilidade onde necessário):
+  // Agrupamento de fotos por etapa do checklist:
+  // Inicializa o mapa com as etapas do checklist na ordem de execução
   const fotosPorEtapaMap = new Map<
     string,
     { itemChecklistId?: string; itemChecklistTexto: string; fotos: FotoRegistroRelatorio[] }
   >()
   const fotosGeraisSemEtapa: FotoRegistroRelatorio[] = []
 
-  fotos.forEach((f) => {
-    if (f.item_checklist_id || f.item_checklist_texto) {
-      const chave = f.item_checklist_id || f.item_checklist_texto || 'etapa'
-      const texto = f.item_checklist_texto || 'Etapa do Checklist'
-      if (!fotosPorEtapaMap.has(chave)) {
-        fotosPorEtapaMap.set(chave, {
+  // Inicializa com as etapas conhecidas do checklist para preservar a ordem
+  checklistItens.forEach((chk, idx) => {
+    const chave = chk.id || `chk_${idx + 1}`
+    const texto = chk.item || `Atividade ${idx + 1}`
+    fotosPorEtapaMap.set(chave, {
+      itemChecklistId: chk.id,
+      itemChecklistTexto: texto,
+      fotos: [],
+    })
+  })
+
+  // Distribui TODAS as fotos em seus respectivos grupos sem parar cedo e sem sobrescrever
+  fotos.forEach((f, fIdx) => {
+    let grupoDestino:
+      | { itemChecklistId?: string; itemChecklistTexto: string; fotos: FotoRegistroRelatorio[] }
+      | undefined
+
+    // 1. Tenta casar com grupo pelo item_checklist_id
+    if (f.item_checklist_id && fotosPorEtapaMap.has(f.item_checklist_id)) {
+      grupoDestino = fotosPorEtapaMap.get(f.item_checklist_id)
+    }
+
+    // 2. Tenta casar por texto da etapa
+    if (!grupoDestino && f.item_checklist_texto) {
+      const textoAlvo = f.item_checklist_texto.trim().toLowerCase()
+      for (const g of fotosPorEtapaMap.values()) {
+        if (g.itemChecklistTexto && g.itemChecklistTexto.trim().toLowerCase() === textoAlvo) {
+          grupoDestino = g
+          break
+        }
+      }
+    }
+
+    // 3. Tenta casar se item_checklist_id contiver o texto de algum grupo
+    if (!grupoDestino && f.item_checklist_id) {
+      const idTexto = f.item_checklist_id.trim().toLowerCase()
+      for (const g of fotosPorEtapaMap.values()) {
+        if (g.itemChecklistTexto && g.itemChecklistTexto.trim().toLowerCase() === idTexto) {
+          grupoDestino = g
+          break
+        }
+      }
+    }
+
+    if (grupoDestino) {
+      grupoDestino.fotos.push(f)
+    } else if (f.item_checklist_id || f.item_checklist_texto) {
+      // Cria novo grupo com chave única composta para nunca sobrescrever nem perder fotos
+      const chaveNova = f.item_checklist_id || `etapa_${fIdx + 1}`
+      const textoNovo = f.item_checklist_texto || `Etapa ${fotosPorEtapaMap.size + 1}`
+      if (!fotosPorEtapaMap.has(chaveNova)) {
+        fotosPorEtapaMap.set(chaveNova, {
           itemChecklistId: f.item_checklist_id,
-          itemChecklistTexto: texto,
+          itemChecklistTexto: textoNovo,
           fotos: [],
         })
       }
-      fotosPorEtapaMap.get(chave)!.fotos.push(f)
+      fotosPorEtapaMap.get(chaveNova)!.fotos.push(f)
     } else {
       fotosGeraisSemEtapa.push(f)
     }
   })
 
-  const fotosPorEtapa: GrupoFotosEtapaRelatorio[] = Array.from(fotosPorEtapaMap.values())
+  // Mantém apenas os grupos que de fato contêm fotos
+  const fotosPorEtapa: GrupoFotosEtapaRelatorio[] = Array.from(fotosPorEtapaMap.values()).filter(
+    (g) => g.fotos.length > 0,
+  )
 
   // Cálculo da próxima manutenção prevista (+6 meses)
   let proximaManutencao = '15/04/2027'

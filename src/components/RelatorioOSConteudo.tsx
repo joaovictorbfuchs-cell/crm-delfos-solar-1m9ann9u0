@@ -208,18 +208,28 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         }
         if (isMounted) setUsina(usinaObj)
 
-        // Extrai fotos anexas
+        // Extrai fotos anexas (fotos + foto_medidor para integridade total)
         const urls: string[] = []
-        if (Array.isArray(registro.fotos) && registro.fotos.length > 0) {
+        const listaNomesFotos: string[] = []
+        if (Array.isArray(registro.fotos)) {
           for (const f of registro.fotos) {
-            if (f) {
-              try {
-                const u = pb.files.getURL(registro, f)
-                if (u) urls.push(u)
-              } catch {
-                /* ignore */
-              }
+            if (f && typeof f === 'string' && !listaNomesFotos.includes(f)) {
+              listaNomesFotos.push(f)
             }
+          }
+        }
+        if (registro.foto_medidor && typeof registro.foto_medidor === 'string') {
+          if (!listaNomesFotos.includes(registro.foto_medidor)) {
+            listaNomesFotos.push(registro.foto_medidor)
+          }
+        }
+
+        for (const f of listaNomesFotos) {
+          try {
+            const u = pb.files.getURL(registro, f)
+            if (u) urls.push(u)
+          } catch {
+            /* ignore */
           }
         }
         if (isMounted) setFotosUrls(urls)
@@ -787,16 +797,16 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           </div>
         </section>
 
-        {/* 6. Registro Fotográfico — Grid único contínuo de todas as fotos */}
-        <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4 space-y-4">
+        {/* 6. Registro Fotográfico — Agrupado por etapa do checklist com todas as fotos e referência por atividade */}
+        <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4 space-y-5">
           <div className="flex items-center justify-between border-b-2 border-[#EBF0F7] pb-2 flex-wrap gap-2">
             <div>
               <h3 className="m-0 text-base font-bold text-[#0E2A47] flex items-center gap-2">
                 Registro fotográfico
               </h3>
               <p className="text-xs text-[#536377] mt-0.5 mb-0 print:hidden">
-                Todas as fotos do atendimento listadas continuamente. Clique em qualquer foto para
-                ampliar.
+                Evidências fotográficas organizadas por etapa do atendimento. Clique em qualquer
+                foto para ampliar.
               </p>
             </div>
             <span className="text-xs font-bold text-[#0E2A47] bg-[#F1F5F9] px-2.5 py-1 rounded-full border border-[#DDE4EE]">
@@ -805,52 +815,179 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             </span>
           </div>
 
-          {/* Grid contínuo 3-4 colunas em tela sem colapso */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {relatorio.fotos.map((foto, idx) => {
-              const fotoNumGeral = idx + 1
-              return (
+          {Array.isArray(relatorio.fotosPorEtapa) && relatorio.fotosPorEtapa.length > 0 ? (
+            <div className="space-y-6">
+              {relatorio.fotosPorEtapa.map((grupo, gIdx) => (
                 <div
-                  key={foto.id || `foto-${idx}`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setFotoModal(foto)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      setFotoModal(foto)
-                    }
-                  }}
-                  className="bg-white border border-[#DDE4EE] hover:border-[#BACEDB] rounded-xl overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all flex flex-col group print:cursor-default print:border-[#D0D0D0] print:rounded-md print:hover:translate-y-0 shadow-2xs"
+                  key={grupo.itemChecklistId || `grupo-${gIdx}`}
+                  className="bg-[#F8FAFD] border border-[#E2E8F0] rounded-xl p-4 space-y-3"
                 >
-                  {foto.url ? (
-                    <div className="aspect-4/3 bg-slate-900 overflow-hidden relative print:aspect-4/3">
-                      <img
-                        src={foto.url}
-                        alt={foto.titulo}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {/* Badge com o número geral da foto correspondente à evidência */}
-                      <span className="absolute top-2 left-2 bg-[#0E2A47]/85 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
-                        Foto {fotoNumGeral}
-                      </span>
-                      <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded print:hidden">
-                        Ampliar 🔍
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="aspect-4/3 bg-linear-to-br from-[#224364] to-[#0E2A47] text-white flex flex-col items-center justify-center p-3 text-center relative print:aspect-4/3 print-color-exact">
-                      <span className="absolute top-2 left-2 bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded">
-                        Foto {fotoNumGeral}
-                      </span>
-                      <Camera className="w-7 h-7 text-[#C9A227] mb-1.5" />
-                      <div className="text-xs font-bold leading-tight px-1">{foto.titulo}</div>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2 flex-wrap gap-2">
+                    <h4 className="m-0 text-xs sm:text-sm font-extrabold text-[#0E2A47] uppercase tracking-wider">
+                      {grupo.itemChecklistTexto}
+                    </h4>
+                    <span className="text-[11px] font-bold text-[#536377] bg-white px-2 py-0.5 rounded-full border border-[#DDE4EE]">
+                      {grupo.fotos.length} {grupo.fotos.length === 1 ? 'foto' : 'fotos'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {grupo.fotos.map((foto, idx) => {
+                      const fotoNumGeral = foto.numeroGlobal || idx + 1
+                      return (
+                        <div
+                          key={foto.id || `foto-${gIdx}-${idx}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setFotoModal(foto)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setFotoModal(foto)
+                            }
+                          }}
+                          className="bg-white border border-[#DDE4EE] hover:border-[#BACEDB] rounded-xl overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all flex flex-col group print:cursor-default print:border-[#D0D0D0] print:rounded-md print:hover:translate-y-0 shadow-2xs"
+                        >
+                          {foto.url ? (
+                            <div className="aspect-4/3 bg-slate-900 overflow-hidden relative print:aspect-4/3">
+                              <img
+                                src={foto.url}
+                                alt={foto.titulo}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <span className="absolute top-2 left-2 bg-[#0E2A47]/85 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                Foto {fotoNumGeral}
+                              </span>
+                              <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded print:hidden">
+                                Ampliar 🔍
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="aspect-4/3 bg-linear-to-br from-[#224364] to-[#0E2A47] text-white flex flex-col items-center justify-center p-3 text-center relative print:aspect-4/3 print-color-exact">
+                              <span className="absolute top-2 left-2 bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded">
+                                Foto {fotoNumGeral}
+                              </span>
+                              <Camera className="w-7 h-7 text-[#C9A227] mb-1.5" />
+                              <div className="text-xs font-bold leading-tight px-1">
+                                {foto.titulo}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              )
-            })}
-          </div>
+              ))}
+
+              {Array.isArray(relatorio.fotosGeraisSemEtapa) &&
+                relatorio.fotosGeraisSemEtapa.length > 0 && (
+                  <div className="bg-[#F8FAFD] border border-[#E2E8F0] rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2 flex-wrap gap-2">
+                      <h4 className="m-0 text-xs sm:text-sm font-extrabold text-[#0E2A47] uppercase tracking-wider">
+                        Registros Gerais de Campo
+                      </h4>
+                      <span className="text-[11px] font-bold text-[#536377] bg-white px-2 py-0.5 rounded-full border border-[#DDE4EE]">
+                        {relatorio.fotosGeraisSemEtapa.length}{' '}
+                        {relatorio.fotosGeraisSemEtapa.length === 1 ? 'foto' : 'fotos'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {relatorio.fotosGeraisSemEtapa.map((foto, idx) => {
+                        const fotoNumGeral = foto.numeroGlobal || idx + 1
+                        return (
+                          <div
+                            key={foto.id || `foto-geral-${idx}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setFotoModal(foto)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setFotoModal(foto)
+                              }
+                            }}
+                            className="bg-white border border-[#DDE4EE] hover:border-[#BACEDB] rounded-xl overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all flex flex-col group print:cursor-default print:border-[#D0D0D0] print:rounded-md print:hover:translate-y-0 shadow-2xs"
+                          >
+                            {foto.url ? (
+                              <div className="aspect-4/3 bg-slate-900 overflow-hidden relative print:aspect-4/3">
+                                <img
+                                  src={foto.url}
+                                  alt={foto.titulo}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <span className="absolute top-2 left-2 bg-[#0E2A47]/85 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                  Foto {fotoNumGeral}
+                                </span>
+                                <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded print:hidden">
+                                  Ampliar 🔍
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="aspect-4/3 bg-linear-to-br from-[#224364] to-[#0E2A47] text-white flex flex-col items-center justify-center p-3 text-center relative print:aspect-4/3 print-color-exact">
+                                <span className="absolute top-2 left-2 bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded">
+                                  Foto {fotoNumGeral}
+                                </span>
+                                <Camera className="w-7 h-7 text-[#C9A227] mb-1.5" />
+                                <div className="text-xs font-bold leading-tight px-1">
+                                  {foto.titulo}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {relatorio.fotos.map((foto, idx) => {
+                const fotoNumGeral = foto.numeroGlobal || idx + 1
+                return (
+                  <div
+                    key={foto.id || `foto-${idx}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setFotoModal(foto)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setFotoModal(foto)
+                      }
+                    }}
+                    className="bg-white border border-[#DDE4EE] hover:border-[#BACEDB] rounded-xl overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all flex flex-col group print:cursor-default print:border-[#D0D0D0] print:rounded-md print:hover:translate-y-0 shadow-2xs"
+                  >
+                    {foto.url ? (
+                      <div className="aspect-4/3 bg-slate-900 overflow-hidden relative print:aspect-4/3">
+                        <img
+                          src={foto.url}
+                          alt={foto.titulo}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <span className="absolute top-2 left-2 bg-[#0E2A47]/85 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
+                          Foto {fotoNumGeral}
+                        </span>
+                        <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded print:hidden">
+                          Ampliar 🔍
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="aspect-4/3 bg-linear-to-br from-[#224364] to-[#0E2A47] text-white flex flex-col items-center justify-center p-3 text-center relative print:aspect-4/3 print-color-exact">
+                        <span className="absolute top-2 left-2 bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded">
+                          Foto {fotoNumGeral}
+                        </span>
+                        <Camera className="w-7 h-7 text-[#C9A227] mb-1.5" />
+                        <div className="text-xs font-bold leading-tight px-1">{foto.titulo}</div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </section>
 
         {/* 7. Pendências e Recomendações */}
