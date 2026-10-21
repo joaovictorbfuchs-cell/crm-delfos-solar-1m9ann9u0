@@ -59,7 +59,15 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
     // Localizar ou criar conversa se conversa_id não veio
     let finalConversaId = conversaId
     try {
-      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      let helper = null
+      try {
+        helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      } catch (_) {
+        try {
+          helper = require('./whatsapp_conversa_helper.js')
+        } catch (_) {}
+      }
+
       if (finalConversaId) {
         const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
         const convRec = $app.findRecordsByFilter(
@@ -83,7 +91,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
           }
           $app.save(convRec)
         }
-      } else {
+      } else if (helper && helper.ensureConversaForMessage) {
         const conv = helper.ensureConversaForMessage(
           $app,
           finalClienteId,
@@ -120,8 +128,10 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
     msgRecord.set('nome_arquivo', nomeArquivo)
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
 
-    // Se temos base64 com prefixo ou URL externa, salvar documento_url se aplicável
-    if (imageData && (imageData.startsWith('http') || imageData.startsWith('data:image'))) {
+    // Se temos URL externa ou curta, salvar documento_url. Não salvar data-URL longa (base64) para respeitar o limite do schema
+    if (imageData && imageData.startsWith('http')) {
+      msgRecord.set('documento_url', imageData)
+    } else if (imageData && imageData.length <= 4000) {
       msgRecord.set('documento_url', imageData)
     }
 
@@ -184,10 +194,12 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
     // Determinar o payload da imagem (URL pública ou Base64)
     let payloadImageValue = imageData
     if (!payloadImageValue && msgRecord.getString('arquivo')) {
-      const pbUrl = ($os.getenv('PB_INSTANCE_URL') || $os.getenv('SITE_URL') || '').replace(
-        /\/+$/,
-        '',
-      )
+      const pbUrl = (
+        $os.getenv('PB_INSTANCE_URL') ||
+        $os.getenv('VITE_POCKETBASE_URL') ||
+        $os.getenv('SITE_URL') ||
+        ''
+      ).replace(/\/+$/, '')
       if (pbUrl) {
         payloadImageValue =
           pbUrl +
@@ -195,6 +207,25 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
           msgRecord.id +
           '/' +
           encodeURIComponent(msgRecord.getString('arquivo'))
+      }
+    }
+    // Se documento_url não foi gravado ainda e temos arquivo no PocketBase, salvar a URL do arquivo
+    if (!msgRecord.getString('documento_url') && msgRecord.getString('arquivo')) {
+      const pbUrl = (
+        $os.getenv('PB_INSTANCE_URL') ||
+        $os.getenv('VITE_POCKETBASE_URL') ||
+        $os.getenv('SITE_URL') ||
+        ''
+      ).replace(/\/+$/, '')
+      if (pbUrl) {
+        msgRecord.set(
+          'documento_url',
+          pbUrl +
+            '/api/files/whatsapp_mensagens/' +
+            msgRecord.id +
+            '/' +
+            encodeURIComponent(msgRecord.getString('arquivo')),
+        )
       }
     }
 

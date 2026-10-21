@@ -67,7 +67,15 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     // Localizar ou criar conversa se conversa_id não veio
     let finalConversaId = conversaId
     try {
-      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      let helper = null
+      try {
+        helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      } catch (_) {
+        try {
+          helper = require('./whatsapp_conversa_helper.js')
+        } catch (_) {}
+      }
+
       if (finalConversaId) {
         const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
         const convRec = $app.findRecordsByFilter(
@@ -91,7 +99,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
           }
           $app.save(convRec)
         }
-      } else {
+      } else if (helper && helper.ensureConversaForMessage) {
         const conv = helper.ensureConversaForMessage(
           $app,
           finalClienteId,
@@ -126,7 +134,9 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     msgRecord.set('tipo_mensagem', 'documento')
     msgRecord.set('direcao', 'enviada')
     msgRecord.set('nome_arquivo', nomeArquivo)
-    if (documentoUrl) msgRecord.set('documento_url', documentoUrl)
+    if (documentoUrl && (documentoUrl.startsWith('http') || documentoUrl.length <= 4000)) {
+      msgRecord.set('documento_url', documentoUrl)
+    }
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
 
     // Ler secrets do Gateway

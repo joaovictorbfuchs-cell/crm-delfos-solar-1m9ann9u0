@@ -179,9 +179,10 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
       // Obter URL pública do arquivo armazenado no PocketBase
       const mediaPbUrl = pb.files.getURL(createdMsgRecord, createdMsgRecord.arquivo)
 
-      // Se for imagem ou documento pequeno (< 6MB), enviar também o Base64 para máxima compatibilidade Z-API
+      // Se for documento ou imagem/vídeo, preferir URL pública já armazenada no PocketBase.
+      // Se necessário fallback para base64 em arquivos pequenos, mantemos disponível.
       let base64Fallback = ''
-      if (selectedFile.size <= 6 * 1024 * 1024) {
+      if (selectedFile.size <= 4 * 1024 * 1024) {
         try {
           base64Fallback = await fileToBase64(selectedFile)
         } catch {
@@ -204,8 +205,9 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
           cliente_id: clienteId,
           conversa_id: conversaId,
           telefone_destino: telefoneDestino,
-          imagem: base64Fallback || mediaPbUrl,
+          imagem: mediaPbUrl || base64Fallback,
           imagem_url: mediaPbUrl,
+          base64: base64Fallback,
           legenda: legendaComPrefixo,
           nome_arquivo: selectedFile.name,
           record_id: createdMsgRecord.id,

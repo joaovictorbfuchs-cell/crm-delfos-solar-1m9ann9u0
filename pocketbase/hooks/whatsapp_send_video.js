@@ -59,7 +59,15 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-video', (e) => {
     // Localizar ou criar conversa se conversa_id não veio
     let finalConversaId = conversaId
     try {
-      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      let helper = null
+      try {
+        helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      } catch (_) {
+        try {
+          helper = require('./whatsapp_conversa_helper.js')
+        } catch (_) {}
+      }
+
       if (finalConversaId) {
         const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
         const convRec = $app.findRecordsByFilter(
@@ -83,7 +91,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-video', (e) => {
           }
           $app.save(convRec)
         }
-      } else {
+      } else if (helper && helper.ensureConversaForMessage) {
         const conv = helper.ensureConversaForMessage(
           $app,
           finalClienteId,
@@ -120,7 +128,9 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-video', (e) => {
     msgRecord.set('nome_arquivo', nomeArquivo)
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
 
-    if (videoData && (videoData.startsWith('http') || videoData.startsWith('data:video'))) {
+    if (videoData && videoData.startsWith('http')) {
+      msgRecord.set('documento_url', videoData)
+    } else if (videoData && videoData.length <= 4000) {
       msgRecord.set('documento_url', videoData)
     }
 
@@ -181,10 +191,12 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-video', (e) => {
 
     let payloadVideoValue = videoData
     if (!payloadVideoValue && msgRecord.getString('arquivo')) {
-      const pbUrl = ($os.getenv('PB_INSTANCE_URL') || $os.getenv('SITE_URL') || '').replace(
-        /\/+$/,
-        '',
-      )
+      const pbUrl = (
+        $os.getenv('PB_INSTANCE_URL') ||
+        $os.getenv('VITE_POCKETBASE_URL') ||
+        $os.getenv('SITE_URL') ||
+        ''
+      ).replace(/\/+$/, '')
       if (pbUrl) {
         payloadVideoValue =
           pbUrl +
@@ -192,6 +204,24 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-video', (e) => {
           msgRecord.id +
           '/' +
           encodeURIComponent(msgRecord.getString('arquivo'))
+      }
+    }
+    if (!msgRecord.getString('documento_url') && msgRecord.getString('arquivo')) {
+      const pbUrl = (
+        $os.getenv('PB_INSTANCE_URL') ||
+        $os.getenv('VITE_POCKETBASE_URL') ||
+        $os.getenv('SITE_URL') ||
+        ''
+      ).replace(/\/+$/, '')
+      if (pbUrl) {
+        msgRecord.set(
+          'documento_url',
+          pbUrl +
+            '/api/files/whatsapp_mensagens/' +
+            msgRecord.id +
+            '/' +
+            encodeURIComponent(msgRecord.getString('arquivo')),
+        )
       }
     }
 

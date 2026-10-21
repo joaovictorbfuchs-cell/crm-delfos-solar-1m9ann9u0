@@ -57,7 +57,15 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
     // Localizar ou criar conversa se conversa_id não veio
     let finalConversaId = conversaId
     try {
-      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      let helper = null
+      try {
+        helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      } catch (_) {
+        try {
+          helper = require('./whatsapp_conversa_helper.js')
+        } catch (_) {}
+      }
+
       if (finalConversaId) {
         const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
         const convRec = $app.findRecordsByFilter(
@@ -81,7 +89,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
           }
           $app.save(convRec)
         }
-      } else {
+      } else if (helper && helper.ensureConversaForMessage) {
         const conv = helper.ensureConversaForMessage(
           $app,
           finalClienteId,
@@ -113,8 +121,10 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
     msgRecord.set('tipo_disparo', 'manual')
     msgRecord.set('tipo_mensagem', 'audio')
     msgRecord.set('direcao', 'enviada')
-    // Se audioData for data URL ou URL, salvar para reprodução se suportado
-    if (audioData.startsWith('data:audio') || audioData.startsWith('http')) {
+    // Se audioData for URL ou curta, salvar para reprodução se suportado
+    if (audioData && audioData.startsWith('http')) {
+      msgRecord.set('documento_url', audioData)
+    } else if (audioData && audioData.length <= 4000) {
       msgRecord.set('documento_url', audioData)
     }
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
