@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/formatters'
 import type { PropostaCarregador } from '@/types/crm'
 import pb from '@/lib/pocketbase/client'
-import { crmService } from '@/services/crmService'
+import { sendWhatsAppDocumento } from '@/services/crmService'
 import { gerarBase64PropostaCarregador } from '@/lib/pdfWhatsAppService'
 
 interface ModalEnviarPropostaCarregadorWhatsAppProps {
@@ -171,14 +171,17 @@ export const ModalEnviarPropostaCarregadorWhatsApp: React.FC<
 
       // Tenta envio via API de documentos WhatsApp do sistema
       try {
-        const resposta = await crmService.sendWhatsAppDocument({
-          phone: foneSanitizado,
+        const resposta = await sendWhatsAppDocumento({
+          cliente_id: proposta.cliente_id,
+          telefone_destino: foneSanitizado,
+          tipo: 'documento',
+          referencia_id: proposta.id,
+          legenda: mensagem,
+          nome_arquivo: fileName,
           base64,
-          fileName,
-          caption: mensagem,
         })
 
-        if (resposta && (resposta.success || resposta.status === 'ok' || resposta.id)) {
+        if (resposta && (resposta.sent || resposta.ok || resposta.status === 'ok')) {
           await registrarHistorico(foneSanitizado, 'PDF via API')
           toast({
             title: 'PDF enviado com sucesso!',

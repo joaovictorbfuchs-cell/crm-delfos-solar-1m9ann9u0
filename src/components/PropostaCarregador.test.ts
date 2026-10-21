@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { gerarValoresIniciaisPropostaCarregador } from '@/services/propostasCarregadorService'
+import {
+  gerarValoresIniciaisPropostaCarregador,
+  normalizarPropostaCarregadorParaInput,
+  converterInputParaPropostaCarregador,
+} from '@/services/propostasCarregadorService'
 import {
   gerarHTMLPropostaCarregador,
-  formatarDataBr,
   calcularDataValidade,
 } from '@/lib/propostaCarregadorGenerator'
 import type { Cliente } from '@/types/crm'
@@ -70,11 +73,6 @@ describe('Propostas de Carregador Veicular (Infraestrutura Wallbox)', () => {
   })
 
   it('preserva integridade do ciclo salvar -> reabrir com normalizarPropostaCarregadorParaInput', () => {
-    const {
-      normalizarPropostaCarregadorParaInput,
-      converterInputParaPropostaCarregador,
-    } = require('@/services/propostasCarregadorService')
-
     const inputOriginal = gerarValoresIniciaisPropostaCarregador(null)
     inputOriginal.modo_carregador = 'adquirido'
     inputOriginal.carregador_adquirido = true
