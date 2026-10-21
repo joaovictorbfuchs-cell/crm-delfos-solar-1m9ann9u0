@@ -282,6 +282,212 @@ export async function deletePropostaCarregador(id: string): Promise<boolean> {
 }
 
 /**
+ * Converte um registro de PropostaCarregador (PocketBase) em SalvarPropostaCarregadorInput,
+ * reconstituindo fielmente materiais_infraestrutura, modo_carregador, carregador_adquirido,
+ * subtotal_materiais, valor_servicos e todos os campos salvos em dados_json.
+ */
+/**
+ * Converte SalvarPropostaCarregadorInput de volta para PropostaCarregador (para visualizadores e modais de envio).
+ */
+export function converterInputParaPropostaCarregador(
+  formData: SalvarPropostaCarregadorInput,
+  clienteId?: string,
+): PropostaCarregador {
+  const dJson = formData.dados_json || {
+    materiais_infraestrutura: formData.materiais_infraestrutura,
+    subtotal_materiais: formData.subtotal_materiais,
+    modo_carregador: formData.modo_carregador,
+    carregador_adquirido: formData.carregador_adquirido,
+    equipamento_id: formData.equipamento_id,
+    carregador_modelo: formData.carregador_modelo,
+    carregador_potencia: formData.carregador_potencia,
+    carregador_valor: formData.carregador_valor,
+    valor_servicos: formData.valor_servicos,
+    valor_servicos_instalacao: formData.valor_servicos_instalacao,
+    valor_servicos_engenharia: formData.valor_servicos_engenharia,
+  }
+
+  return {
+    id: formData.id || '',
+    collectionId: 'propostas_carregador',
+    collectionName: 'propostas_carregador',
+    numero_proposta: formData.numero_proposta,
+    cliente_id: clienteId || formData.cliente_id || '',
+    negocio_id: formData.negocio_id,
+    data_emissao: formData.data_emissao,
+    validade_dias: formData.validade_dias,
+    status: (formData.status as PropostaCarregador['status']) || 'Em elaboração',
+    autor: formData.autor,
+
+    cliente_nome: formData.cliente_nome,
+    cliente_documento: formData.cliente_documento,
+    cliente_contato: formData.cliente_contato,
+    endereco_instalacao: formData.endereco_instalacao,
+    responsavel_acompanhante: formData.responsavel_acompanhante,
+    tipo_local: formData.tipo_local,
+
+    custo_proprio_min: formData.custo_proprio_min,
+    custo_proprio_max: formData.custo_proprio_max,
+    custo_publico_min: formData.custo_publico_min,
+    custo_publico_max: formData.custo_publico_max,
+
+    opcao_selecionada: formData.opcao_selecionada,
+    opcao1_titulo: formData.opcao1_titulo,
+    opcao1_potencia: formData.opcao1_potencia,
+    opcao1_tensao: formData.opcao1_tensao,
+    opcao1_tempo_recarga: formData.opcao1_tempo_recarga,
+    opcao1_valor: formData.opcao1_valor,
+
+    opcao2_titulo: formData.opcao2_titulo,
+    opcao2_potencia: formData.opcao2_potencia,
+    opcao2_tensao: formData.opcao2_tensao,
+    opcao2_tempo_recarga: formData.opcao2_tempo_recarga,
+    opcao2_valor: formData.opcao2_valor,
+
+    valor_estacao_materiais: formData.valor_estacao_materiais,
+    valor_servicos: formData.valor_servicos,
+    valor_servicos_instalacao: formData.valor_servicos_instalacao,
+    valor_servicos_engenharia: formData.valor_servicos_engenharia,
+    valor_total: formData.valor_total,
+    condicoes_pagamento: formData.condicoes_pagamento,
+
+    prazo_execucao: formData.prazo_execucao,
+    garantias: formData.garantias,
+    premissas_orcamento_previo: formData.premissas_orcamento_previo,
+    engenheiro_nome: formData.engenheiro_nome,
+    engenheiro_crea: formData.engenheiro_crea,
+    observacoes: formData.observacoes,
+    dados_json: dJson,
+    created: '',
+    updated: '',
+  }
+}
+
+export function normalizarPropostaCarregadorParaInput(
+  p: PropostaCarregador,
+): SalvarPropostaCarregadorInput {
+  const dJson = (p.dados_json || {}) as Record<string, any>
+  const modo =
+    dJson.modo_carregador || (dJson.carregador_adquirido ? 'adquirido' : 'padrao_dois_modelos')
+  const adquirido = Boolean(dJson.carregador_adquirido ?? modo === 'adquirido')
+
+  const mats: ItemMaterialInfraestrutura[] = Array.isArray(dJson.materiais_infraestrutura)
+    ? dJson.materiais_infraestrutura
+    : [...MATERIAIS_INFRAESTRUTURA_PADRAO]
+
+  const subtotalMats =
+    typeof dJson.subtotal_materiais === 'number'
+      ? dJson.subtotal_materiais
+      : mats.reduce(
+          (acc, it) => acc + (Number(it.quantidade) || 0) * (Number(it.valor_unitario) || 0),
+          0,
+        )
+
+  // Serviços unificados (instalação e engenharia consolidados em um item só)
+  const servTotal =
+    typeof dJson.valor_servicos === 'number'
+      ? dJson.valor_servicos
+      : typeof p.valor_servicos === 'number'
+        ? p.valor_servicos
+        : (typeof dJson.valor_servicos_instalacao === 'number'
+            ? dJson.valor_servicos_instalacao
+            : typeof p.valor_servicos_instalacao === 'number'
+              ? p.valor_servicos_instalacao
+              : 1850) +
+          (typeof dJson.valor_servicos_engenharia === 'number'
+            ? dJson.valor_servicos_engenharia
+            : typeof p.valor_servicos_engenharia === 'number'
+              ? p.valor_servicos_engenharia
+              : 1200)
+
+  const servInstalacao =
+    typeof dJson.valor_servicos_instalacao === 'number'
+      ? dJson.valor_servicos_instalacao
+      : typeof p.valor_servicos_instalacao === 'number'
+        ? p.valor_servicos_instalacao
+        : servTotal
+
+  const servEngenharia =
+    typeof dJson.valor_servicos_engenharia === 'number'
+      ? dJson.valor_servicos_engenharia
+      : typeof p.valor_servicos_engenharia === 'number'
+        ? p.valor_servicos_engenharia
+        : 0
+
+  const carregadorValor = adquirido
+    ? 0
+    : typeof dJson.carregador_valor === 'number'
+      ? dJson.carregador_valor
+      : (p.opcao2_valor ?? 9450)
+
+  const totalRecalculado =
+    typeof p.valor_total === 'number' && p.valor_total > 0
+      ? p.valor_total
+      : carregadorValor + subtotalMats + servTotal
+
+  return {
+    id: p.id,
+    numero_proposta: p.numero_proposta,
+    cliente_id: p.cliente_id,
+    negocio_id: p.negocio_id,
+    data_emissao: p.data_emissao,
+    validade_dias: p.validade_dias ?? 10,
+    status: p.status,
+    autor: p.autor,
+
+    cliente_nome: p.cliente_nome,
+    cliente_documento: p.cliente_documento,
+    cliente_contato: p.cliente_contato,
+    endereco_instalacao: p.endereco_instalacao,
+    responsavel_acompanhante: p.responsavel_acompanhante,
+    tipo_local: p.tipo_local,
+
+    custo_proprio_min: p.custo_proprio_min ?? 18,
+    custo_proprio_max: p.custo_proprio_max ?? 25,
+    custo_publico_min: p.custo_publico_min ?? 70,
+    custo_publico_max: p.custo_publico_max ?? 90,
+
+    modo_carregador: modo,
+    carregador_adquirido: adquirido,
+    equipamento_id: dJson.equipamento_id || '',
+    carregador_modelo: dJson.carregador_modelo || p.opcao2_titulo || 'Wallbox AC 22 kW',
+    carregador_potencia: dJson.carregador_potencia || p.opcao2_potencia || '22 kW (32A)',
+    carregador_valor: carregadorValor,
+
+    opcao_selecionada: p.opcao_selecionada ?? 'ambas',
+    opcao1_titulo: p.opcao1_titulo ?? 'Opção 01: Wallbox AC 7,4 kW',
+    opcao1_potencia: p.opcao1_potencia ?? '7,4 kW (32A)',
+    opcao1_tensao: p.opcao1_tensao ?? 'Monofásico / Bifásico 220V',
+    opcao1_tempo_recarga: p.opcao1_tempo_recarga ?? '~7h a 8h (bateria 50–60 kWh)',
+    opcao1_valor: p.opcao1_valor ?? 6890,
+
+    opcao2_titulo: p.opcao2_titulo ?? 'Opção 02: Wallbox AC 22 kW',
+    opcao2_potencia: p.opcao2_potencia ?? '22 kW (32A trifásico)',
+    opcao2_tensao: p.opcao2_tensao ?? 'Trifásico 380V (ou 11kW em 220V)',
+    opcao2_tempo_recarga: p.opcao2_tempo_recarga ?? '~3h a 4h (bateria 50–60 kWh)',
+    opcao2_valor: p.opcao2_valor ?? 9450,
+
+    materiais_infraestrutura: mats,
+    subtotal_materiais: subtotalMats,
+    valor_servicos: servTotal,
+    valor_servicos_instalacao: servInstalacao,
+    valor_servicos_engenharia: servEngenharia,
+
+    valor_estacao_materiais: p.valor_estacao_materiais ?? subtotalMats + carregadorValor,
+    valor_total: totalRecalculado,
+    condicoes_pagamento: p.condicoes_pagamento,
+
+    prazo_execucao: p.prazo_execucao,
+    garantias: p.garantias,
+    premissas_orcamento_previo: p.premissas_orcamento_previo,
+    engenheiro_nome: p.engenheiro_nome,
+    engenheiro_crea: p.engenheiro_crea,
+    observacoes: p.observacoes,
+    dados_json: dJson,
+  }
+}
+
+/**
  * Prepara valores padrão fiéis ao modelo de anexo ("Modelo de Proposta — Carregador Veicular Delfos")
  * preenchendo automaticamente com os dados do cliente se disponíveis.
  */

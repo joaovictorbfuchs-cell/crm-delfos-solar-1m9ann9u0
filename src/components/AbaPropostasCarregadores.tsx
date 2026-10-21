@@ -391,7 +391,7 @@ export const AbaPropostasCarregadores: React.FC = () => {
       {/* Modal de Visualização Completa do Documento A4 */}
       <Dialog open={modalVisualizarOpen} onOpenChange={setModalVisualizarOpen}>
         <DialogContent className="max-w-5xl w-full h-[90vh] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="px-6 py-3 border-b border-slate-200 bg-white shrink-0 flex flex-row items-center justify-between">
+          <DialogHeader className="no-print px-6 py-3 border-b border-slate-200 bg-white shrink-0 flex flex-row items-center justify-between">
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Zap className="w-4 h-4 text-[#047857]" />
               Visualização da Proposta — {propostaVisualizando?.numero_proposta}
@@ -401,7 +401,7 @@ export const AbaPropostasCarregadores: React.FC = () => {
                 size="sm"
                 variant="outline"
                 onClick={() => window.print()}
-                className="text-xs gap-1.5 border-slate-300 hover:bg-slate-50"
+                className="text-xs gap-1.5 border-slate-300 hover:bg-slate-50 cursor-pointer"
                 title="Imprimir ou Salvar em PDF (A4 sem barras)"
               >
                 <Printer className="w-3.5 h-3.5 text-slate-700" />
@@ -416,11 +416,11 @@ export const AbaPropostasCarregadores: React.FC = () => {
                     setModalWhatsAppOpen(true)
                   }
                 }}
-                className="bg-[#25D366] hover:bg-[#20ba59] text-white text-xs gap-1.5 font-semibold"
-                title="Enviar por WhatsApp (Link ou PDF)"
+                className="bg-[#25D366] hover:bg-[#20ba59] text-white text-xs gap-1.5 font-semibold cursor-pointer"
+                title="Enviar por WhatsApp (Link com URL ou PDF anexado)"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                Enviar WhatsApp
+                WhatsApp
               </Button>
 
               <Button
@@ -431,10 +431,11 @@ export const AbaPropostasCarregadores: React.FC = () => {
                     setModalEmailOpen(true)
                   }
                 }}
-                className="bg-[#047857] hover:bg-[#065f46] text-white text-xs gap-1.5"
+                className="bg-[#047857] hover:bg-[#065f46] text-white text-xs gap-1.5 cursor-pointer"
+                title="Enviar por E-mail"
               >
                 <Mail className="w-3.5 h-3.5" />
-                Enviar E-mail
+                E-mail
               </Button>
             </div>
           </DialogHeader>

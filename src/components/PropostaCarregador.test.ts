@@ -65,9 +65,43 @@ describe('Propostas de Carregador Veicular (Infraestrutura Wallbox)', () => {
     expect(html).toContain('Wallbox Pulsar Plus 7,4 kW')
     expect(html).toContain('Adquirido')
     expect(html).toContain('Materiais da Infraestrutura de Instalação')
-    expect(html).toContain('Serviços de Instalação')
-    expect(html).toContain('Serviços de Engenharia')
+    expect(html).toContain('Serviços de Instalação e Engenharia')
     expect(html).toContain('R$&nbsp;7.600,00')
+  })
+
+  it('preserva integridade do ciclo salvar -> reabrir com normalizarPropostaCarregadorParaInput', () => {
+    const {
+      normalizarPropostaCarregadorParaInput,
+      converterInputParaPropostaCarregador,
+    } = require('@/services/propostasCarregadorService')
+
+    const inputOriginal = gerarValoresIniciaisPropostaCarregador(null)
+    inputOriginal.modo_carregador = 'adquirido'
+    inputOriginal.carregador_adquirido = true
+    inputOriginal.carregador_modelo = 'WEG WEMOB 7,4 kW'
+    inputOriginal.materiais_infraestrutura = [
+      { id: '1', descricao: 'Disjuntor Bipolar 40A', quantidade: 2, valor_unitario: 120 },
+      { id: '2', descricao: 'Cabo 6mm 20m', quantidade: 20, valor_unitario: 15 },
+    ]
+    inputOriginal.subtotal_materiais = 2 * 120 + 20 * 15 // 540
+    inputOriginal.valor_servicos = 2900 // serviço unificado editado
+    inputOriginal.valor_total = 0 + 540 + 2900 // 3440
+
+    // Simula salvar transformando em registro PropostaCarregador
+    const propostaSalva = converterInputParaPropostaCarregador(inputOriginal, 'cli-123')
+
+    // Simula reabrir para edição no modal
+    const reaberta = normalizarPropostaCarregadorParaInput(propostaSalva)
+
+    expect(reaberta.modo_carregador).toBe('adquirido')
+    expect(reaberta.carregador_adquirido).toBe(true)
+    expect(reaberta.carregador_modelo).toBe('WEG WEMOB 7,4 kW')
+    expect(reaberta.materiais_infraestrutura).toHaveLength(2)
+    expect(reaberta.materiais_infraestrutura?.[0].descricao).toBe('Disjuntor Bipolar 40A')
+    expect(reaberta.materiais_infraestrutura?.[0].valor_unitario).toBe(120)
+    expect(reaberta.subtotal_materiais).toBe(540)
+    expect(reaberta.valor_servicos).toBe(2900)
+    expect(reaberta.valor_total).toBe(3440)
   })
 
   it('calcula data de validade com 10 dias corridos', () => {

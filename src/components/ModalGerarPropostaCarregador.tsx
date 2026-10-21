@@ -39,6 +39,8 @@ import { fetchEquipamentos } from '@/services/equipamentosService'
 import {
   gerarValoresIniciaisPropostaCarregador,
   salvarPropostaCarregador,
+  normalizarPropostaCarregadorParaInput,
+  converterInputParaPropostaCarregador,
   type SalvarPropostaCarregadorInput,
   type ItemMaterialInfraestrutura,
   MATERIAIS_INFRAESTRUTURA_PADRAO,
@@ -116,123 +118,8 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
     if (open) {
       if (propostaExistente) {
         setClienteId(propostaExistente.cliente_id)
-
-        // Resgata campos estruturados do dados_json ou compatibilidade
-        const dJson = (propostaExistente.dados_json || {}) as Record<string, any>
-        const modo =
-          dJson.modo_carregador ||
-          (dJson.carregador_adquirido ? 'adquirido' : 'padrao_dois_modelos')
-        const adquirido = Boolean(dJson.carregador_adquirido ?? modo === 'adquirido')
-
-        const mats: ItemMaterialInfraestrutura[] = Array.isArray(dJson.materiais_infraestrutura)
-          ? dJson.materiais_infraestrutura
-          : [...MATERIAIS_INFRAESTRUTURA_PADRAO]
-
-        const subtotalMats =
-          typeof dJson.subtotal_materiais === 'number'
-            ? dJson.subtotal_materiais
-            : mats.reduce((acc, it) => acc + (it.quantidade || 0) * (it.valor_unitario || 0), 0)
-
-        // Serviços unificados: prioriza valor_servicos salvo; fallback para soma de instalacao + engenharia
-        const servTotal =
-          typeof dJson.valor_servicos === 'number'
-            ? dJson.valor_servicos
-            : typeof (propostaExistente as any).valor_servicos === 'number'
-              ? (propostaExistente as any).valor_servicos
-              : (typeof dJson.valor_servicos_instalacao === 'number'
-                  ? dJson.valor_servicos_instalacao
-                  : 1850) +
-                (typeof dJson.valor_servicos_engenharia === 'number'
-                  ? dJson.valor_servicos_engenharia
-                  : (propostaExistente.valor_servicos_engenharia ?? 1200))
-
-        const servInstalacao =
-          typeof dJson.valor_servicos_instalacao === 'number'
-            ? dJson.valor_servicos_instalacao
-            : servTotal
-
-        const servEngenharia =
-          typeof dJson.valor_servicos_engenharia === 'number'
-            ? dJson.valor_servicos_engenharia
-            : (propostaExistente.valor_servicos_engenharia ?? 0)
-
-        setFormData({
-          id: propostaExistente.id,
-          numero_proposta: propostaExistente.numero_proposta,
-          cliente_id: propostaExistente.cliente_id,
-          negocio_id: propostaExistente.negocio_id,
-          data_emissao: propostaExistente.data_emissao,
-          validade_dias: propostaExistente.validade_dias ?? 10,
-          status: propostaExistente.status,
-          autor: propostaExistente.autor,
-
-          cliente_nome: propostaExistente.cliente_nome,
-          cliente_documento: propostaExistente.cliente_documento,
-          cliente_contato: propostaExistente.cliente_contato,
-          endereco_instalacao: propostaExistente.endereco_instalacao,
-          responsavel_acompanhante: propostaExistente.responsavel_acompanhante,
-          tipo_local: propostaExistente.tipo_local,
-
-          custo_proprio_min: propostaExistente.custo_proprio_min ?? 18,
-          custo_proprio_max: propostaExistente.custo_proprio_max ?? 25,
-          custo_publico_min: propostaExistente.custo_publico_min ?? 70,
-          custo_publico_max: propostaExistente.custo_publico_max ?? 90,
-
-          // Modo do carregador
-          modo_carregador: modo,
-          carregador_adquirido: adquirido,
-          equipamento_id: dJson.equipamento_id || '',
-          carregador_modelo:
-            dJson.carregador_modelo || propostaExistente.opcao2_titulo || 'Wallbox AC 22 kW',
-          carregador_potencia:
-            dJson.carregador_potencia || propostaExistente.opcao2_potencia || '22 kW (32A)',
-          carregador_valor:
-            typeof dJson.carregador_valor === 'number'
-              ? dJson.carregador_valor
-              : (propostaExistente.opcao2_valor ?? 9450),
-
-          opcao_selecionada: propostaExistente.opcao_selecionada ?? 'ambas',
-          opcao1_titulo: propostaExistente.opcao1_titulo ?? 'Opção 01: Wallbox AC 7,4 kW',
-          opcao1_potencia: propostaExistente.opcao1_potencia ?? '7,4 kW (32A)',
-          opcao1_tensao: propostaExistente.opcao1_tensao ?? 'Monofásico / Bifásico 220V',
-          opcao1_tempo_recarga:
-            propostaExistente.opcao1_tempo_recarga ?? '~7h a 8h (bateria 50–60 kWh)',
-          opcao1_valor: propostaExistente.opcao1_valor ?? 6890,
-
-          opcao2_titulo: propostaExistente.opcao2_titulo ?? 'Opção 02: Wallbox AC 22 kW',
-          opcao2_potencia: propostaExistente.opcao2_potencia ?? '22 kW (32A trifásico)',
-          opcao2_tensao: propostaExistente.opcao2_tensao ?? 'Trifásico 380V (ou 11kW em 220V)',
-          opcao2_tempo_recarga:
-            propostaExistente.opcao2_tempo_recarga ?? '~3h a 4h (bateria 50–60 kWh)',
-          opcao2_valor: propostaExistente.opcao2_valor ?? 9450,
-
-          // Materiais e Serviços
-          materiais_infraestrutura: mats,
-          subtotal_materiais: subtotalMats,
-          valor_servicos: servTotal,
-          valor_servicos_instalacao: servInstalacao,
-          valor_servicos_engenharia: servEngenharia,
-
-          valor_estacao_materiais:
-            propostaExistente.valor_estacao_materiais ?? subtotalMats + (adquirido ? 0 : 9450),
-          valor_total:
-            typeof propostaExistente.valor_total === 'number' && propostaExistente.valor_total > 0
-              ? propostaExistente.valor_total
-              : (adquirido
-                  ? 0
-                  : (dJson.carregador_valor ?? propostaExistente.opcao2_valor ?? 9450)) +
-                subtotalMats +
-                servTotal,
-          condicoes_pagamento: propostaExistente.condicoes_pagamento,
-
-          prazo_execucao: propostaExistente.prazo_execucao,
-          garantias: propostaExistente.garantias,
-          premissas_orcamento_previo: propostaExistente.premissas_orcamento_previo,
-          engenheiro_nome: propostaExistente.engenheiro_nome,
-          engenheiro_crea: propostaExistente.engenheiro_crea,
-          observacoes: propostaExistente.observacoes,
-          dados_json: dJson,
-        })
+        const normalizada = normalizarPropostaCarregadorParaInput(propostaExistente)
+        setFormData(normalizada)
       } else {
         const cId = clientePreSelecionadoId || ''
         setClienteId(cId)
@@ -535,7 +422,7 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-5xl w-full h-[92vh] max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
           {/* Header Superior com Identidade Visual Delfos */}
-          <DialogHeader className="px-6 py-4 border-b border-slate-200 bg-white shrink-0 flex flex-row items-center justify-between">
+          <DialogHeader className="no-print px-6 py-4 border-b border-slate-200 bg-white shrink-0 flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-[#047857]">
                 <Zap className="w-6 h-6 stroke-[2.2]" />
@@ -562,22 +449,11 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 onClick={() => {
                   window.print()
                 }}
-                className="gap-1.5 text-xs"
-                title="Imprimir ou gerar PDF via navegador"
+                className="gap-1.5 text-xs cursor-pointer"
+                title="Imprimir ou gerar PDF limpo (A4 sem barras)"
               >
                 <Printer className="w-4 h-4 text-slate-600" />
-                <span className="hidden sm:inline">Imprimir / PDF</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setModalEmailOpen(true)}
-                className="gap-1.5 text-xs text-emerald-800 border-emerald-300 hover:bg-emerald-50"
-              >
-                <Mail className="w-4 h-4 text-[#047857]" />
-                <span className="hidden sm:inline">E-mail</span>
+                <span className="hidden sm:inline">Imprimir / Salvar PDF</span>
               </Button>
 
               <Button
@@ -585,7 +461,8 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 variant="outline"
                 size="sm"
                 onClick={() => setModalWhatsAppOpen(true)}
-                className="gap-1.5 text-xs text-emerald-800 border-emerald-300 hover:bg-emerald-50"
+                className="gap-1.5 text-xs text-emerald-800 border-emerald-300 hover:bg-emerald-50 cursor-pointer"
+                title="Enviar por WhatsApp (Link ou PDF anexado)"
               >
                 <MessageSquare className="w-4 h-4 text-[#25D366]" />
                 <span className="hidden sm:inline">WhatsApp</span>
@@ -593,9 +470,21 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
 
               <Button
                 type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setModalEmailOpen(true)}
+                className="gap-1.5 text-xs text-emerald-800 border-emerald-300 hover:bg-emerald-50 cursor-pointer"
+                title="Enviar por E-mail (fluxo existente inalterado)"
+              >
+                <Mail className="w-4 h-4 text-[#047857]" />
+                <span className="hidden sm:inline">E-mail</span>
+              </Button>
+
+              <Button
+                type="button"
                 onClick={handleSalvar}
                 disabled={salvando}
-                className="bg-[#047857] hover:bg-[#065f46] text-white gap-1.5 text-xs"
+                className="bg-[#047857] hover:bg-[#065f46] text-white gap-1.5 text-xs cursor-pointer"
               >
                 {salvando ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -613,7 +502,7 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
             onValueChange={(v) => setActiveTab(v as 'editor' | 'preview')}
             className="flex-1 flex flex-col overflow-hidden"
           >
-            <div className="px-6 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+            <div className="no-print px-6 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
               <TabsList className="bg-slate-200/80">
                 <TabsTrigger
                   value="editor"
@@ -1315,7 +1204,7 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
           </Tabs>
 
           {/* Footer de Fechamento */}
-          <DialogFooter className="px-6 py-3 border-t border-slate-200 bg-white shrink-0 flex items-center justify-between sm:justify-between">
+          <DialogFooter className="no-print px-6 py-3 border-t border-slate-200 bg-white shrink-0 flex items-center justify-between sm:justify-between">
             <div className="text-xs text-slate-500">
               {clienteAtual ? (
                 <span>
@@ -1362,96 +1251,14 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
       <ModalEnviarPropostaCarregadorEmail
         open={modalEmailOpen}
         onOpenChange={setModalEmailOpen}
-        proposta={{
-          id: formData.id || '',
-          collectionId: 'propostas_carregador',
-          collectionName: 'propostas_carregador',
-          numero_proposta: formData.numero_proposta,
-          cliente_id: clienteId,
-          negocio_id: formData.negocio_id,
-          data_emissao: formData.data_emissao,
-          validade_dias: formData.validade_dias,
-          status: (formData.status as PropostaCarregador['status']) || 'Em elaboração',
-          cliente_nome: formData.cliente_nome,
-          cliente_documento: formData.cliente_documento,
-          cliente_contato: formData.cliente_contato,
-          endereco_instalacao: formData.endereco_instalacao,
-          responsavel_acompanhante: formData.responsavel_acompanhante,
-          tipo_local: formData.tipo_local,
-          custo_proprio_min: formData.custo_proprio_min,
-          custo_proprio_max: formData.custo_proprio_max,
-          custo_publico_min: formData.custo_publico_min,
-          custo_publico_max: formData.custo_publico_max,
-          opcao1_titulo: formData.opcao1_titulo,
-          opcao1_potencia: formData.opcao1_potencia,
-          opcao1_tensao: formData.opcao1_tensao,
-          opcao1_tempo_recarga: formData.opcao1_tempo_recarga,
-          opcao1_valor: formData.opcao1_valor,
-          opcao2_titulo: formData.opcao2_titulo,
-          opcao2_potencia: formData.opcao2_potencia,
-          opcao2_tensao: formData.opcao2_tensao,
-          opcao2_tempo_recarga: formData.opcao2_tempo_recarga,
-          opcao2_valor: formData.opcao2_valor,
-          valor_estacao_materiais: formData.valor_estacao_materiais,
-          valor_servicos_engenharia: formData.valor_servicos_engenharia,
-          valor_total: formData.valor_total,
-          condicoes_pagamento: formData.condicoes_pagamento,
-          prazo_execucao: formData.prazo_execucao,
-          garantias: formData.garantias,
-          premissas_orcamento_previo: formData.premissas_orcamento_previo,
-          engenheiro_nome: formData.engenheiro_nome,
-          engenheiro_crea: formData.engenheiro_crea,
-          created: '',
-          updated: '',
-        }}
+        proposta={converterInputParaPropostaCarregador(formData, clienteId)}
         clienteEmail={clienteAtual?.email}
       />
 
       <ModalEnviarPropostaCarregadorWhatsApp
         open={modalWhatsAppOpen}
         onOpenChange={setModalWhatsAppOpen}
-        proposta={{
-          id: formData.id || '',
-          collectionId: 'propostas_carregador',
-          collectionName: 'propostas_carregador',
-          numero_proposta: formData.numero_proposta,
-          cliente_id: clienteId,
-          negocio_id: formData.negocio_id,
-          data_emissao: formData.data_emissao,
-          validade_dias: formData.validade_dias,
-          status: (formData.status as PropostaCarregador['status']) || 'Em elaboração',
-          cliente_nome: formData.cliente_nome,
-          cliente_documento: formData.cliente_documento,
-          cliente_contato: formData.cliente_contato,
-          endereco_instalacao: formData.endereco_instalacao,
-          responsavel_acompanhante: formData.responsavel_acompanhante,
-          tipo_local: formData.tipo_local,
-          custo_proprio_min: formData.custo_proprio_min,
-          custo_proprio_max: formData.custo_proprio_max,
-          custo_publico_min: formData.custo_publico_min,
-          custo_publico_max: formData.custo_publico_max,
-          opcao1_titulo: formData.opcao1_titulo,
-          opcao1_potencia: formData.opcao1_potencia,
-          opcao1_tensao: formData.opcao1_tensao,
-          opcao1_tempo_recarga: formData.opcao1_tempo_recarga,
-          opcao1_valor: formData.opcao1_valor,
-          opcao2_titulo: formData.opcao2_titulo,
-          opcao2_potencia: formData.opcao2_potencia,
-          opcao2_tensao: formData.opcao2_tensao,
-          opcao2_tempo_recarga: formData.opcao2_tempo_recarga,
-          opcao2_valor: formData.opcao2_valor,
-          valor_estacao_materiais: formData.valor_estacao_materiais,
-          valor_servicos_engenharia: formData.valor_servicos_engenharia,
-          valor_total: formData.valor_total,
-          condicoes_pagamento: formData.condicoes_pagamento,
-          prazo_execucao: formData.prazo_execucao,
-          garantias: formData.garantias,
-          premissas_orcamento_previo: formData.premissas_orcamento_previo,
-          engenheiro_nome: formData.engenheiro_nome,
-          engenheiro_crea: formData.engenheiro_crea,
-          created: '',
-          updated: '',
-        }}
+        proposta={converterInputParaPropostaCarregador(formData, clienteId)}
         clienteTelefone={clienteAtual?.whatsapp || clienteAtual?.telefone}
       />
     </>

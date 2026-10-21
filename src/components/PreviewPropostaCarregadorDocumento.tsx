@@ -112,11 +112,20 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
   return (
     <div
       id="proposal-content"
-      className="max-w-[960px] mx-auto bg-white border border-slate-200 rounded-lg shadow-sm print:shadow-none print:border-none p-8 sm:p-12 text-slate-900 font-sans print:m-0 print:p-0 print:max-w-full"
+      className="proposta-carregador-documento max-w-[960px] mx-auto bg-white border border-slate-200 rounded-lg shadow-sm print:shadow-none print:border-none p-8 sm:p-12 text-slate-900 font-sans print:m-0 print:p-0 print:max-w-full"
       style={{
         fontFeatureSettings: '"cv02", "cv03", "cv04", "cv11"',
       }}
     >
+      <style>{`@page { size: A4; margin: 10mm; }
+        @media print {
+          html, body { width: 100% !important; height: auto !important; overflow: visible !important; background: #fff !important; margin: 0 !important; padding: 0 !important; }
+          body * { visibility: hidden !important; }
+          .proposta-carregador-documento, .proposta-carregador-documento * { visibility: visible !important; }
+          .proposta-carregador-documento { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; max-width: 100% !important; height: auto !important; max-height: none !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+          .no-print, [role="dialog"] > div:first-child, [data-radix-popper-content-wrapper] { display: none !important; }
+          .proposta-carregador-documento section, .proposta-carregador-documento header, .proposta-carregador-documento footer { break-inside: avoid-page !important; page-break-inside: avoid !important; }
+        }`}</style>
       {/* 1. CABEÇALHO */}
       <header className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-900 pb-7 mb-7 gap-6">
         <div className="flex flex-col gap-2">
