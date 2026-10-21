@@ -10,13 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Zap,
@@ -29,6 +22,7 @@ import {
   Eye,
   Check,
   RefreshCw,
+  UserPlus,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
@@ -41,6 +35,8 @@ import {
 import { PreviewPropostaCarregadorDocumento } from './PreviewPropostaCarregadorDocumento'
 import { ModalEnviarPropostaCarregadorEmail } from './ModalEnviarPropostaCarregadorEmail'
 import { ModalEnviarPropostaCarregadorWhatsApp } from './ModalEnviarPropostaCarregadorWhatsApp'
+import { ModalCadastroClienteFornecedor } from './ModalCadastroClienteFornecedor'
+import { SeletorClienteBuscaDropdown } from './SeletorClienteBuscaDropdown'
 
 interface ModalGerarPropostaCarregadorProps {
   open: boolean
@@ -59,7 +55,7 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
   negocioPreSelecionadoId,
   onSalvo,
 }) => {
-  const { clientes } = useClientes()
+  const { clientes, addCliente } = useClientes()
   const { toast } = useToast()
 
   const [clienteId, setClienteId] = useState<string>(
@@ -76,6 +72,7 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
   // Modais de Envio
   const [modalEmailOpen, setModalEmailOpen] = useState(false)
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false)
+  const [modalNovoClienteOpen, setModalNovoClienteOpen] = useState(false)
 
   // Sincroniza quando abrir modal ou mudar propostaExistente
   useEffect(() => {
@@ -145,9 +142,9 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
   }, [open, propostaExistente, clientePreSelecionadoId, negocioPreSelecionadoId, clientes])
 
   // Ao trocar o cliente selecionado, preenche os dados cadastrais automaticamente
-  const handleSelecionarCliente = (novoClienteId: string) => {
+  const handleSelecionarCliente = (novoClienteId: string, clienteObj?: Cliente) => {
     setClienteId(novoClienteId)
-    const cli = clientes.find((c) => c.id === novoClienteId)
+    const cli = clienteObj || clientes.find((c) => c.id === novoClienteId)
     if (cli) {
       const novosDados = gerarValoresIniciaisPropostaCarregador(cli, formData.autor)
       setFormData((prev) => ({
@@ -159,6 +156,68 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
         endereco_instalacao: novosDados.endereco_instalacao,
         tipo_local: novosDados.tipo_local,
       }))
+    } else if (!novoClienteId) {
+      setFormData((prev) => ({
+        ...prev,
+        cliente_id: '',
+      }))
+    }
+  }
+
+  // Callback chamado quando o cliente é salvo no modal inline de criação de cliente
+  const handleSalvarNovoClienteInline = async (
+    dados: import('./ModalCadastroClienteFornecedor').DadosCadastroForm,
+  ) => {
+    const novo = await addCliente({
+      nome: dados.nome,
+      tipo_pessoa: dados.tipo_pessoa,
+      razao_social: dados.razao_social,
+      nome_fantasia: dados.nome_fantasia,
+      cpf: dados.cpf,
+      cnpj: dados.cnpj,
+      situacao_cadastral: dados.situacao_cadastral,
+      cnae_principal: dados.cnae_principal,
+      data_abertura: dados.data_abertura,
+      telefone: dados.telefone,
+      telefone_secundario: dados.telefone_secundario,
+      whatsapp: dados.telefone,
+      email: dados.email,
+      contato_principal: dados.contato_principal,
+      contato: dados.contato_principal,
+      atividade_principal: dados.atividade_principal,
+      como_conheceu: dados.como_conheceu,
+      origem_lead:
+        dados.como_conheceu === 'Redes Sociais'
+          ? 'Instagram'
+          : (dados.como_conheceu as any) || 'Indicação',
+      observacoes: dados.observacoes,
+      endereco: dados.endereco || '',
+      numero: dados.numero,
+      complemento: dados.complemento,
+      bairro: dados.bairro,
+      cidade: dados.cidade || 'Erechim',
+      estado: dados.estado || 'RS',
+      cep: dados.cep,
+      uc: '',
+      potencia_kwp: 5.5,
+      valor_estimado: 0,
+      status: 'Novo Lead',
+      produto: 'Energia Solar',
+      telhado_tipo: 'ceramico',
+      inversor_marca: 'Deye',
+      inversor_modelo: 'SUN-5K-SG01LP1',
+      placas_qtd: 10,
+      placas_marca: 'Canadian Solar',
+      data_instalacao: new Date().toISOString().split('T')[0],
+    })
+
+    if (novo && novo.id) {
+      handleSelecionarCliente(novo.id, novo)
+      setModalNovoClienteOpen(false)
+      toast({
+        title: 'Cliente cadastrado com sucesso!',
+        description: `${novo.razao_social || novo.nome} foi vinculado à proposta.`,
+      })
     }
   }
 
@@ -355,23 +414,30 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="sm:col-span-2">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      Selecionar Cliente do CRM *
-                    </Label>
-                    <Select value={clienteId} onValueChange={handleSelecionarCliente}>
-                      <SelectTrigger className="mt-1 bg-white">
-                        <SelectValue placeholder="Selecione um cliente cadastrado..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-64">
-                        {clientes.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.razao_social || c.nome}{' '}
-                            {c.cidade ? `(${c.cidade}/${c.estado || 'RS'})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700">
+                        Selecionar Cliente do CRM *
+                      </Label>
+                      <button
+                        type="button"
+                        onClick={() => setModalNovoClienteOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                        title="Cadastrar cliente sem sair do fluxo da proposta"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>+ Cadastrar novo cliente</span>
+                      </button>
+                    </div>
+
+                    <SeletorClienteBuscaDropdown
+                      clientes={clientes}
+                      value={clienteId}
+                      onChange={handleSelecionarCliente}
+                      onNovoClienteClick={() => setModalNovoClienteOpen(true)}
+                      placeholder="Digite nome, CPF/CNPJ, cidade ou telefone para filtrar..."
+                      required
+                    />
                   </div>
 
                   <div>
@@ -382,7 +448,7 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                       value={formData.numero_proposta || ''}
                       onChange={(e) => handleUpdateField('numero_proposta', e.target.value)}
                       placeholder="PROP-2025-084"
-                      className="mt-1 bg-white font-mono"
+                      className="mt-1 bg-white font-mono py-2.5 h-auto text-xs"
                     />
                   </div>
                 </div>
@@ -715,6 +781,14 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Inline de Cadastro de Cliente (reutilização oficial do sistema) */}
+      <ModalCadastroClienteFornecedor
+        isOpen={modalNovoClienteOpen}
+        onClose={() => setModalNovoClienteOpen(false)}
+        tipoEntidade="cliente"
+        onSubmit={handleSalvarNovoClienteInline}
+      />
 
       {/* Modais de Disparo E-mail e WhatsApp */}
       <ModalEnviarPropostaCarregadorEmail
