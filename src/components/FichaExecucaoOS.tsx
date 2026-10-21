@@ -1085,10 +1085,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const metadadosAtualizados = [...fotosMetadados, ...novosItensMetadados]
 
       // FormData com upload real
+      // PocketBase modificador 'fotos+': anexa arquivos à lista existente sem sobrescrever
       const formData = new FormData()
       formData.append('fotos_metadados', JSON.stringify(metadadosAtualizados))
       for (const file of listaArquivos) {
-        formData.append('fotos', file)
+        formData.append('fotos+', file)
       }
 
       const updatedRecord = await pb.collection(colecao).update<any>(os.id, formData)

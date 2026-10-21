@@ -4144,7 +4144,7 @@ export async function updateAtividadeComoOrdemServico(
     }
     if (newPhotos && newPhotos.length > 0) {
       for (const photo of newPhotos) {
-        formData.append('fotos', photo)
+        formData.append('fotos+', photo)
       }
     }
     const currentUserRole = pb.authStore.model?.role as string | undefined
@@ -4357,7 +4357,7 @@ export async function updateOrdemServico(
       })
       if (newPhotos) {
         for (const file of newPhotos) {
-          formData.append('fotos', file)
+          formData.append('fotos+', file)
         }
       }
       if (relatorioPdfFile) {
