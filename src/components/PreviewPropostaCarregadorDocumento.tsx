@@ -77,14 +77,18 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
           0,
         )
 
-  // Serviços discriminados
-  const vInstalacao = Number(dados.valor_servicos_instalacao ?? 1850)
-  const vEngenharia = Number(dados.valor_servicos_engenharia ?? 1200)
-
-  // Total consolidado: Carregador (0 se adquirido) + Materiais + Instalação + Engenharia
-  const vTotal = Number(
-    dados.valor_total ?? carregadorValor + subtotalMateriais + vInstalacao + vEngenharia,
+  // Serviços unificados de Instalação e Engenharia em um item único
+  const vServicos = Number(
+    dados.valor_servicos ??
+      (dados.valor_servicos_instalacao !== undefined ||
+      dados.valor_servicos_engenharia !== undefined
+        ? (Number(dados.valor_servicos_instalacao) || 0) +
+          (Number(dados.valor_servicos_engenharia) || 0)
+        : 3050),
   )
+
+  // Total consolidado: Carregador (0 se adquirido) + Materiais + Serviços
+  const vTotal = Number(dados.valor_total ?? carregadorValor + subtotalMateriais + vServicos)
 
   const condicoes =
     dados.condicoes_pagamento ||
@@ -692,36 +696,38 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
                 </tr>
               )}
 
-              {/* (iii) Serviços: Instalação e Engenharia */}
+              {/* (iii) Serviços Unificados de Instalação e Engenharia */}
               <tr className="border-t border-slate-200">
                 <td className="p-3">
-                  <strong className="text-slate-900">3. Serviços de Instalação</strong>
+                  <strong className="text-slate-900">3. Serviços de Instalação e Engenharia</strong>
                   <br />
                   <span className="text-xs text-slate-600">
                     Passagem e fixação de infraestrutura, montagem de quadro elétrico dedicado,
-                    fixação mecânica do Wallbox e conexões elétricas.
+                    fixação mecânica do Wallbox, conexões elétricas, comissionamento com testes
+                    funcionais, laudo técnico e emissão de ART no CREA-RS pelo Engenheiro
+                    Responsável.
                   </span>
                 </td>
-                <td className="p-3 text-center text-slate-700">1 serviço</td>
-                <td className="p-3 text-right text-slate-700">{formatCurrency(vInstalacao)}</td>
-                <td className="p-3 text-right font-semibold text-slate-900 whitespace-nowrap">
-                  {formatCurrency(vInstalacao)}
+                <td className="p-3 text-center text-slate-700">1 lote</td>
+                <td className="p-3 text-right text-slate-700">
+                  {editavel && onChangeField ? (
+                    <input
+                      type="number"
+                      value={vServicos}
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
+                        onChangeField('valor_servicos', val)
+                        onChangeField('valor_servicos_instalacao', val)
+                        onChangeField('valor_servicos_engenharia', 0)
+                      }}
+                      className="w-24 bg-amber-50 border-b border-dashed border-amber-600 text-amber-950 font-bold px-1 py-0.5 rounded text-right focus:outline-none"
+                    />
+                  ) : (
+                    formatCurrency(vServicos)
+                  )}
                 </td>
-              </tr>
-
-              <tr>
-                <td className="p-3">
-                  <strong className="text-slate-900">4. Serviços de Engenharia</strong>
-                  <br />
-                  <span className="text-xs text-slate-600">
-                    Estudo de capacidade e viabilidade de carga, comissionamento com testes
-                    funcionais, emissão de laudo e ART/CREA-RS pelo Engenheiro Responsável.
-                  </span>
-                </td>
-                <td className="p-3 text-center text-slate-700">1 serviço</td>
-                <td className="p-3 text-right text-slate-700">{formatCurrency(vEngenharia)}</td>
                 <td className="p-3 text-right font-semibold text-slate-900 whitespace-nowrap">
-                  {formatCurrency(vEngenharia)}
+                  {formatCurrency(vServicos)}
                 </td>
               </tr>
 
@@ -731,8 +737,8 @@ export const PreviewPropostaCarregadorDocumento: React.FC<
                   <div>INVESTIMENTO TOTAL</div>
                   <div className="text-[11px] font-normal text-slate-500">
                     {isCarregadorAdquirido
-                      ? 'Composição: Carregador Adquirido (R$ 0,00) + Materiais + Instalação + Engenharia'
-                      : 'Composição: Carregador + Materiais + Instalação + Engenharia'}
+                      ? 'Composição: Carregador Adquirido (R$ 0,00) + Materiais + Serviços'
+                      : 'Composição: Carregador + Materiais + Serviços'}
                   </div>
                 </td>
                 <td className="p-3 text-center text-slate-500">—</td>

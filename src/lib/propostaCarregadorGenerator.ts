@@ -93,20 +93,24 @@ export function gerarHTMLPropostaCarregador(
           0,
         )
 
-  // Serviços discriminados
-  const vInstalacaoNum = Number(dados.valor_servicos_instalacao ?? 1850)
-  const vEngenhariaNum = Number(dados.valor_servicos_engenharia ?? 1200)
+  // Serviços unificados (instalação e engenharia consolidados em um item só)
+  const vServicosNum = Number(
+    dados.valor_servicos ??
+      (dados.valor_servicos_instalacao !== undefined ||
+      dados.valor_servicos_engenharia !== undefined
+        ? (Number(dados.valor_servicos_instalacao) || 0) +
+          (Number(dados.valor_servicos_engenharia) || 0)
+        : 3050),
+  )
 
-  // Total consolidado: Carregador (0 se adquirido) + Materiais + Instalação + Engenharia
+  // Total consolidado: Carregador (0 se adquirido) + Materiais + Serviços
   const vTotalNum = Number(
-    dados.valor_total ??
-      carregadorValorNum + subtotalMateriaisNum + vInstalacaoNum + vEngenhariaNum,
+    dados.valor_total ?? carregadorValorNum + subtotalMateriaisNum + vServicosNum,
   )
 
   const vCarregador = isAdquirido ? 'Adquirido' : formatCurrency(carregadorValorNum)
   const subtotalMateriais = formatCurrency(subtotalMateriaisNum)
-  const vInstalacao = formatCurrency(vInstalacaoNum)
-  const vEngenharia = formatCurrency(vEngenhariaNum)
+  const vServicos = formatCurrency(vServicosNum)
   const vTotal = formatCurrency(vTotalNum)
 
   const linhasMateriaisHtml = mats
@@ -967,26 +971,17 @@ export function gerarHTMLPropostaCarregador(
           </tr>
           <tr>
             <td>
-              <strong>3. Serviços de Instalação</strong><br>
-              <small style="color: var(--slate-600);">Passagem e fixação de infraestrutura, montagem do quadro elétrico dedicado, fixação mecânica do Wallbox e conexões elétricas.</small>
+              <strong>3. Serviços de Instalação e Engenharia</strong><br>
+              <small style="color: var(--slate-600);">Passagem e fixação de infraestrutura, montagem de quadro elétrico dedicado, fixação mecânica do Wallbox, conexões elétricas, comissionamento com testes funcionais, laudo técnico e emissão de ART/CREA-RS.</small>
             </td>
-            <td style="text-align: center;">1 serviço</td>
-            <td style="text-align: right;">${vInstalacao}</td>
-            <td style="text-align: right; font-weight: 600;">${vInstalacao}</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>4. Serviços de Engenharia</strong><br>
-              <small style="color: var(--slate-600);">Estudo de capacidade e viabilidade de carga, comissionamento com testes funcionais, laudo técnico e emissão de ART/CREA-RS.</small>
-            </td>
-            <td style="text-align: center;">1 serviço</td>
-            <td style="text-align: right;">${vEngenharia}</td>
-            <td style="text-align: right; font-weight: 600;">${vEngenharia}</td>
+            <td style="text-align: center;">1 lote</td>
+            <td style="text-align: right;">${vServicos}</td>
+            <td style="text-align: right; font-weight: 600;">${vServicos}</td>
           </tr>
           <tr style="background: #f8fafc; border-top: 2px solid var(--slate-900);">
             <td colspan="2" style="font-size: 1rem; font-weight: 800;">
               INVESTIMENTO TOTAL
-              <div style="font-size: 0.72rem; font-weight: 400; color: var(--slate-600);">Composição: ${isAdquirido ? 'Carregador Adquirido (R$ 0,00)' : 'Carregador'} + Materiais + Instalação + Engenharia</div>
+              <div style="font-size: 0.72rem; font-weight: 400; color: var(--slate-600);">Composição: ${isAdquirido ? 'Carregador Adquirido (R$ 0,00)' : 'Carregador'} + Materiais + Serviços</div>
             </td>
             <td style="text-align: center; font-weight: 700;">—</td>
             <td style="text-align: right; font-size: 1.15rem; font-weight: 800; color: var(--accent);">

@@ -60,7 +60,8 @@ export interface SalvarPropostaCarregadorInput {
   materiais_infraestrutura?: ItemMaterialInfraestrutura[]
   subtotal_materiais?: number
 
-  // Serviços discriminados
+  // Serviços unificados (instalação + engenharia)
+  valor_servicos?: number
   valor_servicos_instalacao?: number
   valor_servicos_engenharia?: number
 
@@ -147,26 +148,110 @@ export async function getPropostasCarregador(): Promise<PropostaCarregador[]> {
 export async function salvarPropostaCarregador(
   input: SalvarPropostaCarregadorInput,
 ): Promise<PropostaCarregador> {
-  const { id, ...dados } = input
+  const { id, ...dadosBrutos } = input
+
+  // Garante que o valor unificado de serviços esteja consistente:
+  // Se valor_servicos foi fornecido, usa ele; senão soma instalação + engenharia; default 3050.
+  const valorServicosTotal =
+    typeof dadosBrutos.valor_servicos === 'number'
+      ? dadosBrutos.valor_servicos
+      : (typeof dadosBrutos.valor_servicos_instalacao === 'number'
+          ? dadosBrutos.valor_servicos_instalacao
+          : 1850) +
+        (typeof dadosBrutos.valor_servicos_engenharia === 'number'
+          ? dadosBrutos.valor_servicos_engenharia
+          : 1200)
+
+  // Subtotal de materiais recalculado fielmente
+  const materiaisLista = Array.isArray(dadosBrutos.materiais_infraestrutura)
+    ? dadosBrutos.materiais_infraestrutura
+    : []
+  const subtotalMateriais =
+    typeof dadosBrutos.subtotal_materiais === 'number'
+      ? dadosBrutos.subtotal_materiais
+      : materiaisLista.reduce(
+          (acc, it) => acc + (Number(it.quantidade) || 0) * (Number(it.valor_unitario) || 0),
+          0,
+        )
+
+  // Serializa TODOS os campos vivos no dados_json para que absolutamente NADA se perca ao recarregar
+  const dadosJsonPayload: Record<string, unknown> = {
+    ...(dadosBrutos.dados_json || {}),
+    modo_carregador: dadosBrutos.modo_carregador,
+    carregador_adquirido: dadosBrutos.carregador_adquirido,
+    equipamento_id: dadosBrutos.equipamento_id,
+    carregador_modelo: dadosBrutos.carregador_modelo,
+    carregador_potencia: dadosBrutos.carregador_potencia,
+    carregador_valor: dadosBrutos.carregador_valor,
+    materiais_infraestrutura: materiaisLista,
+    subtotal_materiais: subtotalMateriais,
+    valor_servicos: valorServicosTotal,
+    valor_servicos_instalacao:
+      typeof dadosBrutos.valor_servicos_instalacao === 'number'
+        ? dadosBrutos.valor_servicos_instalacao
+        : valorServicosTotal,
+    valor_servicos_engenharia:
+      typeof dadosBrutos.valor_servicos_engenharia === 'number'
+        ? dadosBrutos.valor_servicos_engenharia
+        : 0,
+    opcao_selecionada: dadosBrutos.opcao_selecionada,
+    opcao1_titulo: dadosBrutos.opcao1_titulo,
+    opcao1_potencia: dadosBrutos.opcao1_potencia,
+    opcao1_tensao: dadosBrutos.opcao1_tensao,
+    opcao1_tempo_recarga: dadosBrutos.opcao1_tempo_recarga,
+    opcao1_valor: dadosBrutos.opcao1_valor,
+    opcao2_titulo: dadosBrutos.opcao2_titulo,
+    opcao2_potencia: dadosBrutos.opcao2_potencia,
+    opcao2_tensao: dadosBrutos.opcao2_tensao,
+    opcao2_tempo_recarga: dadosBrutos.opcao2_tempo_recarga,
+    opcao2_valor: dadosBrutos.opcao2_valor,
+    custo_proprio_min: dadosBrutos.custo_proprio_min,
+    custo_proprio_max: dadosBrutos.custo_proprio_max,
+    custo_publico_min: dadosBrutos.custo_publico_min,
+    custo_publico_max: dadosBrutos.custo_publico_max,
+    condicoes_pagamento: dadosBrutos.condicoes_pagamento,
+    prazo_execucao: dadosBrutos.prazo_execucao,
+    garantias: dadosBrutos.garantias,
+    premissas_orcamento_previo: dadosBrutos.premissas_orcamento_previo,
+    engenheiro_nome: dadosBrutos.engenheiro_nome,
+    engenheiro_crea: dadosBrutos.engenheiro_crea,
+    valor_total: dadosBrutos.valor_total,
+    valor_estacao_materiais: dadosBrutos.valor_estacao_materiais,
+  }
+
+  const dadosProntos = {
+    ...dadosBrutos,
+    subtotal_materiais: subtotalMateriais,
+    valor_servicos: valorServicosTotal,
+    // Garante preenchimento nos campos de coluna nativos (retrocompatibilidade PocketBase)
+    valor_servicos_engenharia: valorServicosTotal,
+    valor_estacao_materiais:
+      typeof dadosBrutos.valor_estacao_materiais === 'number'
+        ? dadosBrutos.valor_estacao_materiais
+        : subtotalMateriais,
+    dados_json: dadosJsonPayload,
+  }
 
   if (id) {
-    return await pb.collection('propostas_carregador').update<PropostaCarregador>(id, dados, {
-      expand: 'cliente_id,negocio_id',
-    })
+    return await pb
+      .collection('propostas_carregador')
+      .update<PropostaCarregador>(id, dadosProntos, {
+        expand: 'cliente_id,negocio_id',
+      })
   }
 
   // Gera número sequencial se não fornecido (ex: PROP-2025-084)
-  if (!dados.numero_proposta) {
+  if (!dadosProntos.numero_proposta) {
     const ano = new Date().getFullYear()
     const rand = Math.floor(100 + Math.random() * 900)
-    dados.numero_proposta = `PROP-${ano}-${rand}`
+    dadosProntos.numero_proposta = `PROP-${ano}-${rand}`
   }
 
-  if (!dados.status) {
-    dados.status = 'Em elaboração'
+  if (!dadosProntos.status) {
+    dadosProntos.status = 'Em elaboração'
   }
 
-  return await pb.collection('propostas_carregador').create<PropostaCarregador>(dados, {
+  return await pb.collection('propostas_carregador').create<PropostaCarregador>(dadosProntos, {
     expand: 'cliente_id,negocio_id',
   })
 }
@@ -282,13 +367,14 @@ export function gerarValoresIniciaisPropostaCarregador(
     materiais_infraestrutura: [...MATERIAIS_INFRAESTRUTURA_PADRAO],
     subtotal_materiais: 4550,
 
-    // Serviços discriminados
+    // Serviços unificados (instalação e engenharia consolidados em um item só)
+    valor_servicos: 3050, // 1850 + 1200
     valor_servicos_instalacao: 1850,
     valor_servicos_engenharia: 1200,
 
     // Seção 5 (Valores de compatibilidade)
     valor_estacao_materiais: 5950,
-    valor_total: 7600, // No default com carregador opcional à escolha ou selecionado: subtotal_materiais (4550) + instalacao (1850) + engenharia (1200) = 7600
+    valor_total: 7600, // Subtotal materiais (4550) + Serviços unificados (3050) = 7600
     condicoes_pagamento:
       '50% de sinal no aceite desta proposta e 50% no comissionamento e entrega técnica operacional. Opção de parcelamento via cartão em até 12x (consulte taxas) ou faturamento direto PJ sob análise prévia.',
 

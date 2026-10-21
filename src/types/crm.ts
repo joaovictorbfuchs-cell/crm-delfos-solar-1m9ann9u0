@@ -1794,6 +1794,8 @@ export interface PropostaCarregador extends RecordModel {
   // Investimento e Condições Comerciais
   valor_estacao_materiais?: number
   valor_servicos_engenharia?: number
+  valor_servicos_instalacao?: number
+  valor_servicos?: number
   valor_total?: number
   condicoes_pagamento?: string
 

@@ -401,11 +401,28 @@ export const AbaPropostasCarregadores: React.FC = () => {
                 size="sm"
                 variant="outline"
                 onClick={() => window.print()}
-                className="text-xs gap-1.5"
+                className="text-xs gap-1.5 border-slate-300 hover:bg-slate-50"
+                title="Imprimir ou Salvar em PDF (A4 sem barras)"
               >
-                <Printer className="w-3.5 h-3.5" />
-                Imprimir / PDF
+                <Printer className="w-3.5 h-3.5 text-slate-700" />
+                Imprimir / Salvar PDF
               </Button>
+
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (propostaVisualizando) {
+                    setPropostaParaDisparo(propostaVisualizando)
+                    setModalWhatsAppOpen(true)
+                  }
+                }}
+                className="bg-[#25D366] hover:bg-[#20ba59] text-white text-xs gap-1.5 font-semibold"
+                title="Enviar por WhatsApp (Link ou PDF)"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Enviar WhatsApp
+              </Button>
+
               <Button
                 size="sm"
                 onClick={() => {

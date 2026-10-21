@@ -133,15 +133,28 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
             ? dJson.subtotal_materiais
             : mats.reduce((acc, it) => acc + (it.quantidade || 0) * (it.valor_unitario || 0), 0)
 
+        // Serviços unificados: prioriza valor_servicos salvo; fallback para soma de instalacao + engenharia
+        const servTotal =
+          typeof dJson.valor_servicos === 'number'
+            ? dJson.valor_servicos
+            : typeof (propostaExistente as any).valor_servicos === 'number'
+              ? (propostaExistente as any).valor_servicos
+              : (typeof dJson.valor_servicos_instalacao === 'number'
+                  ? dJson.valor_servicos_instalacao
+                  : 1850) +
+                (typeof dJson.valor_servicos_engenharia === 'number'
+                  ? dJson.valor_servicos_engenharia
+                  : (propostaExistente.valor_servicos_engenharia ?? 1200))
+
         const servInstalacao =
           typeof dJson.valor_servicos_instalacao === 'number'
             ? dJson.valor_servicos_instalacao
-            : 1850
+            : servTotal
 
         const servEngenharia =
           typeof dJson.valor_servicos_engenharia === 'number'
             ? dJson.valor_servicos_engenharia
-            : (propostaExistente.valor_servicos_engenharia ?? 1200)
+            : (propostaExistente.valor_servicos_engenharia ?? 0)
 
         setFormData({
           id: propostaExistente.id,
@@ -196,14 +209,20 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
           // Materiais e Serviços
           materiais_infraestrutura: mats,
           subtotal_materiais: subtotalMats,
+          valor_servicos: servTotal,
           valor_servicos_instalacao: servInstalacao,
           valor_servicos_engenharia: servEngenharia,
 
           valor_estacao_materiais:
             propostaExistente.valor_estacao_materiais ?? subtotalMats + (adquirido ? 0 : 9450),
           valor_total:
-            propostaExistente.valor_total ??
-            subtotalMats + servInstalacao + servEngenharia + (adquirido ? 0 : 9450),
+            typeof propostaExistente.valor_total === 'number' && propostaExistente.valor_total > 0
+              ? propostaExistente.valor_total
+              : (adquirido
+                  ? 0
+                  : (dJson.carregador_valor ?? propostaExistente.opcao2_valor ?? 9450)) +
+                subtotalMats +
+                servTotal,
           condicoes_pagamento: propostaExistente.condicoes_pagamento,
 
           prazo_execucao: propostaExistente.prazo_execucao,
@@ -327,8 +346,12 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
       (acc, it) => acc + (Number(it.quantidade) || 0) * (Number(it.valor_unitario) || 0),
       0,
     )
-    const instalacao = Number(dados.valor_servicos_instalacao) || 0
-    const engenharia = Number(dados.valor_servicos_engenharia) || 0
+    // Serviços unificados (instalação e engenharia consolidados em um item)
+    const servicosTotal =
+      typeof dados.valor_servicos === 'number'
+        ? dados.valor_servicos
+        : (Number(dados.valor_servicos_instalacao) || 0) +
+          (Number(dados.valor_servicos_engenharia) || 0)
 
     let valorCarregador = 0
     if (dados.modo_carregador === 'adquirido' || dados.carregador_adquirido) {
@@ -338,10 +361,11 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
       valorCarregador = Number(dados.carregador_valor) || 0
     }
 
-    const total = valorCarregador + subtotalMats + instalacao + engenharia
+    const total = valorCarregador + subtotalMats + servicosTotal
     return {
       subtotal_materiais: subtotalMats,
       valor_estacao_materiais: subtotalMats + valorCarregador,
+      valor_servicos: servicosTotal,
       valor_total: total,
     }
   }
@@ -1175,44 +1199,41 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                     </div>
                   </div>
 
-                  {/* Serviços de Instalação */}
-                  <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-1.5">
-                    <Label className="text-xs text-slate-700 font-semibold">
-                      Serviços de Instalação (R$) *
-                    </Label>
+                  {/* Serviços Unificados de Instalação e Engenharia */}
+                  <div className="sm:col-span-2 p-3 bg-white border border-slate-200 rounded-lg space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-slate-700 font-semibold">
+                        Serviços de Instalação e Engenharia (R$) *
+                      </Label>
+                      <span className="text-[11px] text-slate-500">Item unificado na proposta</span>
+                    </div>
                     <Input
                       type="number"
-                      value={formData.valor_servicos_instalacao ?? 1850}
+                      value={
+                        formData.valor_servicos ??
+                        (Number(formData.valor_servicos_instalacao || 0) +
+                          Number(formData.valor_servicos_engenharia || 0) ||
+                          3050)
+                      }
                       onChange={(e) => {
                         const v = Number(e.target.value)
                         setFormData((prev) => {
-                          const next = { ...prev, valor_servicos_instalacao: v }
+                          const next = {
+                            ...prev,
+                            valor_servicos: v,
+                            valor_servicos_instalacao: v,
+                            valor_servicos_engenharia: 0,
+                          }
                           const totais = calcularTotalAutomatico(next)
                           return { ...next, ...totais }
                         })
                       }}
-                      className="h-8 font-semibold text-xs"
+                      className="h-8 font-bold text-xs text-slate-900"
                     />
-                  </div>
-
-                  {/* Serviços de Engenharia */}
-                  <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-1.5">
-                    <Label className="text-xs text-slate-700 font-semibold">
-                      Serviços de Engenharia (R$) *
-                    </Label>
-                    <Input
-                      type="number"
-                      value={formData.valor_servicos_engenharia ?? 1200}
-                      onChange={(e) => {
-                        const v = Number(e.target.value)
-                        setFormData((prev) => {
-                          const next = { ...prev, valor_servicos_engenharia: v }
-                          const totais = calcularTotalAutomatico(next)
-                          return { ...next, ...totais }
-                        })
-                      }}
-                      className="h-8 font-semibold text-xs"
-                    />
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Inclui montagem do quadro, cabeamento, fixação do Wallbox, comissionamento e
+                      emissão de ART/CREA-RS.
+                    </p>
                   </div>
                 </div>
 
@@ -1225,8 +1246,8 @@ export const ModalGerarPropostaCarregador: React.FC<ModalGerarPropostaCarregador
                       </div>
                       <div className="text-[11px] text-emerald-700">
                         {formData.carregador_adquirido
-                          ? 'Carregador Adquirido (sem custo) + Materiais + Instalação + Engenharia'
-                          : 'Carregador + Materiais + Instalação + Engenharia'}
+                          ? 'Carregador Adquirido (sem custo) + Materiais + Serviços'
+                          : 'Carregador + Materiais + Serviços'}
                       </div>
                     </div>
                     <div className="text-2xl font-black text-[#047857]">

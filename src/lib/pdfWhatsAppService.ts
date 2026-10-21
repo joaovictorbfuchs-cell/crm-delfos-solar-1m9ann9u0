@@ -535,3 +535,37 @@ Responsável Técnico: João Victor Bagetti Fuchs (CREA RS151894).`
     return { base64: '', fallbackText, fileName }
   }
 }
+
+/**
+ * Gera o PDF oficial da Proposta de Carregador Veicular (Wallbox) como Data URI Base64.
+ */
+export async function gerarBase64PropostaCarregador(
+  dados: import('@/services/propostasCarregadorService').SalvarPropostaCarregadorInput,
+): Promise<{ base64: string; fallbackText: string; fileName: string }> {
+  const safeName = (dados?.cliente_nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
+  const numProp = (dados?.numero_proposta || 'PROP').replace(/[^a-zA-Z0-9_-]/g, '_')
+  const fileName = `Proposta_Carregador_${numProp}_${safeName}.pdf`
+
+  const fallbackText = `*Delfos Engenharia — Proposta Comercial Carregador Veicular (Wallbox)*
+Cliente: ${dados?.cliente_nome || 'Cliente'}
+Proposta Nº: ${dados?.numero_proposta || 'PROP'}
+Investimento Total: ${formatCurrency(dados?.valor_total || 0)}
+Normas: NBR 5410 & NBR 17019 com ART no CREA-RS
+Validade: 10 dias corridos.
+Responsável Técnico: ${dados?.engenheiro_nome || 'Eng. Eletricista João Victor Bagetti Fuchs'}.`
+
+  try {
+    const { gerarHTMLPropostaCarregador } = await import('@/lib/propostaCarregadorGenerator')
+    const html = gerarHTMLPropostaCarregador(dados)
+    const base64 = await renderizarHTMLParaPdfBase64(html, fileName, {
+      scale: 1.5,
+      imageQuality: 0.82,
+      compressJsPdf: true,
+      timeoutMs: 25000,
+    })
+    return { base64, fallbackText, fileName }
+  } catch (err) {
+    console.error('Erro ao gerar PDF oficial carregador veicular para WhatsApp:', err)
+    return { base64: '', fallbackText, fileName }
+  }
+}
