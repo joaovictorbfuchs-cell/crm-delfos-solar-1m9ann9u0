@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T22:54:14.207Z",
+  "generatedAt": "2026-10-22T23:27:22.380Z",
   "collections": [
     {
       "name": "users",
@@ -7382,6 +7382,450 @@
         "CREATE INDEX idx_prop_carregador_cli ON propostas_carregador (cliente_id)",
         "CREATE INDEX idx_prop_carregador_num ON propostas_carregador (numero_proposta)",
         "CREATE INDEX idx_prop_carregador_status ON propostas_carregador (status)"
+      ]
+    },
+    {
+      "name": "baterias_orcamentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "numero_proposta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "negocios"
+        },
+        {
+          "name": "data_orcamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "validade_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Em elaboração", "Enviado ao cliente", "Aprovado", "Rejeitado"]
+        },
+        {
+          "name": "numero_revisao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_cliente",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_aplicacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "capacidade_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "capacidade_util_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_inversor_kw",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tensao_banco_v",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autonomia_horas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_critico_kwh_dia",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_bateria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "profundidade_descarga_dod",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ciclos_vida_estimados",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "marca_bateria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modelo_bateria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "quantidade_baterias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "marca_inversor_carregador",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modelo_inversor_carregador",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fornecedor_selecionado_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "equipamento_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_materiais_equipamentos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_materiais_extras",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_mao_de_obra",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_risco_engenharia",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_frete_guincho",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_subestacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_terceirizacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_marketing_combustivel",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_administracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_comissao_comercial",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_indicacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_impostos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opcao_imposto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desconto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desconto_percentual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "percentual_administracao_auto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "percentual_indicacao_auto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manual_administracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manual_comissao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manual_indicacao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_manual_administracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_manual_comissao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_manual_indicacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total_custos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_investimento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "condicoes_pagamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcela_a_vista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcelas_cartao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "juros_cartao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entrada_cartao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcela_cartao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcelas_financiamento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "juros_financiamento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entrada_financiamento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcela_financiamento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "garantia_baterias_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "garantia_inversor_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "garantia_instalacao_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_instalacao_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conteudo_proposta",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_bat_orc_cliente ON baterias_orcamentos (cliente_id)",
+        "CREATE INDEX idx_bat_orc_negocio ON baterias_orcamentos (negocio_id)",
+        "CREATE INDEX idx_bat_orc_status ON baterias_orcamentos (status)",
+        "CREATE INDEX idx_bat_orc_data ON baterias_orcamentos (data_orcamento)"
       ]
     }
   ]

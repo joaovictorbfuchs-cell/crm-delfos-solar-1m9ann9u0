@@ -37,7 +37,11 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AbaPropostasOM } from '@/components/AbaPropostasOM'
 import { AbaPropostasCarregadores } from '@/components/AbaPropostasCarregadores'
+import { AbaPropostasBaterias } from '@/components/AbaPropostasBaterias'
+import { fetchAllNegocios } from '@/services/negociosService'
 import { ModalGerarPropostaCarregador } from '@/components/ModalGerarPropostaCarregador'
+import { ModalGeradorBateria } from '@/components/ModalGeradorBateria'
+import type { BateriaOrcamento, Negocio } from '@/types/crm'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
 import { ModalSelecionarClienteContratoOM } from '@/components/ModalSelecionarClienteContratoOM'
 import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
@@ -204,11 +208,13 @@ export const Orcamentos: React.FC = () => {
     return 'solar'
   }, [abaParam])
 
-  const handleMudarAbaHub = (novaAba: 'solar' | 'om' | 'carregadores') => {
+  const handleMudarAbaHub = (novaAba: 'solar' | 'om' | 'baterias' | 'carregadores') => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       if (novaAba === 'om') {
         next.set('aba', 'om')
+      } else if (novaAba === 'baterias') {
+        next.set('aba', 'baterias')
       } else if (novaAba === 'carregadores') {
         next.set('aba', 'carregadores')
       } else {
@@ -218,8 +224,17 @@ export const Orcamentos: React.FC = () => {
     })
   }
 
-  // Modal para criar nova proposta de carregador veicular direto pelo botão +
+  // Modais de Baterias e Carregador
+  const [isModalBateriaOpen, setIsModalBateriaOpen] = useState<boolean>(false)
+  const [bateriaParaEdicao, setBateriaParaEdicao] = useState<BateriaOrcamento | null>(null)
   const [isModalNovoCarregadorOpen, setIsModalNovoCarregadorOpen] = useState<boolean>(false)
+  const [negociosList, setNegociosList] = useState<Negocio[]>([])
+
+  useEffect(() => {
+    fetchAllNegocios()
+      .then(setNegociosList)
+      .catch(() => setNegociosList([]))
+  }, [])
 
   // Suporte a abrir proposta via query param (?propostaId=... ou ?clienteId=...)
   useEffect(() => {
@@ -607,18 +622,21 @@ export const Orcamentos: React.FC = () => {
             <span>O&amp;M</span>
           </button>
 
-          {/* Aba 3: Baterias (Desabilitada / Em breve) */}
-          <div
-            className="flex items-center justify-center gap-2 px-4 py-2.5 h-10 rounded-xl text-xs font-medium text-gray-400 bg-gray-50/70 border border-dashed border-gray-200 cursor-not-allowed flex-1 min-w-[170px] select-none opacity-70"
-            title="Módulo de Baterias em desenvolvimento"
-            aria-disabled="true"
+          {/* Aba 3: Baterias (Gerador de Baterias) */}
+          <button
+            type="button"
+            onClick={() => handleMudarAbaHub('baterias')}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 h-10 rounded-xl text-xs font-bold transition-all flex-1 min-w-[170px] cursor-pointer ${
+              abaAtivaHub === 'baterias'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-gray-600 hover:text-emerald-800 hover:bg-emerald-50/60'
+            }`}
           >
-            <Battery className="w-4 h-4 text-gray-400 shrink-0" />
+            <Battery
+              className={`w-4 h-4 shrink-0 ${abaAtivaHub === 'baterias' ? 'text-white' : 'text-emerald-700'}`}
+            />
             <span>Baterias</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200/60 text-gray-500">
-              Em breve
-            </span>
-          </div>
+          </button>
 
           {/* Aba 4: Carregadores Veiculares (Ativa) */}
           <button
@@ -924,8 +942,18 @@ export const Orcamentos: React.FC = () => {
                 <span>Novo Contrato O&amp;M</span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setIsModalNovoCarregadorOpen(true)}
+                onClick={() => {
+                  setBateriaParaEdicao(null)
+                  setIsModalBateriaOpen(true)
+                }}
                 className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors border-t border-gray-100"
+              >
+                <Battery className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>Gerador de Baterias</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setIsModalNovoCarregadorOpen(true)}
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors"
               >
                 <Zap className="w-4 h-4 text-[#047857] shrink-0" />
                 <span>Nova proposta Carregador</span>
@@ -938,6 +966,15 @@ export const Orcamentos: React.FC = () => {
       {/* Conteúdo Dinâmico por Aba */}
       {abaAtivaHub === 'om' ? (
         <AbaPropostasOM filtroStatusExterno={filtroStatusOM} />
+      ) : abaAtivaHub === 'baterias' ? (
+        <AbaPropostasBaterias
+          clientes={clientes}
+          negocios={negociosList}
+          onAbrirGeradorBateria={(orc) => {
+            setBateriaParaEdicao(orc || null)
+            setIsModalBateriaOpen(true)
+          }}
+        />
       ) : abaAtivaHub === 'carregadores' ? (
         <AbaPropostasCarregadores />
       ) : (
@@ -1623,6 +1660,17 @@ export const Orcamentos: React.FC = () => {
       <ModalGerarPropostaCarregador
         open={isModalNovoCarregadorOpen}
         onOpenChange={setIsModalNovoCarregadorOpen}
+      />
+
+      <ModalGeradorBateria
+        open={isModalBateriaOpen}
+        onClose={() => {
+          setIsModalBateriaOpen(false)
+          setBateriaParaEdicao(null)
+        }}
+        clientes={clientes}
+        negocios={negociosList}
+        orcamentoParaEdicao={bateriaParaEdicao}
       />
 
       {/* Modal Selecionar Cliente para Novo Contrato O&M no Hub de Propostas */}

@@ -1503,6 +1503,114 @@ export interface PropostaOM extends RecordModel {
 }
 
 // -------------------------------------------------------------
+// Tipos para Orçamentos / Propostas de Baterias (Armazenamento)
+// -------------------------------------------------------------
+
+export type BateriaOrcamentoStatus =
+  | 'Em elaboração'
+  | 'Enviado ao cliente'
+  | 'Aprovado'
+  | 'Rejeitado'
+
+export type BateriaTipoAplicacao = 'backup' | 'peak_shaving' | 'autoconsumo' | 'off_grid'
+
+export type BateriaTecnologia = 'lifepo4' | 'litio_nmc' | 'chumbo_carbono' | 'outra'
+
+export interface BateriaOrcamento extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  numero_proposta?: string
+  cliente_id: string
+  negocio_id?: string
+  data_orcamento?: string
+  validade_dias?: number
+  status: BateriaOrcamentoStatus
+  numero_revisao?: number
+  autor?: string
+  tipo_cliente?: string
+
+  // Dimensionamento do Sistema de Baterias
+  tipo_aplicacao?: BateriaTipoAplicacao | string
+  capacidade_kwh?: number
+  capacidade_util_kwh?: number
+  potencia_inversor_kw?: number
+  tensao_banco_v?: number
+  autonomia_horas?: number
+  consumo_critico_kwh_dia?: number
+  tipo_bateria?: BateriaTecnologia | string
+  profundidade_descarga_dod?: number
+  ciclos_vida_estimados?: number
+
+  // Equipamentos e Fornecedor
+  marca_bateria?: string
+  modelo_bateria?: string
+  quantidade_baterias?: number
+  marca_inversor_carregador?: string
+  modelo_inversor_carregador?: string
+  fornecedor_selecionado_id?: string
+  equipamento_id?: string
+
+  // Formação de Custos (padrão Delfos Solar)
+  custo_materiais_equipamentos?: number
+  custo_materiais_extras?: number
+  custo_mao_de_obra?: number
+  custo_risco_engenharia?: number
+  custo_frete_guincho?: number
+  custo_subestacao?: number
+  custo_terceirizacao?: number
+  custo_marketing_combustivel?: number
+  custo_administracao?: number
+  custo_comissao_comercial?: number
+  custo_indicacao?: number
+  custo_impostos?: number
+  opcao_imposto?: number
+  desconto?: number
+  desconto_percentual?: number
+  percentual_administracao_auto?: number
+  percentual_indicacao_auto?: number
+  manual_administracao?: boolean
+  manual_comissao?: boolean
+  manual_indicacao?: boolean
+  valor_manual_administracao?: number
+  valor_manual_comissao?: number
+  valor_manual_indicacao?: number
+  valor_total_custos?: number
+  valor_investimento?: number
+
+  // Condições de Pagamento e Financiamento
+  condicoes_pagamento?: string
+  parcela_a_vista?: number
+  parcelas_cartao?: number
+  juros_cartao?: number
+  entrada_cartao?: number
+  parcela_cartao?: number
+  parcelas_financiamento?: number
+  juros_financiamento?: number
+  entrada_financiamento?: number
+  parcela_financiamento?: number
+
+  // Garantias e Prazos
+  garantia_baterias_anos?: number
+  garantia_inversor_anos?: number
+  garantia_instalacao_anos?: number
+  prazo_instalacao_dias?: number
+
+  // Metadados / JSON
+  observacoes?: string
+  conteudo_proposta?: Record<string, unknown>
+  dados_json?: Record<string, unknown>
+
+  created: string
+  updated: string
+
+  expand?: {
+    cliente_id?: Cliente
+    negocio_id?: Negocio
+  }
+}
+
+// -------------------------------------------------------------
 // Tipos para Orçamentos de Energia Solar Fotovoltaica
 // -------------------------------------------------------------
 
