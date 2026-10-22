@@ -28,48 +28,44 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
+}
+
+export function isAbortError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
     const errObj = error as Record<string, unknown>
-    const status =
-      errObj.status ??
-      (errObj.response as Record<string, unknown> | undefined)?.status ??
-      errObj.statusCode
-    if (status === 401 || status === 403) return true
-    const message = typeof errObj.message === 'string' ? errObj.message : ''
-    if (
-      message.includes('Token is expired') ||
-      message.includes('Failed to authenticate') ||
-      message.includes('Login expirou') ||
-      message.includes('Sessão expirada')
-    ) {
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
+    if (typeof errObj.message === 'string' && /aborted|autocancel/i.test(errObj.message))
       return true
-    }
-  }
-  if (error instanceof Error) {
-    const msg = error.message
-    if (
-      msg.includes('Token is expired') ||
-      msg.includes('Failed to authenticate') ||
-      msg.includes('Login expirou') ||
-      msg.includes('Sessão expirada')
-    ) {
-      return true
-    }
   }
   return false
 }
 
-export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const errObj = error as Record<string, unknown>
-  if (errObj.isAbort === true) return true
-  if (errObj.name === 'AbortError') return true
-  const msg = typeof errObj.message === 'string' ? errObj.message : ''
-  return msg.includes('autocancelled') || msg.includes('aborted')
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response && typeof errObj.response === 'object') {
+      const resp = errObj.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('invalid token') ||
+        msg.includes('login expirou') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('failed to authenticate')
+      ) {
+        return true
+      }
+    }
+  }
+  return false
 }
