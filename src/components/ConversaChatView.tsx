@@ -36,7 +36,12 @@ import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } fr
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { aplicarPrefixoMensagemManual, removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
-import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
+import {
+  formatDateTime,
+  formatCurrency,
+  formatWhatsAppPhone,
+  isWhatsAppLid,
+} from '@/lib/formatters'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
 import { compararTelefonesFlexivel } from '@/lib/reconhecimentoRemetenteWhatsApp'
 import { GravadorAudioWhatsApp } from '@/components/GravadorAudioWhatsApp'
@@ -565,7 +570,9 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     if (contatoAdicionalCorrespondente?.nome) {
       return contatoAdicionalCorrespondente.nome
     }
-    return cliente?.nome || formatWhatsAppPhone(conversa.numero)
+    if (cliente?.nome) return cliente.nome
+    if (isWhatsAppLid(conversa.numero)) return 'Número oculto pelo WhatsApp (LID)'
+    return formatWhatsAppPhone(conversa.numero)
   }, [contatoAdicionalCorrespondente, cliente, conversa.numero])
 
   // Status visual / online do cabeçalho WhatsApp
@@ -770,7 +777,14 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                 </button>
 
                 <div className="px-3.5 py-1.5 text-[11px] text-gray-400 border-t border-gray-100 mt-1">
-                  Número: {formatWhatsAppPhone(conversa.numero)}
+                  Número:{' '}
+                  {isWhatsAppLid(conversa.numero) ? (
+                    <span className="text-amber-700 font-medium">
+                      Número oculto pelo WhatsApp (LID)
+                    </span>
+                  ) : (
+                    formatWhatsAppPhone(conversa.numero)
+                  )}
                 </div>
               </div>
             )}

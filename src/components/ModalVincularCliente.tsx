@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type { Cliente, WhatsAppConversa, ContatoAdicional } from '@/types/crm'
-import { formatWhatsAppPhone } from '@/lib/formatters'
+import { formatWhatsAppPhone, isWhatsAppLid } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   casarRemetenteComContatos,
@@ -169,7 +169,13 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
               <p className="text-xs text-gray-500 mt-0.5">
                 Associando número{' '}
                 <span className="font-mono font-bold text-emerald-700">
-                  {formatWhatsAppPhone(conversa.numero)}
+                  {isWhatsAppLid(conversa.numero) ? (
+                    <span className="text-amber-800 font-sans font-medium">
+                      Número oculto pelo WhatsApp (LID)
+                    </span>
+                  ) : (
+                    formatWhatsAppPhone(conversa.numero)
+                  )}
                 </span>
               </p>
             </div>

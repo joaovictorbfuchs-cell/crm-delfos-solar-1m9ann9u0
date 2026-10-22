@@ -27,15 +27,12 @@ function ensureConversaForMessage(app, clienteId, telefoneDestino, previewTexto,
     }
 
     // 2. Se não achou por cliente_id e temos dígitos do telefone, buscar por número com tolerância ao 9º dígito
-    if (!conversaRecord && last8) {
+    // Se for LID (14 dígitos iniciado por 24), NÃO buscar por last8 para não colidir com número real
+    const isLid = cleanPhone.length === 14 && cleanPhone.startsWith('24')
+    if (!conversaRecord && cleanPhone) {
       try {
-        const phoneConvs = app.findRecordsByFilter(
-          convCol.id,
-          `numero ~ '${last8}'`,
-          '-updated',
-          10,
-          0,
-        )
+        const filterPhone = isLid ? `numero = '${cleanPhone}'` : `numero ~ '${last8}'`
+        const phoneConvs = app.findRecordsByFilter(convCol.id, filterPhone, '-updated', 10, 0)
         if (phoneConvs && phoneConvs.length > 0) {
           // Prioridade para casamento exato dos dígitos essenciais
           for (let i = 0; i < phoneConvs.length; i++) {
@@ -49,7 +46,7 @@ function ensureConversaForMessage(app, clienteId, telefoneDestino, previewTexto,
               break
             }
           }
-          if (!conversaRecord) {
+          if (!conversaRecord && !isLid) {
             conversaRecord = phoneConvs[0]
           }
         }

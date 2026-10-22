@@ -91,10 +91,26 @@ export function formatDateTime(dateString: string | undefined | null): string {
  */
 export const formatarDataHora = formatDateTime
 
+/**
+ * Detecta se o identificador recebido é um LID (Linked Device Identifier) do WhatsApp.
+ * LIDs são identificadores de 14 dígitos iniciados em 24 gerados quando o remetente oculta o número real.
+ * Exemplo real: "24446987407395".
+ */
+export function isWhatsAppLid(phone: string | undefined | null): boolean {
+  if (!phone) return false
+  const digits = phone.replace(/\D/g, '')
+  return digits.length === 14 && digits.startsWith('24')
+}
+
 export function formatWhatsAppPhone(phone: string | undefined | null): string {
   if (!phone) return ''
   let digits = phone.replace(/\D/g, '')
   if (digits.length === 0) return ''
+
+  // Identificador LID do WhatsApp (número oculto pelo remetente)
+  if (isWhatsAppLid(digits)) {
+    return 'Número oculto pelo WhatsApp (LID)'
+  }
 
   // Se o número começar com "55" e tiver 12 ou 13 dígitos no total, remover o DDI Brasil (55)
   if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {

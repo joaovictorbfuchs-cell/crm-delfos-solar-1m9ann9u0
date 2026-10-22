@@ -232,5 +232,16 @@ describe('Reconhecimento flexível de remetente WhatsApp', () => {
       expect(res.status).toBe('nenhum')
       expect(res.candidatosCompativeis).toHaveLength(0)
     })
+
+    it('deve retornar status "nenhum" e lista vazia para identificadores LID (14 dígitos iniciados em 24)', () => {
+      // Exemplo real de LID recebido via Z-API: "24446987407395"
+      const resLid = casarRemetenteComContatos(
+        '24446987407395',
+        clientesBase,
+        contatosAdicionaisBase,
+      )
+      expect(resLid.status).toBe('nenhum')
+      expect(resLid.candidatosCompativeis).toHaveLength(0)
+    })
   })
 })

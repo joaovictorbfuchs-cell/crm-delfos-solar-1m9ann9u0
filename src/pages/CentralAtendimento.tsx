@@ -49,7 +49,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { MoreVertical, UserCheck, Building2 } from 'lucide-react'
-import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
+import { formatWhatsAppPhone, cleanPhoneDigits, isWhatsAppLid } from '@/lib/formatters'
 import { fetchOutrosContatos, createWhatsAppConversa } from '@/services/crmService'
 import { fetchContatosUnicos } from '@/services/contatosService'
 import {
@@ -293,7 +293,7 @@ export const CentralAtendimento: React.FC = () => {
   // 2. Em Atendimento: status === 'em_atendimento' || status === 'aguardando_cliente'
   // Resolução do nome do contato por telefone (contato adicional prioritário quando houver correspondência)
   const getNomeExibicaoConversa = (conv: WhatsAppConversa, cli?: Cliente | null) => {
-    if (conv.numero) {
+    if (conv.numero && !isWhatsAppLid(conv.numero)) {
       const safeContatos = Array.isArray(contatosAdicionais) ? contatosAdicionais : []
       const cliIdAlvo = conv.cliente_id || (cli ? cli.id : null)
 
@@ -318,7 +318,9 @@ export const CentralAtendimento: React.FC = () => {
       }
     }
 
-    return cli ? cli.nome : formatWhatsAppPhone(conv.numero)
+    if (cli) return cli.nome
+    if (isWhatsAppLid(conv.numero)) return 'Número oculto pelo WhatsApp (LID)'
+    return formatWhatsAppPhone(conv.numero)
   }
 
   // 3. Resolvidos: status === 'resolvido' (finalizadas nas últimas 24 horas, ou resolvidas recentemente)
@@ -558,6 +560,7 @@ export const CentralAtendimento: React.FC = () => {
         c.status === 'novo' &&
         !c.cliente_id &&
         c.numero &&
+        !isWhatsAppLid(c.numero) &&
         !autoVincularProcessadasRef.current.has(c.id),
     )
 
@@ -1343,7 +1346,13 @@ export const CentralAtendimento: React.FC = () => {
                                 {getNomeExibicaoConversa(conv, cli)}
                               </div>
                               <div className="text-[10px] text-gray-500 font-mono">
-                                {formatWhatsAppPhone(conv.numero)}
+                                {isWhatsAppLid(conv.numero) ? (
+                                  <span className="text-amber-800 font-sans font-medium text-[10px]">
+                                    Número oculto pelo WhatsApp (LID)
+                                  </span>
+                                ) : (
+                                  formatWhatsAppPhone(conv.numero)
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1568,7 +1577,13 @@ export const CentralAtendimento: React.FC = () => {
 
                         <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
                           <span className="font-mono text-[10px] text-emerald-800">
-                            {formatWhatsAppPhone(conv.numero)}
+                            {isWhatsAppLid(conv.numero) ? (
+                              <span className="font-sans font-medium text-amber-800">
+                                Número oculto pelo WhatsApp (LID)
+                              </span>
+                            ) : (
+                              formatWhatsAppPhone(conv.numero)
+                            )}
                           </span>
 
                           <span className="capitalize text-[10px] font-semibold text-emerald-700">
@@ -1627,7 +1642,13 @@ export const CentralAtendimento: React.FC = () => {
                               {getNomeExibicaoConversa(conv, cli)}
                             </div>
                             <div className="text-[10px] text-gray-500 font-mono">
-                              {formatWhatsAppPhone(conv.numero)}
+                              {isWhatsAppLid(conv.numero) ? (
+                                <span className="font-sans font-medium text-amber-800">
+                                  Número oculto pelo WhatsApp (LID)
+                                </span>
+                              ) : (
+                                formatWhatsAppPhone(conv.numero)
+                              )}
                             </div>
                           </div>
 

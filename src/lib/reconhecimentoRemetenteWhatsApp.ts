@@ -333,6 +333,17 @@ export function casarRemetenteComContatos(
   clientes: EntidadeClienteParaCasamento[],
   contatosAdicionais: EntidadeContatoAdicionalParaCasamento[] = [],
 ): ResultadoCasamentoRemetente {
+  // LIDs de WhatsApp (14 dígitos iniciados em 24): número oculto pelas preferências de privacidade.
+  // Não contém número real e nunca deve casar automaticamente com nenhum cliente.
+  const rawDigits = (numeroRecebido || '').replace(/\D/g, '')
+  if (rawDigits.length === 14 && rawDigits.startsWith('24')) {
+    return {
+      status: 'nenhum',
+      candidatosCompativeis: [],
+      numeroRecebidoNormalizado: rawDigits,
+    }
+  }
+
   const normRecebido = normalizarNumeroWhatsApp(numeroRecebido)
   if (!normRecebido) {
     return {

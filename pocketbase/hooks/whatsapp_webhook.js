@@ -21,11 +21,11 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       return e.json(200, { ok: true, ignored: true, reason: 'from_me' })
     }
 
-    // Extrair telefone do remetente
-    // Z-API manda `phone` (ex: "5544999999999" ou "554499999999") ou `connectedPhone`
-    const rawPhone = (body.phone || body.connectedPhone || body.sender || '').toString().trim()
-    if (!rawPhone) {
-      return e.json(200, { ok: true, ignored: true, reason: 'phone_not_found' })
+    // Função auxiliar para detecção de LID (14 dígitos iniciado por 24, ex: "24446987407395")
+    function isWhatsAppLid(val) {
+      if (!val) return false
+      const d = val.toString().split('@')[0].split(':')[0].replace(/\D/g, '')
+      return d.length === 14 && d.startsWith('24')
     }
 
     // Normalizar telefone com regras flexíveis de DDI, prefixo e dígitos essenciais
@@ -63,9 +63,75 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       return 'nenhum'
     }
 
-    const normPhone = normalizarTelefoneCru(rawPhone)
+    // Extrair telefone do remetente
+    // Z-API manda `phone` (ex: "5544999999999" ou "554499999999") ou `connectedPhone`
+    // Quando o usuário oculta o número, `phone` vem com o LID (14 dígitos iniciado em 24).
+    // Inspecionar se o payload traz o número real em outros campos alternativos:
+    // senderPhone, phone_real, realPhone, participantPhone, myPhone, sender, authorPhone etc.
+    const rawPhoneOriginal = (body.phone || body.connectedPhone || body.sender || '')
+      .toString()
+      .trim()
+    const candidatosTelefone = [
+      body.senderPhone,
+      body.phone_real,
+      body.realPhone,
+      body.participantPhone,
+      body.participant,
+      body.authorPhone,
+      body.author,
+      body.myPhone,
+      body.userPhone,
+      body.phone,
+      body.connectedPhone,
+      body.sender,
+    ]
+
+    let rawPhone = ''
+    let lidEncontrado = ''
+
+    // Se rawPhoneOriginal for LID, guardá-lo
+    if (isWhatsAppLid(rawPhoneOriginal)) {
+      lidEncontrado = rawPhoneOriginal.replace(/\D/g, '')
+    }
+
+    // 1. Priorizar encontrar número real (que NÃO seja LID)
+    for (let c = 0; c < candidatosTelefone.length; c++) {
+      const cand = (candidatosTelefone[c] || '').toString().trim()
+      if (!cand) continue
+      const candDigits = cand.split('@')[0].split(':')[0].replace(/\D/g, '')
+      if (isWhatsAppLid(candDigits)) {
+        if (!lidEncontrado) lidEncontrado = candDigits
+        continue
+      }
+      // Um número de telefone válido tem entre 8 e 13 dígitos
+      if (candDigits.length >= 8 && candDigits.length <= 13) {
+        rawPhone = cand
+        break
+      }
+    }
+
+    // 2. Se nenhum número real foi encontrado, usar o LID como identificador da conversa
+    if (!rawPhone) {
+      if (lidEncontrado) {
+        rawPhone = lidEncontrado
+      } else if (rawPhoneOriginal) {
+        rawPhone = rawPhoneOriginal
+      }
+    }
+
+    if (!rawPhone) {
+      return e.json(200, { ok: true, ignored: true, reason: 'phone_not_found' })
+    }
+
+    const isLidApenas = isWhatsAppLid(rawPhone)
+    const normPhone = isLidApenas ? '' : normalizarTelefoneCru(rawPhone)
     let cleanPhone = rawPhone.replace(/\D/g, '')
-    if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
+    if (
+      !isLidApenas &&
+      cleanPhone.length >= 10 &&
+      cleanPhone.length <= 11 &&
+      !cleanPhone.startsWith('55')
+    ) {
       cleanPhone = '55' + cleanPhone
     }
 
@@ -379,6 +445,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
 
     // 1. Verificar se existe cliente com esse número (com tolerância ao 9º dígito e busca em contatos_adicionais)
     // Regra:
+    // - Se for apenas LID (isLidApenas === true), NÃO tentar casar automaticamente com nenhum cliente
     // - Casamento com tolerância ao 9º dígito (comparar últimos 8 dígitos + DDD nos dois sentidos: 8 vs 9 e 9 vs 8)
     // - Varrer cliente principal (whatsapp, telefone, telefone_secundario, titular_telefone) e contatos_adicionais
     // - Prioridade ao contato cujo número bater EXATAMENTE
@@ -386,10 +453,15 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     let clienteEncontrado = null
     let candidatosExatos = []
     let candidatosTolerantes = []
-    const last8Digits = normPhone.length >= 8 ? normPhone.slice(-8) : cleanPhone.slice(-8)
+    const last8Digits =
+      !isLidApenas && normPhone.length >= 8
+        ? normPhone.slice(-8)
+        : !isLidApenas && cleanPhone.length >= 8
+          ? cleanPhone.slice(-8)
+          : ''
 
     try {
-      if (last8Digits) {
+      if (!isLidApenas && last8Digits) {
         // A) Buscar clientes principais por fragmento dos últimos 8 dígitos
         const directClients = $app.findRecordsByFilter(
           'clientes',
@@ -504,13 +576,12 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
 
     try {
       // Buscar conversa existente por este número
-      const existingConvs = $app.findRecordsByFilter(
-        convCol.id,
-        `numero = '${cleanPhone}' || numero ~ '${cleanPhone.slice(-8)}'`,
-        '-updated',
-        1,
-        0,
-      )
+      // Se for LID, buscar apenas por igualdade exata de numero para não misturar com celulares reais pelos últimos 8 dígitos
+      const filterBuscaConv = isLidApenas
+        ? `numero = '${cleanPhone}'`
+        : `numero = '${cleanPhone}' || numero ~ '${cleanPhone.slice(-8)}'`
+
+      const existingConvs = $app.findRecordsByFilter(convCol.id, filterBuscaConv, '-updated', 1, 0)
       if (existingConvs && existingConvs.length > 0) {
         conversaRecord = existingConvs[0]
       }
