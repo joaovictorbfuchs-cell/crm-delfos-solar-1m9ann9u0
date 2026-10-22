@@ -124,7 +124,13 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       expect(formatWhatsAppPhone('5435221234')).toBe('(54) 3522-1234')
     })
 
-    it('deve formatar número LID do WhatsApp com aviso de número oculto', () => {
+    it('deve formatar número LID do WhatsApp com aviso de número oculto', async () => {
+      const { isWhatsAppLid } = await import('./formatters')
+      expect(isWhatsAppLid('24446987407395')).toBe(true)
+      expect(isWhatsAppLid('+24 44698740-7395')).toBe(true)
+      expect(isWhatsAppLid('54991234567')).toBe(false)
+      expect(isWhatsAppLid('5554991234567')).toBe(false)
+      expect(isWhatsAppLid(null)).toBe(false)
       expect(formatWhatsAppPhone('24446987407395')).toBe('Número oculto pelo WhatsApp (LID)')
       expect(formatWhatsAppPhone('+24 44698740-7395')).toBe('Número oculto pelo WhatsApp (LID)')
     })

@@ -248,8 +248,16 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-amber-800 leading-relaxed">
-                O número recebido ({formatWhatsAppPhone(conversa.numero)}) coincide com os registros
-                abaixo (considerando DDD, últimos 8 dígitos do celular ou vínculos).
+                O número recebido (
+                {isWhatsAppLid(conversa.numero) ? (
+                  <span className="font-medium text-amber-900">
+                    Número oculto pelo WhatsApp (LID)
+                  </span>
+                ) : (
+                  formatWhatsAppPhone(conversa.numero)
+                )}
+                ) coincide com os registros abaixo (considerando DDD, últimos 8 dígitos do celular
+                ou vínculos).
               </p>
 
               <div className="space-y-1.5 pt-1">
@@ -328,7 +336,15 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
             />
             <p className="text-[11px] text-gray-500">
               Se preenchido, este nome será gravado como contato adicional do cliente associado ao
-              número {formatWhatsAppPhone(conversa.numero)}.
+              número{' '}
+              {isWhatsAppLid(conversa.numero) ? (
+                <span className="font-medium text-amber-800">
+                  Número oculto pelo WhatsApp (LID)
+                </span>
+              ) : (
+                formatWhatsAppPhone(conversa.numero)
+              )}
+              .
             </p>
           </div>
 
