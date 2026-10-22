@@ -2343,8 +2343,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       data_encerramento: undefined,
       observacoes_encerramento: undefined,
       data_vencimento: novoVencimento.toISOString(),
-      proxima_atividade_titulo: `Revisão preventiva semestral - Renovação Plano ${contratoAtual.plano}`,
-      proxima_atividade_data: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     }
 
     const updated = await updateContratoOM(contratoId, updatePayload)

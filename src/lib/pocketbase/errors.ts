@@ -25,5 +25,34 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const err = error as { isAbort?: boolean; name?: string; message?: string }
+  if (err.isAbort === true) return true
+  if (err.name === 'AbortError') return true
+  if (typeof err.message === 'string' && err.message.toLowerCase().includes('abort')) return true
+  return false
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (isAbortError(error)) return false
+  if (!error || typeof error !== 'object') return false
+  const err = error as { status?: number; message?: string; response?: { message?: string } }
+  if (err.status === 401 || err.status === 403) return true
+  const msg = `${err.message || ''} ${err.response?.message || ''}`.toLowerCase()
+  return (
+    msg.includes('token is expired') ||
+    msg.includes('failed to authenticate') ||
+    msg.includes('requires admin') ||
+    msg.includes('the request requires valid') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
+  )
+}
+
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
 }

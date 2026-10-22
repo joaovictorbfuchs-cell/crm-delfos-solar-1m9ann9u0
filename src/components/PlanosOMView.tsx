@@ -90,6 +90,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     servicosAvulsos,
     anomaliasOM,
     openFichaCliente,
+    atividades,
     encerrarContratoOM,
     renovarContratoOM,
   } = useClientes()
@@ -275,18 +276,37 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
           ? 'vencendo_30'
           : 'ativo'
 
-      // Próxima atividade
-      const tipoProximaAtividade =
-        contrato.tipo_proxima_atividade ||
-        (contrato.proxima_atividade_titulo?.toLowerCase().includes('lavagem')
-          ? 'Lavagem'
-          : contrato.proxima_atividade_titulo?.toLowerCase().includes('inspe')
-            ? 'Inspeção'
-            : contrato.proxima_atividade_titulo?.toLowerCase().includes('relat')
-              ? 'Relatório de performance'
-              : 'Inspeção')
+      // Próxima atividade real da coleção atividades
+      // (contrato_id === contrato.id OU cliente_id === contrato.cliente_id,
+      // status != concluida e status != cancelada, ordenada pela data agendada mais próxima)
+      const safeAtividades = Array.isArray(atividades) ? atividades : []
+      const atividadesReais = safeAtividades
+        .filter((a) => {
+          if (!a) return false
+          const pertence =
+            (a.contrato_id && a.contrato_id === contrato.id) ||
+            (a.cliente_id && a.cliente_id === contrato.cliente_id)
+          if (!pertence) return false
+          const st = String(a.status || '')
+            .toLowerCase()
+            .trim()
+          return (
+            st !== 'concluida' &&
+            st !== 'concluído' &&
+            st !== 'concluido' &&
+            st !== 'cancelada' &&
+            st !== 'cancelado'
+          )
+        })
+        .sort((a, b) => {
+          const tA = a.data ? new Date(a.data).getTime() : Infinity
+          const tB = b.data ? new Date(b.data).getTime() : Infinity
+          return tA - tB
+        })
 
-      const dataProxStr = contrato.proxima_atividade_data
+      const proximaReal = atividadesReais[0] || null
+      const tipoProximaAtividade = proximaReal?.titulo || proximaReal?.tipo || '—'
+      const dataProxStr = proximaReal?.data || ''
       let diffDiasProxima: number | null = null
       let isHoje = false
       let isEstaSemana = false
@@ -393,7 +413,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     }
 
     return list
-  }, [safeContratos, safeClientes, safeSistemas, vinculosContratosUsinas])
+  }, [safeContratos, safeClientes, safeSistemas, vinculosContratosUsinas, atividades])
 
   // Contagem de filtros ativos
   const totalFiltrosAtivos = useMemo(() => {
@@ -1159,15 +1179,21 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                       </td>
 
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-emerald-900 flex items-center gap-1">
-                          {tipoProximaAtividade.toLowerCase().includes('lavag') && (
-                            <Droplets className="w-3 h-3 text-sky-600" />
-                          )}
-                          <span>{tipoProximaAtividade}</span>
-                        </div>
-                        <div className="text-[11px] text-gray-500">
-                          {dataProxStr ? formatDate(dataProxStr) : 'Sem data'}
-                        </div>
+                        {tipoProximaAtividade && tipoProximaAtividade !== '—' ? (
+                          <>
+                            <div className="font-semibold text-emerald-900 flex items-center gap-1">
+                              {tipoProximaAtividade.toLowerCase().includes('lavag') && (
+                                <Droplets className="w-3 h-3 text-sky-600" />
+                              )}
+                              <span>{tipoProximaAtividade}</span>
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              {dataProxStr ? formatDate(dataProxStr) : 'Sem data'}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-gray-400 font-medium">—</span>
+                        )}
                       </td>
 
                       <td className="py-3 px-4 whitespace-nowrap">

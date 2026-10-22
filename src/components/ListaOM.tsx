@@ -109,6 +109,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     servicosAvulsos,
     anomaliasOM,
     openFichaCliente,
+    atividades,
     encerrarContratoOM,
     renovarContratoOM,
   } = useClientes()
@@ -1491,24 +1492,61 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                 </div>
               </div>
 
-              {/* Próxima Visita / Atividade */}
-              {contratoParaDetalhes.contrato.proxima_atividade_titulo && (
-                <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 space-y-1">
-                  <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-blue-700" />
-                    Próxima Atividade Técnica Agendada
-                  </span>
-                  <p className="font-semibold text-gray-900">
-                    {contratoParaDetalhes.contrato.proxima_atividade_titulo}
-                  </p>
-                  {contratoParaDetalhes.contrato.proxima_atividade_data && (
-                    <span className="text-[11px] text-blue-700 font-medium block">
-                      Data prevista:{' '}
-                      {formatDate(contratoParaDetalhes.contrato.proxima_atividade_data)}
+              {/* Próxima Visita / Atividade Real da coleção atividades */}
+              {(() => {
+                const safeAtivs = Array.isArray(atividades) ? atividades : []
+                const ativReal = safeAtivs
+                  .filter((a) => {
+                    if (!a) return false
+                    const pertence =
+                      (a.contrato_id && a.contrato_id === contratoParaDetalhes.contrato.id) ||
+                      (a.cliente_id && a.cliente_id === contratoParaDetalhes.cliente.id)
+                    if (!pertence) return false
+                    const st = String(a.status || '')
+                      .toLowerCase()
+                      .trim()
+                    return (
+                      st !== 'concluida' &&
+                      st !== 'concluído' &&
+                      st !== 'concluido' &&
+                      st !== 'cancelada' &&
+                      st !== 'cancelado'
+                    )
+                  })
+                  .sort((a, b) => {
+                    const tA = a.data ? new Date(a.data).getTime() : Infinity
+                    const tB = b.data ? new Date(b.data).getTime() : Infinity
+                    return tA - tB
+                  })[0]
+
+                if (!ativReal) {
+                  return (
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-gray-500 text-[11px]">
+                      <span className="font-bold text-gray-700 block mb-0.5">
+                        Próxima Atividade Técnica Agendada
+                      </span>
+                      <span>Nenhuma atividade agendada</span>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 space-y-1">
+                    <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-blue-700" />
+                      Próxima Atividade Técnica Agendada
                     </span>
-                  )}
-                </div>
-              )}
+                    <p className="font-semibold text-gray-900">
+                      {ativReal.titulo || ativReal.tipo}
+                    </p>
+                    {ativReal.data && (
+                      <span className="text-[11px] text-blue-700 font-medium block">
+                        Data prevista: {formatDate(ativReal.data)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Observações */}
               {contratoParaDetalhes.contrato.observacoes && (
