@@ -1,8 +1,10 @@
 import pb from '@/lib/pocketbase/client'
-import type { ContratoOM, UsinaCliente } from '@/types/crm'
+import type { ContratoOM, UsinaCliente, Sistema } from '@/types/crm'
+
+export type SistemaOuUsina = UsinaCliente | Sistema
 
 export interface TotaisUsinasContrato {
-  usinas: UsinaCliente[]
+  usinas: SistemaOuUsina[]
   quantidadeUsinas: number
   potenciaTotalKwp: number | null
   qtdModulosTotal: number | null
@@ -12,7 +14,7 @@ export interface TotaisUsinasContrato {
 export function calcularTotaisUsinasContrato(
   contratoId: string | undefined,
   clienteId: string | undefined,
-  sistemas: UsinaCliente[],
+  sistemas: SistemaOuUsina[],
   vinculosContratosUsinas: ContratoUsina[],
   fallbackContrato?: {
     potencia_kwp?: number
@@ -29,7 +31,7 @@ export function calcularTotaisUsinasContrato(
     ? listaVinculos.filter((v) => v?.contrato_id === contratoId && v?.ativo !== false)
     : []
 
-  let usinasResolvidas: UsinaCliente[] = []
+  let usinasResolvidas: SistemaOuUsina[] = []
 
   if (vinculosAtivos.length > 0) {
     // Resolve usinas a partir dos vínculos
@@ -37,12 +39,12 @@ export function calcularTotaisUsinasContrato(
       .map((v) => {
         const encontrada = listaSistemas.find((s) => s?.id === v.usina_id)
         if (encontrada) return encontrada
-        if (v.expand?.usina_id && (v.expand.usina_id as unknown as UsinaCliente).id) {
-          return v.expand.usina_id as unknown as UsinaCliente
+        if (v.expand?.usina_id && (v.expand.usina_id as unknown as SistemaOuUsina).id) {
+          return v.expand.usina_id as unknown as SistemaOuUsina
         }
         return null
       })
-      .filter((u): u is UsinaCliente => Boolean(u && u.id))
+      .filter((u): u is SistemaOuUsina => Boolean(u && u.id))
   } else if (contratoId) {
     // Fallback: usinas vinculadas pelo campo contrato_id direto na usina
     usinasResolvidas = listaSistemas.filter((s) => s?.contrato_id === contratoId)
@@ -54,7 +56,7 @@ export function calcularTotaisUsinasContrato(
   }
 
   // Deduplicar usinas por id
-  const usinasUnicas: UsinaCliente[] = []
+  const usinasUnicas: SistemaOuUsina[] = []
   const vistos = new Set<string>()
   for (const u of usinasResolvidas) {
     if (u?.id && !vistos.has(u.id)) {

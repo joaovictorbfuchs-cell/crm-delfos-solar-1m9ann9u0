@@ -277,6 +277,10 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           cliente.dados_importados && Object.keys(cliente.dados_importados).length > 0,
         )
 
+        const primeiraUsina = totaisCliente.usinas[0] || null
+        const dataInstalacaoUsina = (primeiraUsina as Record<string, unknown> | null)
+          ?.data_instalacao as string | undefined
+
         return {
           cliente,
           potenciaKwp: potencia,
@@ -286,7 +290,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           totalServicosAvulsos,
           ultimoServicoAvulso: servicoMaisRecente,
           proximoServicoAgendado,
-          dataInstalacao: sistema?.data_instalacao || cliente.data_instalacao,
+          dataInstalacao: dataInstalacaoUsina || cliente.data_instalacao,
           isContaAzul,
           isImportado,
         }
