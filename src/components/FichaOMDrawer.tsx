@@ -30,6 +30,7 @@ import {
   calcularTotaisUsinasContrato,
   getAllContratosUsinas,
   type ContratoUsina,
+  type SistemaOuUsina,
 } from '@/services/contratosUsinasService'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import type {
@@ -175,23 +176,28 @@ export const FichaOMDrawer: React.FC = () => {
     return contratosOM.find((c) => c.cliente_id === selectedOMClienteId) || null
   }, [contratosOM, selectedOMClienteId])
 
+  const safeSistemas = useMemo<SistemaOuUsina[]>(() => {
+    return Array.isArray(sistemas) ? (sistemas as unknown as SistemaOuUsina[]) : []
+  }, [sistemas])
+
   const totaisUsinas = useMemo(() => {
     if (!selectedOMClienteId || !cliente) return null
     return calcularTotaisUsinasContrato(
       contrato?.id,
       cliente.id,
-      sistemas,
+      safeSistemas,
       vinculosContratosUsinas,
       contrato
         ? {
             potencia_kwp: contrato.potencia_kwp,
             qtd_modulos: contrato.qtd_modulos,
-            geracao_media_mensal_kwh: (contrato as any).geracao_media_mensal_kwh,
+            geracao_media_mensal_kwh: (contrato as { geracao_media_mensal_kwh?: number })
+              .geracao_media_mensal_kwh,
           }
         : undefined,
       cliente,
     )
-  }, [contrato, cliente, sistemas, vinculosContratosUsinas, selectedOMClienteId])
+  }, [contrato, cliente, safeSistemas, vinculosContratosUsinas, selectedOMClienteId])
 
   const sistema = useMemo(() => {
     if (totaisUsinas?.usinas && totaisUsinas.usinas.length > 0) {
