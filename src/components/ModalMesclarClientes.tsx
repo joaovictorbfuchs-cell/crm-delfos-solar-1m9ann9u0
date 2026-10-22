@@ -19,6 +19,7 @@ import {
   Mail,
   Zap,
   Loader2,
+  Pencil,
 } from 'lucide-react'
 import {
   contarVinculosCliente,

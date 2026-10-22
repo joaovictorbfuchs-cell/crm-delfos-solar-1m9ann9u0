@@ -16,6 +16,7 @@ import {
   ATIVIDADES_PADRAO,
   normalizarNomeTipo,
   correspondemAoMesmoTipo,
+  isCategoriaManutencaoOuAdministrativa,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import { toast } from 'sonner'
@@ -66,6 +67,7 @@ import {
   Link2,
   ArrowUp,
   ArrowDown,
+  Sun,
 } from 'lucide-react'
 
 // Ícones disponíveis para seleção no tipo de atividade
