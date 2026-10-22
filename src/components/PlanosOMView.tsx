@@ -20,9 +20,15 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
+import { Badge } from '@/components/ui/badge'
 import type { ContratoOM, Cliente } from '@/types/crm'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
+import {
+  calcularTotaisUsinasContrato,
+  getAllContratosUsinas,
+  type ContratoUsina,
+} from '@/services/contratosUsinasService'
 import { toast } from 'sonner'
 
 export interface FiltrosPlanosOMState {
@@ -128,6 +134,21 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   } | null>(null)
   const [isExcluindo, setIsExcluindo] = useState(false)
   const { deleteContratoOM } = useClientes()
+  const [vinculosContratosUsinas, setVinculosContratosUsinas] = useState<ContratoUsina[]>([])
+
+  useEffect(() => {
+    let montado = true
+    getAllContratosUsinas()
+      .then((dados) => {
+        if (montado && Array.isArray(dados)) {
+          setVinculosContratosUsinas(dados)
+        }
+      })
+      .catch((err) => console.warn('Erro ao carregar vinculos contratos usinas:', err))
+    return () => {
+      montado = false
+    }
+  }, [])
 
   const handleConfirmarExclusao = async () => {
     if (!contratoParaExcluir) return
@@ -165,6 +186,8 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
       valorMensal: number
       potenciaKwp: number
       qtdModulos: number
+      geracaoEstimadaMensalKwh: number | null
+      quantidadeUsinas: number
       areaTelhado: number
       diasRestantesVencimento: number | null
       validadeCategoria: 'ativo' | 'vencendo_30' | 'vencido'
@@ -196,37 +219,37 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
           estado: 'RS',
         } as Cliente)
 
-      // Busca prioritária da usina vinculada:
-      // 1. Pelo contrato_id direto na usina (ex.: usina vinculada ao contrato)
-      // 2. Por cliente_id
-      const usinaVinculada =
-        safeSistemas.find((s) => s?.contrato_id === contrato.id) ||
-        safeSistemas.find((s) => s?.cliente_id === cliente?.id)
+      // Somatório de todas as usinas do contrato via calcularTotaisUsinasContrato
+      const totais = calcularTotaisUsinasContrato(
+        contrato.id,
+        cliente?.id,
+        safeSistemas,
+        vinculosContratosUsinas,
+        {
+          potencia_kwp: contrato.potencia_kwp,
+          qtd_modulos: contrato.qtd_modulos,
+          geracao_media_mensal_kwh: (contrato as any).geracao_media_mensal_kwh,
+        },
+        cliente,
+      )
+
+      const usinaVinculada = totais.usinas[0] || null
       const sistema = usinaVinculada
 
-      // Potência: usina vinculada recalculada -> contrato -> cliente
+      // Potência total somada das usinas vinculadas (com fallbacks)
       const potenciaKwp =
-        ((usinaVinculada?.potencia_total_kwp !== undefined &&
-        Number(usinaVinculada.potencia_total_kwp) > 0
-          ? Number(usinaVinculada.potencia_total_kwp)
-          : null) ??
-          (contrato.potencia_kwp !== undefined && Number(contrato.potencia_kwp) > 0
-            ? Number(contrato.potencia_kwp)
-            : null) ??
-          Number(cliente?.potencia_kwp)) ||
-        6.6
+        totais.potenciaTotalKwp !== null && totais.potenciaTotalKwp > 0
+          ? totais.potenciaTotalKwp
+          : 6.6
 
-      // Quantidade de placas: usina vinculada recalculada -> contrato -> cliente -> cálculo estimado
+      // Quantidade total de placas somadas (com fallbacks)
       const qtdModulos =
-        ((usinaVinculada?.quantidade_modulos !== undefined &&
-        Number(usinaVinculada.quantidade_modulos) > 0
-          ? Number(usinaVinculada.quantidade_modulos)
-          : null) ??
-          (contrato.qtd_modulos !== undefined && Number(contrato.qtd_modulos) > 0
-            ? Number(contrato.qtd_modulos)
-            : null) ??
-          Number(cliente?.placas_qtd)) ||
-        Math.max(4, Math.round(potenciaKwp / 0.55))
+        totais.qtdModulosTotal !== null && totais.qtdModulosTotal > 0
+          ? totais.qtdModulosTotal
+          : Math.max(4, Math.round(potenciaKwp / 0.55))
+
+      const geracaoEstimadaMensalKwh = totais.geracaoEstimadaMensalKwh
+      const quantidadeUsinas = totais.quantidadeUsinas
 
       // Área do telhado estimada
       const areaTelhado =
@@ -347,6 +370,8 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         valorMensal,
         potenciaKwp,
         qtdModulos,
+        geracaoEstimadaMensalKwh,
+        quantidadeUsinas,
         areaTelhado,
         diasRestantesVencimento,
         validadeCategoria,
@@ -368,7 +393,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     }
 
     return list
-  }, [safeContratos, safeClientes, safeSistemas])
+  }, [safeContratos, safeClientes, safeSistemas, vinculosContratosUsinas])
 
   // Contagem de filtros ativos
   const totalFiltrosAtivos = useMemo(() => {
@@ -1107,9 +1132,16 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                       </td>
 
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="font-bold text-gray-900 flex items-center gap-1">
-                          <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                          <span>{potenciaKwp > 0 ? `${potenciaKwp} kWp` : '—'}</span>
+                        <div className="font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1">
+                            <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                            <span>{potenciaKwp > 0 ? `${potenciaKwp} kWp` : '—'}</span>
+                          </div>
+                          {item.quantidadeUsinas > 1 && (
+                            <Badge variant="outline" className="text-[10px] font-semibold">
+                              {item.quantidadeUsinas} usinas
+                            </Badge>
+                          )}
                         </div>
                         {areaTelhado > 0 && null}
                       </td>

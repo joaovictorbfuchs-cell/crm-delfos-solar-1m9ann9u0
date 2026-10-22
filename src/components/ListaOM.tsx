@@ -40,6 +40,7 @@ import {
 import { type DestinatarioMensagemMassa } from '@/components/ModalMensagemWhatsAppMassa'
 import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
 import { PlanosOMView } from '@/components/PlanosOMView'
+import { Badge } from '@/components/ui/badge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import type {
@@ -50,6 +51,11 @@ import type {
   OMMotivoEncerramento,
 } from '@/types/crm'
 import { categorizarClienteOM, calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
+import {
+  calcularTotaisUsinasContrato,
+  getAllContratosUsinas,
+  type ContratoUsina,
+} from '@/services/contratosUsinasService'
 import { ModalRegistrarServicoAvulso } from '@/components/ModalRegistrarServicoAvulso'
 import { SecaoContratoUsinas } from './SecaoContratoUsinas'
 import {
@@ -168,10 +174,29 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   )
   const [obsEncerramento, setObsEncerramento] = useState('')
 
+  const [vinculosContratosUsinas, setVinculosContratosUsinas] = useState<ContratoUsina[]>([])
+
+  React.useEffect(() => {
+    let montado = true
+    getAllContratosUsinas()
+      .then((dados) => {
+        if (montado && Array.isArray(dados)) {
+          setVinculosContratosUsinas(dados)
+        }
+      })
+      .catch((err) => console.warn('Erro ao carregar vínculos contratos usinas em ListaOM:', err))
+    return () => {
+      montado = false
+    }
+  }, [])
+
   const [contratoParaDetalhes, setContratoParaDetalhes] = useState<{
     contrato: ContratoOM
     cliente: Cliente
     potenciaKwp: number
+    qtdModulos?: number | null
+    geracaoEstimadaMensalKwh?: number | null
+    quantidadeUsinas?: number
   } | null>(null)
 
   // Fallbacks seguros para coleções do ClientesContext
@@ -199,8 +224,18 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     return safeClientes
       .map((cliente) => {
         if (!cliente?.id) return null
-        const sistema = safeSistemas.find((s) => s?.cliente_id === cliente.id)
-        const potencia = Number(sistema?.potencia_total_kwp ?? cliente?.potencia_kwp) || 0
+        const totaisCliente = calcularTotaisUsinasContrato(
+          undefined,
+          cliente.id,
+          safeSistemas,
+          vinculosContratosUsinas,
+          undefined,
+          cliente,
+        )
+        const potencia =
+          totaisCliente.potenciaTotalKwp !== null && totaisCliente.potenciaTotalKwp > 0
+            ? totaisCliente.potenciaTotalKwp
+            : Number(cliente?.potencia_kwp) || 0
 
         const { categoria, ultimoServicoAvulso, isPosVenda } = categorizarClienteOM(
           cliente.id,
@@ -276,6 +311,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     safeServicosAdicionais,
     safeAnomalias,
     safeServicosAvulsos,
+    vinculosContratosUsinas,
   ])
 
   // Contagens para os filtros de pós-vendas
@@ -1380,10 +1416,41 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   <span className="text-[10px] text-gray-400 uppercase font-semibold block">
                     Potência da Usina
                   </span>
-                  <span className="text-sm font-extrabold text-amber-600 flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5 fill-amber-500" />
-                    {contratoParaDetalhes.potenciaKwp > 0
-                      ? `${contratoParaDetalhes.potenciaKwp} kWp`
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-extrabold text-amber-600 flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 fill-amber-500" />
+                      {contratoParaDetalhes.potenciaKwp > 0
+                        ? `${contratoParaDetalhes.potenciaKwp} kWp`
+                        : '—'}
+                    </span>
+                    {contratoParaDetalhes.quantidadeUsinas &&
+                      contratoParaDetalhes.quantidadeUsinas > 1 && (
+                        <Badge variant="outline" className="text-[10px] font-semibold">
+                          {contratoParaDetalhes.quantidadeUsinas} usinas
+                        </Badge>
+                      )}
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Nº de Placas
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-800">
+                    {contratoParaDetalhes.qtdModulos && contratoParaDetalhes.qtdModulos > 0
+                      ? `${contratoParaDetalhes.qtdModulos} módulos`
+                      : '—'}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Geração Estimada
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-800">
+                    {contratoParaDetalhes.geracaoEstimadaMensalKwh &&
+                    contratoParaDetalhes.geracaoEstimadaMensalKwh > 0
+                      ? `${contratoParaDetalhes.geracaoEstimadaMensalKwh} kWh/mês`
                       : '—'}
                   </span>
                 </div>

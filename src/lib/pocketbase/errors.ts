@@ -1,5 +1,53 @@
 import { ClientResponseError } from 'pocketbase'
 
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const obj = err as Record<string, unknown>
+    if (
+      obj.status === 401 ||
+      obj.status === 403 ||
+      obj.statusCode === 401 ||
+      obj.statusCode === 403
+    ) {
+      return true
+    }
+    const response = obj.response as Record<string, unknown> | undefined
+    if (response && (response.status === 401 || response.status === 403)) {
+      return true
+    }
+  }
+  const msg =
+    err instanceof Error
+      ? err.message
+      : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : String(err)
+  const lower = msg.toLowerCase()
+  return (
+    lower.includes('token is expired') ||
+    lower.includes('login expirou') ||
+    lower.includes('sessão expirada') ||
+    lower.includes('failed to authenticate') ||
+    lower.includes('failed to refresh')
+  )
+}
+
+export function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const obj = err as Record<string, unknown>
+    if (obj.isAbort === true) return true
+    if (obj.name === 'AbortError') return true
+  }
+  return false
+}
+
+export function formatPbError(error: unknown, fallback = 'Erro na operação'): string {
+  const msg = getErrorMessage(error)
+  return msg && msg !== 'An unexpected error occurred.' ? msg : fallback
+}
+
 export type FieldErrors = Record<string, string>
 
 export function extractFieldErrors(error: unknown): FieldErrors {
@@ -26,46 +74,4 @@ export function getErrorMessage(error: unknown): string {
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.isAbort === true) return true
-    if (errObj.name === 'AbortError') return true
-    if (typeof errObj.message === 'string' && /aborted|autocancel/i.test(errObj.message))
-      return true
-  }
-  return false
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (errObj.response && typeof errObj.response === 'object') {
-      const resp = errObj.response as Record<string, unknown>
-      if (resp.status === 401 || resp.status === 403) return true
-    }
-    if (typeof errObj.message === 'string') {
-      const msg = errObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('invalid token') ||
-        msg.includes('login expirou') ||
-        msg.includes('sessão expirada') ||
-        msg.includes('failed to authenticate')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
 }

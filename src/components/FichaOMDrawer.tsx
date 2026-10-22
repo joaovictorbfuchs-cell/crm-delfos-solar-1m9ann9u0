@@ -25,6 +25,12 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { SecaoContratoUsinas } from './SecaoContratoUsinas'
+import { Badge } from '@/components/ui/badge'
+import {
+  calcularTotaisUsinasContrato,
+  getAllContratosUsinas,
+  type ContratoUsina,
+} from '@/services/contratosUsinasService'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import type {
   OMAnomaliaEtapa,
@@ -146,15 +152,54 @@ export const FichaOMDrawer: React.FC = () => {
     return clientes.find((c) => c.id === selectedOMClienteId) || null
   }, [clientes, selectedOMClienteId])
 
-  const sistema = useMemo(() => {
-    if (!selectedOMClienteId) return null
-    return sistemas.find((s) => s.cliente_id === selectedOMClienteId) || null
-  }, [sistemas, selectedOMClienteId])
+  const [vinculosContratosUsinas, setVinculosContratosUsinas] = useState<ContratoUsina[]>([])
+
+  React.useEffect(() => {
+    let montado = true
+    getAllContratosUsinas()
+      .then((dados) => {
+        if (montado && Array.isArray(dados)) {
+          setVinculosContratosUsinas(dados)
+        }
+      })
+      .catch((err) =>
+        console.warn('Erro ao carregar vínculos contratos usinas em FichaOMDrawer:', err),
+      )
+    return () => {
+      montado = false
+    }
+  }, [])
 
   const contrato = useMemo(() => {
     if (!selectedOMClienteId) return null
     return contratosOM.find((c) => c.cliente_id === selectedOMClienteId) || null
   }, [contratosOM, selectedOMClienteId])
+
+  const totaisUsinas = useMemo(() => {
+    if (!selectedOMClienteId || !cliente) return null
+    return calcularTotaisUsinasContrato(
+      contrato?.id,
+      cliente.id,
+      sistemas,
+      vinculosContratosUsinas,
+      contrato
+        ? {
+            potencia_kwp: contrato.potencia_kwp,
+            qtd_modulos: contrato.qtd_modulos,
+            geracao_media_mensal_kwh: (contrato as any).geracao_media_mensal_kwh,
+          }
+        : undefined,
+      cliente,
+    )
+  }, [contrato, cliente, sistemas, vinculosContratosUsinas, selectedOMClienteId])
+
+  const sistema = useMemo(() => {
+    if (totaisUsinas?.usinas && totaisUsinas.usinas.length > 0) {
+      return totaisUsinas.usinas[0]
+    }
+    if (!selectedOMClienteId) return null
+    return sistemas.find((s) => s.cliente_id === selectedOMClienteId) || null
+  }, [totaisUsinas, sistemas, selectedOMClienteId])
 
   const propostaAprovada = useMemo(() => {
     if (!selectedOMClienteId) return null
@@ -333,7 +378,28 @@ export const FichaOMDrawer: React.FC = () => {
     setModalNovoAdicional(false)
   }
 
-  const potenciaExibida = sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0
+  const potenciaExibida =
+    totaisUsinas?.potenciaTotalKwp !== null &&
+    totaisUsinas?.potenciaTotalKwp !== undefined &&
+    totaisUsinas.potenciaTotalKwp > 0
+      ? totaisUsinas.potenciaTotalKwp
+      : (sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0)
+
+  const modulosExibidos =
+    totaisUsinas?.qtdModulosTotal !== null &&
+    totaisUsinas?.qtdModulosTotal !== undefined &&
+    totaisUsinas.qtdModulosTotal > 0
+      ? totaisUsinas.qtdModulosTotal
+      : (sistema?.quantidade_modulos ?? cliente.placas_qtd ?? null)
+
+  const geracaoEstimadaExibida =
+    totaisUsinas?.geracaoEstimadaMensalKwh !== null &&
+    totaisUsinas?.geracaoEstimadaMensalKwh !== undefined &&
+    totaisUsinas.geracaoEstimadaMensalKwh > 0
+      ? totaisUsinas.geracaoEstimadaMensalKwh
+      : null
+
+  const quantidadeUsinas = totaisUsinas?.quantidadeUsinas ?? 0
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -374,9 +440,16 @@ export const FichaOMDrawer: React.FC = () => {
                   {cliente.cidade || 'Erechim/RS'}
                 </span>
                 <span>•</span>
-                <span className="flex items-center gap-1 font-semibold text-emerald-700">
-                  <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                  {potenciaExibida > 0 ? `${potenciaExibida} kWp` : 'Potência n/d'}
+                <span className="flex items-center gap-1.5 font-semibold text-emerald-700 flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                    {potenciaExibida > 0 ? `${potenciaExibida} kWp` : 'Potência n/d'}
+                  </span>
+                  {quantidadeUsinas > 1 && (
+                    <Badge variant="outline" className="text-[10px] font-semibold">
+                      {quantidadeUsinas} usinas
+                    </Badge>
+                  )}
                 </span>
               </div>
             </div>
@@ -576,9 +649,16 @@ export const FichaOMDrawer: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div className="p-3 rounded-lg bg-gray-50 border border-gray-100">
                     <span className="text-gray-400 block">Potência Pico</span>
-                    <span className="font-bold text-gray-800 text-sm">
-                      {potenciaExibida > 0 ? `${potenciaExibida} kWp` : 'n/d'}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-gray-800 text-sm">
+                        {potenciaExibida > 0 ? `${potenciaExibida} kWp` : 'n/d'}
+                      </span>
+                      {quantidadeUsinas > 1 && (
+                        <Badge variant="outline" className="text-[10px] font-semibold">
+                          {quantidadeUsinas} usinas
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="p-3 rounded-lg bg-gray-50 border border-gray-100">
                     <span className="text-gray-400 block">Inversor</span>
@@ -589,13 +669,17 @@ export const FichaOMDrawer: React.FC = () => {
                   <div className="p-3 rounded-lg bg-gray-50 border border-gray-100">
                     <span className="text-gray-400 block">Módulos</span>
                     <span className="font-bold text-gray-800 text-sm">
-                      {sistema?.quantidade_modulos || cliente.placas_qtd || '—'} placas
+                      {modulosExibidos ? `${modulosExibidos} placas` : '—'}
                     </span>
                   </div>
                   <div className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                    <span className="text-gray-400 block">Unidade Consumidora</span>
+                    <span className="text-gray-400 block">
+                      {geracaoEstimadaExibida ? 'Geração Estimada' : 'Unidade Consumidora'}
+                    </span>
                     <span className="font-bold text-gray-800 text-sm">
-                      {sistema?.numero_uc || cliente.uc || 'n/d'}
+                      {geracaoEstimadaExibida
+                        ? `${geracaoEstimadaExibida} kWh/mês`
+                        : sistema?.numero_uc || cliente.uc || 'n/d'}
                     </span>
                   </div>
                 </div>
