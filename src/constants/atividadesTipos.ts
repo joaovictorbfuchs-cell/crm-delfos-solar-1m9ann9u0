@@ -80,6 +80,7 @@ export interface TipoAtividadeDef {
   customRecordId?: string
   valor_base?: number
   valor_por_placa?: number
+  usina_obrigatoria?: boolean
 }
 
 // 1. "Atividades Comerciais":
@@ -674,6 +675,7 @@ export function buildCustomTipoDef(record: {
   is_padrao?: boolean
   valor_base?: number
   valor_por_placa?: number
+  usina_obrigatoria?: boolean
 }): TipoAtividadeDef {
   const catDef = CATEGORIAS_ATIVIDADES.find((c) => c.id === record.categoria)
   const corHex = record.cor || catDef?.corHex || '#16A34A'
@@ -695,6 +697,8 @@ export function buildCustomTipoDef(record: {
     valor_base: typeof record.valor_base === 'number' ? record.valor_base : undefined,
     valor_por_placa:
       typeof record.valor_por_placa === 'number' ? record.valor_por_placa : undefined,
+    usina_obrigatoria:
+      typeof record.usina_obrigatoria === 'boolean' ? record.usina_obrigatoria : undefined,
   }
 }
 
@@ -721,6 +725,24 @@ export function isCategoriaManutencaoOuAdministrativa(
     c === 'administrativa' ||
     c === 'administrativas'
   )
+}
+
+/**
+ * Determina se por padrão uma atividade exige usina obrigatória a partir da sua configuração de catálogo.
+ * Regra: se o padrão/custom tiver `usina_obrigatoria` definido (true/false), respeita;
+ * caso indefinido (legado), segue a convenção: manutenção e administrativa são obrigatórias por padrão.
+ */
+export function isUsinaObrigatoriaPorPadrao(
+  tipoConfig?: {
+    categoria?: AtividadeCategoriaId | string | null
+    usina_obrigatoria?: boolean
+  } | null,
+): boolean {
+  if (!tipoConfig) return false
+  if (typeof tipoConfig.usina_obrigatoria === 'boolean') {
+    return tipoConfig.usina_obrigatoria
+  }
+  return isCategoriaManutencaoOuAdministrativa(tipoConfig.categoria)
 }
 
 export function getTipoAtividadeConfig(

@@ -74,6 +74,7 @@ export interface TipoAtividadeCustomItem extends RecordModel {
   blocos_relatorio?: BlocoRelatorioTipoItem[]
   documento_modelo?: string
   ativo?: boolean
+  usina_obrigatoria?: boolean
   created: string
   updated: string
 }

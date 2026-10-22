@@ -247,6 +247,8 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
 
   // Mapa de escolhas por campo: { campoKey: clienteIdEscolhido }
   const [escolhasCampos, setEscolhasCampos] = useState<Record<CampoMesclavel, string>>({} as any)
+  // Valores finais editáveis diretamente pelo usuário antes de mesclar: { campoKey: valorEditado }
+  const [valoresEditados, setValoresEditados] = useState<Record<string, any>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [progressoMesclagem, setProgressoMesclagem] = useState<ProgressoMesclagemInfo | null>(null)
 
@@ -280,6 +282,7 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
     setModoMesclagem('unificar_cliente')
     setContatosConfig({})
     setSumariosVinculos({})
+    setValoresEditados({})
     setProgressoMesclagem(null)
     setFiltroApenasDivergentes(false)
   }, [isOpen, clienteInicial, clientesIniciais, todosClientes])
@@ -292,6 +295,10 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
       .map((id) => map.get(id))
       .filter((c): c is Cliente => Boolean(c))
   }, [todosClientes, clientesParticipantesIds])
+
+  const participantesMap = useMemo(() => {
+    return new Map(clientesParticipantes.map((c) => [c.id, c]))
+  }, [clientesParticipantes])
 
   const clientePrincipal = useMemo(() => {
     return (
@@ -485,14 +492,36 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
       ...prev,
       [campo]: clienteId,
     }))
+    // Ao selecionar a origem de um campo, atualiza o valor editável final com o valor do cliente escolhido
+    const cliEscolhido = clientesParticipantes.find((c) => c.id === clienteId)
+    if (cliEscolhido) {
+      setValoresEditados((prev) => ({
+        ...prev,
+        [campo]: cliEscolhido[campo] ?? '',
+      }))
+    }
+  }
+
+  const handleEditarValorFinal = (campo: CampoMesclavel, novoValor: any) => {
+    setValoresEditados((prev) => ({
+      ...prev,
+      [campo]: novoValor,
+    }))
   }
 
   const handleAplicarTudoDeUmCliente = (clienteId: string) => {
     const map: Record<CampoMesclavel, string> = {} as any
+    const novosValores: Record<string, any> = {}
+    const cliEscolhido = clientesParticipantes.find((c) => c.id === clienteId)
+
     CAMPOS_CONFIG.forEach((f) => {
       map[f.key] = clienteId
+      if (cliEscolhido) {
+        novosValores[f.key] = cliEscolhido[f.key] ?? ''
+      }
     })
     setEscolhasCampos(map)
+    setValoresEditados(novosValores)
   }
 
   // Identificar se há divergência entre os valores de um campo entre os clientes participantes
@@ -514,12 +543,26 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
 
     // 1. Preparar campos sobrescritos escolhidos pelo usuário
     const camposSobrescritos: Partial<Cliente> = {}
-    const participantesMap = new Map(clientesParticipantes.map((c) => [c.id, c]))
 
     CAMPOS_CONFIG.forEach(({ key }) => {
       const escolhidoId = escolhasCampos[key] || clientePrincipal.id
       const cliEscolhido = participantesMap.get(escolhidoId) || clientePrincipal
-      const valor = cliEscolhido[key]
+      // Se o usuário editou diretamente o valor final do campo, prevalece a edição; senão, o valor do cliente escolhido
+      const temEdicao = Object.prototype.hasOwnProperty.call(valoresEditados, key)
+      let valor = temEdicao ? valoresEditados[key] : cliEscolhido[key]
+
+      // Converte números se o campo for numérico
+      if (
+        (key === 'potencia_kwp' ||
+          key === 'valor_estimado' ||
+          key === 'consumo_kwh_mes' ||
+          key === 'tarifa' ||
+          key === 'placas_qtd') &&
+        typeof valor === 'string'
+      ) {
+        const limpo = valor.replace(',', '.').trim()
+        valor = limpo ? Number(limpo) : undefined
+      }
 
       if (valor !== undefined) {
         // @ts-expect-error indexação dinâmica de campo de Cliente
@@ -1065,11 +1108,13 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
               <div>
                 <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-emerald-600" />
-                  <span>Escolha de Dados Campo a Campo ({CAMPOS_CONFIG.length} campos)</span>
+                  <span>
+                    Escolha de Dados e Edição Campo a Campo ({CAMPOS_CONFIG.length} campos)
+                  </span>
                 </h4>
                 <p className="text-xs text-gray-500">
-                  Clique na célula de qualquer coluna para definir a origem que prevalecerá no
-                  cadastro final unificado.
+                  Clique na célula para selecionar a origem de cada campo OU edite diretamente o
+                  valor na coluna verde antes de confirmar.
                 </p>
               </div>
 
@@ -1101,7 +1146,7 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
                       return (
                         <th
                           key={cli.id}
-                          className={`py-2.5 px-3 min-w-[200px] ${
+                          className={`py-2.5 px-3 min-w-[190px] ${
                             isPrincipal
                               ? 'bg-emerald-100/70 text-emerald-950 font-black'
                               : 'bg-gray-50/80 text-gray-800'
@@ -1124,6 +1169,17 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
                         </th>
                       )
                     })}
+                    <th className="py-2.5 px-3 min-w-[240px] bg-emerald-600 text-white font-bold tracking-wider text-[10px] border-l-2 border-emerald-700">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="flex items-center gap-1">
+                          <Pencil className="w-3 h-3 text-white" />
+                          <span>Valor Final Unificado (Editável)</span>
+                        </span>
+                        <span className="text-[9px] bg-emerald-700 text-emerald-100 px-1.5 py-0.2 rounded font-normal">
+                          Edição Direta
+                        </span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1167,7 +1223,7 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
                             <td
                               key={cli.id}
                               onClick={() => handleSelectCampo(key, cli.id)}
-                              className={`py-2 px-3 cursor-pointer transition-all border-l border-gray-100 ${
+                              className={`py-1.5 px-3 cursor-pointer transition-all border-l border-gray-100 ${
                                 isSelected
                                   ? isPrincipal
                                     ? 'bg-emerald-100/70 font-bold text-emerald-950 ring-1 ring-inset ring-emerald-500'
@@ -1201,6 +1257,73 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
                             </td>
                           )
                         })}
+
+                        {/* Coluna de Edição Direta do Valor Final Unificado */}
+                        <td className="py-1 px-2.5 bg-emerald-50/50 border-l-2 border-emerald-300">
+                          {(() => {
+                            const cliOrigem =
+                              participantesMap.get(clienteEscolhidoId) || clientePrincipal
+                            const valorOrigem = cliOrigem ? cliOrigem[key] : ''
+                            const valorAtual = Object.prototype.hasOwnProperty.call(
+                              valoresEditados,
+                              key,
+                            )
+                              ? valoresEditados[key]
+                              : (valorOrigem ?? '')
+                            const valorEditadoAtivo =
+                              Object.prototype.hasOwnProperty.call(valoresEditados, key) &&
+                              valoresEditados[key] !== valorOrigem
+
+                            if (key === 'tipo_pessoa') {
+                              return (
+                                <select
+                                  value={valorAtual || 'fisica'}
+                                  onChange={(e) => handleEditarValorFinal(key, e.target.value)}
+                                  className="w-full text-xs h-7 px-2 bg-white border border-emerald-300 rounded focus:ring-1 focus:ring-emerald-500 font-medium"
+                                >
+                                  <option value="fisica">Pessoa Física (PF)</option>
+                                  <option value="juridica">Pessoa Jurídica (PJ)</option>
+                                </select>
+                              )
+                            }
+
+                            if (key === 'observacoes') {
+                              return (
+                                <textarea
+                                  rows={2}
+                                  value={String(valorAtual ?? '')}
+                                  onChange={(e) => handleEditarValorFinal(key, e.target.value)}
+                                  placeholder="Observações consolidadas..."
+                                  className="w-full text-[11px] p-1.5 bg-white border border-emerald-300 rounded focus:ring-1 focus:ring-emerald-500 font-medium resize-none leading-tight"
+                                />
+                              )
+                            }
+
+                            return (
+                              <div className="relative flex items-center">
+                                <input
+                                  type="text"
+                                  value={String(valorAtual ?? '')}
+                                  onChange={(e) => handleEditarValorFinal(key, e.target.value)}
+                                  placeholder="Valor final editável..."
+                                  className={`w-full text-xs h-7 px-2 pr-5 bg-white border rounded focus:ring-1 focus:ring-emerald-500 font-medium ${
+                                    valorEditadoAtivo
+                                      ? 'border-emerald-600 text-emerald-950 bg-emerald-50/70 font-semibold ring-1 ring-emerald-500'
+                                      : 'border-emerald-300 text-gray-900'
+                                  }`}
+                                />
+                                {valorEditadoAtivo && (
+                                  <span
+                                    className="absolute right-1.5 text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded cursor-help"
+                                    title="Valor editado manualmente (prevalecerá na mesclagem)"
+                                  >
+                                    Editado
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </td>
                       </tr>
                     )
                   })}
@@ -1208,7 +1331,6 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
               </table>
             </div>
           </div>
-
           {/* Indicador de Progresso em Tempo Real durante a Mesclagem */}
           {isSubmitting && (
             <div

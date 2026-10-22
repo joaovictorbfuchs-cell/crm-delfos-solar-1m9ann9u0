@@ -448,6 +448,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string>('')
   const [ativo, setAtivo] = useState(true)
+  const [usinaObrigatoria, setUsinaObrigatoria] = useState<boolean>(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState(false)
@@ -493,6 +494,11 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setLinksUteis(atividadeParaEditar.links_uteis || '')
       setSelectedFileName(atividadeParaEditar.documento_modelo || '')
       setAtivo(atividadeParaEditar.ativo !== false)
+      setUsinaObrigatoria(
+        typeof atividadeParaEditar.usina_obrigatoria === 'boolean'
+          ? atividadeParaEditar.usina_obrigatoria
+          : isCategoriaManutencaoOuAdministrativa(atividadeParaEditar.categoria),
+      )
 
       // Carregar checklist existente ou fallback para padrão de referência se for atividade padrão
       if (
@@ -609,6 +615,11 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setNovoLinkUrl('')
       setSelectedFileName('')
       setAtivo(true)
+      setUsinaObrigatoria(
+        typeof padraoParaEditar.usina_obrigatoria === 'boolean'
+          ? padraoParaEditar.usina_obrigatoria
+          : isCategoriaManutencaoOuAdministrativa(padraoParaEditar.categoria),
+      )
     } else {
       // Modo criação / fallback
       setNome('')
@@ -629,6 +640,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setNovoLinkUrl('')
       setSelectedFileName('')
       setAtivo(true)
+      setUsinaObrigatoria(false)
     }
   }, [open, atividadeParaEditar, padraoParaEditar, tiposAtividadesCustom])
 
@@ -684,6 +696,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
         links_uteis: linksConsolidados || undefined,
         checklist: checklistItems,
         ativo,
+        usina_obrigatoria: usinaObrigatoria,
       }
 
       if (selectedFile) {
@@ -1310,6 +1323,43 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Configuração de Usina Obrigatória neste Padrão de Atividade */}
+          <div className="p-3.5 rounded-xl border border-amber-200/80 bg-amber-50/40 space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <label
+                htmlFor="edit-usina-obrigatoria-check"
+                className="text-xs font-bold text-gray-800 flex items-center gap-2 cursor-pointer select-none"
+              >
+                <input
+                  type="checkbox"
+                  id="edit-usina-obrigatoria-check"
+                  checked={usinaObrigatoria}
+                  onChange={(e) => setUsinaObrigatoria(e.target.checked)}
+                  className="rounded text-amber-600 focus:ring-amber-500 h-4 w-4 cursor-pointer"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                  <span>Seleção de usina obrigatória nesta atividade</span>
+                </span>
+              </label>
+
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  usinaObrigatoria
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                }`}
+              >
+                {usinaObrigatoria ? 'Padrão: Obrigatória' : 'Padrão: Opcional'}
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-600 leading-relaxed pl-6">
+              Quando marcada, ao agendar esta atividade em Serviços de Campo ou no CRM a seleção de
+              usina do cliente será exigida por padrão. Se desmarcada, a atividade poderá ser salva
+              livremente sem usina vinculada (com override opcional na criação).
+            </p>
           </div>
 
           {/* Ativo no Sistema */}

@@ -42,6 +42,7 @@ import {
   buildCustomTipoDef,
   deduplicarTiposAtividades,
   isCategoriaManutencaoOuAdministrativa,
+  isUsinaObrigatoriaPorPadrao,
   MSG_USINA_OBRIGATORIA,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
@@ -282,7 +283,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       if (initialUsinaId) {
         setSelectedUsinaId(initialUsinaId)
       }
-      setUsinaObrigatoria(true)
+      // Herda a obrigatoriedade de usina a partir do padrão da atividade selecionada
+      const confInicial = getTipoAtividadeConfig(tipoParaUsar, customDefs)
+      setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(confInicial))
       if (initialNegocioId) {
         setSelectedNegocioId(initialNegocioId)
       }
@@ -463,6 +466,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     if (firstOfCat) {
       setSelectedTipo(firstOfCat.id)
       setTitulo(firstOfCat.tituloPadrao)
+      setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(firstOfCat))
     }
 
     // Se a nova categoria não for manutenção, verifica se o responsável atual é instalador/técnico
@@ -495,6 +499,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const handleTipoChange = (novoTipo: AtividadeTipo) => {
     setSelectedTipo(novoTipo)
     const conf = getTipoAtividadeConfig(novoTipo, customDefs)
+    // Herda a definição de usina obrigatória a partir da configuração deste padrão de atividade
+    setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(conf))
     // Regra do usuário: O nome do tipo clicado deve virar AUTOMATICAMENTE o título da atividade
     setTitulo(conf.tituloPadrao)
     if (novoTipo === 'auto_leitura_rge') {
@@ -611,9 +617,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
     const isAutoLeitura = selectedTipo === 'auto_leitura_rge'
 
-    // Validação de usina obrigatória para manutenção e administrativa (quando o checkbox de obrigatoriedade estiver ativo)
-    const precisaUsina =
-      isCategoriaManutencaoOuAdministrativa(selectedCategoria) && usinaObrigatoria
+    // Validação de usina obrigatória (quando a atividade exige usina conforme seu padrão herdado ou override ativo)
+    const precisaUsina = usinaObrigatoria
     const usinaIdLimpaValidacao =
       selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : ''
 
@@ -1137,15 +1142,19 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                 <span className="flex items-center gap-1.5">
                   <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
                   <span>Seleção de usina obrigatória nesta atividade</span>
+                  <span className="text-[10px] text-gray-400 font-normal">
+                    (definida no padrão da atividade, editável aqui)
+                  </span>
                 </span>
               </label>
 
               <span
-                className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                   usinaObrigatoria
-                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                 }`}
+                title="Status herdado do padrão de atividade com override local para este agendamento"
               >
                 {usinaObrigatoria ? 'Obrigatória' : 'Opcional / dispensada'}
               </span>
@@ -1183,22 +1192,17 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                   <span className="flex items-center gap-1">
                     <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
                     <span>Vincular a usina</span>
-                    {isCategoriaManutencaoOuAdministrativa(selectedCategoria) &&
-                    usinaObrigatoria ? (
+                    {usinaObrigatoria ? (
                       <span className="text-red-500">*</span>
                     ) : (
                       <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
                     )}
                   </span>
-                  {isCategoriaManutencaoOuAdministrativa(selectedCategoria) && (
-                    <span className="text-[10px] text-amber-700 font-medium">
-                      {usinaObrigatoria
-                        ? `Obrigatória para ${
-                            selectedCategoria === 'manutencao' ? 'manutenção' : 'administrativa'
-                          }`
-                        : 'Dispensada nesta atividade'}
-                    </span>
-                  )}
+                  <span className="text-[10px] text-amber-700 font-medium">
+                    {usinaObrigatoria
+                      ? 'Obrigatória conforme padrão da atividade'
+                      : 'Opcional / dispensada nesta atividade'}
+                  </span>
                 </label>
                 <select
                   value={selectedUsinaId}
@@ -1206,13 +1210,11 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                     setSelectedUsinaId(e.target.value)
                     if (formError === MSG_USINA_OBRIGATORIA) setFormError(null)
                   }}
-                  required={
-                    isCategoriaManutencaoOuAdministrativa(selectedCategoria) && usinaObrigatoria
-                  }
+                  required={usinaObrigatoria}
                   className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
                 >
                   <option value="">
-                    {isCategoriaManutencaoOuAdministrativa(selectedCategoria) && usinaObrigatoria
+                    {usinaObrigatoria
                       ? 'Selecione a usina (obrigatória)...'
                       : 'Nenhuma usina vinculada (geral do cliente / sem usina)'}
                   </option>

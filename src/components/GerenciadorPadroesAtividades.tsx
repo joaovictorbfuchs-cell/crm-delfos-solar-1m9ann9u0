@@ -483,6 +483,16 @@ export const GerenciadorPadroesAtividades: React.FC<GerenciadorPadroesAtividades
                         >
                           Personalizada
                         </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] py-0 h-4 font-semibold ${
+                            custom.usina_obrigatoria
+                              ? 'bg-amber-50 text-amber-900 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          }`}
+                        >
+                          {custom.usina_obrigatoria ? 'Usina Obrigatória' : 'Usina Opcional'}
+                        </Badge>
                       </div>
                       {custom.descricao && (
                         <p className="text-[11px] text-gray-500 truncate mt-0.5">
@@ -568,9 +578,27 @@ export const GerenciadorPadroesAtividades: React.FC<GerenciadorPadroesAtividades
                       <Icon className="h-3.5 w-3.5" />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-xs font-medium text-gray-900 block truncate">
-                        {tipo.tituloPadrao}
-                      </span>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="text-xs font-medium text-gray-900 truncate">
+                          {tipo.tituloPadrao}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] py-0 h-3.5 font-semibold shrink-0 ${
+                            (tipo.usina_obrigatoria ??
+                            (tipo.categoria === 'manutencao' ||
+                              tipo.categoria === 'administrativo_pos_venda'))
+                              ? 'bg-amber-50 text-amber-900 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          }`}
+                        >
+                          {(tipo.usina_obrigatoria ??
+                          (tipo.categoria === 'manutencao' ||
+                            tipo.categoria === 'administrativo_pos_venda'))
+                            ? 'Usina Obrigatória'
+                            : 'Usina Opcional'}
+                        </Badge>
+                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-gray-400 block truncate">
                           {tipo.descricaoAjuda}
