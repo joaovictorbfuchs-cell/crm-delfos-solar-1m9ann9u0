@@ -139,6 +139,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [clienteId, setClienteId] = useState(initialClienteId || '')
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>(usinasProp || [])
   const [selectedUsinaId, setSelectedUsinaId] = useState<string>(initialUsinaId || '')
+  // O usuário pode definir se a seleção de usina é obrigatória para esta atividade
+  const [usinaObrigatoria, setUsinaObrigatoria] = useState<boolean>(true)
   const [negociosDoCliente, setNegociosDoCliente] = useState<import('@/types/crm').Negocio[]>([])
   const [selectedNegocioId, setSelectedNegocioId] = useState<string>(initialNegocioId || '')
   const [responsavelId, setResponsavelId] = useState('')
@@ -280,6 +282,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       if (initialUsinaId) {
         setSelectedUsinaId(initialUsinaId)
       }
+      setUsinaObrigatoria(true)
       if (initialNegocioId) {
         setSelectedNegocioId(initialNegocioId)
       }
@@ -608,8 +611,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
     const isAutoLeitura = selectedTipo === 'auto_leitura_rge'
 
-    // Validação de usina obrigatória para manutenção e administrativa
-    const precisaUsina = isCategoriaManutencaoOuAdministrativa(selectedCategoria)
+    // Validação de usina obrigatória para manutenção e administrativa (quando o checkbox de obrigatoriedade estiver ativo)
+    const precisaUsina =
+      isCategoriaManutencaoOuAdministrativa(selectedCategoria) && usinaObrigatoria
     const usinaIdLimpaValidacao =
       selectedUsinaId && selectedUsinaId.trim() ? selectedUsinaId.trim() : ''
 
@@ -1109,70 +1113,145 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
             </div>
           )}
 
-          {/* Campo de Vínculo de Usina Inteligente */}
-          {usinasDoCliente.length === 1 && (
-            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs">
-              <Sun className="w-3.5 h-3.5 text-[#E0A838] shrink-0" />
-              <span className="text-[11px] font-medium">
-                Vinculada automaticamente à usina: <strong>{usinasDoCliente[0].nome}</strong>
+          {/* Seletor de Usina e Controle de Obrigatoriedade */}
+          <div className="space-y-2 p-3 bg-gray-50/70 rounded-xl border border-gray-200">
+            {/* Checkbox: Seleção de usina obrigatória nesta atividade */}
+            <div className="flex items-center justify-between gap-2">
+              <label
+                htmlFor="check-usina-obrigatoria"
+                className="text-xs font-semibold text-gray-700 flex items-center gap-2 cursor-pointer select-none"
+              >
+                <input
+                  id="check-usina-obrigatoria"
+                  type="checkbox"
+                  checked={usinaObrigatoria}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setUsinaObrigatoria(checked)
+                    if (!checked && formError === MSG_USINA_OBRIGATORIA) {
+                      setFormError(null)
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                  <span>Seleção de usina obrigatória nesta atividade</span>
+                </span>
+              </label>
+
+              <span
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                  usinaObrigatoria
+                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                }`}
+              >
+                {usinaObrigatoria ? 'Obrigatória' : 'Opcional / dispensada'}
               </span>
             </div>
-          )}
 
-          {usinasDoCliente.length >= 2 && (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
-                <span className="flex items-center gap-1">
-                  <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
-                  <span>Vincular a usina</span>
-                  {isCategoriaManutencaoOuAdministrativa(selectedCategoria) ? (
-                    <span className="text-red-500">*</span>
-                  ) : (
-                    <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+            {/* Caso 1: Cliente possui exatamente 1 usina cadastrada */}
+            {usinasDoCliente.length === 1 && (
+              <div className="space-y-1.5 pt-1 border-t border-gray-200/60">
+                <div className="flex items-center justify-between gap-1.5 px-3 py-2 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Sun className="w-3.5 h-3.5 text-[#E0A838] shrink-0" />
+                    <span className="text-[11px] font-medium truncate">
+                      Usina vinculada: <strong>{usinasDoCliente[0].nome}</strong>
+                    </span>
+                  </div>
+                  {!usinaObrigatoria && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedUsinaId((prev) => (prev ? '' : usinasDoCliente[0].id))
+                      }
+                      className="text-[10px] font-semibold text-gray-600 underline hover:text-gray-900 shrink-0"
+                    >
+                      {selectedUsinaId ? 'Desvincular usina' : 'Vincular esta usina'}
+                    </button>
                   )}
-                </span>
-                {isCategoriaManutencaoOuAdministrativa(selectedCategoria) && (
-                  <span className="text-[10px] text-amber-700 font-medium">
-                    Obrigatória para{' '}
-                    {selectedCategoria === 'manutencao' ? 'manutenção' : 'administrativa'}
-                  </span>
-                )}
-              </label>
-              <select
-                value={selectedUsinaId}
-                onChange={(e) => {
-                  setSelectedUsinaId(e.target.value)
-                  if (formError === MSG_USINA_OBRIGATORIA) setFormError(null)
-                }}
-                required={isCategoriaManutencaoOuAdministrativa(selectedCategoria)}
-                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
-              >
-                <option value="">
-                  {isCategoriaManutencaoOuAdministrativa(selectedCategoria)
-                    ? 'Selecione a usina (obrigatória)...'
-                    : 'Nenhuma usina vinculada (geral do cliente)'}
-                </option>
-                {usinasDoCliente.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Alerta se a categoria exigir usina mas o cliente não tiver nenhuma usina cadastrada */}
-          {isCategoriaManutencaoOuAdministrativa(selectedCategoria) &&
-            clienteId &&
-            usinasDoCliente.length === 0 && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>
-                  O cliente selecionado não possui usinas cadastradas. Cadastre ao menos uma usina
-                  no cliente para vincular a esta atividade.
-                </span>
+                </div>
               </div>
             )}
+
+            {/* Caso 2: Cliente possui 2 ou mais usinas cadastradas */}
+            {usinasDoCliente.length >= 2 && (
+              <div className="space-y-1 pt-1 border-t border-gray-200/60">
+                <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                    <span>Vincular a usina</span>
+                    {isCategoriaManutencaoOuAdministrativa(selectedCategoria) &&
+                    usinaObrigatoria ? (
+                      <span className="text-red-500">*</span>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                    )}
+                  </span>
+                  {isCategoriaManutencaoOuAdministrativa(selectedCategoria) && (
+                    <span className="text-[10px] text-amber-700 font-medium">
+                      {usinaObrigatoria
+                        ? `Obrigatória para ${
+                            selectedCategoria === 'manutencao' ? 'manutenção' : 'administrativa'
+                          }`
+                        : 'Dispensada nesta atividade'}
+                    </span>
+                  )}
+                </label>
+                <select
+                  value={selectedUsinaId}
+                  onChange={(e) => {
+                    setSelectedUsinaId(e.target.value)
+                    if (formError === MSG_USINA_OBRIGATORIA) setFormError(null)
+                  }}
+                  required={
+                    isCategoriaManutencaoOuAdministrativa(selectedCategoria) && usinaObrigatoria
+                  }
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+                >
+                  <option value="">
+                    {isCategoriaManutencaoOuAdministrativa(selectedCategoria) && usinaObrigatoria
+                      ? 'Selecione a usina (obrigatória)...'
+                      : 'Nenhuma usina vinculada (geral do cliente / sem usina)'}
+                  </option>
+                  {usinasDoCliente.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Caso 3: Cliente não possui usina cadastrada */}
+            {clienteId && usinasDoCliente.length === 0 && (
+              <div className="space-y-2 pt-1 border-t border-gray-200/60">
+                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    O cliente selecionado não possui usinas cadastradas. Cadastre ao menos uma usina
+                    no cliente para vincular a esta atividade.
+                  </span>
+                </div>
+                {usinaObrigatoria ? (
+                  <p className="text-[11px] text-amber-800 bg-amber-100/60 p-2 rounded-lg">
+                    💡 Para salvar sem usina cadastrada, desmarque o check{' '}
+                    <strong>"Seleção de usina obrigatória nesta atividade"</strong> acima.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 p-2 rounded-lg flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      Obrigatoriedade dispensada: você pode salvar e agendar esta atividade sem
+                      usina vinculada.
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Data e Hora */}
           {!isAutoLeitura && (

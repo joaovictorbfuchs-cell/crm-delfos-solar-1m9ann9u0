@@ -96,6 +96,85 @@ describe('ModalNovaAtividade - Pré-visualização da mensagem Auto Leitura', ()
     })
   })
 
+  it('permite desmarcar a obrigatoriedade de usina e criar atividade de manutenção sem usina vinculada', async () => {
+    const addAtividadeMock = vi.fn().mockResolvedValue({ id: 'atv-sem-usina-1' })
+    const { useClientes } = await import('@/contexts/ClientesContext')
+    vi.mocked(useClientes).mockReturnValue({
+      clientes: [
+        {
+          id: 'cli-sem-usina',
+          nome: 'Cliente Sem Usina',
+          endereco: 'Rua Teste, 100',
+          cidade: 'Erechim',
+          estado: 'RS',
+        },
+      ],
+      usuarios: [
+        { id: 'usr-admin-1', name: 'Administrador', email: 'admin@delfos.com', role: 'admin' },
+      ],
+      addAtividade: addAtividadeMock,
+      tiposAtividadesCustom: [],
+    } as any)
+
+    const { fetchUsinasByClienteId } = await import('@/services/crmService')
+    vi.mocked(fetchUsinasByClienteId).mockResolvedValue([])
+
+    const { container } = render(
+      <ModalNovaAtividade
+        isOpen={true}
+        onClose={vi.fn()}
+        apenasManutencao={true}
+        initialTipo="manutencao_preventiva"
+        initialClienteId="cli-sem-usina"
+      />,
+    )
+
+    // O aviso de que o cliente não possui usinas cadastradas deve ser renderizado
+    await waitFor(() => {
+      expect(
+        screen.getByText(/O cliente selecionado não possui usinas cadastradas/i),
+      ).not.toBeNull()
+    })
+
+    // O checkbox de obrigatoriedade deve estar presente e inicialmente marcado
+    const checkbox = container.querySelector('#check-usina-obrigatoria') as HTMLInputElement | null
+    expect(checkbox).not.toBeNull()
+    expect(checkbox?.checked).toBe(true)
+
+    // Tentar submeter com obrigatoriedade ativa gera o erro de usina obrigatória
+    const form = container.querySelector('form')
+    if (form) fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/A usina é obrigatória para atividades de manutenção e administrativas/i),
+      ).not.toBeNull()
+    })
+
+    // Agora o usuário desmarca a obrigatoriedade
+    fireEvent.click(checkbox!)
+    expect(checkbox?.checked).toBe(false)
+
+    // O aviso de bloqueio é limpo e indica que pode salvar sem usina
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Obrigatoriedade dispensada: você pode salvar e agendar esta atividade sem usina vinculada/i,
+        ),
+      ).not.toBeNull()
+    })
+
+    // Submete o formulário com a obrigatoriedade desligada
+    if (form) fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(addAtividadeMock).toHaveBeenCalled()
+      const payloadEnviado = addAtividadeMock.mock.calls[0][0]
+      expect(payloadEnviado.usina_id).toBeUndefined()
+      expect(payloadEnviado.cliente_id).toBe('cli-sem-usina')
+    })
+  })
+
   it('substitui variáveis em tempo real conforme o usuário digita na mensagem e adiciona datas', async () => {
     const { container } = render(
       <ModalNovaAtividade
