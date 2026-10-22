@@ -191,7 +191,7 @@ export const PainelEdicaoRodapeComercial: React.FC<PainelEdicaoRodapeComercialPr
             type="text"
             value={config.contato}
             onChange={(e) => setConfig({ ...config, contato: e.target.value })}
-            placeholder="Ex: Dúvidas ou agendamentos: (54) 99129-2121 • solar@updates.delfos.eng.br"
+            placeholder="Ex: Dúvidas ou agendamentos: (54) 99129-2121 • contato@delfos.eng.br"
             className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 shadow-2xs"
           />
         </div>

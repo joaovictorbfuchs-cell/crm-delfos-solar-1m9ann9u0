@@ -353,7 +353,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       `Qualquer dúvida estamos à disposição!\n\n` +
       `Atenciosamente,\n` +
       `Delfos Engenharia Solar\n` +
-      `solar@updates.delfos.eng.br | (54) 99129-2121`
+      `contato@delfos.eng.br | (54) 99129-2121`
 
     if (relatorio.solicitarAvaliacaoGoogle) {
       const tit = relatorio.avaliacaoGoogleTitulo
@@ -438,7 +438,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0 16px;" />
             <p style="margin: 0; font-size: 11px; color: #8a9bb0; text-align: center;">
               Delfos Engenharia Solar • Rua Espírito Santo, 275 – Erechim/RS • (54) 99129-2121<br />
-              solar@updates.delfos.eng.br • www.delfos.eng.br
+              contato@delfos.eng.br • www.delfos.eng.br
             </p>
           </div>
         </div>
@@ -567,7 +567,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             CEP 99709-296
             <br />
             Telefone: (54) 99129-2121 • E-mail:{' '}
-            <a href="mailto:solar@updates.delfos.eng.br" className="text-[#F3D372] hover:underline">
+            <a href="mailto:contato@delfos.eng.br" className="text-[#F3D372] hover:underline">
               contato@delfos.eng.br
             </a>{' '}
             • Web:{' '}

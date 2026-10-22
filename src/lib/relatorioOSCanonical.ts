@@ -1053,7 +1053,7 @@ export function compilarDadosRelatorioOS(
   const planoOmTitulo = 'Plano Delfos de Manutenção Preventiva & O&M'
   const planoOmTexto =
     'Proteja seu investimento: limpeza periódica, revisão técnica completa, verificação de conexões e estrutura, e atendimento ágil em Erechim e região — mantendo sua usina com geração máxima e segurança durante toda a vida útil do sistema.'
-  const planoOmContato = 'Solicite uma avaliação: (54) 99129-2121 • solar@updates.delfos.eng.br'
+  const planoOmContato = 'Solicite uma avaliação: (54) 99129-2121 • contato@delfos.eng.br'
 
   // Recebimento
   const formaEDataEnvio = `Enviado em ${dataEmissao} por WhatsApp / E-mail`

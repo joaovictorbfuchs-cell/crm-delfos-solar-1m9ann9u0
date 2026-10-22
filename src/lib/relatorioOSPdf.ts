@@ -465,7 +465,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>
       <div class="timbrado-meta">
         Delfos Engenharia Ltda • CNPJ 21.379.952/0001-38 • Rua Espírito Santo, 275 – Erechim/RS, CEP 99709-296<br />
-        Telefone: (54) 99129-2121 • E-mail: solar@updates.delfos.eng.br • Web: www.delfos.eng.br
+        Telefone: (54) 99129-2121 • E-mail: contato@delfos.eng.br • Web: www.delfos.eng.br
       </div>
     </header>
 
@@ -617,7 +617,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     <!-- 14. Rodapé Timbrado -->
     <footer class="timbrado-footer">
       <p style="margin: 0 0 4px; color: #D2DFEE;"><strong style="color: #FFFFFF;">Documento oficial Delfos Solar</strong> — Atendimento técnico autorizado em estrita conformidade com as normas ABNT NBR 16690 e NR-10 (Segurança em Instalações e Serviços em Eletricidade).</p>
-      <p style="margin: 0 0 8px; color: #D2DFEE;">Central de Operação e Suporte: (54) 99129-2121 • solar@updates.delfos.eng.br • Rua Espírito Santo, 275 – Erechim/RS</p>
+      <p style="margin: 0 0 8px; color: #D2DFEE;">Central de Operação e Suporte: (54) 99129-2121 • contato@delfos.eng.br • Rua Espírito Santo, 275 – Erechim/RS</p>
       <div style="border-top: 1px solid rgba(255, 255, 255, 0.15); margin-bottom: 8px;"></div>
       <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: #A9C2DF; font-weight: 600; font-size: 0.72rem;">
         <span>Relatório ${rel.numeroRelatorio} • OS ${rel.osCodigo} • Revisão ${rel.revisao}</span>

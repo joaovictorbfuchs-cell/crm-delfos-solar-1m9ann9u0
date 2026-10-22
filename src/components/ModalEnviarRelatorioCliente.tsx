@@ -251,7 +251,7 @@ export const ModalEnviarRelatorioCliente: React.FC<ModalEnviarRelatorioClientePr
                   </div>
                   ${blocoAvaliacaoHtml}
                   <p style="font-size: 12px; color: #64748B; margin-bottom: 0;">
-                    Em caso de dúvidas, estamos à disposição pelo WhatsApp (54) 99129-2121 ou pelo e-mail solar@updates.delfos.eng.br.
+                    Em caso de dúvidas, estamos à disposição pelo WhatsApp (54) 99129-2121 ou pelo e-mail contato@delfos.eng.br.
                   </p>
                 </div>
                 <div style="background: #F1F5F9; padding: 12px 24px; font-size: 11px; color: #64748B; text-align: center; border-top: 1px solid #E2E8F0;">

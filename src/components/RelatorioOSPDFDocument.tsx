@@ -661,7 +661,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             CEP 99709-296
           </Text>
           <Text style={styles.timbradoMeta}>
-            Telefone: (54) 99129-2121 • E-mail: solar@updates.delfos.eng.br • Web: www.delfos.eng.br
+            Telefone: (54) 99129-2121 • E-mail: contato@delfos.eng.br • Web: www.delfos.eng.br
           </Text>
         </View>
 
@@ -1115,8 +1115,8 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             NR-10 (Segurança em Instalações e Serviços em Eletricidade).
           </Text>
           <Text style={styles.footerText}>
-            Central de Operação e Suporte: (54) 99129-2121 • solar@updates.delfos.eng.br • Rua
-            Espírito Santo, 275 – Erechim/RS
+            Central de Operação e Suporte: (54) 99129-2121 • contato@delfos.eng.br • Rua Espírito
+            Santo, 275 – Erechim/RS
           </Text>
           <View style={styles.footerDivider} />
           <View style={styles.footerBottomRow}>

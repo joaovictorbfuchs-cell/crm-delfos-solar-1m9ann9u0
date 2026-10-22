@@ -84,6 +84,21 @@ describe('RelatorioOSPDFDocument', () => {
     expect(el.props.dados.cliente?.nome).toBe('Cooperativa Agroindustrial Erechim')
   })
 
+  it('não deve exibir solar@updates.delfos.eng.br na visualização do relatório', async () => {
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const el = React.createElement(RelatorioOSPDFDocument, {
+      dados: {
+        os: osMock,
+        cliente: clienteMock,
+        sistema: sistemaMock,
+        fotosDataUrls: [],
+      },
+    })
+    const html = renderToStaticMarkup(el)
+    expect(html).not.toContain('solar@updates.delfos.eng.br')
+    expect(html).toContain('contato@delfos.eng.br')
+  })
+
   it('lida com tolerância a dados parciais ou nulos', () => {
     const el = React.createElement(RelatorioOSPDFDocument, {
       dados: {

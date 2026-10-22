@@ -38,8 +38,7 @@ export const RODAPE_COMERCIAL_PADRAO: RodapeComercialConfig = {
     'Mantenha sua usina com geração máxima e segurança com nosso plano de limpeza periódica e revisão técnica. Atendimento ágil e garantia de excelência em Erechim e região.',
   indicacao:
     'Indique um amigo para instalar ou revisar sua usina solar com a Delfos e ganhe benefícios exclusivos!',
-  contato:
-    'Dúvidas ou agendamentos: (54) 99129-2121 • solar@updates.delfos.eng.br • www.delfos.eng.br',
+  contato: 'Dúvidas ou agendamentos: (54) 99129-2121 • contato@delfos.eng.br • www.delfos.eng.br',
 }
 
 export interface ConfiguracaoItem {

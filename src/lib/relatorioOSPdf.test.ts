@@ -87,6 +87,10 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).toContain('Delfos Engenharia Ltda')
     expect(html).toContain('21.379.952/0001-38')
 
+    // Cabeçalho e rodapé não exibem o e-mail de envio solar@updates, exibem contato@delfos.eng.br
+    expect(html).not.toContain('solar@updates.delfos.eng.br')
+    expect(html).toContain('contato@delfos.eng.br')
+
     // Dados do Cliente e Usina
     expect(html).toContain('Agropecuária Vista Verde Ltda')
     expect(html).toContain('Rua das Palmeiras, 450')
