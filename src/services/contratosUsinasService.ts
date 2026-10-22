@@ -1,5 +1,153 @@
 import pb from '@/lib/pocketbase/client'
-import type { ContratoOM } from '@/types/crm'
+import type { ContratoOM, UsinaCliente } from '@/types/crm'
+
+export interface TotaisUsinasContrato {
+  usinas: UsinaCliente[]
+  quantidadeUsinas: number
+  potenciaTotalKwp: number | null
+  qtdModulosTotal: number | null
+  geracaoEstimadaMensalKwh: number | null
+}
+
+export function calcularTotaisUsinasContrato(
+  contratoId: string | undefined,
+  clienteId: string | undefined,
+  sistemas: UsinaCliente[],
+  vinculosContratosUsinas: ContratoUsina[],
+  fallbackContrato?: {
+    potencia_kwp?: number
+    qtd_modulos?: number
+    geracao_media_mensal_kwh?: number
+  },
+  fallbackCliente?: { potencia_kwp?: number; placas_qtd?: number },
+): TotaisUsinasContrato {
+  const listaSistemas = Array.isArray(sistemas) ? sistemas : []
+  const listaVinculos = Array.isArray(vinculosContratosUsinas) ? vinculosContratosUsinas : []
+
+  // 1. Filtrar vínculos ativos para este contrato
+  const vinculosAtivos = contratoId
+    ? listaVinculos.filter((v) => v?.contrato_id === contratoId && v?.ativo !== false)
+    : []
+
+  let usinasResolvidas: UsinaCliente[] = []
+
+  if (vinculosAtivos.length > 0) {
+    // Resolve usinas a partir dos vínculos
+    usinasResolvidas = vinculosAtivos
+      .map((v) => {
+        const encontrada = listaSistemas.find((s) => s?.id === v.usina_id)
+        if (encontrada) return encontrada
+        if (v.expand?.usina_id && (v.expand.usina_id as unknown as UsinaCliente).id) {
+          return v.expand.usina_id as unknown as UsinaCliente
+        }
+        return null
+      })
+      .filter((u): u is UsinaCliente => Boolean(u && u.id))
+  } else if (contratoId) {
+    // Fallback: usinas vinculadas pelo campo contrato_id direto na usina
+    usinasResolvidas = listaSistemas.filter((s) => s?.contrato_id === contratoId)
+  }
+
+  // Se ainda não encontrou vínculos específicos por contrato, verifica pelo clienteId
+  if (usinasResolvidas.length === 0 && clienteId) {
+    usinasResolvidas = listaSistemas.filter((s) => s?.cliente_id === clienteId)
+  }
+
+  // Deduplicar usinas por id
+  const usinasUnicas: UsinaCliente[] = []
+  const vistos = new Set<string>()
+  for (const u of usinasResolvidas) {
+    if (u?.id && !vistos.has(u.id)) {
+      vistos.add(u.id)
+      usinasUnicas.push(u)
+    }
+  }
+
+  // 2. Calcular somatórios de potência, placas e geração estimada
+  let somaPotencia = 0
+  let temPotencia = false
+
+  let somaModulos = 0
+  let temModulos = false
+
+  let somaGeracao = 0
+  let temGeracao = false
+
+  for (const u of usinasUnicas) {
+    const rawPot =
+      (u as Record<string, unknown>).potencia_total_kwp ??
+      (u as Record<string, unknown>).potencia_kwp
+    const pot = Number(rawPot)
+    if (!isNaN(pot) && pot > 0) {
+      somaPotencia += pot
+      temPotencia = true
+    }
+
+    const rawMod =
+      (u as Record<string, unknown>).quantidade_modulos ??
+      (u as Record<string, unknown>).qtd_modulos ??
+      (u as Record<string, unknown>).quantidade_placas
+    const mod = Number(rawMod)
+    if (!isNaN(mod) && mod > 0) {
+      somaModulos += mod
+      temModulos = true
+    }
+
+    const rawGer =
+      (u as Record<string, unknown>).geracao_estimada_kwh ??
+      (u as Record<string, unknown>).geracao_media_mensal_kwh
+    const ger = Number(rawGer)
+    if (!isNaN(ger) && ger > 0) {
+      somaGeracao += ger
+      temGeracao = true
+    }
+  }
+
+  // Fallbacks contratuais e do cliente
+  const fbContratoPot =
+    typeof fallbackContrato?.potencia_kwp === 'number' && fallbackContrato.potencia_kwp > 0
+      ? fallbackContrato.potencia_kwp
+      : null
+  const fbClientePot =
+    typeof fallbackCliente?.potencia_kwp === 'number' && fallbackCliente.potencia_kwp > 0
+      ? fallbackCliente.potencia_kwp
+      : null
+
+  const fbContratoMod =
+    typeof fallbackContrato?.qtd_modulos === 'number' && fallbackContrato.qtd_modulos > 0
+      ? fallbackContrato.qtd_modulos
+      : null
+  const fbClienteMod =
+    typeof fallbackCliente?.placas_qtd === 'number' && fallbackCliente.placas_qtd > 0
+      ? fallbackCliente.placas_qtd
+      : null
+
+  const fbContratoGer =
+    typeof fallbackContrato?.geracao_media_mensal_kwh === 'number' &&
+    fallbackContrato.geracao_media_mensal_kwh > 0
+      ? fallbackContrato.geracao_media_mensal_kwh
+      : null
+
+  const potenciaTotalKwp = temPotencia
+    ? Math.round(somaPotencia * 100) / 100
+    : (fbContratoPot ?? fbClientePot ?? null)
+
+  const qtdModulosTotal = temModulos
+    ? Math.round(somaModulos)
+    : (fbContratoMod ?? fbClienteMod ?? null)
+
+  const geracaoEstimadaMensalKwh = temGeracao
+    ? Math.round(somaGeracao * 100) / 100
+    : (fbContratoGer ?? null)
+
+  return {
+    usinas: usinasUnicas,
+    quantidadeUsinas: usinasUnicas.length,
+    potenciaTotalKwp,
+    qtdModulosTotal,
+    geracaoEstimadaMensalKwh,
+  }
+}
 
 export interface UsinaItem {
   id: string
@@ -192,6 +340,22 @@ export async function getUsinasDisponiveis(clienteId?: string): Promise<UsinaIte
     })
   } catch (err) {
     console.error('Erro ao buscar usinas disponíveis:', err)
+    return []
+  }
+}
+
+/**
+ * Busca todos os vínculos de contratos_usinas ativos no sistema
+ */
+export async function getAllContratosUsinas(): Promise<ContratoUsina[]> {
+  try {
+    return await pb.collection('contratos_usinas').getFullList<ContratoUsina>({
+      filter: 'ativo = true',
+      sort: '-created',
+      expand: 'usina_id,contrato_id',
+    })
+  } catch (err) {
+    console.error('Erro ao buscar todos os vínculos de contratos_usinas:', err)
     return []
   }
 }

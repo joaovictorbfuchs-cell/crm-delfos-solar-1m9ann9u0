@@ -4,6 +4,7 @@ import {
   getContratosByUsinaId,
   vincularUsinaAoContrato,
   desvincularUsinaDoContrato,
+  calcularTotaisUsinasContrato,
 } from './contratosUsinasService'
 import pb from '@/lib/pocketbase/client'
 
@@ -144,5 +145,56 @@ describe('contratosUsinasService', () => {
       expect.anything(),
     )
     expect(colUsinas.update).toHaveBeenCalledWith('u1', { contrato_id: null })
+  })
+
+  it('deve calcular somatório de potência, módulos e geração quando há 2 ou mais usinas', () => {
+    const sistemasMock = [
+      {
+        id: 'u1',
+        cliente_id: 'cli1',
+        nome: 'Usina Sede',
+        potencia_total_kwp: 10.5,
+        quantidade_modulos: 20,
+        geracao_estimada_kwh: 1200,
+      },
+      {
+        id: 'u2',
+        cliente_id: 'cli1',
+        nome: 'Usina Filial',
+        potencia_total_kwp: 15.3,
+        quantidade_modulos: 30,
+        geracao_estimada_kwh: 1800,
+      },
+    ] as any
+
+    const vinculosMock = [
+      { id: 'v1', contrato_id: 'c1', usina_id: 'u1', ativo: true },
+      { id: 'v2', contrato_id: 'c1', usina_id: 'u2', ativo: true },
+      { id: 'v3', contrato_id: 'c1', usina_id: 'u3_inativo', ativo: false },
+    ] as any
+
+    const totais = calcularTotaisUsinasContrato('c1', 'cli1', sistemasMock, vinculosMock)
+
+    expect(totais.quantidadeUsinas).toBe(2)
+    expect(totais.potenciaTotalKwp).toBe(25.8)
+    expect(totais.qtdModulosTotal).toBe(50)
+    expect(totais.geracaoEstimadaMensalKwh).toBe(3000)
+    expect(totais.usinas).toHaveLength(2)
+  })
+
+  it('deve usar fallback do contrato ou cliente quando não há usinas vinculadas', () => {
+    const totais = calcularTotaisUsinasContrato(
+      'c99',
+      'cli99',
+      [],
+      [],
+      { potencia_kwp: 7.5, qtd_modulos: 14, geracao_media_mensal_kwh: 900 },
+      { potencia_kwp: 5.0, placas_qtd: 10 },
+    )
+
+    expect(totais.quantidadeUsinas).toBe(0)
+    expect(totais.potenciaTotalKwp).toBe(7.5)
+    expect(totais.qtdModulosTotal).toBe(14)
+    expect(totais.geracaoEstimadaMensalKwh).toBe(900)
   })
 })
