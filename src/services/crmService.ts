@@ -221,7 +221,7 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
 }
 
 export const ATIVIDADES_LISTAGEM_FIELDS =
-  'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,data,status,responsavel_id,responsavel_nome,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
+  'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,autor,data,status,responsavel_id,responsavel_nome,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
 
 // Cache de promessa em voo para deduplicar chamadas concorrentes idênticas a fetchAtividades
 const _inFlightFetchAtividades = new Map<string, Promise<Atividade[]>>()
@@ -231,9 +231,12 @@ export async function fetchAtividades(options?: {
   perPage?: number
   fetchAllPages?: boolean
 }): Promise<Atividade[]> {
+  // Chamada SEM opções (carga global do CRM/histórico) busca TODAS as páginas em lotes de 500;
+  // chamadas explícitas de paginação (page/perPage) mantêm o comportamento antigo (1 página).
+  const isBare = !options?.page && !options?.perPage && options?.fetchAllPages === undefined
   const page = options?.page ?? 1
-  const perPage = options?.perPage ?? 100
-  const fetchAllPages = options?.fetchAllPages ?? false
+  const perPage = options?.perPage ?? (isBare ? 500 : 100)
+  const fetchAllPages = options?.fetchAllPages ?? isBare
   const cacheKey = `${page}:${perPage}:${fetchAllPages}`
 
   const inFlight = _inFlightFetchAtividades.get(cacheKey)
@@ -269,7 +272,7 @@ export async function fetchAtividades(options?: {
         allItems.push(...result.items)
         totalPages = result.totalPages
         currentPage++
-      } while (currentPage <= totalPages && currentPage <= 10) // Limite de segurança de 10 páginas (1000 itens)
+      } while (currentPage <= totalPages && currentPage <= 20) // Limite de segurança de 20 páginas (10.000 itens em lotes de 500)
 
       return allItems
     },
