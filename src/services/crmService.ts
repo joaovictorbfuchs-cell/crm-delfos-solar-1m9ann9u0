@@ -3900,6 +3900,7 @@ export async function fetchOrdensServico(
   filterStatus?: import('@/types/crm').OSStatus,
   responsavelUsuarioId?: string,
   isInstalador = false,
+  dateRange?: { dataInicio?: string; dataFim?: string },
 ): Promise<import('@/types/crm').OrdemServico[]> {
   try {
     const conditions: string[] = []
@@ -3908,6 +3909,12 @@ export async function fetchOrdensServico(
     }
     if (responsavelUsuarioId) {
       conditions.push(`responsavel_usuario_id='${responsavelUsuarioId}'`)
+    }
+    if (dateRange?.dataInicio) {
+      conditions.push(`data_agendada>='${dateRange.dataInicio} 00:00:00'`)
+    }
+    if (dateRange?.dataFim) {
+      conditions.push(`data_agendada<='${dateRange.dataFim} 23:59:59'`)
     }
     const filter = conditions.join(' && ')
 

@@ -358,9 +358,25 @@ function ExecucaoOSContent() {
   const isFetchingRef = useRef(false)
   const [filtrosPopoverOpen, setFiltrosPopoverOpen] = useState(false)
 
+  // Janela visível de data no calendário (do domingo anterior ao dia 1 até o sábado posterior ao fim do mês)
+  const [dataRangeCalendario, setDataRangeCalendario] = useState<{
+    dataInicio: string
+    dataFim: string
+  } | null>(null)
+  const dataRangeCalendarioRef = useRef<{ dataInicio: string; dataFim: string } | null>(null)
+
+  const handleDateRangeChange = useCallback((range: { dataInicio: string; dataFim: string }) => {
+    const current = dataRangeCalendarioRef.current
+    if (current && current.dataInicio === range.dataInicio && current.dataFim === range.dataFim) {
+      return
+    }
+    dataRangeCalendarioRef.current = range
+    setDataRangeCalendario(range)
+  }, [])
+
   // Carrega OSs, atividades de manutenção e prestadores do banco
   const carregarDados = useCallback(
-    async (silent = false) => {
+    async (silent = false, customRange?: { dataInicio?: string; dataFim?: string } | null) => {
       if (isFetchingRef.current) return
       isFetchingRef.current = true
       if (!silent) {
@@ -368,6 +384,8 @@ function ExecucaoOSContent() {
       }
       try {
         const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
+        const effectiveRange =
+          customRange !== undefined ? customRange : dataRangeCalendarioRef.current
 
         // Filtro OR para as atividades de manutenção/campo (100% aditivo)
         // Timeout de segurança (AbortController, 9s) para isolar completamente o carregamento
@@ -400,8 +418,14 @@ function ExecucaoOSContent() {
         }
 
         // Filtro OR para as atividades de manutenção/campo (100% aditivo)
-        const filterAtividades =
+        // Se houver janela de mês definida para o calendário, restringe por data >= inicio e data <= fim
+        const baseTipoFilter =
           "(tipo='limpeza_manutencao' || tipo='limpeza' || tipo='manutencao_preventiva' || tipo='manutencao_corretiva' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger' || tipo='custom')"
+
+        let filterAtividades = baseTipoFilter
+        if (effectiveRange?.dataInicio && effectiveRange?.dataFim) {
+          filterAtividades = `${baseTipoFilter} && data >= '${effectiveRange.dataInicio} 00:00:00' && data <= '${effectiveRange.dataFim} 23:59:59'`
+        }
 
         // Se for perfil instalador, a coleção `users` esbarra nas regras de acesso (não-admin).
         // Portanto, para instalador NÃO expandimos responsavel_id nem fornecedor_id.
@@ -418,7 +442,15 @@ function ExecucaoOSContent() {
           : 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,checklist,fotos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.responsavel_id.id,expand.responsavel_id.name,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
 
         const osPromise = withTimeoutSeguro(
-          () => fetchOrdensServico(undefined, responsavelFiltro, isInstalador),
+          () =>
+            fetchOrdensServico(
+              undefined,
+              responsavelFiltro,
+              isInstalador,
+              effectiveRange
+                ? { dataInicio: effectiveRange.dataInicio, dataFim: effectiveRange.dataFim }
+                : undefined,
+            ),
           [] as OrdemServico[],
           'fetchOrdensServico',
         )
@@ -649,27 +681,44 @@ function ExecucaoOSContent() {
     carregarDados()
   }, [carregarDados])
 
+  // Quando a janela do mês visível no calendário muda, refaz a busca com a nova janela
+  useEffect(() => {
+    if (dataRangeCalendario) {
+      carregarDados(true, dataRangeCalendario)
+    }
+  }, [dataRangeCalendario, carregarDados])
+
   // Atualização automática:
-  // 1. Polling a cada 30 segundos em segundo plano (silent: sem spinner invasivo)
-  // 2. Ao voltar para a aba ou janela ganhar foco (window focus / visibilitychange)
+  // 1. Polling a cada 120 segundos em segundo plano (silent: sem spinner invasivo)
+  // 2. Ao voltar para a aba ou janela ganhar foco (com throttle de no máximo 1 refetch a cada 60s)
   // 3. Realtime nas coleções ordens_servico e atividades
+  const lastFocusRefetchRef = useRef<number>(0)
+
   useEffect(() => {
     const interval = setInterval(() => {
-      // Se não estiver com a ficha aberta e aba visível, atualiza suavemente
+      // Se não estiver com a ficha aberta e aba visível, atualiza suavemente a cada 120s
       if (document.visibilityState === 'visible' && !selectedOS) {
         carregarDados(true)
       }
-    }, 30000)
+    }, 120000)
 
-    const handleFocus = () => {
-      if (!selectedOS) {
+    const triggerThrottledRefetch = () => {
+      if (selectedOS) return
+      const now = Date.now()
+      // Throttle: no máximo 1 refetch a cada 60s ao focar
+      if (now - lastFocusRefetchRef.current >= 60000) {
+        lastFocusRefetchRef.current = now
         carregarDados(true)
       }
     }
 
+    const handleFocus = () => {
+      triggerThrottledRefetch()
+    }
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !selectedOS) {
-        carregarDados(true)
+      if (document.visibilityState === 'visible') {
+        triggerThrottledRefetch()
       }
     }
 
@@ -1558,6 +1607,7 @@ function ExecucaoOSContent() {
               rightActionsSlot={renderAcoesPrimarias()}
               mostrarLinhaDiaTodo={!isMobile}
               onSlotClick={handleSlotClick}
+              onDateRangeChange={handleDateRangeChange}
             />
           </ErrorBoundary>
         )

@@ -37,6 +37,7 @@ interface CalendarioExecucaoOSProps {
   rightActionsSlot?: React.ReactNode
   mostrarLinhaDiaTodo?: boolean
   onSlotClick?: (date: Date, hora: number) => void
+  onDateRangeChange?: (range: { dataInicio: string; dataFim: string }) => void
 }
 
 // Configurações de cores por tipo de serviço
@@ -784,6 +785,7 @@ function CalendarioExecucaoOSContent({
   rightActionsSlot,
   mostrarLinhaDiaTodo = true,
   onSlotClick,
+  onDateRangeChange,
 }: CalendarioExecucaoOSProps) {
   const now = new Date()
   const { toast } = useToast()
@@ -890,6 +892,40 @@ function CalendarioExecucaoOSContent({
 
   const currentYear = currentDate.getFullYear()
   const currentMonth = currentDate.getMonth()
+
+  // Notifica o componente pai sobre a janela do mês visível no grid do calendário
+  // (do domingo que antecede o dia 1 até o sábado posterior ao fim do mês)
+  useEffect(() => {
+    if (!onDateRangeChange) return
+    const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay() // 0 = Domingo
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+    const prevMonthLastDay = new Date(currentYear, currentMonth, 0).getDate()
+
+    // Data de início do grid (domingo anterior ao dia 1, ou o próprio dia 1 se cair no domingo)
+    const startDate =
+      firstDayIndex > 0
+        ? new Date(currentYear, currentMonth - 1, prevMonthLastDay - (firstDayIndex - 1))
+        : new Date(currentYear, currentMonth, 1)
+
+    // Dias do mês anterior + dias do mês atual
+    const totalDaysCount = firstDayIndex + lastDayOfMonth
+    const remainingDays = 7 - (totalDaysCount % 7)
+    const extraEnd = remainingDays < 7 ? remainingDays : 0
+
+    // Data de fim do grid (sábado que encerra a grade)
+    const endDate =
+      extraEnd > 0
+        ? new Date(currentYear, currentMonth + 1, extraEnd)
+        : new Date(currentYear, currentMonth, lastDayOfMonth)
+
+    const dataInicioStr = getLocalDateKey(startDate)
+    const dataFimStr = getLocalDateKey(endDate)
+
+    onDateRangeChange({
+      dataInicio: dataInicioStr,
+      dataFim: dataFimStr,
+    })
+  }, [currentYear, currentMonth, onDateRangeChange])
 
   // Início da semana atual baseado na currentDate
   const startOfWeek = useMemo(() => getStartOfWeekDate(currentDate), [currentDate])

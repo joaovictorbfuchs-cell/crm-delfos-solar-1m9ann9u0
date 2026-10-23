@@ -2,58 +2,47 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  const status =
-    (err as { status?: number })?.status ??
-    (err as { statusCode?: number })?.statusCode ??
-    (err as { response?: { status?: number } })?.response?.status
-  if (status === 401 || status === 403) return true
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort === true || errObj.name === 'AbortError') return true
+    if (typeof errObj.message === 'string' && errObj.message.toLowerCase().includes('abort')) {
+      return true
+    }
+  }
+  return false
+}
 
-  const msg = String(
-    (err as { message?: string })?.message || (err as { error?: string })?.error || err || '',
-  ).toLowerCase()
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (isAbortError(error)) return false
 
-  if (
-    msg.includes('token is expired') ||
-    msg.includes('invalid token') ||
-    msg.includes('jwt') ||
-    msg.includes('autentica') ||
-    msg.includes('sessão expirada') ||
-    msg.includes('sessao expirada') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('login expirou')
-  ) {
-    return true
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    const status = (errObj.status as number) || (errObj.response as { status?: number })?.status
+    if (status === 401 || status === 403) return true
+
+    const msg = (typeof errObj.message === 'string' ? errObj.message : String(errObj)).toLowerCase()
+
+    if (
+      msg.includes('token is expired') ||
+      msg.includes('invalid token') ||
+      msg.includes('login expirou') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('something went wrong while processing your request')
+    ) {
+      return true
+    }
   }
 
   return false
 }
 
-export function isAbortError(err: unknown): boolean {
-  if (!err) return false
-  if ((err as { isAbort?: boolean })?.isAbort) return true
-  if ((err as { name?: string })?.name === 'AbortError') return true
-  const msg = String((err as { message?: string })?.message || '').toLowerCase()
-  return msg.includes('the request was aborted') || msg.includes('abort')
-}
-
-export function formatPbError(
-  error: unknown,
-  fallback = 'Erro desconhecido ao processar requisição.',
-): string {
-  if (!error) return fallback
-  if (error instanceof ClientResponseError) {
-    const fieldErrors = extractFieldErrors(error)
-    const msgs = Object.values(fieldErrors)
-    if (msgs.length > 0) return msgs.join(' ')
-    return error.message || fallback
-  }
-  if (error instanceof Error) {
-    return error.message || fallback
-  }
-  if (typeof error === 'string') return error
-  return fallback
+export function formatPbError(error: unknown): string {
+  if (!error) return 'Erro desconhecido.'
+  return getErrorMessage(error)
 }
 
 export function extractFieldErrors(error: unknown): FieldErrors {

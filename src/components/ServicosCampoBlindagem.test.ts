@@ -123,6 +123,15 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
   })
 
   describe('Filtros Canônicos e Dinâmicos de Serviços de Campo', () => {
+    it('fetchOrdensServico aceita dateRange com dataInicio e dataFim', async () => {
+      const { fetchOrdensServico } = await import('@/services/crmService')
+      const result = await fetchOrdensServico(undefined, undefined, false, {
+        dataInicio: '2026-04-01',
+        dataFim: '2026-04-30',
+      })
+      expect(Array.isArray(result)).toBe(true)
+    })
+
     it('tipos de manutenção do catálogo contêm identificadores canônicos para filtros', async () => {
       const { ATIVIDADES_PADRAO, buildCustomTipoDef, deduplicarTiposAtividades } =
         await import('@/constants/atividadesTipos')

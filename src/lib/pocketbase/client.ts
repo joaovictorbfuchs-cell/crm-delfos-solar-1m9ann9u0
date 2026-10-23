@@ -1,5 +1,13 @@
 import PocketBase from 'pocketbase'
-import {
+
+const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
+pb.autoCancellation(false)
+
+export { pb }
+export default pb
+
+// Reexporta utilitários de erros canônicos para proteger contra importações retrocompatíveis
+export {
   isAuthSessionError,
   isAbortError,
   formatPbError,
@@ -7,17 +15,3 @@ import {
   getErrorMessage,
   type FieldErrors,
 } from './errors'
-
-const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
-pb.autoCancellation(false)
-
-export {
-  pb,
-  isAuthSessionError,
-  isAbortError,
-  formatPbError,
-  extractFieldErrors,
-  getErrorMessage,
-  type FieldErrors,
-}
-export default pb
