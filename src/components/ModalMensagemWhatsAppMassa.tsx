@@ -31,7 +31,10 @@ import {
   FileText,
   RotateCcw,
   Check,
+  Calendar,
+  Clock,
 } from 'lucide-react'
+import { parseSaoPauloToUtcIso, formatUtcToSaoPauloInput } from '@/lib/datetimeSaoPaulo'
 import { useClientes } from '@/contexts/ClientesContext'
 import { toast } from 'sonner'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
@@ -237,6 +240,11 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const [editandoTelefoneId, setEditandoTelefoneId] = useState<string | null>(null)
   const [telefoneEmEdicao, setTelefoneEmEdicao] = useState('')
 
+  // Opção de envio: 'agora' ou 'agendar'
+  const [tipoEnvio, setTipoEnvio] = useState<'agora' | 'agendar'>('agora')
+  const [dataHoraAgendada, setDataHoraAgendada] = useState<string>('')
+  const [intervaloSegundos, setIntervaloSegundos] = useState<number>(60)
+
   // Progresso do envio em lote
   const [isEnviando, setIsEnviando] = useState(false)
   const [progressoEnvio, setProgressoEnvio] = useState<{
@@ -245,6 +253,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     sucessos: string[]
     erros: Array<{ clienteNome: string; erro: string }>
     avisosDemo?: string[]
+    isAgendamento?: boolean
   } | null>(null)
 
   const [authErrorCapturado, setAuthErrorCapturado] = useState(false)
@@ -330,14 +339,16 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       }
 
       // 2. Clientes Bateria:
-      // tipo_venda Baterias OU tipo_negocio baterias OU tipo_sistema Híbrido/baterias OU produto bateria/sistemas híbridos
+      // Conta APENAS clientes com bateria explícita (tipo_venda 'Baterias' OU tipo_negocio de bateria/baterias OU produto bateria)
+      // Heurística de tipo_sistema 'Híbrido' = bateria REMOVIDA explicitamente a pedido do usuário
       const isBateria =
+        tipoVenda === 'baterias' ||
         tipoVenda.includes('bateria') ||
+        tipoNegocio === 'bateria' ||
+        tipoNegocio === 'baterias' ||
         tipoNegocio.includes('bateria') ||
-        produto.includes('bateria') ||
-        tipoSistema.includes('híbrido') ||
-        tipoSistema.includes('hibrido') ||
-        tipoNegocio.includes('sistemas híbridos')
+        produto === 'bateria' ||
+        produto.includes('bateria')
 
       if (isBateria) {
         segs.push('clientes_bateria')
@@ -505,6 +516,13 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setTemplateTexto(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)
     setSegmentoAtivo(segmentoInicial)
     setAuthErrorCapturado(false)
+    setTipoEnvio('agora')
+    setIntervaloSegundos(60)
+
+    // Data/hora sugerida para agendamento: daqui a 10 minutos no fuso de SP
+    const dezMinFuturo = new Date(Date.now() + 10 * 60 * 1000)
+    setDataHoraAgendada(formatUtcToSaoPauloInput(dezMinFuturo.toISOString()))
+
     setProgressoEnvio(null)
     setBusca('')
     setLimiteExibicao(50)
@@ -659,8 +677,40 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       return
     }
 
+    // Se for agendamento, valida a data/hora
+    let dataAgendamentoUtcIso: string | null = null
+    let dataAgendamentoBaseMs = Date.now()
+
+    if (tipoEnvio === 'agendar') {
+      if (!dataHoraAgendada) {
+        toast.error('Informe a data e horário para agendamento.', {
+          description: 'Selecione a data/hora desejada para o envio.',
+        })
+        return
+      }
+
+      dataAgendamentoUtcIso = parseSaoPauloToUtcIso(dataHoraAgendada)
+      if (!dataAgendamentoUtcIso) {
+        toast.error('Data e hora inválidas', {
+          description: 'Verifique a data/hora selecionada para o agendamento.',
+        })
+        return
+      }
+
+      dataAgendamentoBaseMs = new Date(dataAgendamentoUtcIso).getTime()
+      if (dataAgendamentoBaseMs < Date.now() - 60 * 1000) {
+        toast.error('A data/hora de agendamento deve ser futura.', {
+          description: 'Escolha um horário à frente do horário atual de Brasília.',
+        })
+        return
+      }
+    }
+
     setIsEnviando(true)
     let totalPuladosSemNumero = 0
+    const intervalMs = Math.max(intervaloSegundos || 60, 5) * 1000
+    const isAgendamento = tipoEnvio === 'agendar'
+
     const estadoEnvio = {
       total: selecionados.length,
       atual: 0,
@@ -668,8 +718,12 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       erros: [] as Array<{ clienteNome: string; erro: string }>,
       avisosDemo: [] as string[],
       puladosSemNumero: 0,
+      isAgendamento,
     }
     setProgressoEnvio({ ...estadoEnvio })
+
+    // Contador de mensagens válidas agendadas para calcular o escalonamento do agendado_para
+    let mensagensAgendadasCount = 0
 
     for (let i = 0; i < selecionados.length; i++) {
       const item = selecionados[i]
@@ -680,7 +734,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       if (item.isExemploDemo || item.cliente.id.startsWith('demo_')) {
         estadoEnvio.avisosDemo.push(item.cliente.nome)
         // Simula o delay visual da demonstração sem efetuar chamada externa
-        await new Promise((resolve) => setTimeout(resolve, 400))
+        await new Promise((resolve) => setTimeout(resolve, 300))
         estadoEnvio.sucessos.push(`${item.cliente.nome} (Demonstração)`)
         setProgressoEnvio({ ...estadoEnvio })
         continue
@@ -692,7 +746,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         estadoEnvio.puladosSemNumero = totalPuladosSemNumero
         estadoEnvio.erros.push({
           clienteNome: item.cliente.nome,
-          erro: 'Envio não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.',
+          erro: isAgendamento
+            ? 'Agendamento não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.'
+            : 'Envio não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.',
         })
         setProgressoEnvio({ ...estadoEnvio })
         continue
@@ -708,30 +764,59 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       const mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
 
       try {
-        // Disparo via gateway Z-API Z-API
-        await sendWhatsAppMessage({
-          cliente_id: item.cliente.id,
-          telefone_destino: item.numeroLimpo,
-          conteudo_final: mensagemFinal,
-          tipo_disparo: 'massa',
-        })
+        if (isAgendamento) {
+          // Calcula data/hora específica para cada mensagem com base no intervalo configurado
+          const agendadoParaClienteMs = dataAgendamentoBaseMs + mensagensAgendadasCount * intervalMs
+          const agendadoParaClienteIso = new Date(agendadoParaClienteMs).toISOString()
+          mensagensAgendadasCount++
 
-        // Registra atividade autoritativa do tipo 'mensagem_enviada' no CRM
-        const agora = new Date().toISOString()
-        await addAtividade({
-          cliente_id: item.cliente.id,
-          tipo: 'mensagem_enviada',
-          titulo: 'Mensagem via WhatsApp (Disparo em Massa)',
-          descricao: `Mensagem enviada via WhatsApp para ${item.cliente.nome}:\n\n"${mensagemFinal}"`,
-          data: agora,
-          status: 'concluida',
-          autor: 'CRM Delfos Solar',
-        })
+          // Grava a mensagem na coleção 'whatsapp_mensagens' com status "agendada"
+          // O whatsapp_worker do PocketBase cron processará automaticamente no horário
+          await sendWhatsAppMessage({
+            cliente_id: item.cliente.id,
+            telefone_destino: item.numeroLimpo,
+            conteudo_final: mensagemFinal,
+            tipo_disparo: 'massa',
+            agendado_para: agendadoParaClienteIso,
+          })
+
+          // Registra atividade na timeline do cliente
+          const agora = new Date().toISOString()
+          await addAtividade({
+            cliente_id: item.cliente.id,
+            tipo: 'mensagem_enviada',
+            titulo: 'WhatsApp Agendado (Disparo em Massa)',
+            descricao: `Mensagem em massa agendada para envio em ${new Date(agendadoParaClienteMs).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (intervalo: ${intervaloSegundos}s):\n\n"${mensagemFinal}"`,
+            data: agora,
+            status: 'pendente',
+            autor: 'CRM Delfos Solar',
+          })
+        } else {
+          // Disparo Imediato via gateway Z-API
+          await sendWhatsAppMessage({
+            cliente_id: item.cliente.id,
+            telefone_destino: item.numeroLimpo,
+            conteudo_final: mensagemFinal,
+            tipo_disparo: 'massa',
+          })
+
+          // Registra atividade autoritativa do tipo 'mensagem_enviada' no CRM
+          const agora = new Date().toISOString()
+          await addAtividade({
+            cliente_id: item.cliente.id,
+            tipo: 'mensagem_enviada',
+            titulo: 'Mensagem via WhatsApp (Disparo em Massa)',
+            descricao: `Mensagem enviada via WhatsApp para ${item.cliente.nome}:\n\n"${mensagemFinal}"`,
+            data: agora,
+            status: 'concluida',
+            autor: 'CRM Delfos Solar',
+          })
+        }
 
         estadoEnvio.sucessos.push(item.cliente.nome)
         setProgressoEnvio({ ...estadoEnvio })
       } catch (err: unknown) {
-        console.error(`Erro ao enviar mensagem para ${item.cliente.nome}:`, err)
+        console.error(`Erro ao processar mensagem para ${item.cliente.nome}:`, err)
         if (isAuthSessionError(err)) {
           setAuthErrorCapturado(true)
           estadoEnvio.erros.push({
@@ -745,7 +830,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         const msgErro =
           err instanceof Error
             ? err.message
-            : 'Falha na comunicação com o gateway de WhatsApp (Z-API).'
+            : isAgendamento
+              ? 'Falha ao agendar mensagem no banco de dados.'
+              : 'Falha na comunicação com o gateway de WhatsApp (Z-API).'
         estadoEnvio.erros.push({
           clienteNome: item.cliente.nome,
           erro: msgErro,
@@ -761,17 +848,27 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         totalPuladosSemNumero > 0
           ? ` (${totalPuladosSemNumero} ${
               totalPuladosSemNumero === 1
-                ? 'cliente sem número cadastrado não recebeu o envio'
-                : 'clientes sem número cadastrado não receberam o envio'
+                ? 'cliente sem número cadastrado não foi incluído'
+                : 'clientes sem número cadastrado não foram incluídos'
             })`
           : ''
-      toast.success(
-        `${estadoEnvio.sucessos.length} mensagem(ns) enviada(s) com sucesso!${avisoPulados}`,
-        {
-          description:
-            'Atividade "mensagem_enviada" registrada no histórico de cada cliente e vinculada à conversa.',
-        },
-      )
+
+      if (isAgendamento) {
+        toast.success(
+          `${estadoEnvio.sucessos.length} mensagem(ns) agendada(s) com sucesso!${avisoPulados}`,
+          {
+            description: `Mensagens salvas como "agendada" com agendado_para escalonado a cada ${intervaloSegundos}s para processamento automático pelo worker.`,
+          },
+        )
+      } else {
+        toast.success(
+          `${estadoEnvio.sucessos.length} mensagem(ns) enviada(s) com sucesso!${avisoPulados}`,
+          {
+            description:
+              'Atividade "mensagem_enviada" registrada no histórico de cada cliente e vinculada à conversa.',
+          },
+        )
+      }
       if (onSuccess) onSuccess()
     }
 
@@ -847,7 +944,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           </div>
         )}
 
-        {/* Barra de Progresso e Resumo de Envio */}
+        {/* Barra de Progresso e Resumo de Envio / Agendamento */}
         {progressoEnvio && (
           <div className="p-3.5 sm:p-4 bg-slate-50 border-b space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-gray-800">
@@ -859,8 +956,12 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                 )}
                 <span>
                   {isEnviando
-                    ? `Enviando ${progressoEnvio.atual} de ${progressoEnvio.total}...`
-                    : `${progressoEnvio.sucessos.length} mensagens enviadas com sucesso`}
+                    ? progressoEnvio.isAgendamento
+                      ? `Agendando ${progressoEnvio.atual} de ${progressoEnvio.total}...`
+                      : `Enviando ${progressoEnvio.atual} de ${progressoEnvio.total}...`
+                    : progressoEnvio.isAgendamento
+                      ? `${progressoEnvio.sucessos.length} mensagens agendadas na fila`
+                      : `${progressoEnvio.sucessos.length} mensagens enviadas com sucesso`}
                 </span>
               </span>
               <span className="text-gray-500 font-mono">
@@ -1250,6 +1351,96 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               </div>
             </div>
 
+            {/* Opção de Envio: Enviar Agora vs Agendar */}
+            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <span>Momento do Envio</span>
+                </Label>
+              </div>
+
+              {/* Botões alternadores Enviar agora vs Agendar */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTipoEnvio('agora')}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                    tipoEnvio === 'agora'
+                      ? 'bg-sky-50 border-[#0284C7] text-[#0284C7] shadow-2xs'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Enviar agora</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTipoEnvio('agendar')}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                    tipoEnvio === 'agendar'
+                      ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-2xs'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Agendar envio</span>
+                </button>
+              </div>
+
+              {/* Parâmetros de Agendamento e Intervalo */}
+              {tipoEnvio === 'agendar' && (
+                <div className="pt-2 border-t border-gray-100 space-y-2.5 animate-in fade-in duration-150">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <Label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                        Data e Horário de Início (Brasília):
+                      </Label>
+                      <Input
+                        type="datetime-local"
+                        value={dataHoraAgendada}
+                        onChange={(e) => setDataHoraAgendada(e.target.value)}
+                        className="h-8 text-xs bg-white font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                        Intervalo entre mensagens:
+                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          min={5}
+                          max={3600}
+                          step={5}
+                          value={intervaloSegundos}
+                          onChange={(e) =>
+                            setIntervaloSegundos(Math.max(5, parseInt(e.target.value) || 60))
+                          }
+                          className="h-8 text-xs bg-white font-medium w-24"
+                        />
+                        <span className="text-xs text-gray-500 font-medium">
+                          segundos (padrão: 60s)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                    <span>
+                      As mensagens serão gravadas na fila com status <strong>"agendada"</strong> e o
+                      campo <strong>agendado_para</strong> escalonado a cada {intervaloSegundos}s. O
+                      worker periódico do PocketBase (a cada 2 min) fará o envio sequencial
+                      automaticamente.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* PREVIEW da Mensagem Resolvida para o Primeiro Cliente Selecionado */}
             <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
               <div className="flex items-center justify-between">
@@ -1316,7 +1507,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             </span>
             <span className="hidden sm:inline">
               {' '}
-              • Disparo sequencial via Z-API com registro de atividade no CRM
+              •{' '}
+              {tipoEnvio === 'agendar'
+                ? 'Agendamento escalonado na fila PocketBase'
+                : 'Disparo sequencial via Z-API com registro de atividade no CRM'}
             </span>
           </div>
 
@@ -1335,14 +1529,27 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               type="button"
               disabled={isEnviando || selectedIds.length === 0}
               onClick={handleConfirmarEnvio}
-              className="bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4"
+              className={`text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4 ${
+                tipoEnvio === 'agendar'
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-[#0284C7] hover:bg-[#0369a1]'
+              }`}
             >
               {isEnviando ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>
-                    Enviando {progressoEnvio?.atual || 0} de{' '}
-                    {progressoEnvio?.total || selectedIds.length}...
+                    {tipoEnvio === 'agendar' ? 'Agendando' : 'Enviando'}{' '}
+                    {progressoEnvio?.atual || 0} de {progressoEnvio?.total || selectedIds.length}...
+                  </span>
+                </>
+              ) : tipoEnvio === 'agendar' ? (
+                <>
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    {selectedIds.length <= 1
+                      ? 'Agendar Envio'
+                      : `Agendar para ${selectedIds.length} Clientes`}
                   </span>
                 </>
               ) : (

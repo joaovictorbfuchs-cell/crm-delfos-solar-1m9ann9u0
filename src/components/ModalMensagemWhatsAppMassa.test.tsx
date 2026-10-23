@@ -56,6 +56,21 @@ const clientesMock: Cliente[] = [
     updated: '2025-01-01',
   } as Cliente,
   {
+    id: 'cli-hibrido-sem-bateria',
+    collectionId: 'clientes',
+    collectionName: 'clientes',
+    nome: 'Cliente Inversor Híbrido Sem Bateria',
+    cidade: 'Getúlio Vargas',
+    estado: 'RS',
+    whatsapp: '54999887766',
+    telefone: '54999887766',
+    tipo_venda: 'Solar Fotovoltaico',
+    tipo_sistema: 'Híbrido Deye',
+    status: 'Negociação',
+    created: '2025-01-01',
+    updated: '2025-01-01',
+  } as Cliente,
+  {
     id: 'cli-pos-1',
     collectionId: 'clientes',
     collectionName: 'clientes',
@@ -141,8 +156,10 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento', () => {
     // Clica no chip "Clientes Bateria"
     fireEvent.click(chipBateria)
 
+    // Deve exibir Fazenda Baterias (tipo_venda Baterias) e NÃO Cliente Inversor Híbrido Sem Bateria (tipo_sistema Híbrido)
     await waitFor(() => {
       expect(screen.getByText('Fazenda Baterias')).toBeDefined()
+      expect(screen.queryByText('Cliente Inversor Híbrido Sem Bateria')).toBeNull()
       expect(screen.queryByText('Empresa O&M Manutencoes')).toBeNull()
       expect(screen.queryByText('Carlos Solar')).toBeNull()
     })
@@ -163,8 +180,34 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento', () => {
       expect(screen.getByText('Carlos Solar')).toBeDefined()
       expect(screen.getByText('Empresa O&M Manutencoes')).toBeDefined()
       expect(screen.getByText('Fazenda Baterias')).toBeDefined()
+      expect(screen.getByText('Cliente Inversor Híbrido Sem Bateria')).toBeDefined()
       expect(screen.getByText('João Fechado PosVenda')).toBeDefined()
     })
+  })
+
+  it('permite alternar entre "Enviar agora" e "Agendar envio" com data/hora e intervalo', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Por padrão "Enviar agora" está ativo
+    const btnEnviarAgora = screen.getByRole('button', { name: /Enviar agora/i })
+    const btnAgendar = screen.getByRole('button', { name: /Agendar envio/i })
+    expect(btnEnviarAgora).toBeDefined()
+    expect(btnAgendar).toBeDefined()
+
+    // O campo de intervalo e datetime não aparecem inicialmente no modo agora
+    expect(screen.queryByText(/Intervalo entre mensagens:/i)).toBeNull()
+
+    // Clica em "Agendar envio"
+    fireEvent.click(btnAgendar)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Intervalo entre mensagens:/i)).toBeDefined()
+      expect(screen.getByText(/Data e Horário de Início/i)).toBeDefined()
+    })
+
+    // O botão principal do rodapé deve mudar para "Agendar para X Clientes" ou "Agendar Envio"
+    const btnAcao = screen.getByRole('button', { name: /Agendar/i })
+    expect(btnAcao).toBeDefined()
   })
 
   it('"Selecionar todos" seleciona apenas os clientes da lista filtrada ativa', async () => {

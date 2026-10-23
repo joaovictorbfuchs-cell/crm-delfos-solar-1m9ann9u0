@@ -21,6 +21,7 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
 
     // -------------------------------------------------------------
     // PARTE 1: PROCESSAR FILA DE MENSAGENS AGENDADAS
+    // Respeita intervalo configurado (seja do lote em agendado_para ou sleep entre envios)
     // -------------------------------------------------------------
     try {
       // Buscar mensagens agendadas cuja data agendada <= now
@@ -34,6 +35,13 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
       )
 
       for (let i = 0; i < agendadas.length; i++) {
+        // Se houver mais de uma mensagem no mesmo ciclo, introduz um pequeno espaçamento seguro
+        if (i > 0) {
+          try {
+            sleep(1000)
+          } catch (_) {}
+        }
+
         const msg = agendadas[i]
         const dest = (msg.getString('telefone_destino') || '').trim()
         const texto = msg.getString('conteudo_final') || ''
