@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { OrdemServico, OSTipoServico, OSChecklistItem } from '@/types/crm'
-import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
+import { fetchOrdensServico, deleteOrdemServico, fetchProfissionais } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import {
   CalendarioExecucaoOS,
@@ -194,7 +194,7 @@ function ExecucaoOSContent() {
   }, [])
 
   // Mapeamento de tipo de atividade de campo para tipo_servico suportado pela tela
-  const mapTipoAtividadeParaTipoServico = (tipo?: string): string => {
+  const mapTipoAtividadeParaTipoServico = useCallback((tipo?: string): string => {
     switch (tipo) {
       case 'limpeza':
         return 'Limpeza dos Módulos'
@@ -215,16 +215,144 @@ function ExecucaoOSContent() {
       default:
         return 'Manutenção'
     }
-  }
+  }, [])
 
   // Mapeamento de status da atividade para OSStatus
-  const mapStatusAtividadeParaOSStatus = (
-    status?: string,
-  ): 'pendente' | 'concluida' | 'cancelada' => {
-    if (status === 'concluida') return 'concluida'
-    if (status === 'cancelada') return 'cancelada'
-    return 'pendente'
-  }
+  const mapStatusAtividadeParaOSStatus = useCallback(
+    (status?: string): 'pendente' | 'concluida' | 'cancelada' => {
+      if (status === 'concluida') return 'concluida'
+      if (status === 'cancelada') return 'cancelada'
+      return 'pendente'
+    },
+    [],
+  )
+
+  // Converte um registro de atividade bruta para o formato OrdemServico utilizado pelo Calendário e listagem
+  const converterAtividadeParaOS = useCallback(
+    (atv: any): OrdemServico => {
+      const cli = atv.expand?.cliente_id
+      const usina = atv.expand?.usina_id
+      const resp = atv.expand?.responsavel_id
+      const forn = atv.expand?.fornecedor_id
+
+      const endereco = atv.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
+
+      let atribuidaA = ''
+      if (typeof atv.atribuida_a === 'string') {
+        atribuidaA = atv.atribuida_a
+      } else if (atv.atribuida_a && typeof atv.atribuida_a === 'object') {
+        atribuidaA = atv.atribuida_a.nome || atv.atribuida_a.name || ''
+      }
+      if (!atribuidaA) {
+        atribuidaA =
+          atv.responsavel_nome ||
+          resp?.name ||
+          atv.equipe_nome ||
+          forn?.nome_empresa ||
+          forn?.contato_nome ||
+          atv.autor ||
+          ''
+      }
+
+      const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
+      const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
+
+      const rawTitulo = (atv.titulo || '').trim()
+      let tipoServico: string
+
+      if (atv.tipo === 'custom') {
+        tipoServico =
+          atv.expand?.tipo_custom_id?.nome ||
+          atv.subtipo ||
+          atv.tipo_unificado ||
+          rawTitulo ||
+          'Serviço Customizado'
+      } else if (atv.tipo === 'limpeza_manutencao' || atv.tipo === 'limpeza') {
+        tipoServico = rawTitulo || 'Limpeza dos Módulos'
+      } else if (atv.tipo === 'manutencao_preventiva') {
+        tipoServico = rawTitulo || 'Manutenção Preventiva'
+      } else if (atv.tipo === 'manutencao_corretiva') {
+        tipoServico = rawTitulo || 'Manutenção Corretiva'
+      } else if (atv.tipo) {
+        tipoServico = mapTipoAtividadeParaTipoServico(atv.tipo) || rawTitulo || 'Manutenção'
+      } else {
+        tipoServico = rawTitulo || 'Manutenção'
+      }
+      const status = mapStatusAtividadeParaOSStatus(atv.status)
+
+      const parsedDuracao =
+        typeof atv.duracao_minutos === 'number'
+          ? atv.duracao_minutos
+          : typeof atv.duracao_minutos === 'string' && atv.duracao_minutos.trim() !== ''
+            ? Number(atv.duracao_minutos)
+            : NaN
+      const duracaoNum =
+        !isNaN(parsedDuracao) && isFinite(parsedDuracao) && parsedDuracao > 0
+          ? Math.round(parsedDuracao)
+          : undefined
+
+      const checklistNorm = normalizeChecklist(atv.checklist)
+      const tipoCustomIdVal = atv.tipo_custom_id || atv.expand?.tipo_custom_id?.id || undefined
+      const parsedDataObj = safeParseDataAgendada(atv.data_agendada || atv.data)
+      let atvDataStr = parsedDataObj.str
+
+      let horarioInicioSeguro: string | undefined =
+        typeof atv.horario_inicio === 'string' && atv.horario_inicio.trim()
+          ? atv.horario_inicio.trim()
+          : undefined
+
+      if (!horarioInicioSeguro && atvDataStr.length >= 16) {
+        const horaMin = atvDataStr.replace(' ', 'T').slice(11, 16)
+        if (/^\d{2}:\d{2}$/.test(horaMin)) {
+          horarioInicioSeguro = horaMin
+        }
+      }
+
+      const fotosAtividade: string[] = Array.isArray(atv.fotos)
+        ? atv.fotos.filter((f: any) => typeof f === 'string' && f.trim().length > 0)
+        : typeof atv.fotos === 'string' && atv.fotos.trim().length > 0
+          ? [atv.fotos.trim()]
+          : []
+
+      return {
+        id: atv.id || 'atv-' + Math.random().toString(36).slice(2, 7),
+        collectionId: atv.collectionId || 'atividades',
+        collectionName: atv.collectionName || 'atividades',
+        cliente_id: atv.cliente_id,
+        usina_id: atv.usina_id || undefined,
+        tipo_servico: tipoServico,
+        tipo: atv.tipo || undefined,
+        tipo_custom_id: tipoCustomIdVal,
+        endereco,
+        data_agendada: atvDataStr,
+        horario_inicio: horarioInicioSeguro,
+        horario_fim: typeof atv.horario_fim === 'string' ? atv.horario_fim : undefined,
+        duracao_minutos: duracaoNum,
+        tempo_previsto_minutos: duracaoNum,
+        checklist: checklistNorm,
+        fotos: fotosAtividade,
+        status,
+        atribuida_a: atribuidaA,
+        responsavel_usuario_id: atv.responsavel_id || undefined,
+        profissional_id: undefined,
+        instrucoes,
+        detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
+        concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
+        origem: 'atividades',
+        solicitar_avaliacao_google: Boolean(atv.solicitar_avaliacao_google),
+        avaliacao_google_texto: atv.avaliacao_google_texto || '',
+        avaliacao_google_link: atv.avaliacao_google_link || '',
+        created: atv.created,
+        updated: atv.updated,
+        expand: {
+          cliente_id: cli,
+          usina_id: usina,
+          responsavel_usuario_id: resp,
+        },
+      } as OrdemServico
+    },
+    [mapStatusAtividadeParaOSStatus, mapTipoAtividadeParaTipoServico],
+  )
 
   // Ref para controlar se já há carregamento em andamento e evitar duplicidade
   const isFetchingRef = useRef(false)
@@ -239,7 +367,6 @@ function ExecucaoOSContent() {
         setIsLoading(true)
       }
       try {
-        const { fetchProfissionais } = await import('@/services/crmService')
         const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
 
         // Filtro OR para as atividades de manutenção/campo (100% aditivo)
@@ -440,138 +567,8 @@ function ExecucaoOSContent() {
         })
 
         // Mapear cada atividade filtrada para o formato OrdemServico com origem 'atividades'
-        const atividadesMapeadas: OrdemServico[] = atividadesValidasParaCampo.map((atv: any) => {
-          const cli = atv.expand?.cliente_id
-          const usina = atv.expand?.usina_id
-          const resp = atv.expand?.responsavel_id
-          const forn = atv.expand?.fornecedor_id
-
-          // Endereço: usina expand -> cliente expand -> endereco_uc
-          const endereco = atv.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
-
-          // Atribuído a: responsavel_nome -> equipe_nome -> fornecedor -> autor (tolera string ou objeto expandido)
-          let atribuidaA = ''
-          if (typeof atv.atribuida_a === 'string') {
-            atribuidaA = atv.atribuida_a
-          } else if (atv.atribuida_a && typeof atv.atribuida_a === 'object') {
-            atribuidaA = atv.atribuida_a.nome || atv.atribuida_a.name || ''
-          }
-          if (!atribuidaA) {
-            atribuidaA =
-              atv.responsavel_nome ||
-              resp?.name ||
-              atv.equipe_nome ||
-              forn?.nome_empresa ||
-              forn?.contato_nome ||
-              atv.autor ||
-              ''
-          }
-
-          // Instruções combinando título e descrição quando existirem
-          const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
-          const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
-
-          // O tipo passa a vir SEMPRE do campo tipo/tipo_custom_id/subtipo do registro com mapa exato por chave
-          const rawTitulo = (atv.titulo || '').trim()
-          let tipoServico: string
-
-          if (atv.tipo === 'custom') {
-            tipoServico =
-              atv.expand?.tipo_custom_id?.nome ||
-              atv.subtipo ||
-              atv.tipo_unificado ||
-              rawTitulo ||
-              'Serviço Customizado'
-          } else if (atv.tipo === 'limpeza_manutencao') {
-            // Histórico legado unificado para Limpeza dos Módulos
-            tipoServico = rawTitulo || 'Limpeza dos Módulos'
-          } else if (atv.tipo === 'limpeza') {
-            tipoServico = rawTitulo || 'Limpeza dos Módulos'
-          } else if (atv.tipo === 'manutencao_preventiva') {
-            tipoServico = rawTitulo || 'Manutenção Preventiva'
-          } else if (atv.tipo === 'manutencao_corretiva') {
-            tipoServico = rawTitulo || 'Manutenção Corretiva'
-          } else if (atv.tipo) {
-            tipoServico = mapTipoAtividadeParaTipoServico(atv.tipo) || rawTitulo || 'Manutenção'
-          } else {
-            tipoServico = rawTitulo || 'Manutenção'
-          }
-          const status = mapStatusAtividadeParaOSStatus(atv.status)
-
-          const parsedDuracao =
-            typeof atv.duracao_minutos === 'number'
-              ? atv.duracao_minutos
-              : typeof atv.duracao_minutos === 'string' && atv.duracao_minutos.trim() !== ''
-                ? Number(atv.duracao_minutos)
-                : NaN
-          const duracaoNum =
-            !isNaN(parsedDuracao) && isFinite(parsedDuracao) && parsedDuracao > 0
-              ? Math.round(parsedDuracao)
-              : undefined
-
-          // Normaliza checklist de forma tolerante (seja array ou string JSON)
-          const checklistNorm = normalizeChecklist(atv.checklist)
-          const tipoCustomIdVal = atv.tipo_custom_id || atv.expand?.tipo_custom_id?.id || undefined
-          // Extração segura de horário de início e data agendada com safeParseDataAgendada
-          const parsedDataObj = safeParseDataAgendada(atv.data_agendada || atv.data)
-          let atvDataStr = parsedDataObj.str
-
-          let horarioInicioSeguro: string | undefined =
-            typeof atv.horario_inicio === 'string' && atv.horario_inicio.trim()
-              ? atv.horario_inicio.trim()
-              : undefined
-
-          if (!horarioInicioSeguro && atvDataStr.length >= 16) {
-            const horaMin = atvDataStr.replace(' ', 'T').slice(11, 16)
-            if (/^\d{2}:\d{2}$/.test(horaMin)) {
-              horarioInicioSeguro = horaMin
-            }
-          }
-
-          // Guarda defensiva para fotos da atividade: array, string única ou vazio
-          const fotosAtividade: string[] = Array.isArray(atv.fotos)
-            ? atv.fotos.filter((f: any) => typeof f === 'string' && f.trim().length > 0)
-            : typeof atv.fotos === 'string' && atv.fotos.trim().length > 0
-              ? [atv.fotos.trim()]
-              : []
-
-          return {
-            id: atv.id || 'atv-' + Math.random().toString(36).slice(2, 7),
-            collectionId: atv.collectionId || 'atividades',
-            collectionName: atv.collectionName || 'atividades',
-            cliente_id: atv.cliente_id,
-            usina_id: atv.usina_id || undefined,
-            tipo_servico: tipoServico,
-            tipo: atv.tipo || undefined,
-            tipo_custom_id: tipoCustomIdVal,
-            endereco,
-            data_agendada: atvDataStr,
-            horario_inicio: horarioInicioSeguro,
-            horario_fim: typeof atv.horario_fim === 'string' ? atv.horario_fim : undefined,
-            duracao_minutos: duracaoNum,
-            tempo_previsto_minutos: duracaoNum,
-            checklist: checklistNorm,
-            fotos: fotosAtividade,
-            status,
-            atribuida_a: atribuidaA,
-            responsavel_usuario_id: atv.responsavel_id || undefined,
-            profissional_id: undefined,
-            instrucoes,
-            detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
-            concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
-            origem: 'atividades',
-            solicitar_avaliacao_google: Boolean(atv.solicitar_avaliacao_google),
-            avaliacao_google_texto: atv.avaliacao_google_texto || '',
-            avaliacao_google_link: atv.avaliacao_google_link || '',
-            created: atv.created,
-            updated: atv.updated,
-            expand: {
-              cliente_id: cli,
-              usina_id: usina,
-              responsavel_usuario_id: resp,
-            },
-          } as OrdemServico
-        })
+        const atividadesMapeadas: OrdemServico[] =
+          atividadesValidasParaCampo.map(converterAtividadeParaOS)
 
         // Normalizar checklist e campos das OSs reais para garantir que seja sempre seguro
         const osReais = (Array.isArray(osList) ? osList : []).map((osItem) => {
@@ -644,7 +641,7 @@ function ExecucaoOSContent() {
         }
       }
     },
-    [isAdmin, isInstalador, userProfile?.id, userProfile?.name, toast],
+    [converterAtividadeParaOS, isAdmin, isInstalador, userProfile?.id, userProfile?.name, toast],
   )
 
   // Carregamento inicial ao montar ou trocar usuário
@@ -2199,9 +2196,22 @@ function ExecucaoOSContent() {
             setIsModalNovaAtividadeOpen(false)
             setSlotSelecionadoDataHora(null)
           }}
-          onAtividadeCriada={() => {
+          onAtividadeCriada={(novaAtividade) => {
             setSlotSelecionadoDataHora(null)
-            carregarDados()
+            if (novaAtividade && typeof novaAtividade === 'object' && novaAtividade.id) {
+              try {
+                const novaOS = converterAtividadeParaOS(novaAtividade)
+                setOrdens((prev) => {
+                  const safePrev = Array.isArray(prev) ? prev : []
+                  const semDuplicata = safePrev.filter((o) => o?.id !== novaOS.id)
+                  return [novaOS, ...semDuplicata]
+                })
+              } catch (errConv) {
+                console.warn('Erro ao atualizar otimistamente o calendário:', errConv)
+              }
+            }
+            // Sincroniza em background silenciosamente sem travar a interface
+            carregarDados(true)
           }}
           apenasManutencao
           initialDataHora={slotSelecionadoDataHora || undefined}

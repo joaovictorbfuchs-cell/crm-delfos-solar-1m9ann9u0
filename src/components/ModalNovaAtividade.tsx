@@ -89,7 +89,7 @@ interface ModalNovaAtividadeProps {
   apenasManutencao?: boolean
   initialDataHora?: string
   initialHorarioInicio?: string
-  onAtividadeCriada?: () => void
+  onAtividadeCriada?: (novaAtividade?: any) => void
 }
 
 export interface ProgramarLeituraAnoLinha {
@@ -819,15 +819,26 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setFormSuccess(true)
       if (onAtividadeCriada) {
         try {
-          onAtividadeCriada()
+          // Passa a atividade recém-criada (com expands e dados locais enriquecidos)
+          const expandOriginal = (maeCriada as any)?.expand || {}
+          const atividadeEnriquecida = {
+            ...maeCriada,
+            expand: {
+              ...expandOriginal,
+              cliente_id: clienteSelecionadoAtual || expandOriginal?.cliente_id,
+              usina_id: usinaSelecionadaAtual || expandOriginal?.usina_id,
+              tipo_custom_id:
+                customDefs.find((c) => c.customRecordId === customRecordId) ||
+                expandOriginal?.tipo_custom_id,
+            },
+          }
+          onAtividadeCriada(atividadeEnriquecida)
         } catch (callbackErr) {
           console.warn('Erro no callback onAtividadeCriada:', callbackErr)
         }
       }
-      setTimeout(() => {
-        setFormSuccess(false)
-        onClose()
-      }, 1000)
+      // Fecha o modal imediatamente para o usuário não ficar preso esperando
+      onClose()
     } catch (err: unknown) {
       console.error('Falha ao agendar atividade:', err)
       setFormError('Erro ao agendar atividade. Tente novamente.')

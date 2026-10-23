@@ -1,49 +1,50 @@
 import { ClientResponseError } from 'pocketbase'
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const anyErr = err as Record<string, unknown>
-    if (anyErr.status === 401 || anyErr.status === 403) return true
-    if (anyErr.response && typeof anyErr.response === 'object') {
-      const res = anyErr.response as Record<string, unknown>
-      if (res.status === 401 || res.status === 403) return true
-    }
-    if (typeof anyErr.message === 'string') {
-      const msg = anyErr.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('invalid token') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('sessão expirada') ||
-        msg.includes('login expirou')
-      ) {
-        return true
-      }
+export type FieldErrors = Record<string, string>
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, any>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.response?.status === 401 || errObj.response?.status === 403) return true
+    const msg = String(errObj.message || '')
+    if (
+      msg.includes('Token is expired or invalid') ||
+      msg.includes('Failed to authenticate') ||
+      msg.toLowerCase().includes('sessão expirada') ||
+      msg.toLowerCase().includes('login expirou')
+    ) {
+      return true
     }
   }
   return false
 }
 
-export function isAbortError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const anyErr = err as Record<string, unknown>
-  if (anyErr.isAbort === true) return true
-  if (anyErr.name === 'AbortError') return true
-  if (
-    typeof anyErr.message === 'string' &&
-    anyErr.message.toLowerCase().includes('autocancelled')
-  ) {
-    return true
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, any>
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
+    const msg = String(errObj.message || '')
+    if (msg.toLowerCase().includes('aborted') || msg.toLowerCase().includes('autocancelled')) {
+      return true
+    }
   }
   return false
 }
 
 export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+  if (error instanceof ClientResponseError) {
+    const fieldErrors = extractFieldErrors(error)
+    const msgs = Object.values(fieldErrors)
+    if (msgs.length > 0) return msgs.join(', ')
+    return error.message || 'Erro de comunicação com o servidor'
+  }
+  if (error instanceof Error) return error.message
+  return typeof error === 'string' ? error : 'Erro desconhecido'
 }
-
-export type FieldErrors = Record<string, string>
 
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
