@@ -54,10 +54,9 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
 
   if (!isOpen) return null
 
-  // Clientes que ainda não têm contrato de O&M
-  const clientesDisponiveis = clientes.filter(
-    (c) => !contratosOM.some((cont) => cont.cliente_id === c.id),
-  )
+  // Permitir múltiplos contratos ativos para o mesmo cliente (ex: contratos por usina)
+  // Lista todos os clientes ativos sem bloquear clientes que já possuem contrato
+  const clientesDisponiveis = clientes
 
   const handleClienteChange = (novoClienteId: string) => {
     setClienteId(novoClienteId)
@@ -200,11 +199,18 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
             >
               <option value="">Selecione um cliente...</option>
-              {clientesDisponiveis.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome} — {c.cidade || 'Erechim/RS'} ({c.potencia_kwp || 0} kWp)
-                </option>
-              ))}
+              {clientesDisponiveis.map((c) => {
+                const contratosDoCli = contratosOM.filter((ct) => ct.cliente_id === c.id)
+                const qtdContratos = contratosDoCli.length
+                return (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} — {c.cidade || 'Erechim/RS'} ({c.potencia_kwp || 0} kWp)
+                    {qtdContratos > 0
+                      ? ` [${qtdContratos} ${qtdContratos === 1 ? 'contrato existente' : 'contratos existentes'}]`
+                      : ''}
+                  </option>
+                )
+              })}
             </select>
           </div>
 

@@ -832,9 +832,14 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({
               const isSel = contrato?.id === cItem.id
               const dias = calcularDiasRestantesDefensivo(cItem.data_vencimento) ?? 0
 
-              // Identificar usinas vinculadas a este contrato da lista de usinas do cliente
+              // Identificar usinas vinculadas a este contrato (via contratos_usinas N:N ou campo direto contrato_id na usina)
+              const idsUsinasVinculadas = new Set(
+                vinculosContratosUsinas
+                  .filter((v) => v.contrato_id === cItem.id && v.ativo !== false)
+                  .map((v) => v.usina_id),
+              )
               const usinasDesteContrato = usinasLocais.filter(
-                (u) => (u as any).contrato_id === cItem.id,
+                (u) => idsUsinasVinculadas.has(u.id) || (u as any).contrato_id === cItem.id,
               )
               const nomeUsinaVinculada =
                 usinasDesteContrato.length > 0

@@ -41,7 +41,7 @@ export const ModalSelecionarClienteContratoOM: React.FC<ModalSelecionarClienteCo
   onCriarPropostaParaCliente,
   initialClienteId,
 }) => {
-  const { clientes, propostasOM } = useClientes()
+  const { clientes, propostasOM, contratosOM } = useClientes()
   const [busca, setBusca] = useState('')
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(null)
   const [abaFiltro, setAbaFiltro] = useState<'aprovados' | 'todos'>('aprovados')
@@ -386,6 +386,23 @@ export const ModalSelecionarClienteContratoOM: React.FC<ModalSelecionarClienteCo
                             Sem proposta aprovada
                           </span>
                         )}
+                        {(() => {
+                          const contratosCli = (contratosOM || []).filter(
+                            (ct) =>
+                              ct.cliente_id === cli.id &&
+                              ct.status !== 'Encerrado' &&
+                              ct.status !== 'Cancelado' &&
+                              ct.status_encerramento !== 'encerrado',
+                          )
+                          if (contratosCli.length === 0) return null
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              <ShieldCheck className="w-3 h-3 text-blue-600" />
+                              {contratosCli.length}{' '}
+                              {contratosCli.length === 1 ? 'contrato ativo' : 'contratos ativos'}
+                            </span>
+                          )
+                        })()}
                       </div>
                       <div className="text-[11px] text-gray-400 flex items-center gap-2 mt-0.5">
                         <span className="flex items-center gap-1">
