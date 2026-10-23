@@ -16,6 +16,9 @@ import {
   AlertTriangle,
   Briefcase,
   MessageSquare,
+  Search,
+  ChevronDown,
+  Check,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
@@ -136,6 +139,10 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     if (apenasManutencao) return initialTipo || 'visita_tecnica'
     return initialTipo || 'contato_ligacao'
   })
+  const [tipoDropdownOpen, setTipoDropdownOpen] = useState(false)
+  const [buscaTipo, setBuscaTipo] = useState('')
+  const tipoDropdownRef = React.useRef<HTMLDivElement>(null)
+  const buscaTipoInputRef = React.useRef<HTMLInputElement>(null)
   const [titulo, setTitulo] = useState('')
   const [clienteId, setClienteId] = useState(initialClienteId || '')
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>(usinasProp || [])
@@ -266,15 +273,14 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         ? initialTipo || 'visita_tecnica'
         : initialTipo || 'contato_ligacao'
       setSelectedTipo(tipoParaUsar)
+      const conf = getTipoAtividadeConfig(tipoParaUsar)
       if (apenasManutencao) {
         setSelectedCategoria('manutencao')
-        const conf = getTipoAtividadeConfig(tipoParaUsar)
-        setTitulo(conf.tituloPadrao)
       } else {
-        const conf = getTipoAtividadeConfig(tipoParaUsar)
         setSelectedCategoria(conf.categoria || 'comercial')
-        setTitulo(conf.tituloPadrao)
       }
+      // Se não veio título pré-definido, inicializa o campo livre com o padrão do tipo
+      setTitulo((prev) => (prev ? prev : conf.tituloPadrao))
       if (initialClienteId) {
         setClienteId(initialClienteId)
       } else {
@@ -332,6 +338,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         }
       }
 
+      setTipoDropdownOpen(false)
+      setBuscaTipo('')
       setFormError(null)
       setFormSuccess(false)
     }
@@ -456,16 +464,53 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     return deduplicarTiposAtividades(padroes, customs)
   }, [selectedCategoria, customDefs])
 
+  const tiposFiltradosDropdown = React.useMemo(() => {
+    const termo = buscaTipo.trim().toLowerCase()
+    if (!termo) return tiposDaCategoria
+    return tiposDaCategoria.filter((t) => {
+      const nomeMatch = (t.tituloPadrao || '').toLowerCase().includes(termo)
+      const descMatch = (t.descricaoAjuda || '').toLowerCase().includes(termo)
+      return nomeMatch || descMatch
+    })
+  }, [tiposDaCategoria, buscaTipo])
+
+  // Fecha o dropdown se clicar fora
+  useEffect(() => {
+    if (!tipoDropdownOpen) return
+    const handleClickOutside = (ev: MouseEvent) => {
+      if (tipoDropdownRef.current && !tipoDropdownRef.current.contains(ev.target as Node)) {
+        setTipoDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [tipoDropdownOpen])
+
+  // Foco automático no input de busca ao abrir o dropdown compacto
+  useEffect(() => {
+    if (tipoDropdownOpen) {
+      setTimeout(() => {
+        buscaTipoInputRef.current?.focus()
+      }, 50)
+    } else {
+      setBuscaTipo('')
+    }
+  }, [tipoDropdownOpen])
+
   if (!isOpen) return null
 
   const handleCategoriaChange = (catId: AtividadeCategoriaId) => {
     setSelectedCategoria(catId)
+    setTipoDropdownOpen(false)
+    setBuscaTipo('')
     const firstOfCat =
       ATIVIDADES_PADRAO.find((t) => t.categoria === catId) ||
       customDefs.find((t) => t.categoria === catId)
     if (firstOfCat) {
       setSelectedTipo(firstOfCat.id)
-      setTitulo(firstOfCat.tituloPadrao)
+      // Preserva o título livre se o usuário já tiver digitado algo diferente do padrão anterior,
+      // mas se estiver vazio preenche com o padrão do primeiro tipo
+      setTitulo((prev) => (prev.trim() ? prev : firstOfCat.tituloPadrao))
       setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(firstOfCat))
     }
 
@@ -498,14 +543,16 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
   const handleTipoChange = (novoTipo: AtividadeTipo) => {
     setSelectedTipo(novoTipo)
+    setTipoDropdownOpen(false)
+    setBuscaTipo('')
     const conf = getTipoAtividadeConfig(novoTipo, customDefs)
     // Herda a definição de usina obrigatória a partir da configuração deste padrão de atividade
     setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(conf))
-    // Regra do usuário: O nome do tipo clicado deve virar AUTOMATICAMENTE o título da atividade
-    setTitulo(conf.tituloPadrao)
+    // Título livre: preenche se estiver vazio ou com o padrão anterior
+    setTitulo((prev) => (!prev.trim() ? conf.tituloPadrao : prev))
     if (novoTipo === 'auto_leitura_rge') {
-      // Se tiver UC preenchida, incrementa o título conforme padrão "Auto Leitura RGE - UC <numero>"
-      if (numeroUcAutoLeitura) {
+      // Se tiver UC preenchida e título vazio ou genérico, sugere padrão "Auto Leitura RGE - UC <numero>"
+      if (numeroUcAutoLeitura && (!titulo || titulo === 'Auto Leitura - RGE')) {
         setTitulo(`Auto Leitura RGE - UC ${numeroUcAutoLeitura}`)
       }
     } else if (novoTipo === 'solicitar_contas_rge') {
@@ -929,85 +976,169 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         </div>
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
-          {/* Seleção em 2 etapas: Categoria e Tipo */}
+          {/* Seletor de Categoria e Dropdown Compacto de Tipo com Busca */}
           <div className="space-y-2 p-3 bg-gray-50/80 rounded-xl border border-gray-200">
-            {/* Etapa 1: Categoria */}
+            {/* Seletor Segmentado Fino das 3 Categorias */}
             <div>
               <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wide block mb-1">
-                1. Selecione a Categoria
+                Categoria
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div
+                role="tablist"
+                aria-label="Categorias de atividades"
+                className="grid grid-cols-3 gap-1 p-0.5 bg-gray-200/70 rounded-lg border border-gray-200"
+              >
                 {CATEGORIAS_ATIVIDADES.map((cat) => {
                   const isCatSelected = selectedCategoria === cat.id
                   const isDesabilitada = apenasManutencao && cat.id !== 'manutencao'
+                  const rotuloCategoria =
+                    cat.id === 'comercial'
+                      ? 'Comerciais'
+                      : cat.id === 'manutencao'
+                        ? 'Manutenção'
+                        : 'Administrativas'
                   return (
                     <button
                       key={cat.id}
                       type="button"
+                      role="tab"
+                      aria-selected={isCatSelected}
                       disabled={isDesabilitada}
                       onClick={() => !isDesabilitada && handleCategoriaChange(cat.id)}
-                      className={`px-2 py-1.5 rounded-lg text-xs font-semibold truncate transition-all border ${
+                      className={`py-1 px-2 rounded-md text-[11px] font-semibold transition-all text-center truncate ${
                         isCatSelected
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          ? 'bg-white text-emerald-700 shadow-xs font-bold'
                           : isDesabilitada
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-40 cursor-not-allowed'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                            ? 'text-gray-400 opacity-40 cursor-not-allowed'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
                       }`}
                     >
-                      {cat.id === 'comercial'
-                        ? 'Comercial'
-                        : cat.id === 'manutencao'
-                          ? 'Manutenção'
-                          : cat.id === 'administrativo_pos_venda'
-                            ? 'Administrativas'
-                            : cat.nome.replace(/^Atividades (de )?/, '')}
+                      {rotuloCategoria}
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            {/* Etapa 2: Tipos da Categoria */}
-            <div>
+            {/* Dropdown Compacto (Combobox) com Busca */}
+            <div className="relative" ref={tipoDropdownRef}>
               <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wide block mb-1">
-                2. Tipo de Atividade
+                Tipo de Atividade
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto p-1 bg-white rounded-lg border border-gray-200">
-                {tiposDaCategoria.map((item) => {
-                  const ItemIcon = item.icon
-                  const isSelected = selectedTipo === item.id
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleTipoChange(item.id)}
-                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition-all ${
-                        isSelected
-                          ? 'bg-emerald-600 text-white font-bold shadow-2xs ring-1 ring-emerald-600'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-100'
-                      }`}
-                      title={`${item.tituloPadrao} — ${item.descricaoAjuda}`}
-                    >
-                      <ItemIcon
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          isSelected ? 'text-white' : 'text-gray-500'
-                        }`}
+
+              {/* Botão Gatilho do Dropdown: 1 linha de altura, ícone + nome */}
+              <button
+                type="button"
+                onClick={() => setTipoDropdownOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border text-xs font-medium text-gray-900 transition-colors ${
+                  tipoDropdownOpen
+                    ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <div
+                    className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${configAtual.iconBg}`}
+                    style={{ color: configAtual.corHex }}
+                  >
+                    <IconAtual className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="truncate text-xs font-semibold text-gray-900">
+                    {configAtual.tituloPadrao}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-gray-400 shrink-0 transition-transform duration-150 ${
+                    tipoDropdownOpen ? 'rotate-180 text-emerald-600' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Painel Suspenso com Campo de Busca e Lista de Opções Compactas */}
+              {tipoDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  {/* Campo de Busca Rápida */}
+                  <div className="p-2 border-b border-gray-100 bg-gray-50/70">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        ref={buscaTipoInputRef}
+                        type="text"
+                        value={buscaTipo}
+                        onChange={(e) => setBuscaTipo(e.target.value)}
+                        placeholder="Buscar tipo de atividade... (ex: limp, contato)"
+                        className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-900"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setTipoDropdownOpen(false)
+                          } else if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (tiposFiltradosDropdown.length > 0) {
+                              handleTipoChange(tiposFiltradosDropdown[0].id)
+                            }
+                          }
+                        }}
                       />
-                      <span className="truncate text-[11px]">{item.tituloPadrao}</span>
-                    </button>
-                  )
-                })}
-              </div>
+                    </div>
+                  </div>
+
+                  {/* Lista de Opções: Cada uma em 1 linha de altura, ícone + nome */}
+                  <div className="max-h-56 overflow-y-auto p-1 divide-y divide-gray-50">
+                    {tiposFiltradosDropdown.length === 0 ? (
+                      <div className="py-4 text-center text-xs text-gray-400">
+                        Nenhum tipo encontrado para "{buscaTipo}"
+                      </div>
+                    ) : (
+                      tiposFiltradosDropdown.map((item) => {
+                        const ItemIcon = item.icon
+                        const isSelected = selectedTipo === item.id
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleTipoChange(item.id)}
+                            className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-50 text-emerald-900 font-bold'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <div
+                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${item.iconBg}`}
+                                style={{ color: item.corHex }}
+                              >
+                                <ItemIcon className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="truncate text-xs font-medium text-gray-900">
+                                {item.tituloPadrao}
+                              </span>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            )}
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Descrição do Tipo Selecionado como Texto de Apoio Abaixo do Campo, Sem Truncamento */}
+              {configAtual.descricaoAjuda && (
+                <p className="mt-1.5 text-[11px] text-gray-500 leading-relaxed px-0.5">
+                  {configAtual.descricaoAjuda}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Título Automático (editável) */}
+          {/* Título da Atividade (campo de texto livre) */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
               <span>Título da Atividade</span>
-              <span className="text-[10px] text-emerald-600 font-normal">
-                Preenchido automaticamente pelo tipo
-              </span>
+              <span className="text-[10px] text-gray-400 font-normal">Texto livre</span>
             </label>
             <input
               type="text"
