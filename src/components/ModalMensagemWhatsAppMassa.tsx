@@ -33,6 +33,10 @@ import {
   Check,
   Calendar,
   Clock,
+  Bookmark,
+  Plus,
+  Trash2,
+  X,
 } from 'lucide-react'
 import { parseSaoPauloToUtcIso, formatUtcToSaoPauloInput } from '@/lib/datetimeSaoPaulo'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -42,6 +46,13 @@ import { validarNumeroWhatsApp } from '@/lib/propostaWhatsAppService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { fetchWhatsAppTemplates } from '@/services/crmService'
+import {
+  fetchListasEnvio,
+  createListaEnvio,
+  deleteListaEnvio,
+  type ListaEnvioRegistro,
+  type FiltrosExtrasListaEnvio,
+} from '@/services/listasEnvioService'
 import {
   PLACEHOLDERS_ENVIO_MASSA,
   resolverPlaceholdersMensagemMassa,
@@ -236,6 +247,25 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const [busca, setBusca] = useState('')
   const [limiteExibicao, setLimiteExibicao] = useState(50)
 
+  // Filtros extras combináveis
+  const [filtroWhatsApp, setFiltroWhatsApp] = useState<'todos' | 'com_whatsapp' | 'sem_whatsapp'>(
+    'todos',
+  )
+  const [filtroCidade, setFiltroCidade] = useState<string>('')
+  const [filtroConcessionaria, setFiltroConcessionaria] = useState<string>('')
+  const [filtroTipoCliente, setFiltroTipoCliente] = useState<string>('')
+  const [filtroStatus, setFiltroStatus] = useState<string>('')
+
+  // Listas Salvas
+  const [listasSalvas, setListasSalvas] = useState<ListaEnvioRegistro[]>([])
+  const [listaSelecionadaId, setListaSelecionadaId] = useState<string>('')
+  const [isLoadingListas, setIsLoadingListas] = useState(false)
+  const [modalSalvarListaOpen, setModalSalvarListaOpen] = useState(false)
+  const [nomeNovaLista, setNomeNovaLista] = useState('')
+  const [isSalvandoLista, setIsSalvandoLista] = useState(false)
+  const [listaParaExcluir, setListaParaExcluir] = useState<ListaEnvioRegistro | null>(null)
+  const [isExcluindoLista, setIsExcluindoLista] = useState(false)
+
   // Edição rápida de telefone
   const [editandoTelefoneId, setEditandoTelefoneId] = useState<string | null>(null)
   const [telefoneEmEdicao, setTelefoneEmEdicao] = useState('')
@@ -258,25 +288,27 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
   const [authErrorCapturado, setAuthErrorCapturado] = useState(false)
 
-  // Carrega templates do backend ao abrir o modal
+  // Carrega templates e listas salvas do backend ao abrir o modal
   useEffect(() => {
     if (!open) return
     let cancelado = false
 
-    const carregarTemplates = async () => {
+    const carregarTemplatesEListas = async () => {
       try {
-        const registros = await fetchWhatsAppTemplates()
+        const [registrosTemplates, registrosListas] = await Promise.all([
+          fetchWhatsAppTemplates().catch(() => []),
+          fetchListasEnvio().catch(() => []),
+        ])
+
         if (cancelado) return
 
-        if (Array.isArray(registros) && registros.length > 0) {
-          // Filtra ou ordena templates para destacar Lembrete de manutenção, Oferta especial, Fatura em atraso
-          const mapeados = registros.map((r: WhatsAppTemplate) => ({
+        if (Array.isArray(registrosTemplates) && registrosTemplates.length > 0) {
+          const mapeados = registrosTemplates.map((r: WhatsAppTemplate) => ({
             id: r.id,
             titulo: r.titulo,
             conteudo: r.conteudo,
           }))
 
-          // Garante que os modelos solicitados apareçam se não existirem
           const combinados = [...mapeados]
           TEMPLATES_PADRAO_FALLBACK.forEach((fb) => {
             const jaExiste = combinados.some(
@@ -291,13 +323,17 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         } else {
           setTemplates(TEMPLATES_PADRAO_FALLBACK)
         }
+
+        if (Array.isArray(registrosListas)) {
+          setListasSalvas(registrosListas)
+        }
       } catch (err) {
-        console.warn('Usando templates fallback de mensagem em massa:', err)
+        console.warn('Erro ao carregar templates ou listas:', err)
         setTemplates(TEMPLATES_PADRAO_FALLBACK)
       }
     }
 
-    carregarTemplates()
+    carregarTemplatesEListas()
     return () => {
       cancelado = true
     }
@@ -479,16 +515,93 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     return listaBase
   }, [destinatariosIniciais, clientes, contatosAdicionais, sistemas, classificarSegmentosCliente])
 
-  // Filtragem por Segmento e por Busca
+  // Listas de valores distintos existentes na base real para os dropdowns de filtros extras
+  const opcoesFiltrosExtras = useMemo(() => {
+    const cidadesSet = new Set<string>()
+    const concessionariasSet = new Set<string>()
+    const tiposClienteSet = new Set<string>()
+    const statusSet = new Set<string>()
+
+    itensProcessados.forEach((item) => {
+      const cli = item.cliente
+      if (item.cidade && item.cidade.trim()) {
+        cidadesSet.add(item.cidade.trim())
+      } else if (cli.cidade && cli.cidade.trim()) {
+        cidadesSet.add(cli.cidade.trim())
+      }
+
+      if (cli.concessionaria && cli.concessionaria.trim()) {
+        concessionariasSet.add(cli.concessionaria.trim())
+      }
+
+      if (cli.tipo_cliente && String(cli.tipo_cliente).trim()) {
+        tiposClienteSet.add(String(cli.tipo_cliente).trim())
+      }
+
+      if (cli.status && String(cli.status).trim()) {
+        statusSet.add(String(cli.status).trim())
+      }
+    })
+
+    return {
+      cidades: Array.from(cidadesSet).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+      concessionarias: Array.from(concessionariasSet).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+      tiposCliente: Array.from(tiposClienteSet).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+      statusList: Array.from(statusSet).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    }
+  }, [itensProcessados])
+
+  // Filtragem por Segmento, Filtros Extras Combináveis e Busca
   const itensFiltrados = useMemo(() => {
     let resultado = itensProcessados
 
-    // 1. Filtro por segmento
+    // 1. Filtro base por segmento
     if (segmentoAtivo !== 'todos') {
       resultado = resultado.filter((item) => item.segmentos.includes(segmentoAtivo))
     }
 
-    // 2. Filtro por busca de texto
+    // 2. Filtro extra WhatsApp: todos | com_whatsapp | sem_whatsapp
+    if (filtroWhatsApp === 'com_whatsapp') {
+      resultado = resultado.filter((item) => item.temWhatsAppValido)
+    } else if (filtroWhatsApp === 'sem_whatsapp') {
+      resultado = resultado.filter((item) => !item.temWhatsAppValido)
+    }
+
+    // 3. Filtro extra Cidade
+    if (filtroCidade) {
+      resultado = resultado.filter((item) => {
+        const c1 = (item.cidade || '').toLowerCase()
+        const c2 = (item.cliente.cidade || '').toLowerCase()
+        const alvo = filtroCidade.toLowerCase()
+        return c1 === alvo || c2 === alvo
+      })
+    }
+
+    // 4. Filtro extra Concessionária
+    if (filtroConcessionaria) {
+      resultado = resultado.filter((item) => {
+        const conc = (item.cliente.concessionaria || '').toLowerCase()
+        return conc === filtroConcessionaria.toLowerCase()
+      })
+    }
+
+    // 5. Filtro extra Tipo de Cliente
+    if (filtroTipoCliente) {
+      resultado = resultado.filter((item) => {
+        const tc = String(item.cliente.tipo_cliente || '').toLowerCase()
+        return tc === filtroTipoCliente.toLowerCase()
+      })
+    }
+
+    // 6. Filtro extra Status
+    if (filtroStatus) {
+      resultado = resultado.filter((item) => {
+        const st = String(item.cliente.status || '').toLowerCase()
+        return st === filtroStatus.toLowerCase()
+      })
+    }
+
+    // 7. Filtro por busca de texto
     const termo = busca.trim().toLowerCase()
     if (termo) {
       resultado = resultado.filter((item) => {
@@ -500,7 +613,37 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     }
 
     return resultado
-  }, [itensProcessados, segmentoAtivo, busca])
+  }, [
+    itensProcessados,
+    segmentoAtivo,
+    filtroWhatsApp,
+    filtroCidade,
+    filtroConcessionaria,
+    filtroTipoCliente,
+    filtroStatus,
+    busca,
+  ])
+
+  // Contagem de filtros extras ativos
+  const totalFiltrosExtrasAtivos = useMemo(() => {
+    let count = 0
+    if (filtroWhatsApp !== 'todos') count++
+    if (filtroCidade) count++
+    if (filtroConcessionaria) count++
+    if (filtroTipoCliente) count++
+    if (filtroStatus) count++
+    return count
+  }, [filtroWhatsApp, filtroCidade, filtroConcessionaria, filtroTipoCliente, filtroStatus])
+
+  // Limpar apenas os filtros extras
+  const handleLimparFiltrosExtras = () => {
+    setFiltroWhatsApp('todos')
+    setFiltroCidade('')
+    setFiltroConcessionaria('')
+    setFiltroTipoCliente('')
+    setFiltroStatus('')
+    setListaSelecionadaId('')
+  }
 
   // Inicialização ao abrir o modal (executa apenas na transição de open false -> true)
   useEffect(() => {
@@ -631,6 +774,168 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const handleMudarSegmento = (novoSegmento: SegmentoFiltro) => {
     setSegmentoAtivo(novoSegmento)
     setLimiteExibicao(50)
+    // Se o usuário mudou manualmente a pílula de segmento, desmarca lista salva ativa para não gerar confusão
+    setListaSelecionadaId('')
+  }
+
+  // Ações de Listas Salvas
+  const handleSelecionarListaSalva = (listaId: string) => {
+    setListaSelecionadaId(listaId)
+    if (!listaId) {
+      return
+    }
+
+    const lista = listasSalvas.find((l) => l.id === listaId)
+    if (!lista) return
+
+    // 1. Aplica o segmento base salvo
+    const segSalvo = (lista.segmento as SegmentoFiltro) || 'todos'
+    setSegmentoAtivo(segSalvo)
+
+    // 2. Aplica os filtros extras salvos
+    const fx: FiltrosExtrasListaEnvio = lista.filtros || {}
+    const wppVal = fx.whatsapp || 'todos'
+    const cidVal = fx.cidade || ''
+    const concVal = fx.concessionaria || ''
+    const tipoVal = fx.tipo_cliente || ''
+    const stVal = fx.status || ''
+
+    setFiltroWhatsApp(wppVal)
+    setFiltroCidade(cidVal)
+    setFiltroConcessionaria(concVal)
+    setFiltroTipoCliente(tipoVal)
+    setFiltroStatus(stVal)
+    setLimiteExibicao(50)
+
+    // 3. Calcula clientes resultantes e seleciona-os de uma vez
+    let filtrados = itensProcessados
+    if (segSalvo !== 'todos') {
+      filtrados = filtrados.filter((i) => i.segmentos.includes(segSalvo))
+    }
+    if (wppVal === 'com_whatsapp') {
+      filtrados = filtrados.filter((i) => i.temWhatsAppValido)
+    } else if (wppVal === 'sem_whatsapp') {
+      filtrados = filtrados.filter((i) => !i.temWhatsAppValido)
+    }
+    if (cidVal) {
+      filtrados = filtrados.filter((i) => {
+        const c1 = (i.cidade || '').toLowerCase()
+        const c2 = (i.cliente.cidade || '').toLowerCase()
+        return c1 === cidVal.toLowerCase() || c2 === cidVal.toLowerCase()
+      })
+    }
+    if (concVal) {
+      filtrados = filtrados.filter(
+        (i) => (i.cliente.concessionaria || '').toLowerCase() === concVal.toLowerCase(),
+      )
+    }
+    if (tipoVal) {
+      filtrados = filtrados.filter(
+        (i) => String(i.cliente.tipo_cliente || '').toLowerCase() === tipoVal.toLowerCase(),
+      )
+    }
+    if (stVal) {
+      filtrados = filtrados.filter(
+        (i) => String(i.cliente.status || '').toLowerCase() === stVal.toLowerCase(),
+      )
+    }
+
+    const idsSelecionados = filtrados.map((i) => i.cliente.id)
+    setSelectedIds(idsSelecionados)
+    if (idsSelecionados.length > 0) {
+      setClienteFocadoId(idsSelecionados[0])
+    }
+
+    toast.success(`Lista salva "${lista.nome}" aplicada`, {
+      description: `${idsSelecionados.length} cliente(s) selecionado(s) automaticamente.`,
+    })
+  }
+
+  const handleAbrirModalSalvarLista = () => {
+    // Sugere nome padrão baseado no segmento e filtros ativos
+    const labelSeg =
+      segmentoAtivo === 'clientes_om'
+        ? 'Clientes O&M'
+        : segmentoAtivo === 'clientes_solar'
+          ? 'Clientes Solar'
+          : segmentoAtivo === 'clientes_bateria'
+            ? 'Clientes Bateria'
+            : segmentoAtivo === 'pos_vendas'
+              ? 'Pós-Venda'
+              : 'Todos os clientes'
+
+    const detalhes = [
+      filtroWhatsApp === 'com_whatsapp'
+        ? 'Com WhatsApp'
+        : filtroWhatsApp === 'sem_whatsapp'
+          ? 'Sem WhatsApp'
+          : null,
+      filtroCidade ? filtroCidade : null,
+      filtroConcessionaria ? filtroConcessionaria : null,
+      filtroTipoCliente ? filtroTipoCliente : null,
+      filtroStatus ? filtroStatus : null,
+    ].filter(Boolean)
+
+    const suposto = detalhes.length > 0 ? `${labelSeg} (${detalhes.join(', ')})` : labelSeg
+    setNomeNovaLista(suposto)
+    setModalSalvarListaOpen(true)
+  }
+
+  const handleConfirmarSalvarLista = async () => {
+    if (!nomeNovaLista.trim()) {
+      toast.error('Informe um nome para a lista salva')
+      return
+    }
+
+    setIsSalvandoLista(true)
+    try {
+      const filtrosParaGravar: FiltrosExtrasListaEnvio = {
+        whatsapp: filtroWhatsApp,
+        cidade: filtroCidade || undefined,
+        concessionaria: filtroConcessionaria || undefined,
+        tipo_cliente: filtroTipoCliente || undefined,
+        status: filtroStatus || undefined,
+      }
+
+      const nova = await createListaEnvio({
+        nome: nomeNovaLista.trim(),
+        segmento: segmentoAtivo,
+        filtros: filtrosParaGravar,
+      })
+
+      setListasSalvas((prev) => [nova, ...prev])
+      setListaSelecionadaId(nova.id)
+      setModalSalvarListaOpen(false)
+      setNomeNovaLista('')
+
+      toast.success(`Lista "${nova.nome}" salva com sucesso!`, {
+        description: 'Critérios gravados: segmento e filtros combináveis ativos.',
+      })
+    } catch (err) {
+      console.error('Erro ao salvar lista de envio:', err)
+      toast.error('Erro ao salvar lista de envio')
+    } finally {
+      setIsSalvandoLista(false)
+    }
+  }
+
+  const handleConfirmarExcluirLista = async () => {
+    if (!listaParaExcluir) return
+    setIsExcluindoLista(true)
+    try {
+      await deleteListaEnvio(listaParaExcluir.id)
+      setListasSalvas((prev) => prev.filter((l) => l.id !== listaParaExcluir.id))
+      if (listaSelecionadaId === listaParaExcluir.id) {
+        setListaSelecionadaId('')
+      }
+      toast.success(`Lista "${listaParaExcluir.nome}" excluída com sucesso`)
+      setListaParaExcluir(null)
+    } catch (err) {
+      console.error('Erro ao excluir lista:', err)
+      toast.error('Erro ao excluir lista de envio')
+    } finally {
+      setIsExcluindoLista(false)
+    }
   }
 
   // Salvar número do WhatsApp editado inline
@@ -1012,7 +1317,62 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           {/* COLUNA ESQUERDA (lg:col-span-6): DESTINATÁRIOS & SEGMENTO */}
           {/* ======================================================== */}
           <div className="lg:col-span-6 flex flex-col space-y-3">
-            {/* Filtros por Segmento de Clientes */}
+            {/* Bloco de Listas Salvas (acima das pílulas de segmento existentes) */}
+            <div className="p-2.5 rounded-xl bg-slate-50/90 border border-slate-200/90 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                  <Bookmark className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <span>Listas Salvas</span>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAbrirModalSalvarLista}
+                  className="h-7 text-[11px] font-semibold bg-white border-sky-300 text-sky-800 hover:bg-sky-50 shadow-2xs flex items-center gap-1 px-2.5"
+                  title="Salvar segmento ativo e filtros extras combinados"
+                >
+                  <Plus className="w-3 h-3 text-[#0284C7]" />
+                  <span>Salvar seleção atual</span>
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={listaSelecionadaId}
+                  onChange={(e) => handleSelecionarListaSalva(e.target.value)}
+                  className="flex-1 text-xs font-medium py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
+                  aria-label="Seletor de listas salvas"
+                >
+                  <option value="">Selecione uma lista salva...</option>
+                  {listasSalvas.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nome}
+                    </option>
+                  ))}
+                </select>
+
+                {listaSelecionadaId && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      const achada = listasSalvas.find((l) => l.id === listaSelecionadaId)
+                      if (achada) setListaParaExcluir(achada)
+                    }}
+                    className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    title="Excluir esta lista salva"
+                    aria-label="Excluir lista salva"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Filtros por Segmento de Clientes (5 Pílulas Fixas) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
@@ -1028,7 +1388,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                 </button>
               </div>
 
-              {/* Pílulas de segmentos */}
+              {/* Pílulas de segmentos existentes (100% preservadas e únicas) */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[
                   { id: 'todos', label: 'Todos' },
@@ -1061,6 +1421,163 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                     </button>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Filtros Extras Combináveis (Compactos: WhatsApp, Cidade, Concessionária, Tipo, Status) */}
+            <div className="p-2 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
+                <span className="flex items-center gap-1">
+                  <span>Filtros Extras Combináveis</span>
+                  {totalFiltrosExtrasAtivos > 0 && (
+                    <span className="bg-[#0284C7] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                      {totalFiltrosExtrasAtivos}
+                    </span>
+                  )}
+                </span>
+                {totalFiltrosExtrasAtivos > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleLimparFiltrosExtras}
+                    className="text-[#0284C7] hover:underline font-semibold"
+                  >
+                    Limpar extras
+                  </button>
+                )}
+              </div>
+
+              {/* Linha 1: Toggles Rápidos de WhatsApp (Todos / Só com / Sem WhatsApp) */}
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-[11px] font-semibold text-gray-600 shrink-0 mr-1">
+                  WhatsApp:
+                </span>
+                <div className="inline-flex rounded-lg bg-gray-200/80 p-0.5 text-[11px] font-medium w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiltroWhatsApp('todos')
+                      setListaSelecionadaId('')
+                    }}
+                    className={`flex-1 sm:flex-initial px-2 py-0.5 rounded-md transition-all ${
+                      filtroWhatsApp === 'todos'
+                        ? 'bg-white text-gray-900 font-bold shadow-2xs'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiltroWhatsApp('com_whatsapp')
+                      setListaSelecionadaId('')
+                    }}
+                    className={`flex-1 sm:flex-initial px-2 py-0.5 rounded-md transition-all ${
+                      filtroWhatsApp === 'com_whatsapp'
+                        ? 'bg-emerald-600 text-white font-bold shadow-2xs'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Só com WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiltroWhatsApp('sem_whatsapp')
+                      setListaSelecionadaId('')
+                    }}
+                    className={`flex-1 sm:flex-initial px-2 py-0.5 rounded-md transition-all ${
+                      filtroWhatsApp === 'sem_whatsapp'
+                        ? 'bg-rose-600 text-white font-bold shadow-2xs'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Sem WhatsApp cadastrado
+                  </button>
+                </div>
+              </div>
+
+              {/* Linha 2: Dropdowns Dinâmicos Base Real (Cidade, Concessionária, Tipo de Cliente, Status) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+                {/* Cidade */}
+                <div>
+                  <select
+                    value={filtroCidade}
+                    onChange={(e) => {
+                      setFiltroCidade(e.target.value)
+                      setListaSelecionadaId('')
+                    }}
+                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    aria-label="Filtro de cidade"
+                  >
+                    <option value="">Cidade: Todas</option>
+                    {opcoesFiltrosExtras.cidades.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Concessionária */}
+                <div>
+                  <select
+                    value={filtroConcessionaria}
+                    onChange={(e) => {
+                      setFiltroConcessionaria(e.target.value)
+                      setListaSelecionadaId('')
+                    }}
+                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    aria-label="Filtro de concessionária"
+                  >
+                    <option value="">Concessionária: Todas</option>
+                    {opcoesFiltrosExtras.concessionarias.map((conc) => (
+                      <option key={conc} value={conc}>
+                        {conc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tipo de Cliente */}
+                <div>
+                  <select
+                    value={filtroTipoCliente}
+                    onChange={(e) => {
+                      setFiltroTipoCliente(e.target.value)
+                      setListaSelecionadaId('')
+                    }}
+                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    aria-label="Filtro de tipo de cliente"
+                  >
+                    <option value="">Tipo: Todos</option>
+                    {opcoesFiltrosExtras.tiposCliente.map((tc) => (
+                      <option key={tc} value={tc}>
+                        {tc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <select
+                    value={filtroStatus}
+                    onChange={(e) => {
+                      setFiltroStatus(e.target.value)
+                      setListaSelecionadaId('')
+                    }}
+                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    aria-label="Filtro de status"
+                  >
+                    <option value="">Status: Todos</option>
+                    {opcoesFiltrosExtras.statusList.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1565,6 +2082,171 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             </Button>
           </div>
         </div>
+
+        {/* Modal Pequeno / Dialog: Salvar Seleção Atual como Lista Salva */}
+        <Dialog open={modalSalvarListaOpen} onOpenChange={setModalSalvarListaOpen}>
+          <DialogContent className="max-w-md p-5 sm:rounded-xl">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Bookmark className="w-4 h-4 text-[#0284C7]" />
+                <span>Salvar Seleção Atual</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                Grava o segmento ativo e os filtros extras combinados como uma lista salva no CRM.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              <div className="space-y-1">
+                <Label htmlFor="nome-lista-input" className="text-xs font-semibold text-gray-700">
+                  Nome da Lista:
+                </Label>
+                <Input
+                  id="nome-lista-input"
+                  value={nomeNovaLista}
+                  onChange={(e) => setNomeNovaLista(e.target.value)}
+                  placeholder="Ex: Clientes O&M - Passo Fundo (Com WhatsApp)"
+                  className="text-xs bg-white"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleConfirmarSalvarLista()
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Resumo do que será gravado */}
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-gray-600 space-y-1">
+                <p className="font-semibold text-gray-800">Critérios capturados:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-700">
+                  <li>
+                    Segmento:{' '}
+                    <strong className="text-sky-900">
+                      {segmentoAtivo === 'todos'
+                        ? 'Todos'
+                        : segmentoAtivo === 'clientes_om'
+                          ? 'Clientes O&M'
+                          : segmentoAtivo === 'clientes_solar'
+                            ? 'Clientes Solar'
+                            : segmentoAtivo === 'clientes_bateria'
+                              ? 'Clientes Bateria'
+                              : 'Pós-Venda'}
+                    </strong>
+                  </li>
+                  {filtroWhatsApp !== 'todos' && (
+                    <li>
+                      WhatsApp:{' '}
+                      <strong>
+                        {filtroWhatsApp === 'com_whatsapp'
+                          ? 'Só com WhatsApp'
+                          : 'Sem WhatsApp cadastrado'}
+                      </strong>
+                    </li>
+                  )}
+                  {filtroCidade && (
+                    <li>
+                      Cidade: <strong>{filtroCidade}</strong>
+                    </li>
+                  )}
+                  {filtroConcessionaria && (
+                    <li>
+                      Concessionária: <strong>{filtroConcessionaria}</strong>
+                    </li>
+                  )}
+                  {filtroTipoCliente && (
+                    <li>
+                      Tipo: <strong>{filtroTipoCliente}</strong>
+                    </li>
+                  )}
+                  {filtroStatus && (
+                    <li>
+                      Status: <strong>{filtroStatus}</strong>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setModalSalvarListaOpen(false)}
+                disabled={isSalvandoLista}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmarSalvarLista}
+                disabled={isSalvandoLista || !nomeNovaLista.trim()}
+                className="bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold"
+              >
+                {isSalvandoLista ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <span>Salvar Lista</span>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Confirmação de Exclusão de Lista Salva */}
+        <Dialog
+          open={Boolean(listaParaExcluir)}
+          onOpenChange={(open) => !open && setListaParaExcluir(null)}
+        >
+          <DialogContent className="max-w-sm p-5 sm:rounded-xl">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                <span>Excluir Lista Salva</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-600">
+                Tem certeza que deseja excluir a lista salva{' '}
+                <strong className="text-gray-900">"{listaParaExcluir?.nome}"</strong>?
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setListaParaExcluir(null)}
+                disabled={isExcluindoLista}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmarExcluirLista}
+                disabled={isExcluindoLista}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"
+              >
+                {isExcluindoLista ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <span>Excluir</span>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   )

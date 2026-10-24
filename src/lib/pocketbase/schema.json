@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T14:41:29.975Z",
+  "generatedAt": "2026-10-24T15:00:42.370Z",
   "collections": [
     {
       "name": "users",
@@ -7829,6 +7829,59 @@
         "CREATE INDEX idx_bat_orc_status ON baterias_orcamentos (status)",
         "CREATE INDEX idx_bat_orc_data ON baterias_orcamentos (data_orcamento)"
       ]
+    },
+    {
+      "name": "listas_envio",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "segmento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "filtros",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }
