@@ -466,7 +466,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           : extrairPotenciaClienteTexto(cli, usinaVinculada)
         const cidade = dest.cidadeManual || extrairCidadeCliente(cli, usinaVinculada)
         const caDoCli = Array.isArray(contatosAdicionais)
-          ? contatosAdicionais.filter((c) => c.cliente_id === cli.id)
+          ? contatosAdicionais.filter(
+              (c) => c.cliente === cli.id || (c as any).cliente_id === cli.id,
+            )
           : []
         const resolucao = resolverNumeroDestinoClienteSync(cli, caDoCli)
         const telAutoritativo =
@@ -495,7 +497,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         const potenciaTexto = extrairPotenciaClienteTexto(cli, usinaVinculada)
         const cidade = extrairCidadeCliente(cli, usinaVinculada)
         const caDoCli = Array.isArray(contatosAdicionais)
-          ? contatosAdicionais.filter((c) => c.cliente_id === cli.id)
+          ? contatosAdicionais.filter(
+              (c) => c.cliente === cli.id || (c as any).cliente_id === cli.id,
+            )
           : []
         const resolucao = resolverNumeroDestinoClienteSync(cli, caDoCli)
         const telAutoritativo =
@@ -755,6 +759,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       usina: itemFocado.usina,
       valor: itemFocado.valorItem,
       cidadeManual: itemFocado.cidade,
+      contatoNome: itemFocado.contatoAdicionalNome,
     })
   }, [templateTexto, itemFocado])
 
@@ -1100,6 +1105,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         usina: item.usina,
         valor: item.valorItem,
         cidadeManual: item.cidade,
+        contatoNome: item.contatoAdicionalNome,
       })
       const mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
 

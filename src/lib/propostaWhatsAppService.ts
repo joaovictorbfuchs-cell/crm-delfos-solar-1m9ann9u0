@@ -178,9 +178,16 @@ export function extrairContextoProposta(
   orcamento: OrcamentoSolar,
   cliente?: Cliente | null,
   autorPadrao?: string,
+  contatoNome?: string,
 ): PropostaWhatsAppPlaceholdersContext {
-  const nome = cliente?.nome || cliente?.razao_social || 'Cliente'
-  const primeiroNome = nome.split(' ')[0]
+  const nome =
+    contatoNome ||
+    cliente?.contato_principal ||
+    cliente?.contato ||
+    cliente?.nome ||
+    cliente?.razao_social ||
+    'Cliente'
+  const primeiroNome = nome.trim().split(' ')[0] || 'Cliente'
   const consultor =
     orcamento.autor || autorPadrao || DADOS_FIXOS_EMPRESA_DELFOS.responsavelTecnico || 'João Victor'
 

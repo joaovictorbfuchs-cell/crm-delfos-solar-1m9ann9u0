@@ -35,6 +35,13 @@ describe('placeholdersMensagemMassa', () => {
     expect(extrairPrimeiroNomeCliente(clienteMock)).toBe('João')
     expect(extrairPrimeiroNomeCliente({ nome: 'Maria Santos' } as any)).toBe('Maria')
     expect(extrairPrimeiroNomeCliente(null)).toBe('Cliente')
+    // Prioriza contatoNome quando fornecido (ex: empresa com pessoa de contato específica)
+    expect(
+      extrairPrimeiroNomeCliente(
+        { nome: 'Empresa Alpha Ltda', razao_social: 'Alpha Indústria e Comércio' } as any,
+        'Carlos Eduardo',
+      ),
+    ).toBe('Carlos')
   })
 
   it('extrai cidade com fallback', () => {
@@ -80,6 +87,16 @@ describe('placeholdersMensagemMassa', () => {
       cliente: clienteMock,
     })
     expect(resolvida).toBe('Usina de 7,1 kWp para João em Erechim')
+  })
+
+  it('resolve placeholder [nome do cliente] priorizando nome do contato', () => {
+    const template = 'Olá, [nome do cliente]! Tudo bem?'
+    const resolvida = resolverPlaceholdersMensagemMassa({
+      template,
+      cliente: { ...clienteMock, nome: 'Empresa Metalúrgica SA' },
+      contatoNome: 'Roberto Souza',
+    })
+    expect(resolvida).toBe('Olá, Roberto! Tudo bem?')
   })
 
   it('resolve tags de empresa e data atual corretamente', () => {

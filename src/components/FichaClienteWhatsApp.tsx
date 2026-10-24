@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
-import type { Cliente, WhatsAppTemplate } from '@/types/crm'
+import type { Cliente, WhatsAppTemplate, ContatoAdicional } from '@/types/crm'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import {
   parseSaoPauloToUtcIso,
@@ -62,19 +62,60 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     addAtividade,
     orcamentosSolar,
     refreshWhatsAppConfig,
+    contatosAdicionais: contatosAdicionaisCtx,
   } = useClientes()
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+  const [contatosDoCliente, setContatosDoCliente] = useState<ContatoAdicional[]>([])
+  const [contatoSelecionadoId, setContatoSelecionadoId] = useState<string>('principal')
   const [telefoneDestino, setTelefoneDestino] = useState<string>(
     cliente.whatsapp || cliente.telefone || '',
   )
   const [origemDestino, setOrigemDestino] = useState<OrigemNumeroDestino>('nenhum')
   const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
 
+  // Carrega contatos adicionais deste cliente (do contexto ou busca no banco)
+  React.useEffect(() => {
+    let cancel = false
+    async function carregarContatos() {
+      const emMemoria = (contatosAdicionaisCtx || []).filter(
+        (c) => c.cliente === cliente.id || (c as any).cliente_id === cliente.id,
+      )
+      if (emMemoria.length > 0) {
+        if (!cancel) setContatosDoCliente(emMemoria)
+      } else if (cliente.id) {
+        try {
+          const list = await pb.collection('contatos_adicionais').getFullList<ContatoAdicional>({
+            filter: `cliente = '${cliente.id}'`,
+            sort: 'created',
+            requestKey: null,
+          })
+          if (!cancel) setContatosDoCliente(list)
+        } catch {
+          if (!cancel) setContatosDoCliente([])
+        }
+      }
+    }
+    carregarContatos()
+    return () => {
+      cancel = true
+    }
+  }, [cliente.id, contatosAdicionaisCtx])
+
+  // Contatos que possuem WhatsApp ou telefone válido
+  const contatosComTelefone = useMemo(() => {
+    return contatosDoCliente.filter((c) =>
+      Boolean(c.telefone && c.telefone.replace(/\D/g, '').length >= 8),
+    )
+  }, [contatosDoCliente])
+
+  // Define contato e número de destino padrão ao mudar de cliente ou ao carregar contatos
   React.useEffect(() => {
     let cancel = false
     async function carregarDestino() {
-      const res = await resolverNumeroDestinoCliente(cliente)
+      const res = await resolverNumeroDestinoCliente(cliente, {
+        contatosAdicionais: contatosDoCliente,
+      })
       if (cancel) return
       setOrigemDestino(res.origem)
       setContatoAdicionalNome(res.contatoAdicionalNome)
@@ -83,12 +124,55 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
       } else {
         setTelefoneDestino(formatWhatsAppPhone(cliente.whatsapp || cliente.telefone || ''))
       }
+      // Padrão do seletor: 'principal' (mantém comportamento atual como default)
+      setContatoSelecionadoId('principal')
     }
     carregarDestino()
     return () => {
       cancel = true
     }
-  }, [cliente])
+  }, [cliente, contatosDoCliente])
+
+  // Nome do contato atualmente selecionado para personalização
+  const nomeContatoEfetivo = useMemo(() => {
+    if (contatoSelecionadoId !== 'principal') {
+      const c = contatosDoCliente.find((item) => item.id === contatoSelecionadoId)
+      if (c?.nome) return c.nome
+    }
+    if (contatoAdicionalNome) return contatoAdicionalNome
+    return cliente.contato_principal || cliente.contato || cliente.nome || 'Cliente'
+  }, [contatoSelecionadoId, contatosDoCliente, contatoAdicionalNome, cliente])
+
+  // Primeiro nome para saudação/variáveis
+  const primeiroNomeEfetivo = useMemo(() => {
+    return nomeContatoEfetivo.trim().split(' ')[0] || 'Cliente'
+  }, [nomeContatoEfetivo])
+
+  // Ao trocar o contato no seletor de destinatário
+  const handleSelecionarContato = (contatoId: string) => {
+    setContatoSelecionadoId(contatoId)
+    if (contatoId === 'principal') {
+      // Volta para o contato principal / resolução padrão do cliente
+      const fallback = cliente.whatsapp || cliente.telefone || ''
+      const res = resolverNumeroDestinoCliente(cliente, { contatosAdicionais: contatosDoCliente })
+      // Como pode ser promessa ou sync:
+      if (contatoAdicionalNome && contatosDoCliente.length > 0) {
+        const principalAdic = contatosDoCliente.find(
+          (c) => c.is_principal || c.papel === 'principal',
+        )
+        if (principalAdic?.telefone) {
+          setTelefoneDestino(formatWhatsAppPhone(principalAdic.telefone))
+          return
+        }
+      }
+      setTelefoneDestino(formatWhatsAppPhone(cliente.whatsapp || fallback))
+    } else {
+      const achado = contatosDoCliente.find((c) => c.id === contatoId)
+      if (achado?.telefone) {
+        setTelefoneDestino(formatWhatsAppPhone(achado.telefone))
+      }
+    }
+  }
   const [mensagemTexto, setMensagemTexto] = useState<string>('')
   const [agendarEnvio, setAgendarEnvio] = useState<boolean>(false)
   const [dataHoraAgendada, setDataHoraAgendada] = useState<string>('')
@@ -168,13 +252,13 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     return list.length > 0 ? list[0] : null
   }, [orcamentosSolar, cliente.id])
 
-  // Substituição de variáveis do template com dados do cliente
+  // Substituição de variáveis do template com dados do cliente e contato selecionado
   const aplicarVariaveisTemplate = (template: WhatsAppTemplate) => {
     let texto = template.conteudo
 
-    // Variável {{nome_cliente}}
-    const nomeCliente = cliente.nome || 'Cliente'
-    texto = texto.replace(/\{\{nome_cliente\}\}/g, nomeCliente)
+    // Variável {{nome_cliente}} prioriza o primeiro nome do contato selecionado ou contato principal
+    const nomePersonalizado = primeiroNomeEfetivo || cliente.nome || 'Cliente'
+    texto = texto.replace(/\{\{nome_cliente\}\}/g, nomePersonalizado)
 
     // Variável {{valor_proposta}}
     const valorNum = ultimoOrcamento?.valor_investimento || cliente.valor_estimado || 0
@@ -205,6 +289,38 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     if (tpl) {
       const parsedTexto = aplicarVariaveisTemplate(tpl)
       setMensagemTexto(parsedTexto)
+    }
+  }
+
+  // Atualiza as variáveis do template se o usuário trocar o contato com um template selecionado
+  const handleSelecionarContatoComTemplate = (contatoId: string) => {
+    handleSelecionarContato(contatoId)
+    if (selectedTemplateId) {
+      const tpl = whatsAppTemplates.find((t) => t.id === selectedTemplateId)
+      if (tpl) {
+        // Calcula o nome efetivo para o contato selecionado
+        let nomeContato = cliente.contato_principal || cliente.contato || cliente.nome || 'Cliente'
+        if (contatoId !== 'principal') {
+          const c = contatosDoCliente.find((item) => item.id === contatoId)
+          if (c?.nome) nomeContato = c.nome
+        } else if (contatoAdicionalNome) {
+          nomeContato = contatoAdicionalNome
+        }
+        const primeiroNome = nomeContato.trim().split(' ')[0] || 'Cliente'
+        let texto = tpl.conteudo.replace(/\{\{nome_cliente\}\}/g, primeiroNome)
+        const valorNum = ultimoOrcamento?.valor_investimento || cliente.valor_estimado || 0
+        const valorStr = valorNum > 0 ? formatCurrency(valorNum) : 'sob consulta'
+        texto = texto.replace(/\{\{valor_proposta\}\}/g, valorStr)
+        const enderecoFormatado =
+          [cliente.endereco, cliente.numero, cliente.bairro, cliente.cidade]
+            .filter(Boolean)
+            .join(', ') ||
+          cliente.cidade ||
+          'endereço cadastrado'
+        texto = texto.replace(/\{\{endereco\}\}/g, enderecoFormatado)
+        texto = texto.replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
+        setMensagemTexto(texto)
+      }
     }
   }
 
@@ -364,6 +480,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
         res = await sendWhatsAppMessage({
           cliente_id: cliente.id,
           telefone_destino: tel,
+          destinatario_nome: nomeContatoEfetivo,
           conteudo_final: msgComPrefixo,
           template_id: selectedTemplateId || undefined,
           agendado_para: agendadoParaUtcIso,
@@ -563,20 +680,21 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
             <div>
               <h3 className="text-sm font-bold text-gray-900">Nova Mensagem WhatsApp</h3>
               <p className="text-xs text-gray-500">
-                Selecione um modelo pronto com variáveis ou escreva uma mensagem personalizada.
+                Selecione o contato destinatário, um modelo pronto com variáveis ou escreva uma
+                mensagem personalizada.
               </p>
             </div>
           </div>
 
-          {/* Quick info do número atual */}
+          {/* Quick info do número e contato atual */}
           <div className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200 font-semibold">
             <Phone className="w-3.5 h-3.5 text-emerald-600" />
             <span>
-              Destino: {telefoneDestino || cliente.whatsapp || cliente.telefone || 'Sem número'}
+              Destinatário: <strong className="text-emerald-950">{nomeContatoEfetivo}</strong> (
+              {telefoneDestino || cliente.whatsapp || cliente.telefone || 'Sem número'})
             </span>
           </div>
         </div>
-
         {feedback && (
           <div
             className={`p-3 rounded-xl text-xs flex items-start gap-2 ${
@@ -601,6 +719,92 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
         )}
 
         <form onSubmit={handleEnviarMensagem} className="space-y-4">
+          {/* Seletor de Contato Destinatário (quando cliente tem contatos adicionais cadastrados) */}
+          {contatosComTelefone.length > 0 && (
+            <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Destinatário da Mensagem (Contato do Cliente)</span>
+                </label>
+                <span className="text-[11px] text-emerald-800 font-medium">
+                  {contatosComTelefone.length + 1} opções de contato com WhatsApp
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label
+                  className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                    contatoSelecionadoId === 'principal'
+                      ? 'bg-white border-emerald-500 shadow-xs font-bold text-emerald-950'
+                      : 'bg-white/80 border-emerald-200/80 text-gray-700 hover:bg-white'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="contato_destinatario"
+                    value="principal"
+                    checked={contatoSelecionadoId === 'principal'}
+                    onChange={() => handleSelecionarContatoComTemplate('principal')}
+                    className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">
+                        {cliente.contato_principal ||
+                          cliente.contato ||
+                          cliente.nome ||
+                          'Cadastro Principal'}
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                        Principal
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 truncate">
+                      {cliente.whatsapp || cliente.telefone || 'Sem número'}
+                    </div>
+                  </div>
+                </label>
+
+                {contatosComTelefone.map((c) => (
+                  <label
+                    key={c.id}
+                    className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                      contatoSelecionadoId === c.id
+                        ? 'bg-white border-emerald-500 shadow-xs font-bold text-emerald-950'
+                        : 'bg-white/80 border-emerald-200/80 text-gray-700 hover:bg-white'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="contato_destinatario"
+                      value={c.id}
+                      checked={contatoSelecionadoId === c.id}
+                      onChange={() => handleSelecionarContatoComTemplate(c.id)}
+                      className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold">{c.nome}</span>
+                        {c.cargo && (
+                          <span className="text-[10px] text-gray-500 truncate">({c.cargo})</span>
+                        )}
+                        {c.is_principal && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
+                            Adic. Principal
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-gray-500 truncate">{c.telefone}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-emerald-800/80 pt-0.5">
+                Ao selecionar um contato, a mensagem será enviada ao número dele e a saudação
+                personalizada usará o nome dele (ex: "Olá, {primeiroNomeEfetivo}!").
+              </p>
+            </div>
+          )}
           {/* Seletor de Templates e Telefone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Escolher Modelo */}
@@ -655,7 +859,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                 </p>
               )}
             </div>
-          </div>
+          </div>{' '}
           {/* Área de Texto da Mensagem */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
@@ -687,7 +891,6 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
               className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
             />
           </div>
-
           {/* Anexo de Mídia (Botão tradicional intacto + Suporte a colar da área de transferência) */}
           <div className="space-y-2">
             <input
@@ -752,7 +955,6 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
               </div>
             )}
           </div>
-
           {/* Opção de Agendamento */}
           <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200/80 space-y-2.5">
             <div className="flex items-center justify-between">
@@ -789,7 +991,6 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
               </div>
             )}
           </div>
-
           {/* Botões de Ação */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <button

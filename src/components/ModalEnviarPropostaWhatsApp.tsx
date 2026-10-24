@@ -124,6 +124,9 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   // O WhatsApp é o número autoritativo do cliente neste CRM (regra do projeto)
   const numeroInicial = cliente?.whatsapp || cliente?.telefone || ''
 
+  const [contatosDoCliente, setContatosDoCliente] = useState<any[]>([])
+  const [contatoSelecionadoId, setContatoSelecionadoId] = useState<string>('principal')
+
   const [origemDestino, setOrigemDestino] = useState<
     | 'contato_adicional_principal'
     | 'cliente_whatsapp'
@@ -258,6 +261,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
         const envioPromise = sendWhatsAppMessage({
           cliente_id: clienteId,
           telefone_destino: validacaoNumero.numeroLimpo,
+          destinatario_nome: nomeContatoEfetivo,
           conteudo_final: conteudoComPrefixo,
           tipo_disparo: 'manual',
           referencia_id: orcamento.id,
@@ -327,10 +331,50 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
     }
   }
 
+  // Contatos que possuem WhatsApp ou telefone válido
+  const contatosComTelefone = useMemo(() => {
+    return contatosDoCliente.filter((c) =>
+      Boolean(c.telefone && c.telefone.replace(/\D/g, '').length >= 8),
+    )
+  }, [contatosDoCliente])
+
+  // Nome do contato selecionado para personalização
+  const nomeContatoEfetivo = useMemo(() => {
+    if (contatoSelecionadoId !== 'principal') {
+      const c = contatosDoCliente.find((item) => item.id === contatoSelecionadoId)
+      if (c?.nome) return c.nome
+    }
+    if (contatoAdicionalNome) return contatoAdicionalNome
+    return cliente?.contato_principal || cliente?.contato || cliente?.nome || 'Cliente'
+  }, [contatoSelecionadoId, contatosDoCliente, contatoAdicionalNome, cliente])
+
   // Contexto da proposta para os placeholders
   const contexto = useMemo(() => {
-    return extrairContextoProposta(orcamento, cliente)
-  }, [orcamento, cliente])
+    return extrairContextoProposta(orcamento, cliente, undefined, nomeContatoEfetivo)
+  }, [orcamento, cliente, nomeContatoEfetivo])
+
+  // Handler de troca de contato selecionado
+  const handleSelecionarContato = (contatoId: string) => {
+    setContatoSelecionadoId(contatoId)
+    let novoNome = cliente?.contato_principal || cliente?.contato || cliente?.nome || 'Cliente'
+    if (contatoId === 'principal') {
+      const fallback = cliente?.whatsapp || cliente?.telefone || ''
+      setTelefone(formatWhatsAppPhone(fallback))
+    } else {
+      const achado = contatosDoCliente.find((c) => c.id === contatoId)
+      if (achado?.telefone) {
+        setTelefone(formatWhatsAppPhone(achado.telefone))
+      }
+      if (achado?.nome) {
+        novoNome = achado.nome
+      }
+    }
+    // Atualiza a mensagem com o template ativo e o novo nome do contato
+    const templateAtual =
+      listaTemplates.find((t) => t.id === templateAtivoId) || TEMPLATES_PROPOSTA_WHATSAPP[0]
+    const novoContexto = extrairContextoProposta(orcamento, cliente, undefined, novoNome)
+    setMensagem(aplicarPlaceholdersProposta(templateAtual.conteudo, novoContexto))
+  }
 
   // Validação dinâmica do número digitado
   const validacaoNumero = useMemo(() => {
@@ -365,7 +409,24 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
     setFeedback(null)
     setTemplateAtivoId('proposta_pronta')
 
+    // Carregar contatos adicionais deste cliente
+    if (cliente?.id) {
+      pb.collection('contatos_adicionais')
+        .getFullList({
+          filter: `cliente = '${cliente.id}'`,
+          sort: 'created',
+          requestKey: null,
+        })
+        .then((list) => {
+          if (!cancelResolucao && isMountedRef.current) {
+            setContatosDoCliente(list)
+          }
+        })
+        .catch(() => {})
+    }
+
     // Gerar mensagem inicial com o primeiro template
+    setContatoSelecionadoId('principal')
     const templatePadrao = TEMPLATES_PROPOSTA_WHATSAPP[0]
     const msgInicial = aplicarPlaceholdersProposta(templatePadrao.conteudo, contexto)
     setMensagem(msgInicial)
@@ -729,6 +790,89 @@ Validade da proposta: ${inputPdf?.validadeDias || 5} dias corridos.`
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Seletor de Contato Destinatário (quando cliente possui contatos adicionais cadastrados) */}
+          {contatosComTelefone.length > 0 && (
+            <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Destinatário da Mensagem (Contato do Cliente)</span>
+                </label>
+                <span className="text-[11px] text-emerald-800 font-medium">
+                  {contatosComTelefone.length + 1} opções disponíveis
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label
+                  className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                    contatoSelecionadoId === 'principal'
+                      ? 'bg-white border-emerald-500 shadow-xs font-bold text-emerald-950'
+                      : 'bg-white/80 border-emerald-200/80 text-gray-700 hover:bg-white'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="modal_prop_contato"
+                    value="principal"
+                    checked={contatoSelecionadoId === 'principal'}
+                    onChange={() => handleSelecionarContato('principal')}
+                    className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">
+                        {cliente?.contato_principal ||
+                          cliente?.contato ||
+                          cliente?.nome ||
+                          'Cadastro Principal'}
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                        Principal
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 truncate">
+                      {cliente?.whatsapp || cliente?.telefone || 'Sem número'}
+                    </div>
+                  </div>
+                </label>
+
+                {contatosComTelefone.map((c) => (
+                  <label
+                    key={c.id}
+                    className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                      contatoSelecionadoId === c.id
+                        ? 'bg-white border-emerald-500 shadow-xs font-bold text-emerald-950'
+                        : 'bg-white/80 border-emerald-200/80 text-gray-700 hover:bg-white'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="modal_prop_contato"
+                      value={c.id}
+                      checked={contatoSelecionadoId === c.id}
+                      onChange={() => handleSelecionarContato(c.id)}
+                      className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold">{c.nome}</span>
+                        {c.cargo && (
+                          <span className="text-[10px] text-gray-500 truncate">({c.cargo})</span>
+                        )}
+                        {c.is_principal && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
+                            Adic. Principal
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-gray-500 truncate">{c.telefone}</div>
+                    </div>
+                  </label>
+                ))}
               </div>
             </div>
           )}

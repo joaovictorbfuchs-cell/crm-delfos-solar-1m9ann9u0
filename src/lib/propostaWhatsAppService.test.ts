@@ -52,6 +52,15 @@ describe('propostaWhatsAppService', () => {
     expect(ctx.nome_cliente).toBe('João')
     expect(ctx.potencia).toBe('10.50 kWp')
     expect(ctx.cidade).toBe('Passo Fundo')
+
+    // Suporta nome do contato específico (ex: pessoa física numa empresa)
+    const ctxContato = extrairContextoProposta(
+      orc as OrcamentoSolar,
+      { ...cli, nome: 'Empresa Alpha Ltda' } as Cliente,
+      undefined,
+      'Marcos Paulo',
+    )
+    expect(ctxContato.nome_cliente).toBe('Marcos')
   })
 
   it('aplica placeholders de mensagem corretamente', () => {

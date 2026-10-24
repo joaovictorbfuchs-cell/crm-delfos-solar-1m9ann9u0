@@ -57,21 +57,26 @@ export interface ContextoPlaceholderCliente {
   valor?: number
   potenciaManual?: number | string
   cidadeManual?: string
+  contatoNome?: string
 }
 
 /**
- * Extrai o primeiro nome amigável de um cliente ou razão social
+ * Extrai o primeiro nome amigável de um cliente, contato ou razão social.
+ * Prioriza o nome do contato selecionado ou contato principal do cadastro.
  */
-export function extrairPrimeiroNomeCliente(cliente?: Partial<Cliente> | null): string {
-  if (!cliente) return 'Cliente'
-  const nomeCompleto = (
-    cliente.contato_principal ||
-    cliente.contato ||
-    cliente.nome ||
-    cliente.razao_social ||
+export function extrairPrimeiroNomeCliente(
+  cliente?: Partial<Cliente> | null,
+  contatoNome?: string,
+): string {
+  const nomeEfetivo = (
+    contatoNome ||
+    cliente?.contato_principal ||
+    cliente?.contato ||
+    cliente?.nome ||
+    cliente?.razao_social ||
     'Cliente'
   ).trim()
-  return nomeCompleto.split(' ')[0] || nomeCompleto
+  return nomeEfetivo.split(' ')[0] || nomeEfetivo
 }
 
 /**
@@ -175,6 +180,7 @@ export function resolverPlaceholdersMensagemMassa(params: {
   valor?: number
   potenciaManual?: number | string
   cidadeManual?: string
+  contatoNome?: string
 }): string {
   const {
     template,
@@ -184,11 +190,12 @@ export function resolverPlaceholdersMensagemMassa(params: {
     valor,
     potenciaManual,
     cidadeManual,
+    contatoNome,
   } = params
 
   if (!template) return ''
 
-  const nome = extrairPrimeiroNomeCliente(cliente)
+  const nome = extrairPrimeiroNomeCliente(cliente, contatoNome)
   const empresaCliente = (cliente.nome_fantasia || cliente.razao_social || 'Delfos Solar').trim()
   const cidade = cidadeManual || extrairCidadeCliente(cliente, usina)
   const dataHoje = new Date().toLocaleDateString('pt-BR')
