@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import type { FiltroSalvoRecord } from '@/types/filtros'
+import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
 import {
   Search,
   Filter,
@@ -71,6 +73,7 @@ interface PlanosOMViewProps {
   onTogglePainel?: () => void
   onFiltrosInfoChange?: (info: { totalFiltrosAtivos: number; totalPlanosFiltrados: number }) => void
   renderTopFilterButton?: boolean
+  filtroSalvoAtivo?: FiltroSalvoRecord | null
 }
 
 export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
@@ -80,6 +83,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   onTogglePainel,
   onFiltrosInfoChange,
   renderTopFilterButton = false,
+  filtroSalvoAtivo,
 }) => {
   const [modalMensagemMassaOpen, setModalMensagemMassaOpen] = useState(false)
   const {
@@ -431,7 +435,14 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
 
   // Filtragem efetiva dos planos
   const planosFiltrados = useMemo(() => {
-    return listaBasePlanos
+    let base = listaBasePlanos
+
+    // Aplicar Filtro Salvo estilo Pipedrive (Fase 2 - Módulo contratos_om)
+    if (filtroSalvoAtivo?.condicoes) {
+      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'contratos_om')
+    }
+
+    return base
       .filter((item) => {
         // 1. Busca rápida por nome, cidade ou contrato
         if (filtrosAtivos.busca.trim()) {

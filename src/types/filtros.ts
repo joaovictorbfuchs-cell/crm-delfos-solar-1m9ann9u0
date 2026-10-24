@@ -2,7 +2,7 @@
  * Tipos e Definições para Filtros Salvos estilo Pipedrive (Fase 1)
  */
 
-export type ModuloFiltro = 'clientes' | 'negocios'
+export type ModuloFiltro = 'clientes' | 'negocios' | 'atividades' | 'contratos_om'
 export type VisibilidadeFiltro = 'private' | 'shared'
 
 export type TipoCampoFiltro = 'texto' | 'numero' | 'data' | 'lista' | 'booleano'

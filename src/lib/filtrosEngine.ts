@@ -154,6 +154,106 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
     case 'data_fechamento':
       return registro.data_fechamento || ''
 
+    // Atividades
+    case 'tipo':
+      return (
+        registro.tipo ||
+        registro.tipo_atividade ||
+        registro.tipo_custom_id ||
+        registro.tipoCustomId ||
+        ''
+      )
+    case 'categoria':
+      return registro.categoria || registro.categoria_atividade || registro.setor || ''
+    case 'responsavel':
+      return (
+        registro.responsavel_nome ||
+        registro.responsavel ||
+        registro.atribuido_para_nome ||
+        registro.usuario_nome ||
+        registro.tecnico_nome ||
+        registro.expand?.responsavel?.nome ||
+        registro.expand?.usuario_responsavel?.nome ||
+        ''
+      )
+    case 'usina':
+      return (
+        registro.usina_nome ||
+        registro.usina ||
+        registro.expand?.usina_id?.nome ||
+        registro.expand?.usina?.nome ||
+        registro.usina_identificador ||
+        ''
+      )
+    case 'data_agendamento':
+      return (
+        registro.data_agendamento ||
+        registro.data_prevista ||
+        registro.dataAgendamento ||
+        registro.data ||
+        registro.data_hora ||
+        ''
+      )
+    case 'atrasada': {
+      if (typeof registro.atrasada === 'boolean') return registro.atrasada
+      if (typeof registro.isAtrasada === 'boolean') return registro.isAtrasada
+      const statusAtiv = String(registro.status || '').toLowerCase()
+      if (statusAtiv === 'concluida' || statusAtiv === 'concluido' || statusAtiv === 'cancelada') {
+        return false
+      }
+      const dataStr =
+        registro.data_agendamento ||
+        registro.data_prevista ||
+        registro.dataAgendamento ||
+        registro.data ||
+        ''
+      if (!dataStr) return false
+      const dt = new Date(dataStr)
+      if (isNaN(dt.getTime())) return false
+      const hoje = new Date()
+      hoje.setHours(23, 59, 59, 999)
+      return dt.getTime() < hoje.getTime()
+    }
+
+    // Contratos O&M
+    case 'plano':
+      return (
+        registro.plano ||
+        registro.plano_tipo ||
+        registro.tipo_plano ||
+        registro.tipoPlano ||
+        registro.nome_plano ||
+        ''
+      )
+    case 'vencimento':
+      return (
+        registro.vencimento ||
+        registro.data_fim ||
+        registro.data_vencimento ||
+        registro.dataVencimento ||
+        registro.data_renovacao ||
+        ''
+      )
+    case 'potencia_somada':
+      return Number(
+        registro.potencia_somada ??
+          registro.potenciaSomada ??
+          registro.potencia_total_kwp ??
+          registro.potenciaTotalKwp ??
+          registro.potencia_kwp ??
+          registro.potenciaKwp ??
+          0,
+      )
+    case 'usinas_vinculadas':
+      return Number(
+        registro.usinas_vinculadas ??
+          registro.usinasVinculadas ??
+          registro.total_usinas ??
+          registro.totalUsinas ??
+          registro.qtd_usinas ??
+          (Array.isArray(registro.usinas) ? registro.usinas.length : 0),
+      )
+
     default:
       return registro[campoId]
   }

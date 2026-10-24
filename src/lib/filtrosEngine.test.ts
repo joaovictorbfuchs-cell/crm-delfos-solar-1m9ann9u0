@@ -165,4 +165,120 @@ describe('Motor de Filtragem Único (filtrosEngine)', () => {
     const vazia: EstruturaCondicoes = { all: [], any: [] }
     expect(aplicarFiltroSalvo(mockClientes, vazia, 'clientes')).toHaveLength(3)
   })
+
+  describe('Módulo Atividades', () => {
+    const mockAtividades = [
+      {
+        id: 'ativ-1',
+        tipo: 'limpeza',
+        categoria: 'Manutenção',
+        status: 'pendente',
+        responsavel: 'Carlos Técnico',
+        usina: 'Usina Solar Norte',
+        data_agendamento: '2025-01-15',
+        atrasada: true,
+      },
+      {
+        id: 'ativ-2',
+        tipo: 'visita_tecnica',
+        categoria: 'Comercial',
+        status: 'concluida',
+        responsavel: 'Ana Vendedora',
+        usina: '',
+        data_agendamento: '2025-03-20',
+        atrasada: false,
+      },
+      {
+        id: 'ativ-3',
+        tipo: 'manutencao_preventiva',
+        categoria: 'Manutenção',
+        status: 'pendente',
+        responsavel: 'Carlos Técnico',
+        usina: 'Usina Solar Sul',
+        data_agendamento: '2025-04-10',
+        atrasada: false,
+      },
+    ]
+
+    it('filtra por categoria e atrasada (booleano)', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [
+          { id: '1', campoId: 'categoria', operador: 'e', valor: 'Manutenção' },
+          { id: '2', campoId: 'atrasada', operador: 'e_verdadeiro' },
+        ],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(mockAtividades, estrutura, 'atividades')
+      expect(resultado).toHaveLength(1)
+      expect(resultado[0].id).toBe('ativ-1')
+    })
+
+    it('filtra por responsável e tipo', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [
+          { id: '1', campoId: 'responsavel', operador: 'contem', valor: 'Carlos' },
+          { id: '2', campoId: 'tipo', operador: 'e', valor: 'manutencao_preventiva' },
+        ],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(mockAtividades, estrutura, 'atividades')
+      expect(resultado).toHaveLength(1)
+      expect(resultado[0].id).toBe('ativ-3')
+    })
+  })
+
+  describe('Módulo Contratos O&M', () => {
+    const mockContratosOM = [
+      {
+        id: 'ct-1',
+        plano: 'completo',
+        status: 'ativo',
+        vencimento: '2026-12-31',
+        potencia_somada: 125.5,
+        usinas_vinculadas: 3,
+      },
+      {
+        id: 'ct-2',
+        plano: 'essencial',
+        status: 'vencendo',
+        vencimento: '2025-05-15',
+        potencia_somada: 15.0,
+        usinas_vinculadas: 1,
+      },
+      {
+        id: 'ct-3',
+        plano: 'monitoramento',
+        status: 'vencido',
+        vencimento: '2024-10-01',
+        potencia_somada: 7.5,
+        usinas_vinculadas: 1,
+      },
+    ]
+
+    it('filtra por plano e status', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [
+          { id: '1', campoId: 'plano', operador: 'e', valor: 'completo' },
+          { id: '2', campoId: 'status', operador: 'e', valor: 'ativo' },
+        ],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(mockContratosOM, estrutura, 'contratos_om')
+      expect(resultado).toHaveLength(1)
+      expect(resultado[0].id).toBe('ct-1')
+    })
+
+    it('filtra por potência somada e usinas vinculadas (números)', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [
+          { id: '1', campoId: 'potencia_somada', operador: 'maior', valor: 10 },
+          { id: '2', campoId: 'usinas_vinculadas', operador: 'maior_igual', valor: 2 },
+        ],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(mockContratosOM, estrutura, 'contratos_om')
+      expect(resultado).toHaveLength(1)
+      expect(resultado[0].id).toBe('ct-1')
+    })
+  })
 })

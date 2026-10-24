@@ -373,8 +373,159 @@ export const CAMPOS_NEGOCIOS: DefinicaoCampo[] = [
   },
 ]
 
+/**
+ * Catálogo de campos filtráveis do módulo ATIVIDADES
+ */
+export const CAMPOS_ATIVIDADES: DefinicaoCampo[] = [
+  {
+    id: 'tipo',
+    label: 'Tipo da Atividade',
+    tipo: 'lista',
+    modulo: 'atividades',
+    categoria: 'Dados Básicos',
+    opcoes: [
+      { label: 'Limpeza', value: 'limpeza' },
+      { label: 'Manutenção Preventiva', value: 'manutencao_preventiva' },
+      { label: 'Manutenção Corretiva', value: 'manutencao_corretiva' },
+      { label: 'Limpeza + Manutenção', value: 'limpeza_manutencao' },
+      { label: 'Visita Técnica', value: 'visita_tecnica' },
+      { label: 'Reunião', value: 'reuniao' },
+      { label: 'Ligação', value: 'ligacao' },
+      { label: 'WhatsApp', value: 'whatsapp' },
+      { label: 'E-mail', value: 'email' },
+      { label: 'Elaboração de Proposta', value: 'elaboracao_proposta' },
+      { label: 'Follow-up Comercial', value: 'follow_up' },
+      { label: 'Auto Leitura', value: 'auto_leitura' },
+      { label: 'Outro', value: 'outro' },
+    ],
+  },
+  {
+    id: 'categoria',
+    label: 'Categoria',
+    tipo: 'lista',
+    modulo: 'atividades',
+    categoria: 'Classificação',
+    opcoes: [
+      { label: 'Comercial', value: 'Comercial' },
+      { label: 'Manutenção', value: 'Manutenção' },
+      { label: 'Administrativas', value: 'Administrativas' },
+    ],
+  },
+  {
+    id: 'status',
+    label: 'Status',
+    tipo: 'lista',
+    modulo: 'atividades',
+    categoria: 'Execução',
+    opcoes: [
+      { label: 'Pendente', value: 'pendente' },
+      { label: 'Concluída', value: 'concluida' },
+      { label: 'Cancelada', value: 'cancelada' },
+      { label: 'Em Andamento', value: 'em_andamento' },
+    ],
+  },
+  {
+    id: 'responsavel',
+    label: 'Responsável',
+    tipo: 'texto',
+    modulo: 'atividades',
+    categoria: 'Atribuição',
+    placeholder: 'Nome do responsável...',
+  },
+  {
+    id: 'usina',
+    label: 'Usina',
+    tipo: 'texto',
+    modulo: 'atividades',
+    categoria: 'Localização',
+    placeholder: 'Nome ou identificador da usina...',
+  },
+  {
+    id: 'data_agendamento',
+    label: 'Data de Agendamento',
+    tipo: 'data',
+    modulo: 'atividades',
+    categoria: 'Datas',
+  },
+  {
+    id: 'atrasada',
+    label: 'Atrasada',
+    tipo: 'booleano',
+    modulo: 'atividades',
+    categoria: 'Status',
+  },
+]
+
+/**
+ * Catálogo de campos filtráveis do módulo CONTRATOS O&M
+ */
+export const CAMPOS_CONTRATOS_OM: DefinicaoCampo[] = [
+  {
+    id: 'plano',
+    label: 'Plano',
+    tipo: 'lista',
+    modulo: 'contratos_om',
+    categoria: 'Dados Básicos',
+    opcoes: [
+      { label: 'Monitoramento', value: 'monitoramento' },
+      { label: 'Essencial', value: 'essencial' },
+      { label: 'Completo', value: 'completo' },
+      { label: 'Personalizado', value: 'personalizado' },
+    ],
+  },
+  {
+    id: 'status',
+    label: 'Status do Contrato',
+    tipo: 'lista',
+    modulo: 'contratos_om',
+    categoria: 'Situação',
+    opcoes: [
+      { label: 'Ativo', value: 'ativo' },
+      { label: 'Pendente', value: 'pendente' },
+      { label: 'Vencendo', value: 'vencendo' },
+      { label: 'Vencido', value: 'vencido' },
+      { label: 'Cancelado', value: 'cancelado' },
+      { label: 'Em renovação', value: 'em_renovacao' },
+    ],
+  },
+  {
+    id: 'vencimento',
+    label: 'Vencimento',
+    tipo: 'data',
+    modulo: 'contratos_om',
+    categoria: 'Datas',
+  },
+  {
+    id: 'potencia_somada',
+    label: 'Potência Somada (kWp)',
+    tipo: 'numero',
+    modulo: 'contratos_om',
+    categoria: 'Capacidade',
+    placeholder: 'Ex: 15.5',
+  },
+  {
+    id: 'usinas_vinculadas',
+    label: 'Usinas Vinculadas (quantidade)',
+    tipo: 'numero',
+    modulo: 'contratos_om',
+    categoria: 'Capacidade',
+    placeholder: 'Ex: 1, 2, 3...',
+  },
+]
+
 export function getCatalogoPorModulo(modulo: ModuloFiltro): DefinicaoCampo[] {
-  return modulo === 'clientes' ? CAMPOS_CLIENTES : CAMPOS_NEGOCIOS
+  switch (modulo) {
+    case 'clientes':
+      return CAMPOS_CLIENTES
+    case 'negocios':
+      return CAMPOS_NEGOCIOS
+    case 'atividades':
+      return CAMPOS_ATIVIDADES
+    case 'contratos_om':
+      return CAMPOS_CONTRATOS_OM
+    default:
+      return []
+  }
 }
 
 export function getCampoPorId(modulo: ModuloFiltro, campoId: string): DefinicaoCampo | undefined {
