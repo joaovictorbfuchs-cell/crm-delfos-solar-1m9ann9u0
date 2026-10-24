@@ -80,23 +80,92 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
           let payloadGateway = {}
           const headers = { 'Content-Type': 'application/json' }
 
+          const arquivoNome = msg.getString('nome_arquivo') || ''
+          const arquivoPb = msg.getString('arquivo') || ''
+          const docUrl = msg.getString('documento_url') || ''
+          const tipoMsg = msg.getString('tipo_mensagem') || ''
+
+          // Determinar se a mensagem agendada possui mídia física para envio
+          let mediaUrlFinal = docUrl
+          if (!mediaUrlFinal && arquivoPb) {
+            const pbHost = (
+              $os.getenv('PB_INSTANCE_URL') ||
+              $os.getenv('VITE_POCKETBASE_URL') ||
+              $os.getenv('SITE_URL') ||
+              ''
+            ).replace(/\/+$/, '')
+            if (pbHost) {
+              mediaUrlFinal = `${pbHost}/api/files/whatsapp_mensagens/${msg.id}/${encodeURIComponent(arquivoPb)}`
+            }
+          }
+
+          const hasMedia = Boolean(mediaUrlFinal || arquivoPb)
+          const isImagem =
+            tipoMsg === 'imagem' ||
+            (hasMedia && /\.(jpe?g|png|webp|gif)$/i.test(arquivoNome || arquivoPb))
+
           if (isZApi) {
-            let baseWithoutSuffix = cleanUrl.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
+            let baseWithoutSuffix = cleanUrl
+              .replace(/\/+send-text\/?$/i, '')
+              .replace(/\/+send-document(\/[^/?#]+)?\/?$/i, '')
+              .replace(/\/+send-image\/?$/i, '')
+              .replace(/\/+send-video\/?$/i, '')
+              .replace(/\/+send-audio\/?$/i, '')
+              .replace(/\/+$/, '')
+
             const zapiMatch = baseWithoutSuffix.match(
               /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
             )
-            if (zapiMatch) {
-              targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
-            } else {
-              targetUrl = baseWithoutSuffix + '/send-text'
-            }
 
             if (apiKey) {
               headers['Client-Token'] = apiKey
             }
-            payloadGateway = {
-              phone: cleanPhone,
-              message: texto,
+
+            if (hasMedia) {
+              if (isImagem) {
+                if (zapiMatch) {
+                  targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-image`
+                } else {
+                  targetUrl = `${baseWithoutSuffix}/send-image`
+                }
+                payloadGateway = {
+                  phone: cleanPhone,
+                  image: mediaUrlFinal,
+                }
+                if (texto && texto !== '[Imagem]') {
+                  payloadGateway.caption = texto
+                }
+              } else {
+                let fileExtension = 'pdf'
+                if (arquivoNome && arquivoNome.includes('.')) {
+                  const parts = arquivoNome.split('.')
+                  fileExtension =
+                    parts[parts.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf'
+                }
+                if (zapiMatch) {
+                  targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-document/${fileExtension}`
+                } else {
+                  targetUrl = `${baseWithoutSuffix}/send-document/${fileExtension}`
+                }
+                payloadGateway = {
+                  phone: cleanPhone,
+                  document: mediaUrlFinal,
+                  fileName: arquivoNome || 'documento.pdf',
+                }
+                if (texto && texto !== arquivoNome) {
+                  payloadGateway.caption = texto
+                }
+              }
+            } else {
+              if (zapiMatch) {
+                targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
+              } else {
+                targetUrl = `${baseWithoutSuffix}/send-text`
+              }
+              payloadGateway = {
+                phone: cleanPhone,
+                message: texto,
+              }
             }
           } else {
             if (apiKey) {
@@ -104,12 +173,38 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
               headers['Authorization'] = 'Bearer ' + apiKey
               headers['X-Api-Key'] = apiKey
             }
-            payloadGateway = {
-              number: cleanPhone,
-              phone: cleanPhone,
-              message: texto,
-              text: texto,
-              sender: originNumber,
+
+            if (hasMedia) {
+              if (isImagem) {
+                targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-image`
+                payloadGateway = {
+                  number: cleanPhone,
+                  phone: cleanPhone,
+                  image: mediaUrlFinal,
+                  media: mediaUrlFinal,
+                  caption: texto && texto !== '[Imagem]' ? texto : '',
+                  sender: originNumber,
+                }
+              } else {
+                targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-document`
+                payloadGateway = {
+                  number: cleanPhone,
+                  phone: cleanPhone,
+                  document: mediaUrlFinal,
+                  fileName: arquivoNome || 'documento.pdf',
+                  caption: texto && texto !== arquivoNome ? texto : '',
+                  sender: originNumber,
+                }
+              }
+            } else {
+              targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-text`
+              payloadGateway = {
+                number: cleanPhone,
+                phone: cleanPhone,
+                message: texto,
+                text: texto,
+                sender: originNumber,
+              }
             }
           }
 

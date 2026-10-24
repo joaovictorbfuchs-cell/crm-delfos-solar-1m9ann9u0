@@ -35,6 +35,7 @@ import {
   isArquivoImagem,
   isArquivoPdf,
 } from '@/services/documentosUsinaService'
+import { usePasteFiles } from '@/hooks/usePasteFiles'
 
 interface SecaoDocumentosUsinaProps {
   usinaId: string
@@ -83,6 +84,49 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
 
   // Visualização lightbox simples para imagens
   const [previewImagem, setPreviewImagem] = useState<{ url: string; nome: string } | null>(null)
+
+  // Suporte a colar arquivos da área de transferência (Ctrl+V)
+  const containerSecaoRef = useRef<HTMLDivElement | null>(null)
+
+  const adicionarArquivosNaFila = (files: File[]) => {
+    if (readOnly || files.length === 0) return
+
+    const novosItens: ItemFilaUpload[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+
+      // Validação de tamanho (até 20MB por arquivo)
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`O arquivo "${file.name}" excede o limite máximo de 20MB.`)
+        continue
+      }
+
+      const ehImagem = isArquivoImagem(file.name) || file.type.startsWith('image/')
+      const previewUrl = ehImagem ? URL.createObjectURL(file) : undefined
+
+      novosItens.push({
+        id: `upload_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${i}`,
+        file,
+        previewUrl,
+        descricao: '',
+      })
+    }
+
+    if (novosItens.length > 0) {
+      setFilaUpload((prev) => [...prev, ...novosItens])
+      toast.info(
+        `${novosItens.length} arquivo(s) colado(s). Preencha a descrição de cada um e clique em "Enviar Todos".`,
+      )
+    }
+  }
+
+  usePasteFiles({
+    enabled: !readOnly,
+    containerRef: containerSecaoRef,
+    onFilesPasted: (files) => {
+      adicionarArquivosNaFila(files)
+    },
+  })
 
   // Carrega documentos da usina
   const carregarDocumentos = async () => {
@@ -248,7 +292,11 @@ export const SecaoDocumentosUsina: React.FC<SecaoDocumentosUsinaProps> = ({
   }
 
   return (
-    <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3.5">
+    <div
+      ref={containerSecaoRef}
+      tabIndex={0}
+      className="p-4 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3.5 outline-none focus:ring-1 focus:ring-emerald-400/50"
+    >
       {/* Cabeçalho compacto */}
       <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-2.5">
         <div className="flex items-center gap-2">

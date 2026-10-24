@@ -39,6 +39,8 @@ import {
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
+import { usePasteFiles } from '@/hooks/usePasteFiles'
+import pb from '@/lib/pocketbase/client'
 
 interface FichaClienteWhatsAppProps {
   cliente: Cliente
@@ -54,6 +56,8 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     whatsAppMensagens,
     whatsAppConfig,
     sendWhatsAppMessage,
+    sendWhatsAppImageMessage,
+    sendWhatsAppDocument,
     updateCliente,
     addAtividade,
     orcamentosSolar,
@@ -100,8 +104,51 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
   } | null>(null)
   const [mediaErrors, setMediaErrors] = useState<Record<string, boolean>>({})
 
+  // Estado do arquivo anexado (via botão ou via paste)
+  const [anexoArquivo, setAnexoArquivo] = useState<File | null>(null)
+  const [anexoPreviewUrl, setAnexoPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+
   const handleMediaError = (msgId: string) => {
     setMediaErrors((prev) => ({ ...prev, [msgId]: true }))
+  }
+
+  // Hook de paste para interceptar imagens/documentos colados na área de texto ou formulário
+  const { handlePaste: handlePasteAnexo } = usePasteFiles({
+    onFilesPasted: (files) => {
+      if (files.length === 0) return
+      const file = files[0]
+      setAnexoArquivo(file)
+      if (file.type.startsWith('image/')) {
+        const objectUrl = URL.createObjectURL(file)
+        setAnexoPreviewUrl(objectUrl)
+      } else {
+        setAnexoPreviewUrl(null)
+      }
+    },
+  })
+
+  const handleRemoverAnexo = () => {
+    if (anexoPreviewUrl && anexoPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(anexoPreviewUrl)
+    }
+    setAnexoArquivo(null)
+    setAnexoPreviewUrl(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAnexoArquivo(file)
+    if (file.type.startsWith('image/')) {
+      const objectUrl = URL.createObjectURL(file)
+      setAnexoPreviewUrl(objectUrl)
+    } else {
+      setAnexoPreviewUrl(null)
+    }
   }
 
   // Mensagens enviadas a este cliente específico (ordenadas da mais recente para a mais antiga)
@@ -176,10 +223,10 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
       return
     }
 
-    if (!msg) {
+    if (!msg && !anexoArquivo) {
       setFeedback({
         tipo: 'error',
-        texto: 'A mensagem de texto não pode estar vazia.',
+        texto: 'A mensagem de texto ou um arquivo anexado é obrigatório.',
       })
       return
     }
@@ -222,15 +269,107 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
         })
       }
 
-      const msgComPrefixo = aplicarPrefixoMensagemManual(msg)
-      const res = await sendWhatsAppMessage({
-        cliente_id: cliente.id,
-        telefone_destino: tel,
-        conteudo_final: msgComPrefixo,
-        template_id: selectedTemplateId || undefined,
-        agendado_para: agendadoParaUtcIso,
-        tipo_disparo: 'manual',
-      })
+      const msgComPrefixo = msg ? aplicarPrefixoMensagemManual(msg) : ''
+      let res: {
+        ok?: boolean
+        sent?: boolean
+        status?: string
+        message?: string
+        gatewayConfigured?: boolean
+      }
+
+      if (anexoArquivo) {
+        // Envio com arquivo anexado (imagem ou documento)
+        const isImagem = anexoArquivo.type.startsWith('image/')
+        const tipoMidia = isImagem ? 'imagem' : 'documento'
+
+        // 1. Gravar registro em whatsapp_mensagens com o arquivo físico no PocketBase
+        const formData = new FormData()
+        formData.append('arquivo', anexoArquivo)
+        formData.append('tipo_mensagem', tipoMidia)
+        formData.append('direcao', 'enviada')
+        formData.append('tipo_disparo', 'manual')
+        formData.append('telefone_destino', tel)
+        formData.append('cliente_id', cliente.id)
+        formData.append('nome_arquivo', anexoArquivo.name)
+        formData.append('conteudo_final', msgComPrefixo || anexoArquivo.name)
+        if (selectedTemplateId) formData.append('template_id', selectedTemplateId)
+
+        if (agendarEnvio && agendadoParaUtcIso) {
+          // Envio agendado com mídia: salva status 'agendada' e agendado_para
+          formData.append('status', 'agendada')
+          formData.append('agendado_para', agendadoParaUtcIso)
+
+          const createdMsg = await pb.collection('whatsapp_mensagens').create(formData)
+          const pbMediaUrl = pb.files.getURL(createdMsg, createdMsg.arquivo)
+          if (pbMediaUrl) {
+            await pb.collection('whatsapp_mensagens').update(createdMsg.id, {
+              documento_url: pbMediaUrl,
+            })
+          }
+
+          res = {
+            ok: true,
+            sent: false,
+            status: 'agendada',
+            message: 'Mensagem com anexo agendada na fila com sucesso.',
+          }
+        } else {
+          // Envio imediato com mídia
+          formData.append('status', 'pendente')
+          const createdMsg = await pb.collection('whatsapp_mensagens').create(formData)
+          const pbMediaUrl = pb.files.getURL(createdMsg, createdMsg.arquivo)
+
+          // Fallback base64 para arquivos de até 4MB
+          let base64Fallback = ''
+          if (anexoArquivo.size <= 4 * 1024 * 1024) {
+            try {
+              base64Fallback = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader()
+                reader.onload = () => resolve(reader.result as string)
+                reader.onerror = reject
+                reader.readAsDataURL(anexoArquivo)
+              })
+            } catch {
+              /* intentionally ignored */
+            }
+          }
+
+          if (isImagem) {
+            res = await sendWhatsAppImageMessage({
+              cliente_id: cliente.id,
+              telefone_destino: tel,
+              imagem: pbMediaUrl || base64Fallback,
+              imagem_url: pbMediaUrl,
+              base64: base64Fallback,
+              legenda: msgComPrefixo,
+              nome_arquivo: anexoArquivo.name,
+              record_id: createdMsg.id,
+            })
+          } else {
+            res = await sendWhatsAppDocument({
+              cliente_id: cliente.id,
+              telefone_destino: tel,
+              tipo: 'documento',
+              nome_arquivo: anexoArquivo.name,
+              base64: base64Fallback,
+              documento_url: pbMediaUrl,
+              legenda: msgComPrefixo,
+              record_id: createdMsg.id,
+            })
+          }
+        }
+      } else {
+        // Envio tradicional de texto puro
+        res = await sendWhatsAppMessage({
+          cliente_id: cliente.id,
+          telefone_destino: tel,
+          conteudo_final: msgComPrefixo,
+          template_id: selectedTemplateId || undefined,
+          agendado_para: agendadoParaUtcIso,
+          tipo_disparo: 'manual',
+        })
+      }
 
       // Registrar atividade na timeline unificada do cliente
       try {
@@ -276,6 +415,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
       // Limpar campos de composição
       setMensagemTexto('')
       setSelectedTemplateId('')
+      handleRemoverAnexo()
       setAgendarEnvio(false)
       setDataHoraAgendada('')
     } catch (err: unknown) {
@@ -541,10 +681,76 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
             <textarea
               rows={4}
               value={mensagemTexto}
+              onPaste={handlePasteAnexo}
               onChange={(e) => setMensagemTexto(e.target.value)}
-              placeholder="Digite o texto da mensagem que será enviada via WhatsApp..."
+              placeholder="Digite a mensagem que será enviada via WhatsApp (ou cole uma imagem/documento aqui com Ctrl+V)..."
               className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
             />
+          </div>
+
+          {/* Anexo de Mídia (Botão tradicional intacto + Suporte a colar da área de transferência) */}
+          <div className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+
+            {!anexoArquivo ? (
+              <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-xl border border-dashed border-gray-300 hover:border-emerald-400 transition-colors">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                  <span>
+                    Anexar foto ou documento (ou <strong>cole com Ctrl+V</strong> na mensagem)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-800 border border-gray-200 rounded-lg text-xs font-bold shadow-2xs transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Escolher Arquivo</span>
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {anexoPreviewUrl ? (
+                    <img
+                      src={anexoPreviewUrl}
+                      alt="Preview"
+                      className="w-12 h-12 object-cover rounded-lg border border-emerald-200 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                      <FileCheck className="w-5 h-5 text-emerald-600" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-gray-800 truncate max-w-xs sm:max-w-md">
+                      {anexoArquivo.name}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      {(anexoArquivo.size / 1024).toFixed(1)} KB • {anexoArquivo.type || 'arquivo'}
+                      <span className="text-emerald-700 font-semibold ml-1.5">
+                        (pronto para envio imediato ou agendado)
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRemoverAnexo}
+                  className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  title="Remover anexo"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Opção de Agendamento */}
@@ -591,6 +797,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
               onClick={() => {
                 setMensagemTexto('')
                 setSelectedTemplateId('')
+                handleRemoverAnexo()
                 setAgendarEnvio(false)
                 setDataHoraAgendada('')
                 setFeedback(null)

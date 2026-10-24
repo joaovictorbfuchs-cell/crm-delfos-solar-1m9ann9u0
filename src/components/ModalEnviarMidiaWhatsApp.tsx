@@ -36,6 +36,8 @@ interface ModalEnviarMidiaWhatsAppProps {
   clienteId?: string
   conversaId?: string
   clienteNome?: string
+  arquivoInicial?: File | null
+  initialFile?: File | null
 }
 
 export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> = ({
@@ -46,6 +48,8 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
   clienteId,
   conversaId,
   clienteNome,
+  arquivoInicial,
+  initialFile,
 }) => {
   const { sendWhatsAppImageMessage, sendWhatsAppVideoMessage, sendWhatsAppDocument } = useClientes()
   const { toast } = useToast()
@@ -59,11 +63,37 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  // Sincroniza o tipo inicial quando abre o modal
+  // Sincroniza o tipo inicial e arquivo inicial quando abre o modal
   useEffect(() => {
     if (isOpen) {
-      setTipoMidia(tipoInicial)
+      const fileToLoad = arquivoInicial || initialFile || null
+      let tipoDetectado = tipoInicial
+
+      if (fileToLoad) {
+        if (fileToLoad.type.startsWith('image/')) {
+          tipoDetectado = 'imagem'
+        } else if (fileToLoad.type.startsWith('video/')) {
+          tipoDetectado = 'video'
+        } else {
+          tipoDetectado = 'documento'
+        }
+      }
+
+      setTipoMidia(tipoDetectado)
       setErroEnvio(null)
+
+      if (fileToLoad) {
+        setSelectedFile(fileToLoad)
+        if (tipoDetectado === 'imagem' || tipoDetectado === 'video') {
+          const objectUrl = URL.createObjectURL(fileToLoad)
+          setFilePreview(objectUrl)
+        } else {
+          setFilePreview(null)
+        }
+      } else {
+        setSelectedFile(null)
+        setFilePreview(null)
+      }
     } else {
       setSelectedFile(null)
       if (filePreview && filePreview.startsWith('blob:')) {
@@ -74,7 +104,7 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
       setErroEnvio(null)
       setIsUploading(false)
     }
-  }, [isOpen, tipoInicial])
+  }, [isOpen, tipoInicial, arquivoInicial, initialFile])
 
   // Ajusta accept de arquivo por tipo
   const acceptTypes = {

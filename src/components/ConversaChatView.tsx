@@ -32,6 +32,7 @@ import {
   ModalEnviarMidiaWhatsApp,
   type TipoMidiaEnvio,
 } from '@/components/ModalEnviarMidiaWhatsApp'
+import { usePasteFiles } from '@/hooks/usePasteFiles'
 import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -196,7 +197,25 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   const [showAnexosMenu, setShowAnexosMenu] = useState(false)
   const [modalMidiaOpen, setModalMidiaOpen] = useState(false)
   const [tipoMidiaModal, setTipoMidiaModal] = useState<TipoMidiaEnvio>('imagem')
+  const [arquivoColadoModal, setArquivoColadoModal] = useState<File | null>(null)
   const [callNotice, setCallNotice] = useState(false)
+
+  // Suporte a colar arquivos/imagens da área de transferência
+  const { handlePaste: handlePasteChatFiles } = usePasteFiles({
+    onFilesPasted: (files) => {
+      if (files.length === 0) return
+      const file = files[0]
+      if (file.type.startsWith('image/')) {
+        setTipoMidiaModal('imagem')
+      } else if (file.type.startsWith('video/')) {
+        setTipoMidiaModal('video')
+      } else {
+        setTipoMidiaModal('documento')
+      }
+      setArquivoColadoModal(file)
+      setModalMidiaOpen(true)
+    },
+  })
   const [previewMediaModal, setPreviewMediaModal] = useState<{
     tipo: 'imagem' | 'video'
     url: string
@@ -1457,6 +1476,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
             rows={1}
             value={mensagemTexto}
             onChange={(e) => setMensagemTexto(e.target.value)}
+            onPaste={handlePasteChatFiles}
             onInput={(e) => {
               const target = e.currentTarget
               target.style.height = 'auto'
@@ -1468,7 +1488,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                 handleEnviar()
               }
             }}
-            placeholder="Mensagem"
+            placeholder="Mensagem (cole fotos ou documentos aqui)"
             className="w-full bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] resize-none outline-none max-h-24 leading-normal overflow-y-auto"
           />
         </div>
@@ -1499,12 +1519,16 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       {/* Modal de Envio de Mídia WhatsApp (Imagem, Vídeo, Documento) */}
       <ModalEnviarMidiaWhatsApp
         isOpen={modalMidiaOpen}
-        onClose={() => setModalMidiaOpen(false)}
+        onClose={() => {
+          setModalMidiaOpen(false)
+          setArquivoColadoModal(null)
+        }}
         tipoInicial={tipoMidiaModal}
         telefoneDestino={conversa.numero}
         clienteId={cliente?.id}
         conversaId={conversa.id}
         clienteNome={cliente?.nome}
+        arquivoInicial={arquivoColadoModal}
       />
 
       {/* Modal de visualização expandida de imagem / vídeo */}

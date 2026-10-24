@@ -39,6 +39,7 @@ import { ModalFormEquipamento } from '@/components/ModalFormEquipamento'
 import { buscarEquipamentoCorrespondente } from '@/lib/equipamentoMatcher'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import type { UsinaCliente } from '@/types/crm'
+import { usePasteFiles } from '@/hooks/usePasteFiles'
 
 export interface ModalImportarDocumentoUsinaProps {
   open: boolean
@@ -778,6 +779,16 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
     }
   }
 
+  // Suporte a colar documento/imagem com Ctrl+V diretamente no modal
+  const { handlePaste: handlePasteDocumento } = usePasteFiles({
+    enabled: open && !isAnalisando,
+    onFilesPasted: (files) => {
+      if (files[0]) {
+        processarArquivo(files[0])
+      }
+    },
+  })
+
   const toggleCampo = (id: string) => {
     setSelecionados((prev) => ({
       ...prev,
@@ -1047,7 +1058,10 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
 
   return (
     <Dialog open={open} onOpenChange={(val) => (!val ? handleFechar() : onOpenChange(val))}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        onPaste={handlePasteDocumento}
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+      >
         <DialogHeader>
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
@@ -1099,8 +1113,8 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                     Selecione o documento técnico da usina
                   </p>
                   <p className="text-xs text-slate-500">
-                    Arraste ou clique para anexar projeto da usina, memorial descritivo, ART, conta
-                    de luz da UC ou planilha técnica.
+                    Arraste, clique ou <strong>cole com Ctrl+V</strong> para anexar projeto da
+                    usina, memorial descritivo, ART, conta de luz da UC ou planilha técnica.
                   </p>
                   <p className="text-[11px] text-slate-400">
                     Formatos aceitos: <strong>PDF</strong>, <strong>Imagens (JPG/PNG)</strong> e{' '}
