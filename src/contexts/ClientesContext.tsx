@@ -519,6 +519,7 @@ interface ClientesContextType {
     cliente_id?: string
     conversa_id?: string
     telefone_destino: string
+    destinatario_nome?: string
     conteudo_final: string
     template_id?: string
     agendado_para?: string | null
@@ -2803,6 +2804,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     cliente_id?: string
     conversa_id?: string
     telefone_destino: string
+    destinatario_nome?: string
     conteudo_final: string
     template_id?: string
     agendado_para?: string | null

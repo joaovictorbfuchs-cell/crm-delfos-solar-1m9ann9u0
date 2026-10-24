@@ -13,6 +13,7 @@ import {
   Wrench,
   Info,
 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 import { useClientes } from '@/contexts/ClientesContext'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { Cliente } from '@/types/crm'

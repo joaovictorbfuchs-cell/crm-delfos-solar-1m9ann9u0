@@ -2874,6 +2874,7 @@ export async function sendWhatsAppMensagem(data: {
   conversa_id?: string
   telefone?: string
   telefone_destino?: string
+  destinatario_nome?: string
   mensagem?: string
   conteudo_final?: string
   template_id?: string
@@ -2913,6 +2914,7 @@ export async function sendWhatsAppMensagem(data: {
     cliente_id: data.cliente_id || data.clienteId,
     conversa_id: data.conversa_id,
     telefone_destino: data.telefone_destino || data.telefone || '',
+    destinatario_nome: data.destinatario_nome,
     conteudo_final: conteudoTratado,
     template_id: data.template_id,
     agendado_para: data.agendado_para,
