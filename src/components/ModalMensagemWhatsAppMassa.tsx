@@ -54,6 +54,12 @@ import {
   type FiltrosExtrasListaEnvio,
 } from '@/services/listasEnvioService'
 import {
+  getPadroesTextosReenvio,
+  salvarPadroesTextosReenvio,
+  createDisparoMassa,
+  type DestinatarioLoteMassa,
+} from '@/services/disparosMassaService'
+import {
   PLACEHOLDERS_ENVIO_MASSA,
   resolverPlaceholdersMensagemMassa,
   extrairPotenciaClienteTexto,
@@ -274,6 +280,11 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const [tipoEnvio, setTipoEnvio] = useState<'agora' | 'agendar'>('agora')
   const [dataHoraAgendada, setDataHoraAgendada] = useState<string>('')
   const [intervaloSegundos, setIntervaloSegundos] = useState<number>(60)
+
+  // Reenvio automático (+3d e +90d)
+  const [reenvioAtivo, setReenvioAtivo] = useState<boolean>(true)
+  const [textoReenvio1, setTextoReenvio1] = useState<string>('')
+  const [textoReenvio2, setTextoReenvio2] = useState<string>('')
 
   // Progresso do envio em lote
   const [isEnviando, setIsEnviando] = useState(false)
@@ -662,6 +673,12 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setTipoEnvio('agora')
     setIntervaloSegundos(60)
 
+    // Carrega padrões configurados de reenvio
+    const padroes = getPadroesTextosReenvio()
+    setTextoReenvio1(padroes.texto1)
+    setTextoReenvio2(padroes.texto2)
+    setReenvioAtivo(true)
+
     // Data/hora sugerida para agendamento: daqui a 10 minutos no fuso de SP
     const dezMinFuturo = new Date(Date.now() + 10 * 60 * 1000)
     setDataHoraAgendada(formatUtcToSaoPauloInput(dezMinFuturo.toISOString()))
@@ -1016,6 +1033,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     const intervalMs = Math.max(intervaloSegundos || 60, 5) * 1000
     const isAgendamento = tipoEnvio === 'agendar'
 
+    // Estrutura para registrar o lote em disparos_massa
+    const destinatariosLote: DestinatarioLoteMassa[] = []
+
     const estadoEnvio = {
       total: selecionados.length,
       atual: 0,
@@ -1119,6 +1139,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         }
 
         estadoEnvio.sucessos.push(item.cliente.nome)
+        const agoraEnvioIso = new Date().toISOString()
+        destinatariosLote.push({
+          cliente_id: item.cliente.id,
+          nome: item.cliente.nome,
+          telefone: item.numeroLimpo,
+          status: 'pendente',
+          data_envio_inicial: agoraEnvioIso,
+        })
         setProgressoEnvio({ ...estadoEnvio })
       } catch (err: unknown) {
         console.error(`Erro ao processar mensagem para ${item.cliente.nome}:`, err)
@@ -1142,8 +1170,45 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           clienteNome: item.cliente.nome,
           erro: msgErro,
         })
+        destinatariosLote.push({
+          cliente_id: item.cliente.id,
+          nome: item.cliente.nome,
+          telefone: item.numeroLimpo,
+          status: 'finalizado',
+          motivo_saida: msgErro,
+        })
         setProgressoEnvio({ ...estadoEnvio })
       }
+    }
+
+    // Criação do registro de lote na coleção disparos_massa
+    try {
+      const loteTitulo = `Lote WhatsApp ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+      const agoraIso = new Date().toISOString()
+      await createDisparoMassa({
+        titulo: loteTitulo,
+        segmento: segmentoAtivo,
+        filtros: {
+          segmento: segmentoAtivo,
+          filtroWhatsApp,
+          filtroCidade,
+          filtroConcessionaria,
+          filtroTipoCliente,
+          filtroStatus,
+          busca,
+          listaSalvaId: listaSelecionadaId || undefined,
+        },
+        total_destinatarios: selecionados.length,
+        intervalo_segundos: intervaloSegundos,
+        data_disparo: isAgendamento && dataAgendamentoUtcIso ? dataAgendamentoUtcIso : agoraIso,
+        mensagem_original: templateTexto,
+        reenvio_ativo: Boolean(reenvioAtivo),
+        texto_reenvio_1: reenvioAtivo ? textoReenvio1 : '',
+        texto_reenvio_2: reenvioAtivo ? textoReenvio2 : '',
+        destinatarios: destinatariosLote,
+      })
+    } catch (errLote) {
+      console.warn('Erro ao salvar registro do lote de disparos_massa:', errLote)
     }
 
     setIsEnviando(false)
@@ -1953,6 +2018,111 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                       worker periódico do PocketBase (a cada 2 min) fará o envio sequencial
                       automaticamente.
                     </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Configuração de Reenvio Automático (+3d e +90d) */}
+            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded-md bg-indigo-50 text-indigo-700">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="toggle-reenvio-ativo"
+                      className="text-xs font-bold uppercase tracking-wider text-gray-800 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>Reenvio Automático</span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 lowercase">
+                        +3d e +90d
+                      </span>
+                    </Label>
+                    <p className="text-[11px] text-gray-500">
+                      Dispara lembretes caso o cliente não responda no WhatsApp
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    id="toggle-reenvio-ativo"
+                    type="checkbox"
+                    checked={reenvioAtivo}
+                    onChange={(e) => setReenvioAtivo(e.target.checked)}
+                    className="w-4 h-4 text-[#0284C7] rounded border-gray-300 focus:ring-[#0284C7] cursor-pointer"
+                  />
+                  <Label
+                    htmlFor="toggle-reenvio-ativo"
+                    className="text-xs font-semibold text-gray-700 cursor-pointer select-none"
+                  >
+                    {reenvioAtivo ? 'Ativo' : 'Desativado'}
+                  </Label>
+                </div>
+              </div>
+
+              {reenvioAtivo && (
+                <div className="pt-2 border-t border-gray-100 space-y-3 animate-in fade-in duration-150">
+                  {/* 1º Reenvio: +3 dias */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                        <span>1º Reenvio (+3 dias sem resposta)</span>
+                      </Label>
+                      <span className="text-[10px] text-gray-400">Suporta [nome do cliente]</span>
+                    </div>
+                    <Textarea
+                      rows={2}
+                      value={textoReenvio1}
+                      onChange={(e) => setTextoReenvio1(e.target.value)}
+                      className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
+                      placeholder="Olá, [nome do cliente]! Passando para checar se conseguiu ver a mensagem anterior..."
+                    />
+                  </div>
+
+                  {/* 2º Reenvio: +90 dias a partir do 1º reenvio */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                        <span>2º Reenvio (+90 dias sem resposta, contados do 1º)</span>
+                      </Label>
+                      <span className="text-[10px] text-gray-400">Sem 3º reenvio</span>
+                    </div>
+                    <Textarea
+                      rows={2}
+                      value={textoReenvio2}
+                      onChange={(e) => setTextoReenvio2(e.target.value)}
+                      className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
+                      placeholder="Olá, [nome do cliente]! Já faz um tempo desde nosso último contato..."
+                    />
+                  </div>
+
+                  {/* Botão Salvar como Padrão e aviso */}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-[10px] text-gray-500">
+                      O worker processará automaticamente no horário de Brasília.
+                    </span>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        salvarPadroesTextosReenvio(textoReenvio1, textoReenvio2)
+                        toast.success('Padrões de reenvio salvos com sucesso!', {
+                          description:
+                            'Estes textos serão sugeridos nos próximos disparos em massa.',
+                        })
+                      }}
+                      className="h-7 text-[11px] font-semibold border-indigo-200 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1 px-2.5"
+                    >
+                      <Bookmark className="w-3 h-3" />
+                      <span>Salvar como padrão</span>
+                    </Button>
                   </div>
                 </div>
               )}

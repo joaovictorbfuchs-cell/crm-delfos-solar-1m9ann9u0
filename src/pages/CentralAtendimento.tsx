@@ -15,11 +15,13 @@ import {
   FileSpreadsheet,
   DownloadCloud,
   Sparkles,
+  Send,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ModalVincularCliente } from '@/components/ModalVincularCliente'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
+import PainelAcompanhamentoDisparos from '@/components/PainelAcompanhamentoDisparos'
 import { ModalCadastrarLeadWhatsApp } from '@/components/ModalCadastrarLeadWhatsApp'
 import { ModalCadastrarOutroContatoWhatsApp } from '@/components/ModalCadastrarOutroContatoWhatsApp'
 import { ConversaChatView } from '@/components/ConversaChatView'
@@ -103,6 +105,7 @@ export const CentralAtendimento: React.FC = () => {
   )
   const [searchTerm, setSearchTerm] = useState('')
   const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
+  const [painelAcompanhamentoOpen, setPainelAcompanhamentoOpen] = useState(false)
   const [isStartingConversa, setIsStartingConversa] = useState(false)
   const [isExportingPlanilha, setIsExportingPlanilha] = useState(false)
   const [outrosContatosLista, setOutrosContatosLista] = useState<OutroContato[]>([])
@@ -1238,6 +1241,18 @@ export const CentralAtendimento: React.FC = () => {
           >
             <Settings className="w-4 h-4 stroke-[2.5]" />
           </button>
+
+          {/* Botão de Acompanhamento de Disparos em Massa */}
+          <button
+            type="button"
+            onClick={() => setPainelAcompanhamentoOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+            title="Acompanhar disparos em massa e reenvios automáticos"
+            aria-label="Acompanhamento de Disparos em Massa"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Disparos em Massa</span>
+          </button>
         </div>
       </div>
 
@@ -1739,6 +1754,15 @@ export const CentralAtendimento: React.FC = () => {
         isOpen={modalTemplatesOpen}
         onClose={() => setModalTemplatesOpen(false)}
       />
+
+      {/* Modal / Painel de Acompanhamento de Disparos em Massa */}
+      <Dialog open={painelAcompanhamentoOpen} onOpenChange={setPainelAcompanhamentoOpen}>
+        <DialogContent className="max-w-6xl max-h-[92vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+            <PainelAcompanhamentoDisparos />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

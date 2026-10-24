@@ -50,11 +50,22 @@ const mockCreateListaEnvio = vi.fn().mockImplementation(async (input) => ({
   updated: new Date().toISOString(),
 }))
 const mockDeleteListaEnvio = vi.fn().mockResolvedValue(true)
+const mockCreateDisparoMassa = vi.fn().mockResolvedValue({ id: 'lote-123' })
+const mockSalvarPadroesTextosReenvio = vi.fn()
 
 vi.mock('@/services/listasEnvioService', () => ({
   fetchListasEnvio: () => mockFetchListasEnvio(),
   createListaEnvio: (input: unknown) => mockCreateListaEnvio(input),
   deleteListaEnvio: (id: string) => mockDeleteListaEnvio(id),
+}))
+
+vi.mock('@/services/disparosMassaService', () => ({
+  getPadroesTextosReenvio: () => ({
+    texto1: 'Olá, [nome do cliente]! Passando para checar se viu a mensagem anterior...',
+    texto2: 'Olá, [nome do cliente]! Já faz um tempo desde nosso último contato...',
+  }),
+  salvarPadroesTextosReenvio: (p: any) => mockSalvarPadroesTextosReenvio(p),
+  createDisparoMassa: (data: any) => mockCreateDisparoMassa(data),
 }))
 
 const clientesMock = [
@@ -363,6 +374,47 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
 
     await waitFor(() => {
       expect(mockDeleteListaEnvio).toHaveBeenCalledWith('lista-1')
+    })
+  })
+
+  it('exibe seção de reenvio automático com textos do 1º (+3d) e 2º reenvio (+90d) e botão salvar como padrão', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Seção de reenvio automático presente
+    expect(screen.getByText(/Reenvio Automático/i)).toBeDefined()
+    expect(screen.getByText(/1º Reenvio \(\+3 dias sem resposta\)/i)).toBeDefined()
+    expect(screen.getByText(/2º Reenvio \(\+90 dias sem resposta, contados do 1º\)/i)).toBeDefined()
+
+    // Botão salvar como padrão
+    const btnSalvarPadrao = screen.getByRole('button', { name: /Salvar como padrão/i })
+    expect(btnSalvarPadrao).toBeDefined()
+
+    fireEvent.click(btnSalvarPadrao)
+    expect(mockSalvarPadroesTextosReenvio).toHaveBeenCalledWith(
+      expect.stringContaining('Olá, [nome do cliente]!'),
+      expect.stringContaining('Olá, [nome do cliente]!'),
+    )
+  })
+
+  it('grava o lote na coleção disparos_massa ao confirmar o envio', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Clica em "Só com WhatsApp" para ter destinatários válidos
+    const btnComWpp = screen.getByRole('button', { name: /Só com WhatsApp/i })
+    fireEvent.click(btnComWpp)
+
+    // Botão de envio
+    const btnEnviar = screen.getByRole('button', { name: /Enviar para \d+ Clientes/i })
+    fireEvent.click(btnEnviar)
+
+    await waitFor(() => {
+      expect(mockCreateDisparoMassa).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reenvio_ativo: true,
+          total_destinatarios: expect.any(Number),
+          mensagem_original: expect.any(String),
+        }),
+      )
     })
   })
 })

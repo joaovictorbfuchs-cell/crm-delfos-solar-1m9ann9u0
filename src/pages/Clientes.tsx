@@ -17,6 +17,7 @@ import {
   Check,
   GitMerge,
   Trash2,
+  Send,
 } from 'lucide-react'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,8 @@ import {
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalMensagemWhatsAppMassa } from '@/components/ModalMensagemWhatsAppMassa'
+import PainelAcompanhamentoDisparos from '@/components/PainelAcompanhamentoDisparos'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import {
   ModalCadastroClienteFornecedor,
   DadosCadastroForm,
@@ -156,6 +159,7 @@ export default function Clientes() {
   // Modais
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
   const [isModalMensagemMassaOpen, setIsModalMensagemMassaOpen] = useState(false)
+  const [isPainelAcompanhamentoOpen, setIsPainelAcompanhamentoOpen] = useState(false)
   const [isModalMesclarOpen, setIsModalMesclarOpen] = useState(false)
   const [isExcluindoMassa, setIsExcluindoMassa] = useState(false)
 
@@ -675,6 +679,18 @@ export default function Clientes() {
               <span>Limpar</span>
             </Button>
           )}
+
+          {/* Botão Disparos em Massa (Acompanhamento) */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsPainelAcompanhamentoOpen(true)}
+            className="h-9 px-2.5 sm:px-3 rounded-xl border-sky-300 hover:bg-sky-50 text-sky-800 text-xs font-bold shrink-0 whitespace-nowrap inline-flex items-center gap-1.5"
+            title="Ver histórico e acompanhamento dos lotes de disparo em massa"
+          >
+            <Send className="w-3.5 h-3.5 text-[#0284C7]" />
+            <span className="hidden sm:inline">Disparos em Massa</span>
+          </Button>
 
           {/* Botão "Adicionar novo cliente" */}
           <Button
@@ -1308,6 +1324,15 @@ export default function Clientes() {
         onOpenChange={setIsModalMensagemMassaOpen}
         destinatariosIniciais={destinatariosMensagemMassa}
       />
+
+      {/* Modal / Painel de Acompanhamento de Disparos em Massa */}
+      <Dialog open={isPainelAcompanhamentoOpen} onOpenChange={setIsPainelAcompanhamentoOpen}>
+        <DialogContent className="max-w-6xl max-h-[92vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+            <PainelAcompanhamentoDisparos />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 6. Modal Mesclar Clientes */}
       <ModalMesclarClientes
