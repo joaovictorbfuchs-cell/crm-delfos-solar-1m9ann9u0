@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T16:57:18.206Z",
+  "generatedAt": "2026-10-24T18:04:38.551Z",
   "collections": [
     {
       "name": "users",
@@ -7996,6 +7996,71 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "filtros_salvos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (visibilidade = 'shared' || dono = @request.auth.id)",
+        "view": "@request.auth.id != '' && (visibilidade = 'shared' || dono = @request.auth.id)",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && dono = @request.auth.id",
+        "delete": "@request.auth.id != '' && dono = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modulo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["clientes", "negocios"]
+        },
+        {
+          "name": "condicoes",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "visibilidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["private", "shared"]
+        },
+        {
+          "name": "dono",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_filtros_salvos_modulo ON filtros_salvos (modulo)",
+        "CREATE INDEX idx_filtros_salvos_dono ON filtros_salvos (dono)",
+        "CREATE INDEX idx_filtros_salvos_visibilidade ON filtros_salvos (visibilidade)"
+      ]
     }
   ]
 }

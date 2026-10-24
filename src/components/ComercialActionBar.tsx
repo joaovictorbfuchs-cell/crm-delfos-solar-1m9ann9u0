@@ -26,6 +26,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Cliente } from '@/types/crm'
+import type { FiltroSalvoRecord } from '@/types/filtros'
+import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 
 export type ViewMode = 'kanban' | 'list' | 'perdidos'
 
@@ -61,6 +63,8 @@ export interface ComercialActionBarProps {
   // Ação de varredura/limpeza existente
   onLimparNegocios?: () => void
   isLimpandoNegocios?: boolean
+  filtroSalvoAtivo?: FiltroSalvoRecord | null
+  onFiltroSalvoChange?: (filtro: FiltroSalvoRecord | null) => void
 }
 
 export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
@@ -83,6 +87,8 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
   onOrdenacaoChange,
   onLimparNegocios,
   isLimpandoNegocios = false,
+  filtroSalvoAtivo = null,
+  onFiltroSalvoChange,
 }) => {
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'favoritos' | 'proprietarios' | 'filtros'>(
@@ -121,6 +127,7 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
     if (e) e.stopPropagation()
     onFiltroResponsavelChange('todos')
     onFiltroEstadoChange('todos')
+    if (onFiltroSalvoChange) onFiltroSalvoChange(null)
   }
 
   // Filtragem dos proprietários pela busca interna do popover
@@ -328,6 +335,15 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
             </div>
 
             {/* Seletor do Funil: "Comercial" com ícone de funil/kanban */}
+
+            {/* Componente Reutilizável de Filtros Salvos Pipedrive (Fase 1) */}
+            {onFiltroSalvoChange && (
+              <FiltroSalvoBar
+                modulo="negocios"
+                filtroAtivo={filtroSalvoAtivo}
+                onSelectFiltro={onFiltroSalvoChange}
+              />
+            )}
 
             {/* BOTÃO DE FILTRO PIPEDRIVE COM POPOVER FLUTUANTE */}
             <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>

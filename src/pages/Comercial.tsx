@@ -15,6 +15,8 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ComercialListView } from '@/components/ComercialListView'
+import type { FiltroSalvoRecord } from '@/types/filtros'
+import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
@@ -43,6 +45,7 @@ export default function Comercial() {
   const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
   const [ordenacao, setOrdenacao] = useState<OrdenacaoOpcao>('proxima_atividade')
+  const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
   const [reativandoId, setReativandoId] = useState<string | null>(null)
   const [isLimpandoNegocios, setIsLimpandoNegocios] = useState(false)
@@ -136,6 +139,11 @@ export default function Comercial() {
   const negociosFiltrados = React.useMemo(() => {
     let lista = [...negociosList]
 
+    // Aplicação do Filtro Salvo estilo Pipedrive pelo motor puro
+    if (filtroSalvoAtivo?.condicoes) {
+      lista = aplicarFiltroSalvo(lista, filtroSalvoAtivo.condicoes, 'negocios')
+    }
+
     // Filtro por Responsável
     if (filtroResponsavel !== 'todos') {
       if (filtroResponsavel === 'sem_responsavel') {
@@ -181,10 +189,15 @@ export default function Comercial() {
     }
 
     return lista
-  }, [negociosList, filtroResponsavel, filtroEstado, ordenacao])
+  }, [negociosList, filtroSalvoAtivo, filtroResponsavel, filtroEstado, ordenacao])
 
   const clientesAtivosFiltrados = React.useMemo(() => {
     let lista = [...clientesAtivos]
+
+    // Aplicação do Filtro Salvo estilo Pipedrive se houver filtro ativo
+    if (filtroSalvoAtivo?.condicoes) {
+      lista = aplicarFiltroSalvo(lista, filtroSalvoAtivo.condicoes, 'negocios')
+    }
 
     // Filtro por Responsável
     if (filtroResponsavel !== 'todos') {
@@ -224,7 +237,7 @@ export default function Comercial() {
     }
 
     return lista
-  }, [clientesAtivos, filtroResponsavel, filtroEstado, ordenacao])
+  }, [clientesAtivos, filtroSalvoAtivo, filtroResponsavel, filtroEstado, ordenacao])
 
   // Clientes perdidos
   const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)
@@ -349,6 +362,8 @@ export default function Comercial() {
           onOrdenacaoChange={(ord) => setOrdenacao(ord)}
           onLimparNegocios={handleLimparNegociosForaDoFunil}
           isLimpandoNegocios={isLimpandoNegocios}
+          filtroSalvoAtivo={filtroSalvoAtivo}
+          onFiltroSalvoChange={(f) => setFiltroSalvoAtivo(f)}
         />
 
         {/* Alternância de Visualização */}

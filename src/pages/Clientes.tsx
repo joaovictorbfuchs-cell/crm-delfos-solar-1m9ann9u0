@@ -44,6 +44,9 @@ import { useToast } from '@/hooks/use-toast'
 import { formatDate } from '@/lib/formatters'
 import { fetchOutrosContatos, fetchAllUsinas } from '@/services/crmService'
 import type { Cliente, ClienteStatus, OutroContato, Atividade, UsinaCliente } from '@/types/crm'
+import type { FiltroSalvoRecord } from '@/types/filtros'
+import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
+import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 
 export type SortField = 'nome' | 'origem' | 'produto' | 'cidade' | 'potencia' | 'valor' | 'status'
 export type SortDirection = 'asc' | 'desc'
@@ -125,6 +128,9 @@ export default function Clientes() {
 
   // Busca rápida no topo
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Filtro Salvo estilo Pipedrive (Fase 1)
+  const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
 
   // Drawer de filtros avançados
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
@@ -317,8 +323,9 @@ export default function Clientes() {
     if (filtros.temContratoOM !== 'todos') count++
     if (filtros.temUsinas !== 'todos') count++
     if (filtros.origemRegistro !== 'todos') count++
+    if (filtroSalvoAtivo) count++
     return count
-  }, [filtros])
+  }, [filtros, filtroSalvoAtivo])
 
   const activeDraftFiltersCount = useMemo(() => {
     let count = 0
@@ -342,6 +349,7 @@ export default function Clientes() {
     }
     setDraftFiltros(limpos)
     setFiltros(limpos)
+    setFiltroSalvoAtivo(null)
     setSearchTerm('')
     setCurrentPage(1)
   }
@@ -352,11 +360,17 @@ export default function Clientes() {
     setIsFilterDrawerOpen(false)
   }
 
-  // Filtragem da lista unificada
+  // Filtragem da lista unificada (incluindo filtro salvo estilo Pipedrive)
   const filteredRows = useMemo(() => {
+    // 1. Aplicação do filtro salvo Pipedrive pelo motor puro
+    let base = rowsUnificadas
+    if (filtroSalvoAtivo?.condicoes) {
+      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'clientes')
+    }
+
     const term = searchTerm.trim().toLowerCase()
 
-    return rowsUnificadas.filter((row) => {
+    return base.filter((row) => {
       // 1. Busca por nome (e CPF/CNPJ ou telefone)
       if (term) {
         const matchesNome = (row.nome || '').toLowerCase().includes(term)
@@ -392,7 +406,7 @@ export default function Clientes() {
 
       return true
     })
-  }, [rowsUnificadas, searchTerm, filtros])
+  }, [rowsUnificadas, filtroSalvoAtivo, searchTerm, filtros])
 
   // Paginação
   const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE) || 1
@@ -691,6 +705,18 @@ export default function Clientes() {
             <Send className="w-3.5 h-3.5 text-[#0284C7]" />
             <span className="hidden sm:inline">Disparos em Massa</span>
           </Button>
+
+          {/* Componente de Filtro Salvo estilo Pipedrive (Fase 1) */}
+          <FiltroSalvoBar
+            modulo="clientes"
+            filtroAtivo={filtroSalvoAtivo}
+            onSelectFiltro={(f) => {
+              setFiltroSalvoAtivo(f)
+              setCurrentPage(1)
+            }}
+            totalFiltrado={filteredRows.length}
+            totalOriginal={rowsUnificadas.length}
+          />
 
           {/* Botão "Adicionar novo cliente" */}
           <Button

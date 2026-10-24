@@ -3,68 +3,55 @@ import { ClientResponseError } from 'pocketbase'
 export type FieldErrors = Record<string, string>
 
 export function extractFieldErrors(error: unknown): FieldErrors {
-  if (!(error instanceof ClientResponseError)) return {}
-  const data = error.response?.data
-  if (!data || typeof data !== 'object') return {}
-  const errors: FieldErrors = {}
-  for (const [field, detail] of Object.entries(data)) {
-    if (
-      detail &&
-      typeof detail === 'object' &&
-      'message' in detail &&
-      typeof (detail as { message: unknown }).message === 'string'
-    ) {
-      errors[field] = (detail as { message: string }).message
-    }
+  if (error instanceof ClientResponseError && error.data?.data) {
+    const raw = error.data.data as Record<string, { message?: string; code?: string }>
+    return Object.fromEntries(
+      Object.entries(raw).map(([field, detail]) => [field, detail?.message || 'Campo inválido']),
+    )
   }
-  return errors
+  return {}
 }
 
-export function getErrorMessage(error: unknown): string {
-  if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+export function formatPbError(error: unknown, fallback = 'Erro desconhecido.'): string {
+  if (error instanceof ClientResponseError) {
+    const fieldErrors = extractFieldErrors(error)
+    const fieldMessages = Object.entries(fieldErrors).map(([f, m]) => `${f}: ${m}`)
+    if (fieldMessages.length > 0) return fieldMessages.join(', ')
+    return error.data?.message || error.message || fallback
   }
-  const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+  if (error instanceof Error) return error.message
+  return fallback
+}
+
+export function getErrorMessage(
+  error: unknown,
+  fallback = 'Erro ao processar requisição.',
+): string {
+  return formatPbError(error, fallback)
 }
 
 /**
- * Identifica se um erro recebido do PocketBase ou da camada HTTP representa
- * falha de autenticação/sessão expirada/não autorizada (401 ou 403).
- *
- * Utilizado por AuthContext, ClientesContext, ExecucaoOS, RelatorioOSConteudo e
- * calendários para deslogar ou acionar revalidação de credenciais sem falso-positivos
- * em cancelamentos (autocancelled / abort).
+ * Identifica erros de sessão/autenticação expirada ou inválida (status 401 ou 403).
  */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
 
-  // Erros de cancelamento de requisição NUNCA devem ser tratados como erro de autenticação
-  if (isAbortError(error)) return false
+  const anyErr = err as any
+  const status = anyErr?.status ?? anyErr?.statusCode ?? anyErr?.response?.status
 
-  const anyErr = error as any
-
-  // Status HTTP direto (ex.: ClientResponseError, Response, Axios ou mock)
-  const status = anyErr.status ?? anyErr.statusCode ?? anyErr.response?.status
   if (status === 401 || status === 403) {
     return true
   }
 
-  // Mensagens comuns de erro de autenticação do PocketBase / JWT
-  const msg = String(
-    anyErr.message || anyErr.data?.message || anyErr.response?.data?.message || '',
-  ).toLowerCase()
+  const message = String(anyErr?.message || anyErr?.response?.message || '').toLowerCase()
   if (
-    msg.includes('token is expired') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('login expirou') ||
-    msg.includes('sessão expirada') ||
-    msg.includes('sessao expirada') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden') ||
-    msg.includes('invalid auth token') ||
-    msg.includes('the request requires valid user authorization') ||
-    msg.includes('the request requires admin authorization')
+    message.includes('token is expired') ||
+    message.includes('token expired') ||
+    message.includes('failed to authenticate') ||
+    message.includes('login expirou') ||
+    message.includes('sessão expirada') ||
+    message.includes('sessao expirada') ||
+    message.includes('authentication required')
   ) {
     return true
   }
@@ -73,29 +60,19 @@ export function isAuthSessionError(error: unknown): boolean {
 }
 
 /**
- * Identifica erros de cancelamento de requisição (abort / autocancelled do PocketBase).
+ * Identifica requisições canceladas/abortadas (ex.: autocancel do PocketBase ou AbortController).
  */
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  const anyErr = error as any
-  if (anyErr.isAbort === true) return true
-  if (anyErr.name === 'AbortError') return true
-  const msg = String(anyErr.message || '').toLowerCase()
-  if (msg.includes('autocancelled') || msg.includes('the request was aborted')) return true
-  return false
-}
-
-/**
- * Formata um erro do PocketBase de forma amigável e legível para toasts/alertas.
- */
-export function formatPbError(error: unknown, fallback = 'Ocorreu um erro na operação.'): string {
-  if (!error) return fallback
-  const detailed = getErrorMessage(error)
-  if (detailed && detailed !== 'An unexpected error occurred.') {
-    return detailed
-  }
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-  return fallback
+export function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  const anyErr = err as any
+  return (
+    Boolean(anyErr?.isAbort) ||
+    anyErr?.name === 'AbortError' ||
+    String(anyErr?.message || '')
+      .toLowerCase()
+      .includes('the request was aborted') ||
+    String(anyErr?.message || '')
+      .toLowerCase()
+      .includes('autocancelled')
+  )
 }
