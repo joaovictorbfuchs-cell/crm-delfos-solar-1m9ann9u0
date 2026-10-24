@@ -1,7 +1,6 @@
-import PocketBase, { ClientResponseError } from 'pocketbase'
-export * from './errors'
-export { ClientResponseError }
+import PocketBase from 'pocketbase'
 
 const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
-export { pb }
+pb.autoCancellation(false)
+
 export default pb
