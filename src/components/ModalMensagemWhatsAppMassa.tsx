@@ -699,7 +699,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setBusca('')
     setLimiteExibicao(50)
 
-    // Se veio destinatáriosIniciais, seleciona todos eles por padrão
+    // Se veio destinatáriosIniciais, seleciona todos eles por padrão (caso intencional preservado)
     if (destinatariosIniciais && destinatariosIniciais.length > 0) {
       const ids = destinatariosIniciais
         .map((d) => d.cliente?.id)
@@ -708,8 +708,8 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       setSelectedIds(uniqueIds)
       setClienteFocadoId(uniqueIds[0] || null)
     } else {
-      // Pedido do usuário: ao abrir a tela padrão, NENHUM cliente deve vir marcado.
-      // O usuário escolhe os filtros e clica em "Selecionar todos" ou marca manualmente.
+      // Pedido do usuário: como padrão quando abre esta tela, nenhum cliente deve vir marcado.
+      // A seleção só acontece por filtro aplicado, "Selecionar todos" ou marcação manual.
       setSelectedIds([])
       // Foca no primeiro cliente da base apenas para renderizar a prévia da mensagem
       let itensIniciais = itensProcessados
@@ -836,7 +836,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setFiltroStatus(stVal)
     setLimiteExibicao(50)
 
-    // 3. Calcula clientes resultantes e seleciona-os de uma vez
+    // 3. Calcula clientes resultantes e seleciona-os de uma vez (ao carregar uma lista salva específica)
     let filtrados = itensProcessados
     if (segSalvo !== 'todos') {
       filtrados = filtrados.filter((i) => i.segmentos.includes(segSalvo))
@@ -1288,7 +1288,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[98vw] lg:max-w-[98vw] h-[96vh] max-h-[96vh] flex flex-col p-0 overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 shadow-2xl">
+      <DialogContent className="fixed inset-0 top-0 left-0 translate-x-0 translate-y-0 w-screen max-w-none sm:max-w-none md:max-w-none lg:max-w-none h-screen max-h-none rounded-none sm:rounded-none flex flex-col p-0 overflow-hidden border-0 shadow-2xl bg-white">
         {/* Header Visual */}
         <DialogHeader className="p-4 sm:p-5 pb-3 border-b bg-gradient-to-r from-sky-50 via-white to-blue-50/50">
           <div className="flex items-center justify-between gap-3">

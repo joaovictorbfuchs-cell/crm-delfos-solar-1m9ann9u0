@@ -194,30 +194,59 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     vi.clearAllMocks()
   })
 
-  it('renderiza os chips de segmento com contadores coerentes e filtra os clientes ao clicar', async () => {
+  it('garante que nenhum cliente vem pré-marcado ao abrir diretamente e modal ocupa tela cheia', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
-    // Verifica que o modal abriu com título e filtros
-    expect(screen.getByText('Disparo em Massa')).toBeDefined()
-    expect(screen.getByText('Filtrar por Segmento')).toBeDefined()
+    // Verifica que 0 destinatários vêm selecionados por padrão
+    expect(screen.getByText(/0 de \d+ destinatários selecionados/i)).toBeDefined()
+    expect(screen.getByText(/0 clientes selecionados/i)).toBeDefined()
 
-    // O chip "Clientes O&M" deve exibir contador 1
-    const chipOM = screen.getByRole('button', { name: /Clientes O&M/i })
-    expect(chipOM).toBeDefined()
-    expect(chipOM.textContent).toContain('1')
+    // Botão de envio desabilitado por não haver clientes selecionados
+    const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem/i })
+    expect(btnEnviar).toBeDefined()
+    expect((btnEnviar as HTMLButtonElement).disabled).toBe(true)
 
-    // O chip "Clientes Bateria" deve exibir contador 1
-    const chipBateria = screen.getByRole('button', { name: /Clientes Bateria/i })
-    expect(chipBateria).toBeDefined()
-    expect(chipBateria.textContent).toContain('1')
+    // O modal possui as classes de tela cheia
+    const dialogContent = document.querySelector('[role="dialog"]')
+    expect(dialogContent?.className).toContain('w-screen')
+    expect(dialogContent?.className).toContain('h-screen')
+    expect(dialogContent?.className).toContain('inset-0')
+  })
 
-    // O chip "Pós-Venda" deve exibir contador 1
-    const chipPos = screen.getByRole('button', { name: /Pós-Venda/i })
-    expect(chipPos).toBeDefined()
-    expect(chipPos.textContent).toContain('1')
+  it('preserva pré-seleção quando destinatariosIniciais é informado', async () => {
+    render(
+      <ModalMensagemWhatsAppMassa
+        open={true}
+        onOpenChange={vi.fn()}
+        destinatariosIniciais={[{ cliente: clientesMock[0] }, { cliente: clientesMock[1] }]}
+      />,
+    )
 
-    // Clica no chip "Clientes O&M"
-    fireEvent.click(chipOM)
+    // Deve vir com os 2 clientes pré-selecionados
+    await waitFor(() => {
+      expect(screen.getByText(/2 de 2 destinatários selecionados/i)).toBeDefined()
+      expect(screen.getByText(/2 clientes selecionados/i)).toBeDefined()
+    })
+  })
+
+  it('renderiza o dropdown de segmento com contadores coerentes no bloco unificado e filtra os clientes', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Verifica que o modal abriu com título e bloco unificado de Filtros Combináveis
+    expect(screen.getByText('Disparo Individual Z-API')).toBeDefined()
+    expect(screen.getByText('Filtros Combináveis')).toBeDefined()
+
+    // O dropdown de segmento unificado deve existir
+    const selectSegmento = screen.getByRole('combobox', { name: /Filtro de segmento/i })
+    expect(selectSegmento).toBeDefined()
+
+    // Opções de segmento com contadores
+    expect(selectSegmento.textContent).toContain('Clientes O&M (1)')
+    expect(selectSegmento.textContent).toContain('Clientes Bateria (1)')
+    expect(selectSegmento.textContent).toContain('Pós-Venda (1)')
+
+    // Seleciona "Clientes O&M" no dropdown
+    fireEvent.change(selectSegmento, { target: { value: 'clientes_om' } })
 
     // A lista de destinatários deve filtrar exibindo Empresa O&M e não Carlos Solar
     await waitFor(() => {
@@ -226,8 +255,8 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       expect(screen.queryByText('Fazenda Baterias')).toBeNull()
     })
 
-    // Clica no chip "Clientes Bateria"
-    fireEvent.click(chipBateria)
+    // Seleciona "Clientes Bateria" no dropdown
+    fireEvent.change(selectSegmento, { target: { value: 'clientes_bateria' } })
 
     // Deve exibir Fazenda Baterias (tipo_venda Baterias) e NÃO Cliente Inversor Híbrido Sem Bateria (tipo_sistema Híbrido)
     await waitFor(() => {
@@ -237,17 +266,16 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       expect(screen.queryByText('Carlos Solar')).toBeNull()
     })
 
-    // Clica no chip "Pós-Venda"
-    fireEvent.click(chipPos)
+    // Seleciona "Pós-Venda" no dropdown
+    fireEvent.change(selectSegmento, { target: { value: 'pos_vendas' } })
 
     await waitFor(() => {
       expect(screen.getByText('João Fechado PosVenda')).toBeDefined()
       expect(screen.queryByText('Carlos Solar')).toBeNull()
     })
 
-    // Clica no chip "Todos"
-    const chipTodos = screen.getByRole('button', { name: /^Todos/i })
-    fireEvent.click(chipTodos)
+    // Volta para "Todos"
+    fireEvent.change(selectSegmento, { target: { value: 'todos' } })
 
     await waitFor(() => {
       expect(screen.getByText('Carlos Solar')).toBeDefined()
@@ -279,12 +307,15 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     expect(btnAcao).toBeDefined()
   })
 
-  it('permite filtrar clientes sem WhatsApp cadastrado para completar o cadastro', async () => {
+  it('permite filtrar clientes sem WhatsApp cadastrado via dropdown unificado de WhatsApp para completar o cadastro', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
-    // Filtro WhatsApp: clica em "Sem WhatsApp cadastrado"
-    const btnSemWpp = screen.getByRole('button', { name: /Sem WhatsApp cadastrado/i })
-    fireEvent.click(btnSemWpp)
+    // Filtro WhatsApp: dropdown unificado
+    const selectWpp = screen.getByRole('combobox', { name: /Filtro de WhatsApp/i })
+    expect(selectWpp).toBeDefined()
+
+    // Seleciona "Sem WhatsApp cadastrado"
+    fireEvent.change(selectWpp, { target: { value: 'sem_whatsapp' } })
 
     await waitFor(() => {
       expect(screen.getByText('Cliente Inversor Híbrido Sem Bateria')).toBeDefined()
@@ -293,9 +324,8 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       expect(screen.queryByText('Empresa O&M Manutencoes')).toBeNull()
     })
 
-    // Clica em "Só com WhatsApp"
-    const btnComWpp = screen.getByRole('button', { name: /Só com WhatsApp/i })
-    fireEvent.click(btnComWpp)
+    // Seleciona "Só com WhatsApp"
+    fireEvent.change(selectWpp, { target: { value: 'com_whatsapp' } })
 
     await waitFor(() => {
       expect(screen.queryByText('Cliente Inversor Híbrido Sem Bateria')).toBeNull()
@@ -396,14 +426,18 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     )
   })
 
-  it('grava o lote na coleção disparos_massa ao confirmar o envio', async () => {
+  it('grava o lote na coleção disparos_massa ao confirmar o envio após selecionar destinatários', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
-    // Clica em "Só com WhatsApp" para ter destinatários válidos
-    const btnComWpp = screen.getByRole('button', { name: /Só com WhatsApp/i })
-    fireEvent.click(btnComWpp)
+    // Filtra "Só com WhatsApp" no dropdown unificado
+    const selectWpp = screen.getByRole('combobox', { name: /Filtro de WhatsApp/i })
+    fireEvent.change(selectWpp, { target: { value: 'com_whatsapp' } })
 
-    // Botão de envio
+    // Seleciona todos os clientes filtrados
+    const btnSelectAll = screen.getByRole('button', { name: /Selecionar todos/i })
+    fireEvent.click(btnSelectAll)
+
+    // Botão de envio habilitado com os clientes selecionados
     const btnEnviar = screen.getByRole('button', { name: /Enviar para \d+ Clientes/i })
     fireEvent.click(btnEnviar)
 
