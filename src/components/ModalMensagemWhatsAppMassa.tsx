@@ -646,6 +646,18 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     return count
   }, [filtroWhatsApp, filtroCidade, filtroConcessionaria, filtroTipoCliente, filtroStatus])
 
+  // Limpar todos os filtros (segmento volta para 'todos' e extras são resetados)
+  const handleLimparTodosFiltros = () => {
+    setSegmentoAtivo('todos')
+    setFiltroWhatsApp('todos')
+    setFiltroCidade('')
+    setFiltroConcessionaria('')
+    setFiltroTipoCliente('')
+    setFiltroStatus('')
+    setListaSelecionadaId('')
+    setLimiteExibicao(50)
+  }
+
   // Limpar apenas os filtros extras
   const handleLimparFiltrosExtras = () => {
     setFiltroWhatsApp('todos')
@@ -696,15 +708,15 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       setSelectedIds(uniqueIds)
       setClienteFocadoId(uniqueIds[0] || null)
     } else {
-      // Base geral: calcula os itens para o segmento inicial
+      // Pedido do usuário: ao abrir a tela padrão, NENHUM cliente deve vir marcado.
+      // O usuário escolhe os filtros e clica em "Selecionar todos" ou marca manualmente.
+      setSelectedIds([])
+      // Foca no primeiro cliente da base apenas para renderizar a prévia da mensagem
       let itensIniciais = itensProcessados
       if (segmentoInicial !== 'todos') {
         itensIniciais = itensIniciais.filter((i) => i.segmentos.includes(segmentoInicial))
       }
-      const selecionaveis = itensIniciais.filter((c) => c.temWhatsAppValido)
-      const idsIniciais = selecionaveis.slice(0, 5).map((c) => c.cliente.id)
-      setSelectedIds(idsIniciais)
-      setClienteFocadoId(idsIniciais[0] || itensIniciais[0]?.cliente.id || null)
+      setClienteFocadoId(itensIniciais[0]?.cliente.id || itensProcessados[0]?.cliente.id || null)
     }
   }, [open, destinatariosIniciais, segmentoInicial, mensagemPadrao, itensProcessados])
 
@@ -805,12 +817,12 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     const lista = listasSalvas.find((l) => l.id === listaId)
     if (!lista) return
 
-    // 1. Aplica o segmento base salvo
-    const segSalvo = (lista.segmento as SegmentoFiltro) || 'todos'
+    // 1. Aplica o segmento salvo (suporta formato com campo lista.segmento ou gravado dentro de filtros.segmento)
+    const fx: FiltrosExtrasListaEnvio & { segmento?: string } = (lista.filtros as any) || {}
+    const segSalvo = ((lista.segmento || fx.segmento) as SegmentoFiltro) || 'todos'
     setSegmentoAtivo(segSalvo)
 
-    // 2. Aplica os filtros extras salvos
-    const fx: FiltrosExtrasListaEnvio = lista.filtros || {}
+    // 2. Aplica os filtros extras salvos (suporta formatos legados e novos)
     const wppVal = fx.whatsapp || 'todos'
     const cidVal = fx.cidade || ''
     const concVal = fx.concessionaria || ''
@@ -917,7 +929,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       const nova = await createListaEnvio({
         nome: nomeNovaLista.trim(),
         segmento: segmentoAtivo,
-        filtros: filtrosParaGravar,
+        filtros: {
+          ...filtrosParaGravar,
+          segmento: segmentoAtivo,
+        } as any,
       })
 
       setListasSalvas((prev) => [nova, ...prev])
@@ -1273,7 +1288,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[94vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
+      <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[98vw] lg:max-w-[98vw] h-[96vh] max-h-[96vh] flex flex-col p-0 overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 shadow-2xl">
         {/* Header Visual */}
         <DialogHeader className="p-4 sm:p-5 pb-3 border-b bg-gradient-to-r from-sky-50 via-white to-blue-50/50">
           <div className="flex items-center justify-between gap-3">
@@ -1437,142 +1452,98 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               </div>
             </div>
 
-            {/* Filtros por Segmento de Clientes (5 Pílulas Fixas) */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+            {/* Bloco Único de Filtros Combináveis (Segmento + WhatsApp + Cidade + Concessionária + Tipo + Status) */}
+            <div className="p-3 rounded-xl bg-gray-50/90 border border-gray-200/90 space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
                   <Filter className="w-3.5 h-3.5 text-[#0284C7]" />
-                  <span>Filtrar por Segmento</span>
-                </Label>
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  className="text-xs font-semibold text-[#0284C7] hover:underline"
-                >
-                  {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
-                </button>
-              </div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                    Filtros Combináveis
+                  </Label>
+                  <span className="text-[11px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-md border border-gray-200">
+                    {itensFiltrados.length} destinatários encontrados
+                  </span>
+                </div>
 
-              {/* Pílulas de segmentos existentes (100% preservadas e únicas) */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[
-                  { id: 'todos', label: 'Todos' },
-                  { id: 'clientes_om', label: 'Clientes O&M' },
-                  { id: 'clientes_solar', label: 'Clientes Solar' },
-                  { id: 'clientes_bateria', label: 'Clientes Bateria' },
-                  { id: 'pos_vendas', label: 'Pós-Venda' },
-                ].map((seg) => {
-                  const isAtivo = segmentoAtivo === seg.id
-                  const count = countSegmento(seg.id as SegmentoFiltro)
-                  return (
+                <div className="flex items-center gap-3">
+                  {(segmentoAtivo !== 'todos' || totalFiltrosExtrasAtivos > 0) && (
                     <button
-                      key={seg.id}
                       type="button"
-                      onClick={() => handleMudarSegmento(seg.id as SegmentoFiltro)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                        isAtivo
-                          ? 'bg-[#0284C7] text-white shadow-2xs'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      onClick={handleLimparTodosFiltros}
+                      className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline"
                     >
-                      <span>{seg.label}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                          isAtivo ? 'bg-white/20 text-white' : 'bg-white text-gray-600'
-                        }`}
-                      >
-                        {count}
-                      </span>
+                      Limpar filtros
                     </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Filtros Extras Combináveis (Compactos: WhatsApp, Cidade, Concessionária, Tipo, Status) */}
-            <div className="p-2 rounded-xl bg-gray-50/80 border border-gray-200/80 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
-                <span className="flex items-center gap-1">
-                  <span>Filtros Extras Combináveis</span>
-                  {totalFiltrosExtrasAtivos > 0 && (
-                    <span className="bg-[#0284C7] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                      {totalFiltrosExtrasAtivos}
-                    </span>
                   )}
-                </span>
-                {totalFiltrosExtrasAtivos > 0 && (
                   <button
                     type="button"
-                    onClick={handleLimparFiltrosExtras}
-                    className="text-[#0284C7] hover:underline font-semibold"
+                    onClick={handleSelectAll}
+                    className="text-xs font-bold text-[#0284C7] hover:underline"
                   >
-                    Limpar extras
-                  </button>
-                )}
-              </div>
-
-              {/* Linha 1: Toggles Rápidos de WhatsApp (Todos / Só com / Sem WhatsApp) */}
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-[11px] font-semibold text-gray-600 shrink-0 mr-1">
-                  WhatsApp:
-                </span>
-                <div className="inline-flex rounded-lg bg-gray-200/80 p-0.5 text-[11px] font-medium w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFiltroWhatsApp('todos')
-                      setListaSelecionadaId('')
-                    }}
-                    className={`flex-1 sm:flex-initial px-2 py-0.5 rounded-md transition-all ${
-                      filtroWhatsApp === 'todos'
-                        ? 'bg-white text-gray-900 font-bold shadow-2xs'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFiltroWhatsApp('com_whatsapp')
-                      setListaSelecionadaId('')
-                    }}
-                    className={`flex-1 sm:flex-initial px-2 py-0.5 rounded-md transition-all ${
-                      filtroWhatsApp === 'com_whatsapp'
-                        ? 'bg-emerald-600 text-white font-bold shadow-2xs'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Só com WhatsApp
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFiltroWhatsApp('sem_whatsapp')
-                      setListaSelecionadaId('')
-                    }}
-                    className={`flex-1 sm:flex-initial px-2 py-0.5 rounded-md transition-all ${
-                      filtroWhatsApp === 'sem_whatsapp'
-                        ? 'bg-rose-600 text-white font-bold shadow-2xs'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Sem WhatsApp cadastrado
+                    {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
                   </button>
                 </div>
               </div>
 
-              {/* Linha 2: Dropdowns Dinâmicos Base Real (Cidade, Concessionária, Tipo de Cliente, Status) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
-                {/* Cidade */}
+              {/* Grid Único com todos os Dropdowns de Filtro */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+                {/* 1. Dropdown de Segmento com Contadores */}
                 <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    Segmento
+                  </label>
+                  <select
+                    value={segmentoAtivo}
+                    onChange={(e) => handleMudarSegmento(e.target.value as SegmentoFiltro)}
+                    className="w-full h-8 text-xs font-semibold px-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
+                    aria-label="Filtro de segmento"
+                  >
+                    <option value="todos">Todos ({countSegmento('todos')})</option>
+                    <option value="clientes_om">
+                      Clientes O&M ({countSegmento('clientes_om')})
+                    </option>
+                    <option value="clientes_solar">
+                      Clientes Solar ({countSegmento('clientes_solar')})
+                    </option>
+                    <option value="clientes_bateria">
+                      Clientes Bateria ({countSegmento('clientes_bateria')})
+                    </option>
+                    <option value="pos_vendas">Pós-Venda ({countSegmento('pos_vendas')})</option>
+                  </select>
+                </div>
+
+                {/* 2. Dropdown de WhatsApp */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    WhatsApp
+                  </label>
+                  <select
+                    value={filtroWhatsApp}
+                    onChange={(e) => {
+                      setFiltroWhatsApp(e.target.value as 'todos' | 'com_whatsapp' | 'sem_whatsapp')
+                      setListaSelecionadaId('')
+                    }}
+                    className="w-full h-8 text-xs font-semibold px-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
+                    aria-label="Filtro de WhatsApp"
+                  >
+                    <option value="todos">WhatsApp: Todos</option>
+                    <option value="com_whatsapp">Só com WhatsApp</option>
+                    <option value="sem_whatsapp">Sem WhatsApp cadastrado</option>
+                  </select>
+                </div>
+
+                {/* 3. Dropdown de Cidade */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    Cidade
+                  </label>
                   <select
                     value={filtroCidade}
                     onChange={(e) => {
                       setFiltroCidade(e.target.value)
                       setListaSelecionadaId('')
                     }}
-                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    className="w-full h-8 text-xs font-medium px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
                     aria-label="Filtro de cidade"
                   >
                     <option value="">Cidade: Todas</option>
@@ -1584,15 +1555,18 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   </select>
                 </div>
 
-                {/* Concessionária */}
+                {/* 4. Dropdown de Concessionária */}
                 <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    Concessionária
+                  </label>
                   <select
                     value={filtroConcessionaria}
                     onChange={(e) => {
                       setFiltroConcessionaria(e.target.value)
                       setListaSelecionadaId('')
                     }}
-                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    className="w-full h-8 text-xs font-medium px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
                     aria-label="Filtro de concessionária"
                   >
                     <option value="">Concessionária: Todas</option>
@@ -1604,15 +1578,18 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   </select>
                 </div>
 
-                {/* Tipo de Cliente */}
+                {/* 5. Dropdown de Tipo de Cliente */}
                 <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    Tipo de Cliente
+                  </label>
                   <select
                     value={filtroTipoCliente}
                     onChange={(e) => {
                       setFiltroTipoCliente(e.target.value)
                       setListaSelecionadaId('')
                     }}
-                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    className="w-full h-8 text-xs font-medium px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
                     aria-label="Filtro de tipo de cliente"
                   >
                     <option value="">Tipo: Todos</option>
@@ -1624,15 +1601,18 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   </select>
                 </div>
 
-                {/* Status */}
+                {/* 6. Dropdown de Status */}
                 <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    Status
+                  </label>
                   <select
                     value={filtroStatus}
                     onChange={(e) => {
                       setFiltroStatus(e.target.value)
                       setListaSelecionadaId('')
                     }}
-                    className="w-full h-7 text-[11px] font-medium px-2 rounded-md border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0284C7]"
+                    className="w-full h-8 text-xs font-medium px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
                     aria-label="Filtro de status"
                   >
                     <option value="">Status: Todos</option>
