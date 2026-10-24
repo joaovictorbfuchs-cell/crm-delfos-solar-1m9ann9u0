@@ -28,6 +28,7 @@ import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { createNegocio } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { TipoNegocioSelect, EtapaFunilSelect, NegocioStatus, Cliente } from '@/types/crm'
+import { TIPOS_NEGOCIO_OPCOES, getTipoNegocioConfig } from '@/constants/tipoNegocio'
 import { toast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 
@@ -41,24 +42,6 @@ interface ModalNovoNegocioFunilProps {
   modoFichaCliente?: boolean
   isCriacaoViaFicha?: boolean
 }
-
-const TIPOS_NEGOCIO_OPCOES: { value: TipoNegocioSelect; label: string; tipoVenda: string }[] = [
-  { value: 'venda usina', label: 'Venda de Usina Fotovoltaica', tipoVenda: 'Energia Solar' },
-  { value: 'creditos_energia', label: 'Créditos de Energia', tipoVenda: 'Créditos de energia' },
-  { value: 'bateria', label: 'Bateria Solar (Storage)', tipoVenda: 'Baterias' },
-  { value: 'expansão', label: 'Expansão de Usina Existente', tipoVenda: 'Energia Solar' },
-  {
-    value: 'renovação',
-    label: 'Plano de O&M / Manutenção',
-    tipoVenda: 'O&M (Operação e Manutenção)',
-  },
-  {
-    value: 'serviço',
-    label: 'Carregadores Veículos Elétricos',
-    tipoVenda: 'Carregadores Veículos Elétricos',
-  },
-  { value: 'venda bateria', label: 'Venda de Bateria Avulsa', tipoVenda: 'Baterias' },
-]
 
 const ETAPAS_FUNIL_OPCOES: { value: EtapaFunilSelect; label: string; defaultProb: number }[] = [
   { value: 'novo lead', label: '1 - Novo Lead', defaultProb: 10 },
@@ -257,7 +240,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
       try {
         const docLimpo = novoCnpjCpf.replace(/\D/g, '')
         const isCnpj = docLimpo.length === 14
-        const tipoVendaConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipoNegocio)
+        const tipoVendaConfig = getTipoNegocioConfig(tipoNegocio)
 
         const novoCliente = await addCliente({
           nome: removerPrefixoMensagemManual(nomeLimpo),
@@ -285,7 +268,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
     }
 
     // Validações do negócio
-    const tipoConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipoNegocio)
+    const tipoConfig = getTipoNegocioConfig(tipoNegocio)
     const tipoVenda = tipoConfig?.tipoVenda || 'Energia Solar'
 
     // Garante que o título NUNCA receba o prefixo manual de WhatsApp [Nome]:
@@ -594,7 +577,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
                   >
                     {TIPOS_NEGOCIO_OPCOES.map((t) => (
                       <option key={t.value} value={t.value}>
-                        {t.label} ({t.tipoVenda})
+                        {t.label}
                       </option>
                     ))}
                   </select>
@@ -706,7 +689,7 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
                     >
                       {TIPOS_NEGOCIO_OPCOES.map((t) => (
                         <option key={t.value} value={t.value}>
-                          {t.label} ({t.tipoVenda})
+                          {t.label}
                         </option>
                       ))}
                     </select>
