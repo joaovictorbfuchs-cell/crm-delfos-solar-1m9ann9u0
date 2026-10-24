@@ -42,6 +42,13 @@ import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { formatCurrency } from '@/lib/formatters'
 import { toast } from 'sonner'
 import { SecaoAtividadesNegocio } from '@/components/SecaoAtividadesNegocio'
+import {
+  TIPOS_NEGOCIO_OPCOES,
+  getTipoNegocioConfig,
+  getTipoNegocioLabel,
+} from '@/constants/tipoNegocio'
+
+export { TIPOS_NEGOCIO_OPCOES }
 
 export const ETAPAS_FUNIL_OPCOES: {
   value: EtapaFunilSelect
@@ -54,80 +61,6 @@ export const ETAPAS_FUNIL_OPCOES: {
   { value: 'negociação', label: 'Negociação', defaultProb: 75 },
   { value: 'contato_futuro', label: 'Contato Futuro', defaultProb: 10 },
   { value: 'contrato assinado', label: 'Contrato Assinado', defaultProb: 100 },
-]
-
-export const TIPOS_NEGOCIO_OPCOES: {
-  value: TipoNegocioSelect
-  label: string
-  tipoVendaPadrao: string
-  tipoNegocioSchema: string
-}[] = [
-  {
-    value: 'venda usina',
-    label: 'Venda Usina Fotovoltaica',
-    tipoVendaPadrao: 'Energia Solar',
-    tipoNegocioSchema: 'venda usina',
-  },
-  {
-    value: 'creditos_energia',
-    label: 'Créditos de Energia',
-    tipoVendaPadrao: 'Créditos de energia',
-    tipoNegocioSchema: 'creditos_energia',
-  },
-  {
-    value: 'renovação',
-    label: 'O&M (Operação e Manutenção) / Renovação',
-    tipoVendaPadrao: 'O&M (Operação e Manutenção)',
-    tipoNegocioSchema: 'renovação',
-  },
-  {
-    value: 'bateria',
-    label: 'Baterias / Armazenamento',
-    tipoVendaPadrao: 'Baterias',
-    tipoNegocioSchema: 'bateria',
-  },
-  {
-    value: 'serviço',
-    label: 'Carregadores VE / Serviços Elétricos',
-    tipoVendaPadrao: 'Carregadores Veículos Elétricos',
-    tipoNegocioSchema: 'serviço',
-  },
-  {
-    value: 'expansão',
-    label: 'Expansão de Usina',
-    tipoVendaPadrao: 'Energia Solar',
-    tipoNegocioSchema: 'expansão',
-  },
-  {
-    value: 'venda bateria',
-    label: 'Venda de Bateria Avulsa',
-    tipoVendaPadrao: 'Baterias',
-    tipoNegocioSchema: 'venda bateria',
-  },
-  {
-    value: 'Energia Solar',
-    label: 'Energia Solar',
-    tipoVendaPadrao: 'Energia Solar',
-    tipoNegocioSchema: 'venda usina',
-  },
-  {
-    value: 'O&M (Operação e Manutenção)',
-    label: 'O&M (Operação e Manutenção)',
-    tipoVendaPadrao: 'O&M (Operação e Manutenção)',
-    tipoNegocioSchema: 'renovação',
-  },
-  {
-    value: 'Baterias',
-    label: 'Baterias',
-    tipoVendaPadrao: 'Baterias',
-    tipoNegocioSchema: 'bateria',
-  },
-  {
-    value: 'Carregadores Veículos Elétricos',
-    label: 'Carregadores Veículos Elétricos',
-    tipoVendaPadrao: 'Carregadores Veículos Elétricos',
-    tipoNegocioSchema: 'serviço',
-  },
 ]
 
 export const STATUS_NEGOCIO_OPCOES: {
@@ -277,8 +210,8 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
               >
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-xs text-slate-900 group-hover:text-[#0F2038] capitalize">
-                      {neg.tipo_negocio || 'Negócio'}
+                    <span className="font-bold text-xs text-slate-900 group-hover:text-[#0F2038]">
+                      {getTipoNegocioLabel(neg.tipo_negocio)}
                     </span>
                     <Badge
                       variant="outline"
@@ -366,7 +299,9 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
   onOpenChange,
   onSaved,
 }) => {
-  const [tipo, setTipo] = useState<TipoNegocioSelect>(negocio.tipo_negocio || 'venda usina')
+  const tipoInicialResolvido = (getTipoNegocioConfig(negocio.tipo_negocio)?.value ||
+    'venda usina') as TipoNegocioSelect
+  const [tipo, setTipo] = useState<TipoNegocioSelect>(tipoInicialResolvido)
   const [etapa, setEtapa] = useState<EtapaFunilSelect>(negocio.etapa_funil || 'novo lead')
   const [status, setStatus] = useState<NegocioStatus>(negocio.status || 'em andamento')
   const [valorEstimado, setValorEstimado] = useState<string>(
@@ -409,7 +344,9 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
   // Atualiza estados quando o negócio selecionado muda
   useEffect(() => {
     setErroInline(null)
-    setTipo(negocio.tipo_negocio || 'venda usina')
+    const tipoResolvido = (getTipoNegocioConfig(negocio.tipo_negocio)?.value ||
+      'venda usina') as TipoNegocioSelect
+    setTipo(tipoResolvido)
     setEtapa(negocio.etapa_funil || 'novo lead')
     setStatus(negocio.status || 'em andamento')
     setValorEstimado(negocio.valor_estimado ? String(negocio.valor_estimado) : '')
@@ -438,9 +375,11 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
     setIsSaving(true)
     setErroInline(null)
     try {
-      const tipoConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipo)
-      const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema || tipo) as TipoNegocioSelect
-      const tipoVendaFinal = tipoConfig?.tipoVendaPadrao || 'Energia Solar'
+      const tipoConfig = getTipoNegocioConfig(tipo)
+      const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema ||
+        tipoConfig?.value ||
+        tipo) as TipoNegocioSelect
+      const tipoVendaFinal = tipoConfig?.tipoVenda || tipoConfig?.tipoVendaPadrao || 'Energia Solar'
 
       const numEstimado = valorEstimado ? Number(valorEstimado) : 0
       const numFinal = valorFinal ? Number(valorFinal) : 0
@@ -904,9 +843,11 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
     setErroInline(null)
     try {
       const nomeLimpo = removerPrefixoMensagemManual(clienteNome)
-      const tipoConfig = TIPOS_NEGOCIO_OPCOES.find((t) => t.value === tipo)
-      const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema || 'venda usina') as TipoNegocioSelect
-      const tipoVendaFinal = tipoConfig?.tipoVendaPadrao || 'Energia Solar'
+      const tipoConfig = getTipoNegocioConfig(tipo)
+      const tipoNegocioFinal = (tipoConfig?.tipoNegocioSchema ||
+        tipoConfig?.value ||
+        'venda usina') as TipoNegocioSelect
+      const tipoVendaFinal = tipoConfig?.tipoVenda || tipoConfig?.tipoVendaPadrao || 'Energia Solar'
       const etapaFinalNegocio: EtapaFunilSelect = isModoFicha ? 'novo lead' : etapa
       const numEstimado = isModoFicha ? 0 : valorEstimado ? Number(valorEstimado) : 0
       const numFinal = isModoFicha ? 0 : valorFinal ? Number(valorFinal) : 0
