@@ -2,62 +2,63 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (err instanceof ClientResponseError) {
-    return err.status === 401 || err.status === 403
-  }
-  if (typeof err === 'object' && err !== null && 'status' in err) {
-    const status = (err as { status?: number }).status
-    return status === 401 || status === 403
-  }
-  const str = String(err).toLowerCase()
-  return (
-    str.includes('401') ||
-    str.includes('403') ||
-    str.includes('failed to authenticate') ||
-    str.includes('token expired') ||
-    str.includes('sessão expirada')
-  )
-}
-
-export function isAbortError(err: unknown): boolean {
-  if (!err) return false
-  if (err instanceof ClientResponseError) {
-    return err.isAbort === true
-  }
-  if (typeof err === 'object' && err !== null && 'isAbort' in err) {
-    return Boolean((err as { isAbort?: boolean }).isAbort)
-  }
-  const str = String(err).toLowerCase()
-  return str.includes('autocancelled') || str.includes('abort')
-}
-
-export function formatPbError(err: unknown): string {
-  if (err instanceof ClientResponseError) {
-    return err.message || `Erro ${err.status}`
-  }
-  if (err instanceof Error) {
-    return err.message
-  }
-  return String(err)
-}
-
-export function extractFieldErrors(err: unknown): Record<string, string> {
-  if (err instanceof ClientResponseError && err.data?.data) {
-    const res: Record<string, string> = {}
-    for (const [k, v] of Object.entries(err.data.data)) {
-      if (typeof v === 'object' && v !== null && 'message' in v) {
-        res[k] = String((v as { message?: string }).message)
-      } else {
-        res[k] = String(v)
-      }
+export function extractFieldErrors(error: unknown): FieldErrors {
+  if (!(error instanceof ClientResponseError)) return {}
+  const data = error.response?.data
+  if (!data || typeof data !== 'object') return {}
+  const errors: FieldErrors = {}
+  for (const [field, detail] of Object.entries(data)) {
+    if (
+      detail &&
+      typeof detail === 'object' &&
+      'message' in detail &&
+      typeof (detail as { message: unknown }).message === 'string'
+    ) {
+      errors[field] = (detail as { message: string }).message
     }
-    return res
   }
-  return {}
+  return errors
 }
 
-export function getErrorMessage(err: unknown): string {
-  return formatPbError(err)
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+  }
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object' && (error as any).isAbort === true) return true
+  if (typeof error === 'object' && (error as any).name === 'AbortError') return true
+  if (error instanceof Error && error.name === 'AbortError') return true
+  return false
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (isAbortError(error)) return false
+  const err = error as any
+  if (err.status === 401 || err.status === 403) return true
+  if (err.statusCode === 401 || err.statusCode === 403) return true
+  if (err.response?.status === 401 || err.response?.status === 403) return true
+  const msg = typeof err.message === 'string' ? err.message.toLowerCase() : ''
+  if (
+    msg.includes('token is expired') ||
+    msg.includes('token expired') ||
+    msg.includes('sessão expirada') ||
+    msg.includes('login expirou') ||
+    msg.includes('failed to authenticate') ||
+    msg.includes('authentication required')
+  ) {
+    return true
+  }
+  return false
+}
+
+export function formatPbError(error: unknown, fallback = 'Erro na operação'): string {
+  if (!error) return fallback
+  const msg = getErrorMessage(error)
+  return msg && msg !== 'An unexpected error occurred.' ? msg : fallback
 }

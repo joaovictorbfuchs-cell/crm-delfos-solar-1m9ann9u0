@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T15:00:42.370Z",
+  "generatedAt": "2026-10-24T15:36:43.474Z",
   "collections": [
     {
       "name": "users",
@@ -7855,6 +7855,120 @@
         },
         {
           "name": "filtros",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "disparos_massa",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativo", "concluido", "cancelado"]
+        },
+        {
+          "name": "segmento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "filtros",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_destinatarios",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "intervalo_segundos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_disparo",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem_original",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reenvio_ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "texto_reenvio_1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "texto_reenvio_2",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destinatarios",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estatisticas",
           "type": "json",
           "required": false,
           "system": false
