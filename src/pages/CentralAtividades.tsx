@@ -68,6 +68,9 @@ import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { ModalGerenciarAtividades } from '@/components/ModalGerenciarAtividades'
 import { obterUltimoRetornoRGE } from '@/components/BlocoRetornosRGE'
+import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
+import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
+import type { FiltroSalvoRecord } from '@/types/filtros'
 import type { Atividade, AtividadeCategoriaId, AtividadeStatus } from '@/types/crm'
 
 const ITEMS_PER_PAGE = 25
@@ -124,6 +127,9 @@ export default function CentralAtividadesPage() {
     { id: 'manutencao', nome: 'Manutenção', count: 0 },
     { id: 'administrativo_pos_venda', nome: 'Administrativas', count: 0 },
   ])
+
+  // Estado do Filtro Salvo estilo Pipedrive (módulo: atividades)
+  const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
 
   // Estado dos filtros combináveis (AND) - aplicados
   const [filtros, setFiltros] = useState<CentralAtividadesFiltros>({
@@ -242,13 +248,19 @@ export default function CentralAtividadesPage() {
   }
 
   // Filtragem unificada através de filtrarCentralAtividades (com normalização semântica de status e tipos específicos)
+  // e composição com o filtro salvo do Pipedrive (modulo: atividades)
   const filteredItems = useMemo(() => {
-    return filtrarCentralAtividades(allItems, filtros)
-  }, [allItems, filtros])
+    let base = filtrarCentralAtividades(allItems, filtros)
+    if (filtroSalvoAtivo?.condicoes) {
+      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'atividades')
+    }
+    return base
+  }, [allItems, filtros, filtroSalvoAtivo])
 
   // Contagem de filtros ativos
   const activeFiltersCount = useMemo(() => {
     let count = 0
+    if (filtroSalvoAtivo) count++
     if (filtros.categoriaId && filtros.categoriaId !== 'todos') count++
     if (filtros.tipoEspecifico && filtros.tipoEspecifico !== 'todos') count++
     if (filtros.tipoFonte && filtros.tipoFonte !== 'todos') count++
@@ -258,7 +270,7 @@ export default function CentralAtividadesPage() {
     if (filtros.dataFim) count++
     if (filtros.buscaTexto && filtros.buscaTexto.trim() !== '') count++
     return count
-  }, [filtros])
+  }, [filtros, filtroSalvoAtivo])
 
   // Contagem de filtros rascunho ativos dentro do drawer
   const activeDraftFiltersCount = useMemo(() => {
@@ -632,8 +644,17 @@ export default function CentralAtividadesPage() {
           </div>
         </div>
 
-        {/* Ações da Central: Botão de Funil de Filtros + Contador + Atualizar + Gerenciar Atividades + Disparar Mensagens + Nova Atividade */}
+        {/* Ações da Central: FiltroSalvoBar + Botão de Funil de Filtros + Contador + Atualizar + Gerenciar Atividades + Disparar Mensagens + Nova Atividade */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 justify-start md:justify-end overflow-x-visible">
+          {/* Barra de Filtros Salvos estilo Pipedrive (modulo: atividades) */}
+          <FiltroSalvoBar
+            modulo="atividades"
+            filtroAtivo={filtroSalvoAtivo}
+            onSelectFiltro={setFiltroSalvoAtivo}
+            totalFiltrado={filteredItems.length}
+            totalOriginal={allItems.length}
+          />
+
           {/* Botão com Ícone de Funil para abrir Drawer lateral de Filtros */}
           <button
             type="button"

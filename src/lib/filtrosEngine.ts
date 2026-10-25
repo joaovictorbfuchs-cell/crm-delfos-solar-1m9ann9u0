@@ -159,33 +159,47 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
       return (
         registro.tipo ||
         registro.tipo_atividade ||
+        registro.tipoAtividade ||
+        registro.tipoId ||
         registro.tipo_custom_id ||
         registro.tipoCustomId ||
+        registro.tipo_servico ||
+        registro.tipoServico ||
         ''
       )
-    case 'categoria':
-      return (
+    case 'categoria': {
+      const raw =
         registro.categoriaNome ||
         registro.categoria ||
         registro.categoria_atividade ||
         registro.categoriaId ||
         registro.setor ||
+        (registro.tipo_servico || registro.atribuida_a ? 'Manutenção' : '') ||
         ''
-      )
+      const low = String(raw).toLowerCase().trim()
+      if (low.startsWith('comerc')) return 'Comercial'
+      if (low.startsWith('manuten')) return 'Manutenção'
+      if (low.startsWith('admin') || low.includes('pos_venda')) return 'Administrativas'
+      return raw
+    }
     case 'responsavel':
       return (
         registro.responsavel_nome ||
         registro.responsavel ||
         registro.atribuido_para_nome ||
+        registro.atribuida_a ||
+        registro.tecnico ||
         registro.usuario_nome ||
         registro.tecnico_nome ||
         registro.expand?.responsavel?.nome ||
+        registro.expand?.responsavel_usuario_id?.name ||
         registro.expand?.usuario_responsavel?.nome ||
         ''
       )
     case 'usina':
       return (
         registro.usina_nome ||
+        registro.usinaNome ||
         registro.usina ||
         registro.expand?.usina_id?.nome ||
         registro.expand?.usina?.nome ||

@@ -80,6 +80,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
+import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
+import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
+import type { FiltroSalvoRecord } from '@/types/filtros'
 
 function ExecucaoOSContent() {
   const { toast } = useToast()
@@ -124,6 +127,9 @@ function ExecucaoOSContent() {
     'pendentes' | 'concluidas' | 'calendario' | 'relatorio' | 'configuracoes'
   >('calendario')
 
+  // Estado do Filtro Salvo estilo Pipedrive (módulo: atividades)
+  const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
+
   // Filtros de busca, tipo, prestador e período
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTipoFilter, setSelectedTipoFilter] = useState<string>('todos')
@@ -133,12 +139,20 @@ function ExecucaoOSContent() {
   // Contagem de filtros ativos para badge no botão de filtro (prestador oculto para instalador)
   const activeFiltersCount = useMemo(() => {
     let count = 0
+    if (filtroSalvoAtivo) count++
     if (searchTerm.trim()) count++
     if (selectedTipoFilter !== 'todos') count++
     if (!isInstalador && selectedPrestadorFilter !== 'todos') count++
     if (selectedPeriodoFilter !== 'todos') count++
     return count
-  }, [searchTerm, selectedTipoFilter, selectedPrestadorFilter, selectedPeriodoFilter, isInstalador])
+  }, [
+    searchTerm,
+    selectedTipoFilter,
+    selectedPrestadorFilter,
+    selectedPeriodoFilter,
+    isInstalador,
+    filtroSalvoAtivo,
+  ])
 
   const handleLimparFiltros = () => {
     setSearchTerm('')
@@ -878,7 +892,7 @@ function ExecucaoOSContent() {
     const inicioMes = new Date(agoraYear, agoraMonth, 1).getTime()
     const fimMes = new Date(agoraYear, agoraMonth + 1, 0, 23, 59, 59).getTime()
 
-    return (listToDisplay || []).filter((os) => {
+    let base = (listToDisplay || []).filter((os) => {
       if (!os) return false
 
       try {
@@ -961,6 +975,12 @@ function ExecucaoOSContent() {
         return true
       }
     })
+
+    if (filtroSalvoAtivo?.condicoes) {
+      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'atividades')
+    }
+
+    return base
   }, [
     listToDisplay,
     selectedTipoFilter,
@@ -968,6 +988,7 @@ function ExecucaoOSContent() {
     selectedPeriodoFilter,
     searchTerm,
     isInstalador,
+    filtroSalvoAtivo,
   ])
 
   // Filtragem canônica das ordens enviadas ao Calendário pelo tipo selecionado
@@ -1516,9 +1537,16 @@ function ExecucaoOSContent() {
     </Popover>
   )
 
-  // Botões de Ações Primárias (Nova Atividade + Filtros Popover)
+  // Botões de Ações Primárias (Filtro Salvo + Nova Atividade + Filtros Popover)
   const renderAcoesPrimarias = () => (
     <div className="flex items-center gap-1.5 shrink-0">
+      <FiltroSalvoBar
+        modulo="atividades"
+        filtroAtivo={filtroSalvoAtivo}
+        onSelectFiltro={setFiltroSalvoAtivo}
+        totalFiltrado={activeTab === 'calendario' ? ordensCalendario.length : filteredList.length}
+        totalOriginal={ordens.length}
+      />
       {renderBotaoNovaAtividade()}
       {renderFiltrosPopover(false)}
     </div>
