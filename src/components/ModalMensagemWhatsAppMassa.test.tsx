@@ -53,6 +53,39 @@ const mockDeleteListaEnvio = vi.fn().mockResolvedValue(true)
 const mockCreateDisparoMassa = vi.fn().mockResolvedValue({ id: 'lote-123' })
 const mockSalvarPadroesTextosReenvio = vi.fn()
 
+const mockFiltrosSalvosClientes = [
+  {
+    id: 'filtro-custom-1',
+    nome: 'Clientes de Passo Fundo',
+    modulo: 'clientes',
+    dono: 'user-1',
+    visibilidade: 'shared',
+    condicoes: {
+      all: [
+        {
+          id: 'c1',
+          campoId: 'cidade',
+          operador: 'e',
+          valor: 'Passo Fundo',
+        },
+      ],
+      any: [],
+    },
+    created: '2025-01-01',
+    updated: '2025-01-01',
+  },
+]
+
+const mockFetchFiltrosSalvos = vi.fn().mockResolvedValue(mockFiltrosSalvosClientes)
+const mockGetFavoritosFiltrosIds = vi.fn().mockReturnValue(['filtro-custom-1'])
+const mockToggleFavoritoFiltroId = vi.fn().mockReturnValue([])
+
+vi.mock('@/services/filtrosSalvosService', () => ({
+  fetchFiltrosSalvos: () => mockFetchFiltrosSalvos(),
+  getFavoritosFiltrosIds: () => mockGetFavoritosFiltrosIds(),
+  toggleFavoritoFiltroId: () => mockToggleFavoritoFiltroId(),
+}))
+
 vi.mock('@/services/listasEnvioService', () => ({
   fetchListasEnvio: () => mockFetchListasEnvio(),
   createListaEnvio: (input: unknown) => mockCreateListaEnvio(input),
@@ -449,6 +482,80 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
           mensagem_original: expect.any(String),
         }),
       )
+    })
+  })
+
+  it('permite carregar um filtro salvo de clientes como base dos destinatários, exibe chip ativo e contagem', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // O botão do dropdown de carregar filtro salvo deve existir
+    const btnFiltroSalvo = screen.getByRole('button', { name: /Carregar filtro salvo/i })
+    expect(btnFiltroSalvo).toBeDefined()
+    expect(btnFiltroSalvo.textContent).toContain('Carregar filtro salvo...')
+
+    // Abre o popover
+    fireEvent.click(btnFiltroSalvo)
+
+    // Espera listar os filtros (sistema e customizados)
+    await waitFor(() => {
+      expect(screen.getByText('Clientes de Passo Fundo')).toBeDefined()
+      expect(screen.getByText('Com WhatsApp')).toBeDefined()
+      expect(screen.getByText('Sem WhatsApp')).toBeDefined()
+    })
+
+    // Clica no filtro customizado "Clientes de Passo Fundo"
+    const itemFiltro = screen.getByText('Clientes de Passo Fundo')
+    fireEvent.click(itemFiltro)
+
+    // O chip deve aparecer exibindo o nome e a contagem base
+    await waitFor(() => {
+      expect(screen.getByText(/Filtro Salvo: Clientes de Passo Fundo/i)).toBeDefined()
+      expect(screen.getByText(/1 na base/i)).toBeDefined()
+    })
+
+    // Na lista, apenas Carlos Solar (de Passo Fundo) deve aparecer
+    expect(screen.getByText('Carlos Solar')).toBeDefined()
+    expect(screen.queryByText('Empresa O&M Manutencoes')).toBeNull()
+    expect(screen.queryByText('Fazenda Baterias')).toBeNull()
+
+    // Clica no botão X do chip para remover o filtro salvo
+    const btnRemoverFiltro = screen.getByRole('button', { name: /Remover filtro salvo/i })
+    fireEvent.click(btnRemoverFiltro)
+
+    // O chip deve sumir e os outros clientes voltam a ficar visíveis
+    await waitFor(() => {
+      expect(screen.queryByText(/Filtro Salvo: Clientes de Passo Fundo/i)).toBeNull()
+      expect(screen.getByText('Empresa O&M Manutencoes')).toBeDefined()
+    })
+  })
+
+  it('combina o filtro salvo como base com filtros extras do modal (AND)', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Carrega filtro salvo de sistema "Com WhatsApp"
+    const btnFiltroSalvo = screen.getByRole('button', { name: /Carregar filtro salvo/i })
+    fireEvent.click(btnFiltroSalvo)
+
+    await waitFor(() => {
+      expect(screen.getByText('Com WhatsApp')).toBeDefined()
+    })
+    fireEvent.click(screen.getByText('Com WhatsApp'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Filtro Salvo: Com WhatsApp/i)).toBeDefined()
+    })
+
+    // Clientes sem whatsapp não aparecem
+    expect(screen.queryByText('Cliente Inversor Híbrido Sem Bateria')).toBeNull()
+
+    // Agora aplica filtro extra Cidade: Marau
+    const selectCidade = screen.getByRole('combobox', { name: /Filtro de cidade/i })
+    fireEvent.change(selectCidade, { target: { value: 'Marau' } })
+
+    // Resultado: Com WhatsApp AND Cidade = Marau => Empresa O&M Manutencoes
+    await waitFor(() => {
+      expect(screen.getByText('Empresa O&M Manutencoes')).toBeDefined()
+      expect(screen.queryByText('Carlos Solar')).toBeNull()
     })
   })
 })

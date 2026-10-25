@@ -54,6 +54,16 @@ import {
   type FiltrosExtrasListaEnvio,
 } from '@/services/listasEnvioService'
 import {
+  fetchFiltrosSalvos,
+  getFavoritosFiltrosIds,
+  toggleFavoritoFiltroId,
+} from '@/services/filtrosSalvosService'
+import { getFiltrosSistema, isFiltroSistema } from '@/lib/filtrosSistema'
+import { registroPassaFiltro } from '@/lib/filtrosEngine'
+import type { FiltroSalvoRecord } from '@/types/filtros'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ChevronDown, Star, ShieldCheck, Layers, Globe, Lock } from 'lucide-react'
+import {
   getPadroesTextosReenvio,
   salvarPadroesTextosReenvio,
   createDisparoMassa,
@@ -262,7 +272,17 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const [filtroTipoCliente, setFiltroTipoCliente] = useState<string>('')
   const [filtroStatus, setFiltroStatus] = useState<string>('')
 
-  // Listas Salvas
+  // Filtro Salvo de Clientes (Etapa 4 - Pipedrive filtrosEngine)
+  const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
+  const [filtrosSalvosModulo, setFiltrosSalvosModulo] = useState<FiltroSalvoRecord[]>([])
+  const [favoritosFiltroSalvoIds, setFavoritosFiltroSalvoIds] = useState<string[]>([])
+  const [openPopoverFiltroSalvo, setOpenPopoverFiltroSalvo] = useState(false)
+  const [activeTabFiltroSalvo, setActiveTabFiltroSalvo] = useState<'filtros' | 'favoritos'>(
+    'filtros',
+  )
+  const [searchFiltroSalvo, setSearchFiltroSalvo] = useState('')
+
+  // Listas Salvas (listas_envio)
   const [listasSalvas, setListasSalvas] = useState<ListaEnvioRegistro[]>([])
   const [listaSelecionadaId, setListaSelecionadaId] = useState<string>('')
   const [isLoadingListas, setIsLoadingListas] = useState(false)
@@ -299,16 +319,17 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
   const [authErrorCapturado, setAuthErrorCapturado] = useState(false)
 
-  // Carrega templates e listas salvas do backend ao abrir o modal
+  // Carrega templates, listas salvas e filtros salvos do backend ao abrir o modal
   useEffect(() => {
     if (!open) return
     let cancelado = false
 
     const carregarTemplatesEListas = async () => {
       try {
-        const [registrosTemplates, registrosListas] = await Promise.all([
+        const [registrosTemplates, registrosListas, registrosFiltros] = await Promise.all([
           fetchWhatsAppTemplates().catch(() => []),
           fetchListasEnvio().catch(() => []),
+          fetchFiltrosSalvos('clientes').catch(() => []),
         ])
 
         if (cancelado) return
@@ -338,8 +359,13 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         if (Array.isArray(registrosListas)) {
           setListasSalvas(registrosListas)
         }
+
+        if (Array.isArray(registrosFiltros)) {
+          setFiltrosSalvosModulo(registrosFiltros)
+        }
+        setFavoritosFiltroSalvoIds(getFavoritosFiltrosIds('clientes'))
       } catch (err) {
-        console.warn('Erro ao carregar templates ou listas:', err)
+        console.warn('Erro ao carregar templates, listas ou filtros:', err)
         setTemplates(TEMPLATES_PADRAO_FALLBACK)
       }
     }
@@ -566,23 +592,40 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     }
   }, [itensProcessados])
 
-  // Filtragem por Segmento, Filtros Extras Combináveis e Busca
+  // Filtragem por Filtro Salvo de Clientes (filtrosEngine como base), Segmento, Filtros Extras Combináveis e Busca
   const itensFiltrados = useMemo(() => {
     let resultado = itensProcessados
 
-    // 1. Filtro base por segmento
+    // 1. Filtro Salvo de Clientes (se ativo, roda o motor filtrosEngine sobre a base de clientes)
+    if (filtroSalvoAtivo) {
+      const estrutura = filtroSalvoAtivo.condicoes
+      resultado = resultado.filter((item) => {
+        // Objeto de registro normalizado para o filtrosEngine
+        const registroParaFiltro = {
+          ...item.cliente,
+          // Compatibilidade extra com campos exibidos e derivados
+          cidade: item.cidade || item.cliente.cidade || '',
+          whatsapp: item.cliente.whatsapp || item.telefoneAutoritativo || '',
+          telefone: item.cliente.telefone || item.telefoneAutoritativo || '',
+          potencia_kwp: item.cliente.potencia_kwp || (item.usina as any)?.potencia_kwp,
+        }
+        return registroPassaFiltro(registroParaFiltro, estrutura, 'clientes')
+      })
+    }
+
+    // 2. Filtro base por segmento
     if (segmentoAtivo !== 'todos') {
       resultado = resultado.filter((item) => item.segmentos.includes(segmentoAtivo))
     }
 
-    // 2. Filtro extra WhatsApp: todos | com_whatsapp | sem_whatsapp
+    // 3. Filtro extra WhatsApp: todos | com_whatsapp | sem_whatsapp
     if (filtroWhatsApp === 'com_whatsapp') {
       resultado = resultado.filter((item) => item.temWhatsAppValido)
     } else if (filtroWhatsApp === 'sem_whatsapp') {
       resultado = resultado.filter((item) => !item.temWhatsAppValido)
     }
 
-    // 3. Filtro extra Cidade
+    // 4. Filtro extra Cidade
     if (filtroCidade) {
       resultado = resultado.filter((item) => {
         const c1 = (item.cidade || '').toLowerCase()
@@ -592,7 +635,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       })
     }
 
-    // 4. Filtro extra Concessionária
+    // 5. Filtro extra Concessionária
     if (filtroConcessionaria) {
       resultado = resultado.filter((item) => {
         const conc = (item.cliente.concessionaria || '').toLowerCase()
@@ -600,7 +643,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       })
     }
 
-    // 5. Filtro extra Tipo de Cliente
+    // 6. Filtro extra Tipo de Cliente
     if (filtroTipoCliente) {
       resultado = resultado.filter((item) => {
         const tc = String(item.cliente.tipo_cliente || '').toLowerCase()
@@ -608,7 +651,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       })
     }
 
-    // 6. Filtro extra Status
+    // 7. Filtro extra Status
     if (filtroStatus) {
       resultado = resultado.filter((item) => {
         const st = String(item.cliente.status || '').toLowerCase()
@@ -616,7 +659,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       })
     }
 
-    // 7. Filtro por busca de texto
+    // 8. Filtro por busca de texto
     const termo = busca.trim().toLowerCase()
     if (termo) {
       resultado = resultado.filter((item) => {
@@ -630,6 +673,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     return resultado
   }, [
     itensProcessados,
+    filtroSalvoAtivo,
     segmentoAtivo,
     filtroWhatsApp,
     filtroCidade,
@@ -642,13 +686,66 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   // Contagem de filtros extras ativos
   const totalFiltrosExtrasAtivos = useMemo(() => {
     let count = 0
+    if (filtroSalvoAtivo) count++
     if (filtroWhatsApp !== 'todos') count++
     if (filtroCidade) count++
     if (filtroConcessionaria) count++
     if (filtroTipoCliente) count++
     if (filtroStatus) count++
     return count
-  }, [filtroWhatsApp, filtroCidade, filtroConcessionaria, filtroTipoCliente, filtroStatus])
+  }, [
+    filtroSalvoAtivo,
+    filtroWhatsApp,
+    filtroCidade,
+    filtroConcessionaria,
+    filtroTipoCliente,
+    filtroStatus,
+  ])
+
+  // Contagem exclusiva dos clientes que atendem ao Filtro Salvo selecionado (antes de filtros extras e seleção)
+  const contagemApenasFiltroSalvo = useMemo(() => {
+    if (!filtroSalvoAtivo) return null
+    const estrutura = filtroSalvoAtivo.condicoes
+    return itensProcessados.filter((item) => {
+      const registro = {
+        ...item.cliente,
+        cidade: item.cidade || item.cliente.cidade || '',
+        whatsapp: item.cliente.whatsapp || item.telefoneAutoritativo || '',
+        telefone: item.cliente.telefone || item.telefoneAutoritativo || '',
+        potencia_kwp: item.cliente.potencia_kwp || (item.usina as any)?.potencia_kwp,
+      }
+      return registroPassaFiltro(registro, estrutura, 'clientes')
+    }).length
+  }, [filtroSalvoAtivo, itensProcessados])
+
+  // Lista unificada de filtros disponíveis para o seletor (Filtros de Sistema + Filtros Customizados)
+  const listaFiltrosDisponiveis = useMemo(() => {
+    const sistema = getFiltrosSistema('clientes')
+    const customizados = filtrosSalvosModulo || []
+    return {
+      sistema,
+      customizados,
+      todos: [...sistema, ...customizados],
+    }
+  }, [filtrosSalvosModulo])
+
+  // Filtros filtrados por busca no popover
+  const filtrosExibidosPopover = useMemo(() => {
+    const query = searchFiltroSalvo.trim().toLowerCase()
+    let lista = listaFiltrosDisponiveis.todos
+
+    if (activeTabFiltroSalvo === 'favoritos') {
+      lista = lista.filter((f) => favoritosFiltroSalvoIds.includes(f.id))
+    }
+
+    if (query) {
+      lista = lista.filter((f) => f.nome.toLowerCase().includes(query))
+    }
+
+    const sistema = lista.filter((f) => isFiltroSistema(f))
+    const customizados = lista.filter((f) => !isFiltroSistema(f))
+    return { sistema, customizados, total: lista.length }
+  }, [listaFiltrosDisponiveis, activeTabFiltroSalvo, favoritosFiltroSalvoIds, searchFiltroSalvo])
 
   // Limpar todos os filtros (segmento volta para 'todos' e extras são resetados)
   const handleLimparTodosFiltros = () => {
@@ -658,8 +755,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setFiltroConcessionaria('')
     setFiltroTipoCliente('')
     setFiltroStatus('')
+    setFiltroSalvoAtivo(null)
     setListaSelecionadaId('')
     setLimiteExibicao(50)
+  }
+
+  // Limpar apenas o filtro salvo ativo
+  const handleLimparFiltroSalvo = () => {
+    setFiltroSalvoAtivo(null)
   }
 
   // Limpar apenas os filtros extras
@@ -670,6 +773,24 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setFiltroTipoCliente('')
     setFiltroStatus('')
     setListaSelecionadaId('')
+  }
+
+  // Alternar favorito do filtro salvo
+  const handleToggleFavoritoFiltro = (filtroId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const novosFavoritos = toggleFavoritoFiltroId('clientes', filtroId)
+    setFavoritosFiltroSalvoIds(novosFavoritos)
+  }
+
+  // Aplicar um filtro salvo de clientes selecionado
+  const handleAplicarFiltroSalvo = (filtro: FiltroSalvoRecord) => {
+    setFiltroSalvoAtivo(filtro)
+    setListaSelecionadaId('')
+    setOpenPopoverFiltroSalvo(false)
+    setLimiteExibicao(50)
+    toast.success(`Filtro salvo "${filtro.nome}" aplicado como base`, {
+      description: 'Você pode refinar com os filtros extras ou selecionar os clientes.',
+    })
   }
 
   // Inicialização ao abrir o modal (executa apenas na transição de open false -> true)
@@ -685,6 +806,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
     setTemplateTexto(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)
     setSegmentoAtivo(segmentoInicial)
+    setFiltroSalvoAtivo(null)
     setAuthErrorCapturado(false)
     setTipoEnvio('agora')
     setIntervaloSegundos(60)
@@ -840,6 +962,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setFiltroTipoCliente(tipoVal)
     setFiltroStatus(stVal)
     setLimiteExibicao(50)
+
+    // Se havia algum filtro salvo ativo, limpa ao selecionar uma lista_envio para evitar conflito
+    setFiltroSalvoAtivo(null)
 
     // 3. Calcula clientes resultantes e seleciona-os de uma vez (ao carregar uma lista salva específica)
     let filtrados = itensProcessados
@@ -1403,12 +1528,15 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           {/* COLUNA ESQUERDA (lg:col-span-6): DESTINATÁRIOS & SEGMENTO */}
           {/* ======================================================== */}
           <div className="lg:col-span-6 flex flex-col space-y-3">
-            {/* Bloco de Listas Salvas (acima das pílulas de segmento existentes) */}
-            <div className="p-2.5 rounded-xl bg-slate-50/90 border border-slate-200/90 space-y-2">
-              <div className="flex items-center justify-between gap-2">
+            {/* Bloco de Base de Destinatários: Filtros Salvos de Clientes (filtrosEngine) e Listas de Envio */}
+            <div className="p-2.5 rounded-xl bg-slate-50/90 border border-slate-200/90 space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
-                  <Bookmark className="w-3.5 h-3.5 text-[#0284C7]" />
-                  <span>Listas Salvas</span>
+                  <Layers className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <span>Base de Destinatários</span>
+                  <span className="text-[10px] font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                    Filtros Salvos & Listas
+                  </span>
                 </div>
 
                 <Button
@@ -1417,44 +1545,257 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   variant="outline"
                   onClick={handleAbrirModalSalvarLista}
                   className="h-7 text-[11px] font-semibold bg-white border-sky-300 text-sky-800 hover:bg-sky-50 shadow-2xs flex items-center gap-1 px-2.5"
-                  title="Salvar segmento ativo e filtros extras combinados"
+                  title="Salvar segmento ativo e filtros extras combinados como lista de envio"
                 >
                   <Plus className="w-3 h-3 text-[#0284C7]" />
-                  <span>Salvar seleção atual</span>
+                  <span>Salvar seleção como lista</span>
                 </Button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <select
-                  value={listaSelecionadaId}
-                  onChange={(e) => handleSelecionarListaSalva(e.target.value)}
-                  className="flex-1 text-xs font-medium py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
-                  aria-label="Seletor de listas salvas"
-                >
-                  <option value="">Selecione uma lista salva...</option>
-                  {listasSalvas.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.nome}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* 1. Dropdown / Popover de Filtro Salvo de Clientes (FiltroSalvoBar format) */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    Filtro Salvo (Clientes)
+                  </label>
+                  <Popover open={openPopoverFiltroSalvo} onOpenChange={setOpenPopoverFiltroSalvo}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={`w-full h-8 text-xs font-medium px-2.5 rounded-lg border flex items-center justify-between gap-1.5 shadow-2xs transition-colors ${
+                          filtroSalvoAtivo
+                            ? 'bg-sky-50 border-sky-300 text-sky-900 font-semibold'
+                            : 'bg-white border-gray-200 text-gray-800 hover:bg-slate-50'
+                        }`}
+                        title="Carregar um filtro salvo do módulo de Clientes"
+                        aria-label="Carregar filtro salvo"
+                      >
+                        <span className="truncate text-left flex items-center gap-1.5 flex-1 min-w-0">
+                          <Filter
+                            className={`w-3.5 h-3.5 shrink-0 ${filtroSalvoAtivo ? 'text-[#0284C7]' : 'text-gray-400'}`}
+                          />
+                          <span className="truncate">
+                            {filtroSalvoAtivo ? filtroSalvoAtivo.nome : 'Carregar filtro salvo...'}
+                          </span>
+                        </span>
+                        <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-80 sm:w-96 p-0 shadow-lg border border-gray-200 bg-white rounded-xl z-50 text-xs"
+                    >
+                      {/* Topo do Popover: Abas Filtros e Favoritos */}
+                      <div className="flex items-center justify-between border-b border-gray-100 p-2 bg-slate-50/70 rounded-t-xl">
+                        <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() => setActiveTabFiltroSalvo('filtros')}
+                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors ${
+                              activeTabFiltroSalvo === 'filtros'
+                                ? 'bg-white text-gray-900 shadow-2xs'
+                                : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                          >
+                            Filtros ({listaFiltrosDisponiveis.todos.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTabFiltroSalvo('favoritos')}
+                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors flex items-center gap-1 ${
+                              activeTabFiltroSalvo === 'favoritos'
+                                ? 'bg-white text-amber-700 shadow-2xs'
+                                : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                          >
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                            Favoritos ({favoritosFiltroSalvoIds.length})
+                          </button>
+                        </div>
 
-                {listaSelecionadaId && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const achada = listasSalvas.find((l) => l.id === listaSelecionadaId)
-                      if (achada) setListaParaExcluir(achada)
-                    }}
-                    className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                    title="Excluir esta lista salva"
-                    aria-label="Excluir lista salva"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                )}
+                        {filtroSalvoAtivo && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleLimparFiltroSalvo()
+                              setOpenPopoverFiltroSalvo(false)
+                            }}
+                            className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline px-1.5 py-0.5"
+                          >
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Busca dentro dos filtros */}
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2" />
+                          <Input
+                            placeholder="Buscar filtro salvo..."
+                            value={searchFiltroSalvo}
+                            onChange={(e) => setSearchFiltroSalvo(e.target.value)}
+                            className="h-7 pl-8 text-xs bg-slate-50/70"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Lista de filtros salvos */}
+                      <div className="max-h-64 overflow-y-auto p-1 divide-y divide-gray-50">
+                        {filtrosExibidosPopover.total === 0 ? (
+                          <div className="p-6 text-center text-gray-400 text-xs">
+                            {activeTabFiltroSalvo === 'favoritos'
+                              ? 'Nenhum filtro marcado como favorito.'
+                              : 'Nenhum filtro salvo encontrado.'}
+                          </div>
+                        ) : (
+                          <>
+                            {/* Filtros pré-definidos do sistema (fixos) */}
+                            {filtrosExibidosPopover.sistema.length > 0 && (
+                              <div className="py-1">
+                                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1">
+                                  <ShieldCheck className="w-3 h-3 text-[#0284C7]" />
+                                  <span>Filtros do Sistema</span>
+                                </div>
+                                {filtrosExibidosPopover.sistema.map((filtro) => {
+                                  const isSelected = filtroSalvoAtivo?.id === filtro.id
+                                  const isFav = favoritosFiltroSalvoIds.includes(filtro.id)
+                                  return (
+                                    <div
+                                      key={filtro.id}
+                                      onClick={() => handleAplicarFiltroSalvo(filtro)}
+                                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                                        isSelected
+                                          ? 'bg-sky-50 text-sky-900 font-semibold'
+                                          : 'hover:bg-slate-100 text-gray-800'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <span className="truncate text-xs">{filtro.nome}</span>
+                                        <span className="text-[10px] font-medium text-sky-700 bg-sky-100 px-1 py-0.2 rounded">
+                                          Sistema
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => handleToggleFavoritoFiltro(filtro.id, e)}
+                                          className="p-1 text-gray-400 hover:text-amber-500 rounded"
+                                          title={isFav ? 'Remover dos favoritos' : 'Favoritar'}
+                                          aria-label="Favoritar filtro"
+                                        >
+                                          <Star
+                                            className={`w-3.5 h-3.5 ${
+                                              isFav ? 'text-amber-500 fill-amber-500' : ''
+                                            }`}
+                                          />
+                                        </button>
+                                        {isSelected && <Check className="w-4 h-4 text-[#0284C7]" />}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            {/* Filtros customizados do usuário / compartilhados */}
+                            {filtrosExibidosPopover.customizados.length > 0 && (
+                              <div className="py-1">
+                                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1">
+                                  <Layers className="w-3 h-3 text-purple-600" />
+                                  <span>Filtros Customizados</span>
+                                </div>
+                                {filtrosExibidosPopover.customizados.map((filtro) => {
+                                  const isSelected = filtroSalvoAtivo?.id === filtro.id
+                                  const isFav = favoritosFiltroSalvoIds.includes(filtro.id)
+                                  return (
+                                    <div
+                                      key={filtro.id}
+                                      onClick={() => handleAplicarFiltroSalvo(filtro)}
+                                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                                        isSelected
+                                          ? 'bg-sky-50 text-sky-900 font-semibold'
+                                          : 'hover:bg-slate-100 text-gray-800'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <span className="truncate text-xs">{filtro.nome}</span>
+                                        {filtro.visibilidade === 'shared' ? (
+                                          <span title="Compartilhado">
+                                            <Globe className="w-3 h-3 text-emerald-600 shrink-0" />
+                                          </span>
+                                        ) : (
+                                          <span title="Privado">
+                                            <Lock className="w-3 h-3 text-gray-400 shrink-0" />
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => handleToggleFavoritoFiltro(filtro.id, e)}
+                                          className="p-1 text-gray-400 hover:text-amber-500 rounded"
+                                          title={isFav ? 'Remover dos favoritos' : 'Favoritar'}
+                                          aria-label="Favoritar filtro"
+                                        >
+                                          <Star
+                                            className={`w-3.5 h-3.5 ${
+                                              isFav ? 'text-amber-500 fill-amber-500' : ''
+                                            }`}
+                                          />
+                                        </button>
+                                        {isSelected && <Check className="w-4 h-4 text-[#0284C7]" />}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* 2. Seletor de Listas Salvas (listas_envio) */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
+                    Lista Salva (Envios)
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={listaSelecionadaId}
+                      onChange={(e) => handleSelecionarListaSalva(e.target.value)}
+                      className="flex-1 h-8 text-xs font-medium px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7] shadow-2xs"
+                      aria-label="Seletor de listas salvas"
+                    >
+                      <option value="">Selecione uma lista salva...</option>
+                      {listasSalvas.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.nome}
+                        </option>
+                      ))}
+                    </select>
+
+                    {listaSelecionadaId && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const achada = listasSalvas.find((l) => l.id === listaSelecionadaId)
+                          if (achada) setListaParaExcluir(achada)
+                        }}
+                        className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 shrink-0"
+                        title="Excluir esta lista salva"
+                        aria-label="Excluir lista salva"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1490,6 +1831,104 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   </button>
                 </div>
               </div>
+
+              {/* Chips de Filtros Ativos (incluindo o Chip do Filtro Salvo de Clientes com X) */}
+              {(filtroSalvoAtivo || totalFiltrosExtrasAtivos > 0) && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  {filtroSalvoAtivo && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-sky-100 text-sky-900 border border-sky-300 px-2 py-0.5 rounded-md">
+                      <Filter className="w-3 h-3 text-[#0284C7]" />
+                      <span>Filtro Salvo: {filtroSalvoAtivo.nome}</span>
+                      {contagemApenasFiltroSalvo !== null && (
+                        <span className="text-[10px] text-sky-700 bg-sky-200/80 px-1 py-0.2 rounded font-mono">
+                          {contagemApenasFiltroSalvo} na base
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleLimparFiltroSalvo}
+                        className="ml-0.5 text-sky-700 hover:text-sky-950 p-0.5 rounded-full hover:bg-sky-200/60"
+                        title="Remover filtro salvo ativo (filtros extras permanecem)"
+                        aria-label="Remover filtro salvo"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {filtroWhatsApp !== 'todos' && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-200/80 text-gray-800 px-2 py-0.5 rounded-md">
+                      <span>
+                        {filtroWhatsApp === 'com_whatsapp' ? 'Com WhatsApp' : 'Sem WhatsApp'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroWhatsApp('todos')}
+                        className="text-gray-500 hover:text-gray-800 p-0.5"
+                        aria-label="Remover filtro de WhatsApp"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {filtroCidade && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-200/80 text-gray-800 px-2 py-0.5 rounded-md">
+                      <span>Cidade: {filtroCidade}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroCidade('')}
+                        className="text-gray-500 hover:text-gray-800 p-0.5"
+                        aria-label="Remover filtro de cidade"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {filtroConcessionaria && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-200/80 text-gray-800 px-2 py-0.5 rounded-md">
+                      <span>Conc.: {filtroConcessionaria}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroConcessionaria('')}
+                        className="text-gray-500 hover:text-gray-800 p-0.5"
+                        aria-label="Remover filtro de concessionária"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {filtroTipoCliente && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-200/80 text-gray-800 px-2 py-0.5 rounded-md">
+                      <span>Tipo: {filtroTipoCliente}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroTipoCliente('')}
+                        className="text-gray-500 hover:text-gray-800 p-0.5"
+                        aria-label="Remover filtro de tipo"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {filtroStatus && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-200/80 text-gray-800 px-2 py-0.5 rounded-md">
+                      <span>Status: {filtroStatus}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroStatus('')}
+                        className="text-gray-500 hover:text-gray-800 p-0.5"
+                        aria-label="Remover filtro de status"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Grid Único com todos os Dropdowns de Filtro */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
