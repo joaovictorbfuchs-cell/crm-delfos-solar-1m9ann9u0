@@ -91,6 +91,7 @@ export interface FiltroSalvoRecord {
   dono_nome?: string
   created?: string
   updated?: string
+  isSistema?: boolean
 }
 
 export interface SalvarFiltroInput {

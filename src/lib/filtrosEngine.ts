@@ -82,12 +82,27 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
     case 'tipo_venda':
       return registro.tipo_venda || registro.tipoVenda || registro.clienteRaw?.tipo_venda || ''
     case 'tem_whatsapp': {
-      const raw = registro.whatsapp || registro.clienteRaw?.whatsapp || ''
+      const raw =
+        registro.whatsapp ||
+        registro.clienteRaw?.whatsapp ||
+        registro.rawCliente?.whatsapp ||
+        registro.expand?.cliente_id?.whatsapp ||
+        ''
       return Boolean(raw && String(raw).replace(/\D/g, '').length >= 8)
     }
     case 'tem_telefone': {
-      const t1 = registro.telefone || registro.clienteRaw?.telefone || ''
-      const t2 = registro.whatsapp || registro.clienteRaw?.whatsapp || ''
+      const t1 =
+        registro.telefone ||
+        registro.clienteRaw?.telefone ||
+        registro.rawCliente?.telefone ||
+        registro.expand?.cliente_id?.telefone ||
+        ''
+      const t2 =
+        registro.whatsapp ||
+        registro.clienteRaw?.whatsapp ||
+        registro.rawCliente?.whatsapp ||
+        registro.expand?.cliente_id?.whatsapp ||
+        ''
       const digits1 = String(t1).replace(/\D/g, '')
       const digits2 = String(t2).replace(/\D/g, '')
       return Boolean(digits1.length >= 8 || digits2.length >= 8)
@@ -128,8 +143,11 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
       return registro.titulo || registro.nomeCliente || ''
     case 'nome_cliente':
       return registro.nomeCliente || registro.cliente_nome || registro.nome || ''
-    case 'etapa_funil':
-      return registro.etapa_funil || registro.status || ''
+    case 'etapa_funil': {
+      if (registro.etapa_funil) return registro.etapa_funil
+      if (registro.etapaFunil) return registro.etapaFunil
+      return registro.status || ''
+    }
     case 'tipo_negocio':
       return registro.tipo_negocio || registro.tipoNegocio || ''
     case 'valor':
@@ -219,7 +237,12 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
       if (typeof registro.atrasada === 'boolean') return registro.atrasada
       if (typeof registro.isAtrasada === 'boolean') return registro.isAtrasada
       const statusAtiv = String(registro.status || '').toLowerCase()
-      if (statusAtiv === 'concluida' || statusAtiv === 'concluido' || statusAtiv === 'cancelada') {
+      if (
+        statusAtiv === 'concluida' ||
+        statusAtiv === 'concluido' ||
+        statusAtiv === 'cancelada' ||
+        statusAtiv === 'finalizada'
+      ) {
         return false
       }
       const dataStr =
@@ -227,13 +250,33 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
         registro.data_prevista ||
         registro.dataAgendamento ||
         registro.data ||
+        registro.data_hora ||
+        registro.created ||
         ''
       if (!dataStr) return false
-      const dt = new Date(dataStr)
-      if (isNaN(dt.getTime())) return false
-      const hoje = new Date()
-      hoje.setHours(23, 59, 59, 999)
-      return dt.getTime() < hoje.getTime()
+
+      // Extrai YYYY-MM-DD local da data da atividade para comparar dia
+      const matchYmd = String(dataStr).match(/^(\d{4})-(\d{2})-(\d{2})/)
+      let ymdAtv = ''
+      if (matchYmd) {
+        ymdAtv = `${matchYmd[1]}-${matchYmd[2]}-${matchYmd[3]}`
+      } else {
+        const dt = new Date(dataStr)
+        if (isNaN(dt.getTime())) return false
+        const y = dt.getFullYear()
+        const m = String(dt.getMonth() + 1).padStart(2, '0')
+        const d = String(dt.getDate()).padStart(2, '0')
+        ymdAtv = `${y}-${m}-${d}`
+      }
+
+      // Hoje no horário local (mesma regra do e-mail diário e do lembretes de atividades)
+      const agora = new Date()
+      const hojeY = agora.getFullYear()
+      const hojeM = String(agora.getMonth() + 1).padStart(2, '0')
+      const hojeD = String(agora.getDate()).padStart(2, '0')
+      const hojeYmd = `${hojeY}-${hojeM}-${hojeD}`
+
+      return ymdAtv < hojeYmd
     }
 
     // Contratos O&M

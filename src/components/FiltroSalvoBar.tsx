@@ -13,6 +13,7 @@ import {
   Layers,
   Sparkles,
   Check,
+  ShieldCheck,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ import {
   getFavoritosFiltrosIds,
   toggleFavoritoFiltroId,
 } from '@/services/filtrosSalvosService'
+import { getFiltrosSistema, isFiltroSistema } from '@/lib/filtrosSistema'
 import { ModalCompositorFiltro } from './ModalCompositorFiltro'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -57,6 +59,9 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
   const [filtros, setFiltros] = useState<FiltroSalvoRecord[]>([])
   const [favoritosIds, setFavoritosIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Filtros de sistema pré-definidos para este módulo (constantes em código)
+  const filtrosSistema = useMemo(() => getFiltrosSistema(modulo), [modulo])
 
   // Estado do Modal Compositor
   const [modalCompositorOpen, setModalCompositorOpen] = useState(false)
@@ -146,14 +151,31 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
 
   const query = searchQuery.trim().toLowerCase()
 
-  const filtrosFiltrados = useMemo(() => {
+  // Filtros de sistema filtrados pela busca
+  const filtrosSistemaFiltrados = useMemo(() => {
+    if (!query) return filtrosSistema
+    return filtrosSistema.filter((f) => f.nome.toLowerCase().includes(query))
+  }, [filtrosSistema, query])
+
+  // Filtros de usuários salvos no banco, excluindo eventuais colisões
+  const filtrosUsuarioFiltrados = useMemo(() => {
     if (!query) return filtros
     return filtros.filter((f) => f.nome.toLowerCase().includes(query))
   }, [filtros, query])
 
+  // Total combinado de filtros disponíveis (sistema + usuário)
+  const totalFiltrosDisponiveis = useMemo(() => {
+    return filtrosSistema.length + filtros.length
+  }, [filtrosSistema.length, filtros.length])
+
+  // Lista combinada de favoritos (pode conter filtros de sistema ou de usuário)
+  const todosFiltros = useMemo(() => {
+    return [...filtrosSistema, ...filtros]
+  }, [filtrosSistema, filtros])
+
   const favoritosList = useMemo(() => {
-    return filtros.filter((f) => favoritosIds.includes(f.id))
-  }, [filtros, favoritosIds])
+    return todosFiltros.filter((f) => favoritosIds.includes(f.id))
+  }, [todosFiltros, favoritosIds])
 
   const favoritosFiltrados = useMemo(() => {
     if (!query) return favoritosList
@@ -161,6 +183,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
   }, [favoritosList, query])
 
   const isDono = (filtro: FiltroSalvoRecord) => {
+    if (isFiltroSistema(filtro)) return false
     return Boolean(currentUserId && filtro.dono === currentUserId)
   }
 
@@ -179,6 +202,12 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
                 >
                   <Filter className="w-3.5 h-3.5 text-sky-600 fill-sky-600 shrink-0" />
                   <span className="truncate">{filtroAtivo.nome}</span>
+                  {isFiltroSistema(filtroAtivo) && (
+                    <span className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.2 text-[9px] font-bold rounded bg-sky-200/80 text-sky-900 border border-sky-300">
+                      <ShieldCheck className="w-2.5 h-2.5" />
+                      <span>Sistema</span>
+                    </span>
+                  )}
                   <ChevronDown className="w-3 h-3 text-sky-600 shrink-0 ml-0.5" />
                 </button>
               </PopoverTrigger>
@@ -315,7 +344,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
                 activeTab === 'filtros' ? 'text-sky-600 fill-sky-600' : 'text-slate-400'
               }`}
             />
-            <span>Filtros ({filtros.length})</span>
+            <span>Filtros ({totalFiltrosDisponiveis})</span>
             {activeTab === 'filtros' && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
             )}
@@ -365,119 +394,211 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
 
           {activeTab === 'filtros' && (
             <>
-              {filtrosFiltrados.map((filtro) => {
-                const isSelected = filtroAtivo?.id === filtro.id
-                const isFav = favoritosIds.includes(filtro.id)
-                const podeEditar = isDono(filtro)
+              {/* SEÇÃO 1: FILTROS DE SISTEMA (FIXOS NO TOPO, NÃO EDITÁVEIS, NÃO EXCLUÍVEIS) */}
+              {filtrosSistemaFiltrados.length > 0 && (
+                <div className="pt-1 pb-1">
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-sky-700">
+                      <ShieldCheck className="w-3 h-3 text-sky-600" />
+                      <span>Filtros de Sistema</span>
+                    </span>
+                    <span className="text-[9px] font-semibold text-slate-400 lowercase">
+                      (fixos • pré-definidos)
+                    </span>
+                  </div>
 
-                return (
-                  <div
-                    key={filtro.id}
-                    onClick={() => {
-                      onSelectFiltro(filtro)
-                      setOpenPopover(false)
-                    }}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors group ${
-                      isSelected
-                        ? 'bg-sky-600 text-white font-bold shadow-2xs'
-                        : 'hover:bg-slate-100 text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      {filtro.visibilidade === 'shared' ? (
-                        <span title="Filtro Compartilhado" className="inline-flex">
-                          <Globe
-                            className={`w-3.5 h-3.5 shrink-0 ${
-                              isSelected ? 'text-white' : 'text-emerald-600'
+                  {filtrosSistemaFiltrados.map((filtro) => {
+                    const isSelected = filtroAtivo?.id === filtro.id
+                    const isFav = favoritosIds.includes(filtro.id)
+
+                    return (
+                      <div
+                        key={filtro.id}
+                        onClick={() => {
+                          onSelectFiltro(filtro)
+                          setOpenPopover(false)
+                        }}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors group ${
+                          isSelected
+                            ? 'bg-sky-600 text-white font-bold shadow-2xs'
+                            : 'hover:bg-sky-50/70 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span title="Filtro de Sistema Oficial" className="inline-flex shrink-0">
+                            <ShieldCheck
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isSelected ? 'text-white' : 'text-sky-600'
+                              }`}
+                            />
+                          </span>
+                          <div className="truncate flex items-center gap-1.5 min-w-0">
+                            <span className="truncate block font-medium">{filtro.nome}</span>
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0 border ${
+                                isSelected
+                                  ? 'bg-sky-700/60 text-sky-100 border-sky-400'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                              }`}
+                            >
+                              Sistema
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          {/* Botão Favoritar para filtro de sistema */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleFavorito(filtro.id, e)}
+                            className={`p-1 rounded hover:scale-110 transition-transform ${
+                              isSelected ? 'text-white' : 'text-slate-400 hover:text-amber-500'
                             }`}
-                          />
-                        </span>
-                      ) : (
-                        <span title="Filtro Privado" className="inline-flex">
-                          <Lock
-                            className={`w-3.5 h-3.5 shrink-0 ${
-                              isSelected ? 'text-white' : 'text-slate-400'
-                            }`}
-                          />
-                        </span>
-                      )}
-                      <div className="truncate">
-                        <span className="truncate block">{filtro.nome}</span>
-                        {filtro.visibilidade === 'shared' && filtro.dono_nome && (
-                          <span
-                            className={`text-[10px] block truncate ${
-                              isSelected ? 'text-sky-100' : 'text-slate-400'
-                            }`}
+                            title="Favoritar filtro de sistema"
                           >
-                            Por {filtro.dono_nome}
+                            <Star
+                              className={`w-3.5 h-3.5 ${
+                                isFav
+                                  ? isSelected
+                                    ? 'fill-white text-white'
+                                    : 'fill-amber-400 text-amber-500'
+                                  : ''
+                              }`}
+                            />
+                          </button>
+
+                          {/* NÃO possui botão de editar nem excluir por ser de sistema */}
+
+                          {isSelected && <Check className="w-4 h-4 text-white ml-0.5 shrink-0" />}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* SEÇÃO 2: FILTROS DO USUÁRIO / SALVOS */}
+              <div className="pt-1">
+                {filtrosSistemaFiltrados.length > 0 && filtrosUsuarioFiltrados.length > 0 && (
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between border-t border-slate-100 mt-1">
+                    <span>Meus Filtros e Compartilhados</span>
+                  </div>
+                )}
+
+                {filtrosUsuarioFiltrados.map((filtro) => {
+                  const isSelected = filtroAtivo?.id === filtro.id
+                  const isFav = favoritosIds.includes(filtro.id)
+                  const podeEditar = isDono(filtro)
+
+                  return (
+                    <div
+                      key={filtro.id}
+                      onClick={() => {
+                        onSelectFiltro(filtro)
+                        setOpenPopover(false)
+                      }}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors group ${
+                        isSelected
+                          ? 'bg-sky-600 text-white font-bold shadow-2xs'
+                          : 'hover:bg-slate-100 text-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {filtro.visibilidade === 'shared' ? (
+                          <span title="Filtro Compartilhado" className="inline-flex">
+                            <Globe
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isSelected ? 'text-white' : 'text-emerald-600'
+                              }`}
+                            />
+                          </span>
+                        ) : (
+                          <span title="Filtro Privado" className="inline-flex">
+                            <Lock
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isSelected ? 'text-white' : 'text-slate-400'
+                              }`}
+                            />
                           </span>
                         )}
+                        <div className="truncate">
+                          <span className="truncate block">{filtro.nome}</span>
+                          {filtro.visibilidade === 'shared' && filtro.dono_nome && (
+                            <span
+                              className={`text-[10px] block truncate ${
+                                isSelected ? 'text-sky-100' : 'text-slate-400'
+                              }`}
+                            >
+                              Por {filtro.dono_nome}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        {/* Botão Favoritar */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleFavorito(filtro.id, e)}
+                          className={`p-1 rounded hover:scale-110 transition-transform ${
+                            isSelected ? 'text-white' : 'text-slate-400 hover:text-amber-500'
+                          }`}
+                          title="Favoritar filtro"
+                        >
+                          <Star
+                            className={`w-3.5 h-3.5 ${
+                              isFav
+                                ? isSelected
+                                  ? 'fill-white text-white'
+                                  : 'fill-amber-400 text-amber-500'
+                                : ''
+                            }`}
+                          />
+                        </button>
+
+                        {/* Botão Editar (apenas dono) */}
+                        {podeEditar && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleAbrirEditar(filtro, e)}
+                            className={`p-1 rounded transition-colors opacity-70 group-hover:opacity-100 ${
+                              isSelected
+                                ? 'text-white hover:bg-white/20'
+                                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200'
+                            }`}
+                            title="Editar regras deste filtro"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+
+                        {/* Botão Excluir (apenas dono) */}
+                        {podeEditar && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleExcluir(filtro, e)}
+                            className={`p-1 rounded transition-colors opacity-70 group-hover:opacity-100 ${
+                              isSelected
+                                ? 'text-white hover:bg-rose-500'
+                                : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                            }`}
+                            title="Excluir filtro"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+
+                        {isSelected && <Check className="w-4 h-4 text-white ml-0.5 shrink-0" />}
                       </div>
                     </div>
+                  )
+                })}
+              </div>
 
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      {/* Botão Favoritar */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleFavorito(filtro.id, e)}
-                        className={`p-1 rounded hover:scale-110 transition-transform ${
-                          isSelected ? 'text-white' : 'text-slate-400 hover:text-amber-500'
-                        }`}
-                        title="Favoritar filtro"
-                      >
-                        <Star
-                          className={`w-3.5 h-3.5 ${
-                            isFav
-                              ? isSelected
-                                ? 'fill-white text-white'
-                                : 'fill-amber-400 text-amber-500'
-                              : ''
-                          }`}
-                        />
-                      </button>
-
-                      {/* Botão Editar (dono) */}
-                      {podeEditar && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleAbrirEditar(filtro, e)}
-                          className={`p-1 rounded transition-colors opacity-70 group-hover:opacity-100 ${
-                            isSelected
-                              ? 'text-white hover:bg-white/20'
-                              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200'
-                          }`}
-                          title="Editar regras deste filtro"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      )}
-
-                      {/* Botão Excluir (dono) */}
-                      {podeEditar && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleExcluir(filtro, e)}
-                          className={`p-1 rounded transition-colors opacity-70 group-hover:opacity-100 ${
-                            isSelected
-                              ? 'text-white hover:bg-rose-500'
-                              : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
-                          }`}
-                          title="Excluir filtro"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-
-                      {isSelected && <Check className="w-4 h-4 text-white ml-0.5 shrink-0" />}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {filtrosFiltrados.length === 0 && (
+              {filtrosSistemaFiltrados.length === 0 && filtrosUsuarioFiltrados.length === 0 && (
                 <div className="py-6 text-center text-slate-400">
                   <Filter className="w-6 h-6 mx-auto text-slate-300 mb-1" />
-                  <p className="text-xs">Nenhum filtro salvo encontrado</p>
+                  <p className="text-xs">Nenhum filtro encontrado</p>
                 </div>
               )}
             </>
@@ -507,6 +628,17 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
                         }`}
                       />
                       <span className="truncate">{filtro.nome}</span>
+                      {isFiltroSistema(filtro) && (
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0 border ${
+                            isSelected
+                              ? 'bg-sky-700/60 text-sky-100 border-sky-400'
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          Sistema
+                        </span>
+                      )}
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-white shrink-0" />}
                   </div>
