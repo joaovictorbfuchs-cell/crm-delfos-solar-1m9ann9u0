@@ -27,7 +27,7 @@ import {
   toggleFavoritoFiltroId,
 } from '@/services/filtrosSalvosService'
 import { getFiltrosSistema, isFiltroSistema } from '@/lib/filtrosSistema'
-import { ModalCompositorFiltro } from './ModalCompositorFiltro'
+import { ModalCompositorFiltro, type ColunaConfiguravel } from './ModalCompositorFiltro'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -38,6 +38,10 @@ export interface FiltroSalvoBarProps {
   // Contadores para exibição
   totalFiltrado?: number
   totalOriginal?: number
+  // Suporte a colunas configuráveis junto ao filtro
+  colunasDisponiveis?: ColunaConfiguravel[]
+  colunasAtuaisVisiveis?: string[]
+  onAplicarColunas?: (colunas: string[]) => void
   // Botão customizado ou alinhamento
   className?: string
 }
@@ -48,6 +52,9 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
   onSelectFiltro,
   totalFiltrado,
   totalOriginal,
+  colunasDisponiveis,
+  colunasAtuaisVisiveis,
+  onAplicarColunas,
   className = '',
 }) => {
   const { toast } = useToast()
@@ -128,6 +135,19 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
     }
   }
 
+  const handleSelectFiltroInterno = (filtro: FiltroSalvoRecord | null) => {
+    onSelectFiltro(filtro)
+    // Se o filtro selecionado possui colunas salvas e a tela tem manipulador de colunas configuráveis, reaplica
+    if (
+      filtro?.colunas &&
+      Array.isArray(filtro.colunas) &&
+      filtro.colunas.length > 0 &&
+      onAplicarColunas
+    ) {
+      onAplicarColunas(filtro.colunas)
+    }
+  }
+
   const handleSalvarFiltro = async (dados: any) => {
     if (filtroEmEdicao) {
       const atualizado = await updateFiltroSalvo(filtroEmEdicao.id, dados)
@@ -136,7 +156,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
         description: `O filtro "${atualizado.nome}" foi salvo com sucesso.`,
       })
       if (filtroAtivo?.id === atualizado.id) {
-        onSelectFiltro(atualizado)
+        handleSelectFiltroInterno(atualizado)
       }
     } else {
       const criado = await createFiltroSalvo(dados)
@@ -144,7 +164,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
         title: 'Filtro criado!',
         description: `O filtro "${criado.nome}" foi criado e aplicado.`,
       })
-      onSelectFiltro(criado)
+      handleSelectFiltroInterno(criado)
     }
     await carregarFiltros()
   }
@@ -257,7 +277,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
             {/* Ação de Limpar (X) */}
             <button
               type="button"
-              onClick={() => onSelectFiltro(null)}
+              onClick={() => handleSelectFiltroInterno(null)}
               className="px-2.5 py-1.5 text-sky-700 hover:text-rose-600 hover:bg-rose-50 border-l border-sky-200 transition-colors h-full flex items-center justify-center cursor-pointer"
               title="Limpar filtro aplicado (desativar)"
             >
@@ -296,6 +316,8 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
         onOpenChange={setModalCompositorOpen}
         modulo={modulo}
         filtroEdicao={filtroEmEdicao}
+        colunasDisponiveis={colunasDisponiveis}
+        colunasAtuaisVisiveis={colunasAtuaisVisiveis}
         onSalvar={handleSalvarFiltro}
       />
     </>
@@ -376,7 +398,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
           {/* Opção para desmarcar / Todos os registros */}
           <div
             onClick={() => {
-              onSelectFiltro(null)
+              handleSelectFiltroInterno(null)
               setOpenPopover(false)
             }}
             className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -415,7 +437,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
                       <div
                         key={filtro.id}
                         onClick={() => {
-                          onSelectFiltro(filtro)
+                          handleSelectFiltroInterno(filtro)
                           setOpenPopover(false)
                         }}
                         className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors group ${
@@ -494,7 +516,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
                     <div
                       key={filtro.id}
                       onClick={() => {
-                        onSelectFiltro(filtro)
+                        handleSelectFiltroInterno(filtro)
                         setOpenPopover(false)
                       }}
                       className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors group ${
@@ -612,7 +634,7 @@ export const FiltroSalvoBar: React.FC<FiltroSalvoBarProps> = ({
                   <div
                     key={filtro.id}
                     onClick={() => {
-                      onSelectFiltro(filtro)
+                      handleSelectFiltroInterno(filtro)
                       setOpenPopover(false)
                     }}
                     className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${

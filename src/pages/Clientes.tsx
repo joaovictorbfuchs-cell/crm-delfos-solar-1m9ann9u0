@@ -44,9 +44,12 @@ import { useToast } from '@/hooks/use-toast'
 import { formatDate } from '@/lib/formatters'
 import { fetchOutrosContatos, fetchAllUsinas } from '@/services/crmService'
 import type { Cliente, ClienteStatus, OutroContato, Atividade, UsinaCliente } from '@/types/crm'
-import type { FiltroSalvoRecord } from '@/types/filtros'
+import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
 import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
+import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
+import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
+import type { ColunaConfiguravel } from '@/components/ModalCompositorFiltro'
 
 export type SortField = 'nome' | 'origem' | 'produto' | 'cidade' | 'potencia' | 'valor' | 'status'
 export type SortDirection = 'asc' | 'desc'
@@ -129,8 +132,37 @@ export default function Clientes() {
   // Busca rápida no topo
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Filtro Salvo estilo Pipedrive (Fase 1)
+  // Filtro Salvo estilo Pipedrive (Fase 1 & Fase 3)
   const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
+  const [quickFiltersAtivos, setQuickFiltersAtivos] = useState<QuickFilterDef[]>([])
+
+  // Colunas configuráveis da tabela de Clientes
+  const COLUNAS_DISPONIVEIS_CLIENTES: ColunaConfiguravel[] = [
+    { id: 'nome', label: 'Nome do Cliente' },
+    { id: 'telefone', label: 'Telefone / WhatsApp' },
+    { id: 'usinas', label: 'Usinas' },
+    { id: 'contrato_om', label: 'Contrato O&M' },
+    { id: 'ultima_atividade', label: 'Última Atividade' },
+  ]
+  const [colunasVisiveis, setColunasVisiveis] = useState<string[]>([
+    'nome',
+    'telefone',
+    'usinas',
+    'contrato_om',
+    'ultima_atividade',
+  ])
+
+  const handleToggleQuickFilter = (qf: QuickFilterDef) => {
+    setQuickFiltersAtivos((prev) => {
+      const existe = prev.some((item) => item.id === qf.id)
+      if (existe) {
+        return prev.filter((item) => item.id !== qf.id)
+      }
+      if (prev.length >= 10) return prev
+      return [...prev, qf]
+    })
+    setCurrentPage(1)
+  }
 
   // Drawer de filtros avançados
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
@@ -362,10 +394,14 @@ export default function Clientes() {
 
   // Filtragem da lista unificada (incluindo filtro salvo estilo Pipedrive)
   const filteredRows = useMemo(() => {
-    // 1. Aplicação do filtro salvo Pipedrive pelo motor puro
+    // 1. Aplicação do filtro salvo Pipedrive + Quick Filters pelo motor puro
     let base = rowsUnificadas
-    if (filtroSalvoAtivo?.condicoes) {
-      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'clientes')
+    if (filtroSalvoAtivo?.condicoes || quickFiltersAtivos.length > 0) {
+      const estruturaCombinada = combinarEstruturasFiltros(
+        filtroSalvoAtivo?.condicoes,
+        quickFiltersAtivos,
+      )
+      base = aplicarFiltroSalvo(base, estruturaCombinada, 'clientes')
     }
 
     const term = searchTerm.trim().toLowerCase()
@@ -406,7 +442,7 @@ export default function Clientes() {
 
       return true
     })
-  }, [rowsUnificadas, filtroSalvoAtivo, searchTerm, filtros])
+  }, [rowsUnificadas, filtroSalvoAtivo, quickFiltersAtivos, searchTerm, filtros])
 
   // Paginação
   const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE) || 1
@@ -706,7 +742,7 @@ export default function Clientes() {
             <span className="hidden sm:inline">Disparos em Massa</span>
           </Button>
 
-          {/* Componente de Filtro Salvo estilo Pipedrive (Fase 1) */}
+          {/* Componente de Filtro Salvo estilo Pipedrive (Fase 1 & Fase 3) */}
           <FiltroSalvoBar
             modulo="clientes"
             filtroAtivo={filtroSalvoAtivo}
@@ -714,6 +750,9 @@ export default function Clientes() {
               setFiltroSalvoAtivo(f)
               setCurrentPage(1)
             }}
+            colunasDisponiveis={COLUNAS_DISPONIVEIS_CLIENTES}
+            colunasAtuaisVisiveis={colunasVisiveis}
+            onAplicarColunas={(cols) => setColunasVisiveis(cols)}
             totalFiltrado={filteredRows.length}
             totalOriginal={rowsUnificadas.length}
           />
@@ -817,6 +856,16 @@ export default function Clientes() {
         </div>
       )}
 
+      {/* Quick Filters inline (chips rápidos acumuláveis, sem persistência, máx 10) */}
+      <div className="bg-slate-50/70 border border-slate-200/70 rounded-xl px-3 py-1.5">
+        <QuickFilterChipsBar
+          modulo="clientes"
+          activeQuickFilters={quickFiltersAtivos}
+          onToggleQuickFilter={handleToggleQuickFilter}
+          onClearAllQuickFilters={() => setQuickFiltersAtivos([])}
+        />
+      </div>
+
       {/* 2. Tabela de Clientes no padrão visual da Central de Atividades:
           Colunas na ordem:
           1. Checkbox de seleção (individual + em massa)
@@ -874,19 +923,29 @@ export default function Clientes() {
                       </th>
 
                       {/* 2. Nome do Cliente */}
-                      <th className="py-2.5 px-3 w-[32%]">Nome do Cliente</th>
+                      {colunasVisiveis.includes('nome') && (
+                        <th className="py-2.5 px-3 w-[32%]">Nome do Cliente</th>
+                      )}
 
                       {/* 3. Telefone */}
-                      <th className="py-2.5 px-3 w-[18%]">Telefone</th>
+                      {colunasVisiveis.includes('telefone') && (
+                        <th className="py-2.5 px-3 w-[18%]">Telefone</th>
+                      )}
 
                       {/* 4. Número de Usinas */}
-                      <th className="py-2.5 px-2 w-[12%] text-center">Usinas</th>
+                      {colunasVisiveis.includes('usinas') && (
+                        <th className="py-2.5 px-2 w-[12%] text-center">Usinas</th>
+                      )}
 
                       {/* 5. Contrato O&M */}
-                      <th className="py-2.5 px-2 w-[12%] text-center">Contrato O&M</th>
+                      {colunasVisiveis.includes('contrato_om') && (
+                        <th className="py-2.5 px-2 w-[12%] text-center">Contrato O&M</th>
+                      )}
 
                       {/* 6. Última Atividade */}
-                      <th className="py-2.5 px-3 w-[26%] text-right">Última Atividade</th>
+                      {colunasVisiveis.includes('ultima_atividade') && (
+                        <th className="py-2.5 px-3 w-[26%] text-right">Última Atividade</th>
+                      )}
                     </tr>
                   </thead>
 
@@ -919,109 +978,119 @@ export default function Clientes() {
                           </td>
 
                           {/* 2. Nome do Cliente em destaque - SEM rótulo PF/PJ ao lado; CPF/CNPJ discreto abaixo */}
-                          <td className="py-2.5 px-3 align-middle">
-                            <div className="flex flex-col items-start justify-center min-w-0">
-                              <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors truncate max-w-full text-xs">
-                                {row.nome}
-                              </span>
-                              {row.cpfOuCnpj && (
-                                <span className="text-[11px] text-gray-400 font-mono font-normal truncate max-w-full">
-                                  {row.cpfOuCnpj}
+                          {colunasVisiveis.includes('nome') && (
+                            <td className="py-2.5 px-3 align-middle">
+                              <div className="flex flex-col items-start justify-center min-w-0">
+                                <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors truncate max-w-full text-xs">
+                                  {row.nome}
                                 </span>
-                              )}
-                            </div>
-                          </td>
+                                {row.cpfOuCnpj && (
+                                  <span className="text-[11px] text-gray-400 font-mono font-normal truncate max-w-full">
+                                    {row.cpfOuCnpj}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          )}
 
                           {/* 3. Telefone - botão de ação rápida wa.me diretamente; sem retângulo cinza quando vazio */}
-                          <td
-                            className="py-2.5 px-3 align-middle"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {waLink ? (
-                                <a
-                                  href={waLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title={`Conversar com ${row.nome} no WhatsApp`}
-                                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors text-xs font-semibold cursor-pointer shrink-0"
+                          {colunasVisiveis.includes('telefone') && (
+                            <td
+                              className="py-2.5 px-3 align-middle"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {waLink ? (
+                                  <a
+                                    href={waLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={`Conversar com ${row.nome} no WhatsApp`}
+                                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors text-xs font-semibold cursor-pointer shrink-0"
+                                  >
+                                    <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                    <span className="truncate max-w-[130px]">
+                                      {row.whatsapp || row.telefone}
+                                    </span>
+                                  </a>
+                                ) : (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center justify-center p-1 text-amber-500 hover:text-amber-600 transition-colors">
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="top"
+                                      className="text-xs bg-gray-900 text-white px-2 py-1 rounded-md"
+                                    >
+                                      Telefone não cadastrado
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            </td>
+                          )}
+
+                          {/* 4. Número de Usinas - Quando zero: célula VAZIA. Ao clicar, abre a ficha na aba usinas */}
+                          {colunasVisiveis.includes('usinas') && (
+                            <td className="py-2.5 px-2 align-middle text-center">
+                              {row.totalUsinas > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleAbrirUsinas(row, e)}
+                                  title={`Ver ${row.totalUsinas} usina(s) deste cliente`}
+                                  className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold transition-colors cursor-pointer"
                                 >
-                                  <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                  <span className="truncate max-w-[130px]">
-                                    {row.whatsapp || row.telefone}
-                                  </span>
-                                </a>
-                              ) : (
+                                  {row.totalUsinas}
+                                </button>
+                              ) : null}
+                            </td>
+                          )}
+
+                          {/* 5. Contrato O&M - "Sim" ou "Não" com cor semântica */}
+                          {colunasVisiveis.includes('contrato_om') && (
+                            <td className="py-2.5 px-2 align-middle text-center">
+                              <span
+                                className={`text-[11px] font-bold ${
+                                  row.temContratoOM ? 'text-emerald-700' : 'text-gray-400'
+                                }`}
+                              >
+                                {row.temContratoOM ? 'Sim' : 'Não'}
+                              </span>
+                            </td>
+                          )}
+
+                          {/* 6. Última Atividade - Data + resumo curto com tooltip */}
+                          {colunasVisiveis.includes('ultima_atividade') && (
+                            <td className="py-2.5 px-3 align-middle text-right">
+                              {row.ultimaAtividade ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="inline-flex items-center justify-center p-1 text-amber-500 hover:text-amber-600 transition-colors">
-                                      <AlertTriangle className="w-3.5 h-3.5" />
-                                    </span>
+                                    <div className="inline-flex flex-col items-end justify-center min-w-0 max-w-full cursor-pointer">
+                                      <span className="text-[11px] font-medium text-gray-500 whitespace-nowrap">
+                                        {formatDate(row.ultimaAtividade.data)}
+                                      </span>
+                                      <span className="text-[11px] font-normal text-gray-700 truncate max-w-[190px]">
+                                        {row.ultimaAtividade.resumo}
+                                      </span>
+                                    </div>
                                   </TooltipTrigger>
                                   <TooltipContent
                                     side="top"
-                                    className="text-xs bg-gray-900 text-white px-2 py-1 rounded-md"
+                                    className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg shadow-md max-w-sm"
                                   >
-                                    Telefone não cadastrado
+                                    <p className="font-semibold">
+                                      {formatDate(row.ultimaAtividade.data)}
+                                    </p>
+                                    <p className="text-[11px] text-gray-300 mt-0.5">
+                                      {row.ultimaAtividade.resumo}
+                                    </p>
                                   </TooltipContent>
                                 </Tooltip>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* 4. Número de Usinas - Quando zero: célula VAZIA. Ao clicar, abre a ficha na aba usinas */}
-                          <td className="py-2.5 px-2 align-middle text-center">
-                            {row.totalUsinas > 0 ? (
-                              <button
-                                type="button"
-                                onClick={(e) => handleAbrirUsinas(row, e)}
-                                title={`Ver ${row.totalUsinas} usina(s) deste cliente`}
-                                className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold transition-colors cursor-pointer"
-                              >
-                                {row.totalUsinas}
-                              </button>
-                            ) : null}
-                          </td>
-
-                          {/* 5. Contrato O&M - "Sim" ou "Não" com cor semântica */}
-                          <td className="py-2.5 px-2 align-middle text-center">
-                            <span
-                              className={`text-[11px] font-bold ${
-                                row.temContratoOM ? 'text-emerald-700' : 'text-gray-400'
-                              }`}
-                            >
-                              {row.temContratoOM ? 'Sim' : 'Não'}
-                            </span>
-                          </td>
-
-                          {/* 6. Última Atividade - Data + resumo curto com tooltip */}
-                          <td className="py-2.5 px-3 align-middle text-right">
-                            {row.ultimaAtividade ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="inline-flex flex-col items-end justify-center min-w-0 max-w-full cursor-pointer">
-                                    <span className="text-[11px] font-medium text-gray-500 whitespace-nowrap">
-                                      {formatDate(row.ultimaAtividade.data)}
-                                    </span>
-                                    <span className="text-[11px] font-normal text-gray-700 truncate max-w-[190px]">
-                                      {row.ultimaAtividade.resumo}
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  side="top"
-                                  className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg shadow-md max-w-sm"
-                                >
-                                  <p className="font-semibold">
-                                    {formatDate(row.ultimaAtividade.data)}
-                                  </p>
-                                  <p className="text-[11px] text-gray-300 mt-0.5">
-                                    {row.ultimaAtividade.resumo}
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : null}
-                          </td>
+                              ) : null}
+                            </td>
+                          )}
                         </tr>
                       )
                     })}

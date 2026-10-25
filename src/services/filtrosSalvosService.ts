@@ -20,6 +20,11 @@ export async function fetchFiltrosSalvos(modulo: ModuloFiltro): Promise<FiltroSa
       nome: r.nome,
       modulo: r.modulo,
       condicoes: r.condicoes || { all: [], any: [] },
+      colunas: Array.isArray(r.colunas)
+        ? r.colunas
+        : Array.isArray(r.condicoes?.colunas)
+          ? r.condicoes.colunas
+          : undefined,
       visibilidade: r.visibilidade || 'private',
       dono: r.dono,
       dono_nome: r.expand?.dono?.name || 'Usuário',
@@ -41,23 +46,51 @@ export async function createFiltroSalvo(input: SalvarFiltroInput): Promise<Filtr
     throw new Error('Usuário não autenticado para salvar filtro.')
   }
 
-  const payload = {
+  const condicoesComColunas = {
+    ...input.condicoes,
+    ...(input.colunas ? { colunas: input.colunas } : {}),
+  }
+
+  const payload: Record<string, any> = {
     nome: input.nome.trim(),
     modulo: input.modulo,
-    condicoes: input.condicoes,
+    condicoes: condicoesComColunas,
     visibilidade: input.visibilidade,
     dono: currentUserId,
   }
 
-  const record = await pb.collection('filtros_salvos').create<any>(payload, {
-    expand: 'dono',
-  })
+  // Tenta enviar também no campo `colunas` caso a migração tenha sido aplicada
+  if (input.colunas) {
+    payload.colunas = input.colunas
+  }
+
+  let record: any
+  try {
+    record = await pb.collection('filtros_salvos').create<any>(payload, {
+      expand: 'dono',
+    })
+  } catch (err) {
+    // Se falhar por campo desconhecido 'colunas', faz fallback salvando apenas no JSON condicoes
+    if (payload.colunas) {
+      delete payload.colunas
+      record = await pb.collection('filtros_salvos').create<any>(payload, {
+        expand: 'dono',
+      })
+    } else {
+      throw err
+    }
+  }
 
   return {
     id: record.id,
     nome: record.nome,
     modulo: record.modulo,
     condicoes: record.condicoes || { all: [], any: [] },
+    colunas: Array.isArray(record.colunas)
+      ? record.colunas
+      : Array.isArray(record.condicoes?.colunas)
+        ? record.condicoes.colunas
+        : input.colunas,
     visibilidade: record.visibilidade,
     dono: record.dono,
     dono_nome: record.expand?.dono?.name || pb.authStore.record?.name || 'Você',
@@ -75,18 +108,43 @@ export async function updateFiltroSalvo(
 ): Promise<FiltroSalvoRecord> {
   const payload: Record<string, any> = {}
   if (input.nome !== undefined) payload.nome = input.nome.trim()
-  if (input.condicoes !== undefined) payload.condicoes = input.condicoes
+  if (input.condicoes !== undefined) {
+    payload.condicoes = {
+      ...input.condicoes,
+      ...(input.colunas !== undefined ? { colunas: input.colunas } : {}),
+    }
+  }
+  if (input.colunas !== undefined) {
+    payload.colunas = input.colunas
+  }
   if (input.visibilidade !== undefined) payload.visibilidade = input.visibilidade
 
-  const record = await pb.collection('filtros_salvos').update<any>(id, payload, {
-    expand: 'dono',
-  })
+  let record: any
+  try {
+    record = await pb.collection('filtros_salvos').update<any>(id, payload, {
+      expand: 'dono',
+    })
+  } catch (err) {
+    if (payload.colunas !== undefined) {
+      delete payload.colunas
+      record = await pb.collection('filtros_salvos').update<any>(id, payload, {
+        expand: 'dono',
+      })
+    } else {
+      throw err
+    }
+  }
 
   return {
     id: record.id,
     nome: record.nome,
     modulo: record.modulo,
     condicoes: record.condicoes,
+    colunas: Array.isArray(record.colunas)
+      ? record.colunas
+      : Array.isArray(record.condicoes?.colunas)
+        ? record.condicoes.colunas
+        : input.colunas,
     visibilidade: record.visibilidade,
     dono: record.dono,
     dono_nome: record.expand?.dono?.name || 'Você',

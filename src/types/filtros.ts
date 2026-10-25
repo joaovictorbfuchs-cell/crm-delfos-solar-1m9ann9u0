@@ -86,6 +86,7 @@ export interface FiltroSalvoRecord {
   nome: string
   modulo: ModuloFiltro
   condicoes: EstruturaCondicoes
+  colunas?: string[] // Chaves das colunas visíveis salvas junto ao filtro (opcional)
   visibilidade: VisibilidadeFiltro
   dono: string
   dono_nome?: string
@@ -98,5 +99,14 @@ export interface SalvarFiltroInput {
   nome: string
   modulo: ModuloFiltro
   condicoes: EstruturaCondicoes
+  colunas?: string[]
   visibilidade: VisibilidadeFiltro
+}
+
+export interface QuickFilterDef {
+  id: string
+  label: string
+  modulo: ModuloFiltro
+  condicoes: EstruturaCondicoes
+  cor?: string
 }

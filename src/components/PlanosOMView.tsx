@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import type { FiltroSalvoRecord } from '@/types/filtros'
+import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
+import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
+import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
+import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
 import {
   Search,
   Filter,
@@ -83,8 +86,24 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   onTogglePainel,
   onFiltrosInfoChange,
   renderTopFilterButton = false,
-  filtroSalvoAtivo,
+  filtroSalvoAtivo: filtroSalvoExterno,
 }) => {
+  // Estado local de filtro salvo (quando não controlado externamente) + Quick Filters
+  const [filtroSalvoInterno, setFiltroSalvoInterno] = useState<FiltroSalvoRecord | null>(null)
+  const filtroSalvoAtivo =
+    filtroSalvoExterno !== undefined ? filtroSalvoExterno : filtroSalvoInterno
+  const [quickFiltersAtivos, setQuickFiltersAtivos] = useState<QuickFilterDef[]>([])
+
+  const handleToggleQuickFilter = (qf: QuickFilterDef) => {
+    setQuickFiltersAtivos((prev) => {
+      const existe = prev.some((item) => item.id === qf.id)
+      if (existe) {
+        return prev.filter((item) => item.id !== qf.id)
+      }
+      if (prev.length >= 10) return prev
+      return [...prev, qf]
+    })
+  }
   const [modalMensagemMassaOpen, setModalMensagemMassaOpen] = useState(false)
   const {
     clientes,
@@ -437,9 +456,13 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   const planosFiltrados = useMemo(() => {
     let base = listaBasePlanos
 
-    // Aplicar Filtro Salvo estilo Pipedrive (Fase 2 - Módulo contratos_om)
-    if (filtroSalvoAtivo?.condicoes) {
-      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'contratos_om')
+    // Aplicar Filtro Salvo estilo Pipedrive + Quick Filters inline (motor único filtrosEngine)
+    if (filtroSalvoAtivo?.condicoes || quickFiltersAtivos.length > 0) {
+      const estruturaCombinada = combinarEstruturasFiltros(
+        filtroSalvoAtivo?.condicoes,
+        quickFiltersAtivos,
+      )
+      base = aplicarFiltroSalvo(base, estruturaCombinada, 'contratos_om')
     }
 
     return base
@@ -543,7 +566,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         const tB = b.dataProxStr ? new Date(b.dataProxStr).getTime() : 9999999999999
         return tA - tB
       })
-  }, [listaBasePlanos, filtrosAtivos, ordenacao])
+  }, [listaBasePlanos, filtrosAtivos, ordenacao, filtroSalvoAtivo, quickFiltersAtivos])
 
   // Notificar pai sobre contagem de filtros e planos
   useEffect(() => {
@@ -661,6 +684,27 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Quick Filters inline (chips rápidos acumuláveis, sem persistência, máx 10) + FiltroSalvoBar */}
+      <div className="bg-slate-50/70 border border-slate-200/70 rounded-xl px-3 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2">
+        <QuickFilterChipsBar
+          modulo="contratos_om"
+          activeQuickFilters={quickFiltersAtivos}
+          onToggleQuickFilter={handleToggleQuickFilter}
+          onClearAllQuickFilters={() => setQuickFiltersAtivos([])}
+          className="flex-1"
+        />
+
+        <div className="shrink-0 flex items-center justify-end">
+          <FiltroSalvoBar
+            modulo="contratos_om"
+            filtroAtivo={filtroSalvoAtivo}
+            onSelectFiltro={setFiltroSalvoInterno}
+            totalFiltrado={planosFiltrados.length}
+            totalOriginal={listaBasePlanos.length}
+          />
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* BARRA DE FILTROS AVANÇADOS RETRÁTIL (PADRÃO TELA PROPOSTAS)               */}
       {/* ========================================================================= */}

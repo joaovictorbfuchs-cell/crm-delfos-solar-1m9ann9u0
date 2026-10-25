@@ -70,7 +70,9 @@ import { ModalGerenciarAtividades } from '@/components/ModalGerenciarAtividades'
 import { obterUltimoRetornoRGE } from '@/components/BlocoRetornosRGE'
 import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
-import type { FiltroSalvoRecord } from '@/types/filtros'
+import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
+import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
+import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
 import type { Atividade, AtividadeCategoriaId, AtividadeStatus } from '@/types/crm'
 
 const ITEMS_PER_PAGE = 25
@@ -128,8 +130,21 @@ export default function CentralAtividadesPage() {
     { id: 'administrativo_pos_venda', nome: 'Administrativas', count: 0 },
   ])
 
-  // Estado do Filtro Salvo estilo Pipedrive (módulo: atividades)
+  // Estado do Filtro Salvo estilo Pipedrive (módulo: atividades) & Quick Filters inline
   const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
+  const [quickFiltersAtivos, setQuickFiltersAtivos] = useState<QuickFilterDef[]>([])
+
+  const handleToggleQuickFilter = (qf: QuickFilterDef) => {
+    setQuickFiltersAtivos((prev) => {
+      const existe = prev.some((item) => item.id === qf.id)
+      if (existe) {
+        return prev.filter((item) => item.id !== qf.id)
+      }
+      if (prev.length >= 10) return prev
+      return [...prev, qf]
+    })
+    setCurrentPage(1)
+  }
 
   // Estado dos filtros combináveis (AND) - aplicados
   const [filtros, setFiltros] = useState<CentralAtividadesFiltros>({
@@ -248,19 +263,24 @@ export default function CentralAtividadesPage() {
   }
 
   // Filtragem unificada através de filtrarCentralAtividades (com normalização semântica de status e tipos específicos)
-  // e composição com o filtro salvo do Pipedrive (modulo: atividades)
+  // e composição com o filtro salvo do Pipedrive + Quick Filters inline (motor único filtrosEngine)
   const filteredItems = useMemo(() => {
     let base = filtrarCentralAtividades(allItems, filtros)
-    if (filtroSalvoAtivo?.condicoes) {
-      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'atividades')
+    if (filtroSalvoAtivo?.condicoes || quickFiltersAtivos.length > 0) {
+      const estruturaCombinada = combinarEstruturasFiltros(
+        filtroSalvoAtivo?.condicoes,
+        quickFiltersAtivos,
+      )
+      base = aplicarFiltroSalvo(base, estruturaCombinada, 'atividades')
     }
     return base
-  }, [allItems, filtros, filtroSalvoAtivo])
+  }, [allItems, filtros, filtroSalvoAtivo, quickFiltersAtivos])
 
   // Contagem de filtros ativos
   const activeFiltersCount = useMemo(() => {
     let count = 0
     if (filtroSalvoAtivo) count++
+    count += quickFiltersAtivos.length
     if (filtros.categoriaId && filtros.categoriaId !== 'todos') count++
     if (filtros.tipoEspecifico && filtros.tipoEspecifico !== 'todos') count++
     if (filtros.tipoFonte && filtros.tipoFonte !== 'todos') count++
@@ -270,7 +290,7 @@ export default function CentralAtividadesPage() {
     if (filtros.dataFim) count++
     if (filtros.buscaTexto && filtros.buscaTexto.trim() !== '') count++
     return count
-  }, [filtros, filtroSalvoAtivo])
+  }, [filtros, filtroSalvoAtivo, quickFiltersAtivos])
 
   // Contagem de filtros rascunho ativos dentro do drawer
   const activeDraftFiltersCount = useMemo(() => {
@@ -644,6 +664,16 @@ export default function CentralAtividadesPage() {
           </div>
         </div>
 
+        {/* Quick Filters inline acima da tabela/calendário */}
+        <div className="w-full bg-slate-50/70 border border-slate-200/70 rounded-xl px-3 py-1.5 md:hidden">
+          <QuickFilterChipsBar
+            modulo="atividades"
+            activeQuickFilters={quickFiltersAtivos}
+            onToggleQuickFilter={handleToggleQuickFilter}
+            onClearAllQuickFilters={() => setQuickFiltersAtivos([])}
+          />
+        </div>
+
         {/* Ações da Central: FiltroSalvoBar + Botão de Funil de Filtros + Contador + Atualizar + Gerenciar Atividades + Disparar Mensagens + Nova Atividade */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 justify-start md:justify-end overflow-x-visible">
           {/* Barra de Filtros Salvos estilo Pipedrive (modulo: atividades) */}
@@ -787,6 +817,16 @@ export default function CentralAtividadesPage() {
           </div>
         </div>
       )}
+
+      {/* Quick Filters inline no desktop (acima do conteúdo da Central) */}
+      <div className="hidden md:block bg-slate-50/70 border border-slate-200/70 rounded-xl px-3 py-1.5">
+        <QuickFilterChipsBar
+          modulo="atividades"
+          activeQuickFilters={quickFiltersAtivos}
+          onToggleQuickFilter={handleToggleQuickFilter}
+          onClearAllQuickFilters={() => setQuickFiltersAtivos([])}
+        />
+      </div>
 
       {/* 3. Conteúdo da Central: Tabela / Fila OU Calendário Semanal/Mensal */}
       {viewMode === 'calendario' ? (

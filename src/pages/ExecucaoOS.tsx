@@ -82,7 +82,9 @@ import {
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
-import type { FiltroSalvoRecord } from '@/types/filtros'
+import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
+import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
+import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
 
 function ExecucaoOSContent() {
   const { toast } = useToast()
@@ -127,8 +129,20 @@ function ExecucaoOSContent() {
     'pendentes' | 'concluidas' | 'calendario' | 'relatorio' | 'configuracoes'
   >('calendario')
 
-  // Estado do Filtro Salvo estilo Pipedrive (módulo: atividades)
+  // Estado do Filtro Salvo estilo Pipedrive (módulo: atividades) & Quick Filters inline
   const [filtroSalvoAtivo, setFiltroSalvoAtivo] = useState<FiltroSalvoRecord | null>(null)
+  const [quickFiltersAtivos, setQuickFiltersAtivos] = useState<QuickFilterDef[]>([])
+
+  const handleToggleQuickFilter = (qf: QuickFilterDef) => {
+    setQuickFiltersAtivos((prev) => {
+      const existe = prev.some((item) => item.id === qf.id)
+      if (existe) {
+        return prev.filter((item) => item.id !== qf.id)
+      }
+      if (prev.length >= 10) return prev
+      return [...prev, qf]
+    })
+  }
 
   // Filtros de busca, tipo, prestador e período
   const [searchTerm, setSearchTerm] = useState('')
@@ -140,6 +154,7 @@ function ExecucaoOSContent() {
   const activeFiltersCount = useMemo(() => {
     let count = 0
     if (filtroSalvoAtivo) count++
+    count += quickFiltersAtivos.length
     if (searchTerm.trim()) count++
     if (selectedTipoFilter !== 'todos') count++
     if (!isInstalador && selectedPrestadorFilter !== 'todos') count++
@@ -152,6 +167,7 @@ function ExecucaoOSContent() {
     selectedPeriodoFilter,
     isInstalador,
     filtroSalvoAtivo,
+    quickFiltersAtivos,
   ])
 
   const handleLimparFiltros = () => {
@@ -976,8 +992,12 @@ function ExecucaoOSContent() {
       }
     })
 
-    if (filtroSalvoAtivo?.condicoes) {
-      base = aplicarFiltroSalvo(base, filtroSalvoAtivo.condicoes, 'atividades')
+    if (filtroSalvoAtivo?.condicoes || quickFiltersAtivos.length > 0) {
+      const estruturaCombinada = combinarEstruturasFiltros(
+        filtroSalvoAtivo?.condicoes,
+        quickFiltersAtivos,
+      )
+      base = aplicarFiltroSalvo(base, estruturaCombinada, 'atividades')
     }
 
     return base
@@ -989,6 +1009,7 @@ function ExecucaoOSContent() {
     searchTerm,
     isInstalador,
     filtroSalvoAtivo,
+    quickFiltersAtivos,
   ])
 
   // Filtragem canônica das ordens enviadas ao Calendário pelo tipo selecionado

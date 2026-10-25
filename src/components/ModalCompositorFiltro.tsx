@@ -27,16 +27,26 @@ import type {
 import { getCatalogoPorModulo, getCampoPorId, OPERADORES_POR_TIPO } from '@/lib/filtrosCatalogo'
 import { isCondicaoValida } from '@/lib/filtrosEngine'
 
+export interface ColunaConfiguravel {
+  id: string
+  label: string
+}
+
 interface ModalCompositorFiltroProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   modulo: ModuloFiltro
   filtroEdicao?: FiltroSalvoRecord | null
+  // Colunas configuráveis disponíveis na tabela atual (quando houver)
+  colunasDisponiveis?: ColunaConfiguravel[]
+  // Grade de colunas atualmente visíveis na tabela
+  colunasAtuaisVisiveis?: string[]
   onSalvar: (dados: {
     nome: string
     modulo: ModuloFiltro
     condicoes: EstruturaCondicoes
     visibilidade: VisibilidadeFiltro
+    colunas?: string[]
   }) => Promise<void>
 }
 
@@ -57,8 +67,14 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
   const [visibilidade, setVisibilidade] = useState<VisibilidadeFiltro>('private')
   const [condicoesAll, setCondicoesAll] = useState<CondicaoFiltro[]>([])
   const [condicoesAny, setCondicoesAny] = useState<CondicaoFiltro[]>([])
+  const [salvarColunasJunto, setSalvarColunasJunto] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  // Flag indicando se a tabela deste módulo tem colunas configuráveis
+  const temColunasConfiguraveis = Boolean(
+    colunasDisponiveis && colunasDisponiveis.length > 0 && colunasAtuaisVisiveis,
+  )
 
   // Inicialização ao abrir modal ou trocar o filtro em edição
   useEffect(() => {
@@ -69,9 +85,11 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
         setVisibilidade(filtroEdicao.visibilidade || 'private')
         setCondicoesAll(filtroEdicao.condicoes?.all || [])
         setCondicoesAny(filtroEdicao.condicoes?.any || [])
+        setSalvarColunasJunto(Boolean(filtroEdicao.colunas && filtroEdicao.colunas.length > 0))
       } else {
         setNome('')
         setVisibilidade('private')
+        setSalvarColunasJunto(Boolean(temColunasConfiguraveis))
         // Iniciar com uma condição inicial no bloco TODAS
         const primeiroCampo = campos[0]?.id || ''
         const def = getCampoPorId(modulo, primeiroCampo)
@@ -191,6 +209,11 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
 
     setSalvando(true)
     try {
+      const colunasParaSalvar =
+        temColunasConfiguraveis && salvarColunasJunto && colunasAtuaisVisiveis
+          ? colunasAtuaisVisiveis
+          : undefined
+
       await onSalvar({
         nome: nome.trim(),
         modulo,
@@ -199,6 +222,7 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
           any: anyValidas,
         },
         visibilidade,
+        colunas: colunasParaSalvar,
       })
       onOpenChange(false)
     } catch (e: any) {
@@ -414,6 +438,32 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
               </select>
             </div>
           </div>
+
+          {/* Checkbox "Salvar colunas junto ao filtro": visível apenas quando a tabela tem colunas configuráveis */}
+          {temColunasConfiguraveis && (
+            <div className="p-3 bg-sky-50/70 border border-sky-200/80 rounded-xl flex items-start gap-3">
+              <input
+                id="checkbox-salvar-colunas"
+                type="checkbox"
+                checked={salvarColunasJunto}
+                onChange={(e) => setSalvarColunasJunto(e.target.checked)}
+                className="w-4 h-4 mt-0.5 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer shrink-0"
+              />
+              <label
+                htmlFor="checkbox-salvar-colunas"
+                className="cursor-pointer select-none text-xs text-slate-700"
+              >
+                <span className="font-bold text-slate-900 block">
+                  Salvar colunas junto ao filtro
+                </span>
+                <span className="text-[11px] text-slate-500 leading-relaxed block mt-0.5">
+                  Serializa a grade atual de {colunasAtuaisVisiveis?.length || 0} colunas visíveis
+                  neste filtro. Ao carregar ou aplicar o filtro, essa configuração de colunas será
+                  reaplicada automaticamente na tabela.
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* BLOCO 1: TODAS AS CONDIÇÕES (ALL / E) */}
           <div className="space-y-2 border border-slate-200 rounded-2xl p-3.5 bg-white shadow-2xs">
