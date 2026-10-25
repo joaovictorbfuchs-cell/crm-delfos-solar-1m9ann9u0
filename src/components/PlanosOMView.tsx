@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
 import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
+import { ColunaQuickFilter } from '@/components/ColunaQuickFilter'
 import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
 import {
@@ -1230,10 +1231,70 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
             <table className="w-full text-left text-xs">
               <thead className="bg-[#F8FAF9] border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Cliente & Cidade</th>
-                  <th className="py-3 px-4">Contrato O&M</th>
-                  <th className="py-3 px-4">Potência</th>
+                  <th className="py-3 px-4">
+                    <ColunaQuickFilter
+                      titulo="Status"
+                      campoId="status"
+                      campoLabel="Status"
+                      modulo="contratos_om"
+                      dados={planosFiltrados.map((p) => ({
+                        ...p.contrato,
+                        cliente_nome: p.cliente?.nome,
+                        cidade: p.cliente?.cidade,
+                        potencia_somada: p.potenciaKwp,
+                      }))}
+                      activeQuickFilters={quickFiltersAtivos}
+                      onToggleQuickFilter={handleToggleQuickFilter}
+                    />
+                  </th>
+                  <th className="py-3 px-4">
+                    <ColunaQuickFilter
+                      titulo="Cliente & Cidade"
+                      campoId="cliente_nome"
+                      campoLabel="Cliente"
+                      modulo="contratos_om"
+                      dados={planosFiltrados.map((p) => ({
+                        ...p.contrato,
+                        cliente_nome: p.cliente?.nome,
+                        cidade: p.cliente?.cidade,
+                        potencia_somada: p.potenciaKwp,
+                      }))}
+                      activeQuickFilters={quickFiltersAtivos}
+                      onToggleQuickFilter={handleToggleQuickFilter}
+                    />
+                  </th>
+                  <th className="py-3 px-4">
+                    <ColunaQuickFilter
+                      titulo="Contrato O&M"
+                      campoId="plano"
+                      campoLabel="Plano"
+                      modulo="contratos_om"
+                      dados={planosFiltrados.map((p) => ({
+                        ...p.contrato,
+                        cliente_nome: p.cliente?.nome,
+                        cidade: p.cliente?.cidade,
+                        potencia_somada: p.potenciaKwp,
+                      }))}
+                      activeQuickFilters={quickFiltersAtivos}
+                      onToggleQuickFilter={handleToggleQuickFilter}
+                    />
+                  </th>
+                  <th className="py-3 px-4">
+                    <ColunaQuickFilter
+                      titulo="Potência"
+                      campoId="potencia_somada"
+                      campoLabel="Potência"
+                      modulo="contratos_om"
+                      dados={planosFiltrados.map((p) => ({
+                        ...p.contrato,
+                        cliente_nome: p.cliente?.nome,
+                        cidade: p.cliente?.cidade,
+                        potencia_somada: p.potenciaKwp,
+                      }))}
+                      activeQuickFilters={quickFiltersAtivos}
+                      onToggleQuickFilter={handleToggleQuickFilter}
+                    />
+                  </th>
                   <th className="py-3 px-4">Nº de Placas</th>
                   <th className="py-3 px-4">Próxima Atividade</th>
                   <th className="py-3 px-4">Valor Mensal</th>

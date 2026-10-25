@@ -72,6 +72,7 @@ import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
 import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
 import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
+import { ColunaQuickFilter } from '@/components/ColunaQuickFilter'
 import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
 import type { Atividade, AtividadeCategoriaId, AtividadeStatus } from '@/types/crm'
 
@@ -897,12 +898,64 @@ export default function CentralAtividadesPage() {
                             )}
                           </button>
                         </th>
-                        <th className="py-2 px-2.5 w-[19%]">Categoria / Tipo</th>
-                        <th className="py-2 px-2.5 w-[21%]">Cliente</th>
-                        <th className="py-2 px-2.5 w-[29%]">Título</th>
-                        <th className="py-2 px-1.5 w-[11%]">Status</th>
-                        <th className="py-2 px-1.5 w-[12%]">Responsável</th>
-                        <th className="py-2 px-2.5 w-[8%] text-right">Data</th>
+                        <th className="py-2 px-2.5 w-[19%]">
+                          <ColunaQuickFilter
+                            titulo="Categoria / Tipo"
+                            campoId="categoria"
+                            campoLabel="Categoria"
+                            modulo="atividades"
+                            dados={itensUnificados}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                          />
+                        </th>
+                        <th className="py-2 px-2.5 w-[21%]">
+                          <ColunaQuickFilter
+                            titulo="Cliente"
+                            campoId="nome_cliente"
+                            campoLabel="Cliente"
+                            modulo="atividades"
+                            dados={itensUnificados}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                          />
+                        </th>
+                        <th className="py-2 px-2.5 w-[29%]">
+                          <ColunaQuickFilter
+                            titulo="Título"
+                            campoId="titulo"
+                            campoLabel="Título"
+                            modulo="atividades"
+                            dados={itensUnificados}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                          />
+                        </th>
+                        <th className="py-2 px-1.5 w-[11%]">
+                          <ColunaQuickFilter
+                            titulo="Status"
+                            campoId="status"
+                            campoLabel="Status"
+                            modulo="atividades"
+                            dados={itensUnificados}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                          />
+                        </th>
+                        <th className="py-2 px-1.5 w-[12%]">
+                          <ColunaQuickFilter
+                            titulo="Responsável"
+                            campoId="responsavel"
+                            campoLabel="Responsável"
+                            modulo="atividades"
+                            dados={itensUnificados}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                          />
+                        </th>
+                        <th className="py-2 px-2.5 w-[8%] text-right">
+                          <div className="inline-flex items-center justify-end w-full">Data</div>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">

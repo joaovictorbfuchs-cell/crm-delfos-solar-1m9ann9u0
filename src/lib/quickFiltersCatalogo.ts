@@ -385,6 +385,50 @@ export function getQuickFiltersPorModulo(modulo: ModuloFiltro): QuickFilterDef[]
 }
 
 /**
+ * Cria ou atualiza um QuickFilterDef dinâmico a partir de seleção de valores em cabeçalho de coluna.
+ */
+export function criarQuickFilterColuna(
+  modulo: ModuloFiltro,
+  campoId: string,
+  campoLabel: string,
+  valoresSelecionados: string[],
+): QuickFilterDef | null {
+  if (!valoresSelecionados || valoresSelecionados.length === 0) return null
+
+  const id = `qf_col_${modulo}_${campoId}`
+  const label =
+    valoresSelecionados.length === 1
+      ? `${campoLabel}: ${valoresSelecionados[0]}`
+      : `${campoLabel}: ${valoresSelecionados[0]} +${valoresSelecionados.length - 1}`
+
+  const condicao =
+    valoresSelecionados.length === 1
+      ? {
+          id: `cond_${id}`,
+          campoId,
+          operador: 'e' as const,
+          valor: valoresSelecionados[0],
+        }
+      : {
+          id: `cond_${id}`,
+          campoId,
+          operador: 'e_um_de' as const,
+          valor: valoresSelecionados,
+        }
+
+  return {
+    id,
+    label,
+    modulo,
+    cor: 'sky',
+    condicoes: {
+      all: [condicao],
+      any: [],
+    },
+  }
+}
+
+/**
  * Combina a estrutura de condições de um filtro salvo (se houver) com múltiplos quick filters ativos.
  * Cria uma estrutura unificada ALL contendo todas as condições ativas para o filtrosEngine.
  */

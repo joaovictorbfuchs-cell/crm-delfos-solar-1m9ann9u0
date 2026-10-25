@@ -48,6 +48,7 @@ import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
 import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
+import { ColunaQuickFilter } from '@/components/ColunaQuickFilter'
 import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
 import type { ColunaConfiguravel } from '@/components/ModalCompositorFiltro'
 
@@ -924,27 +925,73 @@ export default function Clientes() {
 
                       {/* 2. Nome do Cliente */}
                       {colunasVisiveis.includes('nome') && (
-                        <th className="py-2.5 px-3 w-[32%]">Nome do Cliente</th>
+                        <th className="py-2.5 px-3 w-[32%]">
+                          <ColunaQuickFilter
+                            titulo="Nome do Cliente"
+                            campoId="nome"
+                            campoLabel="Cliente"
+                            modulo="clientes"
+                            dados={clientes}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                          />
+                        </th>
                       )}
 
                       {/* 3. Telefone */}
                       {colunasVisiveis.includes('telefone') && (
-                        <th className="py-2.5 px-3 w-[18%]">Telefone</th>
+                        <th className="py-2.5 px-3 w-[18%]">
+                          <ColunaQuickFilter
+                            titulo="Telefone"
+                            campoId="telefone"
+                            campoLabel="Telefone"
+                            modulo="clientes"
+                            dados={clientes}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                          />
+                        </th>
                       )}
 
                       {/* 4. Número de Usinas */}
                       {colunasVisiveis.includes('usinas') && (
-                        <th className="py-2.5 px-2 w-[12%] text-center">Usinas</th>
+                        <th className="py-2.5 px-2 w-[12%] text-center">
+                          <ColunaQuickFilter
+                            titulo="Usinas"
+                            campoId="total_usinas"
+                            campoLabel="Usinas"
+                            modulo="clientes"
+                            dados={clientes}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                            align="center"
+                          />
+                        </th>
                       )}
 
                       {/* 5. Contrato O&M */}
                       {colunasVisiveis.includes('contrato_om') && (
-                        <th className="py-2.5 px-2 w-[12%] text-center">Contrato O&M</th>
+                        <th className="py-2.5 px-2 w-[12%] text-center">
+                          <ColunaQuickFilter
+                            titulo="Contrato O&M"
+                            campoId="tem_contrato_om"
+                            campoLabel="Contrato O&M"
+                            modulo="clientes"
+                            dados={clientes}
+                            activeQuickFilters={quickFiltersAtivos}
+                            onToggleQuickFilter={handleToggleQuickFilter}
+                            align="center"
+                          />
+                        </th>
                       )}
 
                       {/* 6. Última Atividade */}
                       {colunasVisiveis.includes('ultima_atividade') && (
-                        <th className="py-2.5 px-3 w-[26%] text-right">Última Atividade</th>
+                        <th className="py-2.5 px-3 w-[26%] text-right">
+                          <div className="inline-flex items-center justify-end w-full">
+                            Última Atividade
+                          </div>
+                        </th>
                       )}
                     </tr>
                   </thead>

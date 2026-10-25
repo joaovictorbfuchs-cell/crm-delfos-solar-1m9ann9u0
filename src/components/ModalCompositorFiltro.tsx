@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Filter, Layers, Sparkles, Info, Globe, Lock, Check } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  Filter,
+  Layers,
+  Sparkles,
+  Info,
+  Globe,
+  Lock,
+  Check,
+  AlertTriangle,
+  ArrowRightLeft,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +38,9 @@ import type {
 } from '@/types/filtros'
 import { getCatalogoPorModulo, getCampoPorId, OPERADORES_POR_TIPO } from '@/lib/filtrosCatalogo'
 import { isCondicaoValida } from '@/lib/filtrosEngine'
+import { detectarContradicoesAll } from '@/lib/filtrosContradicao'
+
+export const LIMITE_MAXIMO_CONDICOES = 16
 
 export interface ColunaConfiguravel {
   id: string
@@ -73,6 +88,22 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
+  const totalCondicoes = condicoesAll.length + condicoesAny.length
+  const atingiuLimiteCondicoes = totalCondicoes >= LIMITE_MAXIMO_CONDICOES
+
+  // Ajuste 1: Detecção de contradições no bloco TODAS
+  const contradicoesAll = React.useMemo(() => {
+    return detectarContradicoesAll(condicoesAll, modulo)
+  }, [condicoesAll, modulo])
+
+  // Função para mover uma condição de TODAS para QUALQUER
+  const handleMoverParaAny = (id: string) => {
+    const condParaMover = condicoesAll.find((c) => c.id === id)
+    if (!condParaMover) return
+    setCondicoesAll((prev) => prev.filter((c) => c.id !== id))
+    setCondicoesAny((prev) => [...prev, condParaMover])
+  }
+
   // Flag indicando se a tabela deste módulo tem colunas configuráveis
   const temColunasConfiguraveis = Boolean(
     colunasDisponiveis && colunasDisponiveis.length > 0 && colunasAtuaisVisiveis,
@@ -111,6 +142,7 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
   }, [open, filtroEdicao, modulo])
 
   const handleAddCondicaoAll = () => {
+    if (totalCondicoes >= LIMITE_MAXIMO_CONDICOES) return
     const primeiroCampo = campos[0]?.id || ''
     const def = getCampoPorId(modulo, primeiroCampo)
     const primeiroOp = def ? OPERADORES_POR_TIPO[def.tipo][0].valor : 'contem'
@@ -150,6 +182,7 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
   }
 
   const handleAddCondicaoAny = () => {
+    if (totalCondicoes >= LIMITE_MAXIMO_CONDICOES) return
     const primeiroCampo = campos[0]?.id || ''
     const def = getCampoPorId(modulo, primeiroCampo)
     const primeiroOp = def ? OPERADORES_POR_TIPO[def.tipo][0].valor : 'contem'
@@ -467,6 +500,19 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
             </div>
           )}
 
+          {/* Teto de 16 condições: alerta quando atingido */}
+          {atingiuLimiteCondicoes && (
+            <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                <span>Limite de 16 condições atingido ({totalCondicoes}/16).</span>
+              </div>
+              <span className="text-[11px] text-amber-700 font-normal">
+                Remova uma condição para poder adicionar outra.
+              </span>
+            </div>
+          )}
+
           {/* BLOCO 1: TODAS AS CONDIÇÕES (ALL / E) */}
           <div className="space-y-2 border border-slate-200 rounded-2xl p-3.5 bg-white shadow-2xs">
             <div className="flex items-center justify-between pb-1 border-b border-slate-100">
@@ -482,13 +528,54 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={atingiuLimiteCondicoes}
                 onClick={handleAddCondicaoAll}
-                className="h-7 text-xs font-bold text-sky-700 hover:text-sky-800 hover:bg-sky-50 border-sky-200 inline-flex items-center gap-1"
+                className={`h-7 text-xs font-bold text-sky-700 hover:text-sky-800 hover:bg-sky-50 border-sky-200 inline-flex items-center gap-1 ${
+                  atingiuLimiteCondicoes ? 'opacity-40 cursor-not-allowed' : ''
+                }`}
+                title={
+                  atingiuLimiteCondicoes
+                    ? 'Limite de 16 condições atingido'
+                    : 'Adicionar nova condição restritiva'
+                }
               >
                 <Plus className="w-3 h-3" />
                 <span>Adicionar condição</span>
               </Button>
             </div>
+
+            {/* Ajuste 1: Avisos de contradição inline no bloco TODAS */}
+            {contradicoesAll.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {contradicoesAll.map((aviso, idx) => (
+                  <div
+                    key={`${aviso.campoId}-${idx}`}
+                    className="p-2.5 bg-amber-50/90 border border-amber-300/90 rounded-xl text-amber-900 text-xs flex items-start justify-between gap-2 shadow-2xs"
+                  >
+                    <div className="flex items-start gap-2 min-w-0">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <span className="font-bold block text-amber-950">
+                          Aviso de contradição lógica
+                        </span>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          {aviso.mensagem}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMoverParaAny(aviso.condicaoIdB)}
+                      className="shrink-0 px-2 py-1 text-[11px] font-bold text-amber-800 hover:text-amber-950 bg-amber-200/70 hover:bg-amber-200 border border-amber-300 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Mover segunda condição para o bloco QUALQUER (ANY)"
+                    >
+                      <ArrowRightLeft className="w-3 h-3" />
+                      <span>Mover p/ QUALQUER</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {condicoesAll.length === 0 ? (
               <p className="text-center py-3 text-slate-400 text-xs italic">
@@ -518,8 +605,16 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={atingiuLimiteCondicoes}
                 onClick={handleAddCondicaoAny}
-                className="h-7 text-xs font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-200 inline-flex items-center gap-1"
+                className={`h-7 text-xs font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-200 inline-flex items-center gap-1 ${
+                  atingiuLimiteCondicoes ? 'opacity-40 cursor-not-allowed' : ''
+                }`}
+                title={
+                  atingiuLimiteCondicoes
+                    ? 'Limite de 16 condições atingido'
+                    : 'Adicionar nova condição alternativa'
+                }
               >
                 <Plus className="w-3 h-3" />
                 <span>Adicionar condição</span>

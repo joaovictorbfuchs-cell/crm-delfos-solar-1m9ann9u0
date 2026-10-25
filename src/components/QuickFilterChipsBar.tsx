@@ -20,9 +20,12 @@ export const QuickFilterChipsBar: React.FC<QuickFilterChipsBarProps> = ({
   maxLimit = 10,
   className = '',
 }) => {
-  const disponiveis = getQuickFiltersPorModulo(modulo)
+  const catalogo = getQuickFiltersPorModulo(modulo)
+  // Inclui quick filters dinâmicos (ex: criados por cabeçalho de coluna) que não estejam no catálogo estático
+  const extrasDinamicos = activeQuickFilters.filter((af) => !catalogo.some((cf) => cf.id === af.id))
+  const disponiveis = [...catalogo, ...extrasDinamicos]
 
-  if (disponiveis.length === 0) {
+  if (disponiveis.length === 0 && activeQuickFilters.length === 0) {
     return null
   }
 
