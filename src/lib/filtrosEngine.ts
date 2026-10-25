@@ -60,6 +60,13 @@ export function sanitizarEstrutura(
  * Extrai o valor do campo a partir de um registro arbitrário (cliente ou negócio).
  * Mapeia aliases comuns e propriedades aninhadas.
  */
+/**
+ * Extrai o valor de um campo do registro (alias canônico compatível com ColunaQuickFilter).
+ */
+export function extrairValorCampo(registro: any, campoId: string, modulo?: ModuloFiltro): any {
+  return extrairValorRegistro(registro, campoId)
+}
+
 export function extrairValorRegistro(registro: any, campoId: string): any {
   if (!registro) return undefined
 
