@@ -433,6 +433,14 @@ export const CAMPOS_ATIVIDADES: DefinicaoCampo[] = [
     placeholder: 'Nome do responsável...',
   },
   {
+    id: 'prestador',
+    label: 'Prestador',
+    tipo: 'texto',
+    modulo: 'atividades',
+    categoria: 'Atribuição',
+    placeholder: 'Nome do prestador...',
+  },
+  {
     id: 'usina',
     label: 'Usina',
     tipo: 'texto',

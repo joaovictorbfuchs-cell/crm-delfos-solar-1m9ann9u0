@@ -83,6 +83,7 @@ import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { FiltroSalvoBar } from '@/components/FiltroSalvoBar'
 import { aplicarFiltroSalvo } from '@/lib/filtrosEngine'
 import type { FiltroSalvoRecord, QuickFilterDef } from '@/types/filtros'
+import { ColunaQuickFilter } from '@/components/ColunaQuickFilter'
 import { QuickFilterChipsBar } from '@/components/QuickFilterChipsBar'
 import { combinarEstruturasFiltros } from '@/lib/quickFiltersCatalogo'
 
@@ -1662,7 +1663,52 @@ function ExecucaoOSContent() {
         )
       ) : (
         <div className="contents">
-          {/* Tag informativa de filtros ativos, se houver algum selecionado */}
+          {/* Quick Filters inline (chips rápidos acumuláveis, sem persistência, máx 10) */}
+          <div className="bg-slate-50/70 border border-slate-200/70 rounded-xl px-3 py-1.5 flex flex-col gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mr-1">
+                Filtros Rápidos:
+              </span>
+              <ColunaQuickFilter
+                titulo="Tipo"
+                campoId="tipo"
+                campoLabel="Tipo"
+                modulo="atividades"
+                dados={ordens}
+                activeQuickFilters={quickFiltersAtivos}
+                onToggleQuickFilter={handleToggleQuickFilter}
+              />
+              <ColunaQuickFilter
+                titulo="Status"
+                campoId="status"
+                campoLabel="Status"
+                modulo="atividades"
+                dados={ordens}
+                activeQuickFilters={quickFiltersAtivos}
+                onToggleQuickFilter={handleToggleQuickFilter}
+              />
+              {!isInstalador && (
+                <ColunaQuickFilter
+                  titulo="Prestador"
+                  campoId="prestador"
+                  campoLabel="Prestador"
+                  modulo="atividades"
+                  dados={ordens}
+                  activeQuickFilters={quickFiltersAtivos}
+                  onToggleQuickFilter={handleToggleQuickFilter}
+                />
+              )}
+            </div>
+
+            <QuickFilterChipsBar
+              modulo="atividades"
+              activeQuickFilters={quickFiltersAtivos}
+              onToggleQuickFilter={handleToggleQuickFilter}
+              onClearAllQuickFilters={() => setQuickFiltersAtivos([])}
+            />
+          </div>
+
+          {/* Tag informativa de filtros ativos legados / busca / período */}
           {activeFiltersCount > 0 && (
             <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 text-xs text-emerald-900 shadow-2xs">
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -1704,7 +1750,11 @@ function ExecucaoOSContent() {
 
               <button
                 type="button"
-                onClick={handleLimparFiltros}
+                onClick={() => {
+                  handleLimparFiltros()
+                  setQuickFiltersAtivos([])
+                  setFiltroSalvoAtivo(null)
+                }}
                 className="text-[11px] font-bold text-emerald-700 hover:text-emerald-950 underline shrink-0 cursor-pointer"
               >
                 Limpar todos

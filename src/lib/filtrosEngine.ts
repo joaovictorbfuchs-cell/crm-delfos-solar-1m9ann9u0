@@ -207,6 +207,7 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
       if (low.startsWith('admin') || low.includes('pos_venda')) return 'Administrativas'
       return raw
     }
+    case 'prestador':
     case 'responsavel':
       return (
         registro.responsavel_nome ||

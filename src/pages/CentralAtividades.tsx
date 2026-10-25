@@ -904,7 +904,7 @@ export default function CentralAtividadesPage() {
                             campoId="categoria"
                             campoLabel="Categoria"
                             modulo="atividades"
-                            dados={itensUnificados}
+                            dados={allItems}
                             activeQuickFilters={quickFiltersAtivos}
                             onToggleQuickFilter={handleToggleQuickFilter}
                           />
@@ -915,7 +915,7 @@ export default function CentralAtividadesPage() {
                             campoId="nome_cliente"
                             campoLabel="Cliente"
                             modulo="atividades"
-                            dados={itensUnificados}
+                            dados={allItems}
                             activeQuickFilters={quickFiltersAtivos}
                             onToggleQuickFilter={handleToggleQuickFilter}
                           />
@@ -926,7 +926,7 @@ export default function CentralAtividadesPage() {
                             campoId="titulo"
                             campoLabel="Título"
                             modulo="atividades"
-                            dados={itensUnificados}
+                            dados={allItems}
                             activeQuickFilters={quickFiltersAtivos}
                             onToggleQuickFilter={handleToggleQuickFilter}
                           />
@@ -937,7 +937,7 @@ export default function CentralAtividadesPage() {
                             campoId="status"
                             campoLabel="Status"
                             modulo="atividades"
-                            dados={itensUnificados}
+                            dados={allItems}
                             activeQuickFilters={quickFiltersAtivos}
                             onToggleQuickFilter={handleToggleQuickFilter}
                           />
@@ -948,7 +948,7 @@ export default function CentralAtividadesPage() {
                             campoId="responsavel"
                             campoLabel="Responsável"
                             modulo="atividades"
-                            dados={itensUnificados}
+                            dados={allItems}
                             activeQuickFilters={quickFiltersAtivos}
                             onToggleQuickFilter={handleToggleQuickFilter}
                           />
