@@ -164,7 +164,14 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
         ''
       )
     case 'categoria':
-      return registro.categoria || registro.categoria_atividade || registro.setor || ''
+      return (
+        registro.categoriaNome ||
+        registro.categoria ||
+        registro.categoria_atividade ||
+        registro.categoriaId ||
+        registro.setor ||
+        ''
+      )
     case 'responsavel':
       return (
         registro.responsavel_nome ||
