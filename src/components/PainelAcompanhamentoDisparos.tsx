@@ -26,11 +26,21 @@ import { useToast } from '@/hooks/use-toast'
 import {
   DisparoMassaRegistro,
   DestinatarioLoteMassa,
+  MarcacaoRespostaDestinatario,
   fetchDisparosMassa,
   updateStatusDisparoMassa,
+  marcarRespostaDestinatario,
   toggleReenvioLote,
   dispararVerificacaoReenviosBackend,
 } from '@/services/disparosMassaService'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { GitFork, MessageSquare, ThumbsUp, HelpCircle, BellOff, History } from 'lucide-react'
 import { fetchFluxosFollowUp, type FluxoFollowUp } from '@/services/fluxosFollowUpService'
 
 interface PainelAcompanhamentoDisparosProps {
@@ -51,6 +61,9 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
   const [buscaLote, setBuscaLote] = useState('')
   const [loteExpandidoId, setLoteExpandidoId] = useState<string | null>(null)
   const [filtroDestinatario, setFiltroDestinatario] = useState<string>('todos')
+  const [destinatarioTrilhaModal, setDestinatarioTrilhaModal] =
+    useState<DestinatarioLoteMassa | null>(null)
+  const [isSalvandoMarcacao, setIsSalvandoMarcacao] = useState(false)
 
   const carregarLotes = async () => {
     setIsLoading(true)
@@ -139,8 +152,42 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
       toast({
         title: 'Erro ao concluir lote',
         description: 'Falha ao atualizar status do lote.',
+      })
+    }
+  }
+
+  const handleMarcarResposta = async (
+    loteId: string,
+    destinatarioIndex: number,
+    marcacao: MarcacaoRespostaDestinatario,
+    destNome: string,
+  ) => {
+    setIsSalvandoMarcacao(true)
+    try {
+      const loteAtualizado = await marcarRespostaDestinatario(loteId, destinatarioIndex, marcacao)
+      setLotes((prev) => prev.map((l) => (l.id === loteId ? loteAtualizado : l)))
+
+      const rotulos: Record<MarcacaoRespostaDestinatario, string> = {
+        respondeu: 'Marcado como: Respondeu',
+        interessado: 'Marcado como: Interessado',
+        sem_resposta: 'Marcado como: Sem Resposta',
+        nao_perturbe: 'Marcado como: Não Perturbe',
+        nenhuma: 'Marcação removida',
+      }
+
+      toast({
+        title: rotulos[marcacao],
+        description: `Status de follow-up de ${destNome} atualizado com sucesso.`,
+      })
+    } catch (err) {
+      console.error('Erro ao marcar resposta:', err)
+      toast({
+        title: 'Erro ao salvar marcação',
+        description: 'Não foi possível registrar a marcação do destinatário.',
         variant: 'destructive',
       })
+    } finally {
+      setIsSalvandoMarcacao(false)
     }
   }
 
@@ -648,166 +695,306 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                             <tr>
                               <th className="py-2 px-3">Cliente</th>
                               <th className="py-2 px-3">Telefone</th>
-                              <th className="py-2 px-3">Etapa Atual no Fluxo</th>
-                              <th className="py-2 px-3">Próximo Envio Previsto</th>
+                              <th className="py-2 px-3">Fluxo & Etapa Atual</th>
+                              <th className="py-2 px-3">Próximo Envio</th>
                               <th className="py-2 px-3">Status / Desfecho</th>
-                              <th className="py-2 px-3">Histórico de Reenvios</th>
+                              <th className="py-2 px-3">Marcação de Resposta (Ações)</th>
+                              <th className="py-2 px-3">Trilha / Histórico</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[11px]">
                             {destsFiltrados.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="py-4 text-center text-gray-400">
+                                <td colSpan={7} className="py-4 text-center text-gray-400">
                                   Nenhum destinatário com o status selecionado.
                                 </td>
                               </tr>
                             ) : (
-                              destsFiltrados.map((dest, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                                  <td className="py-2 px-3 font-semibold text-gray-900">
-                                    {dest.nome || 'Cliente sem nome'}
-                                  </td>
-                                  <td className="py-2 px-3 font-mono text-gray-600">
-                                    {dest.telefone || '—'}
-                                  </td>
-                                  <td className="py-2 px-3">
-                                    <div className="flex flex-col gap-0.5">
-                                      <span className="font-semibold text-gray-800">
-                                        {dest.etapa_atual_nome ||
-                                          (dest.reenvio_2_data
-                                            ? '2ª Etapa (+90d)'
-                                            : dest.reenvio_1_data
-                                              ? '1ª Etapa (+3d)'
-                                              : 'Disparo Inicial')}
-                                      </span>
-                                      {dest.etapa_atual_ordem && (
-                                        <span className="text-[10px] text-gray-400 font-mono">
-                                          Etapa #{dest.etapa_atual_ordem}
+                              destsFiltrados.map((dest) => {
+                                // Encontra o índice real no array original de destinatários do lote
+                                const realIdx = dests.findIndex(
+                                  (d) =>
+                                    d.telefone === dest.telefone &&
+                                    (d.cliente_id === dest.cliente_id ||
+                                      (!d.cliente_id && !dest.cliente_id)),
+                                )
+
+                                const nomeFluxoItem =
+                                  dest.fluxo_atual_id && fluxosMap[dest.fluxo_atual_id]
+                                    ? fluxosMap[dest.fluxo_atual_id].nome
+                                    : lote.fluxo_id && fluxosMap[lote.fluxo_id]
+                                      ? fluxosMap[lote.fluxo_id].nome
+                                      : 'Padrão Delfos'
+
+                                const temDesvioOrigem = Boolean(
+                                  dest.fluxo_origem_nome || (dest.trilha && dest.trilha.length > 1),
+                                )
+
+                                return (
+                                  <tr
+                                    key={realIdx}
+                                    className="hover:bg-slate-50/80 transition-colors"
+                                  >
+                                    <td className="py-2 px-3 font-semibold text-gray-900">
+                                      <div className="flex flex-col">
+                                        <span>{dest.nome || 'Cliente sem nome'}</span>
+                                        {dest.marcacao_resposta &&
+                                          dest.marcacao_resposta !== 'nenhuma' && (
+                                            <span className="text-[10px] text-sky-700 font-medium">
+                                              Marcação: {dest.marcacao_resposta}
+                                            </span>
+                                          )}
+                                      </div>
+                                    </td>
+                                    <td className="py-2 px-3 font-mono text-gray-600">
+                                      {dest.telefone || '—'}
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      <div className="flex flex-col gap-0.5">
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                          <span className="font-semibold text-gray-800">
+                                            {dest.etapa_atual_nome ||
+                                              (dest.reenvio_2_data
+                                                ? '2ª Etapa (+90d)'
+                                                : dest.reenvio_1_data
+                                                  ? '1ª Etapa (+3d)'
+                                                  : 'Disparo Inicial')}
+                                          </span>
+                                          {dest.etapa_atual_ordem && (
+                                            <span className="text-[10px] text-gray-400 font-mono">
+                                              #{dest.etapa_atual_ordem}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                                          <span className="font-medium text-emerald-800 bg-emerald-50 px-1 rounded">
+                                            {nomeFluxoItem}
+                                          </span>
+                                          {temDesvioOrigem && (
+                                            <span
+                                              className="text-[10px] text-amber-700 font-semibold cursor-pointer underline flex items-center gap-0.5"
+                                              onClick={() => setDestinatarioTrilhaModal(dest)}
+                                              title="Clique para ver a trilha de desvio"
+                                            >
+                                              <GitFork className="w-2.5 h-2.5 text-amber-600" />
+                                              <span>desviado</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      {dest.proximo_envio_data ? (
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="inline-flex items-center gap-1 font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                                            <Clock className="w-3 h-3 text-sky-600" />
+                                            <span>
+                                              {new Date(dest.proximo_envio_data).toLocaleString(
+                                                'pt-BR',
+                                                {
+                                                  timeZone: 'America/Sao_Paulo',
+                                                  day: '2-digit',
+                                                  month: '2-digit',
+                                                  hour: '2-digit',
+                                                  minute: '2-digit',
+                                                },
+                                              )}
+                                            </span>
+                                          </span>
+                                          {dest.proxima_etapa_nome && (
+                                            <span className="text-[10px] text-gray-500 truncate max-w-[150px]">
+                                              Prox: {dest.proxima_etapa_nome}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : dest.status === 'respondido' ||
+                                        dest.status === 'atendido' ||
+                                        dest.status === 'finalizado' ||
+                                        dest.status === 'nao_perturbe' ||
+                                        dest.status === 'arquivado' ? (
+                                        <span className="text-gray-400 italic">Concluído</span>
+                                      ) : (
+                                        <span className="text-gray-400">—</span>
+                                      )}
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      {dest.status === 'respondido' ? (
+                                        <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          <span>Respondeu</span>
+                                        </span>
+                                      ) : dest.status === 'atendido' ? (
+                                        <span className="inline-flex items-center gap-1 font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                                          <UserCheck className="w-3 h-3" />
+                                          <span>Atendido Central</span>
+                                        </span>
+                                      ) : dest.status === 'reenvio_1_agendado' ? (
+                                        <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                          <Clock className="w-3 h-3" />
+                                          <span>1º Reenvio Agendado</span>
+                                        </span>
+                                      ) : dest.status === 'reenvio_2_agendado' ? (
+                                        <span className="inline-flex items-center gap-1 font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                                          <Clock className="w-3 h-3" />
+                                          <span>2º Reenvio Agendado</span>
+                                        </span>
+                                      ) : dest.status === 'bloqueado' ? (
+                                        <span className="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                          <PhoneOff className="w-3 h-3" />
+                                          <span>Bloqueado</span>
+                                        </span>
+                                      ) : dest.status === 'sem_whatsapp' ? (
+                                        <span className="inline-flex items-center gap-1 font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                          <span>Sem WhatsApp</span>
+                                        </span>
+                                      ) : dest.status === 'nao_perturbe' ? (
+                                        <span className="inline-flex items-center gap-1 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-300">
+                                          <BellOff className="w-3 h-3 text-slate-600" />
+                                          <span>Não Perturbe</span>
+                                        </span>
+                                      ) : dest.status === 'arquivado' ? (
+                                        <span className="inline-flex items-center gap-1 font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                          <span>Arquivado (desvio)</span>
+                                        </span>
+                                      ) : dest.status === 'finalizado' ? (
+                                        <span className="inline-flex items-center gap-1 font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                                          <span>Finalizado</span>
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                                          <Clock className="w-3 h-3" />
+                                          <span>Na Régua de Follow-up</span>
                                         </span>
                                       )}
-                                    </div>
-                                  </td>
-                                  <td className="py-2 px-3">
-                                    {dest.proximo_envio_data ? (
-                                      <div className="flex flex-col gap-0.5">
-                                        <span className="inline-flex items-center gap-1 font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
-                                          <Clock className="w-3 h-3 text-sky-600" />
-                                          <span>
-                                            {new Date(dest.proximo_envio_data).toLocaleString(
-                                              'pt-BR',
-                                              {
-                                                timeZone: 'America/Sao_Paulo',
-                                                day: '2-digit',
-                                                month: '2-digit',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                              },
-                                            )}
-                                          </span>
+                                      {dest.motivo_saida && (
+                                        <span className="block text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                                          {dest.motivo_saida}
                                         </span>
-                                        {dest.proxima_etapa_nome && (
-                                          <span className="text-[10px] text-gray-500 truncate max-w-[150px]">
-                                            Prox: {dest.proxima_etapa_nome}
+                                      )}
+                                    </td>
+                                    {/* Ações de Marcação Manual de Resposta */}
+                                    <td className="py-2 px-3">
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        <button
+                                          type="button"
+                                          disabled={isSalvandoMarcacao}
+                                          onClick={() =>
+                                            handleMarcarResposta(
+                                              lote.id,
+                                              realIdx,
+                                              'respondeu',
+                                              dest.nome,
+                                            )
+                                          }
+                                          className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold transition-all flex items-center gap-0.5 ${
+                                            dest.marcacao_resposta === 'respondeu'
+                                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                                              : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+                                          }`}
+                                          title="Marcar que o cliente respondeu (encerra envios)"
+                                        >
+                                          <MessageSquare className="w-2.5 h-2.5" />
+                                          <span>Respondeu</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          disabled={isSalvandoMarcacao}
+                                          onClick={() =>
+                                            handleMarcarResposta(
+                                              lote.id,
+                                              realIdx,
+                                              'interessado',
+                                              dest.nome,
+                                            )
+                                          }
+                                          className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold transition-all flex items-center gap-0.5 ${
+                                            dest.marcacao_resposta === 'interessado'
+                                              ? 'bg-blue-600 text-white border-blue-700 shadow-2xs'
+                                              : 'bg-white text-blue-800 border-blue-300 hover:bg-blue-50'
+                                          }`}
+                                          title="Marcar cliente como interessado"
+                                        >
+                                          <ThumbsUp className="w-2.5 h-2.5" />
+                                          <span>Interessado</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          disabled={isSalvandoMarcacao}
+                                          onClick={() =>
+                                            handleMarcarResposta(
+                                              lote.id,
+                                              realIdx,
+                                              'sem_resposta',
+                                              dest.nome,
+                                            )
+                                          }
+                                          className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold transition-all flex items-center gap-0.5 ${
+                                            dest.marcacao_resposta === 'sem_resposta'
+                                              ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                                              : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-50'
+                                          }`}
+                                          title="Marcar sem resposta (deixa o timeout seguir régua/desvio)"
+                                        >
+                                          <HelpCircle className="w-2.5 h-2.5" />
+                                          <span>Sem resp.</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          disabled={isSalvandoMarcacao}
+                                          onClick={() =>
+                                            handleMarcarResposta(
+                                              lote.id,
+                                              realIdx,
+                                              'nao_perturbe',
+                                              dest.nome,
+                                            )
+                                          }
+                                          className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold transition-all flex items-center gap-0.5 ${
+                                            dest.marcacao_resposta === 'nao_perturbe'
+                                              ? 'bg-slate-700 text-white border-slate-800 shadow-2xs'
+                                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                                          }`}
+                                          title="Marcar Não Perturbe (encerra o fluxo e cancela envios)"
+                                        >
+                                          <BellOff className="w-2.5 h-2.5" />
+                                          <span>Não perturbe</span>
+                                        </button>
+                                      </div>
+                                    </td>
+                                    {/* Trilha e Histórico */}
+                                    <td className="py-2 px-3 text-gray-600">
+                                      <div className="flex flex-col gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => setDestinatarioTrilhaModal(dest)}
+                                          className="text-[10px] font-semibold text-sky-700 hover:text-sky-900 bg-sky-50 hover:bg-sky-100 px-2 py-0.5 rounded border border-sky-200 inline-flex items-center gap-1 w-fit"
+                                        >
+                                          <History className="w-3 h-3 text-sky-600" />
+                                          <span>Ver Trilha</span>
+                                        </button>
+
+                                        {dest.etapas_executadas &&
+                                        dest.etapas_executadas.length > 0 ? (
+                                          <span className="text-[10px] text-gray-500">
+                                            {dest.etapas_executadas.length} envio(s) realizado(s)
+                                          </span>
+                                        ) : dest.reenvio_1_data || dest.reenvio_2_data ? (
+                                          <span className="text-[10px] text-gray-500">
+                                            Reenvio executado
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-gray-400">
+                                            1º disparo
                                           </span>
                                         )}
                                       </div>
-                                    ) : dest.status === 'respondido' ||
-                                      dest.status === 'atendido' ||
-                                      dest.status === 'finalizado' ? (
-                                      <span className="text-gray-400 italic">Concluído</span>
-                                    ) : (
-                                      <span className="text-gray-400">—</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2 px-3">
-                                    {dest.status === 'respondido' ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                        <CheckCircle2 className="w-3 h-3" />
-                                        <span>Respondeu</span>
-                                      </span>
-                                    ) : dest.status === 'atendido' ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                                        <UserCheck className="w-3 h-3" />
-                                        <span>Atendido Central</span>
-                                      </span>
-                                    ) : dest.status === 'reenvio_1_agendado' ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                        <Clock className="w-3 h-3" />
-                                        <span>1º Reenvio Agendado</span>
-                                      </span>
-                                    ) : dest.status === 'reenvio_2_agendado' ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-                                        <Clock className="w-3 h-3" />
-                                        <span>2º Reenvio Agendado</span>
-                                      </span>
-                                    ) : dest.status === 'bloqueado' ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                                        <PhoneOff className="w-3 h-3" />
-                                        <span>Bloqueado</span>
-                                      </span>
-                                    ) : dest.status === 'sem_whatsapp' ? (
-                                      <span className="inline-flex items-center gap-1 font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                        <span>Sem WhatsApp</span>
-                                      </span>
-                                    ) : dest.status === 'finalizado' ? (
-                                      <span className="inline-flex items-center gap-1 font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
-                                        <span>Finalizado</span>
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                                        <Clock className="w-3 h-3" />
-                                        <span>Na Régua de Follow-up</span>
-                                      </span>
-                                    )}
-                                    {dest.motivo_saida && (
-                                      <span className="block text-[10px] text-gray-400 mt-0.5">
-                                        {dest.motivo_saida}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="py-2 px-3 text-gray-600">
-                                    <div className="flex flex-col gap-0.5">
-                                      {dest.etapas_executadas &&
-                                      dest.etapas_executadas.length > 0 ? (
-                                        dest.etapas_executadas.map((exec, eIdx) => (
-                                          <span key={eIdx} className="text-[10px] text-gray-600">
-                                            • {exec.nome}:{' '}
-                                            {new Date(exec.enviado_em).toLocaleDateString('pt-BR', {
-                                              timeZone: 'America/Sao_Paulo',
-                                            })}
-                                          </span>
-                                        ))
-                                      ) : (
-                                        <>
-                                          {dest.reenvio_1_data && (
-                                            <span className="text-[10px] text-gray-600">
-                                              • 1º reenvio:{' '}
-                                              {new Date(dest.reenvio_1_data).toLocaleDateString(
-                                                'pt-BR',
-                                                {
-                                                  timeZone: 'America/Sao_Paulo',
-                                                },
-                                              )}
-                                            </span>
-                                          )}
-                                          {dest.reenvio_2_data && (
-                                            <span className="text-[10px] text-gray-600">
-                                              • 2º reenvio:{' '}
-                                              {new Date(dest.reenvio_2_data).toLocaleDateString(
-                                                'pt-BR',
-                                                {
-                                                  timeZone: 'America/Sao_Paulo',
-                                                },
-                                              )}
-                                            </span>
-                                          )}
-                                          {!dest.reenvio_1_data && !dest.reenvio_2_data && '—'}
-                                        </>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
+                                    </td>
+                                  </tr>
+                                )
+                              })
                             )}
                           </tbody>
                         </table>
@@ -820,6 +1007,143 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
           })}
         </div>
       )}
+
+      {/* Modal Visualização da Trilha de Origem e Desvios (Fase 2) */}
+      <Dialog
+        open={Boolean(destinatarioTrilhaModal)}
+        onOpenChange={(open) => !open && setDestinatarioTrilhaModal(null)}
+      >
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-gray-900">
+              <GitFork className="w-5 h-5 text-emerald-600" />
+              <span>Trilha de Follow-up do Destinatário</span>
+            </DialogTitle>
+            <DialogDescription>
+              Acompanhe a origem, os fluxos pelos quais o cliente passou e as decisões de desvio por
+              timeout ou resposta.
+            </DialogDescription>
+          </DialogHeader>
+
+          {destinatarioTrilhaModal && (
+            <div className="space-y-4 py-2 text-xs">
+              {/* Card Resumo do Destinatário */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-bold text-gray-900 text-sm block">
+                    {destinatarioTrilhaModal.nome}
+                  </span>
+                  <span className="text-gray-500 font-mono">
+                    {destinatarioTrilhaModal.telefone}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="outline" className="text-[11px] font-semibold bg-white">
+                    Status: {destinatarioTrilhaModal.status}
+                  </Badge>
+                  {destinatarioTrilhaModal.marcacao_resposta && (
+                    <Badge className="bg-sky-100 text-sky-900 border-sky-300 text-[10px]">
+                      Marcação: {destinatarioTrilhaModal.marcacao_resposta}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Trilha de Origem e Desvios */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Linha do Tempo de Fluxos & Desvios
+                </span>
+
+                {Array.isArray(destinatarioTrilhaModal.trilha) &&
+                destinatarioTrilhaModal.trilha.length > 0 ? (
+                  <div className="space-y-2 border-l-2 border-emerald-300 pl-3 ml-2">
+                    {destinatarioTrilhaModal.trilha.map((item, tIdx) => (
+                      <div key={tIdx} className="relative group">
+                        <div className="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-white" />
+                        <div className="p-2.5 rounded-lg bg-white border border-gray-200 shadow-2xs space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-gray-900 flex items-center gap-1">
+                              {item.fluxo_anterior_nome && (
+                                <>
+                                  <span className="text-gray-500">{item.fluxo_anterior_nome}</span>
+                                  <ArrowRight className="w-3 h-3 text-emerald-600" />
+                                </>
+                              )}
+                              <span className="text-emerald-800 font-bold">
+                                {item.fluxo_nome || 'Fluxo'}
+                              </span>
+                            </span>
+                            {item.data && (
+                              <span className="text-[10px] text-gray-400">
+                                {new Date(item.data).toLocaleString('pt-BR', {
+                                  timeZone: 'America/Sao_Paulo',
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
+                          </div>
+                          {item.motivo && (
+                            <p className="text-[11px] text-gray-600 italic">{item.motivo}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-600">
+                    <p className="font-semibold text-gray-800">Fluxo Direto:</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Destinatário segue o fluxo do lote desde o disparo inicial, sem desvios
+                      executados até o momento.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Histórico de Mensagens Enviadas na Régua */}
+              <div className="space-y-2 pt-2 border-t border-gray-200">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Etapas Enviadas
+                </span>
+
+                {destinatarioTrilhaModal.etapas_executadas &&
+                destinatarioTrilhaModal.etapas_executadas.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {destinatarioTrilhaModal.etapas_executadas.map((eExec, eIdx) => (
+                      <div
+                        key={eIdx}
+                        className="p-2 rounded-lg bg-emerald-50/50 border border-emerald-200 flex items-center justify-between text-[11px]"
+                      >
+                        <span className="font-semibold text-emerald-950">
+                          {eExec.nome || `Etapa #${eExec.ordem}`}
+                        </span>
+                        <span className="text-gray-500">
+                          {new Date(eExec.enviado_em).toLocaleString('pt-BR', {
+                            timeZone: 'America/Sao_Paulo',
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-400 italic">
+                    Nenhum reenvio automático disparado ainda além da mensagem inicial.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -37,6 +37,7 @@ import { useToast } from '@/hooks/use-toast'
 import {
   FluxoFollowUp,
   EtapaFollowUp,
+  AcaoDesvioEtapa,
   fetchFluxosFollowUp,
   createFluxoFollowUp,
   updateFluxoFollowUp,
@@ -75,6 +76,9 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   const [diasAposEtapa, setDiasAposEtapa] = useState<number>(3)
   const [mensagemEtapa, setMensagemEtapa] = useState('')
   const [etapaAtivaFlag, setEtapaAtivaFlag] = useState(true)
+  const [desvioAcao, setDesvioAcao] = useState<AcaoDesvioEtapa>('nenhuma')
+  const [desvioDias, setDesvioDias] = useState<number>(7)
+  const [desvioFluxoId, setDesvioFluxoId] = useState<string>('')
   const [isSalvandoEtapa, setIsSalvandoEtapa] = useState(false)
   const [mostrarPreviaEtapa, setMostrarPreviaEtapa] = useState(true)
 
@@ -238,6 +242,11 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
       'Olá, [nome do cliente]! Tudo bem? Passando para saber se conseguiu ver nossa mensagem anterior. Qualquer dúvida, estou por aqui!',
     )
     setEtapaAtivaFlag(true)
+    setDesvioAcao('nenhuma')
+    setDesvioDias(7)
+    // Seleciona o primeiro fluxo alternativo diferente deste, se houver
+    const outroFluxo = fluxos.find((f) => f.id !== fluxoAtivo.id)
+    setDesvioFluxoId(outroFluxo ? outroFluxo.id : '')
     setModalEtapaAberto(true)
   }
 
@@ -248,6 +257,9 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     setDiasAposEtapa(etapa.dias_apos)
     setMensagemEtapa(etapa.mensagem)
     setEtapaAtivaFlag(etapa.ativa)
+    setDesvioAcao(etapa.desvio_acao || 'nenhuma')
+    setDesvioDias(etapa.desvio_dias && etapa.desvio_dias > 0 ? etapa.desvio_dias : 7)
+    setDesvioFluxoId(etapa.desvio_fluxo_id || '')
     setModalEtapaAberto(true)
   }
 
@@ -263,15 +275,43 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
       return
     }
 
+    // Validação de prevenção de ciclo direto: desvio não pode apontar para o próprio fluxo
+    if (desvioAcao === 'fluxo_alternativo') {
+      if (!desvioFluxoId) {
+        toast({
+          title: 'Fluxo alternativo obrigatório',
+          description: 'Selecione para qual fluxo alternativo o contato deve ser desviado.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (desvioFluxoId === fluxoAtivo.id) {
+        toast({
+          title: 'Desvio circular inválido',
+          description:
+            'Um fluxo não pode desviar para si mesmo. Escolha outro fluxo alternativo para evitar ciclo infinito.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     setIsSalvandoEtapa(true)
     try {
+      const payloadEtapa = {
+        nome:
+          nomeEtapa.trim() ||
+          `Etapa ${etapaEmEdicao ? etapaEmEdicao.ordem : (fluxoAtivo.etapas?.length || 0) + 1}`,
+        dias_apos: Number(diasAposEtapa) || 1,
+        mensagem: mensagemEtapa.trim(),
+        ativa: etapaAtivaFlag,
+        desvio_acao: desvioAcao,
+        desvio_dias: desvioAcao !== 'nenhuma' ? Math.max(1, Number(desvioDias) || 1) : 0,
+        desvio_fluxo_id: desvioAcao === 'fluxo_alternativo' ? desvioFluxoId : '',
+      }
+
       if (etapaEmEdicao) {
-        const atualizada = await updateEtapaFollowUp(etapaEmEdicao.id, {
-          nome: nomeEtapa.trim() || `Etapa ${etapaEmEdicao.ordem}`,
-          dias_apos: Number(diasAposEtapa) || 1,
-          mensagem: mensagemEtapa.trim(),
-          ativa: etapaAtivaFlag,
-        })
+        const atualizada = await updateEtapaFollowUp(etapaEmEdicao.id, payloadEtapa)
         setFluxos((prev) =>
           prev.map((f) => {
             if (f.id !== fluxoAtivo.id) return f
@@ -283,10 +323,7 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
       } else {
         const criada = await createEtapaFollowUp({
           fluxo_id: fluxoAtivo.id,
-          nome: nomeEtapa.trim() || `Etapa ${(fluxoAtivo.etapas?.length || 0) + 1}`,
-          dias_apos: Number(diasAposEtapa) || 1,
-          mensagem: mensagemEtapa.trim(),
-          ativa: etapaAtivaFlag,
+          ...payloadEtapa,
         })
         setFluxos((prev) =>
           prev.map((f) => {
@@ -723,6 +760,22 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                                     Desativada (pulada na fila)
                                   </Badge>
                                 )}
+
+                                {/* Badge de regra de desvio por etapa */}
+                                {etapa.desvio_acao && etapa.desvio_acao !== 'nenhuma' && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-semibold bg-amber-50 text-amber-900 border-amber-300 flex items-center gap-1"
+                                  >
+                                    <GitFork className="w-3 h-3 text-amber-600" />
+                                    <span>
+                                      Sem resposta em {etapa.desvio_dias}d →{' '}
+                                      {etapa.desvio_acao === 'arquivar'
+                                        ? 'Arquivar contato'
+                                        : `Entra em "${fluxos.find((f) => f.id === etapa.desvio_fluxo_id)?.nome || 'Outro fluxo'}"`}
+                                    </span>
+                                  </Badge>
+                                )}
                               </div>
 
                               {/* Caixa de Texto da Mensagem */}
@@ -944,6 +997,91 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
               <div className="bg-white p-3 rounded-md border border-emerald-100 text-xs text-gray-800 whitespace-pre-wrap leading-relaxed shadow-2xs">
                 {renderPreviaMensagem(mensagemEtapa)}
               </div>
+            </div>
+
+            {/* Bloco de Regra de Desvio por Etapa (Fase 2) */}
+            <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/40 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                  <GitFork className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="font-bold text-gray-900 block text-xs">
+                    Regra de Desvio por Etapa (Timeout sem resposta)
+                  </span>
+                  <span className="text-[11px] text-gray-500">
+                    Se o destinatário continuar sem responder após o envio desta etapa, desvie para
+                    outro fluxo ou arquive.
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Ação de Desvio</label>
+                  <select
+                    value={desvioAcao}
+                    onChange={(e) => setDesvioAcao(e.target.value as AcaoDesvioEtapa)}
+                    className="w-full h-8 text-xs bg-white border border-gray-300 rounded-md px-2 font-medium text-gray-800"
+                  >
+                    <option value="nenhuma">Nenhuma (seguir régua)</option>
+                    <option value="fluxo_alternativo">Entrar no fluxo alternativo</option>
+                    <option value="arquivar">Arquivar do fluxo (parar envios)</option>
+                  </select>
+                </div>
+
+                {desvioAcao !== 'nenhuma' && (
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">
+                      Sem resposta em
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={180}
+                        value={desvioDias}
+                        onChange={(e) => setDesvioDias(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="h-8 text-xs pr-12 font-mono font-bold bg-white"
+                      />
+                      <span className="absolute right-2.5 top-1.5 text-[11px] text-gray-400 font-medium">
+                        dias
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {desvioAcao === 'fluxo_alternativo' && (
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">
+                      Fluxo Alternativo *
+                    </label>
+                    <select
+                      value={desvioFluxoId}
+                      onChange={(e) => setDesvioFluxoId(e.target.value)}
+                      className="w-full h-8 text-xs bg-white border border-gray-300 rounded-md px-2 font-medium text-gray-800"
+                    >
+                      <option value="">Selecione outro fluxo...</option>
+                      {fluxos
+                        .filter((f) => f.id !== fluxoAtivo.id)
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nome} {f.is_padrao ? '(Padrão)' : ''}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {desvioAcao === 'fluxo_alternativo' && (
+                <div className="text-[11px] text-amber-800 bg-amber-100/60 p-2 rounded-md border border-amber-200">
+                  <strong>Encadeamento de fluxos:</strong> ao expirar {desvioDias} dia(s) sem
+                  retorno, o contato sai deste fluxo e passa a receber automaticamente as mensagens
+                  do fluxo selecionado a partir da 1ª etapa ativa. A trilha registra o desvio de
+                  origem.
+                </div>
+              )}
             </div>
 
             {/* Flag Ativa/Inativa */}

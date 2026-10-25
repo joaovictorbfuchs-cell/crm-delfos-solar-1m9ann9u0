@@ -12,6 +12,26 @@ export type StatusDestinatarioLote =
   | 'finalizado'
   | 'bloqueado'
   | 'sem_whatsapp'
+  | 'nao_perturbe'
+  | 'arquivado'
+
+export type MarcacaoRespostaDestinatario =
+  | 'nenhuma'
+  | 'respondeu'
+  | 'interessado'
+  | 'sem_resposta'
+  | 'nao_perturbe'
+
+export interface ItemTrilhaFollowUp {
+  fluxo_id: string
+  fluxo_nome?: string
+  fluxo_anterior_id?: string
+  fluxo_anterior_nome?: string
+  etapa_origem_id?: string
+  etapa_origem_nome?: string
+  motivo?: string
+  data?: string
+}
 
 export interface DestinatarioLoteMassa {
   cliente_id: string
@@ -26,7 +46,14 @@ export interface DestinatarioLoteMassa {
   reenvio_2_msg_id?: string
   respondido_em?: string
   atendido_em?: string
-  // Suporte a fluxos de follow-up dinâmicos
+  // Suporte a fluxos de follow-up dinâmicos e Fase 2
+  fluxo_atual_id?: string
+  fluxo_origem_id?: string
+  fluxo_origem_nome?: string
+  desvio_motivo?: string
+  marcacao_resposta?: MarcacaoRespostaDestinatario
+  marcacao_data?: string
+  trilha?: ItemTrilhaFollowUp[]
   etapa_atual_ordem?: number
   etapa_atual_nome?: string
   proximo_envio_data?: string
@@ -34,6 +61,7 @@ export interface DestinatarioLoteMassa {
   etapas_executadas?: Array<{
     ordem: number
     etapa_id?: string
+    fluxo_id?: string
     nome: string
     enviado_em: string
     mensagem_id?: string
@@ -213,6 +241,80 @@ export async function updateStatusDisparoMassa(
 ): Promise<DisparoMassaRegistro> {
   const record = await pb.collection('disparos_massa').update<DisparoMassaRegistro>(id, {
     status: novoStatus,
+  })
+  return record
+}
+
+/**
+ * Atualiza a marcação manual de um destinatário em um lote de disparo em massa.
+ * Alimenta as regras de desvio / encerramento imediato.
+ */
+export async function marcarRespostaDestinatario(
+  loteId: string,
+  destinatarioIndex: number,
+  marcacao: MarcacaoRespostaDestinatario,
+): Promise<DisparoMassaRegistro> {
+  const lote = await pb.collection('disparos_massa').getOne<DisparoMassaRegistro>(loteId)
+  const dests = Array.isArray(lote.destinatarios) ? [...lote.destinatarios] : []
+
+  if (destinatarioIndex < 0 || destinatarioIndex >= dests.length) {
+    throw new Error('Destinatário não encontrado no lote')
+  }
+
+  const agoraIso = new Date().toISOString()
+  const dest = { ...dests[destinatarioIndex] }
+  dest.marcacao_resposta = marcacao
+  dest.marcacao_data = agoraIso
+
+  if (marcacao === 'nao_perturbe') {
+    dest.status = 'nao_perturbe'
+    dest.motivo_saida = 'Marcado manualmente: Não Perturbe'
+    dest.proximo_envio_data = undefined
+  } else if (marcacao === 'respondeu' || marcacao === 'interessado') {
+    dest.status = 'respondido'
+    dest.respondido_em = agoraIso
+    dest.motivo_saida =
+      marcacao === 'interessado'
+        ? 'Marcado manualmente: Cliente Interessado'
+        : 'Marcado manualmente: Cliente Respondeu'
+    dest.proximo_envio_data = undefined
+  } else if (marcacao === 'sem_resposta') {
+    // Mantém na régua ou reativa status se estava respondido por engano
+    if (dest.status === 'respondido' || dest.status === 'nao_perturbe') {
+      dest.status = 'pendente'
+      dest.motivo_saida = 'Aguardando timeout ou próxima etapa'
+    }
+  }
+
+  dests[destinatarioIndex] = dest
+
+  // Recalcular métricas do lote
+  const stats = {
+    total: dests.length,
+    pendentes: dests.filter(
+      (d) =>
+        d.status === 'pendente' ||
+        d.status === 'reenvio_1_agendado' ||
+        d.status === 'reenvio_2_agendado',
+    ).length,
+    respondidos: dests.filter((d) => d.status === 'respondido').length,
+    atendidos: dests.filter((d) => d.status === 'atendido').length,
+    bloqueados: dests.filter((d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp').length,
+    finalizados: dests.filter(
+      (d) => d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+    ).length,
+    reenvios_1_enviados: dests.filter(
+      (d) => Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+    ).length,
+    reenvios_2_enviados: dests.filter(
+      (d) => Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+    ).length,
+    ultima_verificacao: agoraIso,
+  }
+
+  const record = await pb.collection('disparos_massa').update<DisparoMassaRegistro>(loteId, {
+    destinatarios: dests,
+    estatisticas: stats,
   })
   return record
 }
