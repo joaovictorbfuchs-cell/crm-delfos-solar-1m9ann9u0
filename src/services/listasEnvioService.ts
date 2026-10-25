@@ -16,6 +16,7 @@ export interface ListaEnvioRegistro extends RecordModel {
   nome: string
   segmento: string
   filtros: FiltrosExtrasListaEnvio
+  fluxo_id?: string
   criado_por?: string
   created: string
   updated: string
@@ -25,6 +26,7 @@ export interface SalvarListaEnvioInput {
   nome: string
   segmento: string
   filtros: FiltrosExtrasListaEnvio
+  fluxo_id?: string
 }
 
 /**
@@ -51,6 +53,7 @@ export async function createListaEnvio(input: SalvarListaEnvioInput): Promise<Li
     nome: input.nome.trim(),
     segmento: input.segmento || 'todos',
     filtros: input.filtros || {},
+    fluxo_id: input.fluxo_id || '',
   }
   if (currentUserId) {
     payload.criado_por = currentUserId
@@ -66,4 +69,17 @@ export async function createListaEnvio(input: SalvarListaEnvioInput): Promise<Li
 export async function deleteListaEnvio(id: string): Promise<boolean> {
   await pb.collection('listas_envio').delete(id)
   return true
+}
+
+/**
+ * Atualiza o fluxo_id associado a uma lista de envio.
+ */
+export async function updateListaEnvioFluxo(
+  id: string,
+  fluxoId: string,
+): Promise<ListaEnvioRegistro> {
+  const record = await pb.collection('listas_envio').update<ListaEnvioRegistro>(id, {
+    fluxo_id: fluxoId,
+  })
+  return record
 }

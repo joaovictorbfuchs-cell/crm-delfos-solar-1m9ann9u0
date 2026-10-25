@@ -70,6 +70,11 @@ import {
   type DestinatarioLoteMassa,
 } from '@/services/disparosMassaService'
 import {
+  fetchFluxosFollowUp,
+  fetchFluxoPadrao,
+  type FluxoFollowUp,
+} from '@/services/fluxosFollowUpService'
+import {
   PLACEHOLDERS_ENVIO_MASSA,
   resolverPlaceholdersMensagemMassa,
   extrairPotenciaClienteTexto,
@@ -301,7 +306,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const [dataHoraAgendada, setDataHoraAgendada] = useState<string>('')
   const [intervaloSegundos, setIntervaloSegundos] = useState<number>(60)
 
-  // Reenvio automático (+3d e +90d)
+  // Fluxos de follow-up dinâmicos (substitui e migra os reenvios fixos +3d/+90d)
+  const [fluxosDisponiveis, setFluxosDisponiveis] = useState<FluxoFollowUp[]>([])
+  const [fluxoSelecionadoId, setFluxoSelecionadoId] = useState<string>('')
   const [reenvioAtivo, setReenvioAtivo] = useState<boolean>(true)
   const [textoReenvio1, setTextoReenvio1] = useState<string>('')
   const [textoReenvio2, setTextoReenvio2] = useState<string>('')
@@ -326,11 +333,13 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
     const carregarTemplatesEListas = async () => {
       try {
-        const [registrosTemplates, registrosListas, registrosFiltros] = await Promise.all([
-          fetchWhatsAppTemplates().catch(() => []),
-          fetchListasEnvio().catch(() => []),
-          fetchFiltrosSalvos('clientes').catch(() => []),
-        ])
+        const [registrosTemplates, registrosListas, registrosFiltros, fluxosCadastrados] =
+          await Promise.all([
+            fetchWhatsAppTemplates().catch(() => []),
+            fetchListasEnvio().catch(() => []),
+            fetchFiltrosSalvos('clientes').catch(() => []),
+            fetchFluxosFollowUp(true).catch(() => []),
+          ])
 
         if (cancelado) return
 
@@ -358,6 +367,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
         if (Array.isArray(registrosListas)) {
           setListasSalvas(registrosListas)
+        }
+
+        if (Array.isArray(fluxosCadastrados) && fluxosCadastrados.length > 0) {
+          setFluxosDisponiveis(fluxosCadastrados)
+          const padrao = fluxosCadastrados.find((f) => f.is_padrao) || fluxosCadastrados[0]
+          if (padrao && !fluxoSelecionadoId) {
+            setFluxoSelecionadoId(padrao.id)
+          }
         }
 
         if (Array.isArray(registrosFiltros)) {
@@ -944,6 +961,11 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     const lista = listasSalvas.find((l) => l.id === listaId)
     if (!lista) return
 
+    // Se a lista possui um fluxo configurado, seleciona-o automaticamente
+    if (lista.fluxo_id) {
+      setFluxoSelecionadoId(lista.fluxo_id)
+    }
+
     // 1. Aplica o segmento salvo (suporta formato com campo lista.segmento ou gravado dentro de filtros.segmento)
     const fx: FiltrosExtrasListaEnvio & { segmento?: string } = (lista.filtros as any) || {}
     const segSalvo = ((lista.segmento || fx.segmento) as SegmentoFiltro) || 'todos'
@@ -1059,6 +1081,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       const nova = await createListaEnvio({
         nome: nomeNovaLista.trim(),
         segmento: segmentoAtivo,
+        fluxo_id: fluxoSelecionadoId || undefined,
         filtros: {
           ...filtrosParaGravar,
           segmento: segmentoAtivo,
@@ -1351,6 +1374,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         reenvio_ativo: Boolean(reenvioAtivo),
         texto_reenvio_1: reenvioAtivo ? textoReenvio1 : '',
         texto_reenvio_2: reenvioAtivo ? textoReenvio2 : '',
+        fluxo_id: reenvioAtivo ? fluxoSelecionadoId || undefined : undefined,
         destinatarios: destinatariosLote,
       })
     } catch (errLote) {
@@ -2448,11 +2472,11 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               )}
             </div>
 
-            {/* Configuração de Reenvio Automático (+3d e +90d) */}
+            {/* Configuração de Follow-up com Fluxos Dinâmicos */}
             <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="p-1 rounded-md bg-indigo-50 text-indigo-700">
+                  <div className="p-1 rounded-md bg-emerald-50 text-emerald-700">
                     <RotateCcw className="w-3.5 h-3.5" />
                   </div>
                   <div>
@@ -2460,13 +2484,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                       htmlFor="toggle-reenvio-ativo"
                       className="text-xs font-bold uppercase tracking-wider text-gray-800 cursor-pointer flex items-center gap-1.5"
                     >
-                      <span>Reenvio Automático</span>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 lowercase">
-                        +3d e +90d
+                      <span>Régua de Follow-up</span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        Fluxos Dinâmicos
                       </span>
                     </Label>
                     <p className="text-[11px] text-gray-500">
-                      Dispara lembretes caso o cliente não responda no WhatsApp
+                      Dispara etapas de follow-up com prazos e mensagens configuráveis caso o
+                      cliente não responda
                     </p>
                   </div>
                 </div>
@@ -2477,7 +2502,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                     type="checkbox"
                     checked={reenvioAtivo}
                     onChange={(e) => setReenvioAtivo(e.target.checked)}
-                    className="w-4 h-4 text-[#0284C7] rounded border-gray-300 focus:ring-[#0284C7] cursor-pointer"
+                    className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-600 cursor-pointer"
                   />
                   <Label
                     htmlFor="toggle-reenvio-ativo"
@@ -2490,64 +2515,128 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
               {reenvioAtivo && (
                 <div className="pt-2 border-t border-gray-100 space-y-3 animate-in fade-in duration-150">
-                  {/* 1º Reenvio: +3 dias */}
-                  <div className="space-y-1">
+                  {/* Seletor do Fluxo de Follow-up */}
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
-                        <span>1º Reenvio (+3 dias sem resposta)</span>
+                        <span>Fluxo de Follow-up a Seguir</span>
                       </Label>
-                      <span className="text-[10px] text-gray-400">Suporta [nome do cliente]</span>
+                      <span className="text-[10px] text-emerald-700 font-semibold">
+                        {fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId)?.nome ||
+                          'Padrão'}
+                      </span>
                     </div>
-                    <Textarea
-                      rows={2}
-                      value={textoReenvio1}
-                      onChange={(e) => setTextoReenvio1(e.target.value)}
-                      className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
-                      placeholder="Olá, [nome do cliente]! Passando para checar se conseguiu ver a mensagem anterior..."
-                    />
-                  </div>
 
-                  {/* 2º Reenvio: +90 dias a partir do 1º reenvio */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
-                        <span>2º Reenvio (+90 dias sem resposta, contados do 1º)</span>
-                      </Label>
-                      <span className="text-[10px] text-gray-400">Sem 3º reenvio</span>
-                    </div>
-                    <Textarea
-                      rows={2}
-                      value={textoReenvio2}
-                      onChange={(e) => setTextoReenvio2(e.target.value)}
-                      className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
-                      placeholder="Olá, [nome do cliente]! Já faz um tempo desde nosso último contato..."
-                    />
-                  </div>
-
-                  {/* Botão Salvar como Padrão e aviso */}
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <span className="text-[10px] text-gray-500">
-                      O worker processará automaticamente no horário de Brasília.
-                    </span>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        salvarPadroesTextosReenvio(textoReenvio1, textoReenvio2)
-                        toast.success('Padrões de reenvio salvos com sucesso!', {
-                          description:
-                            'Estes textos serão sugeridos nos próximos disparos em massa.',
-                        })
-                      }}
-                      className="h-7 text-[11px] font-semibold border-indigo-200 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1 px-2.5"
+                    <select
+                      value={fluxoSelecionadoId}
+                      onChange={(e) => setFluxoSelecionadoId(e.target.value)}
+                      className="w-full text-xs font-medium py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                     >
-                      <Bookmark className="w-3 h-3" />
-                      <span>Salvar como padrão</span>
-                    </Button>
+                      {fluxosDisponiveis.length === 0 ? (
+                        <option value="">Padrão Delfos (+3d e +90d)</option>
+                      ) : (
+                        fluxosDisponiveis.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nome} {f.is_padrao ? '(Padrão Delfos)' : ''} ({f.etapas?.length || 0}{' '}
+                            etapa{f.etapas?.length === 1 ? '' : 's'})
+                          </option>
+                        ))
+                      )}
+                    </select>
+
+                    {/* Exibição resumida das etapas do fluxo selecionado */}
+                    {(() => {
+                      const fluxoEscolhido = fluxosDisponiveis.find(
+                        (f) => f.id === fluxoSelecionadoId,
+                      )
+                      const etapas = fluxoEscolhido?.etapas || []
+                      if (etapas.length === 0) return null
+
+                      return (
+                        <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-200/60 space-y-1.5">
+                          <span className="text-[10px] font-bold text-emerald-900 block uppercase tracking-wider">
+                            Etapas programadas neste fluxo:
+                          </span>
+                          <div className="space-y-1">
+                            {etapas.map((et, idx) => (
+                              <div
+                                key={et.id}
+                                className={`text-[11px] flex items-start gap-2 p-1.5 rounded ${
+                                  et.ativa
+                                    ? 'bg-white border border-emerald-100 text-gray-700'
+                                    : 'bg-gray-100 text-gray-400 line-through'
+                                }`}
+                              >
+                                <span className="font-bold text-emerald-700 shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <span className="font-semibold text-gray-900 shrink-0">
+                                  +{et.dias_apos}d:
+                                </span>
+                                <span className="truncate flex-1 italic text-gray-600">
+                                  "{et.mensagem}"
+                                </span>
+                                {!et.ativa && (
+                                  <span className="text-[10px] text-gray-400 font-sans not-italic">
+                                    (inativa)
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Fallback de edição rápida de textos legado/compatibilidade se não houver etapas dinâmicas */}
+                  {(!fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId)?.etapas ||
+                    fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId)?.etapas?.length ===
+                      0) && (
+                    <>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                            <span>1º Reenvio (+3 dias sem resposta)</span>
+                          </Label>
+                          <span className="text-[10px] text-gray-400">
+                            Suporta [nome do cliente]
+                          </span>
+                        </div>
+                        <Textarea
+                          rows={2}
+                          value={textoReenvio1}
+                          onChange={(e) => setTextoReenvio1(e.target.value)}
+                          className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
+                          placeholder="Olá, [nome do cliente]! Passando para checar se conseguiu ver a mensagem anterior..."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                            <span>2º Reenvio (+90 dias sem resposta)</span>
+                          </Label>
+                          <span className="text-[10px] text-gray-400">Sem 3º reenvio</span>
+                        </div>
+                        <Textarea
+                          rows={2}
+                          value={textoReenvio2}
+                          onChange={(e) => setTextoReenvio2(e.target.value)}
+                          className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
+                          placeholder="Olá, [nome do cliente]! Já faz um tempo desde nosso último contato..."
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2 pt-1 text-[10px] text-gray-500">
+                    <span>
+                      O robô consome as etapas ativas do fluxo com intervalo automático e checagem
+                      de respostas.
+                    </span>
                   </div>
                 </div>
               )}
@@ -2712,6 +2801,26 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                 />
               </div>
 
+              {/* Seletor do Fluxo para a Lista Salva */}
+              <div className="space-y-1">
+                <Label htmlFor="fluxo-lista-input" className="text-xs font-semibold text-gray-700">
+                  Fluxo de Follow-up Vinculado à Lista:
+                </Label>
+                <select
+                  id="fluxo-lista-input"
+                  value={fluxoSelecionadoId}
+                  onChange={(e) => setFluxoSelecionadoId(e.target.value)}
+                  className="w-full h-8 text-xs font-medium px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]"
+                >
+                  <option value="">Nenhum (usar padrão Delfos)</option>
+                  {fluxosDisponiveis.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome} {f.is_padrao ? '(Padrão Delfos)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Resumo do que será gravado */}
               <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-gray-600 space-y-1">
                 <p className="font-semibold text-gray-800">Critérios capturados:</p>
@@ -2730,6 +2839,15 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                               : 'Pós-Venda'}
                     </strong>
                   </li>
+                  {fluxoSelecionadoId && (
+                    <li>
+                      Fluxo:{' '}
+                      <strong className="text-emerald-700">
+                        {fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId)?.nome ||
+                          'Padrão'}
+                      </strong>
+                    </li>
+                  )}
                   {filtroWhatsApp !== 'todos' && (
                     <li>
                       WhatsApp:{' '}

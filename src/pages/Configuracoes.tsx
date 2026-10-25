@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 // Import dos componentes de telas existentes que serão renderizados dentro das abas
 import AutomacoesPage from './Automacoes'
 import MensagensWhatsApp from './MensagensWhatsApp'
+import GerenciadorFluxosFollowUp from '@/components/GerenciadorFluxosFollowUp'
 import EquipamentosPage from './Equipamentos'
 import AtivosPage from './Ativos'
 import InstalacoesGaleriaPage from './InstalacoesGaleria'
@@ -38,6 +39,7 @@ type GrupoAbaId = 'comunicacao' | 'cadastros' | 'gestao'
 type SubTelaId =
   // Comunicação
   | 'automacoes'
+  | 'fluxos-follow-up'
   | 'mensagens-whatsapp'
   // Cadastros
   | 'equipamentos'
@@ -69,6 +71,14 @@ const SUB_TELAS: SubTelaDef[] = [
     icon: Zap,
     descricao: 'Regras e gatilhos automáticos do funil e pós-vendas',
     urlPropria: '/automacoes',
+  },
+  {
+    id: 'fluxos-follow-up',
+    label: 'Fluxos de Follow-up',
+    grupo: 'comunicacao',
+    icon: Zap,
+    descricao: 'Réguas de acompanhamento do disparo em massa com etapas escalonadas',
+    urlPropria: '/configuracoes?aba=comunicacao&tela=fluxos-follow-up',
   },
   {
     id: 'mensagens-whatsapp',
@@ -395,6 +405,7 @@ export function ConfiguracoesPage() {
             {/* Renderização condicional da subtela ativa (reutilizando componentes existentes sem duplicar lógica) */}
             <div className="min-w-0">
               {subTelaAtiva === 'automacoes' && <AutomacoesPage />}
+              {subTelaAtiva === 'fluxos-follow-up' && <GerenciadorFluxosFollowUp />}
               {subTelaAtiva === 'mensagens-whatsapp' && <MensagensWhatsApp />}
               {subTelaAtiva === 'equipamentos' && <EquipamentosPage />}
               {subTelaAtiva === 'instalacoes-galeria' && <InstalacoesGaleriaPage />}

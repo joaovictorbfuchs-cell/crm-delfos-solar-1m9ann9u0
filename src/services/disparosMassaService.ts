@@ -26,6 +26,18 @@ export interface DestinatarioLoteMassa {
   reenvio_2_msg_id?: string
   respondido_em?: string
   atendido_em?: string
+  // Suporte a fluxos de follow-up dinâmicos
+  etapa_atual_ordem?: number
+  etapa_atual_nome?: string
+  proximo_envio_data?: string
+  proxima_etapa_nome?: string
+  etapas_executadas?: Array<{
+    ordem: number
+    etapa_id?: string
+    nome: string
+    enviado_em: string
+    mensagem_id?: string
+  }>
 }
 
 export interface EstatisticasDisparoMassa {
@@ -55,6 +67,7 @@ export interface DisparoMassaRegistro extends RecordModel {
   reenvio_ativo: boolean
   texto_reenvio_1?: string
   texto_reenvio_2?: string
+  fluxo_id?: string
   destinatarios: DestinatarioLoteMassa[]
   estatisticas?: EstatisticasDisparoMassa
   criado_por?: string
@@ -73,6 +86,7 @@ export interface CriarDisparoMassaInput {
   reenvio_ativo: boolean
   texto_reenvio_1?: string
   texto_reenvio_2?: string
+  fluxo_id?: string
   destinatarios: DestinatarioLoteMassa[]
 }
 
@@ -177,6 +191,7 @@ export async function createDisparoMassa(
     reenvio_ativo: Boolean(input.reenvio_ativo),
     texto_reenvio_1: input.texto_reenvio_1 || '',
     texto_reenvio_2: input.texto_reenvio_2 || '',
+    fluxo_id: input.fluxo_id || '',
     destinatarios: input.destinatarios,
     estatisticas: statsIniciais,
   }

@@ -31,6 +31,7 @@ import {
   toggleReenvioLote,
   dispararVerificacaoReenviosBackend,
 } from '@/services/disparosMassaService'
+import { fetchFluxosFollowUp, type FluxoFollowUp } from '@/services/fluxosFollowUpService'
 
 interface PainelAcompanhamentoDisparosProps {
   onAbrirNovoDisparo?: () => void
@@ -41,6 +42,7 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
 }) => {
   const { toast } = useToast()
   const [lotes, setLotes] = useState<DisparoMassaRegistro[]>([])
+  const [fluxosMap, setFluxosMap] = useState<Record<string, FluxoFollowUp>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [isVerificando, setIsVerificando] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'ativo' | 'concluido' | 'cancelado'>(
@@ -53,8 +55,17 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
   const carregarLotes = async () => {
     setIsLoading(true)
     try {
-      const records = await fetchDisparosMassa()
+      const [records, listaFluxos] = await Promise.all([
+        fetchDisparosMassa(),
+        fetchFluxosFollowUp(false).catch(() => []),
+      ])
       setLotes(records)
+      const mapa: Record<string, FluxoFollowUp> = {}
+      listaFluxos.forEach((f) => {
+        mapa[f.id] = f
+      })
+      setFluxosMap(mapa)
+
       if (records.length > 0 && !loteExpandidoId) {
         setLoteExpandidoId(records[0].id)
       }
@@ -524,7 +535,7 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                 {/* Conteúdo Detalhado ao Expandir */}
                 {isExpandido && (
                   <div className="p-4 sm:p-5 border-t border-gray-200 bg-slate-50/60 space-y-4">
-                    {/* Linha dos Textos do 1º e 2º Reenvio Configurados */}
+                    {/* Linha de Informações do Fluxo Vinculado e Mensagem Inicial */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                       <div className="p-3 rounded-xl bg-white border border-gray-200 space-y-1">
                         <span className="font-bold text-gray-800 flex items-center gap-1.5">
@@ -536,34 +547,55 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                         </p>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-white border border-amber-200 space-y-1">
+                      <div className="p-3 rounded-xl bg-white border border-emerald-200 space-y-1 md:col-span-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-amber-900 flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            <span>1º Reenvio (+3 dias sem resposta)</span>
+                          <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>
+                              Fluxo de Follow-up:{' '}
+                              <strong>
+                                {lote.fluxo_id && fluxosMap[lote.fluxo_id]
+                                  ? fluxosMap[lote.fluxo_id].nome
+                                  : 'Padrão Delfos (+3d / +90d)'}
+                              </strong>
+                            </span>
                           </span>
-                          <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded">
-                            {stats.reenvios_1_enviados || 0} enviado(s)
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                            {(stats.reenvios_1_enviados || 0) + (stats.reenvios_2_enviados || 0)}{' '}
+                            reenvio(s) executado(s)
                           </span>
                         </div>
-                        <p className="text-gray-600 italic whitespace-pre-wrap line-clamp-3 bg-amber-50/50 p-2 rounded-lg border border-amber-100 text-[11px]">
-                          "{lote.texto_reenvio_1 || 'Sem texto de reenvio configurado'}"
-                        </p>
-                      </div>
 
-                      <div className="p-3 rounded-xl bg-white border border-purple-200 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-purple-900 flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-purple-600" />
-                            <span>2º Reenvio (+90 dias do 1º)</span>
-                          </span>
-                          <span className="text-[10px] font-bold text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded">
-                            {stats.reenvios_2_enviados || 0} enviado(s)
-                          </span>
-                        </div>
-                        <p className="text-gray-600 italic whitespace-pre-wrap line-clamp-3 bg-purple-50/50 p-2 rounded-lg border border-purple-100 text-[11px]">
-                          "{lote.texto_reenvio_2 || 'Sem texto de 2º reenvio configurado'}"
-                        </p>
+                        {lote.fluxo_id && fluxosMap[lote.fluxo_id]?.etapas ? (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {fluxosMap[lote.fluxo_id].etapas!.map((etapa, eIdx) => (
+                              <div
+                                key={etapa.id}
+                                className={`text-[11px] px-2 py-1 rounded-md border flex items-center gap-1.5 ${
+                                  etapa.ativa
+                                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                                    : 'bg-gray-100 border-gray-200 text-gray-400 line-through'
+                                }`}
+                              >
+                                <span className="font-bold">
+                                  Etapa {eIdx + 1} (+{etapa.dias_apos}d):
+                                </span>
+                                <span className="truncate max-w-[180px]">{etapa.nome}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px] text-gray-600">
+                            <div className="bg-amber-50/60 p-1.5 rounded border border-amber-200">
+                              <strong>Etapa 1 (+3d):</strong>{' '}
+                              {lote.texto_reenvio_1 || 'Mensagem padrão +3d'}
+                            </div>
+                            <div className="bg-purple-50/60 p-1.5 rounded border border-purple-200">
+                              <strong>Etapa 2 (+90d):</strong>{' '}
+                              {lote.texto_reenvio_2 || 'Mensagem padrão +90d'}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -616,10 +648,10 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                             <tr>
                               <th className="py-2 px-3">Cliente</th>
                               <th className="py-2 px-3">Telefone</th>
-                              <th className="py-2 px-3">Status na Automação</th>
-                              <th className="py-2 px-3">1º Reenvio (+3d)</th>
-                              <th className="py-2 px-3">2º Reenvio (+90d)</th>
-                              <th className="py-2 px-3">Desfecho / Motivo</th>
+                              <th className="py-2 px-3">Etapa Atual no Fluxo</th>
+                              <th className="py-2 px-3">Próximo Envio Previsto</th>
+                              <th className="py-2 px-3">Status / Desfecho</th>
+                              <th className="py-2 px-3">Histórico de Reenvios</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[11px]">
@@ -637,6 +669,55 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                                   </td>
                                   <td className="py-2 px-3 font-mono text-gray-600">
                                     {dest.telefone || '—'}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="font-semibold text-gray-800">
+                                        {dest.etapa_atual_nome ||
+                                          (dest.reenvio_2_data
+                                            ? '2ª Etapa (+90d)'
+                                            : dest.reenvio_1_data
+                                              ? '1ª Etapa (+3d)'
+                                              : 'Disparo Inicial')}
+                                      </span>
+                                      {dest.etapa_atual_ordem && (
+                                        <span className="text-[10px] text-gray-400 font-mono">
+                                          Etapa #{dest.etapa_atual_ordem}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    {dest.proximo_envio_data ? (
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="inline-flex items-center gap-1 font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                                          <Clock className="w-3 h-3 text-sky-600" />
+                                          <span>
+                                            {new Date(dest.proximo_envio_data).toLocaleString(
+                                              'pt-BR',
+                                              {
+                                                timeZone: 'America/Sao_Paulo',
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                              },
+                                            )}
+                                          </span>
+                                        </span>
+                                        {dest.proxima_etapa_nome && (
+                                          <span className="text-[10px] text-gray-500 truncate max-w-[150px]">
+                                            Prox: {dest.proxima_etapa_nome}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : dest.status === 'respondido' ||
+                                      dest.status === 'atendido' ||
+                                      dest.status === 'finalizado' ? (
+                                      <span className="text-gray-400 italic">Concluído</span>
+                                    ) : (
+                                      <span className="text-gray-400">—</span>
+                                    )}
                                   </td>
                                   <td className="py-2 px-3">
                                     {dest.status === 'respondido' ? (
@@ -675,39 +756,55 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                                     ) : (
                                       <span className="inline-flex items-center gap-1 font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
                                         <Clock className="w-3 h-3" />
-                                        <span>Aguardando (+3d)</span>
+                                        <span>Na Régua de Follow-up</span>
+                                      </span>
+                                    )}
+                                    {dest.motivo_saida && (
+                                      <span className="block text-[10px] text-gray-400 mt-0.5">
+                                        {dest.motivo_saida}
                                       </span>
                                     )}
                                   </td>
                                   <td className="py-2 px-3 text-gray-600">
-                                    {dest.reenvio_1_data
-                                      ? new Date(dest.reenvio_1_data).toLocaleString('pt-BR', {
-                                          timeZone: 'America/Sao_Paulo',
-                                          day: '2-digit',
-                                          month: '2-digit',
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
-                                      : '—'}
-                                  </td>
-                                  <td className="py-2 px-3 text-gray-600">
-                                    {dest.reenvio_2_data
-                                      ? new Date(dest.reenvio_2_data).toLocaleString('pt-BR', {
-                                          timeZone: 'America/Sao_Paulo',
-                                          day: '2-digit',
-                                          month: '2-digit',
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
-                                      : '—'}
-                                  </td>
-                                  <td className="py-2 px-3 text-gray-500">
-                                    {dest.motivo_saida ||
-                                      (dest.status === 'respondido'
-                                        ? 'Cliente respondeu à mensagem'
-                                        : dest.status === 'atendido'
-                                          ? 'Atendido na Central'
-                                          : 'Em acompanhamento automático')}
+                                    <div className="flex flex-col gap-0.5">
+                                      {dest.etapas_executadas &&
+                                      dest.etapas_executadas.length > 0 ? (
+                                        dest.etapas_executadas.map((exec, eIdx) => (
+                                          <span key={eIdx} className="text-[10px] text-gray-600">
+                                            • {exec.nome}:{' '}
+                                            {new Date(exec.enviado_em).toLocaleDateString('pt-BR', {
+                                              timeZone: 'America/Sao_Paulo',
+                                            })}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <>
+                                          {dest.reenvio_1_data && (
+                                            <span className="text-[10px] text-gray-600">
+                                              • 1º reenvio:{' '}
+                                              {new Date(dest.reenvio_1_data).toLocaleDateString(
+                                                'pt-BR',
+                                                {
+                                                  timeZone: 'America/Sao_Paulo',
+                                                },
+                                              )}
+                                            </span>
+                                          )}
+                                          {dest.reenvio_2_data && (
+                                            <span className="text-[10px] text-gray-600">
+                                              • 2º reenvio:{' '}
+                                              {new Date(dest.reenvio_2_data).toLocaleDateString(
+                                                'pt-BR',
+                                                {
+                                                  timeZone: 'America/Sao_Paulo',
+                                                },
+                                              )}
+                                            </span>
+                                          )}
+                                          {!dest.reenvio_1_data && !dest.reenvio_2_data && '—'}
+                                        </>
+                                      )}
+                                    </div>
                                   </td>
                                 </tr>
                               ))

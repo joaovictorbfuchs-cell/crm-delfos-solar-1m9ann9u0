@@ -1,5 +1,52 @@
 // Helper compartilhado para execução de verificação de reenvio de disparos em massa
 // No PocketBase pb_hooks, módulos require() mantêm isolamento por pool de VM.
+// Suporta fluxos de follow-up dinâmicos com etapas configuráveis e fallback para +3d/+90d fixos.
+
+function carregarEtapasDoFluxo(app, fluxoId) {
+  if (!fluxoId) return []
+  try {
+    const etapasRecs = app.findRecordsByFilter(
+      'etapas_follow_up',
+      `fluxo_id = '${fluxoId}' && ativa = true`,
+      'ordem',
+      50,
+      0,
+    )
+    const etapas = []
+    for (let i = 0; i < etapasRecs.length; i++) {
+      const rec = etapasRecs[i]
+      etapas.push({
+        id: rec.id,
+        ordem: rec.getInt('ordem') || i + 1,
+        nome: rec.getString('nome') || `Etapa ${i + 1}`,
+        dias_apos: rec.getInt('dias_apos') || 1,
+        mensagem: rec.getString('mensagem') || '',
+      })
+    }
+    // Ordena garantindo ordem crescente
+    etapas.sort((a, b) => a.ordem - b.ordem)
+    return etapas
+  } catch (err) {
+    console.log('[REENVIO MASSA] Erro ao carregar etapas do fluxo:', err)
+    return []
+  }
+}
+
+function carregarFluxoPadraoId(app) {
+  try {
+    const padraoRecs = app.findRecordsByFilter(
+      'fluxos_follow_up',
+      'is_padrao = true && ativo = true',
+      '-created',
+      1,
+      0,
+    )
+    if (padraoRecs && padraoRecs.length > 0) {
+      return padraoRecs[0].id
+    }
+  } catch (_) {}
+  return ''
+}
 
 function processarReenviosDisparosMassa(app) {
   const agora = new Date()
@@ -41,6 +88,7 @@ function processarReenviosDisparosMassa(app) {
 
   const msgsCol = app.findCollectionByNameOrId('whatsapp_mensagens')
   let totalReenviosAgendados = 0
+  const fluxoPadraoFallbackId = carregarFluxoPadraoId(app)
 
   for (let l = 0; l < lotesAtivos.length; l++) {
     const lote = lotesAtivos[l]
@@ -56,19 +104,40 @@ function processarReenviosDisparosMassa(app) {
       continue
     }
 
+    const fluxoId = lote.getString('fluxo_id') || fluxoPadraoFallbackId
+    let etapasAtivas = carregarEtapasDoFluxo(app, fluxoId)
+
+    // Se o lote não tem etapas cadastradas no fluxo vinculado, monta etapas virtuais
+    // baseadas nos campos texto_reenvio_1 e texto_reenvio_2 existentes para 100% de compatibilidade
     const textoReenvio1 = lote.getString('texto_reenvio_1') || ''
     const textoReenvio2 = lote.getString('texto_reenvio_2') || ''
+    if (etapasAtivas.length === 0 && (textoReenvio1 || textoReenvio2)) {
+      if (textoReenvio1) {
+        etapasAtivas.push({
+          id: 'etapa_compat_1',
+          ordem: 1,
+          nome: '1º Reenvio (+3d)',
+          dias_apos: 3,
+          mensagem: textoReenvio1,
+        })
+      }
+      if (textoReenvio2) {
+        etapasAtivas.push({
+          id: 'etapa_compat_2',
+          ordem: 2,
+          nome: '2º Reenvio (+90d)',
+          dias_apos: 90,
+          mensagem: textoReenvio2,
+        })
+      }
+    }
+
     const intervaloSegundos = Math.max(5, lote.getInt('intervalo_segundos') || 60)
     const intervalMs = intervaloSegundos * 1000
 
     // Data de base do disparo inicial
     const dataDisparoStr = lote.getString('data_disparo') || lote.getString('created')
     const dataDisparoMs = new Date(dataDisparoStr).getTime()
-
-    // 3 dias em ms = 3 * 24 * 60 * 60 * 1000 = 259200000 ms
-    const tresDiasMs = 3 * 24 * 60 * 60 * 1000
-    // 90 dias em ms = 90 * 24 * 60 * 60 * 1000 = 7776000000 ms
-    const noventaDiasMs = 90 * 24 * 60 * 60 * 1000
 
     let loteModificado = false
     let reenviosAgendadosLote = 0
@@ -123,7 +192,6 @@ function processarReenviosDisparosMassa(app) {
         const queryTelCurto = queryTel.startsWith('55') ? queryTel.substring(2) : queryTel
         const dataMinimaIso = new Date(dataDisparoMs).toISOString().replace('T', ' ')
 
-        // Filtro em whatsapp_mensagens
         const filtroResp = `direcao = 'recebida' && created >= '${dataMinimaIso}' && (telefone_destino ~ '${queryTelCurto}' || cliente_id = '${item.cliente_id}')`
         const msgsRecebidas = app.findRecordsByFilter(
           'whatsapp_mensagens',
@@ -144,11 +212,12 @@ function processarReenviosDisparosMassa(app) {
         item.status = 'respondido'
         item.respondido_em = respostaData || agoraIso
         item.motivo_saida = 'Cliente respondeu à mensagem'
+        item.proximo_envio_data = undefined
         loteModificado = true
         continue
       }
 
-      // 2. CHECAGEM SE FOI ATENDIDO NA CENTRAL: conversa do cliente vinculada com status 'em_atendimento' ou 'resolvido'
+      // 2. CHECAGEM SE FOI ATENDIDO NA CENTRAL
       let foiAtendidoCentral = false
       try {
         const filtroConv = `cliente_id = '${item.cliente_id}' || numero ~ '${telefoneLimpo.replace(/^55/, '')}'`
@@ -167,7 +236,6 @@ function processarReenviosDisparosMassa(app) {
             conv.getString('updated') || conv.getString('created'),
           ).getTime()
 
-          // Se a conversa foi movimentada/atendida após o envio inicial
           if (convUpdated >= dataDisparoMs) {
             if (convStatus === 'em_atendimento' || convStatus === 'resolvido' || atendente) {
               foiAtendidoCentral = true
@@ -183,133 +251,183 @@ function processarReenviosDisparosMassa(app) {
         item.status = 'atendido'
         item.atendido_em = agoraIso
         item.motivo_saida = 'Atendido na Central de Atendimento'
+        item.proximo_envio_data = undefined
         loteModificado = true
         continue
       }
 
-      // 3. VERIFICAÇÃO DO 1º REENVIO (+3 DIAS SEM RESPOSTA)
-      const tempoDecorridoDisparoMs = agora.getTime() - dataDisparoMs
-      if (!item.reenvio_1_data) {
-        if (tempoDecorridoDisparoMs >= tresDiasMs) {
-          if (!textoReenvio1) {
-            item.status = 'finalizado'
-            item.motivo_saida = 'Sem texto configurado para 1º reenvio'
-            loteModificado = true
-            continue
-          }
+      // Se não há etapas no fluxo, finaliza
+      if (etapasAtivas.length === 0) {
+        item.status = 'finalizado'
+        item.motivo_saida = 'Nenhuma etapa ativa configurada no fluxo'
+        item.proximo_envio_data = undefined
+        loteModificado = true
+        continue
+      }
 
-          // Agendar 1º reenvio com intervalo escalonado
-          const agendadoParaIso = new Date(
-            agendamentoBaseMs + reenviosAgendadosLote * intervalMs,
-          ).toISOString()
-          reenviosAgendadosLote++
-          totalReenviosAgendados++
+      // Inicializa estrutura de etapas_executadas se não existir
+      if (!Array.isArray(item.etapas_executadas)) {
+        item.etapas_executadas = []
+        // Migra histórico legado se já existia reenvio_1 / reenvio_2
+        if (item.reenvio_1_data) {
+          item.etapas_executadas.push({
+            ordem: 1,
+            nome: '1º Reenvio (+3d)',
+            enviado_em: item.reenvio_1_data,
+            mensagem_id: item.reenvio_1_msg_id,
+          })
+        }
+        if (item.reenvio_2_data) {
+          item.etapas_executadas.push({
+            ordem: 2,
+            nome: '2º Reenvio (+90d)',
+            enviado_em: item.reenvio_2_data,
+            mensagem_id: item.reenvio_2_msg_id,
+          })
+        }
+      }
 
-          // Montar texto com substituição básica de [nome do cliente]
-          let textoFinalReenvio1 = textoReenvio1.replace(
-            /\[nome do cliente\]/gi,
-            item.nome || 'Cliente',
-          )
-          textoFinalReenvio1 = textoFinalReenvio1.replace(
-            /\{\{nome_cliente\}\}/g,
-            item.nome || 'Cliente',
-          )
+      // Descobre a última ordem executada
+      let ultimaOrdemExecutada = 0
+      let dataUltimoEnvioMs = dataDisparoMs
 
-          let cleanPhone = telefoneLimpo
-          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
-            cleanPhone = '55' + cleanPhone
-          }
+      if (item.etapas_executadas.length > 0) {
+        const ultimaExec = item.etapas_executadas[item.etapas_executadas.length - 1]
+        ultimaOrdemExecutada = ultimaExec.ordem
+        if (ultimaExec.enviado_em) {
+          dataUltimoEnvioMs = new Date(ultimaExec.enviado_em).getTime()
+        }
+      } else if (item.reenvio_2_data) {
+        ultimaOrdemExecutada = 2
+        dataUltimoEnvioMs = new Date(item.reenvio_2_data).getTime()
+      } else if (item.reenvio_1_data) {
+        ultimaOrdemExecutada = 1
+        dataUltimoEnvioMs = new Date(item.reenvio_1_data).getTime()
+      }
 
-          // Criar registro na fila de whatsapp_mensagens com status 'agendada'
-          const novaMsg = new Record(msgsCol)
-          if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
-            novaMsg.set('cliente_id', item.cliente_id)
-          }
-          novaMsg.set('telefone_destino', cleanPhone)
-          novaMsg.set('conteudo_final', textoFinalReenvio1)
-          novaMsg.set('status', 'agendada')
-          novaMsg.set('agendado_para', agendadoParaIso)
-          novaMsg.set('tipo_disparo', 'massa_reenvio_1')
-          novaMsg.set('referencia_id', `lote_${lote.id}_r1_${item.cliente_id || cleanPhone}`)
-          app.save(novaMsg)
+      // Encontra a próxima etapa ativa cuja ordem seja superior a ultimaOrdemExecutada
+      let proximaEtapa = null
+      for (let e = 0; e < etapasAtivas.length; e++) {
+        if (etapasAtivas[e].ordem > ultimaOrdemExecutada) {
+          proximaEtapa = etapasAtivas[e]
+          break
+        }
+      }
 
+      // Se não há mais etapas no fluxo
+      if (!proximaEtapa) {
+        // Se já passou 7 dias da última etapa sem resposta, marca como finalizado
+        if (agora.getTime() - dataUltimoEnvioMs >= 7 * 24 * 60 * 60 * 1000) {
+          item.status = 'finalizado'
+          item.motivo_saida = 'Concluídas todas as etapas do fluxo sem resposta'
+          item.proximo_envio_data = undefined
+          loteModificado = true
+        }
+        continue
+      }
+
+      // Calcula o prazo para a próxima etapa: dias_apos contados do último envio (ou disparo inicial)
+      const prazoDias = Math.max(1, proximaEtapa.dias_apos || 1)
+      const prazoMs = prazoDias * 24 * 60 * 60 * 1000
+      const dataPrevistaEnvioMs = dataUltimoEnvioMs + prazoMs
+      const dataPrevistaIso = new Date(dataPrevistaEnvioMs).toISOString()
+
+      item.proximo_envio_data = dataPrevistaIso
+      item.proxima_etapa_nome = proximaEtapa.nome
+      if (!item.etapa_atual_nome) {
+        item.etapa_atual_nome =
+          ultimaOrdemExecutada > 0 ? `Etapa ${ultimaOrdemExecutada}` : 'Início'
+      }
+
+      // Verifica se o prazo venceu
+      if (agora.getTime() >= dataPrevistaEnvioMs) {
+        if (!proximaEtapa.mensagem) {
+          // Pula etapa sem mensagem
+          ultimaOrdemExecutada = proximaEtapa.ordem
+          continue
+        }
+
+        // Agendar envio da etapa
+        const agendadoParaIso = new Date(
+          agendamentoBaseMs + reenviosAgendadosLote * intervalMs,
+        ).toISOString()
+        reenviosAgendadosLote++
+        totalReenviosAgendados++
+
+        // Substituição de placeholders consistente
+        let textoFinal = proximaEtapa.mensagem
+        textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+        textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+        textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
+        textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+
+        let cleanPhone = telefoneLimpo
+        if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
+          cleanPhone = '55' + cleanPhone
+        }
+
+        // Criar registro na fila de whatsapp_mensagens
+        const novaMsg = new Record(msgsCol)
+        if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
+          novaMsg.set('cliente_id', item.cliente_id)
+        }
+        novaMsg.set('telefone_destino', cleanPhone)
+        novaMsg.set('conteudo_final', textoFinal)
+        novaMsg.set('status', 'agendada')
+        novaMsg.set('agendado_para', agendadoParaIso)
+        novaMsg.set('tipo_disparo', `massa_fluxo_etapa_${proximaEtapa.ordem}`)
+        novaMsg.set(
+          'referencia_id',
+          `lote_${lote.id}_e${proximaEtapa.ordem}_${item.cliente_id || cleanPhone}`,
+        )
+        app.save(novaMsg)
+
+        // Atualizar estado do destinatário
+        item.etapas_executadas.push({
+          ordem: proximaEtapa.ordem,
+          etapa_id: proximaEtapa.id,
+          nome: proximaEtapa.nome,
+          enviado_em: agendadoParaIso,
+          mensagem_id: novaMsg.id,
+        })
+
+        item.etapa_atual_ordem = proximaEtapa.ordem
+        item.etapa_atual_nome = proximaEtapa.nome
+
+        // Retrocompatibilidade com reenvio_1 / reenvio_2 existentes
+        if (proximaEtapa.ordem === 1) {
           item.status = 'reenvio_1_agendado'
           item.reenvio_1_data = agendadoParaIso
           item.reenvio_1_msg_id = novaMsg.id
-          loteModificado = true
-
-          logs.push(
-            `Lote ${lote.id}: 1º reenvio agendado para ${item.nome} (${cleanPhone}) para ${agendadoParaIso}`,
-          )
-          continue
-        }
-      }
-
-      // 4. VERIFICAÇÃO DO 2º REENVIO (+90 DIAS CONTADOS DO 1º REENVIO)
-      if (item.reenvio_1_data && !item.reenvio_2_data) {
-        const dataR1Ms = new Date(item.reenvio_1_data).getTime()
-        const tempoDecorridoR1Ms = agora.getTime() - dataR1Ms
-
-        if (tempoDecorridoR1Ms >= noventaDiasMs) {
-          if (!textoReenvio2) {
-            item.status = 'finalizado'
-            item.motivo_saida = 'Sem texto configurado para 2º reenvio'
-            loteModificado = true
-            continue
-          }
-
-          const agendadoParaIso = new Date(
-            agendamentoBaseMs + reenviosAgendadosLote * intervalMs,
-          ).toISOString()
-          reenviosAgendadosLote++
-          totalReenviosAgendados++
-
-          let textoFinalReenvio2 = textoReenvio2.replace(
-            /\[nome do cliente\]/gi,
-            item.nome || 'Cliente',
-          )
-          textoFinalReenvio2 = textoFinalReenvio2.replace(
-            /\{\{nome_cliente\}\}/g,
-            item.nome || 'Cliente',
-          )
-
-          let cleanPhone = telefoneLimpo
-          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
-            cleanPhone = '55' + cleanPhone
-          }
-
-          const novaMsg2 = new Record(msgsCol)
-          if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
-            novaMsg2.set('cliente_id', item.cliente_id)
-          }
-          novaMsg2.set('telefone_destino', cleanPhone)
-          novaMsg2.set('conteudo_final', textoFinalReenvio2)
-          novaMsg2.set('status', 'agendada')
-          novaMsg2.set('agendado_para', agendadoParaIso)
-          novaMsg2.set('tipo_disparo', 'massa_reenvio_2')
-          novaMsg2.set('referencia_id', `lote_${lote.id}_r2_${item.cliente_id || cleanPhone}`)
-          app.save(novaMsg2)
-
+        } else if (proximaEtapa.ordem === 2) {
           item.status = 'reenvio_2_agendado'
           item.reenvio_2_data = agendadoParaIso
-          item.reenvio_2_msg_id = novaMsg2.id
-          loteModificado = true
-
-          logs.push(
-            `Lote ${lote.id}: 2º reenvio agendado para ${item.nome} (${cleanPhone}) para ${agendadoParaIso}`,
-          )
-          continue
+          item.reenvio_2_msg_id = novaMsg.id
+        } else {
+          item.status = 'pendente'
         }
-      }
 
-      // Se já passou pelo 2º reenvio e não respondeu após 7 dias adicionais, marca como finalizado
-      if (item.reenvio_2_data && item.status === 'reenvio_2_agendado') {
-        const dataR2Ms = new Date(item.reenvio_2_data).getTime()
-        if (agora.getTime() - dataR2Ms >= 7 * 24 * 60 * 60 * 1000) {
-          item.status = 'finalizado'
-          item.motivo_saida = 'Concluído o 2º reenvio (+90d) sem resposta do cliente'
-          loteModificado = true
+        // Próximo envio se houver mais etapas
+        let subsequente = null
+        for (let nextIdx = 0; nextIdx < etapasAtivas.length; nextIdx++) {
+          if (etapasAtivas[nextIdx].ordem > proximaEtapa.ordem) {
+            subsequente = etapasAtivas[nextIdx]
+            break
+          }
         }
+        if (subsequente) {
+          const proxPrazoMs = (subsequente.dias_apos || 1) * 24 * 60 * 60 * 1000
+          item.proximo_envio_data = new Date(agora.getTime() + proxPrazoMs).toISOString()
+          item.proxima_etapa_nome = subsequente.nome
+        } else {
+          item.proximo_envio_data = undefined
+          item.proxima_etapa_nome = undefined
+        }
+
+        loteModificado = true
+        logs.push(
+          `Lote ${lote.id}: Etapa "${proximaEtapa.nome}" agendada para ${item.nome} (${cleanPhone}) para ${agendadoParaIso}`,
+        )
       }
     }
 
@@ -328,8 +446,14 @@ function processarReenviosDisparosMassa(app) {
         (d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp',
       ).length,
       finalizados: destinatarios.filter((d) => d.status === 'finalizado').length,
-      reenvios_1_enviados: destinatarios.filter((d) => Boolean(d.reenvio_1_data)).length,
-      reenvios_2_enviados: destinatarios.filter((d) => Boolean(d.reenvio_2_data)).length,
+      reenvios_1_enviados: destinatarios.filter(
+        (d) =>
+          Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+      ).length,
+      reenvios_2_enviados: destinatarios.filter(
+        (d) =>
+          Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+      ).length,
       ultima_verificacao: agoraIso,
     }
 

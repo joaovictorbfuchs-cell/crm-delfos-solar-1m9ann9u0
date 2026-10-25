@@ -29,7 +29,9 @@ import {
   MinusSquare,
   Loader2,
   Check,
+  Send,
 } from 'lucide-react'
+import PainelAcompanhamentoDisparos from '@/components/PainelAcompanhamentoDisparos'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
@@ -108,6 +110,7 @@ export default function CentralAtividadesPage() {
   const [initialDataHora, setInitialDataHora] = useState<string | undefined>(undefined)
   const [initialHorarioInicio, setInitialHorarioInicio] = useState<string | undefined>(undefined)
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
+  const [isPainelDisparosOpen, setIsPainelDisparosOpen] = useState(false)
 
   const abrirModalNovaAtividade = (dataSelecionada?: Date) => {
     const dataInicial = dataSelecionada ? new Date(dataSelecionada) : new Date()
@@ -731,6 +734,17 @@ export default function CentralAtividadesPage() {
               className={`w-3.5 h-3.5 mr-1 ${refreshing ? 'animate-spin text-emerald-600' : ''}`}
             />
             <span className="hidden xl:inline">Atualizar</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsPainelDisparosOpen(true)}
+            className="h-9 px-2.5 sm:px-3 rounded-xl border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+            title="Acompanhamento dos disparos em massa e follow-up"
+          >
+            <Send className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden xl:inline">Follow-up Disparos</span>
           </Button>
 
           <Button
@@ -1737,6 +1751,15 @@ export default function CentralAtividadesPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal / Painel de Acompanhamento de Disparos em Massa e Follow-up na Central */}
+      <Dialog open={isPainelDisparosOpen} onOpenChange={setIsPainelDisparosOpen}>
+        <DialogContent className="max-w-6xl max-h-[92vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+            <PainelAcompanhamentoDisparos />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
