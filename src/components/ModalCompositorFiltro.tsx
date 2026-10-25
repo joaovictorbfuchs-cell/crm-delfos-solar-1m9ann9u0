@@ -59,6 +59,8 @@ export const ModalCompositorFiltro: React.FC<ModalCompositorFiltroProps> = ({
   onOpenChange,
   modulo,
   filtroEdicao,
+  colunasDisponiveis = [],
+  colunasAtuaisVisiveis = [],
   onSalvar,
 }) => {
   const campos = getCatalogoPorModulo(modulo)
