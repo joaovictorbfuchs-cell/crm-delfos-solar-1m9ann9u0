@@ -35,12 +35,17 @@ import {
   type ContratoUsina,
 } from '@/services/contratosUsinasService'
 import { toast } from 'sonner'
+import {
+  buildCustomTipoDef,
+  correspondemAoMesmoTipo,
+  encontrarMatchTipoCustom,
+} from '@/constants/atividadesTipos'
 
 export interface FiltrosPlanosOMState {
   busca: string
   planoTipo: 'todos' | 'Essencial' | 'Prevenção' | 'Completo' | string
   proximaAtividade: 'todos' | 'hoje' | 'esta_semana' | 'este_mes' | 'atrasadas' | 'sem_atividade'
-  tiposAtividade: string[] // 'Lavagem', 'Inspeção', 'Troca de componente', 'Auto leitura', 'Relatório de performance', 'Visita técnica'
+  tiposAtividade: string[] // IDs canônicos ou nomes dos tipos selecionados do catálogo
   tempoUltimaAtividade: 'todos' | 'menos_30' | '30_60' | '60_90' | 'mais_90'
   performanceUsina: 'todos' | 'acima_meta' | 'na_meta' | 'abaixo_meta' | 'sem_monitoramento'
   potenciaDe: string
@@ -59,15 +64,6 @@ const FILTROS_INICIAIS: FiltrosPlanosOMState = {
   potenciaAte: '',
   validadePlano: 'todos',
 }
-
-const TIPOS_ATIVIDADE_OPCOES = [
-  'Lavagem',
-  'Inspeção',
-  'Troca de componente',
-  'Auto leitura',
-  'Relatório de performance',
-  'Visita técnica',
-]
 
 interface PlanosOMViewProps {
   onOpenNovoContrato?: () => void
@@ -114,9 +110,23 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     anomaliasOM,
     openFichaCliente,
     atividades,
+    tiposAtividadesCustom,
     encerrarContratoOM,
     renovarContratoOM,
   } = useClientes()
+
+  // Opções dinâmicas carregadas do catálogo oficial (tipos_atividades_custom ativos=true)
+  const tiposAtividadeCatalogo = useMemo(() => {
+    const seguros = Array.isArray(tiposAtividadesCustom) ? tiposAtividadesCustom : []
+    return seguros
+      .filter((t) => t && t.ativo !== false)
+      .map((t) => buildCustomTipoDef(t))
+      .sort((a, b) =>
+        (a.tituloPadrao || '').localeCompare(b.tituloPadrao || '', 'pt-BR', {
+          sensitivity: 'base',
+        }),
+      )
+  }, [tiposAtividadesCustom])
 
   // Estados de formulário (antes de aplicar)
   const [formFiltros, setFormFiltros] = useState<FiltrosPlanosOMState>(FILTROS_INICIAIS)
@@ -216,6 +226,9 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
       diasRestantesVencimento: number | null
       validadeCategoria: 'ativo' | 'vencendo_30' | 'vencido'
       tipoProximaAtividade: string
+      proximaAtividadeCustomId?: string
+      proximaAtividadeTipoCanonico?: string
+      proximaAtividadeObjeto?: any
       dataProxStr?: string
       diffDiasProxima: number | null
       isHoje: boolean
@@ -328,7 +341,32 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         })
 
       const proximaReal = atividadesReais[0] || null
-      const tipoProximaAtividade = proximaReal?.titulo || proximaReal?.tipo || '—'
+
+      // Resolução canônica do catálogo para a próxima atividade:
+      // tipo_custom_id > match canônico em tipos_atividades_custom
+      const matchCustom = proximaReal
+        ? encontrarMatchTipoCustom(
+            {
+              tipo_custom_id: proximaReal.tipo_custom_id,
+              tipo: proximaReal.tipo,
+              tipo_servico:
+                (proximaReal as any).subtipo ||
+                (proximaReal as any).tipo_unificado ||
+                proximaReal.titulo,
+            },
+            tiposAtividadesCustom || [],
+          )
+        : null
+
+      const proximaAtividadeCustomId = matchCustom?.id || proximaReal?.tipo_custom_id || ''
+      const proximaAtividadeTipoCanonico = proximaReal?.tipo || ''
+      const tipoProximaAtividade =
+        matchCustom?.nome ||
+        (proximaReal as any)?.subtipo ||
+        (proximaReal as any)?.tipo_unificado ||
+        proximaReal?.titulo ||
+        proximaReal?.tipo ||
+        '—'
       const dataProxStr = proximaReal?.data || ''
       let diffDiasProxima: number | null = null
       let isHoje = false
@@ -419,6 +457,9 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         diasRestantesVencimento,
         validadeCategoria,
         tipoProximaAtividade,
+        proximaAtividadeCustomId,
+        proximaAtividadeTipoCanonico,
+        proximaAtividadeObjeto: proximaReal,
         dataProxStr,
         diffDiasProxima,
         isHoje,
@@ -436,7 +477,14 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     }
 
     return list
-  }, [safeContratos, safeClientes, safeSistemas, vinculosContratosUsinas, atividades])
+  }, [
+    safeContratos,
+    safeClientes,
+    safeSistemas,
+    vinculosContratosUsinas,
+    atividades,
+    tiposAtividadesCustom,
+  ])
 
   // Contagem de filtros ativos
   const totalFiltrosAtivos = useMemo(() => {
@@ -495,9 +543,45 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
 
         // 3. Tipos de atividade (checkboxes múltiplos)
         if (filtrosAtivos.tiposAtividade.length > 0) {
-          const matchTipo = filtrosAtivos.tiposAtividade.some((tipoSel) =>
-            item.tipoProximaAtividade.toLowerCase().includes(tipoSel.toLowerCase()),
-          )
+          const matchTipo = filtrosAtivos.tiposAtividade.some((tipoSel) => {
+            const selNorm = (tipoSel || '').trim().toLowerCase()
+            if (!selNorm) return false
+
+            // Comparação 1: ID canônico do catálogo (tipos_atividades_custom id)
+            if (item.proximaAtividadeCustomId && item.proximaAtividadeCustomId === tipoSel) {
+              return true
+            }
+
+            // Comparação 2: Igualdade ou alias canônico com o nome/título da próxima atividade
+            if (correspondemAoMesmoTipo(item.tipoProximaAtividade, tipoSel)) {
+              return true
+            }
+
+            // Comparação 3: Casamento canônico entre o tipo nativo/subtipo do objeto e o catálogo selecionado
+            if (item.proximaAtividadeObjeto) {
+              const matchedCatalogo = encontrarMatchTipoCustom(
+                {
+                  tipo_custom_id: item.proximaAtividadeObjeto.tipo_custom_id,
+                  tipo: item.proximaAtividadeObjeto.tipo,
+                  tipo_servico:
+                    item.proximaAtividadeObjeto.subtipo ||
+                    item.proximaAtividadeObjeto.tipo_unificado ||
+                    item.proximaAtividadeObjeto.titulo,
+                },
+                tiposAtividadesCustom || [],
+              )
+              if (
+                matchedCatalogo &&
+                (matchedCatalogo.id === tipoSel ||
+                  correspondemAoMesmoTipo(matchedCatalogo.nome, tipoSel))
+              ) {
+                return true
+              }
+            }
+
+            // Fallback defensivo: substring do nome/título
+            return item.tipoProximaAtividade.toLowerCase().includes(selNorm)
+          })
           if (!matchTipo) return false
         }
 
@@ -901,41 +985,57 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
               </div>
             </div>
 
-            {/* Sub-linha: Tipo de atividade (Checkboxes múltiplos) */}
+            {/* Sub-linha: Tipo de atividade carregada dinamicamente do catálogo oficial */}
             <div className="pt-2 border-t border-gray-100">
               <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 Tipo de atividade agendada (seleção múltipla):
               </label>
-              <div className="flex flex-wrap gap-2">
-                {TIPOS_ATIVIDADE_OPCOES.map((tipo) => {
-                  const checked = formFiltros.tiposAtividade.includes(tipo)
-                  return (
-                    <button
-                      key={tipo}
-                      type="button"
-                      onClick={() => toggleTipoAtividade(tipo)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        checked
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {}}
-                        className="rounded text-emerald-600 focus:ring-0 w-3.5 h-3.5 cursor-pointer pointer-events-none"
-                      />
-                      <span>{tipo}</span>
-                      {tipo === 'Lavagem' && (
-                        <Droplets
-                          className={`w-3.5 h-3.5 ${checked ? 'text-white' : 'text-blue-500'}`}
+              {tiposAtividadeCatalogo.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">
+                  Carregando tipos de atividades cadastrados...
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {tiposAtividadeCatalogo.map((tipoDef) => {
+                    const idOuNome = tipoDef.id || tipoDef.tituloPadrao
+                    const checked = formFiltros.tiposAtividade.includes(idOuNome)
+                    const IconComp = tipoDef.icon
+                    const corHex = tipoDef.corHex || '#10b981'
+
+                    return (
+                      <button
+                        key={idOuNome}
+                        type="button"
+                        onClick={() => toggleTipoAtividade(idOuNome)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          checked
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {}}
+                          className="rounded text-emerald-600 focus:ring-0 w-3.5 h-3.5 cursor-pointer pointer-events-none"
                         />
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
+                        {IconComp && (
+                          <span
+                            className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+                            style={{
+                              backgroundColor: checked ? 'rgba(255,255,255,0.25)' : `${corHex}20`,
+                              color: checked ? '#ffffff' : corHex,
+                            }}
+                          >
+                            <IconComp className="w-3 h-3" />
+                          </span>
+                        )}
+                        <span>{tipoDef.tituloPadrao}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Botões de Ação: Aplicar Filtros & Limpar Filtros */}
@@ -1012,21 +1112,27 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                       </button>
                     </span>
                   )}
-                  {filtrosAtivos.tiposAtividade.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200"
-                    >
-                      {t}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoverTagFiltro('tiposAtividade', t)}
-                        className="hover:text-blue-950 font-bold ml-0.5"
+                  {filtrosAtivos.tiposAtividade.map((t) => {
+                    const matchedDef = tiposAtividadeCatalogo.find(
+                      (def) => def.id === t || def.tituloPadrao === t,
+                    )
+                    const label = matchedDef?.tituloPadrao || t
+                    return (
+                      <span
+                        key={t}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200"
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+                        {label}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoverTagFiltro('tiposAtividade', t)}
+                          className="hover:text-blue-950 font-bold ml-0.5"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
                   {filtrosAtivos.performanceUsina !== 'todos' && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                       Perf.: {filtrosAtivos.performanceUsina.replace('_', ' ')}

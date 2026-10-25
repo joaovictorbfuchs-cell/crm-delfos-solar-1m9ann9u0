@@ -637,7 +637,7 @@ export function getTiposPorCategoria(
 }
 
 // Mapeamento dinâmico de ícones por chave para tipos personalizados e editados
-const ICON_LOOKUP: Record<string, React.ComponentType<{ className?: string }>> = {
+export const ICON_LOOKUP: Record<string, React.ComponentType<{ className?: string }>> = {
   Wrench,
   Settings,
   Hammer,

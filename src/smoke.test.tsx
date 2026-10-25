@@ -918,6 +918,10 @@ describe('Login e App Smoke Tests', () => {
 
     const errorsModule = await import('@/lib/pocketbase/errors')
     expect(typeof errorsModule.isAuthSessionError).toBe('function')
+    expect(typeof errorsModule.isAbortError).toBe('function')
+    expect(typeof errorsModule.formatPbError).toBe('function')
+    expect(typeof errorsModule.extractFieldErrors).toBe('function')
+    expect(typeof errorsModule.getErrorMessage).toBe('function')
     expect(errorsModule.isAuthSessionError({ status: 401 })).toBe(true)
     expect(errorsModule.isAuthSessionError({ status: 403 })).toBe(true)
     expect(errorsModule.isAuthSessionError({ message: 'Token is expired' })).toBe(true)
@@ -930,6 +934,44 @@ describe('Login e App Smoke Tests', () => {
     expect(barrelModule.default).toBeDefined()
     expect(barrelModule.pb).toBeDefined()
     expect(typeof barrelModule.isAuthSessionError).toBe('function')
+  })
+
+  it('PlanosOMView: filtro de tipo de atividade usa catálogo dinâmico de tipos_atividades_custom e comparação canônica', async () => {
+    const { correspondemAoMesmoTipo, encontrarMatchTipoCustom } =
+      await import('@/constants/atividadesTipos')
+
+    expect(correspondemAoMesmoTipo('Limpeza dos Módulos', 'limpeza')).toBe(true)
+    expect(correspondemAoMesmoTipo('Lavagem dos módulos', 'Limpeza dos Módulos')).toBe(true)
+
+    const catalogoMock = [
+      { id: 'custom-limpeza-01', nome: 'Limpeza dos Módulos', tipo: 'limpeza', ativo: true },
+      {
+        id: 'custom-drone-02',
+        nome: 'Inspeção Termográfica Aérea (Drone)',
+        tipo: 'custom',
+        ativo: true,
+      },
+      {
+        id: 'custom-inativado-03',
+        nome: 'Atividade Antiga Desativada',
+        tipo: 'custom',
+        ativo: false,
+      },
+    ]
+
+    const matchLimpeza = encontrarMatchTipoCustom(
+      { tipo_custom_id: 'custom-limpeza-01', tipo: 'limpeza' },
+      catalogoMock as any,
+    )
+    expect(matchLimpeza).toBeDefined()
+    expect(matchLimpeza?.nome).toBe('Limpeza dos Módulos')
+
+    const matchDrone = encontrarMatchTipoCustom(
+      { tipo_custom_id: 'custom-drone-02', tipo: 'custom' },
+      catalogoMock as any,
+    )
+    expect(matchDrone).toBeDefined()
+    expect(matchDrone?.nome).toBe('Inspeção Termográfica Aérea (Drone)')
   })
 
   it('emailService e lib/emailService exportam recurso unificado de envio Resend com remetente da empresa', async () => {
