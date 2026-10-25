@@ -37,6 +37,7 @@ import { useToast } from '@/hooks/use-toast'
 import {
   FluxoFollowUp,
   EtapaFollowUp,
+  RegraEntradaFluxo,
   AcaoDesvioEtapa,
   fetchFluxosFollowUp,
   createFluxoFollowUp,
@@ -47,7 +48,11 @@ import {
   toggleEtapaFollowUp,
   deleteEtapaFollowUp,
   reordenarEtapasFollowUp,
+  createRegraEntradaFluxo,
+  updateRegraEntradaFluxo,
+  deleteRegraEntradaFluxo,
 } from '@/services/fluxosFollowUpService'
+import { OPCOES_ETAPA_FUNIL_SCHEMA } from '@/services/negociosService'
 import { PLACEHOLDERS_ENVIO_MASSA } from '@/lib/placeholdersMensagemMassa'
 
 interface GerenciadorFluxosFollowUpProps {
@@ -81,6 +86,10 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   const [desvioFluxoId, setDesvioFluxoId] = useState<string>('')
   const [isSalvandoEtapa, setIsSalvandoEtapa] = useState(false)
   const [mostrarPreviaEtapa, setMostrarPreviaEtapa] = useState(true)
+
+  // Regras de Entrada por Estágio (Fase 3)
+  const [estagioNovaRegra, setEstagioNovaRegra] = useState<string>('negociação')
+  const [isAdicionandoRegra, setIsAdicionandoRegra] = useState(false)
 
   // Confirmação de exclusão
   const [fluxoParaExcluir, setFluxoParaExcluir] = useState<FluxoFollowUp | null>(null)
@@ -129,6 +138,124 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     setNomeFluxo(f.nome)
     setDescricaoFluxo(f.descricao || '')
     setModalFluxoAberto(true)
+  }
+
+  // Formatação visual amigável dos estágios do funil
+  const formatarNomeEstagio = (estagio: string): string => {
+    const mapa: Record<string, string> = {
+      'novo lead': 'Novo Lead',
+      qualificado: 'Qualificado',
+      'proposta enviada': 'Proposta Enviada',
+      negociação: 'Negociação',
+      contato_futuro: 'Contato Futuro',
+      'contrato assinado': 'Fechado / Ganho',
+      perdido: 'Perdido',
+    }
+    return mapa[estagio.toLowerCase()] || estagio
+  }
+
+  // Adicionar Regra de Entrada por Estágio (Fase 3)
+  const handleAdicionarRegraEntrada = async () => {
+    if (!fluxoAtivo || !estagioNovaRegra) return
+
+    // Evitar regra duplicada para o mesmo estágio no mesmo fluxo
+    const jaExiste = fluxoAtivo.regras_entrada?.some(
+      (r) => r.estagio_funil.toLowerCase() === estagioNovaRegra.toLowerCase(),
+    )
+    if (jaExiste) {
+      toast({
+        title: 'Regra já existe',
+        description: `Este fluxo já possui uma regra configurada para o estágio "${formatarNomeEstagio(estagioNovaRegra)}".`,
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsAdicionandoRegra(true)
+    try {
+      const novaRegra = await createRegraEntradaFluxo({
+        fluxo_id: fluxoAtivo.id,
+        estagio_funil: estagioNovaRegra,
+        ativo: true,
+      })
+      setFluxos((prev) =>
+        prev.map((f) => {
+          if (f.id !== fluxoAtivo.id) return f
+          return {
+            ...f,
+            regras_entrada: [...(f.regras_entrada || []), novaRegra],
+          }
+        }),
+      )
+      toast({
+        title: 'Regra de entrada adicionada',
+        description: `Contatos no estágio "${formatarNomeEstagio(estagioNovaRegra)}" entrarão automaticamente neste fluxo.`,
+      })
+      if (onFluxoAlterado) onFluxoAlterado()
+    } catch (err) {
+      toast({
+        title: 'Erro ao adicionar regra',
+        description: 'Não foi possível salvar a regra de entrada.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsAdicionandoRegra(false)
+    }
+  }
+
+  // Toggle ativo/inativo na regra de entrada
+  const handleToggleRegraEntrada = async (regra: RegraEntradaFluxo) => {
+    if (!fluxoAtivo) return
+    const novoAtivo = !regra.ativo
+    try {
+      await updateRegraEntradaFluxo(regra.id, { ativo: novoAtivo })
+      setFluxos((prev) =>
+        prev.map((f) => {
+          if (f.id !== fluxoAtivo.id) return f
+          const regras = (f.regras_entrada || []).map((r) =>
+            r.id === regra.id ? { ...r, ativo: novoAtivo } : r,
+          )
+          return { ...f, regras_entrada: regras }
+        }),
+      )
+      toast({
+        title: novoAtivo ? 'Regra ativada' : 'Regra pausada',
+        description: `Entrada automática para "${formatarNomeEstagio(regra.estagio_funil)}" agora está ${novoAtivo ? 'ativa' : 'pausada'}.`,
+      })
+      if (onFluxoAlterado) onFluxoAlterado()
+    } catch {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível alterar a regra.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Excluir regra de entrada
+  const handleExcluirRegraEntrada = async (regraId: string) => {
+    if (!fluxoAtivo) return
+    try {
+      await deleteRegraEntradaFluxo(regraId)
+      setFluxos((prev) =>
+        prev.map((f) => {
+          if (f.id !== fluxoAtivo.id) return f
+          const regras = (f.regras_entrada || []).filter((r) => r.id !== regraId)
+          return { ...f, regras_entrada: regras }
+        }),
+      )
+      toast({
+        title: 'Regra removida',
+        description: 'A regra de entrada foi excluída deste fluxo.',
+      })
+      if (onFluxoAlterado) onFluxoAlterado()
+    } catch {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir a regra de entrada.',
+        variant: 'destructive',
+      })
+    }
   }
 
   // Salvar fluxo
@@ -539,6 +666,7 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                 const isSelected = fluxoAtivo?.id === f.id
                 const qtdEtapas = f.etapas?.length || 0
                 const qtdAtivas = f.etapas?.filter((e) => e.ativa).length || 0
+                const regrasAtivas = f.regras_entrada?.filter((r) => r.ativo) || []
 
                 return (
                   <div
@@ -570,6 +698,22 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                             {f.descricao}
                           </p>
                         )}
+
+                        {/* Badges de Resumo Visual de Entrada por Estágio (Fase 3) */}
+                        {regrasAtivas.length > 0 && (
+                          <div className="flex items-center gap-1 mt-2 flex-wrap">
+                            <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/70 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                              <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                              <span>
+                                Entra em:{' '}
+                                {regrasAtivas
+                                  .map((r) => formatarNomeEstagio(r.estagio_funil))
+                                  .join(', ')}
+                              </span>
+                            </span>
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-emerald-600" />
@@ -646,6 +790,29 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                   {fluxoAtivo.descricao && (
                     <p className="text-xs text-gray-500 mt-1">{fluxoAtivo.descricao}</p>
                   )}
+
+                  {/* Resumo visual no cabeçalho do fluxo ativo */}
+                  {fluxoAtivo.regras_entrada && fluxoAtivo.regras_entrada.length > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      <span className="text-[11px] font-semibold text-gray-600">
+                        Entrada automática em:
+                      </span>
+                      {fluxoAtivo.regras_entrada.map((r) => (
+                        <Badge
+                          key={r.id}
+                          variant={r.ativo ? 'default' : 'secondary'}
+                          className={`text-[10px] font-semibold ${
+                            r.ativo
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              : 'bg-gray-200 text-gray-600'
+                          }`}
+                        >
+                          {formatarNomeEstagio(r.estagio_funil)}
+                          {!r.ativo && ' (pausada)'}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -659,6 +826,107 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                     <span>Adicionar Etapa</span>
                   </Button>
                 </div>
+              </div>
+
+              {/* BLOCO: REGRAS DE ENTRADA POR ESTÁGIO (FASE 3) */}
+              <div className="p-4 rounded-xl bg-white border border-gray-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-sm text-gray-900">
+                        Regras de Entrada por Estágio do Negócio
+                      </h5>
+                      <p className="text-[11px] text-gray-500">
+                        Clientes que mudarem para estes estágios no CRM entram automaticamente neste
+                        fluxo.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Adicionar nova regra */}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={estagioNovaRegra}
+                      onChange={(e) => setEstagioNovaRegra(e.target.value)}
+                      className="h-8 text-xs bg-slate-50 border border-gray-300 rounded-md px-2 font-medium text-gray-800"
+                    >
+                      <option value="novo lead">Novo Lead</option>
+                      <option value="qualificado">Qualificado</option>
+                      <option value="proposta enviada">Proposta Enviada</option>
+                      <option value="negociação">Negociação</option>
+                      <option value="contato_futuro">Contato Futuro</option>
+                      <option value="contrato assinado">Fechado / Ganho</option>
+                      <option value="perdido">Perdido</option>
+                    </select>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAdicionarRegraEntrada}
+                      disabled={isAdicionandoRegra}
+                      className="text-xs h-8 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      <span>Adicionar Regra</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Lista de Regras Configuradas */}
+                {!fluxoAtivo.regras_entrada || fluxoAtivo.regras_entrada.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic py-2">
+                    Nenhuma regra de entrada configurada. O fluxo só receberá clientes incluídos
+                    manualmente ou por disparo direto.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                    {fluxoAtivo.regras_entrada.map((regra) => (
+                      <div
+                        key={regra.id}
+                        className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 transition-all ${
+                          regra.ativo
+                            ? 'bg-emerald-50/60 border-emerald-200'
+                            : 'bg-gray-50 border-gray-200 opacity-70'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-xs text-gray-900 block truncate">
+                            {formatarNomeEstagio(regra.estagio_funil)}
+                          </span>
+                          <span className="text-[10px] text-gray-500">
+                            {regra.ativo ? 'Entrada ativa' : 'Entrada pausada'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRegraEntrada(regra)}
+                            className="p-1 text-gray-500 hover:text-emerald-700 cursor-pointer"
+                            title={regra.ativo ? 'Pausar regra' : 'Ativar regra'}
+                          >
+                            {regra.ativo ? (
+                              <ToggleRight className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4 text-gray-400" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExcluirRegraEntrada(regra.id)}
+                            className="p-1 text-gray-400 hover:text-rose-600 cursor-pointer rounded"
+                            title="Remover regra"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Lista de Etapas do Fluxo */}

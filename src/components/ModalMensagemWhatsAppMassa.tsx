@@ -1309,12 +1309,57 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
         estadoEnvio.sucessos.push(item.cliente.nome)
         const agoraEnvioIso = new Date().toISOString()
+        // Fase 3: Detecção de regra de entrada ativa por estágio do negócio/cliente
+        let fluxoAplicadoId = reenvioAtivo ? fluxoSelecionadoId || undefined : undefined
+        let origemAplicada: 'por_disparo' | 'automatica_por_estagio' = 'por_disparo'
+        let estagioGatilhoAplicado: string | undefined = undefined
+
+        const estagioCliente = (item.cliente.status || '').trim().toLowerCase()
+        if (estagioCliente && fluxosDisponiveis && fluxosDisponiveis.length > 0) {
+          for (const fl of fluxosDisponiveis) {
+            if (!fl.ativo || !fl.regras_entrada || fl.regras_entrada.length === 0) continue
+            const regraCasou = fl.regras_entrada.some((r) => {
+              if (!r.ativo) return false
+              const rEst = r.estagio_funil.trim().toLowerCase()
+              return rEst === estagioCliente
+            })
+            if (regraCasou) {
+              fluxoAplicadoId = fl.id
+              origemAplicada = 'automatica_por_estagio'
+              estagioGatilhoAplicado = item.cliente.status
+              break
+            }
+          }
+        }
+
+        const nomeFluxoAplicado = fluxoAplicadoId
+          ? fluxosDisponiveis.find((f) => f.id === fluxoAplicadoId)?.nome || 'Fluxo Follow-up'
+          : undefined
+
         destinatariosLote.push({
           cliente_id: item.cliente.id,
           nome: item.cliente.nome,
           telefone: item.numeroLimpo,
           status: 'pendente',
           data_envio_inicial: agoraEnvioIso,
+          fluxo_atual_id: fluxoAplicadoId,
+          origem_entrada: origemAplicada,
+          estagio_origem: estagioGatilhoAplicado,
+          trilha: fluxoAplicadoId
+            ? [
+                {
+                  fluxo_id: fluxoAplicadoId,
+                  fluxo_nome: nomeFluxoAplicado,
+                  origem_entrada: origemAplicada,
+                  estagio_gatilho: estagioGatilhoAplicado,
+                  motivo:
+                    origemAplicada === 'automatica_por_estagio'
+                      ? `Entrou automaticamente — estágio "${estagioGatilhoAplicado}" → Fluxo "${nomeFluxoAplicado}"`
+                      : `Incluído no disparo em lote → Fluxo "${nomeFluxoAplicado}"`,
+                  data: agoraEnvioIso,
+                },
+              ]
+            : undefined,
         })
         setProgressoEnvio({ ...estadoEnvio })
       } catch (err: unknown) {

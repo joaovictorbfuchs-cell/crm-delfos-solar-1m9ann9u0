@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-25T23:19:38.736Z",
+  "generatedAt": "2026-10-25T23:27:29.926Z",
   "collections": [
     {
       "name": "users",
@@ -8007,6 +8007,12 @@
           "required": false,
           "system": false,
           "collectionRef": "fluxos_follow_up"
+        },
+        {
+          "name": "origem_entrada",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -8222,6 +8228,53 @@
           "required": false,
           "system": false,
           "collectionRef": "fluxos_follow_up"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "regras_entrada_fluxo",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "fluxo_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "fluxos_follow_up"
+        },
+        {
+          "name": "estagio_funil",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

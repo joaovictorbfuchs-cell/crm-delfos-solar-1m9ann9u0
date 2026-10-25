@@ -698,6 +698,265 @@ function processarReenviosDisparosMassa(app) {
   }
 }
 
+/**
+ * Normaliza estágios do funil para comparação uniforme e tolerante (ex: 'negociação' == 'Negociação').
+ */
+function normalizarEstagioComparacao(str) {
+  if (!str) return ''
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[-_]/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+/**
+ * Avalia regras de entrada ativas para um cliente/negócio quando seu estágio muda.
+ * Se houver regra ativa correspondente, insere o cliente/negócio no fluxo correspondente
+ * criando ou atualizando o registro de lote/acompanhamento apropriado.
+ *
+ * Idempotente: se o cliente já está em acompanhamento ativo neste fluxo, não duplica.
+ */
+function avaliarEntradaAutomaticaEstagio(app, negocioRec, novoEstagio, estagioAnterior) {
+  if (!negocioRec || !novoEstagio) return { entrou: false }
+
+  const novoNorm = normalizarEstagioComparacao(novoEstagio)
+  const anteriorNorm = normalizarEstagioComparacao(estagioAnterior)
+
+  // Se não mudou o estágio de fato, nada a fazer
+  if (novoNorm && anteriorNorm && novoNorm === anteriorNorm) {
+    return { entrou: false, motivo: 'Estágio não alterado' }
+  }
+
+  const clienteId = negocioRec.getString('cliente_id')
+  if (!clienteId || clienteId.startsWith('demo_')) {
+    return { entrou: false, motivo: 'Sem cliente válido' }
+  }
+
+  let clienteRec = null
+  try {
+    clienteRec = app.findRecordById('clientes', clienteId)
+  } catch (_) {}
+
+  if (!clienteRec) {
+    return { entrou: false, motivo: 'Cliente não encontrado' }
+  }
+
+  const clienteNome = clienteRec.getString('nome') || 'Cliente'
+  const telBruto = clienteRec.getString('whatsapp') || clienteRec.getString('telefone') || ''
+  const telefoneLimpo = telBruto.replace(/\D/g, '')
+
+  if (!telefoneLimpo || telefoneLimpo.length < 10) {
+    return { entrou: false, motivo: 'Cliente sem telefone/WhatsApp válido' }
+  }
+
+  // 1. Buscar todas as regras ativas na coleção regras_entrada_fluxo
+  let regrasAtivas = []
+  try {
+    regrasAtivas = app.findRecordsByFilter(
+      'regras_entrada_fluxo',
+      'ativo = true',
+      'created',
+      100,
+      0,
+    )
+  } catch (errRegras) {
+    console.log('[ENTRADA ESTAGIO] Aviso ao buscar regras_entrada_fluxo:', errRegras)
+    return { entrou: false, error: String(errRegras) }
+  }
+
+  if (!regrasAtivas || regrasAtivas.length === 0) {
+    return { entrou: false, motivo: 'Nenhuma regra de entrada ativa configurada' }
+  }
+
+  // 2. Mapear fluxos ativos que casam com o novo estágio
+  const fluxosCorrespondentesIds = []
+  for (let r = 0; r < regrasAtivas.length; r++) {
+    const reg = regrasAtivas[r]
+    const estRegra = reg.getString('estagio_funil')
+    if (normalizarEstagioComparacao(estRegra) === novoNorm) {
+      const fId = reg.getString('fluxo_id')
+      if (fId && !fluxosCorrespondentesIds.includes(fId)) {
+        fluxosCorrespondentesIds.push(fId)
+      }
+    }
+  }
+
+  if (fluxosCorrespondentesIds.length === 0) {
+    return { entrou: false, motivo: 'Nenhuma regra corresponde ao estágio ' + novoEstagio }
+  }
+
+  const agora = new Date()
+  const agoraIso = agora.toISOString()
+  let entradasRealizadas = 0
+
+  for (let fIdx = 0; fIdx < fluxosCorrespondentesIds.length; fIdx++) {
+    const targetFluxoId = fluxosCorrespondentesIds[fIdx]
+
+    // Checar se o fluxo em si está ativo
+    let fluxoRec = null
+    try {
+      fluxoRec = app.findRecordById('fluxos_follow_up', targetFluxoId)
+    } catch (_) {}
+
+    if (!fluxoRec || !fluxoRec.getBool('ativo')) {
+      continue
+    }
+
+    const fluxoNome = fluxoRec.getString('nome') || 'Fluxo Follow-up'
+
+    // Checar idempotência: verificar se o cliente JÁ possui lote ativo neste fluxo
+    // Procura em lotes ativos vinculados a este fluxo_id
+    let jaAtivoNesseFluxo = false
+    try {
+      const lotesDoFluxo = app.findRecordsByFilter(
+        'disparos_massa',
+        `fluxo_id = '${targetFluxoId}' && status = 'ativo'`,
+        '-created',
+        50,
+        0,
+      )
+
+      for (let l = 0; l < lotesDoFluxo.length; l++) {
+        let dests = []
+        try {
+          const rawD = lotesDoFluxo[l].get('destinatarios')
+          dests = typeof rawD === 'string' ? JSON.parse(rawD) : rawD || []
+        } catch (_) {}
+
+        const matchDest = dests.find(
+          (d) =>
+            d.cliente_id === clienteId &&
+            d.status !== 'finalizado' &&
+            d.status !== 'arquivado' &&
+            d.status !== 'respondido' &&
+            d.status !== 'atendido' &&
+            d.status !== 'nao_perturbe' &&
+            d.status !== 'bloqueado' &&
+            d.status !== 'sem_whatsapp',
+        )
+
+        if (matchDest) {
+          jaAtivoNesseFluxo = true
+          break
+        }
+      }
+    } catch (errCheck) {
+      console.log('[ENTRADA ESTAGIO] Erro ao checar idempotência do lote:', errCheck)
+    }
+
+    if (jaAtivoNesseFluxo) {
+      console.log(
+        `[ENTRADA ESTAGIO] Cliente ${clienteNome} já possui acompanhamento ativo no fluxo "${fluxoNome}" (${targetFluxoId}). Entrada ignorada.`,
+      )
+      continue
+    }
+
+    // Carregar 1ª etapa ativa do fluxo para calcular prazo e agendamento
+    const etapas = carregarEtapasDoFluxo(app, targetFluxoId)
+    const primeiraEtapa = etapas.length > 0 ? etapas[0] : null
+    const prazoDias = primeiraEtapa ? Math.max(1, primeiraEtapa.dias_apos || 1) : 3
+    const dataPrevistaIso = new Date(
+      agora.getTime() + prazoDias * 24 * 60 * 60 * 1000,
+    ).toISOString()
+
+    // Montar objeto destinatário com origem_entrada = automatica_por_estagio e trilha completa
+    const novoDestinatario = {
+      cliente_id: clienteId,
+      nome: clienteNome,
+      telefone: telefoneLimpo,
+      status: 'pendente',
+      origem_entrada: 'automatica_por_estagio',
+      estagio_origem: novoEstagio,
+      negocio_id: negocioRec.id,
+      data_envio_inicial: agoraIso,
+      fluxo_atual_id: targetFluxoId,
+      proximo_envio_data: dataPrevistaIso,
+      proxima_etapa_nome: primeiraEtapa ? primeiraEtapa.nome : '1º Follow-up',
+      etapas_executadas: [],
+      trilha: [
+        {
+          fluxo_id: targetFluxoId,
+          fluxo_nome: fluxoNome,
+          origem_entrada: 'automatica_por_estagio',
+          estagio_gatilho: novoEstagio,
+          motivo: `Entrou automaticamente — estágio "${novoEstagio}" → Fluxo "${fluxoNome}"`,
+          data: agoraIso,
+        },
+      ],
+    }
+
+    // Localizar ou criar lote dedicado para acompanhamento por estágio deste fluxo
+    try {
+      const disparosCol = app.findCollectionByNameOrId('disparos_massa')
+      const filtroLoteAuto = `fluxo_id = '${targetFluxoId}' && origem_entrada = 'automatica_por_estagio' && status = 'ativo'`
+      const lotesAuto = app.findRecordsByFilter('disparos_massa', filtroLoteAuto, '-created', 1, 0)
+
+      let loteParaAtualizar = null
+      if (lotesAuto && lotesAuto.length > 0) {
+        loteParaAtualizar = lotesAuto[0]
+        let dests = []
+        try {
+          const raw = loteParaAtualizar.get('destinatarios')
+          dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        } catch (_) {}
+        dests.push(novoDestinatario)
+        loteParaAtualizar.set('destinatarios', dests)
+        loteParaAtualizar.set('total_destinatarios', dests.length)
+        app.save(loteParaAtualizar)
+      } else {
+        loteParaAtualizar = new Record(disparosCol)
+        loteParaAtualizar.set('titulo', `Follow-up Automático por Estágio: ${fluxoNome}`)
+        loteParaAtualizar.set('status', 'ativo')
+        loteParaAtualizar.set('segmento', 'automatica_por_estagio')
+        loteParaAtualizar.set('total_destinatarios', 1)
+        loteParaAtualizar.set('intervalo_segundos', 60)
+        loteParaAtualizar.set('data_disparo', agoraIso)
+        loteParaAtualizar.set(
+          'mensagem_original',
+          `Entrada automática de contatos com estágio "${novoEstagio}" no fluxo "${fluxoNome}"`,
+        )
+        loteParaAtualizar.set('reenvio_ativo', true)
+        loteParaAtualizar.set('fluxo_id', targetFluxoId)
+        loteParaAtualizar.set('origem_entrada', 'automatica_por_estagio')
+        loteParaAtualizar.set('destinatarios', [novoDestinatario])
+        loteParaAtualizar.set('estatisticas', {
+          total: 1,
+          pendentes: 1,
+          respondidos: 0,
+          atendidos: 0,
+          bloqueados: 0,
+          finalizados: 0,
+          reenvios_1_enviados: 0,
+          reenvios_2_enviados: 0,
+          ultima_verificacao: agoraIso,
+        })
+        app.save(loteParaAtualizar)
+      }
+
+      entradasRealizadas++
+      console.log(
+        `[ENTRADA ESTAGIO SUCESSO] Cliente ${clienteNome} entrou no fluxo "${fluxoNome}" por mudança de estágio para "${novoEstagio}".`,
+      )
+    } catch (errSaveLote) {
+      console.log('[ENTRADA ESTAGIO] Erro ao salvar lote de acompanhamento:', errSaveLote)
+    }
+  }
+
+  return {
+    entrou: entradasRealizadas > 0,
+    entradasRealizadas,
+    estagio: novoEstagio,
+  }
+}
+
 module.exports = {
   processarReenviosDisparosMassa,
+  avaliarEntradaAutomaticaEstagio,
+  normalizarEstagioComparacao,
+  carregarEtapasDoFluxo,
+  carregarNomeFluxo,
+  carregarFluxoPadraoId,
 }

@@ -22,6 +22,8 @@ export type MarcacaoRespostaDestinatario =
   | 'sem_resposta'
   | 'nao_perturbe'
 
+export type OrigemEntradaFollowUp = 'manual' | 'por_disparo' | 'automatica_por_estagio'
+
 export interface ItemTrilhaFollowUp {
   fluxo_id: string
   fluxo_nome?: string
@@ -31,6 +33,8 @@ export interface ItemTrilhaFollowUp {
   etapa_origem_nome?: string
   motivo?: string
   data?: string
+  origem_entrada?: OrigemEntradaFollowUp
+  estagio_gatilho?: string
 }
 
 export interface DestinatarioLoteMassa {
@@ -46,13 +50,16 @@ export interface DestinatarioLoteMassa {
   reenvio_2_msg_id?: string
   respondido_em?: string
   atendido_em?: string
-  // Suporte a fluxos de follow-up dinâmicos e Fase 2
+  // Suporte a fluxos de follow-up dinâmicos e Fase 2 / Fase 3
   fluxo_atual_id?: string
   fluxo_origem_id?: string
   fluxo_origem_nome?: string
   desvio_motivo?: string
   marcacao_resposta?: MarcacaoRespostaDestinatario
   marcacao_data?: string
+  origem_entrada?: OrigemEntradaFollowUp
+  estagio_origem?: string
+  negocio_id?: string
   trilha?: ItemTrilhaFollowUp[]
   etapa_atual_ordem?: number
   etapa_atual_nome?: string
@@ -96,6 +103,7 @@ export interface DisparoMassaRegistro extends RecordModel {
   texto_reenvio_1?: string
   texto_reenvio_2?: string
   fluxo_id?: string
+  origem_entrada?: OrigemEntradaFollowUp
   destinatarios: DestinatarioLoteMassa[]
   estatisticas?: EstatisticasDisparoMassa
   criado_por?: string
@@ -115,6 +123,7 @@ export interface CriarDisparoMassaInput {
   texto_reenvio_1?: string
   texto_reenvio_2?: string
   fluxo_id?: string
+  origem_entrada?: OrigemEntradaFollowUp
   destinatarios: DestinatarioLoteMassa[]
 }
 
@@ -220,6 +229,7 @@ export async function createDisparoMassa(
     texto_reenvio_1: input.texto_reenvio_1 || '',
     texto_reenvio_2: input.texto_reenvio_2 || '',
     fluxo_id: input.fluxo_id || '',
+    origem_entrada: input.origem_entrada || 'por_disparo',
     destinatarios: input.destinatarios,
     estatisticas: statsIniciais,
   }

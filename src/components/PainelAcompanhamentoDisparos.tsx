@@ -737,7 +737,17 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                                   >
                                     <td className="py-2 px-3 font-semibold text-gray-900">
                                       <div className="flex flex-col">
-                                        <span>{dest.nome || 'Cliente sem nome'}</span>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span>{dest.nome || 'Cliente sem nome'}</span>
+                                          {dest.origem_entrada === 'automatica_por_estagio' && (
+                                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[9px] font-bold px-1 py-0">
+                                              Estágio
+                                              {dest.estagio_origem
+                                                ? `: ${dest.estagio_origem}`
+                                                : ''}
+                                            </Badge>
+                                          )}
+                                        </div>
                                         {dest.marcacao_resposta &&
                                           dest.marcacao_resposta !== 'nenhuma' && (
                                             <span className="text-[10px] text-sky-700 font-medium">
@@ -1041,6 +1051,19 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                   <Badge variant="outline" className="text-[11px] font-semibold bg-white">
                     Status: {destinatarioTrilhaModal.status}
                   </Badge>
+                  {destinatarioTrilhaModal.origem_entrada === 'automatica_por_estagio' && (
+                    <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 text-[10px] font-bold">
+                      Origem: Entrada Automática por Estágio
+                      {destinatarioTrilhaModal.estagio_origem
+                        ? ` (${destinatarioTrilhaModal.estagio_origem})`
+                        : ''}
+                    </Badge>
+                  )}
+                  {destinatarioTrilhaModal.origem_entrada === 'por_disparo' && (
+                    <Badge className="bg-slate-100 text-slate-800 border-slate-300 text-[10px]">
+                      Origem: Disparo em Lote
+                    </Badge>
+                  )}
                   {destinatarioTrilhaModal.marcacao_resposta && (
                     <Badge className="bg-sky-100 text-sky-900 border-sky-300 text-[10px]">
                       Marcação: {destinatarioTrilhaModal.marcacao_resposta}

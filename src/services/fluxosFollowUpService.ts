@@ -1,6 +1,23 @@
 import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
 
+export interface RegraEntradaFluxo extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  fluxo_id: string
+  estagio_funil: string
+  ativo: boolean
+  created: string
+  updated: string
+}
+
+export interface CriarRegraEntradaInput {
+  fluxo_id: string
+  estagio_funil: string
+  ativo?: boolean
+}
+
 export interface FluxoFollowUp extends RecordModel {
   id: string
   collectionId: string
@@ -13,6 +30,7 @@ export interface FluxoFollowUp extends RecordModel {
   created: string
   updated: string
   etapas?: EtapaFollowUp[]
+  regras_entrada?: RegraEntradaFluxo[]
 }
 
 export type AcaoDesvioEtapa = 'nenhuma' | 'fluxo_alternativo' | 'arquivar'
@@ -84,6 +102,16 @@ export async function fetchFluxosFollowUp(apenasAtivos = false): Promise<FluxoFo
       sort: 'ordem',
     })
 
+    // Busca todas as regras de entrada cadastradas (Fase 3)
+    let regras: RegraEntradaFluxo[] = []
+    try {
+      regras = await pb.collection('regras_entrada_fluxo').getFullList<RegraEntradaFluxo>({
+        sort: 'created',
+      })
+    } catch (errRegras) {
+      console.warn('Coleção regras_entrada_fluxo ainda não disponível ou vazia:', errRegras)
+    }
+
     const etapasPorFluxo: Record<string, EtapaFollowUp[]> = {}
     for (const etapa of etapas) {
       if (!etapasPorFluxo[etapa.fluxo_id]) {
@@ -92,9 +120,18 @@ export async function fetchFluxosFollowUp(apenasAtivos = false): Promise<FluxoFo
       etapasPorFluxo[etapa.fluxo_id].push(etapa)
     }
 
+    const regrasPorFluxo: Record<string, RegraEntradaFluxo[]> = {}
+    for (const regra of regras) {
+      if (!regrasPorFluxo[regra.fluxo_id]) {
+        regrasPorFluxo[regra.fluxo_id] = []
+      }
+      regrasPorFluxo[regra.fluxo_id].push(regra)
+    }
+
     return fluxos.map((fluxo) => ({
       ...fluxo,
       etapas: (etapasPorFluxo[fluxo.id] || []).sort((a, b) => a.ordem - b.ordem),
+      regras_entrada: regrasPorFluxo[fluxo.id] || [],
     }))
   } catch (err) {
     console.error('Erro ao buscar fluxos_follow_up:', err)
@@ -112,9 +149,18 @@ export async function fetchFluxoFollowUpById(id: string): Promise<FluxoFollowUp 
       filter: `fluxo_id = '${id}'`,
       sort: 'ordem',
     })
+    let regras_entrada: RegraEntradaFluxo[] = []
+    try {
+      regras_entrada = await pb.collection('regras_entrada_fluxo').getFullList<RegraEntradaFluxo>({
+        filter: `fluxo_id = '${id}'`,
+      })
+    } catch {
+      /* intentionally ignored */
+    }
     return {
       ...fluxo,
       etapas,
+      regras_entrada,
     }
   } catch (err) {
     console.error(`Erro ao buscar fluxo ${id}:`, err)
@@ -155,6 +201,7 @@ export async function createFluxoFollowUp(input: CriarFluxoInput): Promise<Fluxo
   return {
     ...record,
     etapas: [],
+    regras_entrada: [],
   }
 }
 
@@ -180,6 +227,62 @@ export async function updateFluxoFollowUp(
  */
 export async function deleteFluxoFollowUp(id: string): Promise<boolean> {
   await pb.collection('fluxos_follow_up').delete(id)
+  return true
+}
+
+/**
+ * ============================================================================
+ * REGRAS DE ENTRADA POR ESTÁGIO (FASE 3)
+ * ============================================================================
+ */
+
+/**
+ * Busca todas as regras de entrada de um fluxo.
+ */
+export async function fetchRegrasEntradaFluxo(fluxoId: string): Promise<RegraEntradaFluxo[]> {
+  try {
+    return await pb.collection('regras_entrada_fluxo').getFullList<RegraEntradaFluxo>({
+      filter: `fluxo_id = '${fluxoId}'`,
+      sort: 'created',
+    })
+  } catch (err) {
+    console.error('Erro ao buscar regras de entrada do fluxo:', err)
+    return []
+  }
+}
+
+/**
+ * Cria uma regra de entrada por estágio em um fluxo.
+ */
+export async function createRegraEntradaFluxo(
+  input: CriarRegraEntradaInput,
+): Promise<RegraEntradaFluxo> {
+  const payload = {
+    fluxo_id: input.fluxo_id,
+    estagio_funil: input.estagio_funil.trim(),
+    ativo: input.ativo !== undefined ? input.ativo : true,
+  }
+  return await pb.collection('regras_entrada_fluxo').create<RegraEntradaFluxo>(payload)
+}
+
+/**
+ * Ativa / desativa ou atualiza uma regra de entrada.
+ */
+export async function updateRegraEntradaFluxo(
+  id: string,
+  dados: { estagio_funil?: string; ativo?: boolean },
+): Promise<RegraEntradaFluxo> {
+  const payload: Record<string, unknown> = {}
+  if (dados.estagio_funil !== undefined) payload.estagio_funil = dados.estagio_funil.trim()
+  if (dados.ativo !== undefined) payload.ativo = dados.ativo
+  return await pb.collection('regras_entrada_fluxo').update<RegraEntradaFluxo>(id, payload)
+}
+
+/**
+ * Exclui uma regra de entrada pelo ID.
+ */
+export async function deleteRegraEntradaFluxo(id: string): Promise<boolean> {
+  await pb.collection('regras_entrada_fluxo').delete(id)
   return true
 }
 
