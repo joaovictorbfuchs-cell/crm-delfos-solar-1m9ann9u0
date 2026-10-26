@@ -54,6 +54,9 @@ import {
 } from '@/services/fluxosFollowUpService'
 import { OPCOES_ETAPA_FUNIL_SCHEMA } from '@/services/negociosService'
 import { PLACEHOLDERS_ENVIO_MASSA } from '@/lib/placeholdersMensagemMassa'
+import { useClientes } from '@/contexts/ClientesContext'
+import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
+import { WhatsAppTemplate } from '@/types/crm'
 
 interface GerenciadorFluxosFollowUpProps {
   onFluxoAlterado?: () => void
@@ -63,6 +66,7 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   onFluxoAlterado,
 }) => {
   const { toast } = useToast()
+  const { whatsAppTemplates } = useClientes()
   const [fluxos, setFluxos] = useState<FluxoFollowUp[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [fluxoSelecionadoId, setFluxoSelecionadoId] = useState<string | null>(null)
@@ -86,6 +90,8 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   const [desvioFluxoId, setDesvioFluxoId] = useState<string>('')
   const [isSalvandoEtapa, setIsSalvandoEtapa] = useState(false)
   const [mostrarPreviaEtapa, setMostrarPreviaEtapa] = useState(true)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+  const [modalGerenciarTemplatesAberto, setModalGerenciarTemplatesAberto] = useState(false)
 
   // Regras de Entrada por Estágio (Fase 3)
   const [estagioNovaRegra, setEstagioNovaRegra] = useState<string>('negociação')
@@ -375,6 +381,7 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     // Seleciona o primeiro fluxo alternativo diferente deste, se houver
     const outroFluxo = fluxos.find((f) => f.id !== fluxoAtivo.id)
     setDesvioFluxoId(outroFluxo ? outroFluxo.id : '')
+    setSelectedTemplateId('')
     setModalEtapaAberto(true)
   }
 
@@ -388,6 +395,7 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     setDesvioAcao(etapa.desvio_acao || 'nenhuma')
     setDesvioDias(etapa.desvio_dias && etapa.desvio_dias > 0 ? etapa.desvio_dias : 7)
     setDesvioFluxoId(etapa.desvio_fluxo_id || '')
+    setSelectedTemplateId('')
     setModalEtapaAberto(true)
   }
 
@@ -614,6 +622,23 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   // Inserir tag no editor
   const handleInserirTag = (tag: string) => {
     setMensagemEtapa((prev) => (prev ? `${prev} ${tag}` : tag))
+  }
+
+  // Modelos de WhatsApp ativos
+  const templatesAtivos = (whatsAppTemplates || []).filter((t) => t.ativo !== false)
+
+  // Ao selecionar um modelo de WhatsApp
+  const handleSelecionarTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId)
+    if (!templateId) return
+    const encontrado = templatesAtivos.find((t) => t.id === templateId)
+    if (encontrado?.conteudo) {
+      setMensagemEtapa(encontrado.conteudo)
+      toast({
+        title: 'Modelo aplicado',
+        description: `O modelo "${encontrado.titulo}" preencheu a mensagem da etapa. Você pode editá-lo livremente.`,
+      })
+    }
   }
 
   return (
@@ -1260,12 +1285,92 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
               </div>
             </div>
 
-            {/* Editor da Mensagem */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="font-semibold text-gray-700">Mensagem da Etapa *</label>
-                <span className="text-[11px] text-gray-400">{mensagemEtapa.length} caracteres</span>
+            {/* Seletor de Modelo de WhatsApp + Editor da Mensagem */}
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <label className="font-semibold text-gray-700 flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Mensagem da Etapa *</span>
+                  </label>
+                  <span className="text-[10px] text-gray-400 font-normal">(100% editável)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setModalGerenciarTemplatesAberto(true)}
+                    className="h-6 px-2 text-[11px] text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 font-medium"
+                    title="Abrir gerenciador de modelos de mensagem do CRM"
+                  >
+                    Gerenciar Modelos
+                  </Button>
+                  <span className="text-[11px] text-gray-400">
+                    {mensagemEtapa.length} caracteres
+                  </span>
+                </div>
               </div>
+
+              {/* Seletor de modelos de WhatsApp cadastrados */}
+              <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-emerald-900 flex items-center gap-1">
+                    <span>Preencher a partir de um Modelo de WhatsApp</span>
+                  </span>
+                  {templatesAtivos.length > 0 && (
+                    <span className="text-[10px] text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded font-medium">
+                      {templatesAtivos.length}{' '}
+                      {templatesAtivos.length === 1 ? 'modelo ativo' : 'modelos ativos'}
+                    </span>
+                  )}
+                </div>
+
+                {templatesAtivos.length > 0 ? (
+                  <div className="space-y-1">
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => handleSelecionarTemplate(e.target.value)}
+                      className="w-full h-8 text-xs bg-white border border-emerald-200 rounded-md px-2 font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="">Selecione um modelo para preencher o texto...</option>
+                      {templatesAtivos.map((t) => {
+                        const previa = t.conteudo
+                          ? t.conteudo.replace(/\s+/g, ' ').trim().slice(0, 70) +
+                            (t.conteudo.length > 70 ? '...' : '')
+                          : ''
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.titulo} {previa ? `— "${previa}"` : ''}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    {selectedTemplateId && (
+                      <p className="text-[10px] text-emerald-700">
+                        O texto do modelo foi copiado abaixo. Você pode ajustar ou adicionar
+                        variáveis normalmente.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-gray-500 bg-white/80 p-2 rounded border border-gray-200 flex items-center justify-between">
+                    <span>
+                      Nenhum modelo de WhatsApp cadastrado. Acesse Configurações &gt; Comunicação.
+                    </span>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      onClick={() => setModalGerenciarTemplatesAberto(true)}
+                      className="h-auto p-0 text-[11px] text-emerald-700 font-semibold"
+                    >
+                      Cadastrar modelo
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <Textarea
                 placeholder="Digite a mensagem do follow-up... Use as variáveis abaixo para personalizar automaticamente."
                 value={mensagemEtapa}
@@ -1520,6 +1625,12 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal para Gerenciar Modelos de WhatsApp sem sair do fluxo */}
+      <ModalGerenciarWhatsAppTemplates
+        open={modalGerenciarTemplatesAberto}
+        onOpenChange={setModalGerenciarTemplatesAberto}
+      />
     </div>
   )
 }
