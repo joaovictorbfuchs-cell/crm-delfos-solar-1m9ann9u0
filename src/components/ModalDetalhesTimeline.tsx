@@ -78,7 +78,8 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   const [formData, setFormData] = useState('')
   const [formTipo, setFormTipo] = useState<AtividadeTipo>('follow_up')
   const [formStatus, setFormStatus] = useState<AtividadeStatus>('pendente')
-  const [formResponsavel, setFormResponsavel] = useState('')
+  const [formResponsavelId, setFormResponsavelId] = useState('')
+  const [formResponsavelNome, setFormResponsavelNome] = useState('')
 
   // Form states para Orçamento Solar
   const [formSolarStatus, setFormSolarStatus] = useState('Em elaboração')
@@ -95,7 +96,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   const [formOMValorAnual, setFormOMValorAnual] = useState<string>('R$ 0,00')
   const [formOMObs, setFormOMObs] = useState('')
 
-  const { documentosCliente } = useClientes()
+  const { documentosCliente, usuarios } = useClientes()
   const [modalProcuracaoViewOpen, setModalProcuracaoViewOpen] = useState(false)
   const [procuracaoViewDados, setProcuracaoViewDados] = useState<Partial<DadosProcuracaoOM> | null>(
     null,
@@ -185,7 +186,10 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
       }
       setFormTipo((a.tipo as AtividadeTipo) || 'follow_up')
       setFormStatus((a.status as AtividadeStatus) || 'pendente')
-      setFormResponsavel(a.responsavel_nome || a.autor || '')
+      const respIdInicial = a.responsavel_id || ''
+      const respNomeInicial = a.responsavel_nome || a.autor || ''
+      setFormResponsavelId(respIdInicial)
+      setFormResponsavelNome(respNomeInicial)
     }
   }, [item])
 
@@ -260,14 +264,34 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
         item.valorSecundario = `Total anual: ${formatCurrencyBRL(vAnualNum)}`
       } else if (item.rawAtividade) {
         const isoDate = formData ? new Date(formData).toISOString() : new Date().toISOString()
+        const selectedUser = usuarios.find((u) => u.id === formResponsavelId)
+        const finalRespNome =
+          selectedUser?.name ||
+          formResponsavelNome.trim() ||
+          item.rawAtividade.responsavel_nome ||
+          item.rawAtividade.autor ||
+          undefined
+        const finalRespId = formResponsavelId || selectedUser?.id || undefined
+
         await onUpdateAtividade(item.rawAtividade.id, {
           titulo: formTitulo.trim() || 'Atividade',
           descricao: formDescricao,
           tipo: formTipo,
           status: formStatus,
           data: isoDate,
-          responsavel_nome: formResponsavel.trim() || undefined,
+          responsavel_id: finalRespId,
+          responsavel_nome: finalRespNome,
+          autor: finalRespNome,
         })
+
+        // Atualiza referências locais do item para refletir imediatamente na UI
+        if (item.rawAtividade) {
+          item.rawAtividade.responsavel_id = finalRespId
+          item.rawAtividade.responsavel_nome = finalRespNome
+          item.rawAtividade.autor = finalRespNome
+        }
+        item.responsavelNome = finalRespNome
+        item.autor = finalRespNome
       }
 
       setSaveSuccess(true)
@@ -1330,13 +1354,36 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                       <label className="text-[11px] font-bold text-gray-700 block mb-1">
                         Responsável / Atendente
                       </label>
-                      <input
-                        type="text"
-                        value={formResponsavel}
-                        onChange={(e) => setFormResponsavel(e.target.value)}
-                        placeholder="Nome do responsável..."
+                      <select
+                        value={formResponsavelId}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setFormResponsavelId(val)
+                          const u = usuarios.find((user) => user.id === val)
+                          if (u) {
+                            setFormResponsavelNome(u.name || '')
+                          }
+                        }}
                         className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
+                      >
+                        <option value="">
+                          {formResponsavelNome
+                            ? `${formResponsavelNome} (Texto anterior)`
+                            : 'Selecione um usuário responsável...'}
+                        </option>
+                        {usuarios
+                          .filter((u) => u && u.id && u.name)
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name} {u.role ? `(${u.role})` : ''}
+                            </option>
+                          ))}
+                      </select>
+                      {formResponsavelNome && !usuarios.some((u) => u.id === formResponsavelId) && (
+                        <p className="text-[10px] text-gray-500 mt-1">
+                          Responsável registrado atualmente: <strong>{formResponsavelNome}</strong>
+                        </p>
+                      )}
                     </div>
 
                     <div>

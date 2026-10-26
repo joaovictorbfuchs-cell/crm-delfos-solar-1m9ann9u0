@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
+import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Battery,
   BatteryCharging,
@@ -66,15 +68,22 @@ export const ModalGeradorBateria: React.FC<ModalGeradorBateriaProps> = ({
   onSucesso,
 }) => {
   const { toast } = useToast()
+  const { usuarios } = useClientes()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<TabAtiva>('dimensionamento')
   const [salvando, setSalvando] = useState(false)
   const [salvandoPercentualAdminPadrao, setSalvandoPercentualAdminPadrao] = useState(false)
+
+  const usuariosValidos = useMemo(() => {
+    return (usuarios || []).filter((u) => u && u.id && u.name)
+  }, [usuarios])
 
   // Cliente e Negócio
   const [clienteId, setClienteId] = useState<string>('')
   const [negocioId, setNegocioId] = useState<string>('')
   const [numeroProposta, setNumeroProposta] = useState<string>('')
   const [validadeDias, setValidadeDias] = useState<number>(10)
+  const [autorId, setAutorId] = useState<string>('')
   const [autor, setAutor] = useState<string>('João Victor Bagetti Fuchs')
 
   // Dimensionamento
@@ -174,7 +183,19 @@ export const ModalGeradorBateria: React.FC<ModalGeradorBateriaProps> = ({
       setNegocioId(orcamentoParaEdicao.negocio_id || '')
       setNumeroProposta(orcamentoParaEdicao.numero_proposta || '')
       setValidadeDias(orcamentoParaEdicao.validade_dias || 10)
-      setAutor(orcamentoParaEdicao.autor || 'João Victor Bagetti Fuchs')
+      const autorNomeSalvo = orcamentoParaEdicao.autor || 'João Victor Bagetti Fuchs'
+      setAutor(autorNomeSalvo)
+      const userMatch = usuariosValidos.find(
+        (u) =>
+          u.name?.toLowerCase() === autorNomeSalvo.toLowerCase() ||
+          u.email?.toLowerCase() === autorNomeSalvo.toLowerCase() ||
+          u.id === autorNomeSalvo,
+      )
+      if (userMatch) {
+        setAutorId(userMatch.id)
+      } else {
+        setAutorId('')
+      }
 
       setTipoAplicacao(orcamentoParaEdicao.tipo_aplicacao || 'backup')
       setConsumoCriticoKwhDia(orcamentoParaEdicao.consumo_critico_kwh_dia || 10.0)
@@ -237,12 +258,23 @@ export const ModalGeradorBateria: React.FC<ModalGeradorBateriaProps> = ({
     } else {
       // Modo Novo
       const cli = clientes.find((c) => c.id === clientePreSelecionadoId) || null
-      const iniciais = gerarValoresIniciaisBateria(cli, autor, percentualAdministracaoAuto)
+      const userLogado =
+        usuariosValidos.find((u) => u.id === user?.id || u.email === user?.email) ||
+        usuariosValidos[0]
+      const autorNomePadrao = userLogado?.name || user?.name || 'João Victor Bagetti Fuchs'
+      const iniciais = gerarValoresIniciaisBateria(
+        cli,
+        autorNomePadrao,
+        percentualAdministracaoAuto,
+      )
       setClienteId(clientePreSelecionadoId || (clientes[0]?.id ?? ''))
       setNegocioId(negocioPreSelecionadoId || '')
       setNumeroProposta(iniciais.numero_proposta || '')
       setValidadeDias(iniciais.validade_dias || 10)
-      setAutor(iniciais.autor || 'João Victor Bagetti Fuchs')
+      setAutor(autorNomePadrao)
+      if (userLogado) {
+        setAutorId(userLogado.id)
+      }
 
       setTipoAplicacao(iniciais.tipo_aplicacao || 'backup')
       setConsumoCriticoKwhDia(iniciais.consumo_critico_kwh_dia || 10.0)
@@ -725,14 +757,29 @@ export const ModalGeradorBateria: React.FC<ModalGeradorBateriaProps> = ({
 
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">
-                      Consultor / Autor
+                      Consultor / Autor *
                     </label>
-                    <input
-                      type="text"
-                      value={autor}
-                      onChange={(e) => setAutor(e.target.value)}
-                      className="w-full h-8 px-2.5 rounded border border-slate-300 bg-white text-slate-800"
-                    />
+                    <select
+                      value={autorId}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setAutorId(val)
+                        const matched = usuariosValidos.find((u) => u.id === val)
+                        if (matched) {
+                          setAutor(matched.name || '')
+                        }
+                      }}
+                      className="w-full h-8 px-2.5 rounded border border-slate-300 bg-white text-slate-800 focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="">
+                        {autor ? `${autor} (Atual)` : 'Selecione um consultor...'}
+                      </option>
+                      {usuariosValidos.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} {u.role ? `(${u.role})` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
