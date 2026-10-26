@@ -52,7 +52,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import { useClientes } from '@/contexts/ClientesContext'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WhatsAppTemplate } from '@/types/crm'
+import { useWhatsAppTemplateTaxonomia } from '@/hooks/useWhatsAppTemplateTaxonomia'
+import { TabTaxonomiaWhatsApp } from './TabTaxonomiaWhatsApp'
 import {
   VARIAVEIS_WHATSAPP_SISTEMA,
   USOS_FLUXOS_WHATSAPP,
@@ -104,6 +107,18 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
     removeWhatsAppTemplate,
     refreshData,
   } = useClientes()
+
+  // Estados de listagem e filtros
+  // Aba ativa do gerenciador: templates, categorias ou etapas
+  const [abaAtiva, setAbaAtiva] = useState<'templates' | 'categorias' | 'etapas'>('templates')
+
+  // Taxonomia do banco com fallback resiliente
+  const {
+    categorias: taxonomiaCategorias,
+    etapas: taxonomiaEtapas,
+    nomesCategorias,
+    recarregar: recarregarTaxonomia,
+  } = useWhatsAppTemplateTaxonomia()
 
   // Estados de listagem e filtros
   const [busca, setBusca] = useState('')
@@ -181,7 +196,7 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
   const handleNovoTemplate = () => {
     setTemplateEditando(null)
     setTituloForm('')
-    setCategoriaForm('Operacional')
+    setCategoriaForm((nomesCategorias[0] as CategoriaTemplate) || 'Operacional')
     setSlugForm('')
     setConteudoForm('')
     setAtivoForm(true)
@@ -361,332 +376,398 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => refreshData()}
+                  onClick={() => {
+                    refreshData()
+                    recarregarTaxonomia()
+                  }}
                   disabled={carregandoWhatsAppTemplates}
                   title="Atualizar lista"
                 >
                   {carregandoWhatsAppTemplates ? 'Atualizando...' : 'Recarregar'}
                 </Button>
-                <Button
-                  onClick={handleNovoTemplate}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-medium"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Novo Template
-                </Button>
-              </div>
-            </div>
-
-            {/* Barra de Filtros e Busca */}
-            <div className="mt-4 pt-3 border-t border-border/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome, conteúdo, variável ou uso..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="pl-9 h-9 text-sm"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-                  <Select value={categoriaFiltro} onValueChange={setCategoriaFiltro}>
-                    <SelectTrigger className="h-9 w-[180px] text-xs">
-                      <SelectValue placeholder="Categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS_FILTRO.map((c) => (
-                        <SelectItem key={c.value} value={c.value} className="text-xs">
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center space-x-2 pl-2 border-l border-border">
-                  <Switch
-                    id="filtro-ativos"
-                    checked={apenasAtivos}
-                    onCheckedChange={setApenasAtivos}
-                  />
-                  <Label
-                    htmlFor="filtro-ativos"
-                    className="text-xs cursor-pointer text-muted-foreground whitespace-nowrap"
-                  >
-                    Apenas ativos
-                  </Label>
-                </div>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {/* Conteúdo Principal / Listagem */}
-          <ScrollArea className="flex-1 p-6 overflow-y-auto bg-muted/20">
-            {carregandoWhatsAppTemplates ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
-                <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm">Carregando templates cadastrados no CRM...</p>
-              </div>
-            ) : templatesFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border rounded-xl bg-card p-8">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-3">
-                  <MessageSquare className="w-6 h-6" />
-                </div>
-                <h3 className="font-semibold text-base text-foreground mb-1">
-                  Nenhum template encontrado
-                </h3>
-                <p className="text-xs text-muted-foreground max-w-sm mb-4">
-                  {busca || categoriaFiltro !== 'todas' || apenasAtivos
-                    ? 'Nenhum modelo corresponde aos filtros aplicados. Tente limpar os filtros ou ajustar o termo de busca.'
-                    : 'Ainda não existem templates cadastrados. Comece criando um novo modelo para agilizar seus contatos.'}
-                </p>
-                {(busca || categoriaFiltro !== 'todas' || apenasAtivos) && (
+                {abaAtiva === 'templates' && (
                   <Button
-                    variant="outline"
+                    onClick={handleNovoTemplate}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-medium"
                     size="sm"
-                    onClick={() => {
-                      setBusca('')
-                      setCategoriaFiltro('todas')
-                      setApenasAtivos(false)
-                    }}
                   >
-                    Limpar Filtros
+                    <Plus className="w-4 h-4" />
+                    Novo Template
                   </Button>
                 )}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {templatesFiltrados.map((template) => {
-                  const categoria = resolverCategoria(template)
-                  const fluxo = getFluxoDoTemplate(template.slug)
-                  const variaveis = extrairVariaveisTemplate(
-                    template.variaveis_disponiveis,
-                    template.conteudo,
-                  )
+            </div>
 
-                  return (
-                    <Card
-                      key={template.id}
-                      className="border border-border shadow-sm hover:border-emerald-500/40 transition-colors bg-card"
+            {/* Abas de Navegação: Templates | Categorias | Etapas */}
+            <div className="mt-4 pt-2">
+              <Tabs
+                value={abaAtiva}
+                onValueChange={(val) => setAbaAtiva(val as 'templates' | 'categorias' | 'etapas')}
+              >
+                <TabsList className="grid grid-cols-3 max-w-md h-9 p-1">
+                  <TabsTrigger value="templates" className="text-xs font-semibold">
+                    Modelos / Templates
+                  </TabsTrigger>
+                  <TabsTrigger value="categorias" className="text-xs font-semibold">
+                    Categorias ({taxonomiaCategorias.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="etapas" className="text-xs font-semibold">
+                    Etapas ({taxonomiaEtapas.length})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* Barra de Filtros e Busca (somente na aba de templates) */}
+            {abaAtiva === 'templates' && (
+              <div className="mt-3 pt-3 border-t border-border/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome, conteúdo, variável ou uso..."
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    className="pl-9 h-9 text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Select value={categoriaFiltro} onValueChange={setCategoriaFiltro}>
+                      <SelectTrigger className="h-9 w-[190px] text-xs">
+                        <SelectValue placeholder="Categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas" className="text-xs">
+                          Todas as categorias
+                        </SelectItem>
+                        {nomesCategorias.map((catNome) => (
+                          <SelectItem key={catNome} value={catNome} className="text-xs">
+                            {catNome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center space-x-2 pl-2 border-l border-border">
+                    <Switch
+                      id="filtro-ativos"
+                      checked={apenasAtivos}
+                      onCheckedChange={setApenasAtivos}
+                    />
+                    <Label
+                      htmlFor="filtro-ativos"
+                      className="text-xs cursor-pointer text-muted-foreground whitespace-nowrap"
                     >
-                      <CardContent className="p-4 sm:p-5">
-                        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                          {/* Coluna de Informações do Template */}
-                          <div className="flex-1 space-y-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-bold text-base text-foreground tracking-tight">
-                                {template.titulo}
-                              </span>
+                      Apenas ativos
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogHeader>
 
-                              <Badge
-                                variant="outline"
-                                className={`text-[11px] font-medium border ${getBadgeCategoria(
-                                  categoria,
-                                )}`}
-                              >
-                                {categoria}
-                              </Badge>
+          {/* Conteúdo Principal conforme a aba ativa */}
+          {abaAtiva === 'categorias' ? (
+            <ScrollArea className="flex-1 p-6 overflow-y-auto bg-muted/20">
+              <TabTaxonomiaWhatsApp
+                tipo="categoria"
+                itens={taxonomiaCategorias}
+                onRecarregar={async () => {
+                  await recarregarTaxonomia()
+                  await refreshData()
+                }}
+              />
+            </ScrollArea>
+          ) : abaAtiva === 'etapas' ? (
+            <ScrollArea className="flex-1 p-6 overflow-y-auto bg-muted/20">
+              <TabTaxonomiaWhatsApp
+                tipo="etapa"
+                itens={taxonomiaEtapas}
+                onRecarregar={async () => {
+                  await recarregarTaxonomia()
+                  await refreshData()
+                }}
+              />
+            </ScrollArea>
+          ) : (
+            <ScrollArea className="flex-1 p-6 overflow-y-auto bg-muted/20">
+              {carregandoWhatsAppTemplates ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                  <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm">Carregando templates cadastrados no CRM...</p>
+                </div>
+              ) : templatesFiltrados.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border rounded-xl bg-card p-8">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-3">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-semibold text-base text-foreground mb-1">
+                    Nenhum template encontrado
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-sm mb-4">
+                    {busca || categoriaFiltro !== 'todas' || apenasAtivos
+                      ? 'Nenhum modelo corresponde aos filtros aplicados. Tente limpar os filtros ou ajustar o termo de busca.'
+                      : 'Ainda não existem templates cadastrados. Comece criando um novo modelo para agilizar seus contatos.'}
+                  </p>
+                  {(busca || categoriaFiltro !== 'todas' || apenasAtivos) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setBusca('')
+                        setCategoriaFiltro('todas')
+                        setApenasAtivos(false)
+                      }}
+                    >
+                      Limpar Filtros
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {templatesFiltrados.map((template) => {
+                    const categoria = resolverCategoria(template)
+                    const fluxo = getFluxoDoTemplate(template.slug)
+                    const variaveis = extrairVariaveisTemplate(
+                      template.variaveis_disponiveis,
+                      template.conteudo,
+                    )
 
-                              {template.ativo === false ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] bg-muted text-muted-foreground"
-                                >
-                                  Inativo
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center gap-1"
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                  Ativo
-                                </Badge>
-                              )}
-
-                              {template.slug && (
-                                <span className="text-[11px] font-mono text-muted-foreground/80 bg-muted/60 px-1.5 py-0.5 rounded">
-                                  {template.slug}
+                    return (
+                      <Card
+                        key={template.id}
+                        className="border border-border shadow-sm hover:border-emerald-500/40 transition-colors bg-card"
+                      >
+                        <CardContent className="p-4 sm:p-5">
+                          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                            {/* Coluna de Informações do Template */}
+                            <div className="flex-1 space-y-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-base text-foreground tracking-tight">
+                                  {template.titulo}
                                 </span>
-                              )}
-                            </div>
 
-                            {/* Onde é usado no sistema */}
-                            <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-md border border-border/60">
-                              <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                              <div className="flex-1">
-                                {fluxo ? (
-                                  <div className="contents" key="fluxo-info-box">
-                                    <span className="font-semibold text-foreground">
-                                      Usado em: {fluxo.tituloUso}
-                                    </span>
-                                    <span className="text-muted-foreground block text-[11px] mt-0.5">
-                                      {fluxo.descricaoUso} ({fluxo.origemEnvio})
-                                    </span>
-                                  </div>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[11px] font-medium border ${getBadgeCategoria(
+                                    categoria,
+                                  )}`}
+                                >
+                                  {categoria}
+                                </Badge>
+
+                                {template.ativo === false ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px] bg-muted text-muted-foreground"
+                                  >
+                                    Inativo
+                                  </Badge>
                                 ) : (
-                                  <div className="contents" key="geral-info-box">
-                                    <span className="font-medium text-foreground">
-                                      Template Geral / Personalizado
-                                    </span>
-                                    <span className="text-muted-foreground block text-[11px] mt-0.5">
-                                      Disponível na central de conversas e mensagens manuais.
-                                    </span>
-                                  </div>
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center gap-1"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    Ativo
+                                  </Badge>
                                 )}
-                              </div>
-                            </div>
 
-                            {/* Conteúdo preview/resumo */}
-                            <div className="relative">
-                              <div className="text-xs text-foreground bg-muted/20 border border-border rounded-lg p-3 whitespace-pre-wrap font-sans max-h-36 overflow-y-auto leading-relaxed select-text">
-                                {template.conteudo}
-                              </div>
-                            </div>
-
-                            {/* Variáveis Dinâmicas Identificadas */}
-                            <div className="space-y-1.5 pt-1">
-                              <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                <Sparkles className="w-3 h-3 text-amber-500" />
-                                Variáveis disponíveis neste template:
-                              </div>
-
-                              <div className="flex flex-wrap gap-1.5">
-                                {variaveis.length > 0 ? (
-                                  variaveis.map((v) => {
-                                    const info = VARIAVEIS_WHATSAPP_SISTEMA[v]
-                                    return (
-                                      <TooltipProvider key={v} delayDuration={200}>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge
-                                              variant="outline"
-                                              className="cursor-help text-xs font-mono py-0.5 px-2 bg-background hover:bg-muted text-foreground border-border/80 transition-colors flex items-center gap-1"
-                                            >
-                                              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                                {'{'}
-                                              </span>
-                                              <span>{v}</span>
-                                              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                                {'}'}
-                                              </span>
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top" className="max-w-xs text-xs">
-                                            <p className="font-bold text-foreground">
-                                              {info?.label || `{${v}}`}
-                                            </p>
-                                            <p className="text-muted-foreground mt-0.5">
-                                              {info?.descricao ||
-                                                'Variável dinâmica substituída automaticamente no momento do envio.'}
-                                            </p>
-                                            {info?.exemplo && (
-                                              <p className="mt-1 pt-1 border-t border-border/40 text-[11px] text-emerald-600 dark:text-emerald-400">
-                                                Exemplo:{' '}
-                                                <span className="font-semibold">
-                                                  {info.exemplo}
-                                                </span>
-                                              </p>
-                                            )}
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    )
-                                  })
-                                ) : (
-                                  <span className="text-xs text-muted-foreground italic">
-                                    Nenhuma variável identificada. Você pode adicionar variáveis
-                                    como{' '}
-                                    <code className="text-[11px] bg-muted px-1 rounded font-mono">
-                                      {'{nome_cliente}'}
-                                    </code>
-                                    .
+                                {template.slug && (
+                                  <span className="text-[11px] font-mono text-muted-foreground/80 bg-muted/60 px-1.5 py-0.5 rounded">
+                                    {template.slug}
                                   </span>
                                 )}
                               </div>
+
+                              {/* Onde é usado no sistema */}
+                              <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-md border border-border/60">
+                                <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                  {fluxo ? (
+                                    <div className="contents" key="fluxo-info-box">
+                                      <span className="font-semibold text-foreground">
+                                        Usado em: {fluxo.tituloUso}
+                                      </span>
+                                      <span className="text-muted-foreground block text-[11px] mt-0.5">
+                                        {fluxo.descricaoUso} ({fluxo.origemEnvio})
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="contents" key="geral-info-box">
+                                      <span className="font-medium text-foreground">
+                                        Template Geral / Personalizado
+                                      </span>
+                                      <span className="text-muted-foreground block text-[11px] mt-0.5">
+                                        Disponível na central de conversas e mensagens manuais.
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Conteúdo preview/resumo */}
+                              <div className="relative">
+                                <div className="text-xs text-foreground bg-muted/20 border border-border rounded-lg p-3 whitespace-pre-wrap font-sans max-h-36 overflow-y-auto leading-relaxed select-text">
+                                  {template.conteudo}
+                                </div>
+                              </div>
+
+                              {/* Variáveis Dinâmicas Identificadas */}
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                  <Sparkles className="w-3 h-3 text-amber-500" />
+                                  Variáveis disponíveis neste template:
+                                </div>
+
+                                <div className="flex flex-wrap gap-1.5">
+                                  {variaveis.length > 0 ? (
+                                    variaveis.map((v) => {
+                                      const info = VARIAVEIS_WHATSAPP_SISTEMA[v]
+                                      return (
+                                        <TooltipProvider key={v} delayDuration={200}>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Badge
+                                                variant="outline"
+                                                className="cursor-help text-xs font-mono py-0.5 px-2 bg-background hover:bg-muted text-foreground border-border/80 transition-colors flex items-center gap-1"
+                                              >
+                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                                  {'{'}
+                                                </span>
+                                                <span>{v}</span>
+                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                                  {'}'}
+                                                </span>
+                                              </Badge>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="max-w-xs text-xs">
+                                              <p className="font-bold text-foreground">
+                                                {info?.label || `{${v}}`}
+                                              </p>
+                                              <p className="text-muted-foreground mt-0.5">
+                                                {info?.descricao ||
+                                                  'Variável dinâmica substituída automaticamente no momento do envio.'}
+                                              </p>
+                                              {info?.exemplo && (
+                                                <p className="mt-1 pt-1 border-t border-border/40 text-[11px] text-emerald-600 dark:text-emerald-400">
+                                                  Exemplo:{' '}
+                                                  <span className="font-semibold">
+                                                    {info.exemplo}
+                                                  </span>
+                                                </p>
+                                              )}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )
+                                    })
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">
+                                      Nenhuma variável identificada. Você pode adicionar variáveis
+                                      como{' '}
+                                      <code className="text-[11px] bg-muted px-1 rounded font-mono">
+                                        {'{nome_cliente}'}
+                                      </code>
+                                      .
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Coluna de Ações Rápidas */}
+                            <div className="flex lg:flex-col items-center justify-end gap-2 border-t lg:border-t-0 lg:border-l border-border pt-3 lg:pt-0 lg:pl-4 min-w-[140px]">
+                              {/* Botão de Testar / Preview */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full justify-start text-xs h-8 text-foreground gap-1.5"
+                                onClick={() => setPreviewTemplate(template)}
+                              >
+                                <Eye className="w-3.5 h-3.5 text-blue-500" />
+                                Visualizar
+                              </Button>
+
+                              {/* Botão de Copiar Texto */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-xs h-8 gap-1.5"
+                                onClick={() => handleCopiarTexto(template.conteudo, template.id)}
+                              >
+                                {copiadoId === template.id ? (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span className="text-emerald-600 font-medium">Copiado!</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>Copiar Texto</span>
+                                  </span>
+                                )}
+                              </Button>
+
+                              {/* Botão de Editar */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full justify-start text-xs h-8 text-foreground gap-1.5 hover:bg-muted"
+                                onClick={() => handleEditarTemplate(template)}
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-amber-500" />
+                                Editar
+                              </Button>
+
+                              {/* Botão de Excluir */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-xs h-8 text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
+                                onClick={() => setTemplateParaExcluir(template)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Excluir
+                              </Button>
                             </div>
                           </div>
-
-                          {/* Coluna de Ações Rápidas */}
-                          <div className="flex lg:flex-col items-center justify-end gap-2 border-t lg:border-t-0 lg:border-l border-border pt-3 lg:pt-0 lg:pl-4 min-w-[140px]">
-                            {/* Botão de Testar / Preview */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full justify-start text-xs h-8 text-foreground gap-1.5"
-                              onClick={() => setPreviewTemplate(template)}
-                            >
-                              <Eye className="w-3.5 h-3.5 text-blue-500" />
-                              Visualizar
-                            </Button>
-
-                            {/* Botão de Copiar Texto */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full justify-start text-xs h-8 gap-1.5"
-                              onClick={() => handleCopiarTexto(template.conteudo, template.id)}
-                            >
-                              {copiadoId === template.id ? (
-                                <span className="inline-flex items-center gap-1.5">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span className="text-emerald-600 font-medium">Copiado!</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5">
-                                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span>Copiar Texto</span>
-                                </span>
-                              )}
-                            </Button>
-
-                            {/* Botão de Editar */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full justify-start text-xs h-8 text-foreground gap-1.5 hover:bg-muted"
-                              onClick={() => handleEditarTemplate(template)}
-                            >
-                              <Edit2 className="w-3.5 h-3.5 text-amber-500" />
-                              Editar
-                            </Button>
-
-                            {/* Botão de Excluir */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full justify-start text-xs h-8 text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
-                              onClick={() => setTemplateParaExcluir(template)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              Excluir
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          )}
 
           {/* Rodapé informativo */}
           <div className="p-4 border-t border-border bg-card flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">
-                Total:{' '}
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  {templatesFiltrados.length}
-                </span>{' '}
-                de {whatsAppTemplates.length} templates
-              </span>
-              <span>•</span>
-              <span>Operacionais: Lembrete Auto Leitura RGE e Notificação de OS presentes</span>
+              {abaAtiva === 'templates' ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    Total:{' '}
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      {templatesFiltrados.length}
+                    </span>{' '}
+                    de {whatsAppTemplates.length} templates
+                  </span>
+                  <span>•</span>
+                  <span>Operacionais: Lembrete Auto Leitura RGE e Notificação de OS presentes</span>
+                </>
+              ) : abaAtiva === 'categorias' ? (
+                <span className="font-semibold text-foreground">
+                  {taxonomiaCategorias.length} categorias cadastradas na taxonomia
+                </span>
+              ) : (
+                <span className="font-semibold text-foreground">
+                  {taxonomiaEtapas.length} etapas do funil de templates cadastradas
+                </span>
+              )}
             </div>
 
             <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
@@ -763,11 +844,17 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                       <SelectValue placeholder="Selecione a categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Operacional">Operacional</SelectItem>
-                      <SelectItem value="Comercial">Comercial</SelectItem>
-                      <SelectItem value="Atendimento">Atendimento</SelectItem>
-                      <SelectItem value="Pós-Vendas">Pós-Vendas</SelectItem>
-                      <SelectItem value="Geral">Geral</SelectItem>
+                      {nomesCategorias.map((cNome) => (
+                        <SelectItem key={cNome} value={cNome} className="text-sm">
+                          {cNome}
+                        </SelectItem>
+                      ))}
+                      {/* Preserva Geral se não estiver na lista */}
+                      {!nomesCategorias.includes('Geral') && (
+                        <SelectItem value="Geral" className="text-sm">
+                          Geral
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

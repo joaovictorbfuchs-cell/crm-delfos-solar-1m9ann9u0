@@ -68,6 +68,7 @@ import {
   extrairVariaveisTemplate,
   renderizarPreviewTemplate,
 } from '@/lib/whatsappTemplatesMetadata'
+import { useWhatsAppTemplateTaxonomia } from '@/hooks/useWhatsAppTemplateTaxonomia'
 
 interface GerenciarMensagensWhatsAppProps {
   embeddedInModal?: boolean
@@ -111,6 +112,9 @@ export const GerenciarMensagensWhatsApp: React.FC<GerenciarMensagensWhatsAppProp
     removeWhatsAppTemplate,
     refreshData,
   } = useClientes()
+
+  // Taxonomia dinâmica do banco com fallback resiliente
+  const { nomesCategorias, nomesEtapas } = useWhatsAppTemplateTaxonomia()
 
   // Filtros e busca
   const [busca, setBusca] = useState('')
@@ -504,9 +508,12 @@ export const GerenciarMensagensWhatsApp: React.FC<GerenciarMensagensWhatsAppProp
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIAS_LISTA.map((c) => (
-                  <SelectItem key={c.value} value={c.value} className="text-xs">
-                    {c.label}
+                <SelectItem value="todas" className="text-xs">
+                  Todas as categorias
+                </SelectItem>
+                {nomesCategorias.map((cNome) => (
+                  <SelectItem key={cNome} value={cNome} className="text-xs">
+                    {cNome}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -520,9 +527,12 @@ export const GerenciarMensagensWhatsApp: React.FC<GerenciarMensagensWhatsAppProp
                 <SelectValue placeholder="Etapa do funil" />
               </SelectTrigger>
               <SelectContent>
-                {ETAPAS_LISTA.map((e) => (
-                  <SelectItem key={e.value} value={e.value} className="text-xs">
-                    {e.label}
+                <SelectItem value="todas" className="text-xs">
+                  Todas as etapas
+                </SelectItem>
+                {nomesEtapas.map((eNome) => (
+                  <SelectItem key={eNome} value={eNome} className="text-xs">
+                    {eNome}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -937,7 +947,7 @@ export const GerenciarMensagensWhatsApp: React.FC<GerenciarMensagensWhatsAppProp
                       <SelectValue placeholder="Selecione a categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CATEGORIAS_WHATSAPP_CANONICAS.map((cat) => (
+                      {nomesCategorias.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
                         </SelectItem>
@@ -960,7 +970,7 @@ export const GerenciarMensagensWhatsApp: React.FC<GerenciarMensagensWhatsAppProp
                       <SelectValue placeholder="Selecione a etapa" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ETAPAS_WHATSAPP_CANONICAS.map((et) => (
+                      {nomesEtapas.map((et) => (
                         <SelectItem key={et} value={et}>
                           {et}
                         </SelectItem>

@@ -57,6 +57,7 @@ import { OPCOES_ETAPA_FUNIL_SCHEMA } from '@/services/negociosService'
 import { PLACEHOLDERS_ENVIO_MASSA } from '@/lib/placeholdersMensagemMassa'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
+import { useWhatsAppTemplateTaxonomia } from '@/hooks/useWhatsAppTemplateTaxonomia'
 import { WhatsAppTemplate } from '@/types/crm'
 
 interface GerenciadorFluxosFollowUpProps {
@@ -95,7 +96,11 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   const [isSalvandoEtapa, setIsSalvandoEtapa] = useState(false)
   const [mostrarPreviaEtapa, setMostrarPreviaEtapa] = useState(true)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+  const [filtroCategoriaModal, setFiltroCategoriaModal] = useState<string>('todas')
   const [modalGerenciarTemplatesAberto, setModalGerenciarTemplatesAberto] = useState(false)
+
+  // Taxonomia de WhatsApp do banco
+  const { nomesCategorias } = useWhatsAppTemplateTaxonomia()
 
   // Regras de Entrada por Estágio (Fase 3)
   const [estagioNovaRegra, setEstagioNovaRegra] = useState<string>('negociação')
@@ -1375,24 +1380,51 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                 </div>
 
                 {templatesAtivos.length > 0 ? (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
+                    {/* Filtro de Categoria com Taxonomia Dinâmica do Banco */}
+                    {nomesCategorias.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-medium text-emerald-900 whitespace-nowrap">
+                          Filtrar Categoria:
+                        </label>
+                        <select
+                          value={filtroCategoriaModal}
+                          onChange={(e) => setFiltroCategoriaModal(e.target.value)}
+                          className="h-6 text-[11px] bg-white border border-emerald-200 rounded px-1.5 text-gray-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        >
+                          <option value="todas">Todas as categorias</option>
+                          {nomesCategorias.map((catNome) => (
+                            <option key={catNome} value={catNome}>
+                              {catNome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     <select
                       value={selectedTemplateId}
                       onChange={(e) => handleSelecionarTemplate(e.target.value)}
                       className="w-full h-8 text-xs bg-white border border-emerald-200 rounded-md px-2 font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
                       <option value="">Selecione um modelo para preencher o texto...</option>
-                      {templatesAtivos.map((t) => {
-                        const previa = t.conteudo
-                          ? t.conteudo.replace(/\s+/g, ' ').trim().slice(0, 70) +
-                            (t.conteudo.length > 70 ? '...' : '')
-                          : ''
-                        return (
-                          <option key={t.id} value={t.id}>
-                            {t.titulo} {previa ? `— "${previa}"` : ''}
-                          </option>
-                        )
-                      })}
+                      {templatesAtivos
+                        .filter((t) => {
+                          if (filtroCategoriaModal === 'todas') return true
+                          return (t.categoria || '').trim() === filtroCategoriaModal
+                        })
+                        .map((t) => {
+                          const previa = t.conteudo
+                            ? t.conteudo.replace(/\s+/g, ' ').trim().slice(0, 60) +
+                              (t.conteudo.length > 60 ? '...' : '')
+                            : ''
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {t.categoria ? `[${t.categoria}] ` : ''}
+                              {t.titulo} {previa ? `— "${previa}"` : ''}
+                            </option>
+                          )
+                        })}
                     </select>
                     {selectedTemplateId && (
                       <p className="text-[10px] text-emerald-700">
