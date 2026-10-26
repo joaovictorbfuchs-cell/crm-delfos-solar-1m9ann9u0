@@ -1310,7 +1310,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
           // Grava a mensagem na coleção 'whatsapp_mensagens' com status "agendada"
           // O whatsapp_worker do PocketBase cron processará automaticamente no horário
-          await sendWhatsAppMessage({
+          const sendRes = await sendWhatsAppMessage({
             cliente_id: item.cliente.id,
             telefone_destino: item.numeroLimpo,
             conteudo_final: mensagemFinal,
@@ -1318,37 +1318,53 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             agendado_para: agendadoParaClienteIso,
           })
 
+          if (sendRes && sendRes.ok === false) {
+            throw new Error(sendRes.message || 'Falha ao agendar mensagem de WhatsApp')
+          }
+
           // Registra atividade na timeline do cliente
           const agora = new Date().toISOString()
-          await addAtividade({
-            cliente_id: item.cliente.id,
-            tipo: 'mensagem_enviada',
-            titulo: 'WhatsApp Agendado (Disparo em Massa)',
-            descricao: `Mensagem em massa agendada para envio em ${new Date(agendadoParaClienteMs).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (intervalo: ${intervaloSegundos}s):\n\n"${mensagemFinal}"`,
-            data: agora,
-            status: 'pendente',
-            autor: 'CRM Delfos Solar',
-          })
+          try {
+            await addAtividade({
+              cliente_id: item.cliente.id,
+              tipo: 'mensagem_enviada',
+              titulo: 'WhatsApp Agendado (Disparo em Massa)',
+              descricao: `Mensagem em massa agendada para envio em ${new Date(agendadoParaClienteMs).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (intervalo: ${intervaloSegundos}s):\n\n"${mensagemFinal}"`,
+              data: agora,
+              status: 'pendente',
+              autor: 'CRM Delfos Solar',
+            })
+          } catch (errAtv) {
+            console.warn('Erro ao registrar atividade de agendamento no CRM:', errAtv)
+          }
         } else {
           // Disparo Imediato via gateway Z-API
-          await sendWhatsAppMessage({
+          const sendRes = await sendWhatsAppMessage({
             cliente_id: item.cliente.id,
             telefone_destino: item.numeroLimpo,
             conteudo_final: mensagemFinal,
             tipo_disparo: 'massa',
           })
 
+          if (sendRes && sendRes.ok === false) {
+            throw new Error(sendRes.message || 'Falha no gateway ao enviar WhatsApp')
+          }
+
           // Registra atividade autoritativa do tipo 'mensagem_enviada' no CRM
           const agora = new Date().toISOString()
-          await addAtividade({
-            cliente_id: item.cliente.id,
-            tipo: 'mensagem_enviada',
-            titulo: 'Mensagem via WhatsApp (Disparo em Massa)',
-            descricao: `Mensagem enviada via WhatsApp para ${item.cliente.nome}:\n\n"${mensagemFinal}"`,
-            data: agora,
-            status: 'concluida',
-            autor: 'CRM Delfos Solar',
-          })
+          try {
+            await addAtividade({
+              cliente_id: item.cliente.id,
+              tipo: 'mensagem_enviada',
+              titulo: 'Mensagem via WhatsApp (Disparo em Massa)',
+              descricao: `Mensagem enviada via WhatsApp para ${item.cliente.nome}:\n\n"${mensagemFinal}"`,
+              data: agora,
+              status: 'concluida',
+              autor: 'CRM Delfos Solar',
+            })
+          } catch (errAtv) {
+            console.warn('Erro ao registrar atividade no CRM:', errAtv)
+          }
         }
 
         estadoEnvio.sucessos.push(item.cliente.nome)

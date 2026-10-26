@@ -2830,19 +2830,34 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ? { ...data, conteudo_final: conteudoAjustado, tipo_disparo: data.tipo_disparo || 'manual' }
         : data
 
-    const res = await apiSendWhatsAppMensagem(payloadFinal)
-    // Atualiza mensagens e conversas
-    const [msgsRes, convsRes] = await Promise.allSettled([
-      fetchWhatsAppMensagens(),
-      fetchWhatsAppConversas(),
-    ])
-    if (msgsRes.status === 'fulfilled') {
-      setWhatsAppMensagens(msgsRes.value)
+    try {
+      const res = await apiSendWhatsAppMensagem(payloadFinal)
+      // Atualiza mensagens e conversas
+      const [msgsRes, convsRes] = await Promise.allSettled([
+        fetchWhatsAppMensagens(),
+        fetchWhatsAppConversas(),
+      ])
+      if (msgsRes.status === 'fulfilled') {
+        setWhatsAppMensagens(msgsRes.value)
+      }
+      if (convsRes.status === 'fulfilled') {
+        setWhatsAppConversas(convsRes.value)
+      }
+      return res
+    } catch (err: any) {
+      console.error('Erro capturado ao enviar mensagem WhatsApp no ClientesContext:', err)
+      const msgErro =
+        err?.data?.message ||
+        err?.response?.message ||
+        err?.message ||
+        'Falha no envio de mensagem WhatsApp'
+      return {
+        ok: false,
+        sent: false,
+        status: 'erro',
+        message: msgErro,
+      }
     }
-    if (convsRes.status === 'fulfilled') {
-      setWhatsAppConversas(convsRes.value)
-    }
-    return res
   }
 
   const sendWhatsAppDocument = async (data: {
@@ -2857,25 +2872,35 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     documento_url?: string
     record_id?: string
   }) => {
-    const res = await apiSendWhatsAppDocumento(data)
-    // Atualiza mensagens, conversas e atividades da timeline
-    const [msgsRes, convsRes] = await Promise.allSettled([
-      fetchWhatsAppMensagens(),
-      fetchWhatsAppConversas(),
-    ])
-    if (msgsRes.status === 'fulfilled') {
-      setWhatsAppMensagens(msgsRes.value)
-    }
-    if (convsRes.status === 'fulfilled') {
-      setWhatsAppConversas(convsRes.value)
-    }
     try {
-      const atvs = await fetchAtividades()
-      setAtividades(atvs)
-    } catch {
-      /* intentionally ignored */
+      const res = await apiSendWhatsAppDocumento(data)
+      // Atualiza mensagens, conversas e atividades da timeline
+      const [msgsRes, convsRes] = await Promise.allSettled([
+        fetchWhatsAppMensagens(),
+        fetchWhatsAppConversas(),
+      ])
+      if (msgsRes.status === 'fulfilled') {
+        setWhatsAppMensagens(msgsRes.value)
+      }
+      if (convsRes.status === 'fulfilled') {
+        setWhatsAppConversas(convsRes.value)
+      }
+      try {
+        const atvs = await fetchAtividades()
+        setAtividades(atvs)
+      } catch {
+        /* intentionally ignored */
+      }
+      return res
+    } catch (err: any) {
+      console.error('Erro ao enviar documento WhatsApp no ClientesContext:', err)
+      return {
+        ok: false,
+        sent: false,
+        status: 'erro',
+        message: err?.data?.message || err?.message || 'Falha ao enviar documento',
+      }
     }
-    return res
   }
 
   const sendWhatsAppAudioMessage = async (data: {
@@ -2886,25 +2911,35 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     duracao_segundos?: number
     referencia_id?: string
   }) => {
-    const res = await apiSendWhatsAppAudio(data)
-    // Atualiza mensagens, conversas e atividades do histórico
-    const [msgsRes, convsRes] = await Promise.allSettled([
-      fetchWhatsAppMensagens(),
-      fetchWhatsAppConversas(),
-    ])
-    if (msgsRes.status === 'fulfilled') {
-      setWhatsAppMensagens(msgsRes.value)
-    }
-    if (convsRes.status === 'fulfilled') {
-      setWhatsAppConversas(convsRes.value)
-    }
     try {
-      const atvs = await fetchAtividades()
-      setAtividades(atvs)
-    } catch {
-      /* intentionally ignored */
+      const res = await apiSendWhatsAppAudio(data)
+      // Atualiza mensagens, conversas e atividades do histórico
+      const [msgsRes, convsRes] = await Promise.allSettled([
+        fetchWhatsAppMensagens(),
+        fetchWhatsAppConversas(),
+      ])
+      if (msgsRes.status === 'fulfilled') {
+        setWhatsAppMensagens(msgsRes.value)
+      }
+      if (convsRes.status === 'fulfilled') {
+        setWhatsAppConversas(convsRes.value)
+      }
+      try {
+        const atvs = await fetchAtividades()
+        setAtividades(atvs)
+      } catch {
+        /* intentionally ignored */
+      }
+      return res
+    } catch (err: any) {
+      console.error('Erro ao enviar áudio WhatsApp no ClientesContext:', err)
+      return {
+        ok: false,
+        sent: false,
+        status: 'erro',
+        message: err?.data?.message || err?.message || 'Falha ao enviar áudio',
+      }
     }
-    return res
   }
 
   const sendWhatsAppImageMessage = async (data: {
@@ -2920,24 +2955,34 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     record_id?: string
     referencia_id?: string
   }) => {
-    const res = await apiSendWhatsAppImage(data)
-    const [msgsRes, convsRes] = await Promise.allSettled([
-      fetchWhatsAppMensagens(),
-      fetchWhatsAppConversas(),
-    ])
-    if (msgsRes.status === 'fulfilled') {
-      setWhatsAppMensagens(msgsRes.value)
-    }
-    if (convsRes.status === 'fulfilled') {
-      setWhatsAppConversas(convsRes.value)
-    }
     try {
-      const atvs = await fetchAtividades()
-      setAtividades(atvs)
-    } catch {
-      /* intentionally ignored */
+      const res = await apiSendWhatsAppImage(data)
+      const [msgsRes, convsRes] = await Promise.allSettled([
+        fetchWhatsAppMensagens(),
+        fetchWhatsAppConversas(),
+      ])
+      if (msgsRes.status === 'fulfilled') {
+        setWhatsAppMensagens(msgsRes.value)
+      }
+      if (convsRes.status === 'fulfilled') {
+        setWhatsAppConversas(convsRes.value)
+      }
+      try {
+        const atvs = await fetchAtividades()
+        setAtividades(atvs)
+      } catch {
+        /* intentionally ignored */
+      }
+      return res
+    } catch (err: any) {
+      console.error('Erro ao enviar imagem WhatsApp no ClientesContext:', err)
+      return {
+        ok: false,
+        sent: false,
+        status: 'erro',
+        message: err?.data?.message || err?.message || 'Falha ao enviar imagem',
+      }
     }
-    return res
   }
 
   const sendWhatsAppVideoMessage = async (data: {
@@ -2952,24 +2997,34 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     record_id?: string
     referencia_id?: string
   }) => {
-    const res = await apiSendWhatsAppVideo(data)
-    const [msgsRes, convsRes] = await Promise.allSettled([
-      fetchWhatsAppMensagens(),
-      fetchWhatsAppConversas(),
-    ])
-    if (msgsRes.status === 'fulfilled') {
-      setWhatsAppMensagens(msgsRes.value)
-    }
-    if (convsRes.status === 'fulfilled') {
-      setWhatsAppConversas(convsRes.value)
-    }
     try {
-      const atvs = await fetchAtividades()
-      setAtividades(atvs)
-    } catch {
-      /* intentionally ignored */
+      const res = await apiSendWhatsAppVideo(data)
+      const [msgsRes, convsRes] = await Promise.allSettled([
+        fetchWhatsAppMensagens(),
+        fetchWhatsAppConversas(),
+      ])
+      if (msgsRes.status === 'fulfilled') {
+        setWhatsAppMensagens(msgsRes.value)
+      }
+      if (convsRes.status === 'fulfilled') {
+        setWhatsAppConversas(convsRes.value)
+      }
+      try {
+        const atvs = await fetchAtividades()
+        setAtividades(atvs)
+      } catch {
+        /* intentionally ignored */
+      }
+      return res
+    } catch (err: any) {
+      console.error('Erro ao enviar vídeo WhatsApp no ClientesContext:', err)
+      return {
+        ok: false,
+        sent: false,
+        status: 'erro',
+        message: err?.data?.message || err?.message || 'Falha ao enviar vídeo',
+      }
     }
-    return res
   }
 
   const refreshWhatsAppConfig = async () => {

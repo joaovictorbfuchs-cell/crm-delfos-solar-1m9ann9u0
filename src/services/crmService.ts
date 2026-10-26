@@ -2922,10 +2922,25 @@ export async function sendWhatsAppMensagem(data: {
     referencia_id: data.referencia_id,
   }
 
-  return pb.send('/backend/v1/whatsapp/send', {
-    method: 'POST',
-    body: payload,
-  })
+  try {
+    return await pb.send('/backend/v1/whatsapp/send', {
+      method: 'POST',
+      body: payload,
+    })
+  } catch (err: any) {
+    console.error('Erro na requisição /backend/v1/whatsapp/send:', err)
+    const errorMsg =
+      err?.data?.message ||
+      err?.response?.message ||
+      err?.message ||
+      'Erro ao comunicar com o servidor de WhatsApp'
+    return {
+      ok: false,
+      sent: false,
+      status: 'erro',
+      message: errorMsg,
+    }
+  }
 }
 
 export async function sendLembreteAutoLeituraWhatsApp(
