@@ -60,11 +60,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
       let helper = null
       try {
         helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
-      } catch (_) {
-        try {
-          helper = require('./whatsapp_conversa_helper.js')
-        } catch (_) {}
-      }
+      } catch (_) {}
 
       if (finalConversaId) {
         const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
