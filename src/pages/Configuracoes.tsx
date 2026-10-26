@@ -390,19 +390,6 @@ export function ConfiguracoesPage() {
         <main className="lg:col-span-9 min-w-0">
           <div className="bg-white border border-gray-200/90 rounded-2xl p-4 sm:p-6 shadow-2xs">
             {/* Header contextual da subtela */}
-            <div className="border-b border-gray-100 pb-4 mb-6 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
-                  <subtelaAtual.icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                    {subtelaAtual.label}
-                  </h2>
-                  <p className="text-xs text-gray-500">{subtelaAtual.descricao}</p>
-                </div>
-              </div>
-            </div>
 
             {/* Renderização condicional da subtela ativa com blindagem por ErrorBoundary de seção */}
             <div className="min-w-0">
