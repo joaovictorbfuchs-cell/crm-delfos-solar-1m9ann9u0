@@ -6,14 +6,31 @@ import { Automacao, AutomacaoExecucao, SalvarAutomacaoInput } from '@/types/auto
  */
 export async function fetchAutomacoes(): Promise<Automacao[]> {
   try {
-    const records = await pb.collection('automacoes').getFullList<Automacao>({
-      sort: '-created',
-      expand: 'cliente_especifico_id',
-    })
-    return records
+    // 1. Tenta buscar da coleção canônica 'automacoes' com requestKey: null para evitar cancelamentos acidentais
+    try {
+      const records = await pb.collection('automacoes').getFullList<Automacao>({
+        sort: '-created',
+        expand: 'cliente_especifico_id',
+        requestKey: null,
+      })
+      return records || []
+    } catch (primaryErr) {
+      // Se falhou por coleção ausente ou 404 de rota, tenta sem expand para máxima tolerância
+      console.warn('Tentativa com expand em automacoes falhou, tentando busca simples:', primaryErr)
+      try {
+        const recordsSimple = await pb.collection('automacoes').getFullList<Automacao>({
+          sort: '-created',
+          requestKey: null,
+        })
+        return recordsSimple || []
+      } catch (fallbackErr) {
+        console.error('Erro ao buscar automações no PocketBase:', fallbackErr)
+        return []
+      }
+    }
   } catch (err) {
-    console.error('Erro ao buscar automações:', err)
-    throw err
+    console.error('Erro inesperado em fetchAutomacoes:', err)
+    return []
   }
 }
 
@@ -82,18 +99,36 @@ export async function fetchAutomacoesExecucoes(
     const result = await pb
       .collection('automacoes_execucoes')
       .getList<AutomacaoExecucao>(page, perPage, {
-        filter,
+        filter: filter || undefined,
         sort: '-data_execucao',
         expand: 'automacao,cliente',
+        requestKey: null,
       })
     return {
-      items: result.items,
-      totalItems: result.totalItems,
-      totalPages: result.totalPages,
+      items: result.items || [],
+      totalItems: result.totalItems || 0,
+      totalPages: result.totalPages || 0,
     }
   } catch (err) {
-    console.error('Erro ao buscar histórico de execuções:', err)
-    return { items: [], totalItems: 0, totalPages: 0 }
+    console.warn('Falha na busca detalhada de histórico de automações, tentando sem expand:', err)
+    try {
+      const filter = automacaoId ? `automacao = "${automacaoId}"` : ''
+      const fallbackResult = await pb
+        .collection('automacoes_execucoes')
+        .getList<AutomacaoExecucao>(page, perPage, {
+          filter: filter || undefined,
+          sort: '-data_execucao',
+          requestKey: null,
+        })
+      return {
+        items: fallbackResult.items || [],
+        totalItems: fallbackResult.totalItems || 0,
+        totalPages: fallbackResult.totalPages || 0,
+      }
+    } catch (innerErr) {
+      console.error('Erro ao buscar histórico de execuções:', innerErr)
+      return { items: [], totalItems: 0, totalPages: 0 }
+    }
   }
 }
 

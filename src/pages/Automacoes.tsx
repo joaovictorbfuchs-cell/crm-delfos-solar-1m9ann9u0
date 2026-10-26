@@ -66,13 +66,17 @@ export default function AutomacoesPage() {
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await fetchAutomacoes()
-      setAutomacoes(data)
+      const data = await fetchAutomacoes().catch((err) => {
+        console.error('Falha assíncrona capturada ao buscar automações:', err)
+        return []
+      })
+      setAutomacoes(Array.isArray(data) ? data : [])
     } catch (e) {
       console.error('Erro ao carregar automações:', e)
+      setAutomacoes([])
       toast({
         title: 'Erro ao carregar automações',
-        description: 'Verifique sua conexão ou permissões no sistema.',
+        description: 'Não foi possível carregar a lista completa. Exibindo estado seguro.',
         variant: 'destructive',
       })
     } finally {

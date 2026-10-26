@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Component, type ReactNode } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Settings,
+  AlertTriangle,
+  RotateCcw,
   MessageSquare,
   Zap,
   Cpu,
@@ -402,28 +404,98 @@ export function ConfiguracoesPage() {
               </div>
             </div>
 
-            {/* Renderização condicional da subtela ativa (reutilizando componentes existentes sem duplicar lógica) */}
+            {/* Renderização condicional da subtela ativa com blindagem por ErrorBoundary de seção */}
             <div className="min-w-0">
-              {subTelaAtiva === 'automacoes' && <AutomacoesPage />}
-              {subTelaAtiva === 'fluxos-follow-up' && <GerenciadorFluxosFollowUp />}
-              {subTelaAtiva === 'mensagens-whatsapp' && <MensagensWhatsApp />}
-              {subTelaAtiva === 'equipamentos' && <EquipamentosPage />}
-              {subTelaAtiva === 'instalacoes-galeria' && <InstalacoesGaleriaPage />}
-              {subTelaAtiva === 'ativos' && <AtivosPage />}
-              {subTelaAtiva === 'fornecedores' && <Fornecedores />}
-              {subTelaAtiva === 'importar-clientes' && <ImportarClientes />}
-              {subTelaAtiva === 'importar-acessos' && <ImportarAcessos />}
-              {subTelaAtiva === 'padroes-atividades' && (
-                <GerenciadorPadroesAtividades showTitle={false} />
-              )}
-              {subTelaAtiva === 'gerenciar-usuarios' && <GerenciarUsuarios />}
-              {subTelaAtiva === 'base-conhecimento' && <BaseConhecimento />}
+              <ConfigSubtelaErrorBoundary subtelaKey={subTelaAtiva}>
+                {subTelaAtiva === 'automacoes' && <AutomacoesPage />}
+                {subTelaAtiva === 'fluxos-follow-up' && <GerenciadorFluxosFollowUp />}
+                {subTelaAtiva === 'mensagens-whatsapp' && <MensagensWhatsApp />}
+                {subTelaAtiva === 'equipamentos' && <EquipamentosPage />}
+                {subTelaAtiva === 'instalacoes-galeria' && <InstalacoesGaleriaPage />}
+                {subTelaAtiva === 'ativos' && <AtivosPage />}
+                {subTelaAtiva === 'fornecedores' && <Fornecedores />}
+                {subTelaAtiva === 'importar-clientes' && <ImportarClientes />}
+                {subTelaAtiva === 'importar-acessos' && <ImportarAcessos />}
+                {subTelaAtiva === 'padroes-atividades' && (
+                  <GerenciadorPadroesAtividades showTitle={false} />
+                )}
+                {subTelaAtiva === 'gerenciar-usuarios' && <GerenciarUsuarios />}
+                {subTelaAtiva === 'base-conhecimento' && <BaseConhecimento />}
+              </ConfigSubtelaErrorBoundary>
             </div>
           </div>
         </main>
       </div>
     </div>
   )
+}
+
+interface ErrorBoundaryProps {
+  subtelaKey: string
+  children: ReactNode
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean
+  error: Error | null
+}
+
+class ConfigSubtelaErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error(`Erro isolado na subtela [${this.props.subtelaKey}]:`, error, info)
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    if (prevProps.subtelaKey !== this.props.subtelaKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null })
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-6 text-amber-900 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg text-amber-800 shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div className="space-y-2 flex-1">
+              <h3 className="text-sm font-bold text-amber-950">
+                Não foi possível carregar os dados desta seção no momento
+              </h3>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Ocorreu uma instabilidade pontual ao consultar os dados desta aba. As demais seções
+                de Configurações continuam funcionando normalmente.
+              </p>
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => this.setState({ hasError: false, error: null })}
+                  className="bg-white hover:bg-amber-100/50 text-xs font-semibold gap-1.5 border-amber-300 text-amber-950"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Tentar novamente</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
 }
 
 export default ConfiguracoesPage

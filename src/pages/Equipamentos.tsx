@@ -100,16 +100,34 @@ export function EquipamentosPage() {
   const carregar = async () => {
     setLoading(true)
     try {
-      const [dataEq, dataForn, dataCfg, mapaUsinas] = await Promise.all([
+      const [resEq, resForn, resCfg, resMap] = await Promise.allSettled([
         fetchEquipamentos(),
         fetchFornecedores(),
         fetchConfiguracoesMonitoramento(),
         fetchContagemUsoEquipamentosEmUsinas(),
       ])
-      setEquipamentos(dataEq)
-      setFornecedores(dataForn)
-      setConfiguracoesMonitoramento(dataCfg)
-      setContagemUsinas(mapaUsinas)
+      const dataEq = resEq.status === 'fulfilled' ? resEq.value : []
+      const dataForn = resForn.status === 'fulfilled' ? resForn.value : []
+      const dataCfg = resCfg.status === 'fulfilled' ? resCfg.value : []
+      const mapaUsinas = resMap.status === 'fulfilled' ? resMap.value : {}
+
+      setEquipamentos(Array.isArray(dataEq) ? dataEq : [])
+      setFornecedores(Array.isArray(dataForn) ? dataForn : [])
+      setConfiguracoesMonitoramento(Array.isArray(dataCfg) ? dataCfg : [])
+      setContagemUsinas(mapaUsinas && typeof mapaUsinas === 'object' ? mapaUsinas : {})
+
+      if (resEq.status === 'rejected') {
+        console.warn('Falha individual ao carregar equipamentos:', resEq.reason)
+      }
+      if (resForn.status === 'rejected') {
+        console.warn('Falha individual ao carregar fornecedores:', resForn.reason)
+      }
+      if (resCfg.status === 'rejected') {
+        console.warn('Falha individual ao carregar configurações de monitoramento:', resCfg.reason)
+      }
+      if (resMap.status === 'rejected') {
+        console.warn('Falha individual ao carregar contagem de uso de usinas:', resMap.reason)
+      }
     } catch (err) {
       console.error('Erro ao carregar equipamentos:', err)
       toast.error('Erro ao carregar lista de equipamentos.')

@@ -102,12 +102,22 @@ export default function AtivosPage() {
   const carregarDados = async () => {
     setLoading(true)
     try {
-      const [ativosData, usinasData] = await Promise.all([
+      const [resAtivos, resUsinas] = await Promise.allSettled([
         fetchAtivos(),
         fetchAllUsinasComCliente(),
       ])
-      setAtivos(ativosData)
-      setUsinas(usinasData)
+      const ativosData = resAtivos.status === 'fulfilled' ? resAtivos.value : []
+      const usinasData = resUsinas.status === 'fulfilled' ? resUsinas.value : []
+
+      setAtivos(Array.isArray(ativosData) ? ativosData : [])
+      setUsinas(Array.isArray(usinasData) ? usinasData : [])
+
+      if (resAtivos.status === 'rejected') {
+        console.warn('Falha individual ao carregar ativos:', resAtivos.reason)
+      }
+      if (resUsinas.status === 'rejected') {
+        console.warn('Falha individual ao carregar usinas com cliente:', resUsinas.reason)
+      }
     } catch (err) {
       console.error('Erro ao carregar dados de ativos:', err)
       toast.error('Erro ao carregar lista de ativos das usinas.')

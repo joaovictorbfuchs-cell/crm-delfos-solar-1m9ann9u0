@@ -3200,19 +3200,80 @@ export async function moverClienteParaOutrosContatos(
 
 export async function fetchOutrosContatos(): Promise<import('@/types/crm').OutroContato[]> {
   try {
-    return await pb.collection('outros_contatos').getFullList<import('@/types/crm').OutroContato>({
-      sort: '-created',
-      requestKey: null,
-    })
+    // 1. Tenta buscar da coleção legada 'outros_contatos'
+    try {
+      const records = await pb
+        .collection('outros_contatos')
+        .getFullList<import('@/types/crm').OutroContato>({
+          sort: '-created',
+          requestKey: null,
+        })
+      if (records && records.length > 0) {
+        return records
+      }
+    } catch (legadoErr) {
+      console.warn(
+        'Busca em outros_contatos falhou ou vazia, consultando coleção unificada contatos:',
+        legadoErr,
+      )
+    }
+
+    // 2. Fallback resiliente: se outros_contatos falhar ou estiver vazia após migração,
+    // busca contatos unificados da coleção 'contatos' (que recebeu a migração de outros_contatos)
+    try {
+      const contatos = await pb.collection('contatos').getFullList<any>({
+        sort: '-created',
+        requestKey: null,
+      })
+      if (contatos && contatos.length > 0) {
+        return contatos.map((c) => {
+          let tipo_contato: import('@/types/crm').OutroContatoTipo = 'outro'
+          if (c.papel === 'fornecedor') tipo_contato = 'fornecedor'
+          else if (c.papel === 'tecnico') tipo_contato = 'instalador'
+          else if (c.papel === 'parceiro') tipo_contato = 'parceiro'
+
+          return {
+            id: c.id,
+            collectionId: c.collectionId || 'contatos',
+            collectionName: c.collectionName || 'contatos',
+            nome: c.nome || 'Contato sem nome',
+            telefone: c.whatsapp || c.telefone || '',
+            tipo_contato,
+            observacao: c.observacoes || '',
+            conversa_id: c.conversa_id || '',
+            created: c.created || '',
+            updated: c.updated || '',
+          }
+        })
+      }
+    } catch (contatosErr) {
+      console.error('Erro no fallback de contatos para outros contatos:', contatosErr)
+    }
+
+    return []
   } catch (err) {
-    console.error('Erro ao buscar outros contatos:', err)
+    console.error('Erro inesperado ao buscar outros contatos:', err)
     return []
   }
 }
 
 export async function deleteOutroContato(id: string): Promise<boolean> {
-  await pb.collection('outros_contatos').delete(id)
-  return true
+  try {
+    await pb
+      .collection('outros_contatos')
+      .delete(id)
+      .catch(async () => {
+        // Se não estiver na coleção antiga, tenta na coleção unificada contatos
+        await pb
+          .collection('contatos')
+          .delete(id)
+          .catch(() => {})
+      })
+    return true
+  } catch (err) {
+    console.warn('Erro ao deletar outro contato:', err)
+    return false
+  }
 }
 
 export async function arquivarConversaComoOutroContato(

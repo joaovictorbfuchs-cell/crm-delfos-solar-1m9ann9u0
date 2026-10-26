@@ -130,4 +130,11 @@ describe('automacoesService - Testes Unitários de Lógica de Avaliação e Temp
       'Mudar status do cliente para "Fechado"',
     )
   })
+
+  it('fetchAutomacoes deve ser resiliente e nunca propagar exceção em caso de falha de conexão', async () => {
+    const { fetchAutomacoes } = await import('./automacoesService')
+    // Mesmo sem mock ou em ambiente sem PocketBase conectado, a promessa deve resolver para array sem rejeitar
+    const resultado = await fetchAutomacoes()
+    expect(Array.isArray(resultado)).toBe(true)
+  })
 })
