@@ -296,13 +296,15 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
 
         // Registrar atividade no histórico/timeline do cliente
         try {
+          const agoraIso = new Date().toISOString()
           await createAtividade({
             cliente_id: cliente.id,
             tipo: 'gerar_procuracao',
             titulo: 'Procuração Particular O&M Enviada via WhatsApp',
             descricao: `Procuração em PDF enviada para ${dadosConsolidados.nome} no número ${formatWhatsAppPhone(telLimpo)} com documento anexo.`,
-            data: new Date().toISOString(),
+            data: agoraIso,
             status: 'concluida',
+            data_conclusao: agoraIso,
             autor: 'CRM Delfos Solar',
           })
         } catch (atvErr) {
@@ -419,13 +421,15 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
 
         // Registrar atividade no histórico/timeline do cliente
         try {
+          const agoraIso = new Date().toISOString()
           await createAtividade({
             cliente_id: cliente.id,
             tipo: 'gerar_procuracao',
             titulo: 'Procuração Particular O&M Enviada via E-mail',
             descricao: `Procuração em PDF (${nomeArquivoFinal}) enviada para ${dadosConsolidados.nome} no e-mail ${emailLimpo} via Resend (ID: ${res.id || 'ok'}).`,
-            data: new Date().toISOString(),
+            data: agoraIso,
             status: 'concluida',
+            data_conclusao: agoraIso,
             autor: 'CRM Delfos Solar',
           })
         } catch (atvErr) {

@@ -807,6 +807,10 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         subtipoNome = customObj?.tituloPadrao || conf.tituloPadrao
       }
 
+      const isRegistroSemPrazo =
+        tipoParaSalvar === 'oferecer_limpeza_avulsa' || tipoParaSalvar === 'gerar_procuracao'
+
+      const agoraIso = new Date().toISOString()
       const atividadePrincipalPayload: any = {
         cliente_id: clienteIdLimpo,
         tipo: tipoParaSalvar,
@@ -829,7 +833,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           : {}),
         responsavel_id: responsavelIdLimpo,
         responsavel_nome: responsavelNome,
-        status: 'pendente',
+        status: isRegistroSemPrazo ? 'concluida' : 'pendente',
+        ...(isRegistroSemPrazo ? { data_conclusao: dataFormatadaPocketBase || agoraIso } : {}),
         autor: user?.name || 'João Delfos',
         usina_id: usinaIdLimpa,
         negocio_id: negocioIdLimpo,

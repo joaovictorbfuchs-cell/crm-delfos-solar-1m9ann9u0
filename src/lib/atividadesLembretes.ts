@@ -51,6 +51,24 @@ export function getDaysOverdue(
   return Math.max(0, diffDays)
 }
 
+/**
+ * Determina se a atividade é um registro histórico/factual que não possui prazo de execução.
+ * Tipos `gerar_procuracao` e `oferecer_limpeza_avulsa` são sempre registros sem prazo.
+ * O tipo `solicitar_contas_rge` é registro sem prazo quando `prazo_conclusao_rge` estiver vazio/não definido.
+ */
+export function isAtividadeRegistroSemPrazo(atv: Atividade | null | undefined): boolean {
+  if (!atv) return false
+  const tipo = atv.tipo
+  if (tipo === 'gerar_procuracao' || tipo === 'oferecer_limpeza_avulsa') {
+    return true
+  }
+  if (tipo === 'solicitar_contas_rge') {
+    const prazo = (atv as { prazo_conclusao_rge?: string | null }).prazo_conclusao_rge
+    return !prazo || String(prazo).trim() === ''
+  }
+  return false
+}
+
 export interface AtividadesHojeResult {
   deHoje: Atividade[]
   atrasadas: Atividade[]
@@ -77,6 +95,7 @@ export function categorizarAtividadesHojeEAtrasadas(
 
   for (const atv of atividades) {
     if (atv.status !== 'pendente') continue
+    if (isAtividadeRegistroSemPrazo(atv)) continue
 
     const atvDateStr = extractLocalDateString(atv.data || atv.created)
     if (!atvDateStr) continue

@@ -294,7 +294,7 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
   })
 
   describe('isRegistroValidoCentral - filtro de registros de sistema e sem prazo', () => {
-    it('registros de logs comerciais (proposta, gerar_procuracao, gerar_contrato, orcamento, mensagem_enviada) são EXCLUÍDOS', () => {
+    it('registros de logs comerciais (proposta, gerar_contrato, orcamento, mensagem_enviada) são EXCLUÍDOS', () => {
       const atvProposta = {
         id: 'atv_prop_1',
         tipo: 'proposta',
@@ -304,16 +304,6 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
       } as unknown as Atividade
 
       expect(isRegistroValidoCentral(atvProposta)).toBe(false)
-
-      const atvProcuracao = {
-        id: 'atv_proc_1',
-        tipo: 'gerar_procuracao',
-        titulo: 'Procuração Gerada',
-        data: '2026-04-10 10:00:00',
-        status: 'concluida',
-      } as unknown as Atividade
-
-      expect(isRegistroValidoCentral(atvProcuracao)).toBe(false)
 
       const atvContrato = {
         id: 'atv_cont_1',
@@ -344,6 +334,38 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
       } as unknown as Atividade
 
       expect(isRegistroValidoCentral(atvMensagem)).toBe(false)
+    })
+
+    it('inclui gerar_procuracao, solicitar_contas_rge e oferecer_limpeza_avulsa no histórico consolidado com data', () => {
+      const atvProcuracao = {
+        id: 'atv_proc_1',
+        tipo: 'gerar_procuracao',
+        titulo: 'Procuração Particular Gerada',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvProcuracao)).toBe(true)
+
+      const atvRge = {
+        id: 'atv_rge_1',
+        tipo: 'solicitar_contas_rge',
+        titulo: 'Email RGE Enviado',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvRge)).toBe(true)
+
+      const atvLimpeza = {
+        id: 'atv_limp_1',
+        tipo: 'oferecer_limpeza_avulsa',
+        titulo: 'Oferta Limpeza Avulsa',
+        data: '2026-04-10 10:00:00',
+        status: 'concluida',
+      } as unknown as Atividade
+
+      expect(isRegistroValidoCentral(atvLimpeza)).toBe(true)
     })
 
     it('registros com origem ou tipo timeline_om são EXCLUÍDOS', () => {

@@ -1368,13 +1368,15 @@ export const FichaOMDrawer: React.FC = () => {
             }
 
             try {
+              const agoraIso = new Date().toISOString()
               await addAtividade({
                 cliente_id: cliente.id,
                 tipo: 'gerar_procuracao',
                 titulo: 'Procuração Particular O&M Gerada',
                 descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos perante a concessionária de energia.`,
-                data: new Date().toISOString(),
+                data: agoraIso,
                 status: 'concluida',
+                data_conclusao: agoraIso,
                 autor: 'CRM Delfos Solar',
               })
             } catch {

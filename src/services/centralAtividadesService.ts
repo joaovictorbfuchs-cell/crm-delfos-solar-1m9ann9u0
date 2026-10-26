@@ -88,7 +88,6 @@ export interface CentralAtividadesData {
  */
 export const TIPOS_LOGS_COMERCIAIS_IGNORADOS: ReadonlySet<string> = new Set([
   'proposta',
-  'gerar_procuracao',
   'gerar_contrato',
   'orcamento',
   'mensagem_enviada',
@@ -200,6 +199,7 @@ export function determinarCategoriaAtividade(
       'manutencao_preventiva',
       'manutencao_corretiva',
       'limpeza_manutencao',
+      'oferecer_limpeza_avulsa',
       'configuracao_datalogger',
       'garantia_equipamento',
       'visita_tecnica',

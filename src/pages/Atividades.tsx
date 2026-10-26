@@ -376,7 +376,10 @@ export const Atividades: React.FC = () => {
                   <option value="instalacao">Instalação</option>
                   <option value="proposta">Proposta</option>
                   <option value="limpeza">Limpeza dos Módulos</option>
+                  <option value="oferecer_limpeza_avulsa">Oferta Limpeza Avulsa</option>
                   <option value="auto_leitura_rge">Auto Leitura - RGE</option>
+                  <option value="solicitar_contas_rge">Solicitar Contas RGE</option>
+                  <option value="gerar_procuracao">Gerar Procuração</option>
                   <option value="ligar_indicacao">Solicitar indicação</option>
                   <option value="configuracao_datalogger">Configuração Datalogger</option>
                   <option value="garantia_equipamento">Garantia equipamento</option>
