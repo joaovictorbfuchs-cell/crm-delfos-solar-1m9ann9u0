@@ -2882,6 +2882,8 @@ export async function sendWhatsAppMensagem(data: {
   tipo_disparo?: string
   origem?: string
   referencia_id?: string
+  autor?: string
+  autor_id?: string
 }): Promise<{
   ok: boolean
   scheduled?: boolean
@@ -2920,6 +2922,8 @@ export async function sendWhatsAppMensagem(data: {
     agendado_para: data.agendado_para,
     tipo_disparo: tipoFinal,
     referencia_id: data.referencia_id,
+    autor: data.autor,
+    autor_id: data.autor_id,
   }
 
   try {

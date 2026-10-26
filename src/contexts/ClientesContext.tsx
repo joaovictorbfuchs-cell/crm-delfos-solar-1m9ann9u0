@@ -525,6 +525,7 @@ interface ClientesContextType {
     agendado_para?: string | null
     tipo_disparo?: string
     referencia_id?: string
+    autor?: string
   }) => Promise<{
     ok: boolean
     scheduled?: boolean
@@ -2810,6 +2811,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     agendado_para?: string | null
     tipo_disparo?: string
     referencia_id?: string
+    autor?: string
   }) => {
     // Salvaguarda central obrigatória: o prefixo manual de WhatsApp [Nome]: deve ser aplicado
     // num ponto único central garantindo que NENHUM envio manual saia sem o prefixo.
