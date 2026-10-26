@@ -625,7 +625,8 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                                 }`}
                               >
                                 <span className="font-bold">
-                                  Etapa {eIdx + 1} (+{etapa.dias_apos}d):
+                                  Etapa {eIdx + 1} (
+                                  {etapa.dias_apos === 0 ? 'Imediato' : `+${etapa.dias_apos}d`}):
                                 </span>
                                 <span className="truncate max-w-[180px]">{etapa.nome}</span>
                               </div>

@@ -2616,7 +2616,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                                   #{idx + 1}
                                 </span>
                                 <span className="font-semibold text-gray-900 shrink-0">
-                                  +{et.dias_apos}d:
+                                  {et.dias_apos === 0 ? 'Imediato:' : `+${et.dias_apos}d:`}
                                 </span>
                                 <span className="truncate flex-1 italic text-gray-600">
                                   "{et.mensagem}"

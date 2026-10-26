@@ -364,7 +364,8 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     const totalEtapas = fluxoAtivo.etapas?.length || 0
     setEtapaEmEdicao(null)
     setNomeEtapa(`${totalEtapas + 1}ª Mensagem`)
-    setDiasAposEtapa(totalEtapas === 0 ? 3 : 7)
+    // Se for a primeira etapa do fluxo, padrão pode ser 0 (imediato) ou 3; definindo 0 se totalEtapas === 0 para permitir imediato
+    setDiasAposEtapa(totalEtapas === 0 ? 0 : 7)
     setMensagemEtapa(
       'Olá, [nome do cliente]! Tudo bem? Passando para saber se conseguiu ver nossa mensagem anterior. Qualquer dúvida, estou por aqui!',
     )
@@ -390,6 +391,11 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     setModalEtapaAberto(true)
   }
 
+  // Determina se a etapa atual sendo editada/criada é a primeira etapa do fluxo (ordem 1)
+  const isEtapaInicial = etapaEmEdicao
+    ? etapaEmEdicao.ordem === 1
+    : (fluxoAtivo?.etapas?.length || 0) === 0
+
   // Salvar etapa
   const handleSalvarEtapa = async () => {
     if (!fluxoAtivo) return
@@ -397,6 +403,18 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
       toast({
         title: 'Mensagem obrigatória',
         description: 'Digite o texto da mensagem que será disparada nesta etapa.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const valorDiasApos = Number(diasAposEtapa)
+    if (isNaN(valorDiasApos) || valorDiasApos < 0 || (!isEtapaInicial && valorDiasApos < 1)) {
+      toast({
+        title: 'Tempo de espera inválido',
+        description: isEtapaInicial
+          ? 'O tempo de espera da primeira etapa deve ser de no mínimo 0 dias (0 = imediato).'
+          : 'O tempo de espera a partir da 2ª etapa deve ser de no mínimo 1 dia.',
         variant: 'destructive',
       })
       return
@@ -425,11 +443,15 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
 
     setIsSalvandoEtapa(true)
     try {
+      const diasCalculados = isEtapaInicial
+        ? Math.max(0, isNaN(Number(diasAposEtapa)) ? 0 : Number(diasAposEtapa))
+        : Math.max(1, isNaN(Number(diasAposEtapa)) ? 1 : Number(diasAposEtapa))
+
       const payloadEtapa = {
         nome:
           nomeEtapa.trim() ||
           `Etapa ${etapaEmEdicao ? etapaEmEdicao.ordem : (fluxoAtivo.etapas?.length || 0) + 1}`,
-        dias_apos: Number(diasAposEtapa) || 1,
+        dias_apos: diasCalculados,
         mensagem: mensagemEtapa.trim(),
         ativa: etapaAtivaFlag,
         desvio_acao: desvioAcao,
@@ -1014,8 +1036,9 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                                 >
                                   <Clock className="w-3 h-3 text-sky-600" />
                                   <span>
-                                    +{etapa.dias_apos} dia{etapa.dias_apos === 1 ? '' : 's'}{' '}
-                                    {idx === 0 ? 'após 1º disparo' : 'da etapa anterior'}
+                                    {etapa.dias_apos === 0
+                                      ? 'Imediato (no disparo)'
+                                      : `+${etapa.dias_apos} dia${etapa.dias_apos === 1 ? '' : 's'} ${idx === 0 ? 'após 1º disparo' : 'da etapa anterior'}`}
                                   </span>
                                 </Badge>
 
@@ -1203,16 +1226,37 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                 <div className="relative">
                   <Input
                     type="number"
-                    min={1}
+                    min={isEtapaInicial ? 0 : 1}
                     max={365}
                     value={diasAposEtapa}
-                    onChange={(e) => setDiasAposEtapa(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="h-8 text-xs pr-12 font-mono font-bold"
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value)
+                      const minPermitido = isEtapaInicial ? 0 : 1
+                      if (isNaN(val)) {
+                        setDiasAposEtapa(minPermitido)
+                      } else {
+                        setDiasAposEtapa(Math.max(minPermitido, val))
+                      }
+                    }}
+                    className={`h-8 text-xs font-mono font-bold ${
+                      isEtapaInicial && diasAposEtapa === 0 ? 'pr-20 text-emerald-700' : 'pr-12'
+                    }`}
                   />
-                  <span className="absolute right-2.5 top-1.5 text-[11px] text-gray-400 font-medium">
-                    dias
+                  <span
+                    className={`absolute right-2.5 top-1.5 text-[11px] font-semibold ${
+                      isEtapaInicial && diasAposEtapa === 0 ? 'text-emerald-700' : 'text-gray-400'
+                    }`}
+                  >
+                    {isEtapaInicial && diasAposEtapa === 0 ? 'imediato' : 'dias'}
                   </span>
                 </div>
+                {isEtapaInicial && (
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    {diasAposEtapa === 0
+                      ? '0 dias = enviado imediatamente junto com o disparo inicial do lote.'
+                      : '0 dias = envio instantâneo sem espera, ou configure dias após o agendamento.'}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1448,8 +1492,10 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
               <span>Excluir Etapa</span>
             </DialogTitle>
             <DialogDescription>
-              Deseja remover a etapa "{etapaParaExcluir?.nome}" (+{etapaParaExcluir?.dias_apos}d)?
-              Dica: você também pode apenas desativá-la com o botão de toggle sem precisar apagá-la.
+              Deseja remover a etapa "{etapaParaExcluir?.nome}" (
+              {etapaParaExcluir?.dias_apos === 0 ? 'Imediato' : `+${etapaParaExcluir?.dias_apos}d`}
+              )? Dica: você também pode apenas desativá-la com o botão de toggle sem precisar
+              apagá-la.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">

@@ -303,11 +303,18 @@ export async function createEtapaFollowUp(input: CriarEtapaInput): Promise<Etapa
     }
   }
 
+  const diasAposValor =
+    input.dias_apos !== undefined && !isNaN(Number(input.dias_apos))
+      ? Number(input.dias_apos)
+      : ordem === 1
+        ? 0
+        : 1
+
   const payload: Record<string, unknown> = {
     fluxo_id: input.fluxo_id,
     ordem,
     nome: input.nome ? input.nome.trim() : `Etapa ${ordem}`,
-    dias_apos: Number(input.dias_apos) || 1,
+    dias_apos: diasAposValor,
     mensagem: input.mensagem || '',
     ativa: input.ativa !== undefined ? input.ativa : true,
     desvio_acao: input.desvio_acao || 'nenhuma',
@@ -328,7 +335,9 @@ export async function updateEtapaFollowUp(
 ): Promise<EtapaFollowUp> {
   const payload: Record<string, unknown> = {}
   if (dados.nome !== undefined) payload.nome = dados.nome.trim()
-  if (dados.dias_apos !== undefined) payload.dias_apos = Number(dados.dias_apos)
+  if (dados.dias_apos !== undefined && !isNaN(Number(dados.dias_apos))) {
+    payload.dias_apos = Number(dados.dias_apos)
+  }
   if (dados.mensagem !== undefined) payload.mensagem = dados.mensagem
   if (dados.ativa !== undefined) payload.ativa = dados.ativa
   if (dados.ordem !== undefined) payload.ordem = Number(dados.ordem)

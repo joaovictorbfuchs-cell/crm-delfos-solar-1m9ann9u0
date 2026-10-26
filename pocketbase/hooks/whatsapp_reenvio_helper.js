@@ -16,11 +16,21 @@ function carregarEtapasDoFluxo(app, fluxoId) {
     const etapas = []
     for (let i = 0; i < etapasRecs.length; i++) {
       const rec = etapasRecs[i]
+      const ordemVal = rec.getInt('ordem') || i + 1
+      const rawDiasApos = rec.get('dias_apos')
+      // Se for a primeira etapa (ordem 1), permite 0 dias (imediato); caso contrário se nulo/inválido usa 1
+      const diasAposVal =
+        rawDiasApos !== null && rawDiasApos !== undefined && rawDiasApos !== ''
+          ? Number(rawDiasApos)
+          : ordemVal === 1
+            ? 0
+            : 1
+
       etapas.push({
         id: rec.id,
-        ordem: rec.getInt('ordem') || i + 1,
+        ordem: ordemVal,
         nome: rec.getString('nome') || `Etapa ${i + 1}`,
-        dias_apos: rec.getInt('dias_apos') || 1,
+        dias_apos: isNaN(diasAposVal) ? (ordemVal === 1 ? 0 : 1) : Math.max(0, diasAposVal),
         mensagem: rec.getString('mensagem') || '',
         desvio_acao: rec.getString('desvio_acao') || 'nenhuma',
         desvio_dias: rec.getInt('desvio_dias') || 0,
@@ -546,9 +556,16 @@ function processarReenviosDisparosMassa(app) {
       }
 
       // Calcula o prazo para a próxima etapa: dias_apos contados do último envio (ou disparo inicial)
-      const prazoDias = Math.max(1, proximaEtapa.dias_apos || 1)
+      // Se for a primeira etapa (ordem 1) com dias_apos = 0, o envio é imediato junto ao agendamento/disparo do lote
+      const isPrimeiraEtapa = proximaEtapa.ordem === 1 || ultimaOrdemExecutada === 0
+      const prazoDias =
+        isPrimeiraEtapa && proximaEtapa.dias_apos === 0
+          ? 0
+          : Math.max(1, typeof proximaEtapa.dias_apos === 'number' ? proximaEtapa.dias_apos : 1)
       const prazoMs = prazoDias * 24 * 60 * 60 * 1000
-      const dataPrevistaEnvioMs = dataUltimoEnvioMs + prazoMs
+      // Se prazoDias === 0, deve disparar na hora do agendamento do lote (dataDisparoMs ou agora, sem gerar agendamento no passado)
+      const dataPrevistaEnvioMs =
+        prazoDias === 0 ? Math.max(dataDisparoMs, agora.getTime()) : dataUltimoEnvioMs + prazoMs
       const dataPrevistaIso = new Date(dataPrevistaEnvioMs).toISOString()
 
       item.proximo_envio_data = dataPrevistaIso
@@ -636,7 +653,11 @@ function processarReenviosDisparosMassa(app) {
           }
         }
         if (subsequente) {
-          const proxPrazoMs = (subsequente.dias_apos || 1) * 24 * 60 * 60 * 1000
+          const proxPrazoDias = Math.max(
+            1,
+            typeof subsequente.dias_apos === 'number' ? subsequente.dias_apos : 1,
+          )
+          const proxPrazoMs = proxPrazoDias * 24 * 60 * 60 * 1000
           item.proximo_envio_data = new Date(agora.getTime() + proxPrazoMs).toISOString()
           item.proxima_etapa_nome = subsequente.nome
         } else {
@@ -857,7 +878,11 @@ function avaliarEntradaAutomaticaEstagio(app, negocioRec, novoEstagio, estagioAn
     // Carregar 1ª etapa ativa do fluxo para calcular prazo e agendamento
     const etapas = carregarEtapasDoFluxo(app, targetFluxoId)
     const primeiraEtapa = etapas.length > 0 ? etapas[0] : null
-    const prazoDias = primeiraEtapa ? Math.max(1, primeiraEtapa.dias_apos || 1) : 3
+    const prazoDias = primeiraEtapa
+      ? primeiraEtapa.dias_apos === 0
+        ? 0
+        : Math.max(1, primeiraEtapa.dias_apos || 1)
+      : 3
     const dataPrevistaIso = new Date(
       agora.getTime() + prazoDias * 24 * 60 * 60 * 1000,
     ).toISOString()
