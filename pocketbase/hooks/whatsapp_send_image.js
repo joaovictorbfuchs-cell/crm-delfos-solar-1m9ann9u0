@@ -168,6 +168,11 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
     msgRecord.set('direcao', 'enviada')
     msgRecord.set('nome_arquivo', nomeArquivo)
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
+    if (authUser) {
+      const nomeAutor = authUser.getString('name') || authUser.getString('email') || 'Atendente'
+      msgRecord.set('autor', nomeAutor)
+      msgRecord.set('autor_id', authUser.id)
+    }
 
     // Se temos URL externa ou curta, salvar documento_url. Não salvar data-URL longa (base64) para respeitar o limite do schema
     if (imageData && imageData.startsWith('http')) {

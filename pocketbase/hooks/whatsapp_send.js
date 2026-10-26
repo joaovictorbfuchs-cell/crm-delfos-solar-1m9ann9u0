@@ -139,6 +139,11 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
     msgRecord.set('tipo_disparo', tipoDisparo)
     msgRecord.set('direcao', 'enviada')
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
+    if (authUser) {
+      const nomeAutor = authUser.getString('name') || authUser.getString('email') || 'Atendente'
+      msgRecord.set('autor', nomeAutor)
+      msgRecord.set('autor_id', authUser.id)
+    }
 
     // Se tiver agendamento futuro (> agora + 1 min), grava status 'agendada'
     const now = new Date()

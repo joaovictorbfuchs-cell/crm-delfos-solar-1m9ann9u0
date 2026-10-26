@@ -36,7 +36,11 @@ import { usePasteFiles } from '@/hooks/usePasteFiles'
 import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { aplicarPrefixoMensagemManual, removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
+import {
+  aplicarPrefixoMensagemManual,
+  removerPrefixoMensagemManual,
+  extrairNomeAutorMensagem,
+} from '@/lib/whatsappPrefixo'
 import {
   formatDateTime,
   formatCurrency,
@@ -947,21 +951,77 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
               // Determinar se esta mensagem é a PRIMEIRA mensagem visível de um bloco de remetente (topo do bloco visual)
               // Como a lista está em ordem cronológica (idx 0 é a mais antiga, idx N é a mais nova):
               // msg anterior (acima) = idx - 1. Se idx === 0 ou o remetente de idx - 1 for diferente, esta é o início do bloco!
+              // Determinar o nome do remetente desta mensagem específica
+              // Se for recebida: nome do cliente ou "Cliente"
+              // Se for enviada:
+              //   1) campo msg.autor (se preenchido)
+              //   2) msg.expand?.autor_id?.name
+              //   3) autor extraído do prefixo da mensagem (ex: *[Daniel]*: -> "Daniel", *[João]*: -> "João")
+              //   4) se o prefixo bater com o primeiro nome do usuário logado, exibir nome completo do logado
+              //   5) atendente gravado na conversa
+              //   6) fallback: nome do usuário logado ou "Delfos Solar"
+              const autorPrefixo = !isRecebida ? extrairNomeAutorMensagem(msg.conteudo_final) : null
+              const autorDireto = !isRecebida
+                ? ((msg as any).autor as string | undefined) ||
+                  ((msg as any).expand?.autor_id?.name as string | undefined)
+                : null
+
+              let nomeRemetenteEnviada = ''
+              if (!isRecebida) {
+                if (autorDireto && autorDireto.trim()) {
+                  nomeRemetenteEnviada = autorDireto.trim()
+                } else if (autorPrefixo) {
+                  // Se o prefixo bate com o primeiro nome do usuário logado, pode usar o nome completo
+                  const primeiroNomeLogado = (user?.name || '').trim().split(/\s+/)[0]
+                  if (
+                    primeiroNomeLogado &&
+                    autorPrefixo.toLowerCase() === primeiroNomeLogado.toLowerCase()
+                  ) {
+                    nomeRemetenteEnviada = user?.name || autorPrefixo
+                  } else {
+                    nomeRemetenteEnviada = autorPrefixo
+                  }
+                } else if (conversa.atendente && conversa.atendente.trim()) {
+                  nomeRemetenteEnviada = conversa.atendente.trim()
+                } else {
+                  nomeRemetenteEnviada = user?.name || 'Delfos Solar'
+                }
+              }
+
+              // Determinar se esta mensagem é a PRIMEIRA mensagem visível de um bloco de remetente (topo do bloco visual)
+              // Como a lista está em ordem cronológica (idx 0 é a mais antiga, idx N é a mais nova):
+              // msg anterior (acima) = idx - 1.
+              // Se idx === 0, ou se a direção mudou (recebida vs enviada),
+              // ou se ambas são enviadas mas de AUTORES DIFERENTES (ex: João e depois Daniel):
+              // esta mensagem inicia um novo bloco visual!
               const msgAcima = idx > 0 ? mensagensConversa[idx - 1] : null
               const isAcimaRecebida = msgAcima
                 ? msgAcima.direcao === 'recebida' || msgAcima.tipo_disparo === 'webhook'
                 : null
-              const isPrimeiraDoBloco = idx === 0 || isAcimaRecebida !== isRecebida
+
+              let isMesmoAutorQueAcima = true
+              if (msgAcima && isAcimaRecebida === isRecebida && !isRecebida) {
+                const autorAcimaPrefixo = extrairNomeAutorMensagem(msgAcima.conteudo_final)
+                const autorAcimaDireto =
+                  ((msgAcima as any).autor as string | undefined) ||
+                  ((msgAcima as any).expand?.autor_id?.name as string | undefined)
+                const nomeAcima = (autorAcimaDireto || autorAcimaPrefixo || '').toLowerCase().trim()
+                const nomeAtual = (autorDireto || autorPrefixo || '').toLowerCase().trim()
+                if (nomeAcima && nomeAtual && nomeAcima !== nomeAtual) {
+                  isMesmoAutorQueAcima = false
+                }
+              }
+
+              const isPrimeiraDoBloco =
+                idx === 0 || isAcimaRecebida !== isRecebida || !isMesmoAutorQueAcima
 
               // Espaçamento entre mensagens no estilo WhatsApp:
               // Menor entre mensagens consecutivas do mesmo remetente (mt-1)
               // Maior ao trocar de remetente (mt-3)
               const margemTopo = idx === 0 ? 'mt-1' : isPrimeiraDoBloco ? 'mt-3' : 'mt-1'
 
-              // Identificação do remetente (ex.: quando necessário ou atendente diferente)
-              const nomeRemetente = isRecebida
-                ? cliente?.nome || 'Cliente'
-                : conversa.atendente || user?.name || 'Delfos Solar'
+              // Identificação do remetente
+              const nomeRemetente = isRecebida ? cliente?.nome || 'Cliente' : nomeRemetenteEnviada
 
               return (
                 <div

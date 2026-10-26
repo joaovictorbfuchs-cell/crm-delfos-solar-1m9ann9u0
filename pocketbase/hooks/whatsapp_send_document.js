@@ -58,9 +58,35 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
       } catch (_) {}
     }
 
-    // Resolução dinâmica do número de destino se o cliente vinculado tiver número atualizado
+    // Regra de ouro: se a requisição tem conversa_id, o destino é ESTRITAMENTE o campo
+    // numero da whatsapp_conversa correspondente — NUNCA redirecionar para número do cadastro
+    // e NUNCA mutar o campo 'numero' da conversa existente.
+    // Se não há conversa_id (envio avulso por cliente), resolver pelo cadastro do cliente (whatsapp || telefone).
     let resolvedTelefoneDestino = telefoneDestino
-    if (finalClienteId) {
+    let finalConversaId = conversaId
+    let convRec = null
+
+    if (finalConversaId) {
+      try {
+        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
+        convRec = $app.findRecordsByFilter(convCol.id, `id = '${finalConversaId}'`, '', 1, 0)[0]
+        if (convRec) {
+          if (!finalClienteId && convRec.getString('cliente_id')) {
+            finalClienteId = convRec.getString('cliente_id')
+          }
+          const numConv = (convRec.getString('numero') || '').trim()
+          let digitsConv = numConv.replace(/\D/g, '')
+          if (digitsConv.length >= 10 && digitsConv.length <= 11 && !digitsConv.startsWith('55')) {
+            digitsConv = '55' + digitsConv
+          }
+          if (digitsConv) {
+            resolvedTelefoneDestino = digitsConv
+          }
+        }
+      } catch (errConvFind) {
+        console.log('[WHATSAPP DOC CONV FIND AVISO]', errConvFind)
+      }
+    } else if (finalClienteId) {
       try {
         const cliRec = $app.findRecordsByFilter('clientes', `id = '${finalClienteId}'`, '', 1, 0)[0]
         if (cliRec) {
@@ -71,16 +97,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
               digitsCli = '55' + digitsCli
             }
             if (digitsCli && digitsCli.length >= 10) {
-              const digitsDestino = (resolvedTelefoneDestino || '').replace(/\D/g, '')
-              const digitsDestinoNorm =
-                digitsDestino.length >= 10 &&
-                digitsDestino.length <= 11 &&
-                !digitsDestino.startsWith('55')
-                  ? '55' + digitsDestino
-                  : digitsDestino
-              if (digitsDestinoNorm !== digitsCli) {
-                resolvedTelefoneDestino = digitsCli
-              }
+              resolvedTelefoneDestino = digitsCli
             }
           }
         }
@@ -88,58 +105,39 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     }
 
     // Normalizar telefone (55 + DDD + Número)
-    let cleanPhone = resolvedTelefoneDestino.replace(/\D/g, '')
+    let cleanPhone = (resolvedTelefoneDestino || '').replace(/\D/g, '')
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
       cleanPhone = '55' + cleanPhone
     }
+    resolvedTelefoneDestino = cleanPhone
 
     // Localizar ou criar conversa se conversa_id não veio
-    let finalConversaId = conversaId
     try {
       let helper = null
       try {
         helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
       } catch (_) {}
 
-      if (finalConversaId) {
-        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
-        const convRec = $app.findRecordsByFilter(
-          convCol.id,
-          `id = '${finalConversaId}'`,
-          '',
-          1,
-          0,
-        )[0]
-        if (convRec) {
-          if (finalClienteId && !convRec.getString('cliente_id')) {
-            convRec.set('cliente_id', finalClienteId)
-          }
-          if (cleanPhone && cleanPhone.length >= 10) {
-            const numConv = (convRec.getString('numero') || '').replace(/\D/g, '')
-            const numConvNorm =
-              numConv.length >= 10 && numConv.length <= 11 && !numConv.startsWith('55')
-                ? '55' + numConv
-                : numConv
-            if (numConvNorm !== cleanPhone) {
-              convRec.set('numero', cleanPhone)
-            }
-          }
-          convRec.set('status', 'aguardando_cliente')
-          convRec.set('ultima_mensagem_preview', `📄 ${nomeArquivo || 'Documento'}`)
-          convRec.set('ultima_mensagem_em', new Date().toISOString())
-          convRec.set('nao_lidas', 0)
-          if (authUser && !convRec.getString('atendente')) {
-            convRec.set('atendente', authUser.getString('name') || 'Atendente')
-            convRec.set('atendente_id', authUser.id)
-          }
-          $app.save(convRec)
+      if (finalConversaId && convRec) {
+        if (finalClienteId && !convRec.getString('cliente_id')) {
+          convRec.set('cliente_id', finalClienteId)
         }
+        // Conversa existente nunca tem o campo 'numero' mutado
+        convRec.set('status', 'aguardando_cliente')
+        convRec.set('ultima_mensagem_preview', `📄 ${nomeArquivo || 'Documento'}`)
+        convRec.set('ultima_mensagem_em', new Date().toISOString())
+        convRec.set('nao_lidas', 0)
+        if (authUser && !convRec.getString('atendente')) {
+          convRec.set('atendente', authUser.getString('name') || 'Atendente')
+          convRec.set('atendente_id', authUser.id)
+        }
+        $app.save(convRec)
       } else if (helper && helper.ensureConversaForMessage) {
         const conv = helper.ensureConversaForMessage(
           $app,
           finalClienteId,
-          resolvedTelefoneDestino,
-          `📄 ${documentoNome}`,
+          cleanPhone,
+          `📄 ${nomeArquivo || 'Documento'}`,
           authUser,
         )
         if (conv) {
@@ -172,6 +170,11 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
       msgRecord.set('documento_url', documentoUrl)
     }
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
+    if (authUser) {
+      const nomeAutor = authUser.getString('name') || authUser.getString('email') || 'Atendente'
+      msgRecord.set('autor', nomeAutor)
+      msgRecord.set('autor_id', authUser.id)
+    }
 
     // Ler secrets do Gateway
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim().replace(/[\r\n\t]/g, '')

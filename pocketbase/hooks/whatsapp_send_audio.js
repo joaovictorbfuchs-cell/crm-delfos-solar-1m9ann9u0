@@ -150,16 +150,15 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
     if (finalConversaId) msgRecord.set('conversa_id', finalConversaId)
     msgRecord.set('telefone_destino', cleanPhone)
 
-    const duracaoFormatada =
-      duracaoSegundos > 0
-        ? `${Math.floor(duracaoSegundos / 60)}:${String(duracaoSegundos % 60).padStart(2, '0')}`
-        : ''
-    const audioDescricao = duracaoFormatada ? `Áudio (${duracaoFormatada})` : 'Áudio gravado'
-
     msgRecord.set('conteudo_final', audioDescricao)
     msgRecord.set('tipo_disparo', 'manual')
     msgRecord.set('tipo_mensagem', 'audio')
     msgRecord.set('direcao', 'enviada')
+    if (authUser) {
+      const nomeAutor = authUser.getString('name') || authUser.getString('email') || 'Atendente'
+      msgRecord.set('autor', nomeAutor)
+      msgRecord.set('autor_id', authUser.id)
+    }
     // Se audioData for URL ou curta, salvar para reprodução se suportado
     if (audioData && audioData.startsWith('http')) {
       msgRecord.set('documento_url', audioData)

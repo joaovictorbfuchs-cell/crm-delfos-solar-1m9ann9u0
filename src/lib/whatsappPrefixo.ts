@@ -56,6 +56,29 @@ export function removerPrefixoMensagemManual(texto?: string): string {
   return texto.replace(REGEX_PREFIXO_MANUAL, '').trim()
 }
 
+/**
+ * Regex para capturar o nome do autor de dentro do prefixo no início do texto.
+ * Formatos suportados:
+ * - `*[Daniel]*: Certo...` -> captura "Daniel"
+ * - `[Daniel]: Certo...` -> captura "Daniel"
+ * - `*[João Victor]*: Olá` -> captura "João Victor"
+ */
+export const REGEX_EXTRAIR_AUTOR_PREFIXO = /^(?:\*\[([^\]]+)\]\*|\[([^\]]+)\]):\s*/
+
+/**
+ * Extrai o nome do autor contido no prefixo de uma mensagem (ex.: "*[Daniel]*: Olá" -> "Daniel").
+ * Retorna null se não houver prefixo reconhecível.
+ */
+export function extrairNomeAutorMensagem(texto?: string): string | null {
+  if (!texto || typeof texto !== 'string') return null
+  const match = texto.trim().match(REGEX_EXTRAIR_AUTOR_PREFIXO)
+  if (match) {
+    const autor = (match[1] || match[2] || '').trim()
+    return autor || null
+  }
+  return null
+}
+
 export function aplicarPrefixoMensagemManual(texto: string, nomeCustomizado?: string): string {
   if (!texto || typeof texto !== 'string') return ''
   const trimmed = texto.trim()

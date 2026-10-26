@@ -2825,10 +2825,14 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       conteudoAjustado = aplicarPrefixoMensagemManual(conteudoAjustado)
     }
 
-    const payloadFinal =
-      conteudoAjustado !== data.conteudo_final
+    const autorLogado = (user?.name || '').trim() || (user?.email || '').trim() || 'Atendente'
+    const payloadFinal = {
+      ...(conteudoAjustado !== data.conteudo_final
         ? { ...data, conteudo_final: conteudoAjustado, tipo_disparo: data.tipo_disparo || 'manual' }
-        : data
+        : data),
+      autor: data.autor || autorLogado,
+      ...(user?.id ? { autor_id: user.id } : {}),
+    }
 
     try {
       const res = await apiSendWhatsAppMensagem(payloadFinal)

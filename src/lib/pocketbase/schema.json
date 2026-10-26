@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T21:29:47.320Z",
+  "generatedAt": "2026-10-26T22:04:00.918Z",
   "collections": [
     {
       "name": "users",
@@ -3430,6 +3430,19 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": [

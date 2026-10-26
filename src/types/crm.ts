@@ -772,12 +772,15 @@ export interface WhatsAppMensagem extends RecordModel {
   referencia_id?: string
   id_externo_gateway?: string
   log_erro?: string
+  autor?: string
+  autor_id?: string
   created: string
   updated: string
   expand?: {
     cliente_id?: Cliente
     conversa_id?: WhatsAppConversa
     template_id?: WhatsAppTemplate
+    autor_id?: SistemaUsuario
   }
 }
 
