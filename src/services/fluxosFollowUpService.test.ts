@@ -41,9 +41,12 @@ describe('fluxosFollowUpService - dias_apos = 0 (envio imediato na primeira etap
         ordem: 1,
         dias_apos: 0,
         mensagem: 'Mensagem inicial sem espera',
+        desvio_acao: 'nenhuma',
+        desvio_dias: 0,
       }),
     )
     expect(etapa.dias_apos).toBe(0)
+    expect(etapa.desvio_dias).toBe(0)
   })
 
   it('deve atualizar etapa para dias_apos = 0 mantendo 0 no payload', async () => {
@@ -76,6 +79,43 @@ describe('fluxosFollowUpService - dias_apos = 0 (envio imediato na primeira etap
       }),
     )
     expect(etapa.dias_apos).toBe(0)
+  })
+
+  it('deve atualizar etapa com desvio_dias = 0 e dias_apos = 0 sem erro de validação', async () => {
+    const mockUpdatedRecord = {
+      id: 'etapa_123',
+      fluxo_id: 'fluxo_abc',
+      ordem: 1,
+      nome: '1ª Mensagem Imediata',
+      dias_apos: 0,
+      desvio_acao: 'nenhuma',
+      desvio_dias: 0,
+      mensagem: 'Mensagem sem espera',
+      ativa: true,
+      created: '2025-01-01',
+      updated: '2025-01-01',
+    }
+
+    const updateSpy = vi
+      .spyOn(pb.collection('etapas_follow_up'), 'update')
+      .mockResolvedValue(mockUpdatedRecord as any)
+
+    const etapa = await updateEtapaFollowUp('etapa_123', {
+      dias_apos: 0,
+      desvio_acao: 'nenhuma',
+      desvio_dias: 0,
+    })
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      'etapa_123',
+      expect.objectContaining({
+        dias_apos: 0,
+        desvio_acao: 'nenhuma',
+        desvio_dias: 0,
+      }),
+    )
+    expect(etapa.dias_apos).toBe(0)
+    expect(etapa.desvio_dias).toBe(0)
   })
 
   it('deve manter dias_apos >= 1 para etapas seguintes', async () => {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T01:28:41.146Z",
+  "generatedAt": "2026-10-26T01:57:38.518Z",
   "collections": [
     {
       "name": "users",
@@ -8180,7 +8180,7 @@
         {
           "name": "dias_apos",
           "type": "number",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
