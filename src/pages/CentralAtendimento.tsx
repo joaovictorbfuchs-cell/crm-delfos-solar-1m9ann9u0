@@ -7,12 +7,10 @@ import {
   UserPlus,
   RefreshCw,
   Phone,
-  Settings,
   Bell,
   BellOff,
   Database,
   X,
-  FileSpreadsheet,
   DownloadCloud,
   Sparkles,
   Send,
@@ -20,7 +18,6 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ModalVincularCliente } from '@/components/ModalVincularCliente'
-import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
 import PainelAcompanhamentoDisparos from '@/components/PainelAcompanhamentoDisparos'
 import { ModalCadastrarLeadWhatsApp } from '@/components/ModalCadastrarLeadWhatsApp'
 import { ModalCadastrarOutroContatoWhatsApp } from '@/components/ModalCadastrarOutroContatoWhatsApp'
@@ -70,7 +67,6 @@ import {
   requestDesktopNotificationPermission,
   showWhatsAppDesktopNotification,
 } from '@/lib/whatsappAudioNotification'
-import { exportarPlanilhaCentralAtendimento } from '@/lib/exportCentralAtendimentoXlsx'
 
 export const CentralAtendimento: React.FC = () => {
   const {
@@ -104,10 +100,8 @@ export const CentralAtendimento: React.FC = () => {
     null,
   )
   const [searchTerm, setSearchTerm] = useState('')
-  const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
   const [painelAcompanhamentoOpen, setPainelAcompanhamentoOpen] = useState(false)
   const [isStartingConversa, setIsStartingConversa] = useState(false)
-  const [isExportingPlanilha, setIsExportingPlanilha] = useState(false)
   const [outrosContatosLista, setOutrosContatosLista] = useState<OutroContato[]>([])
   const [contatosUnicosLista, setContatosUnicosLista] = useState<
     import('@/types/crm').ContatoUnico[]
@@ -240,36 +234,6 @@ export const CentralAtendimento: React.FC = () => {
       })
     }
   }, [whatsAppMensagens, whatsAppConversas, clientes, notificacoesAtivas])
-
-  // Exportar planilha Excel (.xlsx) da Central de Atendimento
-  const handleExportarPlanilha = async () => {
-    setIsExportingPlanilha(true)
-    try {
-      const resultado = exportarPlanilhaCentralAtendimento({
-        clientes: Array.isArray(clientes) ? clientes : [],
-        contatosAdicionais: Array.isArray(contatosAdicionais) ? contatosAdicionais : [],
-        outrosContatos: Array.isArray(outrosContatosLista) ? outrosContatosLista : [],
-        conversasWhatsApp: Array.isArray(whatsAppConversas) ? whatsAppConversas : [],
-      })
-
-      toast({
-        title: 'Planilha exportada com sucesso!',
-        description: `${resultado.totalExportados} contatos na Base Completa. Abas: Repetidos (${resultado.totalRepetidos}), Erros (${resultado.totalErrosDigitacao}), Testes (${resultado.totalDadosTeste}), Sem fone (${resultado.totalSemTelefone}).`,
-      })
-    } catch (err: unknown) {
-      console.error('Erro ao exportar planilha da Central de Atendimento:', err)
-      toast({
-        title: 'Erro ao exportar planilha',
-        description:
-          err instanceof Error
-            ? err.message
-            : 'Não foi possível gerar o arquivo Excel da Central de Atendimento.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsExportingPlanilha(false)
-    }
-  }
 
   // Normalizador de texto para busca insensível a acentuação e caracteres especiais
   const normalizeSearchText = (str?: string | null): string => {
@@ -1215,33 +1179,6 @@ export const CentralAtendimento: React.FC = () => {
             )}
           </button>
 
-          {/* Botão de Exportação de Planilha Excel (.xlsx) - apenas ícone com tooltip */}
-          <button
-            type="button"
-            onClick={handleExportarPlanilha}
-            disabled={isExportingPlanilha}
-            className="inline-flex items-center justify-center p-2.5 bg-emerald-700 hover:bg-emerald-800 text-white active:scale-[0.98] rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer disabled:opacity-50"
-            title="Exportar Planilha"
-            aria-label="Exportar Planilha"
-          >
-            {isExportingPlanilha ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="w-4 h-4" />
-            )}
-          </button>
-
-          {/* Botão de Templates & Configurações de WhatsApp no padrão verde Delfos - apenas ícone com tooltip */}
-          <button
-            type="button"
-            onClick={() => setModalTemplatesOpen(true)}
-            className="inline-flex items-center justify-center p-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
-            title="Templates & Gateway"
-            aria-label="Templates & Gateway"
-          >
-            <Settings className="w-4 h-4 stroke-[2.5]" />
-          </button>
-
           {/* Botão de Acompanhamento de Disparos em Massa */}
           <button
             type="button"
@@ -1748,12 +1685,6 @@ export const CentralAtendimento: React.FC = () => {
           onSubmit={handleCadastrarOutroContato}
         />
       )}
-
-      {/* Modal Global de Templates e Gateway WhatsApp */}
-      <ModalGerenciarWhatsAppTemplates
-        isOpen={modalTemplatesOpen}
-        onClose={() => setModalTemplatesOpen(false)}
-      />
 
       {/* Modal / Painel de Acompanhamento de Disparos em Massa */}
       <Dialog open={painelAcompanhamentoOpen} onOpenChange={setPainelAcompanhamentoOpen}>
