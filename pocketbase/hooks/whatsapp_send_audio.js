@@ -48,8 +48,35 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
       } catch (_) {}
     }
 
+    // Resolução dinâmica do número de destino se o cliente vinculado tiver número atualizado
+    let resolvedTelefoneDestino = telefoneDestino
+    if (finalClienteId) {
+      try {
+        const cliRec = $app.findRecordsByFilter('clientes', `id = '${finalClienteId}'`, '', 1, 0)[0]
+        if (cliRec) {
+          const cliNum = (cliRec.getString('whatsapp') || cliRec.getString('telefone') || '').trim()
+          if (cliNum) {
+            let digitsCli = cliNum.replace(/\D/g, '')
+            if (digitsCli.length >= 10 && digitsCli.length <= 11 && !digitsCli.startsWith('55')) {
+              digitsCli = '55' + digitsCli
+            }
+            if (digitsCli && digitsCli.length >= 10) {
+              const digitsDestino = (resolvedTelefoneDestino || '').replace(/\D/g, '')
+              const digitsDestinoNorm =
+                digitsDestino.length >= 10 && digitsDestino.length <= 11 && !digitsDestino.startsWith('55')
+                  ? '55' + digitsDestino
+                  : digitsDestino
+              if (digitsDestinoNorm !== digitsCli) {
+                resolvedTelefoneDestino = digitsCli
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     // Normalizar telefone (55 + DDD + Número)
-    let cleanPhone = telefoneDestino.replace(/\D/g, '')
+    let cleanPhone = resolvedTelefoneDestino.replace(/\D/g, '')
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
       cleanPhone = '55' + cleanPhone
     }
@@ -75,6 +102,13 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
           if (finalClienteId && !convRec.getString('cliente_id')) {
             convRec.set('cliente_id', finalClienteId)
           }
+          if (cleanPhone && cleanPhone.length >= 10) {
+            const numConv = (convRec.getString('numero') || '').replace(/\D/g, '')
+            const numConvNorm = numConv.length >= 10 && numConv.length <= 11 && !numConv.startsWith('55') ? '55' + numConv : numConv
+            if (numConvNorm !== cleanPhone) {
+              convRec.set('numero', cleanPhone)
+            }
+          }
           convRec.set('status', 'aguardando_cliente')
           convRec.set('ultima_mensagem_preview', `🎤 ${audioDescricao}`)
           convRec.set('ultima_mensagem_em', new Date().toISOString())
@@ -89,7 +123,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
         const conv = helper.ensureConversaForMessage(
           $app,
           finalClienteId,
-          telefoneDestino,
+          resolvedTelefoneDestino,
           `🎤 ${audioDescricao}`,
           authUser,
         )
@@ -105,7 +139,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-audio', (e) => {
     const msgRecord = new Record(msgsCol)
     if (finalClienteId) msgRecord.set('cliente_id', finalClienteId)
     if (finalConversaId) msgRecord.set('conversa_id', finalConversaId)
-    msgRecord.set('telefone_destino', telefoneDestino)
+    msgRecord.set('telefone_destino', resolvedTelefoneDestino)
 
     const duracaoFormatada =
       duracaoSegundos > 0

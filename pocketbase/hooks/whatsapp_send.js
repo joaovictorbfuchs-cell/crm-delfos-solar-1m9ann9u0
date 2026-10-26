@@ -26,12 +26,73 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
       return e.json(400, { error: 'Conteúdo da mensagem não pode ser vazio', ok: false })
     }
 
-    // Localizar ou criar conversa se conversa_id não veio
+    // Resolução dinâmica do número de destino a partir do cliente vinculado
+    // Salvaguarda: se cliente_id foi fornecido (ou encontrado na conversa),
+    // verificar se o cliente possui WhatsApp ou telefone cadastrado.
+    let resolvedTelefoneDestino = telefoneDestino
     let finalConversaId = conversaId
+    let effectiveClienteId = clienteId
+
+    // Se temos conversa_id mas não cliente_id, buscar o cliente vinculado à conversa
+    if (!effectiveClienteId && finalConversaId) {
+      try {
+        const cRec = $app.findRecordsByFilter(
+          'whatsapp_conversas',
+          `id = '${finalConversaId}'`,
+          '',
+          1,
+          0,
+        )[0]
+        if (cRec && cRec.getString('cliente_id')) {
+          effectiveClienteId = cRec.getString('cliente_id')
+        }
+      } catch (_) {}
+    }
+
+    if (effectiveClienteId) {
+      try {
+        const cliRec = $app.findRecordsByFilter(
+          'clientes',
+          `id = '${effectiveClienteId}'`,
+          '',
+          1,
+          0,
+        )[0]
+        if (cliRec) {
+          const cliWhats = (cliRec.getString('whatsapp') || '').trim()
+          const cliTel = (cliRec.getString('telefone') || '').trim()
+          const numeroAtualCli = cliWhats || cliTel
+          if (numeroAtualCli) {
+            let digitsAtual = numeroAtualCli.replace(/\D/g, '')
+            if (digitsAtual.length >= 10 && digitsAtual.length <= 11 && !digitsAtual.startsWith('55')) {
+              digitsAtual = '55' + digitsAtual
+            }
+            if (digitsAtual && digitsAtual.length >= 10) {
+              const digitsDestino = (resolvedTelefoneDestino || '').replace(/\D/g, '')
+              const digitsDestinoNorm =
+                digitsDestino.length >= 10 && digitsDestino.length <= 11 && !digitsDestino.startsWith('55')
+                  ? '55' + digitsDestino
+                  : digitsDestino
+
+              if (digitsDestinoNorm !== digitsAtual) {
+                console.log(
+                  `[WHATSAPP SEND] Redirecionando destino para o número atual do cliente ${effectiveClienteId}: de "${resolvedTelefoneDestino}" para "${digitsAtual}"`,
+                )
+                resolvedTelefoneDestino = digitsAtual
+              }
+            }
+          }
+        }
+      } catch (errResolveCli) {
+        console.log('[WHATSAPP SEND RESOLVE CLI AVISO]', errResolveCli)
+      }
+    }
+
+    // Localizar ou criar conversa se conversa_id não veio
     try {
       const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
       if (finalConversaId) {
-        // Se conversa_id veio, apenas garantir update de preview/status
+        // Se conversa_id veio, garantir update de preview/status e número atualizado
         const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
         const convRec = $app.findRecordsByFilter(
           convCol.id,
@@ -41,9 +102,27 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
           0,
         )[0]
         if (convRec) {
-          if (clienteId && !convRec.getString('cliente_id')) {
-            convRec.set('cliente_id', clienteId)
+          if (effectiveClienteId && !convRec.getString('cliente_id')) {
+            convRec.set('cliente_id', effectiveClienteId)
           }
+          // Atualizar o número da conversa para o número resolvido se for diferente
+          let digitsResolvido = (resolvedTelefoneDestino || '').replace(/\D/g, '')
+          if (digitsResolvido.length >= 10 && digitsResolvido.length <= 11 && !digitsResolvido.startsWith('55')) {
+            digitsResolvido = '55' + digitsResolvido
+          }
+          const numConversaAtual = (convRec.getString('numero') || '').replace(/\D/g, '')
+          const numConversaNorm =
+            numConversaAtual.length >= 10 && numConversaAtual.length <= 11 && !numConversaAtual.startsWith('55')
+              ? '55' + numConversaAtual
+              : numConversaAtual
+
+          if (digitsResolvido && digitsResolvido.length >= 10 && numConversaNorm !== digitsResolvido) {
+            console.log(
+              `[WHATSAPP SEND] Atualizando número da conversa ${finalConversaId} de "${convRec.getString('numero')}" para "${digitsResolvido}"`,
+            )
+            convRec.set('numero', digitsResolvido)
+          }
+
           convRec.set('status', 'aguardando_cliente')
           convRec.set('ultima_mensagem_preview', conteudoFinal.substring(0, 100))
           convRec.set('ultima_mensagem_em', new Date().toISOString())
@@ -57,8 +136,8 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
       } else {
         const conv = helper.ensureConversaForMessage(
           $app,
-          clienteId,
-          telefoneDestino,
+          effectiveClienteId || clienteId,
+          resolvedTelefoneDestino,
           conteudoFinal,
           authUser,
         )
@@ -72,10 +151,10 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
 
     const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const msgRecord = new Record(msgsCol)
-    if (clienteId) msgRecord.set('cliente_id', clienteId)
+    if (effectiveClienteId || clienteId) msgRecord.set('cliente_id', effectiveClienteId || clienteId)
     if (finalConversaId) msgRecord.set('conversa_id', finalConversaId)
     if (templateId) msgRecord.set('template_id', templateId)
-    msgRecord.set('telefone_destino', telefoneDestino)
+    msgRecord.set('telefone_destino', resolvedTelefoneDestino)
     msgRecord.set('conteudo_final', conteudoFinal)
     msgRecord.set('tipo_disparo', tipoDisparo)
     msgRecord.set('direcao', 'enviada')
@@ -115,7 +194,7 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
     originNumber = originNumber.replace(/[\r\n\t]/g, '').trim()
 
     // Normalizar número de destino (apenas dígitos, garantindo prefixo 55 se BR)
-    let cleanPhone = telefoneDestino.replace(/\D/g, '')
+    let cleanPhone = resolvedTelefoneDestino.replace(/\D/g, '')
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
       cleanPhone = '55' + cleanPhone
     }
