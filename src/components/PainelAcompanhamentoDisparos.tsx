@@ -1111,7 +1111,21 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                             )}
                           </div>
                           {item.motivo && (
-                            <p className="text-[11px] text-gray-600 italic">{item.motivo}</p>
+                            <p className="text-[11px] text-gray-600 italic">
+                              {item.resposta_detectada ? (
+                                <span className="inline-flex items-center gap-1 font-semibold text-blue-700 not-italic">
+                                  <MessageSquare className="w-3 h-3 text-blue-600" />
+                                  {item.motivo}
+                                </span>
+                              ) : (
+                                item.motivo
+                              )}
+                            </p>
+                          )}
+                          {item.preview_mensagem && (
+                            <p className="text-[10px] text-gray-500 bg-gray-50 p-1.5 rounded border border-gray-100 font-mono truncate">
+                              "{item.preview_mensagem}"
+                            </p>
                           )}
                         </div>
                       </div>

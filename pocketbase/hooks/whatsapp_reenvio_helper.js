@@ -35,6 +35,8 @@ function carregarEtapasDoFluxo(app, fluxoId) {
         desvio_acao: rec.getString('desvio_acao') || 'nenhuma',
         desvio_dias: rec.getInt('desvio_dias') || 0,
         desvio_fluxo_id: rec.getString('desvio_fluxo_id') || '',
+        resposta_acao: rec.getString('resposta_acao') || 'encerrar',
+        resposta_fluxo_id: rec.getString('resposta_fluxo_id') || '',
       })
     }
     // Ordena garantindo ordem crescente
@@ -977,8 +979,330 @@ function avaliarEntradaAutomaticaEstagio(app, negocioRec, novoEstagio, estagioAn
   }
 }
 
+/**
+ * FASE 4: Detecção automática de resposta do cliente via WhatsApp Webhook.
+ *
+ * Quando o webhook do WhatsApp receber mensagem de um cliente (não de grupo, não fromMe),
+ * verifica se ele está em acompanhamento de follow-up ativo nos lotes de disparos_massa.
+ *
+ * Se estiver ativo:
+ * 1. Marca automaticamente como 'Respondeu' (status: 'respondido', marcacao_resposta: 'respondeu', respondido_em: agora).
+ * 2. Encerra o fluxo atual.
+ * 3. Se a etapa/fluxo atual tiver ramificação de resposta configurada (resposta_acao === 'fluxo_alternativo' && resposta_fluxo_id):
+ *    - Transfere o contato para o fluxo alternativo.
+ *    - Carrega as etapas do fluxo alternativo.
+ *    - Se a 1ª etapa tiver dias_apos = 0 (imediata), agenda envio imediato da mensagem desta etapa (respeitando o mesmo caminho de envio da fila).
+ *    - Se dias_apos > 0, define proximo_envio_data = agora + dias_apos.
+ * 4. Registra na trilha com a marcação exata: 'Resposta detectada automaticamente'.
+ * 5. Idempotência estrita: se o destinatário já estiver marcado como 'respondido' ou com marcacao_resposta !== undefined (ou status inativo),
+ *    não reprocessa nem re-entra em fluxos.
+ */
+function processarRespostaAutomaticaCliente(app, params) {
+  const clienteId = params.clienteId || ''
+  const telefoneRecebido = (params.telefone || '').replace(/\D/g, '')
+  const mensagemRecebida = params.mensagem || ''
+  const agora = new Date()
+  const agoraIso = agora.toISOString()
+
+  if (!clienteId && (!telefoneRecebido || telefoneRecebido.length < 8)) {
+    return { processado: false, motivo: 'Sem identificador de cliente ou telefone' }
+  }
+
+  // Preparar fragmentos de busca para localizar o lote de disparo ativo
+  const telCurto = telefoneRecebido.startsWith('55')
+    ? telefoneRecebido.substring(2)
+    : telefoneRecebido
+  const last8 = telefoneRecebido.slice(-8)
+
+  let lotesAtivos = []
+  try {
+    lotesAtivos = app.findRecordsByFilter(
+      'disparos_massa',
+      "status = 'ativo' && reenvio_ativo = true",
+      '-created',
+      50,
+      0,
+    )
+  } catch (errBusca) {
+    console.log('[FASE 4 DETECCAO] Erro ao buscar lotes de disparos_massa:', errBusca)
+    return { processado: false, error: String(errBusca) }
+  }
+
+  if (!lotesAtivos || lotesAtivos.length === 0) {
+    return { processado: false, motivo: 'Nenhum lote ativo encontrado' }
+  }
+
+  const msgsCol = app.findCollectionByNameOrId('whatsapp_mensagens')
+  let matchesEncontrados = 0
+
+  for (let l = 0; l < lotesAtivos.length; l++) {
+    const lote = lotesAtivos[l]
+    let dests = []
+    try {
+      const raw = lote.get('destinatarios')
+      dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+    } catch (_) {
+      dests = []
+    }
+
+    if (!Array.isArray(dests) || dests.length === 0) continue
+
+    let loteModificado = false
+
+    for (let d = 0; d < dests.length; d++) {
+      const item = dests[d]
+      if (!item) continue
+
+      // Verificar se este item corresponde ao cliente/telefone que respondeu
+      const itemTelLimpo = (item.telefone || '').replace(/\D/g, '')
+      const matchClienteId = clienteId && item.cliente_id && item.cliente_id === clienteId
+      const matchTelefone =
+        itemTelLimpo &&
+        (itemTelLimpo === telefoneRecebido ||
+          (last8 && itemTelLimpo.endsWith(last8)) ||
+          (telCurto && itemTelLimpo.includes(telCurto)))
+
+      if (!matchClienteId && !matchTelefone) {
+        continue
+      }
+
+      // IDEMPOTÊNCIA E ESTADO ATIVO:
+      // Se o destinatário já foi marcado como 'respondido', 'atendido', 'finalizado', 'arquivado', 'bloqueado', 'nao_perturbe',
+      // ou se já possui marcacao_resposta definida ('respondeu', etc.), NÃO reprocessar!
+      const statusAtual = item.status || 'pendente'
+      if (
+        statusAtual === 'respondido' ||
+        statusAtual === 'atendido' ||
+        statusAtual === 'finalizado' ||
+        statusAtual === 'arquivado' ||
+        statusAtual === 'bloqueado' ||
+        statusAtual === 'sem_whatsapp' ||
+        statusAtual === 'nao_perturbe' ||
+        item.marcacao_resposta === 'respondeu' ||
+        item.marcacao_resposta === 'interessado'
+      ) {
+        continue
+      }
+
+      // Identificar o fluxo atual e a etapa em que o cliente estava
+      const fluxoAtualId =
+        item.fluxo_atual_id || lote.getString('fluxo_id') || carregarFluxoPadraoId(app)
+      const nomeFluxoAtual = carregarNomeFluxo(app, fluxoAtualId) || 'Fluxo Atual'
+      const etapasAtuais = carregarEtapasDoFluxo(app, fluxoAtualId)
+
+      // Identificar a etapa atual ou última etapa executada
+      let etapaAtualObj = null
+      if (item.etapas_executadas && item.etapas_executadas.length > 0) {
+        const ultExec = item.etapas_executadas[item.etapas_executadas.length - 1]
+        if (ultExec && ultExec.etapa_id) {
+          etapaAtualObj = etapasAtuais.find((e) => e.id === ultExec.etapa_id)
+        }
+        if (!etapaAtualObj && ultExec) {
+          etapaAtualObj = etapasAtuais.find((e) => e.ordem === ultExec.ordem)
+        }
+      }
+      if (!etapaAtualObj && etapasAtuais.length > 0) {
+        etapaAtualObj = etapasAtuais[0]
+      }
+
+      // 1. Marcar como 'Respondeu' e encerrar fluxo atual
+      item.status = 'respondido'
+      item.marcacao_resposta = 'respondeu'
+      item.marcacao_data = agoraIso
+      item.respondido_em = agoraIso
+      item.motivo_saida = 'Resposta detectada automaticamente via WhatsApp'
+
+      // Garantir estrutura de trilha
+      if (!Array.isArray(item.trilha)) {
+        item.trilha = []
+      }
+
+      const etapaNomeDesc = etapaAtualObj
+        ? etapaAtualObj.nome
+        : item.etapa_atual_nome || 'Follow-up'
+
+      // Registrar na trilha com o texto exigido pelo requisito do usuário:
+      item.trilha.push({
+        fluxo_id: fluxoAtualId,
+        fluxo_nome: nomeFluxoAtual,
+        etapa_origem_id: etapaAtualObj ? etapaAtualObj.id : undefined,
+        etapa_origem_nome: etapaNomeDesc,
+        motivo: 'Resposta detectada automaticamente',
+        resposta_detectada: true,
+        preview_mensagem: mensagemRecebida.substring(0, 80),
+        data: agoraIso,
+      })
+
+      // 2. Verificar se há ramificação de resposta configurada para um fluxo alternativo
+      // A regra pode estar configurada na etapaAtualObj (resposta_acao === 'fluxo_alternativo')
+      const temRamificacao =
+        etapaAtualObj &&
+        etapaAtualObj.resposta_acao === 'fluxo_alternativo' &&
+        etapaAtualObj.resposta_fluxo_id &&
+        etapaAtualObj.resposta_fluxo_id !== fluxoAtualId
+
+      if (temRamificacao) {
+        const novoFluxoId = etapaAtualObj.resposta_fluxo_id
+        const nomeNovoFluxo = carregarNomeFluxo(app, novoFluxoId) || 'Fluxo de Resposta'
+
+        // Checar prevenção de ciclo circular: máximo 2 passagens
+        const vezesPassou = item.trilha.filter((t) => t.fluxo_id === novoFluxoId).length
+        if (vezesPassou < 2) {
+          // Entrar no fluxo alternativo de resposta
+          item.fluxo_atual_id = novoFluxoId
+          item.fluxo_origem_id = fluxoAtualId
+          item.fluxo_origem_nome = nomeFluxoAtual
+          item.status = 'pendente' // reabre na fila do novo fluxo
+          item.motivo_saida = `Ramificação de resposta: entrou no fluxo "${nomeNovoFluxo}"`
+
+          item.trilha.push({
+            fluxo_id: novoFluxoId,
+            fluxo_nome: nomeNovoFluxo,
+            fluxo_anterior_id: fluxoAtualId,
+            fluxo_anterior_nome: nomeFluxoAtual,
+            motivo: `Resposta detectada automaticamente → Entrou no fluxo alternativo "${nomeNovoFluxo}"`,
+            data: agoraIso,
+          })
+
+          // Carregar etapas do novo fluxo
+          const etapasNovoFluxo = carregarEtapasDoFluxo(app, novoFluxoId)
+          if (etapasNovoFluxo.length > 0) {
+            const primeiraEtapaNova = etapasNovoFluxo[0]
+            item.etapa_atual_ordem = primeiraEtapaNova.ordem
+            item.etapa_atual_nome = primeiraEtapaNova.nome
+
+            // Se dias_apos === 0 (etapa imediata) -> agendar envio na hora da resposta
+            if (primeiraEtapaNova.dias_apos === 0) {
+              const agendadoParaIso = agoraIso
+              let textoFinal = primeiraEtapaNova.mensagem || ''
+              textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+              textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+              textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
+              textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+
+              let cleanPhone = itemTelLimpo || telefoneRecebido
+              if (
+                cleanPhone.length >= 10 &&
+                cleanPhone.length <= 11 &&
+                !cleanPhone.startsWith('55')
+              ) {
+                cleanPhone = '55' + cleanPhone
+              }
+
+              if (textoFinal) {
+                const novaMsg = new Record(msgsCol)
+                if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
+                  novaMsg.set('cliente_id', item.cliente_id)
+                }
+                novaMsg.set('telefone_destino', cleanPhone)
+                novaMsg.set('conteudo_final', textoFinal)
+                novaMsg.set('status', 'agendada')
+                novaMsg.set('agendado_para', agendadoParaIso)
+                novaMsg.set(
+                  'tipo_disparo',
+                  `massa_fluxo_resposta_imediata_${primeiraEtapaNova.ordem}`,
+                )
+                novaMsg.set(
+                  'referencia_id',
+                  `lote_${lote.id}_resp_f${novoFluxoId}_e${primeiraEtapaNova.ordem}_${item.cliente_id || cleanPhone}`,
+                )
+                app.save(novaMsg)
+
+                if (!Array.isArray(item.etapas_executadas)) {
+                  item.etapas_executadas = []
+                }
+                item.etapas_executadas.push({
+                  ordem: primeiraEtapaNova.ordem,
+                  etapa_id: primeiraEtapaNova.id,
+                  fluxo_id: novoFluxoId,
+                  nome: primeiraEtapaNova.nome,
+                  enviado_em: agendadoParaIso,
+                  mensagem_id: novaMsg.id,
+                })
+              }
+
+              // Calcular próximo envio da subsequente se houver
+              const subsequente = etapasNovoFluxo.find((e) => e.ordem > primeiraEtapaNova.ordem)
+              if (subsequente) {
+                const proxDias = Math.max(1, subsequente.dias_apos || 1)
+                item.proximo_envio_data = new Date(
+                  agora.getTime() + proxDias * 24 * 60 * 60 * 1000,
+                ).toISOString()
+                item.proxima_etapa_nome = subsequente.nome
+              } else {
+                item.proximo_envio_data = undefined
+                item.proxima_etapa_nome = undefined
+              }
+            } else {
+              // Etapa não imediata (dias_apos > 0)
+              const proxDias = Math.max(1, primeiraEtapaNova.dias_apos || 1)
+              item.proximo_envio_data = new Date(
+                agora.getTime() + proxDias * 24 * 60 * 60 * 1000,
+              ).toISOString()
+              item.proxima_etapa_nome = primeiraEtapaNova.nome
+            }
+          }
+        }
+      } else {
+        // Encerra o fluxo atual sem ramificação
+        item.proximo_envio_data = undefined
+        item.proxima_etapa_nome = undefined
+      }
+
+      loteModificado = true
+      matchesEncontrados++
+      console.log(
+        `[FASE 4 DETECCAO] Resposta detectada automaticamente para ${item.nome} (${itemTelLimpo}). Lote ${lote.id}, fluxo ${fluxoAtualId}. Ramificou: ${Boolean(temRamificacao)}`,
+      )
+    }
+
+    if (loteModificado) {
+      // Recalcular estatísticas
+      const stats = {
+        total: dests.length,
+        pendentes: dests.filter(
+          (d) =>
+            d.status === 'pendente' ||
+            d.status === 'reenvio_1_agendado' ||
+            d.status === 'reenvio_2_agendado',
+        ).length,
+        respondidos: dests.filter((d) => d.status === 'respondido').length,
+        atendidos: dests.filter((d) => d.status === 'atendido').length,
+        bloqueados: dests.filter((d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp')
+          .length,
+        finalizados: dests.filter(
+          (d) =>
+            d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+        ).length,
+        reenvios_1_enviados: dests.filter(
+          (d) =>
+            Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+        ).length,
+        reenvios_2_enviados: dests.filter(
+          (d) =>
+            Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+        ).length,
+        ultima_verificacao: agoraIso,
+      }
+
+      lote.set('destinatarios', dests)
+      lote.set('estatisticas', stats)
+      if (stats.pendentes === 0) {
+        lote.set('status', 'concluido')
+      }
+      app.save(lote)
+    }
+  }
+
+  return {
+    processado: true,
+    matchesEncontrados,
+  }
+}
+
 module.exports = {
   processarReenviosDisparosMassa,
+  processarRespostaAutomaticaCliente,
   avaliarEntradaAutomaticaEstagio,
   normalizarEstagioComparacao,
   carregarEtapasDoFluxo,

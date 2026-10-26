@@ -37,6 +37,8 @@ describe('GerenciadorFluxosFollowUp - Seletor de Modelos de WhatsApp', () => {
         desvio_acao: 'nenhuma' as const,
         desvio_dias: 0,
         desvio_fluxo_id: '',
+        resposta_acao: 'encerrar' as const,
+        resposta_fluxo_id: '',
         created: '2026-01-01',
         updated: '2026-01-01',
       },
@@ -88,5 +90,35 @@ describe('GerenciadorFluxosFollowUp - Seletor de Modelos de WhatsApp', () => {
 
     const html = renderToStaticMarkup(<GerenciadorFluxosFollowUp />)
     expect(html).toBeDefined()
+  })
+
+  it('suporta etapa com ramificação de resposta configurada para fluxo alternativo (Fase 4)', () => {
+    const fluxoComRamificacao = {
+      ...fluxoMock,
+      etapas: [
+        {
+          ...fluxoMock.etapas[0],
+          resposta_acao: 'fluxo_alternativo' as const,
+          resposta_fluxo_id: 'fluxo_2',
+        },
+      ],
+    }
+    const fluxoDestino = {
+      ...fluxoMock,
+      id: 'fluxo_2',
+      nome: 'Fluxo Pós-Resposta',
+    }
+
+    vi.spyOn(fluxosService, 'fetchFluxosFollowUp').mockResolvedValue([
+      fluxoComRamificacao,
+      fluxoDestino,
+    ])
+    vi.spyOn(clientesContext, 'useClientes').mockReturnValue({
+      whatsAppTemplates: templatesMock as any,
+    } as any)
+
+    const html = renderToStaticMarkup(<GerenciadorFluxosFollowUp />)
+    expect(html).toContain('Fluxo Pós-Resposta')
+    expect(html).toContain('Ao responder → Entra em')
   })
 })

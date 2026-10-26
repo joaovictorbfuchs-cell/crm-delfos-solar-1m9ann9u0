@@ -34,6 +34,7 @@ export interface FluxoFollowUp extends RecordModel {
 }
 
 export type AcaoDesvioEtapa = 'nenhuma' | 'fluxo_alternativo' | 'arquivar'
+export type AcaoRespostaEtapa = 'encerrar' | 'fluxo_alternativo'
 
 export interface EtapaFollowUp extends RecordModel {
   id: string
@@ -48,6 +49,8 @@ export interface EtapaFollowUp extends RecordModel {
   desvio_acao?: AcaoDesvioEtapa
   desvio_dias?: number
   desvio_fluxo_id?: string
+  resposta_acao?: AcaoRespostaEtapa
+  resposta_fluxo_id?: string
   created: string
   updated: string
 }
@@ -69,6 +72,8 @@ export interface CriarEtapaInput {
   desvio_acao?: AcaoDesvioEtapa
   desvio_dias?: number
   desvio_fluxo_id?: string
+  resposta_acao?: AcaoRespostaEtapa
+  resposta_fluxo_id?: string
 }
 
 export interface AtualizarEtapaInput {
@@ -80,6 +85,8 @@ export interface AtualizarEtapaInput {
   desvio_acao?: AcaoDesvioEtapa
   desvio_dias?: number
   desvio_fluxo_id?: string
+  resposta_acao?: AcaoRespostaEtapa
+  resposta_fluxo_id?: string
 }
 
 /**
@@ -320,6 +327,8 @@ export async function createEtapaFollowUp(input: CriarEtapaInput): Promise<Etapa
     desvio_acao: input.desvio_acao || 'nenhuma',
     desvio_dias: input.desvio_dias ? Number(input.desvio_dias) : 0,
     desvio_fluxo_id: input.desvio_fluxo_id || '',
+    resposta_acao: input.resposta_acao || 'encerrar',
+    resposta_fluxo_id: input.resposta_fluxo_id || '',
   }
 
   const record = await pb.collection('etapas_follow_up').create<EtapaFollowUp>(payload)
@@ -344,6 +353,8 @@ export async function updateEtapaFollowUp(
   if (dados.desvio_acao !== undefined) payload.desvio_acao = dados.desvio_acao
   if (dados.desvio_dias !== undefined) payload.desvio_dias = Number(dados.desvio_dias)
   if (dados.desvio_fluxo_id !== undefined) payload.desvio_fluxo_id = dados.desvio_fluxo_id
+  if (dados.resposta_acao !== undefined) payload.resposta_acao = dados.resposta_acao
+  if (dados.resposta_fluxo_id !== undefined) payload.resposta_fluxo_id = dados.resposta_fluxo_id
 
   const record = await pb.collection('etapas_follow_up').update<EtapaFollowUp>(id, payload)
   return record

@@ -31,22 +31,21 @@ export function getErrorMessage(error: unknown): string {
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (err.status === 401 || err.status === 403) return true
-    if (err.statusCode === 401 || err.statusCode === 403) return true
-    if (
-      err.response &&
-      typeof err.response === 'object' &&
-      ((err.response as Record<string, unknown>).status === 401 ||
-        (err.response as Record<string, unknown>).status === 403)
-    ) {
-      return true
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response && typeof errObj.response === 'object') {
+      const resp = errObj.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
     }
-    const message = typeof err.message === 'string' ? err.message : ''
+    const msg = String(errObj.message || '').toLowerCase()
     if (
-      /token is expired|token expired|login expirou|sessão expirada|failed to authenticate/i.test(
-        message,
-      )
+      msg.includes('token is expired') ||
+      msg.includes('login expirou') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('user not authenticated') ||
+      msg.includes('unauthorized')
     ) {
       return true
     }
@@ -56,15 +55,10 @@ export function isAuthSessionError(error: unknown): boolean {
 
 export function isAbortError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
-  const err = error as Record<string, unknown>
-  return Boolean(
-    err.isAbort ||
-    err.name === 'AbortError' ||
-    (typeof err.message === 'string' && /aborted/i.test(err.message)),
-  )
+  const errObj = error as Record<string, unknown>
+  return Boolean(errObj.isAbort || errObj.name === 'AbortError')
 }
 
-export function formatPbError(error: unknown, fallback = 'Erro na operação'): string {
-  const msg = getErrorMessage(error)
-  return msg && msg !== 'An unexpected error occurred.' ? msg : fallback
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
 }

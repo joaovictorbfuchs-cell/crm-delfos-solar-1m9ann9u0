@@ -757,6 +757,28 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
 
     $app.save(msgRecord)
 
+    // FASE 4: Detecção automática de resposta em fluxos de follow-up (idempotente)
+    // Aciona a detecção se o cliente ou número estiver em acompanhamento de follow-up ativo
+    let respostaFollowUpProcessada = false
+    try {
+      const helperFollowUp = require(`${__hooks}/whatsapp_reenvio_helper.js`)
+      if (
+        helperFollowUp &&
+        typeof helperFollowUp.processarRespostaAutomaticaCliente === 'function'
+      ) {
+        const resFollowUp = helperFollowUp.processarRespostaAutomaticaCliente($app, {
+          clienteId: clienteEncontrado ? clienteEncontrado.id : '',
+          telefone: cleanPhone,
+          mensagem: messageText,
+        })
+        if (resFollowUp && resFollowUp.matchesEncontrados > 0) {
+          respostaFollowUpProcessada = true
+        }
+      }
+    } catch (errFollowUp) {
+      console.log('[WHATSAPP WEBHOOK] Aviso ao processar follow-up Fase 4:', errFollowUp)
+    }
+
     console.log(
       '[WHATSAPP WEBHOOK RECEBIDO]',
       JSON.stringify({
@@ -764,6 +786,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         hasClient: Boolean(clienteEncontrado),
         conversaId: conversaRecord.id,
         statusConversa: conversaRecord.getString('status'),
+        followUpResposta: respostaFollowUpProcessada,
         messagePreview: messageText.substring(0, 50),
       }),
     )
@@ -774,6 +797,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       conversaStatus: conversaRecord.getString('status'),
       hasCliente: Boolean(clienteEncontrado),
       msgId: msgRecord.id,
+      followUpResposta: respostaFollowUpProcessada,
     })
   } catch (err) {
     let msg = 'Erro ao processar webhook do WhatsApp'

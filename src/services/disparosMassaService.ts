@@ -32,6 +32,8 @@ export interface ItemTrilhaFollowUp {
   etapa_origem_id?: string
   etapa_origem_nome?: string
   motivo?: string
+  resposta_detectada?: boolean
+  preview_mensagem?: string
   data?: string
   origem_entrada?: OrigemEntradaFollowUp
   estagio_gatilho?: string

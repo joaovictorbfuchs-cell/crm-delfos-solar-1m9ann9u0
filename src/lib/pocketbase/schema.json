@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T01:57:38.518Z",
+  "generatedAt": "2026-10-26T02:12:03.936Z",
   "collections": [
     {
       "name": "users",
@@ -8224,6 +8224,20 @@
         },
         {
           "name": "desvio_fluxo_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "fluxos_follow_up"
+        },
+        {
+          "name": "resposta_acao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["encerrar", "fluxo_alternativo"]
+        },
+        {
+          "name": "resposta_fluxo_id",
           "type": "relation",
           "required": false,
           "system": false,

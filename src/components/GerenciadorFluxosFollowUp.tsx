@@ -39,6 +39,7 @@ import {
   EtapaFollowUp,
   RegraEntradaFluxo,
   AcaoDesvioEtapa,
+  AcaoRespostaEtapa,
   fetchFluxosFollowUp,
   createFluxoFollowUp,
   updateFluxoFollowUp,
@@ -88,6 +89,9 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   const [desvioAcao, setDesvioAcao] = useState<AcaoDesvioEtapa>('nenhuma')
   const [desvioDias, setDesvioDias] = useState<number>(7)
   const [desvioFluxoId, setDesvioFluxoId] = useState<string>('')
+  // Ramificação de Resposta (Fase 4)
+  const [respostaAcao, setRespostaAcao] = useState<AcaoRespostaEtapa>('encerrar')
+  const [respostaFluxoId, setRespostaFluxoId] = useState<string>('')
   const [isSalvandoEtapa, setIsSalvandoEtapa] = useState(false)
   const [mostrarPreviaEtapa, setMostrarPreviaEtapa] = useState(true)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
@@ -381,6 +385,8 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     // Seleciona o primeiro fluxo alternativo diferente deste, se houver
     const outroFluxo = fluxos.find((f) => f.id !== fluxoAtivo.id)
     setDesvioFluxoId(outroFluxo ? outroFluxo.id : '')
+    setRespostaAcao('encerrar')
+    setRespostaFluxoId(outroFluxo ? outroFluxo.id : '')
     setSelectedTemplateId('')
     setModalEtapaAberto(true)
   }
@@ -395,6 +401,8 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
     setDesvioAcao(etapa.desvio_acao || 'nenhuma')
     setDesvioDias(etapa.desvio_dias && etapa.desvio_dias > 0 ? etapa.desvio_dias : 7)
     setDesvioFluxoId(etapa.desvio_fluxo_id || '')
+    setRespostaAcao(etapa.resposta_acao || 'encerrar')
+    setRespostaFluxoId(etapa.resposta_fluxo_id || '')
     setSelectedTemplateId('')
     setModalEtapaAberto(true)
   }
@@ -433,7 +441,8 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
       if (!desvioFluxoId) {
         toast({
           title: 'Fluxo alternativo obrigatório',
-          description: 'Selecione para qual fluxo alternativo o contato deve ser desviado.',
+          description:
+            'Selecione para qual fluxo alternativo o contato deve ser desviado no timeout.',
           variant: 'destructive',
         })
         return
@@ -442,7 +451,28 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
         toast({
           title: 'Desvio circular inválido',
           description:
-            'Um fluxo não pode desviar para si mesmo. Escolha outro fluxo alternativo para evitar ciclo infinito.',
+            'Um fluxo não pode desviar para si mesmo no timeout. Escolha outro fluxo alternativo.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
+    // Validação de prevenção de ciclo direto: ramificação de resposta
+    if (respostaAcao === 'fluxo_alternativo') {
+      if (!respostaFluxoId) {
+        toast({
+          title: 'Fluxo de resposta obrigatório',
+          description: 'Selecione em qual fluxo alternativo o contato deve entrar ao responder.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (respostaFluxoId === fluxoAtivo.id) {
+        toast({
+          title: 'Ramificação circular inválida',
+          description:
+            'Um fluxo não pode ramificar para si mesmo ao responder. Escolha outro fluxo alternativo.',
           variant: 'destructive',
         })
         return
@@ -465,6 +495,8 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
         desvio_acao: desvioAcao,
         desvio_dias: desvioAcao !== 'nenhuma' ? Math.max(1, Number(desvioDias) || 1) : 0,
         desvio_fluxo_id: desvioAcao === 'fluxo_alternativo' ? desvioFluxoId : '',
+        resposta_acao: respostaAcao,
+        resposta_fluxo_id: respostaAcao === 'fluxo_alternativo' ? respostaFluxoId : '',
       }
 
       if (etapaEmEdicao) {
@@ -1077,7 +1109,7 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                                   </Badge>
                                 )}
 
-                                {/* Badge de regra de desvio por etapa */}
+                                {/* Badge de regra de desvio por timeout */}
                                 {etapa.desvio_acao && etapa.desvio_acao !== 'nenhuma' && (
                                   <Badge
                                     variant="outline"
@@ -1089,6 +1121,22 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                                       {etapa.desvio_acao === 'arquivar'
                                         ? 'Arquivar contato'
                                         : `Entra em "${fluxos.find((f) => f.id === etapa.desvio_fluxo_id)?.nome || 'Outro fluxo'}"`}
+                                    </span>
+                                  </Badge>
+                                )}
+
+                                {/* Badge de ramificação de resposta (Fase 4) */}
+                                {etapa.resposta_acao === 'fluxo_alternativo' && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-semibold bg-blue-50 text-blue-900 border-blue-300 flex items-center gap-1"
+                                  >
+                                    <MessageSquare className="w-3 h-3 text-blue-600" />
+                                    <span>
+                                      Ao responder → Entra em "
+                                      {fluxos.find((f) => f.id === etapa.resposta_fluxo_id)?.nome ||
+                                        'Outro fluxo'}
+                                      "
                                     </span>
                                   </Badge>
                                 )}
@@ -1497,6 +1545,76 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
                   retorno, o contato sai deste fluxo e passa a receber automaticamente as mensagens
                   do fluxo selecionado a partir da 1ª etapa ativa. A trilha registra o desvio de
                   origem.
+                </div>
+              )}
+            </div>
+
+            {/* Bloco de Ramificação de Resposta (Fase 4) */}
+            <div className="p-3 rounded-xl border border-blue-200 bg-blue-50/40 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="font-bold text-gray-900 block text-xs">
+                    Ramificação de Resposta (Detecção Automática WhatsApp)
+                  </span>
+                  <span className="text-[11px] text-gray-500">
+                    Defina o que acontece quando o cliente responder a esta etapa via WhatsApp.
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">
+                    Quando o cliente responder
+                  </label>
+                  <select
+                    value={respostaAcao}
+                    onChange={(e) => setRespostaAcao(e.target.value as AcaoRespostaEtapa)}
+                    className="w-full h-8 text-xs bg-white border border-gray-300 rounded-md px-2 font-medium text-gray-800"
+                  >
+                    <option value="encerrar">Encerrar o fluxo atual (Padrão)</option>
+                    <option value="fluxo_alternativo">Entrar no fluxo alternativo</option>
+                  </select>
+                </div>
+
+                {respostaAcao === 'fluxo_alternativo' && (
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">
+                      Fluxo de Resposta *
+                    </label>
+                    <select
+                      value={respostaFluxoId}
+                      onChange={(e) => setRespostaFluxoId(e.target.value)}
+                      className="w-full h-8 text-xs bg-white border border-gray-300 rounded-md px-2 font-medium text-gray-800"
+                    >
+                      <option value="">Selecione outro fluxo...</option>
+                      {fluxos
+                        .filter((f) => f.id !== fluxoAtivo.id)
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nome} {f.is_padrao ? '(Padrão)' : ''}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {respostaAcao === 'fluxo_alternativo' ? (
+                <div className="text-[11px] text-blue-800 bg-blue-100/60 p-2 rounded-md border border-blue-200">
+                  <strong>Ramificação ativa:</strong> ao detectar resposta do cliente, o contato é
+                  marcado como <em>Respondeu</em>, o fluxo atual é encerrado e ele entra
+                  automaticamente no fluxo selecionado. Se a 1ª etapa do novo fluxo for imediata (0
+                  dias), a mensagem será agendada no momento da resposta. A trilha registra
+                  "Resposta detectada automaticamente".
+                </div>
+              ) : (
+                <div className="text-[11px] text-gray-500">
+                  Padrão do sistema: ao responder, o contato é marcado como{' '}
+                  <strong>Respondeu</strong> e o fluxo é concluído sem disparos adicionais.
                 </div>
               )}
             </div>
