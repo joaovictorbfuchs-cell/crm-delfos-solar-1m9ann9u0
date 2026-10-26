@@ -146,18 +146,11 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
   const [copiadoId, setCopiadoId] = useState<string | null>(null)
 
   // Normalização de categoria para exibição e filtro
+  // Se t.categoria vier preenchido (incluindo categorias customizadas da taxonomia),
+  // retorna diretamente o valor (trim). Fallbacks heurísticos apenas se vazio.
   const resolverCategoria = (t: WhatsAppTemplate): CategoriaTemplate => {
     if (t.categoria && t.categoria.trim()) {
-      const c = t.categoria.trim()
-      if (
-        c === 'Operacional' ||
-        c === 'Comercial' ||
-        c === 'Atendimento' ||
-        c === 'Pós-Vendas' ||
-        c === 'Geral'
-      ) {
-        return c as CategoriaTemplate
-      }
+      return t.categoria.trim()
     }
     const fluxo = getFluxoDoTemplate(t.slug)
     if (fluxo) return fluxo.categoriaSugerida
@@ -336,17 +329,48 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
     }
   }
 
-  // Obter cor de badge da categoria
+  // Obter cor de badge da categoria (suporta categorias canônicas e customizadas)
   const getBadgeCategoria = (categoria: string) => {
+    // Procura se a taxonomia tem cor customizada definida no banco
+    const catTaxonomia = taxonomiaCategorias.find(
+      (c) => c.nome.toLowerCase() === categoria.toLowerCase(),
+    )
+    if (catTaxonomia?.cor) {
+      switch (catTaxonomia.cor) {
+        case 'emerald':
+        case 'green':
+          return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+        case 'blue':
+        case 'cyan':
+          return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+        case 'purple':
+        case 'violet':
+          return 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+        case 'amber':
+        case 'yellow':
+          return 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+        case 'orange':
+          return 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800'
+        case 'rose':
+        case 'red':
+          return 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+      }
+    }
+
     switch (categoria) {
       case 'Operacional':
+      case 'Operacional/RGE':
         return 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
       case 'Comercial':
         return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
       case 'Atendimento':
         return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
       case 'Pós-Vendas':
+      case 'O&M & Pós-Venda':
         return 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+      case 'Financeiro':
+      case 'Financeiro/Cobrança':
+        return 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
       default:
         return 'bg-muted text-foreground border-border'
     }

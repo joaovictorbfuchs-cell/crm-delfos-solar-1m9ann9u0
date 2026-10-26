@@ -34,6 +34,17 @@ describe('ModalGerenciarWhatsAppTemplates', () => {
         'id_os',
       ],
     },
+    {
+      id: 'tpl-3',
+      titulo: 'Oferecer Limpeza 1',
+      slug: 'lembrete_manutencao_massa',
+      categoria: 'Oferta Limpeza',
+      conteudo:
+        'Olá! Sua usina está gerando o que deveria? Sujeira nos módulos pode derrubar a geração.',
+      ativo: true,
+      tipo_gatilho: 'massa',
+      variaveis_disponiveis: [],
+    },
   ]
 
   const mockContextValue: any = {
@@ -58,6 +69,17 @@ describe('ModalGerenciarWhatsAppTemplates', () => {
     expect(html).toContain('Operacional')
     expect(html).toContain('nome_cliente')
     expect(html).toContain('usina')
+  })
+
+  it('exibe corretamente modelos com categoria customizada ("Oferta Limpeza")', () => {
+    const html = renderToStaticMarkup(
+      <ClientesContext.Provider value={mockContextValue}>
+        <ModalGerenciarWhatsAppTemplates open={true} onOpenChange={() => {}} />
+      </ClientesContext.Provider>,
+    )
+
+    expect(html).toContain('Oferecer Limpeza 1')
+    expect(html).toContain('Oferta Limpeza')
   })
 
   it('aceita compatibilidade com props isOpen/onClose (usadas em Layout e CentralAtendimento)', () => {

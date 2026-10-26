@@ -148,18 +148,11 @@ export const GerenciarMensagensWhatsApp: React.FC<GerenciarMensagensWhatsAppProp
   const resolverCategoria = (t: WhatsAppTemplate): string => {
     if (t.categoria && t.categoria.trim()) {
       const c = t.categoria.trim()
-      if (
-        c === 'Comercial' ||
-        c === 'Atendimento' ||
-        c === 'O&M & Pós-Venda' ||
-        c === 'Financeiro/Cobrança' ||
-        c === 'Operacional/RGE'
-      ) {
-        return c
-      }
+      // Compatibilidade legada apenas para sinônimos antigos
       if (c === 'Operacional') return 'Operacional/RGE'
       if (c === 'Pós-Vendas' || c === 'Operação e Manutenção (O&M)') return 'O&M & Pós-Venda'
       if (c === 'Financeiro') return 'Financeiro/Cobrança'
+      // Retorna a categoria real (canônica ou customizada da taxonomia)
       return c
     }
     const fluxo = getFluxoDoTemplate(t.slug)

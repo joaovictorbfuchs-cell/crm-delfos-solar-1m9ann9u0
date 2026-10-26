@@ -104,7 +104,7 @@ export const VARIAVEIS_WHATSAPP_SISTEMA: Record<string, VariavelTemplateInfo> = 
   },
 }
 
-export type CategoriaTemplate =
+export type CategoriaTemplatePadrao =
   | 'Comercial'
   | 'Atendimento'
   | 'O&M & Pós-Venda'
@@ -114,7 +114,11 @@ export type CategoriaTemplate =
   | 'Pós-Vendas'
   | 'Geral'
 
-export type EtapaTemplate =
+// CategoriaTemplate é aberta para aceitar categorias customizadas do banco (taxonomia editável)
+// mantendo autocomplete das categorias canônicas
+export type CategoriaTemplate = CategoriaTemplatePadrao | (string & {})
+
+export type EtapaTemplatePadrao =
   | '1º contato'
   | 'Orçamento enviado'
   | 'Follow-up Fase 1'
@@ -126,6 +130,9 @@ export type EtapaTemplate =
   | 'Pós-instalação'
   | 'Renovação O&M'
   | 'Cobrança'
+
+// EtapaTemplate também é aberta para taxonomia editável
+export type EtapaTemplate = EtapaTemplatePadrao | (string & {})
 
 export const CATEGORIAS_WHATSAPP_CANONICAS: CategoriaTemplate[] = [
   'Comercial',
