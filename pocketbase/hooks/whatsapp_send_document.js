@@ -73,7 +73,9 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
             if (digitsCli && digitsCli.length >= 10) {
               const digitsDestino = (resolvedTelefoneDestino || '').replace(/\D/g, '')
               const digitsDestinoNorm =
-                digitsDestino.length >= 10 && digitsDestino.length <= 11 && !digitsDestino.startsWith('55')
+                digitsDestino.length >= 10 &&
+                digitsDestino.length <= 11 &&
+                !digitsDestino.startsWith('55')
                   ? '55' + digitsDestino
                   : digitsDestino
               if (digitsDestinoNorm !== digitsCli) {
@@ -114,7 +116,10 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
           }
           if (cleanPhone && cleanPhone.length >= 10) {
             const numConv = (convRec.getString('numero') || '').replace(/\D/g, '')
-            const numConvNorm = numConv.length >= 10 && numConv.length <= 11 && !numConv.startsWith('55') ? '55' + numConv : numConv
+            const numConvNorm =
+              numConv.length >= 10 && numConv.length <= 11 && !numConv.startsWith('55')
+                ? '55' + numConv
+                : numConv
             if (numConvNorm !== cleanPhone) {
               convRec.set('numero', cleanPhone)
             }

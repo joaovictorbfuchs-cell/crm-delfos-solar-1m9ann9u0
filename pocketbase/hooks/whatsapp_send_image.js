@@ -50,48 +50,93 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
       } catch (_) {}
     }
 
+    // Regra de ouro: se a requisição tem conversa_id, o destino é ESTRITAMENTE o campo
+    // numero da whatsapp_conversa correspondente — NUNCA redirecionar para número do cadastro
+    // e NUNCA mutar o campo 'numero' da conversa existente.
+    // Se não há conversa_id (envio avulso por cliente), resolver pelo cadastro do cliente (whatsapp || telefone).
+    let resolvedTelefoneDestino = telefoneDestino
+    let finalConversaId = conversaId
+    let convRec = null
+
+    if (finalConversaId) {
+      try {
+        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
+        convRec = $app.findRecordsByFilter(convCol.id, `id = '${finalConversaId}'`, '', 1, 0)[0]
+        if (convRec) {
+          if (!finalClienteId && convRec.getString('cliente_id')) {
+            finalClienteId = convRec.getString('cliente_id')
+          }
+          const numConv = (convRec.getString('numero') || '').trim()
+          let digitsConv = numConv.replace(/\D/g, '')
+          if (digitsConv.length >= 10 && digitsConv.length <= 11 && !digitsConv.startsWith('55')) {
+            digitsConv = '55' + digitsConv
+          }
+          if (digitsConv) {
+            resolvedTelefoneDestino = digitsConv
+          }
+        }
+      } catch (errConvFind) {
+        console.log('[WHATSAPP IMAGE CONV FIND AVISO]', errConvFind)
+      }
+    } else if (finalClienteId) {
+      try {
+        const cliRec = $app.findRecordsByFilter('clientes', `id = '${finalClienteId}'`, '', 1, 0)[0]
+        if (cliRec) {
+          const cliWhats = (cliRec.getString('whatsapp') || '').trim()
+          const cliTel = (cliRec.getString('telefone') || '').trim()
+          const numeroAtualCli = cliWhats || cliTel
+          if (numeroAtualCli) {
+            let digitsAtual = numeroAtualCli.replace(/\D/g, '')
+            if (
+              digitsAtual.length >= 10 &&
+              digitsAtual.length <= 11 &&
+              !digitsAtual.startsWith('55')
+            ) {
+              digitsAtual = '55' + digitsAtual
+            }
+            if (digitsAtual && digitsAtual.length >= 10) {
+              resolvedTelefoneDestino = digitsAtual
+            }
+          }
+        }
+      } catch (errResolveCli) {
+        console.log('[WHATSAPP IMAGE RESOLVE CLI AVISO]', errResolveCli)
+      }
+    }
+
     // Normalizar telefone (55 + DDD + Número)
-    let cleanPhone = telefoneDestino.replace(/\D/g, '')
+    let cleanPhone = (resolvedTelefoneDestino || '').replace(/\D/g, '')
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
       cleanPhone = '55' + cleanPhone
     }
+    resolvedTelefoneDestino = cleanPhone
 
     // Localizar ou criar conversa se conversa_id não veio
-    let finalConversaId = conversaId
     try {
       let helper = null
       try {
         helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
       } catch (_) {}
 
-      if (finalConversaId) {
-        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
-        const convRec = $app.findRecordsByFilter(
-          convCol.id,
-          `id = '${finalConversaId}'`,
-          '',
-          1,
-          0,
-        )[0]
-        if (convRec) {
-          if (finalClienteId && !convRec.getString('cliente_id')) {
-            convRec.set('cliente_id', finalClienteId)
-          }
-          convRec.set('status', 'aguardando_cliente')
-          convRec.set('ultima_mensagem_preview', legenda ? `📷 ${legenda}` : '📷 Imagem')
-          convRec.set('ultima_mensagem_em', new Date().toISOString())
-          convRec.set('nao_lidas', 0)
-          if (authUser && !convRec.getString('atendente')) {
-            convRec.set('atendente', authUser.getString('name') || 'Atendente')
-            convRec.set('atendente_id', authUser.id)
-          }
-          $app.save(convRec)
+      if (finalConversaId && convRec) {
+        if (finalClienteId && !convRec.getString('cliente_id')) {
+          convRec.set('cliente_id', finalClienteId)
         }
+        // Conversa existente nunca tem o campo 'numero' mutado
+        convRec.set('status', 'aguardando_cliente')
+        convRec.set('ultima_mensagem_preview', legenda ? `📷 ${legenda}` : '📷 Imagem')
+        convRec.set('ultima_mensagem_em', new Date().toISOString())
+        convRec.set('nao_lidas', 0)
+        if (authUser && !convRec.getString('atendente')) {
+          convRec.set('atendente', authUser.getString('name') || 'Atendente')
+          convRec.set('atendente_id', authUser.id)
+        }
+        $app.save(convRec)
       } else if (helper && helper.ensureConversaForMessage) {
         const conv = helper.ensureConversaForMessage(
           $app,
           finalClienteId,
-          telefoneDestino,
+          cleanPhone,
           legenda ? `📷 ${legenda}` : '📷 Imagem',
           authUser,
         )
@@ -116,7 +161,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
 
     if (finalClienteId) msgRecord.set('cliente_id', finalClienteId)
     if (finalConversaId) msgRecord.set('conversa_id', finalConversaId)
-    msgRecord.set('telefone_destino', telefoneDestino)
+    msgRecord.set('telefone_destino', cleanPhone)
     msgRecord.set('conteudo_final', legenda || '[Imagem]')
     msgRecord.set('tipo_disparo', 'manual')
     msgRecord.set('tipo_mensagem', 'imagem')

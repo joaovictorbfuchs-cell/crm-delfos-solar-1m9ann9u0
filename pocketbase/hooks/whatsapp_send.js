@@ -26,30 +26,37 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
       return e.json(400, { error: 'Conteúdo da mensagem não pode ser vazio', ok: false })
     }
 
-    // Resolução dinâmica do número de destino a partir do cliente vinculado
-    // Salvaguarda: se cliente_id foi fornecido (ou encontrado na conversa),
-    // verificar se o cliente possui WhatsApp ou telefone cadastrado.
+    // Regra de ouro: se a requisição tem conversa_id, o destino é ESTRITAMENTE o campo
+    // numero da whatsapp_conversa correspondente — NUNCA redirecionar para número do cadastro
+    // e NUNCA mutar o campo 'numero' da conversa existente.
+    // Se não há conversa_id (envio avulso por cliente), resolver pelo cliente (whatsapp || telefone).
     let resolvedTelefoneDestino = telefoneDestino
     let finalConversaId = conversaId
     let effectiveClienteId = clienteId
+    let convRec = null
 
-    // Se temos conversa_id mas não cliente_id, buscar o cliente vinculado à conversa
-    if (!effectiveClienteId && finalConversaId) {
+    if (finalConversaId) {
       try {
-        const cRec = $app.findRecordsByFilter(
-          'whatsapp_conversas',
-          `id = '${finalConversaId}'`,
-          '',
-          1,
-          0,
-        )[0]
-        if (cRec && cRec.getString('cliente_id')) {
-          effectiveClienteId = cRec.getString('cliente_id')
+        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
+        convRec = $app.findRecordsByFilter(convCol.id, `id = '${finalConversaId}'`, '', 1, 0)[0]
+        if (convRec) {
+          if (!effectiveClienteId && convRec.getString('cliente_id')) {
+            effectiveClienteId = convRec.getString('cliente_id')
+          }
+          const numConv = (convRec.getString('numero') || '').trim()
+          let digitsConv = numConv.replace(/\D/g, '')
+          if (digitsConv.length >= 10 && digitsConv.length <= 11 && !digitsConv.startsWith('55')) {
+            digitsConv = '55' + digitsConv
+          }
+          if (digitsConv) {
+            resolvedTelefoneDestino = digitsConv
+          }
         }
-      } catch (_) {}
-    }
-
-    if (effectiveClienteId) {
+      } catch (errConvFind) {
+        console.log('[WHATSAPP SEND CONV FIND AVISO]', errConvFind)
+      }
+    } else if (effectiveClienteId) {
+      // Envio avulso por cliente (sem conversa_id): resolver pelo cadastro do cliente
       try {
         const cliRec = $app.findRecordsByFilter(
           'clientes',
@@ -64,22 +71,15 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
           const numeroAtualCli = cliWhats || cliTel
           if (numeroAtualCli) {
             let digitsAtual = numeroAtualCli.replace(/\D/g, '')
-            if (digitsAtual.length >= 10 && digitsAtual.length <= 11 && !digitsAtual.startsWith('55')) {
+            if (
+              digitsAtual.length >= 10 &&
+              digitsAtual.length <= 11 &&
+              !digitsAtual.startsWith('55')
+            ) {
               digitsAtual = '55' + digitsAtual
             }
             if (digitsAtual && digitsAtual.length >= 10) {
-              const digitsDestino = (resolvedTelefoneDestino || '').replace(/\D/g, '')
-              const digitsDestinoNorm =
-                digitsDestino.length >= 10 && digitsDestino.length <= 11 && !digitsDestino.startsWith('55')
-                  ? '55' + digitsDestino
-                  : digitsDestino
-
-              if (digitsDestinoNorm !== digitsAtual) {
-                console.log(
-                  `[WHATSAPP SEND] Redirecionando destino para o número atual do cliente ${effectiveClienteId}: de "${resolvedTelefoneDestino}" para "${digitsAtual}"`,
-                )
-                resolvedTelefoneDestino = digitsAtual
-              }
+              resolvedTelefoneDestino = digitsAtual
             }
           }
         }
@@ -88,51 +88,30 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
       }
     }
 
-    // Localizar ou criar conversa se conversa_id não veio
+    // Normalizar número de destino (apenas dígitos, garantindo prefixo 55 se BR)
+    let cleanPhone = (resolvedTelefoneDestino || '').replace(/\D/g, '')
+    if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
+      cleanPhone = '55' + cleanPhone
+    }
+    resolvedTelefoneDestino = cleanPhone
+
+    // Atualizar conversa existente ou localizar/criar conversa para envio avulso
     try {
       const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
-      if (finalConversaId) {
-        // Se conversa_id veio, garantir update de preview/status e número atualizado
-        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
-        const convRec = $app.findRecordsByFilter(
-          convCol.id,
-          `id = '${finalConversaId}'`,
-          '',
-          1,
-          0,
-        )[0]
-        if (convRec) {
-          if (effectiveClienteId && !convRec.getString('cliente_id')) {
-            convRec.set('cliente_id', effectiveClienteId)
-          }
-          // Atualizar o número da conversa para o número resolvido se for diferente
-          let digitsResolvido = (resolvedTelefoneDestino || '').replace(/\D/g, '')
-          if (digitsResolvido.length >= 10 && digitsResolvido.length <= 11 && !digitsResolvido.startsWith('55')) {
-            digitsResolvido = '55' + digitsResolvido
-          }
-          const numConversaAtual = (convRec.getString('numero') || '').replace(/\D/g, '')
-          const numConversaNorm =
-            numConversaAtual.length >= 10 && numConversaAtual.length <= 11 && !numConversaAtual.startsWith('55')
-              ? '55' + numConversaAtual
-              : numConversaAtual
-
-          if (digitsResolvido && digitsResolvido.length >= 10 && numConversaNorm !== digitsResolvido) {
-            console.log(
-              `[WHATSAPP SEND] Atualizando número da conversa ${finalConversaId} de "${convRec.getString('numero')}" para "${digitsResolvido}"`,
-            )
-            convRec.set('numero', digitsResolvido)
-          }
-
-          convRec.set('status', 'aguardando_cliente')
-          convRec.set('ultima_mensagem_preview', conteudoFinal.substring(0, 100))
-          convRec.set('ultima_mensagem_em', new Date().toISOString())
-          convRec.set('nao_lidas', 0)
-          if (authUser && !convRec.getString('atendente')) {
-            convRec.set('atendente', authUser.getString('name') || 'Atendente')
-            convRec.set('atendente_id', authUser.id)
-          }
-          $app.save(convRec)
+      if (finalConversaId && convRec) {
+        if (effectiveClienteId && !convRec.getString('cliente_id')) {
+          convRec.set('cliente_id', effectiveClienteId)
         }
+        // Conversa existente nunca tem o campo 'numero' mutado
+        convRec.set('status', 'aguardando_cliente')
+        convRec.set('ultima_mensagem_preview', conteudoFinal.substring(0, 100))
+        convRec.set('ultima_mensagem_em', new Date().toISOString())
+        convRec.set('nao_lidas', 0)
+        if (authUser && !convRec.getString('atendente')) {
+          convRec.set('atendente', authUser.getString('name') || 'Atendente')
+          convRec.set('atendente_id', authUser.id)
+        }
+        $app.save(convRec)
       } else {
         const conv = helper.ensureConversaForMessage(
           $app,
@@ -151,10 +130,11 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
 
     const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const msgRecord = new Record(msgsCol)
-    if (effectiveClienteId || clienteId) msgRecord.set('cliente_id', effectiveClienteId || clienteId)
+    if (effectiveClienteId || clienteId)
+      msgRecord.set('cliente_id', effectiveClienteId || clienteId)
     if (finalConversaId) msgRecord.set('conversa_id', finalConversaId)
     if (templateId) msgRecord.set('template_id', templateId)
-    msgRecord.set('telefone_destino', resolvedTelefoneDestino)
+    msgRecord.set('telefone_destino', cleanPhone)
     msgRecord.set('conteudo_final', conteudoFinal)
     msgRecord.set('tipo_disparo', tipoDisparo)
     msgRecord.set('direcao', 'enviada')
@@ -192,12 +172,6 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
 
     let originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
     originNumber = originNumber.replace(/[\r\n\t]/g, '').trim()
-
-    // Normalizar número de destino (apenas dígitos, garantindo prefixo 55 se BR)
-    let cleanPhone = resolvedTelefoneDestino.replace(/\D/g, '')
-    if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
-      cleanPhone = '55' + cleanPhone
-    }
 
     if (!rawApiUrl) {
       // Secrets ainda não preenchidos pelo usuário — deixar como falha/não configurado de forma graciosa
