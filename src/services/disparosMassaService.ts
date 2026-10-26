@@ -22,7 +22,11 @@ export type MarcacaoRespostaDestinatario =
   | 'sem_resposta'
   | 'nao_perturbe'
 
-export type OrigemEntradaFollowUp = 'manual' | 'por_disparo' | 'automatica_por_estagio'
+export type OrigemEntradaFollowUp =
+  | 'manual'
+  | 'por_disparo'
+  | 'automatica_por_estagio'
+  | 'movimento_manual'
 
 export interface ItemTrilhaFollowUp {
   fluxo_id: string
@@ -360,4 +364,43 @@ export async function dispararVerificacaoReenviosBackend(): Promise<{
     console.warn('Erro ao disparar verificação no backend:', err)
     return { success: false }
   }
+}
+
+export interface MoverParaFluxoResposta {
+  success: boolean
+  total: number
+  sucessoCount: number
+  jaAtivoCount: number
+  erroCount: number
+  resultados: Array<{
+    sucesso: boolean
+    jaAtivo?: boolean
+    motivo?: string
+    clienteId?: string
+    clienteNome?: string
+    fluxoId?: string
+    fluxoNome?: string
+    loteId?: string
+    imediata?: boolean
+    mensagemEnfileirada?: boolean
+  }>
+}
+
+/**
+ * Move um ou mais clientes para um fluxo de follow-up a partir do painel de acompanhamento.
+ * Inscreve no lote dedicado do fluxo com origem_entrada 'movimento_manual'
+ * começando pela 1ª etapa ativa (ou enviando de imediato se dias_apos = 0).
+ */
+export async function moverDestinatariosParaFluxo(
+  clienteIds: string[],
+  fluxoId: string,
+): Promise<MoverParaFluxoResposta> {
+  const res = await pb.send<MoverParaFluxoResposta>('/backend/v1/delfos/mover-para-fluxo', {
+    method: 'POST',
+    body: {
+      cliente_ids: clienteIds,
+      fluxo_id: fluxoId,
+    },
+  })
+  return res
 }

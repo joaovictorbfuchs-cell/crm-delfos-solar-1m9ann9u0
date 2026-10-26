@@ -1300,10 +1300,302 @@ function processarRespostaAutomaticaCliente(app, params) {
   }
 }
 
+/**
+ * Inscreve manualmente um cliente num fluxo de follow-up a partir do painel de acompanhamento.
+ * Reutiliza o mesmo mecanismo de entrada e idempotência de avaliarEntradaAutomaticaEstagio,
+ * atribuindo origem_entrada = 'movimento_manual'.
+ * Se a 1ª etapa tiver dias_apos = 0 (imediata), agenda envio na fila de whatsapp_mensagens na hora.
+ */
+function moverClienteParaFluxoManual(app, params) {
+  const clienteId = params.clienteId || ''
+  const fluxoId = params.fluxoId || ''
+  const operadorNome = params.operadorNome || 'operador'
+  const agora = new Date()
+  const agoraIso = agora.toISOString()
+
+  if (!clienteId || clienteId.startsWith('demo_')) {
+    return { sucesso: false, motivo: 'Cliente inválido' }
+  }
+
+  if (!fluxoId) {
+    return { sucesso: false, motivo: 'Fluxo não informado' }
+  }
+
+  let clienteRec = null
+  try {
+    clienteRec = app.findRecordById('clientes', clienteId)
+  } catch (_) {}
+
+  if (!clienteRec) {
+    return { sucesso: false, motivo: 'Cliente não encontrado' }
+  }
+
+  const clienteNome = clienteRec.getString('nome') || 'Cliente'
+  const telBruto = clienteRec.getString('whatsapp') || clienteRec.getString('telefone') || ''
+  const telefoneLimpo = telBruto.replace(/\D/g, '')
+
+  if (!telefoneLimpo || telefoneLimpo.length < 10) {
+    return { sucesso: false, motivo: 'Cliente sem telefone/WhatsApp válido' }
+  }
+
+  let fluxoRec = null
+  try {
+    fluxoRec = app.findRecordById('fluxos_follow_up', fluxoId)
+  } catch (_) {}
+
+  if (!fluxoRec || !fluxoRec.getBool('ativo')) {
+    return { sucesso: false, motivo: 'Fluxo inexistente ou inativo' }
+  }
+
+  const fluxoNome = fluxoRec.getString('nome') || 'Fluxo Follow-up'
+
+  // Checagem estrita de idempotência no fluxo de destino:
+  let jaAtivoNesseFluxo = false
+  try {
+    const lotesDoFluxo = app.findRecordsByFilter(
+      'disparos_massa',
+      `fluxo_id = '${fluxoId}' && status = 'ativo'`,
+      '-created',
+      50,
+      0,
+    )
+
+    for (let l = 0; l < lotesDoFluxo.length; l++) {
+      let dests = []
+      try {
+        const rawD = lotesDoFluxo[l].get('destinatarios')
+        dests = typeof rawD === 'string' ? JSON.parse(rawD) : rawD || []
+      } catch (_) {}
+
+      const matchDest = dests.find(
+        (d) =>
+          d.cliente_id === clienteId &&
+          d.status !== 'finalizado' &&
+          d.status !== 'arquivado' &&
+          d.status !== 'respondido' &&
+          d.status !== 'atendido' &&
+          d.status !== 'nao_perturbe' &&
+          d.status !== 'bloqueado' &&
+          d.status !== 'sem_whatsapp',
+      )
+
+      if (matchDest) {
+        jaAtivoNesseFluxo = true
+        break
+      }
+    }
+  } catch (errCheck) {
+    console.log('[MOVER MANUAL FLUXO] Erro ao checar idempotência do lote:', errCheck)
+  }
+
+  if (jaAtivoNesseFluxo) {
+    return {
+      sucesso: false,
+      jaAtivo: true,
+      motivo: `O cliente "${clienteNome}" já está em acompanhamento ativo no fluxo "${fluxoNome}".`,
+    }
+  }
+
+  // Carregar 1ª etapa ativa do fluxo
+  const etapas = carregarEtapasDoFluxo(app, fluxoId)
+  const primeiraEtapa = etapas.length > 0 ? etapas[0] : null
+  const isImediata = primeiraEtapa && primeiraEtapa.dias_apos === 0
+  const prazoDias = primeiraEtapa
+    ? primeiraEtapa.dias_apos === 0
+      ? 0
+      : Math.max(1, primeiraEtapa.dias_apos || 1)
+    : 3
+  const dataPrevistaIso = new Date(agora.getTime() + prazoDias * 24 * 60 * 60 * 1000).toISOString()
+
+  // Montar objeto destinatário com origem_entrada = movimento_manual e trilha
+  const dataFormatadaTrilha = agora.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const novoDestinatario = {
+    cliente_id: clienteId,
+    nome: clienteNome,
+    telefone: telefoneLimpo,
+    status: 'pendente',
+    origem_entrada: 'movimento_manual',
+    data_envio_inicial: agoraIso,
+    fluxo_atual_id: fluxoId,
+    proximo_envio_data: dataPrevistaIso,
+    proxima_etapa_nome: primeiraEtapa ? primeiraEtapa.nome : '1º Follow-up',
+    etapas_executadas: [],
+    trilha: [
+      {
+        fluxo_id: fluxoId,
+        fluxo_nome: fluxoNome,
+        origem_entrada: 'movimento_manual',
+        motivo: `Movido manualmente para o fluxo "${fluxoNome}" pelo operador (${operadorNome}) em ${dataFormatadaTrilha}`,
+        data: agoraIso,
+      },
+    ],
+  }
+
+  // Localizar ou criar lote dedicado do fluxo com origem_entrada = 'movimento_manual'
+  let loteId = ''
+  try {
+    const disparosCol = app.findCollectionByNameOrId('disparos_massa')
+    const filtroLoteManual = `fluxo_id = '${fluxoId}' && origem_entrada = 'movimento_manual' && status = 'ativo'`
+    const lotesManual = app.findRecordsByFilter(
+      'disparos_massa',
+      filtroLoteManual,
+      '-created',
+      1,
+      0,
+    )
+
+    let loteParaAtualizar = null
+    if (lotesManual && lotesManual.length > 0) {
+      loteParaAtualizar = lotesManual[0]
+      let dests = []
+      try {
+        const raw = loteParaAtualizar.get('destinatarios')
+        dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+      } catch (_) {}
+      dests.push(novoDestinatario)
+      loteParaAtualizar.set('destinatarios', dests)
+      loteParaAtualizar.set('total_destinatarios', dests.length)
+      app.save(loteParaAtualizar)
+      loteId = loteParaAtualizar.id
+    } else {
+      loteParaAtualizar = new Record(disparosCol)
+      loteParaAtualizar.set('titulo', `Follow-up Manual: ${fluxoNome}`)
+      loteParaAtualizar.set('status', 'ativo')
+      loteParaAtualizar.set('segmento', 'movimento_manual')
+      loteParaAtualizar.set('total_destinatarios', 1)
+      loteParaAtualizar.set('intervalo_segundos', 60)
+      loteParaAtualizar.set('data_disparo', agoraIso)
+      loteParaAtualizar.set(
+        'mensagem_original',
+        `Entrada manual no fluxo "${fluxoNome}" realizada pelo operador`,
+      )
+      loteParaAtualizar.set('reenvio_ativo', true)
+      loteParaAtualizar.set('fluxo_id', fluxoId)
+      loteParaAtualizar.set('origem_entrada', 'movimento_manual')
+      loteParaAtualizar.set('destinatarios', [novoDestinatario])
+      loteParaAtualizar.set('estatisticas', {
+        total: 1,
+        pendentes: 1,
+        respondidos: 0,
+        atendidos: 0,
+        bloqueados: 0,
+        finalizados: 0,
+        reenvios_1_enviados: 0,
+        reenvios_2_enviados: 0,
+        ultima_verificacao: agoraIso,
+      })
+      app.save(loteParaAtualizar)
+      loteId = loteParaAtualizar.id
+    }
+  } catch (errSaveLote) {
+    console.log('[MOVER MANUAL FLUXO] Erro ao salvar lote de acompanhamento:', errSaveLote)
+    return { sucesso: false, motivo: 'Erro ao gravar lote: ' + String(errSaveLote) }
+  }
+
+  // Se a 1ª etapa do fluxo for imediata (dias_apos = 0), enfileira a mensagem agora
+  let msgAgendadaId = ''
+  if (isImediata && primeiraEtapa && primeiraEtapa.mensagem) {
+    try {
+      const msgsCol = app.findCollectionByNameOrId('whatsapp_mensagens')
+      let textoFinal = primeiraEtapa.mensagem || ''
+      textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, clienteNome)
+      textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+      textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
+      textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, clienteNome)
+
+      let cleanPhone = telefoneLimpo
+      if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
+        cleanPhone = '55' + cleanPhone
+      }
+
+      const novaMsg = new Record(msgsCol)
+      novaMsg.set('cliente_id', clienteId)
+      novaMsg.set('telefone_destino', cleanPhone)
+      novaMsg.set('conteudo_final', textoFinal)
+      novaMsg.set('status', 'agendada')
+      novaMsg.set('agendado_para', agoraIso)
+      novaMsg.set('tipo_disparo', `massa_fluxo_etapa_${primeiraEtapa.ordem}`)
+      novaMsg.set(
+        'referencia_id',
+        `lote_${loteId}_manual_f${fluxoId}_e${primeiraEtapa.ordem}_${clienteId || cleanPhone}`,
+      )
+      app.save(novaMsg)
+      msgAgendadaId = novaMsg.id
+
+      // Atualizar no lote o registro da etapa executada
+      try {
+        const loteRec = app.findRecordById('disparos_massa', loteId)
+        let dests = []
+        try {
+          const raw = loteRec.get('destinatarios')
+          dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        } catch (_) {}
+
+        const targetDest = dests.find((d) => d.cliente_id === clienteId)
+        if (targetDest) {
+          if (!Array.isArray(targetDest.etapas_executadas)) {
+            targetDest.etapas_executadas = []
+          }
+          targetDest.etapas_executadas.push({
+            ordem: primeiraEtapa.ordem,
+            etapa_id: primeiraEtapa.id,
+            fluxo_id: fluxoId,
+            nome: primeiraEtapa.nome,
+            enviado_em: agoraIso,
+            mensagem_id: novaMsg.id,
+          })
+          targetDest.etapa_atual_ordem = primeiraEtapa.ordem
+          targetDest.etapa_atual_nome = primeiraEtapa.nome
+          if (primeiraEtapa.ordem === 1) {
+            targetDest.status = 'reenvio_1_agendado'
+            targetDest.reenvio_1_data = agoraIso
+            targetDest.reenvio_1_msg_id = novaMsg.id
+          }
+
+          // Calcular próxima etapa
+          const subsequente = etapas.find((e) => e.ordem > primeiraEtapa.ordem)
+          if (subsequente) {
+            const proxDias = Math.max(1, subsequente.dias_apos || 1)
+            targetDest.proximo_envio_data = new Date(
+              agora.getTime() + proxDias * 24 * 60 * 60 * 1000,
+            ).toISOString()
+            targetDest.proxima_etapa_nome = subsequente.nome
+          } else {
+            targetDest.proximo_envio_data = undefined
+            targetDest.proxima_etapa_nome = undefined
+          }
+
+          loteRec.set('destinatarios', dests)
+          app.save(loteRec)
+        }
+      } catch (errUpdateEtapa) {
+        console.log(
+          '[MOVER MANUAL FLUXO] Aviso ao atualizar etapa imediata no lote:',
+          errUpdateEtapa,
+        )
+      }
+    } catch (errMsg) {
+      console.log('[MOVER MANUAL FLUXO] Erro ao enfileirar mensagem imediata:', errMsg)
+    }
+  }
+
+  return {
+    sucesso: true,
+    loteId,
+    clienteId,
+    clienteNome,
+    fluxoId,
+    fluxoNome,
+    imediata: isImediata,
+    mensagemEnfileirada: Boolean(msgAgendadaId),
+  }
+}
+
 module.exports = {
   processarReenviosDisparosMassa,
   processarRespostaAutomaticaCliente,
   avaliarEntradaAutomaticaEstagio,
+  moverClienteParaFluxoManual,
   normalizarEstagioComparacao,
   carregarEtapasDoFluxo,
   carregarNomeFluxo,

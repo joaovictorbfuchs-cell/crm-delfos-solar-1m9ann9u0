@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/dialog'
 import { GitFork, MessageSquare, ThumbsUp, HelpCircle, BellOff, History } from 'lucide-react'
 import { fetchFluxosFollowUp, type FluxoFollowUp } from '@/services/fluxosFollowUpService'
+import { ModalMoverParaFluxo } from '@/components/ModalMoverParaFluxo'
 
 interface PainelAcompanhamentoDisparosProps {
   onAbrirNovoDisparo?: () => void
@@ -64,6 +65,9 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
   const [destinatarioTrilhaModal, setDestinatarioTrilhaModal] =
     useState<DestinatarioLoteMassa | null>(null)
   const [isSalvandoMarcacao, setIsSalvandoMarcacao] = useState(false)
+  const [destinatariosParaMover, setDestinatariosParaMover] = useState<DestinatarioLoteMassa[]>([])
+  const [modalMoverAberto, setModalMoverAberto] = useState(false)
+  const [selecionadosPorLote, setSelecionadosPorLote] = useState<Record<string, string[]>>({})
 
   const carregarLotes = async () => {
     setIsLoading(true)
@@ -154,6 +158,49 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
         description: 'Falha ao atualizar status do lote.',
       })
     }
+  }
+
+  const handleAbrirMoverIndividual = (dest: DestinatarioLoteMassa) => {
+    setDestinatariosParaMover([dest])
+    setModalMoverAberto(true)
+  }
+
+  const handleToggleSelecionarTodosLote = (loteId: string, destsLote: DestinatarioLoteMassa[]) => {
+    const selecionadosAtuais = selecionadosPorLote[loteId] || []
+    // Considera apenas quem tem cliente_id válido
+    const elegiveis = destsLote
+      .filter((d) => Boolean(d.cliente_id))
+      .map((d) => d.cliente_id as string)
+
+    if (selecionadosAtuais.length === elegiveis.length && elegiveis.length > 0) {
+      setSelecionadosPorLote((prev) => ({ ...prev, [loteId]: [] }))
+    } else {
+      setSelecionadosPorLote((prev) => ({ ...prev, [loteId]: elegiveis }))
+    }
+  }
+
+  const handleToggleSelecionarDestinatario = (loteId: string, clienteId: string) => {
+    setSelecionadosPorLote((prev) => {
+      const atuais = prev[loteId] || []
+      const existe = atuais.includes(clienteId)
+      const novo = existe ? atuais.filter((id) => id !== clienteId) : [...atuais, clienteId]
+      return { ...prev, [loteId]: novo }
+    })
+  }
+
+  const handleAbrirMoverEmMassa = (loteId: string, destsLote: DestinatarioLoteMassa[]) => {
+    const ids = selecionadosPorLote[loteId] || []
+    const alvos = destsLote.filter((d) => d.cliente_id && ids.includes(d.cliente_id))
+    if (alvos.length === 0) {
+      toast({
+        title: 'Nenhum cliente selecionado',
+        description: 'Selecione as caixas de seleção dos clientes que deseja mover.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setDestinatariosParaMover(alvos)
+    setModalMoverAberto(true)
   }
 
   const handleMarcarResposta = async (
@@ -674,18 +721,34 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                         ))}
                       </div>
 
-                      {lote.status === 'ativo' && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => handleEncerrarLote(lote, e)}
-                          className="h-7 text-[11px] font-bold text-gray-700 hover:text-emerald-700"
-                        >
-                          <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                          <span>Concluir Lote</span>
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {(selecionadosPorLote[lote.id] || []).length > 0 && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAbrirMoverEmMassa(lote.id, dests)}
+                            className="h-7 text-[11px] font-bold bg-[#0284C7] hover:bg-[#0369a1] text-white shadow-2xs flex items-center gap-1"
+                          >
+                            <GitFork className="w-3 h-3" />
+                            <span>
+                              Mover selecionados ({selecionadosPorLote[lote.id].length}) para fluxo
+                            </span>
+                          </Button>
+                        )}
+
+                        {lote.status === 'ativo' && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => handleEncerrarLote(lote, e)}
+                            className="h-7 text-[11px] font-bold text-gray-700 hover:text-emerald-700"
+                          >
+                            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+                            <span>Concluir Lote</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Tabela de Destinatários */}
@@ -694,19 +757,32 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                         <table className="w-full text-left text-xs">
                           <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold sticky top-0 text-[11px]">
                             <tr>
+                              <th className="py-2 px-2.5 w-8 text-center">
+                                <input
+                                  type="checkbox"
+                                  title="Selecionar todos os clientes válidos deste lote"
+                                  checked={
+                                    (selecionadosPorLote[lote.id] || []).length > 0 &&
+                                    (selecionadosPorLote[lote.id] || []).length ===
+                                      dests.filter((d) => Boolean(d.cliente_id)).length
+                                  }
+                                  onChange={() => handleToggleSelecionarTodosLote(lote.id, dests)}
+                                  className="rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                />
+                              </th>
                               <th className="py-2 px-3">Cliente</th>
                               <th className="py-2 px-3">Telefone</th>
                               <th className="py-2 px-3">Fluxo & Etapa Atual</th>
                               <th className="py-2 px-3">Próximo Envio</th>
                               <th className="py-2 px-3">Status / Desfecho</th>
-                              <th className="py-2 px-3">Marcação de Resposta (Ações)</th>
+                              <th className="py-2 px-3">Ações de Follow-up</th>
                               <th className="py-2 px-3">Trilha / Histórico</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[11px]">
                             {destsFiltrados.length === 0 ? (
                               <tr>
-                                <td colSpan={7} className="py-4 text-center text-gray-400">
+                                <td colSpan={8} className="py-4 text-center text-gray-400">
                                   Nenhum destinatário com o status selecionado.
                                 </td>
                               </tr>
@@ -736,6 +812,25 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                                     key={realIdx}
                                     className="hover:bg-slate-50/80 transition-colors"
                                   >
+                                    <td className="py-2 px-2.5 text-center">
+                                      {dest.cliente_id ? (
+                                        <input
+                                          type="checkbox"
+                                          checked={(selecionadosPorLote[lote.id] || []).includes(
+                                            dest.cliente_id,
+                                          )}
+                                          onChange={() =>
+                                            handleToggleSelecionarDestinatario(
+                                              lote.id,
+                                              dest.cliente_id as string,
+                                            )
+                                          }
+                                          className="rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                        />
+                                      ) : (
+                                        <span className="text-gray-300">—</span>
+                                      )}
+                                    </td>
                                     <td className="py-2 px-3 font-semibold text-gray-900">
                                       <div className="flex flex-col">
                                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -746,6 +841,11 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                                               {dest.estagio_origem
                                                 ? `: ${dest.estagio_origem}`
                                                 : ''}
+                                            </Badge>
+                                          )}
+                                          {dest.origem_entrada === 'movimento_manual' && (
+                                            <Badge className="bg-sky-100 text-sky-900 border-sky-300 text-[9px] font-bold px-1 py-0">
+                                              Manual
                                             </Badge>
                                           )}
                                         </div>
@@ -973,6 +1073,18 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                                           <BellOff className="w-2.5 h-2.5" />
                                           <span>Não perturbe</span>
                                         </button>
+
+                                        {/* Botão Mover para fluxo */}
+                                        <button
+                                          type="button"
+                                          disabled={isSalvandoMarcacao || !dest.cliente_id}
+                                          onClick={() => handleAbrirMoverIndividual(dest)}
+                                          className="px-1.5 py-0.5 rounded border text-[10px] font-semibold transition-all flex items-center gap-0.5 bg-sky-50 text-sky-800 border-sky-300 hover:bg-sky-100 hover:border-sky-400"
+                                          title="Inscrever este cliente em outro fluxo de follow-up a partir da 1ª etapa ativa"
+                                        >
+                                          <GitFork className="w-2.5 h-2.5 text-sky-600" />
+                                          <span>Mover para fluxo</span>
+                                        </button>
                                       </div>
                                     </td>
                                     {/* Trilha e Histórico */}
@@ -1063,6 +1175,11 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
                   {destinatarioTrilhaModal.origem_entrada === 'por_disparo' && (
                     <Badge className="bg-slate-100 text-slate-800 border-slate-300 text-[10px]">
                       Origem: Disparo em Lote
+                    </Badge>
+                  )}
+                  {destinatarioTrilhaModal.origem_entrada === 'movimento_manual' && (
+                    <Badge className="bg-sky-100 text-sky-900 border-sky-300 text-[10px] font-bold">
+                      Origem: Movimento Manual (Operador)
                     </Badge>
                   )}
                   {destinatarioTrilhaModal.marcacao_resposta && (
@@ -1182,6 +1299,18 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal Mover para Fluxo */}
+      <ModalMoverParaFluxo
+        open={modalMoverAberto}
+        onOpenChange={setModalMoverAberto}
+        destinatarios={destinatariosParaMover}
+        lotesExistentes={lotes}
+        onSucesso={() => {
+          setSelecionadosPorLote({})
+          carregarLotes()
+        }}
+      />
     </div>
   )
 }
