@@ -707,6 +707,32 @@ export interface FornecedorOrcamentoExtraido {
   observacoes?: string
 }
 
+export interface WhatsAppTemplateCategoria extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  ordem?: number
+  cor?: string
+  descricao?: string
+  ativo?: boolean
+  created: string
+  updated: string
+}
+
+export interface WhatsAppTemplateEtapa extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  ordem?: number
+  cor?: string
+  descricao?: string
+  ativo?: boolean
+  created: string
+  updated: string
+}
+
 export interface WhatsAppTemplate extends RecordModel {
   id: string
   collectionId: string
