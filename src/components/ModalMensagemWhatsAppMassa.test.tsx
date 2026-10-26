@@ -36,6 +36,20 @@ const mockListasSalvas = [
     created: '2025-01-02',
     updated: '2025-01-02',
   },
+  {
+    id: 'lista-manual-2-clientes',
+    collectionId: 'listas_envio',
+    collectionName: 'listas_envio',
+    nome: 'Lista Manual 2 Clientes',
+    segmento: 'pos_vendas',
+    filtros: {
+      tipo_selecao: 'manual',
+      clientes_ids: ['cli-pos-1', 'cli-solar-1'],
+      total_clientes_selecionados: 2,
+    },
+    created: '2025-01-03',
+    updated: '2025-01-03',
+  },
 ]
 
 const mockFetchListasEnvio = vi.fn().mockResolvedValue(mockListasSalvas)
@@ -385,10 +399,10 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     })
   })
 
-  it('permite abrir o modal "Salvar seleção atual" e persistir nova lista salva', async () => {
+  it('permite abrir o modal "Salvar seleção como lista" e persistir nova lista salva', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
-    const btnSalvar = screen.getByRole('button', { name: /Salvar seleção atual/i })
+    const btnSalvar = screen.getByRole('button', { name: /Salvar seleção como lista/i })
     fireEvent.click(btnSalvar)
 
     await waitFor(() => {
@@ -408,6 +422,60 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
           segmento: 'todos',
         }),
       )
+    })
+  })
+
+  it('grava exatamente os clientes_ids selecionados manualmente por checkbox ao salvar lista', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Clica no cliente "Carlos Solar" para marcar checkbox
+    const clienteCarlos = screen.getByText('Carlos Solar')
+    fireEvent.click(clienteCarlos)
+
+    // Abre modal de salvar lista
+    const btnSalvar = screen.getByRole('button', { name: /Salvar seleção como lista/i })
+    fireEvent.click(btnSalvar)
+
+    await waitFor(() => {
+      expect(screen.getByText('Salvar Seleção Atual')).toBeDefined()
+      expect(screen.getByText(/1 cliente\(s\) marcados por checkbox serão gravados/i)).toBeDefined()
+    })
+
+    const inputNome = screen.getByPlaceholderText(/Ex: Clientes O&M/i)
+    fireEvent.change(inputNome, { target: { value: 'Lista Carlos Solar Manual' } })
+
+    const btnConfirmar = screen.getByRole('button', { name: /^Salvar Lista$/i })
+    fireEvent.click(btnConfirmar)
+
+    await waitFor(() => {
+      expect(mockCreateListaEnvio).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nome: 'Lista Carlos Solar Manual',
+          clientes_ids: ['cli-solar-1'],
+          filtros: expect.objectContaining({
+            tipo_selecao: 'manual',
+            clientes_ids: ['cli-solar-1'],
+            total_clientes_selecionados: 1,
+          }),
+        }),
+      )
+    })
+  })
+
+  it('aplica exatamente os clientes gravados ao carregar uma lista salva por seleção manual', async () => {
+    render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Lista Manual 2 Clientes')).toBeDefined()
+    })
+
+    const selectListas = screen.getByRole('combobox', { name: /Seletor de listas salvas/i })
+    fireEvent.change(selectListas, { target: { value: 'lista-manual-2-clientes' } })
+
+    // Deve aplicar exatamente os 2 clientes gravados na lista manual
+    await waitFor(() => {
+      expect(screen.getByText(/2 de \d+ destinatários selecionados/i)).toBeDefined()
+      expect(screen.getByText(/2 clientes selecionados/i)).toBeDefined()
     })
   })
 

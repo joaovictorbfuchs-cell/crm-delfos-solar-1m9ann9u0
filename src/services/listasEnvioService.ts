@@ -7,6 +7,18 @@ export interface FiltrosExtrasListaEnvio {
   concessionaria?: string
   tipo_cliente?: string
   status?: string
+  /**
+   * Tipo da lista: 'manual' (seleção pontual por checkboxes) ou 'filtro' (segmento/filtros dinâmicos).
+   */
+  tipo_selecao?: 'manual' | 'filtro'
+  /**
+   * Lista de IDs dos clientes selecionados manualmente na hora de salvar.
+   */
+  clientes_ids?: string[]
+  /**
+   * Quantidade de clientes que estavam selecionados no momento do salvamento.
+   */
+  total_clientes_selecionados?: number
 }
 
 export interface ListaEnvioRegistro extends RecordModel {
@@ -27,6 +39,7 @@ export interface SalvarListaEnvioInput {
   segmento: string
   filtros: FiltrosExtrasListaEnvio
   fluxo_id?: string
+  clientes_ids?: string[]
 }
 
 /**
@@ -54,6 +67,16 @@ export async function createListaEnvio(input: SalvarListaEnvioInput): Promise<Li
     segmento: input.segmento || 'todos',
     filtros: input.filtros || {},
     fluxo_id: input.fluxo_id || '',
+  }
+  // Se veio clientes_ids diretamente no input ou dentro de filtros, assegura integridade
+  if (Array.isArray(input.clientes_ids) && input.clientes_ids.length > 0) {
+    const filtrosObj = (
+      payload.filtros && typeof payload.filtros === 'object' ? { ...payload.filtros } : {}
+    ) as any
+    filtrosObj.clientes_ids = input.clientes_ids
+    filtrosObj.tipo_selecao = 'manual'
+    filtrosObj.total_clientes_selecionados = input.clientes_ids.length
+    payload.filtros = filtrosObj
   }
   if (currentUserId) {
     payload.criado_por = currentUserId

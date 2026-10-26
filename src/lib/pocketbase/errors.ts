@@ -2,6 +2,57 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const e = err as any
+    if (e.status === 401 || e.status === 403) return true
+    if (e.statusCode === 401 || e.statusCode === 403) return true
+    if (e.response?.status === 401 || e.response?.status === 403) return true
+  }
+  const msg =
+    typeof err === 'string' ? err : err instanceof Error ? err.message : (err as any)?.message || ''
+  const m = msg.toLowerCase()
+  return (
+    m.includes('token is expired') ||
+    m.includes('failed to authenticate') ||
+    m.includes('sessão expirada') ||
+    m.includes('sessao expirada') ||
+    m.includes('login expirou') ||
+    m.includes('token expirado')
+  )
+}
+
+export function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object') {
+    const e = err as any
+    if (e.isAbort) return true
+    if (e.name === 'AbortError' || e.name === 'ClientResponseError 0') return true
+  }
+  const msg =
+    typeof err === 'string' ? err : err instanceof Error ? err.message : (err as any)?.message || ''
+  return msg.toLowerCase().includes('aborted') || msg.toLowerCase().includes('autocancelled')
+}
+
+export function formatPbError(error: unknown, fallback = 'Erro inesperado'): string {
+  if (!error) return fallback
+  if (error instanceof ClientResponseError) {
+    const data = error.response?.data
+    if (data && typeof data === 'object') {
+      const parts: string[] = []
+      for (const [k, v] of Object.entries(data)) {
+        if (v && typeof v === 'object' && 'message' in v) {
+          parts.push(`${k}: ${(v as any).message}`)
+        }
+      }
+      if (parts.length > 0) return parts.join(', ')
+    }
+    return error.message || fallback
+  }
+  return error instanceof Error ? error.message : String(error)
+}
+
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -26,54 +77,4 @@ export function getErrorMessage(error: unknown): string {
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-/**
- * Identifica se um erro é decorrente de sessão expirada / não autorizada (401 ou 403)
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const obj = err as any
-    const status = obj.status || obj.response?.status || obj.statusCode
-    if (status === 401 || status === 403) return true
-
-    const msg = String(obj.message || obj.response?.message || '').toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('token expired') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('login expirou') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('unauthorized') ||
-      msg.includes('the request requires valid user authorization')
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
-/**
- * Identifica se um erro é decorrente de cancelamento de requisição (abort / autocancel)
- */
-export function isAbortError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const obj = err as any
-    if (obj.isAbort || obj.name === 'AbortError') return true
-    const msg = String(obj.message || '').toLowerCase()
-    if (msg.includes('autocancelled') || msg.includes('the request was aborted')) return true
-  }
-  return false
-}
-
-/**
- * Formata um erro retornado pelo PocketBase para mensagem amigável ao usuário
- */
-export function formatPbError(err: unknown, fallback = 'Erro ao processar solicitação'): string {
-  if (!err) return fallback
-  if (isAbortError(err)) return 'Operação cancelada'
-  if (isAuthSessionError(err)) return 'Sua sessão expirou. Faça login novamente.'
-  return getErrorMessage(err) || fallback
 }

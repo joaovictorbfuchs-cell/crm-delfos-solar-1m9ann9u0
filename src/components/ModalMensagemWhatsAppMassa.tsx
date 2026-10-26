@@ -966,8 +966,11 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       setFluxoSelecionadoId(lista.fluxo_id)
     }
 
-    // 1. Aplica o segmento salvo (suporta formato com campo lista.segmento ou gravado dentro de filtros.segmento)
-    const fx: FiltrosExtrasListaEnvio & { segmento?: string } = (lista.filtros as any) || {}
+    // 1. Extrai filtros salvos e verifica se é lista com clientes_ids explícitos (seleção manual)
+    const fx: FiltrosExtrasListaEnvio & { segmento?: string; clientes_ids?: string[] } =
+      (lista.filtros as any) || {}
+    const clientesIdsSalvos = Array.isArray(fx.clientes_ids) ? fx.clientes_ids : null
+
     const segSalvo = ((lista.segmento || fx.segmento) as SegmentoFiltro) || 'todos'
     setSegmentoAtivo(segSalvo)
 
@@ -988,7 +991,27 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     // Se havia algum filtro salvo ativo, limpa ao selecionar uma lista_envio para evitar conflito
     setFiltroSalvoAtivo(null)
 
-    // 3. Calcula clientes resultantes e seleciona-os de uma vez (ao carregar uma lista salva específica)
+    // 3. Aplica seleção:
+    // CASO A: Lista salva com seleção manual de clientes (clientes_ids explícitos)
+    // Aplica EXATAMENTE os clientes que foram marcados no momento do salvamento
+    if (clientesIdsSalvos && clientesIdsSalvos.length > 0) {
+      // Filtra apenas os IDs que existem na base de itens processados atual (tolerante a remoções)
+      const idsValidos = clientesIdsSalvos.filter((id) =>
+        itensProcessados.some((i) => i.cliente.id === id),
+      )
+
+      setSelectedIds(idsValidos)
+      if (idsValidos.length > 0) {
+        setClienteFocadoId(idsValidos[0])
+      }
+
+      toast.success(`Lista salva "${lista.nome}" aplicada`, {
+        description: `${idsValidos.length} cliente(s) selecionado(s) exatamente conforme salvos.`,
+      })
+      return
+    }
+
+    // CASO B: Lista salva por filtro dinâmico (legada ou salva com base no filtro inteiro)
     let filtrados = itensProcessados
     if (segSalvo !== 'todos') {
       filtrados = filtrados.filter((i) => i.segmentos.includes(segSalvo))
@@ -1028,12 +1051,19 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     }
 
     toast.success(`Lista salva "${lista.nome}" aplicada`, {
-      description: `${idsSelecionados.length} cliente(s) selecionado(s) automaticamente.`,
+      description: `${idsSelecionados.length} cliente(s) selecionado(s) automaticamente via filtros.`,
     })
   }
 
   const handleAbrirModalSalvarLista = () => {
-    // Sugere nome padrão baseado no segmento e filtros ativos
+    // Se o usuário selecionou clientes manualmente via checkbox, sugere nome focado na seleção
+    if (selectedIds.length > 0 && selectedIds.length !== itensFiltrados.length) {
+      setNomeNovaLista(`Lista Personalizada (${selectedIds.length} clientes selecionados)`)
+      setModalSalvarListaOpen(true)
+      return
+    }
+
+    // Caso contrário, sugere nome padrão baseado no segmento e filtros ativos
     const labelSeg =
       segmentoAtivo === 'clientes_om'
         ? 'Clientes O&M'
@@ -1070,18 +1100,27 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
     setIsSalvandoLista(true)
     try {
+      // Detecta se a origem do salvamento é uma seleção manual explícita por checkboxes
+      // Se houver clientes marcados manualmente (inclusive se for subconjunto ou todos selecionados conscientemente)
+      const temSelecaoManual = selectedIds.length > 0
+      const idsGravados = temSelecaoManual ? Array.from(new Set(selectedIds)) : undefined
+
       const filtrosParaGravar: FiltrosExtrasListaEnvio = {
         whatsapp: filtroWhatsApp,
         cidade: filtroCidade || undefined,
         concessionaria: filtroConcessionaria || undefined,
         tipo_cliente: filtroTipoCliente || undefined,
         status: filtroStatus || undefined,
+        tipo_selecao: temSelecaoManual ? 'manual' : 'filtro',
+        clientes_ids: idsGravados,
+        total_clientes_selecionados: idsGravados?.length || 0,
       }
 
       const nova = await createListaEnvio({
         nome: nomeNovaLista.trim(),
         segmento: segmentoAtivo,
         fluxo_id: fluxoSelecionadoId || undefined,
+        clientes_ids: idsGravados,
         filtros: {
           ...filtrosParaGravar,
           segmento: segmentoAtivo,
@@ -1093,9 +1132,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       setModalSalvarListaOpen(false)
       setNomeNovaLista('')
 
-      toast.success(`Lista "${nova.nome}" salva com sucesso!`, {
-        description: 'Critérios gravados: segmento e filtros combináveis ativos.',
-      })
+      const msgSucesso = temSelecaoManual
+        ? `Lista "${nova.nome}" salva com ${idsGravados?.length} cliente(s) selecionado(s)!`
+        : `Lista "${nova.nome}" salva com sucesso!`
+      const descSucesso = temSelecaoManual
+        ? 'Os clientes marcados individualmente foram gravados com exatidão.'
+        : 'Critérios gravados: segmento e filtros combináveis ativos.'
+
+      toast.success(msgSucesso, { description: descSucesso })
     } catch (err) {
       console.error('Erro ao salvar lista de envio:', err)
       toast.error('Erro ao salvar lista de envio')
@@ -2869,7 +2913,27 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               {/* Resumo do que será gravado */}
               <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-gray-600 space-y-1">
                 <p className="font-semibold text-gray-800">Critérios capturados:</p>
-                <ul className="list-disc list-inside space-y-0.5 text-gray-700">
+                {selectedIds.length > 0 ? (
+                  <div className="p-2 rounded bg-sky-50 border border-sky-200 text-sky-950 font-medium space-y-0.5">
+                    <div className="flex items-center gap-1.5 font-bold text-sky-900">
+                      <CheckSquare className="w-3.5 h-3.5 text-[#0284C7]" />
+                      <span>Seleção manual de clientes:</span>
+                    </div>
+                    <p className="text-xs text-sky-800">
+                      <strong>{selectedIds.length} cliente(s)</strong> marcados por checkbox serão
+                      gravados nesta lista. Ao reabrir, apenas estes clientes serão selecionados.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-950 font-medium space-y-0.5">
+                    <p className="text-xs text-amber-800">
+                      Nenhum checkbox marcado individualmente: a lista gravará os filtros dinâmicos
+                      ativos abaixo.
+                    </p>
+                  </div>
+                )}
+
+                <ul className="list-disc list-inside space-y-0.5 text-gray-700 pt-1">
                   <li>
                     Segmento:{' '}
                     <strong className="text-sky-900">
