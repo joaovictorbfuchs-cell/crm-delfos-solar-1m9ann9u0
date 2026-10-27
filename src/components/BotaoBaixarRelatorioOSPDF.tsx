@@ -36,6 +36,7 @@ export async function gerarRelatorioOSPdfBlobBase64(dados: RelatorioOSPDFDados):
     const html = gerarHTMLRelatorioOS({
       os: dados.os,
       cliente: dados.cliente,
+      contratoOM: dados.contratoOM,
       sistema: dados.sistema,
       fotosDataUrls: dados.fotosDataUrls || [],
       inversoresInfo: dados.inversoresInfo,

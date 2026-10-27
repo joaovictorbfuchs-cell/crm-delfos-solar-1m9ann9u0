@@ -390,4 +390,72 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).toContain('foto1.jpg')
     expect(html).toContain('foto2.jpg')
   })
+
+  it('deve usar a data real da proxima manutencao do contrato O&M do cliente com a periodicidade correta', () => {
+    const osMock: Partial<OrdemServico> = {
+      id: 'os-data-real',
+      data_agendada: '2026-10-27T08:00:00Z',
+      tipo: 'manutencao_preventiva',
+    }
+
+    const contratoOMMock = {
+      id: 'ct-1',
+      plano: 'Plano Completo',
+      proxima_atividade_data: '2027-02-10',
+    }
+
+    const html = gerarHTMLRelatorioOS({
+      os: osMock as OrdemServico,
+      cliente: clienteMock,
+      contratoOM: contratoOMMock,
+      sistema: sistemaMock,
+    })
+
+    // Deve exibir 10/02/2027 e periodicidade semestral
+    expect(html).toContain('10/02/2027')
+    expect(html).toContain('(semestral, conforme plano de manutenção).')
+    expect(html).not.toContain('27/04/2027')
+  })
+
+  it('deve usar periodicidade anual para plano de inspecao e manutencao preventiva', () => {
+    const osMock: Partial<OrdemServico> = {
+      id: 'os-data-anual',
+      data_agendada: '2026-10-27T08:00:00Z',
+      tipo: 'manutencao_preventiva',
+    }
+
+    const contratoOMMock = {
+      id: 'ct-2',
+      plano: 'Inspeção e Manutenção Preventiva',
+      proxima_atividade_data: '2027-02-10',
+    }
+
+    const html = gerarHTMLRelatorioOS({
+      os: osMock as OrdemServico,
+      cliente: clienteMock,
+      contratoOM: contratoOMMock,
+      sistema: sistemaMock,
+    })
+
+    expect(html).toContain('10/02/2027')
+    expect(html).toContain('(anual, conforme plano de manutenção).')
+  })
+
+  it('deve usar fallback neutro quando nao houver contrato O&M cadastrado', () => {
+    const osMock: Partial<OrdemServico> = {
+      id: 'os-data-fallback',
+      data_agendada: '2026-10-27T08:00:00Z',
+      tipo: 'limpeza',
+    }
+
+    const html = gerarHTMLRelatorioOS({
+      os: osMock as OrdemServico,
+      cliente: { ...clienteMock, contrato_om: null },
+      sistema: sistemaMock,
+    })
+
+    // Fallback visita + 6 meses: outubro + 6 = abril 2027
+    expect(html).toContain('/2027')
+    expect(html).toContain('(conforme plano de manutenção).')
+  })
 })

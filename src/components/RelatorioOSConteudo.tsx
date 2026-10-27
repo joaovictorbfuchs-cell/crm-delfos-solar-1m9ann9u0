@@ -68,6 +68,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   const [cliente, setCliente] = useState<any>(null)
   const [usina, setUsina] = useState<any>(null)
   const [temContratoOMAtivo, setTemContratoOMAtivo] = useState(false)
+  const [contratoOMCliente, setContratoOMCliente] = useState<any>(null)
   const [fotosUrls, setFotosUrls] = useState<string[]>([])
   const [linkCopiado, setLinkCopiado] = useState(false)
   const [fotoModal, setFotoModal] = useState<FotoRegistroRelatorio | null>(null)
@@ -177,19 +178,45 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             const contratos = await pb.collection('contratos_om').getList(1, 10, {
               filter: `cliente_id = "${clienteIdFinal}"`,
             })
-            const ativo = (contratos?.items || []).some((c: any) => {
-              const st = String(c?.status || '').toLowerCase()
-              const enc = String(c?.status_encerramento || '').toLowerCase()
-              const encerradoOuCancelado =
-                st.includes('encerrado') || st.includes('cancelado') || enc.includes('encerrado')
-              return !encerradoOuCancelado
-            })
-            if (isMounted) setTemContratoOMAtivo(ativo)
+            const listaContratos = contratos?.items || []
+            const contratoAtivo =
+              listaContratos.find((c: any) => {
+                const st = String(c?.status || '').toLowerCase()
+                const enc = String(c?.status_encerramento || '').toLowerCase()
+                const encerradoOuCancelado =
+                  st.includes('encerrado') || st.includes('cancelado') || enc.includes('encerrado')
+                return !encerradoOuCancelado
+              }) ||
+              listaContratos[0] ||
+              null
+
+            const ativo = Boolean(
+              contratoAtivo &&
+              !String(contratoAtivo?.status || '')
+                .toLowerCase()
+                .includes('encerrado') &&
+              !String(contratoAtivo?.status || '')
+                .toLowerCase()
+                .includes('cancelado') &&
+              !String(contratoAtivo?.status_encerramento || '')
+                .toLowerCase()
+                .includes('encerrado'),
+            )
+            if (isMounted) {
+              setTemContratoOMAtivo(ativo)
+              setContratoOMCliente(contratoAtivo)
+            }
           } catch {
-            if (isMounted) setTemContratoOMAtivo(false)
+            if (isMounted) {
+              setTemContratoOMAtivo(false)
+              setContratoOMCliente(null)
+            }
           }
         } else {
-          if (isMounted) setTemContratoOMAtivo(false)
+          if (isMounted) {
+            setTemContratoOMAtivo(false)
+            setContratoOMCliente(null)
+          }
         }
 
         // Extrai usina / sistema vinculado
@@ -279,8 +306,9 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   const relatorio: RelatorioOSCanonicalData = useMemo(() => {
     return compilarDadosRelatorioOS(os, cliente, usina, fotosUrls, {
       clientePossuiContratoOMAtivo: temContratoOMAtivo,
+      contratoOM: contratoOMCliente,
     })
-  }, [os, cliente, usina, fotosUrls, temContratoOMAtivo])
+  }, [os, cliente, usina, fotosUrls, temContratoOMAtivo, contratoOMCliente])
 
   const handleCopiarLink = () => {
     try {
@@ -312,6 +340,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       const html = gerarHTMLRelatorioOS({
         os,
         cliente,
+        contratoOM: contratoOMCliente,
         sistema: usina,
         fotosDataUrls: fotosUrls,
       })
@@ -397,6 +426,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       const { base64, fileName } = await gerarRelatorioOSPdfBlobBase64({
         os,
         cliente,
+        contratoOM: contratoOMCliente,
         sistema: usina,
         fotosDataUrls: fotosUrls,
         rodapeComercial: rodapeCfg,
@@ -987,8 +1017,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           )}
           <div className="mt-3.5 text-sm font-semibold text-[#0E2A47]">
             📅 Próxima manutenção prevista:{' '}
-            <strong className="font-bold">{relatorio.proximaManutencao}</strong> (semestral,
-            conforme plano de manutenção).
+            <strong className="font-bold">{relatorio.proximaManutencao}</strong>{' '}
+            {relatorio.proximaManutencaoPeriodicidade}
           </div>
         </section>
 

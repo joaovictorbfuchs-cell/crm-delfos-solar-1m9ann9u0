@@ -17,6 +17,7 @@ export interface RelatorioOSRodapeComercial {
 export interface RelatorioOSDadosInput {
   os: OrdemServico
   cliente?: Cliente
+  contratoOM?: any
   sistema?: Sistema | null
   fotosDataUrls?: string[] // Data URLs ou URLs diretas otimizadas
   inversoresInfo?: string
@@ -179,11 +180,15 @@ import { compilarDadosRelatorioOS } from './relatorioOSCanonical'
 export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   const os = dados?.os || ({} as any)
   const cliente = dados?.cliente || os.expand?.cliente_id || null
+  const contratoOM = dados?.contratoOM || (dados as any)?.contrato || null
   const sistema = dados?.sistema || null
   const rawFotos = Array.isArray(dados?.fotosDataUrls) ? dados.fotosDataUrls : []
   const fotosDataUrls: string[] = rawFotos.filter((f) => f && typeof f === 'string' && f.trim())
 
-  const rel = compilarDadosRelatorioOS(os, cliente, sistema, fotosDataUrls)
+  const rel = compilarDadosRelatorioOS(os, cliente, sistema, fotosDataUrls, {
+    contratoOM,
+    clientePossuiContratoOMAtivo: Boolean(contratoOM),
+  })
 
   const servicosRowsHtml = rel.servicosExecutados
     .map((s) => {
@@ -554,7 +559,7 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
       </div>`
       }
       <div style="margin-top: 10px; font-size: 0.88rem; font-weight: 600; color: var(--navy-dark);">
-        📅 Próxima manutenção prevista: <strong>${rel.proximaManutencao}</strong> (semestral, conforme plano de manutenção).
+        📅 Próxima manutenção prevista: <strong>${rel.proximaManutencao}</strong> ${rel.proximaManutencaoPeriodicidade}
       </div>
     </section>
 

@@ -26,6 +26,7 @@ const MARGIN_PAGE = 36
 export interface RelatorioOSPDFDados {
   os: OrdemServico
   cliente?: Cliente | null
+  contratoOM?: any
   sistema?: Sistema | null
   fotosDataUrls?: string[]
   inversoresInfo?: string
@@ -624,7 +625,9 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
   const os = dados.os || ({} as any)
   const cliente = dados.cliente || os.expand?.cliente_id || null
   const sistema = dados.sistema || null
-  const clientePossuiContratoOMAtivo = (dados as any)?.clientePossuiContratoOMAtivo ?? false
+  const contratoOM = dados.contratoOM || (dados as any)?.contrato || null
+  const clientePossuiContratoOMAtivo =
+    (dados as any)?.clientePossuiContratoOMAtivo ?? Boolean(contratoOM)
   const fotosDataUrls = Array.isArray(dados.fotosDataUrls) ? dados.fotosDataUrls : []
 
   const relatorio: RelatorioOSCanonicalData = compilarDadosRelatorioOS(
@@ -632,7 +635,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
     cliente,
     sistema,
     fotosDataUrls,
-    { clientePossuiContratoOMAtivo },
+    { clientePossuiContratoOMAtivo, contratoOM },
   )
 
   return (
@@ -995,8 +998,8 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             </View>
           )}
           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#0E2A47' }}>
-            📅 Próxima manutenção prevista: {relatorio.proximaManutencao} (semestral, conforme plano
-            de manutenção).
+            📅 Próxima manutenção prevista: {relatorio.proximaManutencao}{' '}
+            {relatorio.proximaManutencaoPeriodicidade}
           </Text>
         </View>
 

@@ -76,7 +76,8 @@ export interface RelatorioOSCanonicalData {
 
   // Pendências e recomendações
   conformidadeTecnica: string
-  proximaManutencao: string // DD/MM/AAAA (semestral +6 meses)
+  proximaManutencao: string // DD/MM/AAAA (data real da próxima manutenção ou fallback)
+  proximaManutencaoPeriodicidade: string // periodicidade conforme plano (anual, semestral ou conforme plano)
   pendenciasRecomendacoes?: string
 
   // Conclusão técnica
@@ -109,6 +110,12 @@ export interface RelatorioOSCanonicalData {
  */
 export interface CompilarDadosRelatorioOSOptions {
   clientePossuiContratoOMAtivo?: boolean
+  contratoOM?: any
+  contrato?: any
+  proximaAtividadeData?: string
+  proximaManutencaoData?: string
+  atividadesCliente?: any[]
+  atividades?: any[]
 }
 
 function safeStr(val: any): string {
@@ -1031,14 +1038,142 @@ export function compilarDadosRelatorioOS(
     (g) => g.fotos.length > 0,
   )
 
-  // Cálculo da próxima manutenção prevista (+6 meses)
-  let proximaManutencao = '15/04/2027'
-  try {
-    const dManut = new Date(dataAgendadaRaw || Date.now())
-    dManut.setMonth(dManut.getMonth() + 6)
-    proximaManutencao = dManut.toLocaleDateString('pt-BR')
-  } catch {
-    /* ignore */
+  // Formatação segura de datas para pt-BR sem distorção de fuso horário
+  const formatarDataBrManut = (val: any): string | null => {
+    if (!val) return null
+    if (val instanceof Date) {
+      if (isNaN(val.getTime())) return null
+      return val.toLocaleDateString('pt-BR')
+    }
+    const s = String(val).trim()
+    if (!s) return null
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s
+    const matchIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (matchIso) {
+      return `${matchIso[3]}/${matchIso[2]}/${matchIso[1]}`
+    }
+    try {
+      const d = new Date(s)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('pt-BR')
+      }
+    } catch {
+      /* ignore */
+    }
+    return null
+  }
+
+  // Identificação do contrato O&M do cliente
+  const contratoOM =
+    opcoes?.contratoOM ||
+    opcoes?.contrato ||
+    cliente?.contrato_om ||
+    cliente?.expand?.contratos_om ||
+    cliente?.expand?.contrato_om ||
+    os?.contrato_om ||
+    os?.expand?.contrato_om ||
+    null
+
+  // Resolução da próxima manutenção prevista:
+  // (a) campo proxima_atividade_data do contrato O&M do cliente
+  // (b) se não houver, a data da próxima atividade agendada de manutenção do cliente (mais futura com status agendada)
+  // (c) se nada existir, cair no fallback (visita + 6 meses)
+  let dataRealManutencao: string | null = null
+  let origemDataManutencao: 'contrato' | 'atividade_agendada' | 'fallback' = 'fallback'
+
+  // (a) Contrato O&M do cliente
+  const dataContratoRaw =
+    contratoOM?.proxima_atividade_data ||
+    opcoes?.proximaManutencaoData ||
+    cliente?.proxima_atividade_data ||
+    os?.expand?.cliente_id?.proxima_atividade_data
+
+  if (dataContratoRaw) {
+    const formatted = formatarDataBrManut(dataContratoRaw)
+    if (formatted) {
+      dataRealManutencao = formatted
+      origemDataManutencao = 'contrato'
+    }
+  }
+
+  // (b) Próxima atividade agendada de manutenção do cliente (mais futura com status agendada)
+  if (!dataRealManutencao) {
+    const dataAtivDirect =
+      opcoes?.proximaAtividadeData ||
+      cliente?.data_proxima_atividade ||
+      os?.expand?.cliente_id?.data_proxima_atividade
+
+    if (dataAtivDirect) {
+      const formatted = formatarDataBrManut(dataAtivDirect)
+      if (formatted) {
+        dataRealManutencao = formatted
+        origemDataManutencao = 'atividade_agendada'
+      }
+    }
+  }
+
+  if (!dataRealManutencao) {
+    const listaAtivs = opcoes?.atividadesCliente || opcoes?.atividades || cliente?.atividades
+    if (Array.isArray(listaAtivs) && listaAtivs.length > 0) {
+      const ativsAgendadasManut = listaAtivs.filter((a: any) => {
+        const st = String(a?.status || '').toLowerCase()
+        if (st !== 'agendada') return false
+        const t = String(a?.tipo || a?.tipo_custom_id || '').toLowerCase()
+        const c = String(a?.categoria || '').toLowerCase()
+        return c === 'manutencao' || t.includes('limpeza') || t.includes('manutencao')
+      })
+
+      if (ativsAgendadasManut.length > 0) {
+        ativsAgendadasManut.sort((a: any, b: any) => {
+          const da = new Date(a.data_prevista || a.data_agendada || 0).getTime()
+          const db = new Date(b.data_prevista || b.data_agendada || 0).getTime()
+          return db - da
+        })
+        const maisFutura = ativsAgendadasManut[0]
+        const rawDate = maisFutura?.data_prevista || maisFutura?.data_agendada
+        const formatted = formatarDataBrManut(rawDate)
+        if (formatted) {
+          dataRealManutencao = formatted
+          origemDataManutencao = 'atividade_agendada'
+        }
+      }
+    }
+  }
+
+  // (c) Fallback: data da visita + 6 meses
+  let proximaManutencao = dataRealManutencao || ''
+  if (!proximaManutencao) {
+    origemDataManutencao = 'fallback'
+    try {
+      const dManut = new Date(dataAgendadaRaw || Date.now())
+      if (!isNaN(dManut.getTime())) {
+        dManut.setMonth(dManut.getMonth() + 6)
+        proximaManutencao = dManut.toLocaleDateString('pt-BR')
+      } else {
+        proximaManutencao = '15/04/2027'
+      }
+    } catch {
+      proximaManutencao = '15/04/2027'
+    }
+  }
+
+  // Periodicidade exibida baseada no plano de manutenção do contrato
+  // Inspeção e Manutenção Preventiva = anual; Plano Completo = semestral; Sem plano / fallback = neutro
+  const planoRaw = String(
+    contratoOM?.plano || contratoOM?.nome_plano || cliente?.plano_om || '',
+  ).toLowerCase()
+
+  let proximaManutencaoPeriodicidade = '(conforme plano de manutenção).'
+  if (planoRaw.includes('insp') || planoRaw.includes('prev')) {
+    proximaManutencaoPeriodicidade = '(anual, conforme plano de manutenção).'
+  } else if (planoRaw.includes('completo')) {
+    proximaManutencaoPeriodicidade = '(semestral, conforme plano de manutenção).'
+  } else if (
+    origemDataManutencao === 'fallback' &&
+    !contratoOM &&
+    !opcoes?.clientePossuiContratoOMAtivo
+  ) {
+    proximaManutencaoPeriodicidade = '(conforme plano de manutenção).'
   }
 
   const conformidadeTecnica =
@@ -1107,6 +1242,7 @@ export function compilarDadosRelatorioOS(
     fotosGeraisSemEtapa,
     conformidadeTecnica,
     proximaManutencao,
+    proximaManutencaoPeriodicidade,
     pendenciasRecomendacoes,
     conclusaoNarrativa,
     conclusaoSituacao: 'Concluído',
