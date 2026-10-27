@@ -25,5 +25,38 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  const status = (error as { status?: number })?.status
+  if (status === 401 || status === 403) return true
+  const msg = String((error as { message?: string })?.message || '').toLowerCase()
+  return (
+    msg.includes('token') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden') ||
+    msg.includes('auth')
+  )
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.isAbort === true
+  }
+  const isAbort = (error as { isAbort?: boolean })?.isAbort
+  if (isAbort === true) return true
+  const name = (error as { name?: string })?.name
+  return name === 'AbortError'
+}
+
+export function formatPbError(error: unknown, fallbackMessage = 'Erro na operação'): string {
+  if (!error) return fallbackMessage
+  const msg = getErrorMessage(error)
+  return msg || fallbackMessage
 }
