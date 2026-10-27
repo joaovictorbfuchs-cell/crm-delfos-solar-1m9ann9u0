@@ -1195,345 +1195,379 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
   // Disparo individual em massa sequencial via Z-API
   const handleConfirmarEnvio = async () => {
-    if (selectedIds.length === 0) {
-      toast.error('Selecione ao menos um cliente para enviar.')
-      return
-    }
+    try {
+      if (selectedIds.length === 0) {
+        toast.error('Selecione ao menos um cliente para enviar.')
+        return
+      }
 
-    const selecionados = itensProcessados.filter((c) => selectedIds.includes(c.cliente.id))
-    const semWhatsApp = selecionados.filter((c) => !c.temWhatsAppValido)
+      const selecionados = itensProcessados.filter(
+        (c) => c && c.cliente && selectedIds.includes(c.cliente.id),
+      )
+      const semWhatsApp = selecionados.filter((c) => !c.temWhatsAppValido)
 
-    if (semWhatsApp.length > 0 && semWhatsApp.length === selecionados.length) {
-      toast.error('Nenhum cliente selecionado possui número de destino válido.', {
-        description:
-          'Cadastre WhatsApp, contato adicional ou telefone dos clientes antes de enviar.',
-      })
-      return
-    }
-
-    // Se for agendamento, valida a data/hora
-    let dataAgendamentoUtcIso: string | null = null
-    let dataAgendamentoBaseMs = Date.now()
-
-    if (tipoEnvio === 'agendar') {
-      if (!dataHoraAgendada) {
-        toast.error('Informe a data e horário para agendamento.', {
-          description: 'Selecione a data/hora desejada para o envio.',
+      if (semWhatsApp.length > 0 && semWhatsApp.length === selecionados.length) {
+        toast.error('Nenhum cliente selecionado possui número de destino válido.', {
+          description:
+            'Cadastre WhatsApp, contato adicional ou telefone dos clientes antes de enviar.',
         })
         return
       }
 
-      dataAgendamentoUtcIso = parseSaoPauloToUtcIso(dataHoraAgendada)
-      if (!dataAgendamentoUtcIso) {
-        toast.error('Data e hora inválidas', {
-          description: 'Verifique a data/hora selecionada para o agendamento.',
-        })
-        return
+      // Se for agendamento, valida a data/hora
+      let dataAgendamentoUtcIso: string | null = null
+      let dataAgendamentoBaseMs = Date.now()
+
+      if (tipoEnvio === 'agendar') {
+        if (!dataHoraAgendada) {
+          toast.error('Informe a data e horário para agendamento.', {
+            description: 'Selecione a data/hora desejada para o envio.',
+          })
+          return
+        }
+
+        dataAgendamentoUtcIso = parseSaoPauloToUtcIso(dataHoraAgendada)
+        if (!dataAgendamentoUtcIso) {
+          toast.error('Data e hora inválidas', {
+            description: 'Verifique a data/hora selecionada para o agendamento.',
+          })
+          return
+        }
+
+        dataAgendamentoBaseMs = new Date(dataAgendamentoUtcIso).getTime()
+        if (dataAgendamentoBaseMs < Date.now() - 60 * 1000) {
+          toast.error('A data/hora de agendamento deve ser futura.', {
+            description: 'Escolha um horário à frente do horário atual de Brasília.',
+          })
+          return
+        }
       }
 
-      dataAgendamentoBaseMs = new Date(dataAgendamentoUtcIso).getTime()
-      if (dataAgendamentoBaseMs < Date.now() - 60 * 1000) {
-        toast.error('A data/hora de agendamento deve ser futura.', {
-          description: 'Escolha um horário à frente do horário atual de Brasília.',
-        })
-        return
+      setIsEnviando(true)
+      let totalPuladosSemNumero = 0
+      const intervalMs = Math.max(intervaloSegundos || 60, 5) * 1000
+      const isAgendamento = tipoEnvio === 'agendar'
+
+      // Estrutura para registrar o lote em disparos_massa
+      const destinatariosLote: DestinatarioLoteMassa[] = []
+
+      const estadoEnvio = {
+        total: selecionados.length,
+        atual: 0,
+        sucessos: [] as string[],
+        erros: [] as Array<{ clienteNome: string; erro: string }>,
+        avisosDemo: [] as string[],
+        puladosSemNumero: 0,
+        isAgendamento,
       }
-    }
-
-    setIsEnviando(true)
-    let totalPuladosSemNumero = 0
-    const intervalMs = Math.max(intervaloSegundos || 60, 5) * 1000
-    const isAgendamento = tipoEnvio === 'agendar'
-
-    // Estrutura para registrar o lote em disparos_massa
-    const destinatariosLote: DestinatarioLoteMassa[] = []
-
-    const estadoEnvio = {
-      total: selecionados.length,
-      atual: 0,
-      sucessos: [] as string[],
-      erros: [] as Array<{ clienteNome: string; erro: string }>,
-      avisosDemo: [] as string[],
-      puladosSemNumero: 0,
-      isAgendamento,
-    }
-    setProgressoEnvio({ ...estadoEnvio })
-
-    // Contador de mensagens válidas agendadas para calcular o escalonamento do agendado_para
-    let mensagensAgendadasCount = 0
-
-    for (let i = 0; i < selecionados.length; i++) {
-      const item = selecionados[i]
-      estadoEnvio.atual = i + 1
       setProgressoEnvio({ ...estadoEnvio })
 
-      // REGRA: Exemplos fictícios de demonstração NUNCA disparam para cliente real
-      if (item.isExemploDemo || item.cliente.id.startsWith('demo_')) {
-        estadoEnvio.avisosDemo.push(item.cliente.nome)
-        // Simula o delay visual da demonstração sem efetuar chamada externa
-        await new Promise((resolve) => setTimeout(resolve, 300))
-        estadoEnvio.sucessos.push(`${item.cliente.nome} (Demonstração)`)
-        setProgressoEnvio({ ...estadoEnvio })
-        continue
-      }
+      // Contador de mensagens válidas agendadas para calcular o escalonamento do agendado_para
+      let mensagensAgendadasCount = 0
 
-      // Clientes sem nenhum número cadastrado são pulados
-      if (!item.temWhatsAppValido || !item.numeroLimpo) {
-        totalPuladosSemNumero++
-        estadoEnvio.puladosSemNumero = totalPuladosSemNumero
-        estadoEnvio.erros.push({
-          clienteNome: item.cliente.nome,
-          erro: isAgendamento
-            ? 'Agendamento não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.'
-            : 'Envio não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.',
-        })
-        setProgressoEnvio({ ...estadoEnvio })
-        continue
-      }
-
-      const mensagemBase = resolverPlaceholdersMensagemMassa({
-        template: templateTexto,
-        cliente: item.cliente,
-        usina: item.usina,
-        valor: item.valorItem,
-        cidadeManual: item.cidade,
-        contatoNome: item.contatoAdicionalNome,
-      })
-      const mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
-
-      try {
-        if (isAgendamento) {
-          // Calcula data/hora específica para cada mensagem com base no intervalo configurado
-          const agendadoParaClienteMs = dataAgendamentoBaseMs + mensagensAgendadasCount * intervalMs
-          const agendadoParaClienteIso = new Date(agendadoParaClienteMs).toISOString()
-          mensagensAgendadasCount++
-
-          // Grava a mensagem na coleção 'whatsapp_mensagens' com status "agendada"
-          // O whatsapp_worker do PocketBase cron processará automaticamente no horário
-          const sendRes = await sendWhatsAppMessage({
-            cliente_id: item.cliente.id,
-            telefone_destino: item.numeroLimpo,
-            conteudo_final: mensagemFinal,
-            tipo_disparo: 'massa',
-            agendado_para: agendadoParaClienteIso,
-          })
-
-          if (sendRes && sendRes.ok === false) {
-            throw new Error(sendRes.message || 'Falha ao agendar mensagem de WhatsApp')
-          }
-
-          // Registra atividade na timeline do cliente
-          const agora = new Date().toISOString()
-          try {
-            await addAtividade({
-              cliente_id: item.cliente.id,
-              tipo: 'mensagem_enviada',
-              titulo: 'WhatsApp Agendado (Disparo em Massa)',
-              descricao: `Mensagem em massa agendada para envio em ${new Date(agendadoParaClienteMs).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (intervalo: ${intervaloSegundos}s):\n\n"${mensagemFinal}"`,
-              data: agora,
-              status: 'pendente',
-              autor: 'CRM Delfos Solar',
-            })
-          } catch (errAtv) {
-            console.warn('Erro ao registrar atividade de agendamento no CRM:', errAtv)
-          }
-        } else {
-          // Disparo Imediato via gateway Z-API
-          const sendRes = await sendWhatsAppMessage({
-            cliente_id: item.cliente.id,
-            telefone_destino: item.numeroLimpo,
-            conteudo_final: mensagemFinal,
-            tipo_disparo: 'massa',
-          })
-
-          if (sendRes && sendRes.ok === false) {
-            throw new Error(sendRes.message || 'Falha no gateway ao enviar WhatsApp')
-          }
-
-          // Registra atividade autoritativa do tipo 'mensagem_enviada' no CRM
-          const agora = new Date().toISOString()
-          try {
-            await addAtividade({
-              cliente_id: item.cliente.id,
-              tipo: 'mensagem_enviada',
-              titulo: 'Mensagem via WhatsApp (Disparo em Massa)',
-              descricao: `Mensagem enviada via WhatsApp para ${item.cliente.nome}:\n\n"${mensagemFinal}"`,
-              data: agora,
-              status: 'concluida',
-              autor: 'CRM Delfos Solar',
-            })
-          } catch (errAtv) {
-            console.warn('Erro ao registrar atividade no CRM:', errAtv)
-          }
+      for (let i = 0; i < selecionados.length; i++) {
+        const item = selecionados[i]
+        if (!item || !item.cliente) {
+          continue
         }
 
-        estadoEnvio.sucessos.push(item.cliente.nome)
-        const agoraEnvioIso = new Date().toISOString()
-        // Fase 3: Detecção de regra de entrada ativa por estágio do negócio/cliente
-        let fluxoAplicadoId = reenvioAtivo ? fluxoSelecionadoId || undefined : undefined
-        let origemAplicada: 'por_disparo' | 'automatica_por_estagio' = 'por_disparo'
-        let estagioGatilhoAplicado: string | undefined = undefined
+        const nomeCliente = item.cliente.nome || 'Cliente sem nome'
+        const idCliente = item.cliente.id || ''
 
-        const estagioCliente = (item.cliente.status || '').trim().toLowerCase()
-        if (estagioCliente && fluxosDisponiveis && fluxosDisponiveis.length > 0) {
-          for (const fl of fluxosDisponiveis) {
-            if (!fl.ativo || !fl.regras_entrada || fl.regras_entrada.length === 0) continue
-            const regraCasou = fl.regras_entrada.some((r) => {
-              if (!r.ativo) return false
-              const rEst = r.estagio_funil.trim().toLowerCase()
-              return rEst === estagioCliente
-            })
-            if (regraCasou) {
-              fluxoAplicadoId = fl.id
-              origemAplicada = 'automatica_por_estagio'
-              estagioGatilhoAplicado = item.cliente.status
-              break
-            }
-          }
+        estadoEnvio.atual = i + 1
+        setProgressoEnvio({ ...estadoEnvio })
+
+        // REGRA: Exemplos fictícios de demonstração NUNCA disparam para cliente real
+        if (item.isExemploDemo || idCliente.startsWith('demo_')) {
+          estadoEnvio.avisosDemo.push(nomeCliente)
+          // Simula o delay visual da demonstração sem efetuar chamada externa
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          estadoEnvio.sucessos.push(`${nomeCliente} (Demonstração)`)
+          setProgressoEnvio({ ...estadoEnvio })
+          continue
         }
 
-        const nomeFluxoAplicado = fluxoAplicadoId
-          ? fluxosDisponiveis.find((f) => f.id === fluxoAplicadoId)?.nome || 'Fluxo Follow-up'
-          : undefined
-
-        destinatariosLote.push({
-          cliente_id: item.cliente.id,
-          nome: item.cliente.nome,
-          telefone: item.numeroLimpo,
-          status: 'pendente',
-          data_envio_inicial: agoraEnvioIso,
-          fluxo_atual_id: fluxoAplicadoId,
-          origem_entrada: origemAplicada,
-          estagio_origem: estagioGatilhoAplicado,
-          trilha: fluxoAplicadoId
-            ? [
-                {
-                  fluxo_id: fluxoAplicadoId,
-                  fluxo_nome: nomeFluxoAplicado,
-                  origem_entrada: origemAplicada,
-                  estagio_gatilho: estagioGatilhoAplicado,
-                  motivo:
-                    origemAplicada === 'automatica_por_estagio'
-                      ? `Entrou automaticamente — estágio "${estagioGatilhoAplicado}" → Fluxo "${nomeFluxoAplicado}"`
-                      : `Incluído no disparo em lote → Fluxo "${nomeFluxoAplicado}"`,
-                  data: agoraEnvioIso,
-                },
-              ]
-            : undefined,
-        })
-        setProgressoEnvio({ ...estadoEnvio })
-      } catch (err: unknown) {
-        console.error(`Erro ao processar mensagem para ${item.cliente.nome}:`, err)
-        if (isAuthSessionError(err)) {
-          setAuthErrorCapturado(true)
+        // Clientes sem nenhum número cadastrado são pulados
+        if (!item.temWhatsAppValido || !item.numeroLimpo) {
+          totalPuladosSemNumero++
+          estadoEnvio.puladosSemNumero = totalPuladosSemNumero
           estadoEnvio.erros.push({
-            clienteNome: item.cliente.nome,
-            erro: 'Sessão expirada. Faça login novamente.',
+            clienteNome: nomeCliente,
+            erro: isAgendamento
+              ? 'Agendamento não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.'
+              : 'Envio não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.',
           })
           setProgressoEnvio({ ...estadoEnvio })
-          break
+          continue
         }
 
-        const msgErro =
-          err instanceof Error
-            ? err.message
-            : isAgendamento
-              ? 'Falha ao agendar mensagem no banco de dados.'
-              : 'Falha na comunicação com o gateway de WhatsApp (Z-API).'
-        estadoEnvio.erros.push({
-          clienteNome: item.cliente.nome,
-          erro: msgErro,
-        })
-        destinatariosLote.push({
-          cliente_id: item.cliente.id,
-          nome: item.cliente.nome,
-          telefone: item.numeroLimpo,
-          status: 'finalizado',
-          motivo_saida: msgErro,
-        })
-        setProgressoEnvio({ ...estadoEnvio })
-      }
-    }
+        let mensagemFinal = ''
+        try {
+          const mensagemBase = resolverPlaceholdersMensagemMassa({
+            template: templateTexto,
+            cliente: item.cliente,
+            usina: item.usina,
+            valor: item.valorItem,
+            cidadeManual: item.cidade,
+            contatoNome: item.contatoAdicionalNome,
+          })
+          mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
+        } catch (errPlaceholder) {
+          console.warn('Erro ao resolver placeholders de mensagem:', errPlaceholder)
+          mensagemFinal = aplicarPrefixoMensagemManual(templateTexto)
+        }
 
-    // Criação do registro de lote na coleção disparos_massa
-    try {
-      const loteTitulo = `Lote WhatsApp ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-      const agoraIso = new Date().toISOString()
-      await createDisparoMassa({
-        titulo: loteTitulo,
-        segmento: segmentoAtivo,
-        filtros: {
+        try {
+          if (isAgendamento) {
+            // Calcula data/hora específica para cada mensagem com base no intervalo configurado
+            const agendadoParaClienteMs =
+              dataAgendamentoBaseMs + mensagensAgendadasCount * intervalMs
+            const agendadoParaClienteIso = new Date(agendadoParaClienteMs).toISOString()
+            mensagensAgendadasCount++
+
+            // Grava a mensagem na coleção 'whatsapp_mensagens' com status "agendada"
+            // O whatsapp_worker do PocketBase cron processará automaticamente no horário
+            const sendRes = await sendWhatsAppMessage({
+              cliente_id: idCliente,
+              telefone_destino: item.numeroLimpo,
+              conteudo_final: mensagemFinal,
+              tipo_disparo: 'massa',
+              agendado_para: agendadoParaClienteIso,
+            })
+
+            if (sendRes && sendRes.ok === false) {
+              throw new Error(sendRes.message || 'Falha ao agendar mensagem de WhatsApp')
+            }
+
+            // Registra atividade na timeline do cliente
+            const agora = new Date().toISOString()
+            try {
+              await addAtividade({
+                cliente_id: idCliente,
+                tipo: 'mensagem_enviada',
+                titulo: 'WhatsApp Agendado (Disparo em Massa)',
+                descricao: `Mensagem em massa agendada para envio em ${new Date(agendadoParaClienteMs).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (intervalo: ${intervaloSegundos}s):\n\n"${mensagemFinal}"`,
+                data: agora,
+                status: 'pendente',
+                autor: 'CRM Delfos Solar',
+              })
+            } catch (errAtv) {
+              console.warn('Erro ao registrar atividade de agendamento no CRM:', errAtv)
+            }
+          } else {
+            // Disparo Imediato via gateway Z-API
+            const sendRes = await sendWhatsAppMessage({
+              cliente_id: idCliente,
+              telefone_destino: item.numeroLimpo,
+              conteudo_final: mensagemFinal,
+              tipo_disparo: 'massa',
+            })
+
+            if (sendRes && sendRes.ok === false) {
+              throw new Error(sendRes.message || 'Falha no gateway ao enviar WhatsApp')
+            }
+
+            // Registra atividade autoritativa do tipo 'mensagem_enviada' no CRM
+            const agora = new Date().toISOString()
+            try {
+              await addAtividade({
+                cliente_id: idCliente,
+                tipo: 'mensagem_enviada',
+                titulo: 'Mensagem via WhatsApp (Disparo em Massa)',
+                descricao: `Mensagem enviada via WhatsApp para ${nomeCliente}:\n\n"${mensagemFinal}"`,
+                data: agora,
+                status: 'concluida',
+                autor: 'CRM Delfos Solar',
+              })
+            } catch (errAtv) {
+              console.warn('Erro ao registrar atividade no CRM:', errAtv)
+            }
+          }
+
+          estadoEnvio.sucessos.push(nomeCliente)
+          const agoraEnvioIso = new Date().toISOString()
+          // Fase 3: Detecção de regra de entrada ativa por estágio do negócio/cliente
+          let fluxoAplicadoId = reenvioAtivo ? fluxoSelecionadoId || undefined : undefined
+          let origemAplicada: 'por_disparo' | 'automatica_por_estagio' = 'por_disparo'
+          let estagioGatilhoAplicado: string | undefined = undefined
+
+          const estagioCliente = (item.cliente.status || '').trim().toLowerCase()
+          if (estagioCliente && fluxosDisponiveis && fluxosDisponiveis.length > 0) {
+            for (const fl of fluxosDisponiveis) {
+              if (!fl.ativo || !fl.regras_entrada || fl.regras_entrada.length === 0) continue
+              const regraCasou = fl.regras_entrada.some((r) => {
+                if (!r.ativo) return false
+                const rEst = r.estagio_funil.trim().toLowerCase()
+                return rEst === estagioCliente
+              })
+              if (regraCasou) {
+                fluxoAplicadoId = fl.id
+                origemAplicada = 'automatica_por_estagio'
+                estagioGatilhoAplicado = item.cliente.status
+                break
+              }
+            }
+          }
+
+          const nomeFluxoAplicado = fluxoAplicadoId
+            ? fluxosDisponiveis.find((f) => f.id === fluxoAplicadoId)?.nome || 'Fluxo Follow-up'
+            : undefined
+
+          destinatariosLote.push({
+            cliente_id: idCliente,
+            nome: nomeCliente,
+            telefone: item.numeroLimpo,
+            status: 'pendente',
+            data_envio_inicial: agoraEnvioIso,
+            fluxo_atual_id: fluxoAplicadoId,
+            origem_entrada: origemAplicada,
+            estagio_origem: estagioGatilhoAplicado,
+            trilha: fluxoAplicadoId
+              ? [
+                  {
+                    fluxo_id: fluxoAplicadoId,
+                    fluxo_nome: nomeFluxoAplicado,
+                    origem_entrada: origemAplicada,
+                    estagio_gatilho: estagioGatilhoAplicado,
+                    motivo:
+                      origemAplicada === 'automatica_por_estagio'
+                        ? `Entrou automaticamente — estágio "${estagioGatilhoAplicado}" → Fluxo "${nomeFluxoAplicado}"`
+                        : `Incluído no disparo em lote → Fluxo "${nomeFluxoAplicado}"`,
+                    data: agoraEnvioIso,
+                  },
+                ]
+              : undefined,
+          })
+          setProgressoEnvio({ ...estadoEnvio })
+        } catch (err: unknown) {
+          console.error(`Erro ao processar mensagem para ${nomeCliente}:`, err)
+          if (isAuthSessionError(err)) {
+            setAuthErrorCapturado(true)
+            estadoEnvio.erros.push({
+              clienteNome: nomeCliente,
+              erro: 'Sessão expirada. Faça login novamente.',
+            })
+            setProgressoEnvio({ ...estadoEnvio })
+            break
+          }
+
+          const msgErro =
+            err instanceof Error
+              ? err.message
+              : isAgendamento
+                ? 'Falha ao agendar mensagem no banco de dados.'
+                : 'Falha na comunicação com o gateway de WhatsApp (Z-API).'
+          estadoEnvio.erros.push({
+            clienteNome: nomeCliente,
+            erro: msgErro,
+          })
+          destinatariosLote.push({
+            cliente_id: idCliente,
+            nome: nomeCliente,
+            telefone: item.numeroLimpo,
+            status: 'finalizado',
+            motivo_saida: msgErro,
+          })
+          setProgressoEnvio({ ...estadoEnvio })
+        }
+      }
+
+      // Criação do registro de lote na coleção disparos_massa
+      try {
+        const loteTitulo = `Lote WhatsApp ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+        const agoraIso = new Date().toISOString()
+        await createDisparoMassa({
+          titulo: loteTitulo,
           segmento: segmentoAtivo,
-          filtroWhatsApp,
-          filtroCidade,
-          filtroConcessionaria,
-          filtroTipoCliente,
-          filtroStatus,
-          busca,
-          listaSalvaId: listaSelecionadaId || undefined,
-        },
-        total_destinatarios: selecionados.length,
-        intervalo_segundos: intervaloSegundos,
-        data_disparo: isAgendamento && dataAgendamentoUtcIso ? dataAgendamentoUtcIso : agoraIso,
-        mensagem_original: templateTexto,
-        reenvio_ativo: Boolean(reenvioAtivo),
-        texto_reenvio_1: reenvioAtivo ? textoReenvio1 : '',
-        texto_reenvio_2: reenvioAtivo ? textoReenvio2 : '',
-        fluxo_id: reenvioAtivo ? fluxoSelecionadoId || undefined : undefined,
-        destinatarios: destinatariosLote,
-      })
-    } catch (errLote) {
-      console.warn('Erro ao salvar registro do lote de disparos_massa:', errLote)
-    }
-
-    setIsEnviando(false)
-
-    if (estadoEnvio.sucessos.length > 0) {
-      const avisoPulados =
-        totalPuladosSemNumero > 0
-          ? ` (${totalPuladosSemNumero} ${
-              totalPuladosSemNumero === 1
-                ? 'cliente sem número cadastrado não foi incluído'
-                : 'clientes sem número cadastrado não foram incluídos'
-            })`
-          : ''
-
-      if (isAgendamento) {
-        toast.success(
-          `${estadoEnvio.sucessos.length} mensagem(ns) agendada(s) com sucesso!${avisoPulados}`,
-          {
-            description: `Mensagens salvas como "agendada" com agendado_para escalonado a cada ${intervaloSegundos}s para processamento automático pelo worker.`,
+          filtros: {
+            segmento: segmentoAtivo,
+            filtroWhatsApp,
+            filtroCidade,
+            filtroConcessionaria,
+            filtroTipoCliente,
+            filtroStatus,
+            busca,
+            listaSalvaId: listaSelecionadaId || undefined,
           },
+          total_destinatarios: selecionados.length,
+          intervalo_segundos: intervaloSegundos,
+          data_disparo: isAgendamento && dataAgendamentoUtcIso ? dataAgendamentoUtcIso : agoraIso,
+          mensagem_original: templateTexto,
+          reenvio_ativo: Boolean(reenvioAtivo),
+          texto_reenvio_1: reenvioAtivo ? textoReenvio1 : '',
+          texto_reenvio_2: reenvioAtivo ? textoReenvio2 : '',
+          fluxo_id: reenvioAtivo ? fluxoSelecionadoId || undefined : undefined,
+          destinatarios: destinatariosLote,
+        })
+      } catch (errLote) {
+        console.warn('Erro ao salvar registro do lote de disparos_massa:', errLote)
+      }
+
+      setIsEnviando(false)
+
+      if (estadoEnvio.sucessos.length > 0) {
+        const avisoPulados =
+          totalPuladosSemNumero > 0
+            ? ` (${totalPuladosSemNumero} ${
+                totalPuladosSemNumero === 1
+                  ? 'cliente sem número cadastrado não foi incluído'
+                  : 'clientes sem número cadastrado não foram incluídos'
+              })`
+            : ''
+
+        if (isAgendamento) {
+          toast.success(
+            `${estadoEnvio.sucessos.length} mensagem(ns) agendada(s) com sucesso!${avisoPulados}`,
+            {
+              description: `Mensagens salvas como "agendada" com agendado_para escalonado a cada ${intervaloSegundos}s para processamento automático pelo worker.`,
+            },
+          )
+        } else {
+          toast.success(
+            `${estadoEnvio.sucessos.length} mensagem(ns) enviada(s) com sucesso!${avisoPulados}`,
+            {
+              description:
+                'Atividade "mensagem_enviada" registrada no histórico de cada cliente e vinculada à conversa.',
+            },
+          )
+        }
+        if (onSuccess) {
+          try {
+            onSuccess()
+          } catch (errCb) {
+            console.warn('Erro ao executar callback onSuccess:', errCb)
+          }
+        }
+      }
+
+      if (totalPuladosSemNumero > 0 && estadoEnvio.sucessos.length === 0) {
+        toast.warning(
+          `${totalPuladosSemNumero} ${
+            totalPuladosSemNumero === 1
+              ? 'cliente sem número cadastrado não recebeu o envio'
+              : 'clientes sem número cadastrado não receberam o envio'
+          }.`,
         )
-      } else {
-        toast.success(
-          `${estadoEnvio.sucessos.length} mensagem(ns) enviada(s) com sucesso!${avisoPulados}`,
+      }
+
+      if (estadoEnvio.erros.length > 0 && estadoEnvio.erros.length > totalPuladosSemNumero) {
+        toast.error(
+          `Falha no envio para ${estadoEnvio.erros.length - totalPuladosSemNumero} cliente(s)`,
           {
-            description:
-              'Atividade "mensagem_enviada" registrada no histórico de cada cliente e vinculada à conversa.',
+            description: 'Verifique as falhas parciais detalhadas na barra de envio.',
           },
         )
       }
-      if (onSuccess) onSuccess()
-    }
-
-    if (totalPuladosSemNumero > 0 && estadoEnvio.sucessos.length === 0) {
-      toast.warning(
-        `${totalPuladosSemNumero} ${
-          totalPuladosSemNumero === 1
-            ? 'cliente sem número cadastrado não recebeu o envio'
-            : 'clientes sem número cadastrado não receberam o envio'
-        }.`,
-      )
-    }
-
-    if (estadoEnvio.erros.length > 0 && estadoEnvio.erros.length > totalPuladosSemNumero) {
-      toast.error(
-        `Falha no envio para ${estadoEnvio.erros.length - totalPuladosSemNumero} cliente(s)`,
-        {
-          description: 'Verifique as falhas parciais detalhadas na barra de envio.',
-        },
-      )
+    } catch (erroGeral: unknown) {
+      console.error('Exceção capturada em handleConfirmarEnvio:', erroGeral)
+      setIsEnviando(false)
+      const msg =
+        erroGeral instanceof Error
+          ? erroGeral.message
+          : 'Ocorreu um erro inesperado ao processar o envio.'
+      toast.error('Erro no processamento do disparo', {
+        description: msg,
+      })
     }
   }
 
