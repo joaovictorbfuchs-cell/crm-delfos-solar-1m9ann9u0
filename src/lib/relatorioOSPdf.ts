@@ -1716,12 +1716,17 @@ export async function gerarPdfRelatorioOS(
   let equipamentosUsina = opcoes.equipamentosUsina
   let ativosUsina = opcoes.ativosUsina
   if (!equipamentosUsina || !ativosUsina) {
+    const osAny = os as any
     const usinaId =
       opcoes.sistema?.id ||
-      os.usina_id ||
-      os.sistema_id ||
-      (typeof os.expand?.usina_id === 'string' ? os.expand.usina_id : os.expand?.usina_id?.id) ||
-      (typeof os.expand?.sistema_id === 'string' ? os.expand.sistema_id : os.expand?.sistema_id?.id)
+      osAny.usina_id ||
+      osAny.sistema_id ||
+      (typeof osAny.expand?.usina_id === 'string'
+        ? osAny.expand.usina_id
+        : osAny.expand?.usina_id?.id) ||
+      (typeof osAny.expand?.sistema_id === 'string'
+        ? osAny.expand.sistema_id
+        : osAny.expand?.sistema_id?.id)
     if (usinaId) {
       try {
         const [eqs, atvs] = await Promise.all([
