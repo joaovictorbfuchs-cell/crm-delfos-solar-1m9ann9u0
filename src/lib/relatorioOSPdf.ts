@@ -1712,7 +1712,7 @@ export async function gerarPdfRelatorioOS(
   // 2. Otimização de fotos
   const fotosDataUrls = await prepararFotosRelatorio(os, opcoes.newPhotos)
 
-  // 2.1. Busca equipamentos da usina vinculada se não fornecidos
+  // 2.1. Busca equipamentos da usina vinculada se não fornecidos (versão relatório OS)
   let equipamentosUsina = opcoes.equipamentosUsina
   let ativosUsina = opcoes.ativosUsina
   if (!equipamentosUsina || !ativosUsina) {
