@@ -25,58 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    const status =
-      errObj.status ??
-      (errObj.response as Record<string, unknown> | undefined)?.status ??
-      errObj.statusCode
-    if (status === 401 || status === 403) return true
-    const msg = String(errObj.message || '')
-    if (
-      msg.includes('Token is expired') ||
-      msg.includes('Login expirou') ||
-      msg.includes('Sessão expirada') ||
-      msg.includes('Failed to authenticate')
-    ) {
-      return true
-    }
-  }
-  if (error instanceof Error) {
-    const msg = error.message
-    if (
-      msg.includes('Token is expired') ||
-      msg.includes('Login expirou') ||
-      msg.includes('Sessão expirada') ||
-      msg.includes('Failed to authenticate')
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.isAbort === true || errObj.name === 'AbortError') return true
-    if (String(errObj.message || '').includes('The request was aborted')) return true
-  }
-  if (
-    error instanceof Error &&
-    (error.name === 'AbortError' || error.message.includes('The request was aborted'))
-  ) {
-    return true
-  }
-  return false
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
