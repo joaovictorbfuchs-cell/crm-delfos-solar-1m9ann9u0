@@ -33,6 +33,7 @@ export async function fetchNegociosByClienteId(clienteId: string): Promise<Negoc
     const records = await pb.collection('negocios').getFullList<Negocio>({
       filter: `cliente_id = "${clienteId}"`,
       sort: '-created',
+      expand: 'cliente_id,consultor_responsavel',
       requestKey: null,
     })
     return records
@@ -51,7 +52,7 @@ export async function fetchAllNegocios(): Promise<Negocio[]> {
   try {
     const records = await pb.collection('negocios').getFullList<Negocio>({
       sort: '-created',
-      expand: 'cliente_id',
+      expand: 'cliente_id,consultor_responsavel',
       requestKey: null,
     })
     return records
@@ -66,7 +67,7 @@ export async function fetchAllNegocios(): Promise<Negocio[]> {
  */
 export async function getNegocioById(id: string): Promise<Negocio> {
   return await pb.collection('negocios').getOne<Negocio>(id, {
-    expand: 'cliente_id',
+    expand: 'cliente_id,consultor_responsavel',
     requestKey: null,
   })
 }

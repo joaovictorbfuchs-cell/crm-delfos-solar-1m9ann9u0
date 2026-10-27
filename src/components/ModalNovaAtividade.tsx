@@ -699,7 +699,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       }
 
       const selectedUser = usuarios.find((u) => u.id === responsavelId)
-      const responsavelNome = selectedUser?.name || user?.name || 'João Delfos'
+      const responsavelNome = selectedUser?.name || user?.name || 'João Victor Bagetti Fuchs'
 
       // Normalização de data para o padrão datetime do PocketBase com espaço (sem 'T' nem ms)
       const normalizarParaPocketBase = (isoOuData: string): string => {
@@ -835,7 +835,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         responsavel_nome: responsavelNome,
         status: isRegistroSemPrazo ? 'concluida' : 'pendente',
         ...(isRegistroSemPrazo ? { data_conclusao: dataFormatadaPocketBase || agoraIso } : {}),
-        autor: user?.name || 'João Delfos',
+        autor: user?.name || 'João Victor Bagetti Fuchs',
         usina_id: usinaIdLimpa,
         negocio_id: negocioIdLimpo,
         numero_uc: (numeroUcAutoLeitura && numeroUcAutoLeitura.trim()) || undefined,
@@ -863,7 +863,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           datasLeitura: datasLeituraAutoLeitura,
           responsavelId: responsavelIdLimpo,
           responsavelNome,
-          autor: user?.name || 'João Delfos',
+          autor: user?.name || 'João Victor Bagetti Fuchs',
           mensagemCliente: mensagemClienteAutoLeitura.trim() || undefined,
         })
       }

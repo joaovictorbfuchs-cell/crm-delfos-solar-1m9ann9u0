@@ -1,43 +1,5 @@
 import { ClientResponseError } from 'pocketbase'
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const errorObj = err as Record<string, any>
-    if (errorObj.status === 401 || errorObj.status === 403) return true
-    if (errorObj.response && (errorObj.response.status === 401 || errorObj.response.status === 403))
-      return true
-    if (typeof errorObj.message === 'string') {
-      const msg = errorObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('login expirou') ||
-        msg.includes('sessão expirada') ||
-        msg.includes('sessao expirada')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
-export function isAbortError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const e = err as Record<string, any>
-    if (e.isAbort) return true
-    if (e.name === 'AbortError') return true
-    if (typeof e.message === 'string' && e.message.toLowerCase().includes('aborted')) return true
-  }
-  return false
-}
-
-export function formatPbError(err: unknown): string {
-  return getErrorMessage(err)
-}
-
 export type FieldErrors = Record<string, string>
 
 export function extractFieldErrors(error: unknown): FieldErrors {

@@ -907,32 +907,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 text-xs">
-                          {/* Opções de mover para outras etapas diretamente pelo menu ⋮ */}
-                          {KANBAN_COLUMNS.filter((other) => other.id !== col.id).map((other) => (
-                            <DropdownMenuItem
-                              key={other.id}
-                              onClick={async () => {
-                                try {
-                                  await moverEtapaCard(card.id, other.id)
-                                  toast({
-                                    title: 'Etapa atualizada',
-                                    description: `"${card.titulo}" movido para ${other.title}.`,
-                                  })
-                                } catch (err) {
-                                  console.error('Erro ao mover lead:', err)
-                                }
-                              }}
-                              className="cursor-pointer gap-2 text-slate-700 text-xs"
-                            >
-                              <other.icon
-                                className={`w-3.5 h-3.5 ${other.iconColorClass} shrink-0`}
-                              />
-                              <span>Mover para {other.title}</span>
-                            </DropdownMenuItem>
-                          ))}
-
-                          <DropdownMenuSeparator />
-
                           {card.negocioId && (
                             <DropdownMenuItem
                               onClick={() => {
