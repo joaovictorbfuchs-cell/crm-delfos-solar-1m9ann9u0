@@ -27,6 +27,17 @@ import {
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { BlocoRetornosRGE } from '@/components/BlocoRetornosRGE'
 import { useClientes } from '@/contexts/ClientesContext'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useToast } from '@/hooks/use-toast'
 import { ModalEnviarLembreteAutoLeituraWhatsApp } from './ModalEnviarLembreteAutoLeituraWhatsApp'
 import { ModalRegistrarDadosLeitura } from './ModalRegistrarDadosLeitura'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -83,7 +94,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   onSuccess,
   onSaved,
 }) => {
-  const { clientes, usuarios, updateAtividade, openFichaCliente } = useClientes()
+  const { clientes, usuarios, updateAtividade, removeAtividade, openFichaCliente } = useClientes()
+  const { toast } = useToast()
 
   // Estados dos campos editáveis
   const [titulo, setTitulo] = useState('')
@@ -151,6 +163,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   // Modais de ação para lembrete de auto leitura (WhatsApp e Registro de Leitura)
   const [modalLembreteWhatsAppOpen, setModalLembreteWhatsAppOpen] = useState(false)
   const [modalRegistrarLeituraOpen, setModalRegistrarLeituraOpen] = useState(false)
+  const [confirmarExclusaoOpen, setConfirmarExclusaoOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [atividadeFilhaAlvo, setAtividadeFilhaAlvo] = useState<Atividade | null>(null)
   const [atividadeLocal, setAtividadeLocal] = useState<Atividade | null>(atividade)
 
@@ -497,6 +511,28 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     if (clienteId) {
       onClose()
       openFichaCliente(clienteId)
+    }
+  }
+
+  const handleExcluirAtividade = async () => {
+    if (!atividade?.id) return
+    try {
+      setIsDeleting(true)
+      await removeAtividade(atividade.id)
+      toast({
+        title: 'Atividade excluída com sucesso',
+      })
+      setConfirmarExclusaoOpen(false)
+      onClose()
+    } catch (err) {
+      console.error('Erro ao excluir atividade no modal:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir atividade',
+        description: 'Tente novamente.',
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -1497,29 +1533,43 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
 
         {/* Rodapé com Botões de Ação */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/70 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
-          {/* Botão rápido para alternar conclusão */}
-          <button
-            type="button"
-            onClick={handleToggleStatusQuick}
-            disabled={isSubmitting}
-            className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors ${
-              status === 'concluida'
-                ? 'text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200'
-                : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
-            }`}
-          >
-            {status === 'concluida' ? (
-              <span className="inline-flex items-center gap-1.5">
-                <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-                <span>Reabrir como Pendente</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Marcar como Concluída</span>
-              </span>
-            )}
-          </button>
+          {/* Botões do lado esquerdo: Alternar status e Excluir */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleToggleStatusQuick}
+              disabled={isSubmitting || isDeleting}
+              className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors ${
+                status === 'concluida'
+                  ? 'text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200'
+                  : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
+              }`}
+            >
+              {status === 'concluida' ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Reabrir como Pendente</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Marcar como Concluída</span>
+                </span>
+              )}
+            </button>
+
+            {/* Botão Excluir Atividade */}
+            <button
+              type="button"
+              onClick={() => setConfirmarExclusaoOpen(true)}
+              disabled={isSubmitting || isDeleting}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-red-200 text-red-700 bg-red-50/60 hover:bg-red-100 hover:border-red-300 transition-colors disabled:opacity-50"
+              title="Excluir esta atividade permanentemente"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-600" />
+              <span>Excluir</span>
+            </button>
+          </div>
 
           <div className="flex items-center justify-end gap-2 flex-wrap">
             {/* Ações Específicas da Atividade Filha de Auto Leitura */}
@@ -1625,6 +1675,35 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
           }}
         />
       )}
+
+      {/* Confirmação de Exclusão da Atividade */}
+      <AlertDialog open={confirmarExclusaoOpen} onOpenChange={setConfirmarExclusaoOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">Excluir Atividade</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente excluir a atividade{' '}
+              <strong className="text-gray-900 font-semibold">
+                {atividade.titulo || 'Atividade'}
+              </strong>
+              ? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault()
+                handleExcluirAtividade()
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+            >
+              {isDeleting ? 'Excluindo...' : 'Confirmar Exclusão'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
