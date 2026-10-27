@@ -41,6 +41,9 @@ export async function gerarRelatorioOSPdfBlobBase64(dados: RelatorioOSPDFDados):
       fotosDataUrls: dados.fotosDataUrls || [],
       inversoresInfo: dados.inversoresInfo,
       rodapeComercial: dados.rodapeComercial,
+      equipamentosUsina: (dados as any).equipamentosUsina,
+      ativosUsina: (dados as any).ativosUsina,
+      inversoresLista: (dados as any).inversoresLista,
     })
 
     const base64Html = await renderizarHTMLParaPdfBase64(html, fileName, {

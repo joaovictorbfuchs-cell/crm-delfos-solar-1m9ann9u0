@@ -25,15 +25,17 @@ const MARGIN_PAGE = 36
 
 export interface RelatorioOSPDFDados {
   os: OrdemServico
-  cliente?: Cliente | null
+  cliente?: Cliente
   contratoOM?: any
   sistema?: Sistema | null
   fotosDataUrls?: string[]
   inversoresInfo?: string
   assinaturaBase64?: string
   rodapeComercial?: RelatorioOSRodapeComercial | null
+  equipamentosUsina?: any[]
+  ativosUsina?: any[]
+  inversoresLista?: any[]
 }
-
 export interface RelatorioOSPDFDocumentProps extends DocumentProps {
   dados: RelatorioOSPDFDados
 }
@@ -635,7 +637,13 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
     cliente,
     sistema,
     fotosDataUrls,
-    { clientePossuiContratoOMAtivo, contratoOM },
+    {
+      clientePossuiContratoOMAtivo,
+      contratoOM,
+      equipamentosUsina: dados?.equipamentosUsina,
+      ativosUsina: dados?.ativosUsina,
+      inversoresLista: dados?.inversoresLista,
+    },
   )
 
   return (
@@ -732,6 +740,257 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             <Text style={styles.gridValue}>{relatorio.dadosSistemaGerador}</Text>
           </View>
         </View>
+
+        {/* 3.1. Equipamentos da Usina (Inversores e Módulos Fotovoltaicos) */}
+        {relatorio.equipamentosUsina?.temUsinaVinculada && (
+          <View style={styles.repCard} wrap={false}>
+            <Text style={styles.sectionTitle}>Equipamentos da usina</Text>
+            {!relatorio.equipamentosUsina.temEquipamentos ? (
+              <Text style={{ fontFamily: 'Helvetica-Oblique', fontSize: 7.5, color: '#536377' }}>
+                Nenhum equipamento cadastrado para esta usina.
+              </Text>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {/* Coluna Inversores */}
+                <View
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#F8FAFD',
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0',
+                    borderRadius: 4,
+                    padding: 6,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#E2E8F0',
+                      paddingBottom: 4,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Helvetica-Bold',
+                        fontSize: 7,
+                        color: '#0E2A47',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      ⚡ Inversores
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: 'Helvetica-Bold',
+                        fontSize: 6,
+                        color: '#536377',
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 1,
+                        borderColor: '#DDE4EE',
+                        borderRadius: 6,
+                        paddingHorizontal: 4,
+                        paddingVertical: 1,
+                      }}
+                    >
+                      {relatorio.equipamentosUsina.inversores.length}{' '}
+                      {relatorio.equipamentosUsina.inversores.length === 1 ? 'item' : 'itens'}
+                    </Text>
+                  </View>
+                  {relatorio.equipamentosUsina.inversores.length > 0 ? (
+                    <View style={{ gap: 4 }}>
+                      {relatorio.equipamentosUsina.inversores.map((inv, idx) => (
+                        <View
+                          key={inv.id || `pdf-inv-${idx}`}
+                          style={{
+                            backgroundColor: '#FFFFFF',
+                            borderWidth: 1,
+                            borderColor: '#DDE4EE',
+                            borderRadius: 4,
+                            padding: 4,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: 'Helvetica-Bold',
+                                fontSize: 7,
+                                color: '#0E2A47',
+                                flex: 1,
+                              }}
+                            >
+                              {inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}
+                              {[inv.marca, inv.modelo].filter(Boolean).join(' ') ||
+                                'Inversor Fotovoltaico'}
+                            </Text>
+                            {inv.potencia_w ? (
+                              <Text
+                                style={{
+                                  fontFamily: 'Helvetica-Bold',
+                                  fontSize: 6,
+                                  color: '#1B8342',
+                                  backgroundColor: '#F1F9F4',
+                                  borderWidth: 1,
+                                  borderColor: '#B8E4C7',
+                                  borderRadius: 3,
+                                  paddingHorizontal: 3,
+                                  paddingVertical: 1,
+                                }}
+                              >
+                                {(inv.potencia_w / 1000).toFixed(1)} kW
+                              </Text>
+                            ) : null}
+                          </View>
+                          {inv.numero_serie ? (
+                            <Text
+                              style={{
+                                fontFamily: 'Helvetica',
+                                fontSize: 6,
+                                color: '#536377',
+                                marginTop: 2,
+                              }}
+                            >
+                              Nº de Série:{' '}
+                              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#1A2332' }}>
+                                {inv.numero_serie}
+                              </Text>
+                            </Text>
+                          ) : null}
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text
+                      style={{ fontFamily: 'Helvetica-Oblique', fontSize: 6.5, color: '#536377' }}
+                    >
+                      Nenhum inversor cadastrado.
+                    </Text>
+                  )}
+                </View>
+
+                {/* Coluna Módulos Fotovoltaicos */}
+                <View
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#F8FAFD',
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0',
+                    borderRadius: 4,
+                    padding: 6,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#E2E8F0',
+                      paddingBottom: 4,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Helvetica-Bold',
+                        fontSize: 7,
+                        color: '#0E2A47',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      ☀️ Módulos Fotovoltaicos
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: 'Helvetica-Bold',
+                        fontSize: 6,
+                        color: '#536377',
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 1,
+                        borderColor: '#DDE4EE',
+                        borderRadius: 6,
+                        paddingHorizontal: 4,
+                        paddingVertical: 1,
+                      }}
+                    >
+                      {relatorio.equipamentosUsina.modulos.length}{' '}
+                      {relatorio.equipamentosUsina.modulos.length === 1 ? 'item' : 'itens'}
+                    </Text>
+                  </View>
+                  {relatorio.equipamentosUsina.modulos.length > 0 ? (
+                    <View style={{ gap: 4 }}>
+                      {relatorio.equipamentosUsina.modulos.map((mod, idx) => (
+                        <View
+                          key={mod.id || `pdf-mod-${idx}`}
+                          style={{
+                            backgroundColor: '#FFFFFF',
+                            borderWidth: 1,
+                            borderColor: '#DDE4EE',
+                            borderRadius: 4,
+                            padding: 4,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: 'Helvetica-Bold',
+                                fontSize: 7,
+                                color: '#0E2A47',
+                                flex: 1,
+                              }}
+                            >
+                              {mod.quantidade > 0 ? `${mod.quantidade}x ` : ''}
+                              {[mod.marca, mod.modelo].filter(Boolean).join(' ') ||
+                                'Módulo Fotovoltaico'}
+                            </Text>
+                            {mod.potencia_w ? (
+                              <Text
+                                style={{
+                                  fontFamily: 'Helvetica-Bold',
+                                  fontSize: 6,
+                                  color: '#1B8342',
+                                  backgroundColor: '#F1F9F4',
+                                  borderWidth: 1,
+                                  borderColor: '#B8E4C7',
+                                  borderRadius: 3,
+                                  paddingHorizontal: 3,
+                                  paddingVertical: 1,
+                                }}
+                              >
+                                {mod.potencia_w} W
+                              </Text>
+                            ) : null}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text
+                      style={{ fontFamily: 'Helvetica-Oblique', fontSize: 6.5, color: '#536377' }}
+                    >
+                      Nenhum módulo cadastrado.
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* 4. Badges de Status */}
         <View style={styles.repCard} wrap={false}>

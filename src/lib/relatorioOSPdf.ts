@@ -23,6 +23,9 @@ export interface RelatorioOSDadosInput {
   inversoresInfo?: string
   assinaturaBase64?: string
   rodapeComercial?: RelatorioOSRodapeComercial | null
+  equipamentosUsina?: any[]
+  ativosUsina?: any[]
+  inversoresLista?: any[]
 }
 
 /**
@@ -188,6 +191,9 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   const rel = compilarDadosRelatorioOS(os, cliente, sistema, fotosDataUrls, {
     contratoOM,
     clientePossuiContratoOMAtivo: Boolean(contratoOM),
+    equipamentosUsina: dados?.equipamentosUsina,
+    ativosUsina: dados?.ativosUsina,
+    inversoresLista: dados?.inversoresLista,
   })
 
   const servicosRowsHtml = rel.servicosExecutados
@@ -499,6 +505,81 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
         <div style="grid-column: 1 / -1;"><span class="grid-label">Dados do sistema gerador</span><span class="grid-value">${rel.dadosSistemaGerador}</span></div>
       </div>
     </section>
+
+    ${
+      rel.equipamentosUsina?.temUsinaVinculada
+        ? `<!-- 3.1. Equipamentos da Usina (Inversores e Módulos Fotovoltaicos) -->
+    <section class="rep-card">
+      <h3 class="section-title">Equipamentos da usina</h3>
+      ${
+        !rel.equipamentosUsina.temEquipamentos
+          ? `<p style="margin: 0; font-size: 0.85rem; color: #536377; font-style: italic;">Nenhum equipamento cadastrado para esta usina.</p>`
+          : `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+        <!-- Inversores -->
+        <div style="background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px;">
+            <div style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #0E2A47;">
+              ⚡ Inversores
+            </div>
+            <span style="font-size: 0.72rem; font-weight: 700; color: #536377; background: #FFFFFF; border: 1px solid #DDE4EE; border-radius: 10px; padding: 2px 8px;">
+              ${rel.equipamentosUsina.inversores.length} ${rel.equipamentosUsina.inversores.length === 1 ? 'item' : 'itens'}
+            </span>
+          </div>
+          ${
+            rel.equipamentosUsina.inversores.length > 0
+              ? `<div style="display: flex; flex-direction: column; gap: 6px;">
+            ${rel.equipamentosUsina.inversores
+              .map(
+                (inv) => `
+              <div style="background: #FFFFFF; border: 1px solid #DDE4EE; border-radius: 6px; padding: 8px 10px; font-size: 0.82rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                  <span style="font-weight: 700; color: #0E2A47;">${inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}${[inv.marca, inv.modelo].filter(Boolean).join(' ') || 'Inversor Fotovoltaico'}</span>
+                  ${inv.potencia_w ? `<span style="font-size: 0.72rem; font-weight: 700; color: #1B8342; background: #F1F9F4; border: 1px solid #B8E4C7; border-radius: 4px; padding: 1px 6px;">${(inv.potencia_w / 1000).toFixed(1)} kW</span>` : ''}
+                </div>
+                ${inv.numero_serie ? `<div style="font-size: 0.72rem; color: #536377; margin-top: 3px;">Nº de Série: <strong style="color: #1A2332;">${inv.numero_serie}</strong></div>` : ''}
+              </div>
+            `,
+              )
+              .join('')}
+          </div>`
+              : `<p style="margin: 0; font-size: 0.8rem; color: #536377; font-style: italic;">Nenhum inversor cadastrado.</p>`
+          }
+        </div>
+
+        <!-- Módulos Fotovoltaicos -->
+        <div style="background: #F8FAFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px;">
+            <div style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #0E2A47;">
+              ☀️ Módulos Fotovoltaicos
+            </div>
+            <span style="font-size: 0.72rem; font-weight: 700; color: #536377; background: #FFFFFF; border: 1px solid #DDE4EE; border-radius: 10px; padding: 2px 8px;">
+              ${rel.equipamentosUsina.modulos.length} ${rel.equipamentosUsina.modulos.length === 1 ? 'item' : 'itens'}
+            </span>
+          </div>
+          ${
+            rel.equipamentosUsina.modulos.length > 0
+              ? `<div style="display: flex; flex-direction: column; gap: 6px;">
+            ${rel.equipamentosUsina.modulos
+              .map(
+                (mod) => `
+              <div style="background: #FFFFFF; border: 1px solid #DDE4EE; border-radius: 6px; padding: 8px 10px; font-size: 0.82rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                  <span style="font-weight: 700; color: #0E2A47;">${mod.quantidade > 0 ? `${mod.quantidade}x ` : ''}${[mod.marca, mod.modelo].filter(Boolean).join(' ') || 'Módulo Fotovoltaico'}</span>
+                  ${mod.potencia_w ? `<span style="font-size: 0.72rem; font-weight: 700; color: #1B8342; background: #F1F9F4; border: 1px solid #B8E4C7; border-radius: 4px; padding: 1px 6px;">${mod.potencia_w} W</span>` : ''}
+                </div>
+              </div>
+            `,
+              )
+              .join('')}
+          </div>`
+              : `<p style="margin: 0; font-size: 0.8rem; color: #536377; font-style: italic;">Nenhum módulo cadastrado.</p>`
+          }
+        </div>
+      </div>`
+      }
+    </section>`
+        : ''
+    }
 
     <!-- 4. Badges de Status -->
     <section class="rep-card">
@@ -1614,6 +1695,9 @@ export async function gerarPdfRelatorioOS(
     newPhotos?: File[]
     inversoresInfo?: string
     rodapeComercial?: RelatorioOSRodapeComercial | null
+    equipamentosUsina?: any[]
+    ativosUsina?: any[]
+    inversoresLista?: any[]
   } = {},
 ): Promise<{ base64: string; file: File; fileName: string; html: string }> {
   const osIdCurto = os.id ? os.id.slice(-6).toUpperCase() : '000000'
@@ -1628,6 +1712,39 @@ export async function gerarPdfRelatorioOS(
   // 2. Otimização de fotos
   const fotosDataUrls = await prepararFotosRelatorio(os, opcoes.newPhotos)
 
+  // 2.1. Busca equipamentos da usina vinculada se não fornecidos
+  let equipamentosUsina = opcoes.equipamentosUsina
+  let ativosUsina = opcoes.ativosUsina
+  if (!equipamentosUsina || !ativosUsina) {
+    const usinaId =
+      opcoes.sistema?.id ||
+      os.usina_id ||
+      os.sistema_id ||
+      (typeof os.expand?.usina_id === 'string' ? os.expand.usina_id : os.expand?.usina_id?.id) ||
+      (typeof os.expand?.sistema_id === 'string' ? os.expand.sistema_id : os.expand?.sistema_id?.id)
+    if (usinaId) {
+      try {
+        const [eqs, atvs] = await Promise.all([
+          !equipamentosUsina
+            ? import('@/services/usinaEquipamentosService')
+                .then((m) => m.fetchEquipamentosByUsinaId(usinaId))
+                .catch(() => [])
+            : Promise.resolve(equipamentosUsina),
+          !ativosUsina
+            ? import('@/services/ativosService')
+                .then((m) => m.fetchAtivosPorUsina(usinaId))
+                .catch(() => [])
+            : Promise.resolve(ativosUsina),
+        ])
+        equipamentosUsina = eqs || []
+        ativosUsina = atvs || []
+      } catch {
+        equipamentosUsina = equipamentosUsina || []
+        ativosUsina = ativosUsina || []
+      }
+    }
+  }
+
   // 3. Montagem do HTML oficial (mantido para compatibilidade e visualização web)
   const html = gerarHTMLRelatorioOS({
     os,
@@ -1636,6 +1753,9 @@ export async function gerarPdfRelatorioOS(
     fotosDataUrls,
     inversoresInfo: opcoes.inversoresInfo,
     rodapeComercial: rodape,
+    equipamentosUsina,
+    ativosUsina,
+    inversoresLista: opcoes.inversoresLista,
   })
 
   // 4. Renderização formatada para PDF a partir do mesmo documento HTML oficial
@@ -1674,6 +1794,9 @@ export async function gerarPdfRelatorioOS(
       fotosDataUrls,
       inversoresInfo: opcoes.inversoresInfo,
       rodapeComercial: rodape,
+      equipamentosUsina,
+      ativosUsina,
+      inversoresLista: opcoes.inversoresLista,
     },
   })
   const instance = pdf(docElement)

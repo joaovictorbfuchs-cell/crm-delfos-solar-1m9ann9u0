@@ -67,6 +67,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   const [os, setOs] = useState<any>(null)
   const [cliente, setCliente] = useState<any>(null)
   const [usina, setUsina] = useState<any>(null)
+  const [equipamentosUsina, setEquipamentosUsina] = useState<any[]>([])
+  const [ativosUsina, setAtivosUsina] = useState<any[]>([])
   const [temContratoOMAtivo, setTemContratoOMAtivo] = useState(false)
   const [contratoOMCliente, setContratoOMCliente] = useState<any>(null)
   const [fotosUrls, setFotosUrls] = useState<string[]>([])
@@ -222,19 +224,61 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         // Extrai usina / sistema vinculado
         let usinaObj =
           sistemaProp || registro.expand?.usina_id || registro.expand?.sistema_id || null
-        if (!usinaObj && (registro.usina_id || registro.sistema_id)) {
-          const targetId = registro.usina_id || registro.sistema_id
+        const usinaIdParaBusca =
+          registro.usina_id ||
+          registro.sistema_id ||
+          (typeof registro.expand?.usina_id === 'string'
+            ? registro.expand.usina_id
+            : registro.expand?.usina_id?.id) ||
+          (typeof registro.expand?.sistema_id === 'string'
+            ? registro.expand.sistema_id
+            : registro.expand?.sistema_id?.id) ||
+          null
+
+        if (!usinaObj && usinaIdParaBusca) {
           usinaObj = await pb
             .collection('usinas')
-            .getOne(targetId)
+            .getOne(usinaIdParaBusca)
             .catch(async () => {
               return await pb
                 .collection('sistemas')
-                .getOne(targetId)
+                .getOne(usinaIdParaBusca)
                 .catch(() => null)
             })
         }
         if (isMounted) setUsina(usinaObj)
+
+        // Carrega equipamentos da usina vinculada (usina_equipamentos e Ativos) em paralelo
+        const usinaIdFinal = usinaObj?.id || usinaIdParaBusca
+        if (usinaIdFinal) {
+          try {
+            const [eqs, atvs] = await Promise.all([
+              import('@/services/usinaEquipamentosService')
+                .then((m) => m.fetchEquipamentosByUsinaId(usinaIdFinal))
+                .catch((e) => {
+                  console.warn('Erro ao carregar usina_equipamentos no relatório:', e)
+                  return []
+                }),
+              import('@/services/ativosService')
+                .then((m) => m.fetchAtivosPorUsina(usinaIdFinal))
+                .catch((e) => {
+                  console.warn('Erro ao carregar ativos da usina no relatório:', e)
+                  return []
+                }),
+            ])
+            if (isMounted) {
+              setEquipamentosUsina(eqs || [])
+              setAtivosUsina(atvs || [])
+            }
+          } catch (e) {
+            console.warn('Erro ao buscar equipamentos vinculados à usina:', e)
+          }
+        } else {
+          if (isMounted) {
+            setEquipamentosUsina([])
+            setAtivosUsina([])
+          }
+        }
 
         // Extrai fotos anexas (fotos + foto_medidor para integridade total)
         const urls: string[] = []
@@ -289,7 +333,23 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
   useEffect(() => {
     if (osProp) setOs(osProp)
     if (clienteProp) setCliente(clienteProp)
-    if (sistemaProp) setUsina(sistemaProp)
+    if (sistemaProp) {
+      setUsina(sistemaProp)
+      const uId = sistemaProp.id
+      if (uId) {
+        Promise.all([
+          import('@/services/usinaEquipamentosService')
+            .then((m) => m.fetchEquipamentosByUsinaId(uId))
+            .catch(() => []),
+          import('@/services/ativosService')
+            .then((m) => m.fetchAtivosPorUsina(uId))
+            .catch(() => []),
+        ]).then(([eqs, atvs]) => {
+          setEquipamentosUsina(eqs || [])
+          setAtivosUsina(atvs || [])
+        })
+      }
+    }
   }, [osProp, clienteProp, sistemaProp])
 
   // Fecha modal com Escape
@@ -307,8 +367,19 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
     return compilarDadosRelatorioOS(os, cliente, usina, fotosUrls, {
       clientePossuiContratoOMAtivo: temContratoOMAtivo,
       contratoOM: contratoOMCliente,
+      equipamentosUsina,
+      ativosUsina,
     })
-  }, [os, cliente, usina, fotosUrls, temContratoOMAtivo, contratoOMCliente])
+  }, [
+    os,
+    cliente,
+    usina,
+    fotosUrls,
+    temContratoOMAtivo,
+    contratoOMCliente,
+    equipamentosUsina,
+    ativosUsina,
+  ])
 
   const handleCopiarLink = () => {
     try {
@@ -343,6 +414,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         contratoOM: contratoOMCliente,
         sistema: usina,
         fotosDataUrls: fotosUrls,
+        equipamentosUsina,
+        ativosUsina,
       })
 
       await baixarHTMLParaPdf(html, fileName, {
@@ -430,6 +503,8 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         sistema: usina,
         fotosDataUrls: fotosUrls,
         rodapeComercial: rodapeCfg,
+        equipamentosUsina,
+        ativosUsina,
       })
 
       // Extrai apenas o base64 puro (sem o prefixo data:application/pdf;base64,)
@@ -715,6 +790,111 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
             </div>
           </div>
         </section>
+
+        {/* 3.1. Equipamentos da Usina (Inversores e Módulos Fotovoltaicos) */}
+        {relatorio.equipamentosUsina?.temUsinaVinculada && (
+          <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4 space-y-4">
+            <div className="flex items-center justify-between border-b-2 border-[#EBF0F7] pb-2">
+              <h3 className="m-0 text-base font-bold text-[#0E2A47] flex items-center gap-2">
+                <span>Equipamentos da Usina</span>
+              </h3>
+            </div>
+
+            {!relatorio.equipamentosUsina.temEquipamentos ? (
+              <p className="text-xs sm:text-sm text-[#536377] italic m-0">
+                Nenhum equipamento cadastrado para esta usina.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Coluna Inversores */}
+                <div className="bg-[#F8FAFD] border border-[#E2E8F0] rounded-xl p-4 flex flex-col gap-2.5 print:bg-white print:border-[#DDE4EE]">
+                  <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-[#0E2A47] flex items-center gap-1.5">
+                      <span>⚡ Inversores</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-[#536377] bg-white px-2 py-0.5 rounded-full border border-[#DDE4EE]">
+                      {relatorio.equipamentosUsina.inversores.length}{' '}
+                      {relatorio.equipamentosUsina.inversores.length === 1 ? 'item' : 'itens'}
+                    </span>
+                  </div>
+
+                  {relatorio.equipamentosUsina.inversores.length > 0 ? (
+                    <div className="space-y-2">
+                      {relatorio.equipamentosUsina.inversores.map((inv, idx) => (
+                        <div
+                          key={inv.id || idx}
+                          className="bg-white border border-[#DDE4EE] rounded-lg p-2.5 flex flex-col gap-1 text-xs"
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-1">
+                            <span className="font-bold text-[#0E2A47] text-xs sm:text-sm">
+                              {inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}
+                              {[inv.marca, inv.modelo].filter(Boolean).join(' ') ||
+                                'Inversor Fotovoltaico'}
+                            </span>
+                            {inv.potencia_w && (
+                              <span className="text-[11px] font-semibold text-[#1B8342] bg-[#F1F9F4] px-2 py-0.5 rounded border border-[#B8E4C7]">
+                                {(inv.potencia_w / 1000).toFixed(1)} kW
+                              </span>
+                            )}
+                          </div>
+                          {inv.numero_serie && (
+                            <span className="text-[11px] text-[#536377]">
+                              Nº de Série:{' '}
+                              <strong className="text-[#1A2332]">{inv.numero_serie}</strong>
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#536377] italic m-0">Nenhum inversor cadastrado.</p>
+                  )}
+                </div>
+
+                {/* Coluna Módulos Fotovoltaicos */}
+                <div className="bg-[#F8FAFD] border border-[#E2E8F0] rounded-xl p-4 flex flex-col gap-2.5 print:bg-white print:border-[#DDE4EE]">
+                  <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-[#0E2A47] flex items-center gap-1.5">
+                      <span>☀️ Módulos Fotovoltaicos</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-[#536377] bg-white px-2 py-0.5 rounded-full border border-[#DDE4EE]">
+                      {relatorio.equipamentosUsina.modulos.length}{' '}
+                      {relatorio.equipamentosUsina.modulos.length === 1 ? 'item' : 'itens'}
+                    </span>
+                  </div>
+
+                  {relatorio.equipamentosUsina.modulos.length > 0 ? (
+                    <div className="space-y-2">
+                      {relatorio.equipamentosUsina.modulos.map((mod, idx) => (
+                        <div
+                          key={mod.id || idx}
+                          className="bg-white border border-[#DDE4EE] rounded-lg p-2.5 flex flex-col gap-1 text-xs"
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-1">
+                            <span className="font-bold text-[#0E2A47] text-xs sm:text-sm">
+                              {mod.quantidade > 0 ? `${mod.quantidade}x ` : ''}
+                              {[mod.marca, mod.modelo].filter(Boolean).join(' ') ||
+                                'Módulo Fotovoltaico'}
+                            </span>
+                            {mod.potencia_w && (
+                              <span className="text-[11px] font-semibold text-[#1B8342] bg-[#F1F9F4] px-2 py-0.5 rounded border border-[#B8E4C7]">
+                                {mod.potencia_w} W
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#536377] italic m-0">
+                      Nenhum módulo fotovoltaico cadastrado.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* 4. Badges de Status */}
         <section className="bg-white border border-[#DDE4EE] rounded-xl p-6 shadow-[0_2px_8px_rgba(14,42,71,0.04)] print:shadow-none print:rounded-md print:p-4">

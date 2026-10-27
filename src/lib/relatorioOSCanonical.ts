@@ -103,11 +103,23 @@ export interface RelatorioOSCanonicalData {
   avaliacaoGoogleTitulo?: string
   avaliacaoGoogleTexto?: string
   avaliacaoGoogleLink?: string
+
+  // Equipamentos da Usina (Inversores e Módulos fotovoltaicos da usina vinculada à OS)
+  equipamentosUsina?: EquipamentosUsinaRelatorio
 }
 
 /**
  * Normaliza e compila os dados reais da OS, Cliente e Sistema para o modelo canônico Delfos Solar.
  */
+import {
+  resolverEquipamentosUsina,
+  type EquipamentosUsinaRelatorio,
+  type InversorEquipamentoRelatorio,
+  type ModuloEquipamentoRelatorio,
+} from './usinaEquipamentosResolver'
+
+export type { EquipamentosUsinaRelatorio, InversorEquipamentoRelatorio, ModuloEquipamentoRelatorio }
+
 export interface CompilarDadosRelatorioOSOptions {
   clientePossuiContratoOMAtivo?: boolean
   contratoOM?: any
@@ -116,6 +128,9 @@ export interface CompilarDadosRelatorioOSOptions {
   proximaManutencaoData?: string
   atividadesCliente?: any[]
   atividades?: any[]
+  equipamentosUsina?: any[]
+  ativosUsina?: any[]
+  inversoresLista?: any[]
 }
 
 function safeStr(val: any): string {
@@ -1278,6 +1293,16 @@ export function compilarDadosRelatorioOS(
   const avaliacaoGoogleTexto = safeStr(os?.avaliacao_google_texto) || textoAvaliacaoPadrao
   const avaliacaoGoogleLink = safeStr(os?.avaliacao_google_link) || linkAvaliacaoPadrao
 
+  // Resolução canônica de equipamentos da usina vinculada à OS (inversores e módulos)
+  const equipamentosUsinaRelatorio = resolverEquipamentosUsina({
+    os,
+    usina: sistema,
+    cliente,
+    equipamentosUsina: opcoes?.equipamentosUsina || [],
+    ativosUsina: opcoes?.ativosUsina || [],
+    inversoresLista: opcoes?.inversoresLista || [],
+  })
+
   return {
     numeroRelatorio,
     osCodigo,
@@ -1324,5 +1349,6 @@ export function compilarDadosRelatorioOS(
     avaliacaoGoogleTitulo,
     avaliacaoGoogleTexto,
     avaliacaoGoogleLink,
+    equipamentosUsina: equipamentosUsinaRelatorio,
   }
 }
