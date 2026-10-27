@@ -15,13 +15,16 @@ import {
   updateOrdemServico,
 } from '@/services/crmService'
 import { fetchEquipamentosByUsinaId } from '@/services/usinaEquipamentosService'
+import { fetchAtivosPorUsina } from '@/services/ativosService'
 import type { UsinaEquipamentoAtivo, ConfiguracaoMonitoramento } from '@/types/equipamentos'
+import type { AtivoUsina } from '@/types/ativos'
 import {
   fetchConfiguracoesMonitoramento,
   sugerirConfiguracaoPorMarca,
 } from '@/services/configuracoesMonitoramentoService'
 import { MonitoramentoConfigBadge } from '@/components/MonitoramentoConfigBadge'
 import { SecaoDocumentosUsina } from '@/components/SecaoDocumentosUsina'
+import { AbaAtivosUsina } from '@/components/AbaAtivosUsina'
 import pb from '@/lib/pocketbase/client'
 
 const LazyBotaoBaixarRelatorioFicha = React.lazy(
@@ -369,6 +372,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return (os.expand?.usina_id as UsinaCliente) || null
   })
   const [equipamentosUsina, setEquipamentosUsina] = useState<UsinaEquipamentoAtivo[]>([])
+  const [ativosUsina, setAtivosUsina] = useState<AtivoUsina[]>([])
   const [carregandoUsina, setCarregandoUsina] = useState<boolean>(false)
   const [configuracoesMonitoramento, setConfiguracoesMonitoramento] = useState<
     ConfiguracaoMonitoramento[]
@@ -728,32 +732,49 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         if (usinaId) {
           // Busca a usina completa
           const usina = await fetchUsinaById(usinaId)
-          if (!cancelado && usina) {
-            setUsinaVinculada(usina)
+          if (!cancelado) {
+            setUsinaVinculada(usina || null)
           }
 
-          // Busca equipamentos em usina_equipamentos
-          const eqs = await fetchEquipamentosByUsinaId(usinaId)
+          // Busca equipamentos em usina_equipamentos e na coleção ativos da usina em paralelo
+          const [eqs, atvs] = await Promise.all([
+            fetchEquipamentosByUsinaId(usinaId).catch((e) => {
+              console.warn('Erro ao carregar usina_equipamentos:', e)
+              return []
+            }),
+            fetchAtivosPorUsina(usinaId).catch((e) => {
+              console.warn('Erro ao carregar ativos da usina:', e)
+              return []
+            }),
+          ])
           if (!cancelado) {
             setEquipamentosUsina(eqs || [])
+            setAtivosUsina(atvs || [])
           }
-        } else if (os?.cliente_id) {
-          // Fallback quando não há usina vinculada à OS: carrega sistema legado
-          fetchSistemaByClienteId(os.cliente_id)
-            .then((sist) => {
-              if (!cancelado) setSistema(sist)
-            })
-            .catch((e) => console.error('Erro ao carregar sistema:', e))
+        } else {
+          if (!cancelado) {
+            setUsinaVinculada(null)
+            setEquipamentosUsina([])
+            setAtivosUsina([])
+          }
+          if (os?.cliente_id) {
+            // Fallback quando não há usina vinculada: carrega sistema legado
+            fetchSistemaByClienteId(os.cliente_id)
+              .then((sist) => {
+                if (!cancelado) setSistema(sist)
+              })
+              .catch((e) => console.error('Erro ao carregar sistema:', e))
 
-          import('@/services/crmService').then(({ fetchInversoresByClienteId }) => {
-            if (os?.cliente_id) {
-              fetchInversoresByClienteId(os.cliente_id)
-                .then((invs) => {
-                  if (!cancelado) setInversoresLista(invs)
-                })
-                .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
-            }
-          })
+            import('@/services/crmService').then(({ fetchInversoresByClienteId }) => {
+              if (os?.cliente_id) {
+                fetchInversoresByClienteId(os.cliente_id)
+                  .then((invs) => {
+                    if (!cancelado) setInversoresLista(invs)
+                  })
+                  .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
+              }
+            })
+          }
         }
       } catch (err) {
         console.warn('Erro ao carregar dados da usina na Ficha de OS:', err)
@@ -767,7 +788,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     return () => {
       cancelado = true
     }
-  }, [os?.usina_id, os?.expand?.usina_id, os?.cliente_id])
+  }, [selectedUsinaId, os?.usina_id, os?.expand?.usina_id, os?.cliente_id])
 
   // Procedimentos e checklist do catálogo de atividades
   useEffect(() => {
@@ -1581,13 +1602,36 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   }
 
   // Resolução de inversores e módulos para exibição compacta no cabeçalho verde
-  // Prioridade: usina_equipamentos da usina vinculada; fallback: campos diretos da usina ou cliente
+  // Prioridade: coleção Ativos + usina_equipamentos da usina vinculada/selecionada; fallback: campos diretos da usina ou cliente
   const inversoresUsina = React.useMemo(() => {
-    const list = Array.isArray(equipamentosUsina)
-      ? equipamentosUsina.filter((ue) => ue?.expand?.equipamento_id?.tipo === 'inversor')
-      : []
-    if (list.length > 0) {
-      return list.map((ue) => {
+    // 1. Inversores cadastrados na coleção Ativos
+    const atvsInversores = (Array.isArray(ativosUsina) ? ativosUsina : [])
+      .filter((a) => a.tipo === 'inversor' || (a.tipo as string) === 'inversores')
+      .map((a) => {
+        const marca = a.fabricante || ''
+        const configMonitoramento = encontrarConfigMonitoramentoInversor(null, marca)
+        const dataloggerUrl =
+          usinaVinculada?.monitoramento_datalogger_url ||
+          cliente?.monitoramento_datalogger_url ||
+          null
+        const datasheetUrl = usinaVinculada?.datasheet_inversor_url || null
+        return {
+          id: a.id,
+          marca,
+          modelo: a.modelo || '',
+          potencia_w: (a as any).potencia_w || undefined,
+          quantidade: 1,
+          numero_serie: a.numero_serie || undefined,
+          datasheetUrl,
+          dataloggerUrl,
+          configMonitoramento,
+        }
+      })
+
+    // 2. Inversores vinculados em usina_equipamentos
+    const eqsInversores = (Array.isArray(equipamentosUsina) ? equipamentosUsina : [])
+      .filter((ue) => ue?.expand?.equipamento_id?.tipo === 'inversor')
+      .map((ue) => {
         const eq = ue.expand?.equipamento_id
         const datasheetUrl =
           (eq?.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
@@ -1614,9 +1658,38 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           configMonitoramento,
         }
       })
+
+    // Mescla itens de ativos e usina_equipamentos evitando duplicatas
+    const combinados: typeof atvsInversores = [...atvsInversores]
+    for (const eq of eqsInversores) {
+      const jaExiste = combinados.find((inv) => {
+        if (inv.numero_serie && eq.numero_serie) {
+          return inv.numero_serie.trim().toLowerCase() === eq.numero_serie.trim().toLowerCase()
+        }
+        const mesmaMarca =
+          (inv.marca || '').trim().toLowerCase() === (eq.marca || '').trim().toLowerCase()
+        const mesmoModelo =
+          (inv.modelo || '').trim().toLowerCase() === (eq.modelo || '').trim().toLowerCase()
+        return mesmaMarca && mesmoModelo
+      })
+
+      if (jaExiste) {
+        if (!jaExiste.datasheetUrl && eq.datasheetUrl) jaExiste.datasheetUrl = eq.datasheetUrl
+        if (!jaExiste.potencia_w && eq.potencia_w) jaExiste.potencia_w = eq.potencia_w
+        if (!jaExiste.configMonitoramento && eq.configMonitoramento) {
+          jaExiste.configMonitoramento = eq.configMonitoramento
+        }
+        if (!jaExiste.numero_serie && eq.numero_serie) jaExiste.numero_serie = eq.numero_serie
+      } else {
+        combinados.push(eq)
+      }
     }
 
-    // Se não há usina_equipamentos, olha campos da usina vinculada
+    if (combinados.length > 0) {
+      return combinados
+    }
+
+    // Se não há na coleção ativos nem em usina_equipamentos, olha campos diretos da usina vinculada
     if (usinaVinculada?.fabricante_inversores || usinaVinculada?.modelo_inversores) {
       const dataloggerUrl =
         usinaVinculada.monitoramento_datalogger_url || cliente?.monitoramento_datalogger_url || null
@@ -1677,14 +1750,73 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
 
     return []
-  }, [equipamentosUsina, usinaVinculada, cliente, inversoresLista, configuracoesMonitoramento])
+  }, [
+    ativosUsina,
+    equipamentosUsina,
+    usinaVinculada,
+    cliente,
+    inversoresLista,
+    configuracoesMonitoramento,
+  ])
 
   const modulosUsina = React.useMemo(() => {
-    const list = Array.isArray(equipamentosUsina)
-      ? equipamentosUsina.filter((ue) => ue?.expand?.equipamento_id?.tipo === 'modulo_fv')
-      : []
-    if (list.length > 0) {
-      return list.map((ue) => {
+    // 1. Placas fotovoltaicas da coleção Ativos
+    const atvsModulos = (Array.isArray(ativosUsina) ? ativosUsina : []).filter(
+      (a) => a.tipo === 'placa_solar' || (a.tipo as string) === 'modulo_fv',
+    )
+
+    const mapaAtivosModulos = new Map<
+      string,
+      {
+        id: string
+        marca: string
+        modelo: string
+        quantidade: number
+        potencia_w?: number
+        datasheetUrl: string | null
+      }
+    >()
+
+    for (const a of atvsModulos) {
+      const marca = a.fabricante || ''
+      const modelo = a.modelo || ''
+      const chave = `${marca.trim().toLowerCase()}:::${modelo.trim().toLowerCase()}`
+      const qtdItem = Number((a as any).quantidade) > 0 ? Number((a as any).quantidade) : 1
+      const potW = Number((a as any).potencia_w || (a as any).potencia) || undefined
+      const datasheetUrl = usinaVinculada?.datasheet_modulo_url || null
+
+      const existente = mapaAtivosModulos.get(chave)
+      if (existente) {
+        existente.quantidade += qtdItem
+        if (!existente.potencia_w && potW) existente.potencia_w = potW
+      } else {
+        mapaAtivosModulos.set(chave, {
+          id: a.id,
+          marca,
+          modelo,
+          quantidade: qtdItem,
+          potencia_w: potW,
+          datasheetUrl,
+        })
+      }
+    }
+
+    const qtdTotalUsina = Number(
+      usinaVinculada?.quantidade_placas || usinaVinculada?.qtd_modulos || 0,
+    )
+    if (mapaAtivosModulos.size === 1 && qtdTotalUsina > 1) {
+      const primeiro = mapaAtivosModulos.values().next().value
+      if (primeiro && primeiro.quantidade === 1) {
+        primeiro.quantidade = qtdTotalUsina
+      }
+    }
+
+    const atvsList = Array.from(mapaAtivosModulos.values())
+
+    // 2. Módulos vinculados em usina_equipamentos
+    const eqsModulos = (Array.isArray(equipamentosUsina) ? equipamentosUsina : [])
+      .filter((ue) => ue?.expand?.equipamento_id?.tipo === 'modulo_fv')
+      .map((ue) => {
         const eq = ue.expand?.equipamento_id
         const datasheetUrl =
           (eq?.datasheet_pdf ? pb.files.getURL(eq, eq.datasheet_pdf) : null) ||
@@ -1694,13 +1826,33 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
         return {
           id: ue.id,
-          marca: eq?.marca,
-          modelo: eq?.modelo,
+          marca: eq?.marca || '',
+          modelo: eq?.modelo || '',
           potencia_w: eq?.potencia_w,
           quantidade: ue.quantidade || 0,
           datasheetUrl,
         }
       })
+
+    // Mescla itens de ativos e usina_equipamentos evitando duplicatas
+    const combinadosModulos = [...atvsList]
+    for (const eq of eqsModulos) {
+      const match = combinadosModulos.find(
+        (m) =>
+          (m.marca || '').trim().toLowerCase() === (eq.marca || '').trim().toLowerCase() &&
+          (m.modelo || '').trim().toLowerCase() === (eq.modelo || '').trim().toLowerCase(),
+      )
+      if (match) {
+        if (!match.datasheetUrl && eq.datasheetUrl) match.datasheetUrl = eq.datasheetUrl
+        if (!match.potencia_w && eq.potencia_w) match.potencia_w = eq.potencia_w
+        if (eq.quantidade && eq.quantidade > match.quantidade) match.quantidade = eq.quantidade
+      } else {
+        combinadosModulos.push(eq)
+      }
+    }
+
+    if (combinadosModulos.length > 0) {
+      return combinadosModulos
     }
 
     if (
@@ -1735,7 +1887,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
 
     return []
-  }, [equipamentosUsina, usinaVinculada, cliente])
+  }, [ativosUsina, equipamentosUsina, usinaVinculada, cliente])
 
   // Lógica bidirecional de Horário Início, Fim e Duração na edição rápida de manutenção
   const handleHorarioInicioChange = (novoInicio: string) => {
@@ -2586,10 +2738,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         </div>
       )}
 
+      {/* ATIVOS DA USINA (Inversores, Placas, Garantias e Números de Série para Consulta em Campo) */}
+      {(selectedUsinaId || os.usina_id || usinaVinculada?.id) && (
+        <AbaAtivosUsina
+          usinaId={selectedUsinaId || os.usina_id || usinaVinculada?.id || ''}
+          usinaNome={usinaVinculada?.nome || cliente?.nome || 'Usina'}
+        />
+      )}
+
       {/* DOCUMENTOS DA USINA (Consulta em Campo: Laudos, Projetos, Medições, Comprovantes e Fotos) */}
-      {(os.usina_id || usinaVinculada?.id) && (
+      {(selectedUsinaId || os.usina_id || usinaVinculada?.id) && (
         <SecaoDocumentosUsina
-          usinaId={os.usina_id || usinaVinculada?.id || ''}
+          usinaId={selectedUsinaId || os.usina_id || usinaVinculada?.id || ''}
           usinaNome={usinaVinculada?.nome || cliente?.nome || 'Usina'}
           readOnly={true}
         />
