@@ -501,8 +501,21 @@ export async function updateAtividade(id: string, data: Partial<Atividade>): Pro
 }
 
 export async function deleteAtividade(id: string): Promise<boolean> {
-  await pb.collection('atividades').delete(id)
-  return true
+  try {
+    await pb.collection('atividades').delete(id)
+    return true
+  } catch (err: unknown) {
+    // Idempotente: se já não existe (404), considera sucesso
+    if (err && typeof err === 'object' && ('status' in err || 'statusCode' in err)) {
+      const status =
+        (err as { status?: number; statusCode?: number }).status ??
+        (err as { statusCode?: number }).statusCode
+      if (status === 404) {
+        return true
+      }
+    }
+    throw err
+  }
 }
 
 export async function createManutencao(data: {

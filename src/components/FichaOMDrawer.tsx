@@ -1376,7 +1376,6 @@ export const FichaOMDrawer: React.FC = () => {
                 descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos perante a concessionária de energia.`,
                 data: agoraIso,
                 status: 'concluida',
-                data_conclusao: agoraIso,
                 autor: 'CRM Delfos Solar',
               })
             } catch {
