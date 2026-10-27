@@ -52,6 +52,81 @@ const mockListasSalvas = [
   },
 ]
 
+const mockFluxosFollowUp = [
+  {
+    id: 'fluxo-imediato-1',
+    collectionId: 'fluxos_follow_up',
+    collectionName: 'fluxos_follow_up',
+    nome: 'Fluxo Pós-Atendimento Imediato',
+    ativo: true,
+    is_padrao: true,
+    created: '2025-01-01',
+    updated: '2025-01-01',
+    etapas: [
+      {
+        id: 'etapa-1',
+        collectionId: 'etapas_follow_up',
+        collectionName: 'etapas_follow_up',
+        fluxo_id: 'fluxo-imediato-1',
+        ordem: 1,
+        nome: 'Mensagem Imediata',
+        dias_apos: 0,
+        mensagem:
+          'Olá, [nome do cliente]! Verificamos que a usina de [potência] em [cidade] está com ótima performance.',
+        ativa: true,
+        created: '2025-01-01',
+        updated: '2025-01-01',
+      },
+      {
+        id: 'etapa-2',
+        collectionId: 'etapas_follow_up',
+        collectionName: 'etapas_follow_up',
+        fluxo_id: 'fluxo-imediato-1',
+        ordem: 2,
+        nome: 'Reenvio 3 dias',
+        dias_apos: 3,
+        mensagem: 'Olá, [nome do cliente]! Passando para checar se recebeu nossa mensagem.',
+        ativa: true,
+        created: '2025-01-01',
+        updated: '2025-01-01',
+      },
+    ],
+  },
+  {
+    id: 'fluxo-sem-imediato',
+    collectionId: 'fluxos_follow_up',
+    collectionName: 'fluxos_follow_up',
+    nome: 'Fluxo Apenas Prazos Futuros',
+    ativo: true,
+    is_padrao: false,
+    created: '2025-01-01',
+    updated: '2025-01-01',
+    etapas: [
+      {
+        id: 'etapa-3d',
+        collectionId: 'etapas_follow_up',
+        collectionName: 'etapas_follow_up',
+        fluxo_id: 'fluxo-sem-imediato',
+        ordem: 1,
+        nome: 'Primeiro Contato em 3 dias',
+        dias_apos: 3,
+        mensagem: 'Olá, [nome do cliente]! Passaram-se 3 dias...',
+        ativa: true,
+        created: '2025-01-01',
+        updated: '2025-01-01',
+      },
+    ],
+  },
+]
+
+const mockFetchFluxosFollowUp = vi.fn().mockResolvedValue(mockFluxosFollowUp)
+const mockFetchFluxoPadrao = vi.fn().mockResolvedValue(mockFluxosFollowUp[0])
+
+vi.mock('@/services/fluxosFollowUpService', () => ({
+  fetchFluxosFollowUp: () => mockFetchFluxosFollowUp(),
+  fetchFluxoPadrao: () => mockFetchFluxoPadrao(),
+}))
+
 const mockFetchListasEnvio = vi.fn().mockResolvedValue(mockListasSalvas)
 const mockCreateListaEnvio = vi.fn().mockImplementation(async (input) => ({
   id: 'lista-nova-123',
@@ -624,6 +699,129 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     await waitFor(() => {
       expect(screen.getByText('Empresa O&M Manutencoes')).toBeDefined()
       expect(screen.queryByText('Carlos Solar')).toBeNull()
+    })
+  })
+
+  it('quando campo de texto estiver vazio e houver fluxo com etapa 1 imediata, permite envio e usa texto da etapa 1', async () => {
+    render(
+      <ModalMensagemWhatsAppMassa
+        open={true}
+        onOpenChange={vi.fn()}
+        destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+      />,
+    )
+
+    // Aguarda carregar os fluxos
+    await waitFor(() => {
+      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
+    })
+
+    // Limpa o campo de texto da mensagem
+    const textarea = screen.getByPlaceholderText(/Campo opcional|Digite a mensagem/i)
+    fireEvent.change(textarea, { target: { value: '' } })
+
+    // O aviso informativo deve estar visível no modal
+    await waitFor(() => {
+      expect(screen.getByTestId('aviso-mensagem-origem-fluxo')).toBeDefined()
+      expect(
+        screen.getByText(/Texto da Mensagem 1 virá da Etapa 1 Imediata do Fluxo/i),
+      ).toBeDefined()
+    })
+
+    // Clica no botão de enviar
+    const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })
+    fireEvent.click(btnEnviar)
+
+    // O gateway Z-API deve ser chamado com a mensagem da etapa 1 resolvida para o cliente
+    await waitFor(() => {
+      expect(mockSendWhatsAppMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cliente_id: 'cli-solar-1',
+          // Etapa 1 tinha: 'Olá, [nome do cliente]! Verificamos que a usina de [potência] em [cidade] está com ótima performance.'
+          // Carlos Solar: nome Carlos, potencia 12,5 kWp, cidade Passo Fundo
+          conteudo_final: expect.stringContaining(
+            'Olá, Carlos! Verificamos que a usina de 12,5 kWp em Passo Fundo está com ótima performance.',
+          ),
+        }),
+      )
+    })
+
+    // O lote disparos_massa deve registrar a mensagem_original herdada da etapa 1
+    expect(mockCreateDisparoMassa).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mensagem_original: expect.stringContaining(
+          'Olá, [nome do cliente]! Verificamos que a usina de [potência] em [cidade]',
+        ),
+      }),
+    )
+  })
+
+  it('quando campo de texto estiver vazio e NÃO houver fluxo com etapa imediata (ou régua desativada), valida "Informe o texto da mensagem"', async () => {
+    render(
+      <ModalMensagemWhatsAppMassa
+        open={true}
+        onOpenChange={vi.fn()}
+        destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+      />,
+    )
+
+    // Aguarda carregar fluxos
+    await waitFor(() => {
+      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
+    })
+
+    // Desativa a régua de follow-up pelo checkbox
+    const checkboxReenvio = screen.getByRole('checkbox', { name: /Ativo|Desativado/i })
+    fireEvent.click(checkboxReenvio)
+
+    // Limpa o campo de texto
+    const textarea = screen.getByPlaceholderText(/Digite a mensagem com os placeholders/i)
+    fireEvent.change(textarea, { target: { value: '   ' } })
+
+    // O aviso informativo de origem no fluxo NÃO deve aparecer
+    expect(screen.queryByTestId('aviso-mensagem-origem-fluxo')).toBeNull()
+
+    // Clica em enviar
+    const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })
+    fireEvent.click(btnEnviar)
+
+    // O gateway NÃO deve ser chamado pois a validação travou
+    expect(mockSendWhatsAppMessage).not.toHaveBeenCalled()
+  })
+
+  it('prevalece o texto digitado no campo quando preenchido, mesmo havendo fluxo com etapa imediata', async () => {
+    render(
+      <ModalMensagemWhatsAppMassa
+        open={true}
+        onOpenChange={vi.fn()}
+        destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+      />,
+    )
+
+    // Aguarda carregar os fluxos
+    await waitFor(() => {
+      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
+    })
+
+    // Preenche um texto customizado no campo
+    const textarea = screen.getByPlaceholderText(/Digite a mensagem|Campo opcional/i)
+    fireEvent.change(textarea, {
+      target: { value: 'Mensagem customizada digitada para [nome do cliente]' },
+    })
+
+    // O aviso de "virá da etapa 1" NÃO deve estar visível
+    expect(screen.queryByTestId('aviso-mensagem-origem-fluxo')).toBeNull()
+
+    const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })
+    fireEvent.click(btnEnviar)
+
+    await waitFor(() => {
+      expect(mockSendWhatsAppMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cliente_id: 'cli-solar-1',
+          conteudo_final: expect.stringContaining('Mensagem customizada digitada para Carlos'),
+        }),
+      )
     })
   })
 })

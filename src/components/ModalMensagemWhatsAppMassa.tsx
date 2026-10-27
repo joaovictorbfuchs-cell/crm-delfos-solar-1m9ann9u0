@@ -889,18 +889,50 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     return itensFiltrados[0] || itensProcessados[0] || null
   }, [clienteFocadoId, selectedIds, itensFiltrados, itensProcessados])
 
+  // Fluxo ativo na régua de follow-up e detecção de etapa 1 imediata
+  const fluxoSelecionadoObj = useMemo(() => {
+    if (!reenvioAtivo || !fluxoSelecionadoId) return null
+    return fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId) || null
+  }, [reenvioAtivo, fluxoSelecionadoId, fluxosDisponiveis])
+
+  const etapaImediataFluxo = useMemo(() => {
+    if (!fluxoSelecionadoObj || !fluxoSelecionadoObj.etapas) return null
+    const etapasAtivas = fluxoSelecionadoObj.etapas
+      .filter((e) => e.ativa)
+      .sort((a, b) => a.ordem - b.ordem)
+    if (etapasAtivas.length === 0) return null
+    const primeira = etapasAtivas[0]
+    // Etapa 1 imediata: dias_apos === 0 (ou ordem 1 com dias_apos <= 0) e com mensagem preenchida
+    if (Number(primeira.dias_apos) === 0 && (primeira.mensagem || '').trim()) {
+      return primeira
+    }
+    return null
+  }, [fluxoSelecionadoObj])
+
+  // Indica se a mensagem 1 será herdada da etapa imediata do fluxo porque o campo de texto está vazio
+  const textoVeraDoFluxo = useMemo(() => {
+    return !templateTexto.trim() && Boolean(etapaImediataFluxo)
+  }, [templateTexto, etapaImediataFluxo])
+
+  // Mensagem base efetiva (texto do campo ou etapa imediata do fluxo se vazio)
+  const templateEfetivo = useMemo(() => {
+    if (templateTexto.trim()) return templateTexto
+    if (etapaImediataFluxo?.mensagem) return etapaImediataFluxo.mensagem
+    return templateTexto
+  }, [templateTexto, etapaImediataFluxo])
+
   // Mensagem resolvida em tempo real para a prévia do primeiro cliente selecionado
   const mensagemPreviaResolvida = useMemo(() => {
-    if (!itemFocado) return templateTexto
+    if (!itemFocado) return templateEfetivo
     return resolverPlaceholdersMensagemMassa({
-      template: templateTexto,
+      template: templateEfetivo,
       cliente: itemFocado.cliente,
       usina: itemFocado.usina,
       valor: itemFocado.valorItem,
       cidadeManual: itemFocado.cidade,
       contatoNome: itemFocado.contatoAdicionalNome,
     })
-  }, [templateTexto, itemFocado])
+  }, [templateEfetivo, itemFocado])
 
   // Inserir tag de placeholder no cursor da textarea
   const handleInsertPlaceholder = (tag: string) => {
@@ -1201,6 +1233,23 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         return
       }
 
+      // Validação do texto:
+      // Se o campo estiver vazio e NÃO houver fluxo com etapa 1 imediata ativa, exige o texto.
+      // Se houver etapa 1 imediata no fluxo selecionado, o campo vazio é permitido.
+      const temTextoNoCampo = Boolean(templateTexto.trim())
+      const temEtapaImediataNoFluxo = Boolean(etapaImediataFluxo?.mensagem?.trim())
+
+      if (!temTextoNoCampo && !temEtapaImediataNoFluxo) {
+        toast.error('Informe o texto da mensagem.', {
+          description:
+            'Digite o texto da mensagem ou ative uma régua de follow-up com etapa 1 imediata.',
+        })
+        return
+      }
+
+      // Texto canônico a ser enviado como mensagem 1 (do campo se preenchido, ou da etapa 1 imediata)
+      const textoMensagem1Base = temTextoNoCampo ? templateTexto : etapaImediataFluxo!.mensagem
+
       const selecionados = itensProcessados.filter(
         (c) => c && c.cliente && selectedIds.includes(c.cliente.id),
       )
@@ -1304,7 +1353,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         let mensagemFinal = ''
         try {
           const mensagemBase = resolverPlaceholdersMensagemMassa({
-            template: templateTexto,
+            template: textoMensagem1Base,
             cliente: item.cliente,
             usina: item.usina,
             valor: item.valorItem,
@@ -1314,7 +1363,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
         } catch (errPlaceholder) {
           console.warn('Erro ao resolver placeholders de mensagem:', errPlaceholder)
-          mensagemFinal = aplicarPrefixoMensagemManual(templateTexto)
+          mensagemFinal = aplicarPrefixoMensagemManual(textoMensagem1Base)
         }
 
         try {
@@ -1492,7 +1541,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           total_destinatarios: selecionados.length,
           intervalo_segundos: intervaloSegundos,
           data_disparo: isAgendamento && dataAgendamentoUtcIso ? dataAgendamentoUtcIso : agoraIso,
-          mensagem_original: templateTexto,
+          mensagem_original: textoMensagem1Base,
           reenvio_ativo: Boolean(reenvioAtivo),
           texto_reenvio_1: reenvioAtivo ? textoReenvio1 : '',
           texto_reenvio_2: reenvioAtivo ? textoReenvio2 : '',
@@ -2488,16 +2537,30 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
             {/* Campo de Texto Editável */}
             <div className="space-y-1.5 flex-1 flex flex-col">
-              <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
-                Texto da Mensagem (com Tags Dinâmicas)
-              </Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Texto da Mensagem (com Tags Dinâmicas)
+                </Label>
+                {textoVeraDoFluxo && (
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-600" />
+                    <span>Usando etapa 1 do fluxo</span>
+                  </span>
+                )}
+              </div>
               <Textarea
                 ref={textareaRef}
                 rows={5}
                 value={templateTexto}
                 onChange={(e) => setTemplateTexto(e.target.value)}
-                className="text-xs font-mono bg-white resize-none p-2.5 leading-relaxed"
-                placeholder="Digite a mensagem com os placeholders [nome do cliente], [cidade], [potência], [valor]..."
+                className={`text-xs font-mono bg-white resize-none p-2.5 leading-relaxed ${
+                  textoVeraDoFluxo ? 'border-emerald-300 focus:ring-emerald-500' : ''
+                }`}
+                placeholder={
+                  etapaImediataFluxo
+                    ? `Campo opcional: o texto da Etapa 1 imediata do fluxo "${fluxoSelecionadoObj?.nome || 'Follow-up'}" será usado se deixar vazio...`
+                    : 'Digite a mensagem com os placeholders [nome do cliente], [cidade], [potência], [valor]...'
+                }
               />
 
               {/* Inserção das Tags Dinâmicas com Um Clique */}
@@ -2683,6 +2746,28 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                       )}
                     </select>
 
+                    {/* Aviso informativo claro quando o campo de texto está vazio e o texto virá da etapa 1 imediata do fluxo */}
+                    {textoVeraDoFluxo && etapaImediataFluxo && (
+                      <div
+                        data-testid="aviso-mensagem-origem-fluxo"
+                        className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-1.5 animate-in fade-in duration-150"
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-900">
+                          <Info className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span>Texto da Mensagem 1 virá da Etapa 1 Imediata do Fluxo</span>
+                        </div>
+                        <p className="text-[11px] text-emerald-800 leading-relaxed">
+                          Como o campo de texto acima está vazio, o disparo usará a{' '}
+                          <strong>Etapa 1 (Imediata)</strong> do fluxo{' '}
+                          <strong>"{fluxoSelecionadoObj?.nome}"</strong> com as tags dinâmicas de
+                          cada cliente resolvidas automaticamente:
+                        </p>
+                        <div className="p-2 rounded bg-white/90 border border-emerald-200 font-mono text-[11px] text-gray-800 italic whitespace-pre-wrap leading-relaxed shadow-2xs">
+                          "{etapaImediataFluxo.mensagem}"
+                        </div>
+                      </div>
+                    )}
+
                     {/* Exibição resumida das etapas do fluxo selecionado */}
                     {(() => {
                       const fluxoEscolhido = fluxosDisponiveis.find(
@@ -2809,8 +2894,22 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
               {/* Balão WhatsApp Prévia */}
               <div className="bg-[#DCF8C6]/85 text-gray-900 text-xs p-3 rounded-xl rounded-tr-none shadow-xs border border-emerald-200/60 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto font-sans">
-                {mensagemPreviaResolvida}
+                {mensagemPreviaResolvida || (
+                  <span className="italic text-gray-500">
+                    Nenhum texto informado para a mensagem. Digite uma mensagem acima ou selecione
+                    um fluxo com etapa imediata.
+                  </span>
+                )}
               </div>
+              {textoVeraDoFluxo && etapaImediataFluxo && (
+                <div className="text-[10px] text-emerald-700 font-medium flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span>
+                    Prévia gerada a partir da <strong>Etapa 1 (Imediata)</strong> do fluxo{' '}
+                    <strong>"{fluxoSelecionadoObj?.nome}"</strong>.
+                  </span>
+                </div>
+              )}
 
               {/* Dados Resolvidos na Prévia */}
               {itemFocado && (

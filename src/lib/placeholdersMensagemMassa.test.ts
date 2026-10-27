@@ -110,4 +110,16 @@ describe('placeholdersMensagemMassa', () => {
     expect(resolvida).toContain('Olá João, a empresa Solar Tech em Erechim')
     expect(resolvida).toContain(`hoje ${dataHoje}`)
   })
+
+  it('resolve tags dinâmicas no texto da etapa imediata de um fluxo de follow-up', () => {
+    const textoEtapa1Fluxo =
+      'Olá, [nome do cliente]! Sua usina em [cidade] com potência de [potência] está operando perfeitamente?'
+    const resolvida = resolverPlaceholdersMensagemMassa({
+      template: textoEtapa1Fluxo,
+      cliente: clienteMock,
+    })
+    expect(resolvida).toBe(
+      'Olá, João! Sua usina em Erechim com potência de 7,1 kWp está operando perfeitamente?',
+    )
+  })
 })
