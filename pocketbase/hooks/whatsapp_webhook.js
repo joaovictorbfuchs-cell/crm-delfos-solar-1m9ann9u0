@@ -46,16 +46,22 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       return d
     }
 
+    // Comparação flexível simétrica ignorando 9º dígito:
+    // Trata ambos os sentidos: número recebido sem 9 e cadastro com 9 (ex: 5491942664 vs 54991942664)
+    // ou número recebido com 9 e cadastro sem 9 (ex: 54991942664 vs 5491942664).
     function compararFlexivel(telA, telB) {
       const a = normalizarTelefoneCru(telA)
       const b = normalizarTelefoneCru(telB)
       if (!a || !b || a.length < 8 || b.length < 8) return 'nenhum'
       if (a === b) return 'exato'
+
       const ultA = a.slice(-8)
       const ultB = b.slice(-8)
       if (ultA === ultB) {
-        if (a.length >= 10 && b.length >= 10) {
-          if (a.slice(0, 2) === b.slice(0, 2)) return 'tolerante_nono_digito'
+        const dddA = a.length >= 10 ? a.slice(0, 2) : ''
+        const dddB = b.length >= 10 ? b.slice(0, 2) : ''
+        if (dddA && dddB) {
+          if (dddA === dddB) return 'tolerante_nono_digito'
           return 'nenhum'
         }
         return 'tolerante_nono_digito'
@@ -451,8 +457,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     // - Prioridade ao contato cujo número bater EXATAMENTE
     // - Se houver mais de um compatível e nenhum exato único: marcar ambiguidade (conversa criada na Fila de Novos como 'novo')
     let clienteEncontrado = null
-    let candidatosExatos = []
-    let candidatosTolerantes = []
+    let candidatosCompat = []
     const last8Digits =
       !isLidApenas && normPhone.length >= 8
         ? normPhone.slice(-8)
@@ -483,11 +488,14 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             const num = campos[f]
             if (!num) continue
             const match = compararFlexivel(normPhone, num)
-            if (match === 'exato') {
-              candidatosExatos.push({ cliente: c, origem: 'cliente', numero: num })
-              break
-            } else if (match === 'tolerante_nono_digito') {
-              candidatosTolerantes.push({ cliente: c, origem: 'cliente', numero: num })
+            if (match === 'exato' || match === 'tolerante_nono_digito') {
+              candidatosCompat.push({
+                cliente: c,
+                origem: 'cliente',
+                numero: num,
+                tipoMatch: match,
+              })
+              // Interrompe outros campos do MESMO cliente para não duplicar aqui
               break
             }
           }
@@ -508,25 +516,17 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             if (!cliId) continue
             const num = adic.getString('telefone')
             const match = compararFlexivel(normPhone, num)
-            if (match !== 'nenhum') {
+            if (match === 'exato' || match === 'tolerante_nono_digito') {
               try {
                 const cliRec = $app.findRecordById('clientes', cliId)
                 if (cliRec) {
-                  if (match === 'exato') {
-                    candidatosExatos.push({
-                      cliente: cliRec,
-                      origem: 'contato_adicional',
-                      contatoAdicional: adic,
-                      numero: num,
-                    })
-                  } else {
-                    candidatosTolerantes.push({
-                      cliente: cliRec,
-                      origem: 'contato_adicional',
-                      contatoAdicional: adic,
-                      numero: num,
-                    })
-                  }
+                  candidatosCompat.push({
+                    cliente: cliRec,
+                    origem: 'contato_adicional',
+                    contatoAdicional: adic,
+                    numero: num,
+                    tipoMatch: match,
+                  })
                 }
               } catch (_) {}
             }
@@ -536,34 +536,48 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         }
       }
 
-      // Deduplicar candidatos por ID de cliente
+      // Deduplicar candidatos por ID de cliente único (mesmo cliente casando por WhatsApp e Telefone conta como 1)
       const deduplicarPorCliente = (lista) => {
         const unicos = []
-        const vistos = {}
+        const mapa = {}
         for (let i = 0; i < lista.length; i++) {
-          const id = lista[i].cliente.id
-          if (!vistos[id]) {
-            vistos[id] = true
-            unicos.push(lista[i])
+          const item = lista[i]
+          const id = item.cliente.id
+          if (!mapa[id]) {
+            mapa[id] = item
+            unicos.push(item)
+          } else {
+            // Se já tínhamos o cliente mas o novo match é exato, promove o registro salvo
+            if (item.tipoMatch === 'exato' && mapa[id].tipoMatch !== 'exato') {
+              mapa[id].tipoMatch = 'exato'
+              mapa[id].origem = item.origem
+              mapa[id].numero = item.numero
+            }
           }
         }
         return unicos
       }
 
-      const exatosUnicos = deduplicarPorCliente(candidatosExatos)
-      const tolerantesUnicos = deduplicarPorCliente(candidatosTolerantes)
+      const clientesCompativeisUnicos = deduplicarPorCliente(candidatosCompat)
 
-      if (exatosUnicos.length === 1) {
-        // Prioridade máxima: 1 único cliente com casamento EXATO
-        clienteEncontrado = exatosUnicos[0].cliente
-      } else if (exatosUnicos.length > 1) {
-        // Ambiguidade: mais de um cliente bate exato
-        clienteEncontrado = null
-      } else if (tolerantesUnicos.length === 1) {
-        // Tolerância de 9º dígito: 1 único cliente compatível
-        clienteEncontrado = tolerantesUnicos[0].cliente
-      } else if (tolerantesUnicos.length > 1) {
-        // Ambiguidade: mais de um cliente compatível com tolerância de 9º dígito
+      // Regra de Auto-vínculo:
+      // Se após deduplicar há EXATAMENTE UM cliente único compatível (seja exato ou com tolerância de 9º dígito),
+      // auto-vincula sem ambiguidade!
+      if (clientesCompativeisUnicos.length === 1) {
+        clienteEncontrado = clientesCompativeisUnicos[0].cliente
+      } else if (clientesCompativeisUnicos.length > 1) {
+        // Há ambiguidade real (2 ou mais clientes DIFERENTES compatíveis)
+        // Se houver exatamente 1 exato entre eles, prioriza o exato
+        const exatos = clientesCompativeisUnicos.filter(function (c) {
+          return c.tipoMatch === 'exato'
+        })
+        if (exatos.length === 1) {
+          clienteEncontrado = exatos[0].cliente
+        } else {
+          // Ambiguidade real: deixa sem cliente_id para o operador decidir no modal
+          clienteEncontrado = null
+        }
+      } else {
         clienteEncontrado = null
       }
     } catch (errBuscaCliente) {

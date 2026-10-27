@@ -31,21 +31,29 @@ export function getErrorMessage(error: unknown): string {
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
     const status =
-      (error as { status?: number }).status ??
-      (error as { response?: { status?: number } }).response?.status
+      errObj.status ??
+      (errObj.response as Record<string, unknown> | undefined)?.status ??
+      errObj.statusCode
     if (status === 401 || status === 403) return true
-  }
-  if (error instanceof Error || typeof (error as { message?: unknown })?.message === 'string') {
-    const msg = ((error as Error).message || '').toLowerCase()
+    const msg = String(errObj.message || '')
     if (
-      msg.includes('token is expired') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('sessao expirada') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
+      msg.includes('Token is expired') ||
+      msg.includes('Login expirou') ||
+      msg.includes('Sessão expirada') ||
+      msg.includes('Failed to authenticate')
+    ) {
+      return true
+    }
+  }
+  if (error instanceof Error) {
+    const msg = error.message
+    if (
+      msg.includes('Token is expired') ||
+      msg.includes('Login expirou') ||
+      msg.includes('Sessão expirada') ||
+      msg.includes('Failed to authenticate')
     ) {
       return true
     }
@@ -55,21 +63,18 @@ export function isAuthSessionError(error: unknown): boolean {
 
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof DOMException && error.name === 'AbortError') return true
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort === true || errObj.name === 'AbortError') return true
+    if (String(errObj.message || '').includes('The request was aborted')) return true
+  }
   if (
-    typeof error === 'object' &&
-    'name' in error &&
-    (error as { name: string }).name === 'AbortError'
-  )
+    error instanceof Error &&
+    (error.name === 'AbortError' || error.message.includes('The request was aborted'))
+  ) {
     return true
-  if (
-    typeof error === 'object' &&
-    'isAbort' in error &&
-    Boolean((error as { isAbort: boolean }).isAbort)
-  )
-    return true
-  const msg = error instanceof Error ? error.message : String(error)
-  return msg.includes('autocancelled') || msg.includes('request was aborted')
+  }
+  return false
 }
 
 export function formatPbError(error: unknown): string {

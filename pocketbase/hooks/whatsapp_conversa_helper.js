@@ -53,7 +53,56 @@ function ensureConversaForMessage(app, clienteId, telefoneDestino, previewTexto,
       } catch (_) {}
     }
 
-    // 3. Se ainda não achou conversa mas temos cliente_id, checar se o cliente tem telefone/whatsapp cadastrado
+    // 3. Se não temos cliente_id mas temos cleanPhone, tentar auto-vincular ao cliente único compatível
+    // (com tolerância ao 9º dígito e busca em whatsapp/telefone)
+    if (!clienteId && !isLid && cleanPhone && cleanPhone.length >= 8) {
+      try {
+        const last8 = cleanPhone.slice(-8)
+        const candidatos = app.findRecordsByFilter(
+          'clientes',
+          `whatsapp ~ '${last8}' || telefone ~ '${last8}' || telefone_secundario ~ '${last8}' || titular_telefone ~ '${last8}'`,
+          '-updated',
+          25,
+          0,
+        )
+        const compativeis = []
+        const vistos = {}
+        for (let i = 0; i < candidatos.length; i++) {
+          const c = candidatos[i]
+          const id = c.id
+          if (vistos[id]) continue
+          const campos = [
+            c.getString('whatsapp'),
+            c.getString('telefone'),
+            c.getString('telefone_secundario'),
+            c.getString('titular_telefone'),
+          ]
+          let matched = false
+          for (let f = 0; f < campos.length; f++) {
+            const num = (campos[f] || '').replace(/\D/g, '')
+            if (!num || num.length < 8) continue
+            // Compara os últimos 8 dígitos + DDD se disponível
+            if (num.slice(-8) === last8) {
+              const dddCand = num.length >= 10 ? num.slice(-10, -8) : ''
+              const dddDest = cleanPhone.length >= 10 ? cleanPhone.slice(-10, -8) : ''
+              if (!dddCand || !dddDest || dddCand === dddDest) {
+                matched = true
+                break
+              }
+            }
+          }
+          if (matched) {
+            vistos[id] = true
+            compativeis.push(c)
+          }
+        }
+        if (compativeis.length === 1) {
+          clienteId = compativeis[0].id
+        }
+      } catch (_) {}
+    }
+
+    // 4. Se ainda não achou conversa mas temos cliente_id, checar se o cliente tem telefone/whatsapp cadastrado
     let clienteRec = null
     if (clienteId) {
       try {

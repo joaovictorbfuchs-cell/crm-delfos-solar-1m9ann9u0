@@ -55,6 +55,7 @@ import {
   casarRemetenteComContatos,
   normalizarNumeroWhatsApp,
   compararTelefonesFlexivel,
+  deduplicarCandidatosPorCliente,
 } from '@/lib/reconhecimentoRemetenteWhatsApp'
 import {
   resolverNumeroDestinoCliente,
@@ -512,10 +513,64 @@ export const CentralAtendimento: React.FC = () => {
   // Rastreamento para evitar auto-vinculação concorrente ou duplicada na mesma conversa
   const autoVincularProcessadasRef = useRef<Set<string>>(new Set())
 
+  // Abertura inteligente de vinculação:
+  // Se houver EXATAMENTE UM cliente compatível (após deduplicação por cliente, ignorando 9º dígito),
+  // vincula AUTOMATICAMENTE sem abrir o modal, exibindo toast discreto.
+  // O modal só é aberto quando houver ambiguidade real (2 ou mais clientes DIFERENTES compatíveis)
+  // ou quando nenhum cliente for encontrado automaticamente (para busca manual).
+  const solicitarVinculoCliente = (conv: WhatsAppConversa | null) => {
+    if (!conv || !conv.id) return
+
+    // Se já estiver vinculada a um cliente, abre o modal direto para troca manual se desejado
+    if (conv.cliente_id) {
+      setConversaParaVincular(conv)
+      return
+    }
+
+    if (isWhatsAppLid(conv.numero)) {
+      setConversaParaVincular(conv)
+      return
+    }
+
+    const match = casarRemetenteComContatos(conv.numero, clientes as any, contatosAdicionais as any)
+
+    // Match único após deduplicação (status === 'exato_unico' ou candidatosCompativeis com exatamente 1 cliente diferente)
+    const candidatosUnicos = deduplicarCandidatosPorCliente(match.candidatosCompativeis || [])
+    if (candidatosUnicos.length === 1 && candidatosUnicos[0].clienteId) {
+      const candidatoUnico = candidatosUnicos[0]
+      const clienteId = candidatoUnico.clienteId
+      const nomeAdicional =
+        candidatoUnico.origem === 'contato_adicional' ? candidatoUnico.contatoNome : undefined
+
+      const clienteAlvo = clientesMap.get(clienteId)
+      const nomeCli = clienteAlvo?.nome || candidatoUnico.clienteNome || 'Cliente'
+
+      autoVincularProcessadasRef.current.add(conv.id)
+      executarVinculoConversa(conv.id, clienteId, nomeAdicional, true)
+        .then(() => {
+          toast({
+            title: 'Conversa vinculada automaticamente',
+            description: `Conversa vinculada automaticamente a ${nomeCli}.`,
+          })
+        })
+        .catch((err) => {
+          console.warn('Falha na vinculação automática ao clicar em Vincular:', err)
+          autoVincularProcessadasRef.current.delete(conv.id)
+          // Em caso de falha, abre o modal como fallback
+          setConversaParaVincular(conv)
+        })
+      return
+    }
+
+    // Ambiguidade real (2 ou mais clientes DIFERENTES compatíveis) ou nenhum compatível:
+    // abre o modal para que o operador decida ou busque manualmente
+    setConversaParaVincular(conv)
+  }
+
   // Vinculação automática de número sem o 9º dígito (ou com match exato único) para a Fila de Novos:
   // quando alguém entra em contato pelo WhatsApp e na base o contato existe com match 'exato_unico'
-  // (incluindo tolerância de 8 vs 9 dígitos ou match direto), vincular automaticamente sem confirmação manual.
-  // Casos ambíguos (2+ contatos distintos) NÃO são auto-vinculados — mantêm o aviso âmbar na tela.
+  // (incluindo tolerância de 8 vs 9 dígitos ou match direto nos dois sentidos), vincular automaticamente sem confirmação manual.
+  // Casos ambíguos (2+ contatos distintos) NÃO são auto-vinculados — mantêm o aviso âmbar na tela e modal sob demanda.
   useEffect(() => {
     if (!Array.isArray(whatsAppConversas) || !Array.isArray(clientes) || clientes.length === 0) {
       return
@@ -540,12 +595,12 @@ export const CentralAtendimento: React.FC = () => {
         contatosAdicionais as any,
       )
 
-      if (match.status === 'exato_unico' && match.contatoPrincipal?.clienteId) {
-        const clienteId = match.contatoPrincipal.clienteId
+      const candidatosUnicos = deduplicarCandidatosPorCliente(match.candidatosCompativeis || [])
+      if (candidatosUnicos.length === 1 && candidatosUnicos[0].clienteId) {
+        const candidatoUnico = candidatosUnicos[0]
+        const clienteId = candidatoUnico.clienteId
         const nomeAdicional =
-          match.contatoPrincipal.origem === 'contato_adicional'
-            ? match.contatoPrincipal.contatoNome
-            : undefined
+          candidatoUnico.origem === 'contato_adicional' ? candidatoUnico.contatoNome : undefined
 
         // Marcar imediatamente no ref para evitar reentrância
         autoVincularProcessadasRef.current.add(conv.id)
@@ -553,10 +608,10 @@ export const CentralAtendimento: React.FC = () => {
         executarVinculoConversa(conv.id, clienteId, nomeAdicional, true)
           .then(() => {
             const clienteAlvo = clientesMap.get(clienteId)
-            const nomeCli = clienteAlvo?.nome || match.contatoPrincipal?.clienteNome || 'Cliente'
+            const nomeCli = clienteAlvo?.nome || candidatoUnico.clienteNome || 'Cliente'
             toast({
-              title: 'Contato vinculado automaticamente',
-              description: `A conversa de ${formatWhatsAppPhone(conv.numero)} foi reconhecida e vinculada a "${nomeCli}" (Em Atendimento).`,
+              title: 'Conversa vinculada automaticamente',
+              description: `Conversa vinculada automaticamente a ${nomeCli}.`,
             })
           })
           .catch((err) => {
@@ -1328,20 +1383,23 @@ export const CentralAtendimento: React.FC = () => {
                             clientes as any,
                             contatosAdicionais as any,
                           )
-                          if (resMatch.candidatosCompativeis.length === 0) return null
-                          const isMultiplos = resMatch.candidatosCompativeis.length > 1
+                          const candidatosUnicos = deduplicarCandidatosPorCliente(
+                            resMatch.candidatosCompativeis || [],
+                          )
+                          if (candidatosUnicos.length === 0) return null
+                          const isMultiplos = candidatosUnicos.length > 1
                           return (
                             <div className="w-full max-w-full overflow-hidden break-words mt-2 p-2 bg-amber-50/90 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 space-y-1">
                               <div className="flex items-center gap-1.5 font-bold text-amber-950 min-w-0">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                 <span className="truncate">
                                   {isMultiplos
-                                    ? `${resMatch.candidatosCompativeis.length} contatos compatíveis encontrados:`
+                                    ? `${candidatosUnicos.length} clientes compatíveis encontrados:`
                                     : 'Contato compatível identificado:'}
                                 </span>
                               </div>
                               <div className="text-[10px] text-amber-800 leading-tight min-w-0 break-words">
-                                {resMatch.candidatosCompativeis.slice(0, 2).map((cand, idx) => (
+                                {candidatosUnicos.slice(0, 2).map((cand, idx) => (
                                   <div key={idx} className="truncate min-w-0">
                                     • <strong className="text-gray-900">{cand.clienteNome}</strong>
                                     {cand.tipoMatch === 'tolerante_nono_digito' && (
@@ -1351,10 +1409,9 @@ export const CentralAtendimento: React.FC = () => {
                                     )}
                                   </div>
                                 ))}
-                                {resMatch.candidatosCompativeis.length > 2 && (
+                                {candidatosUnicos.length > 2 && (
                                   <div className="text-[9px] text-amber-700 italic">
-                                    + {resMatch.candidatosCompativeis.length - 2} outro(s)
-                                    contato(s)
+                                    + {candidatosUnicos.length - 2} outro(s) contato(s)
                                   </div>
                                 )}
                               </div>
@@ -1408,7 +1465,7 @@ export const CentralAtendimento: React.FC = () => {
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    setConversaParaVincular(conv)
+                                    solicitarVinculoCliente(conv)
                                   }}
                                   className="flex items-center gap-2 cursor-pointer text-gray-700 hover:bg-gray-100"
                                 >
@@ -1422,7 +1479,7 @@ export const CentralAtendimento: React.FC = () => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setConversaParaVincular(conv)
+                                solicitarVinculoCliente(conv)
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors shadow-2xs"
                               title="Vincular a cliente existente"
@@ -1631,7 +1688,7 @@ export const CentralAtendimento: React.FC = () => {
               conversa={selectedConversa}
               cliente={selectedCliente}
               onBack={() => setSelectedConversaId(null)}
-              onOpenVincularModal={() => setConversaParaVincular(selectedConversa)}
+              onOpenVincularModal={() => solicitarVinculoCliente(selectedConversa)}
               onOpenCadastrarLeadModal={() => setConversaParaNovoLead(selectedConversa)}
               onOpenCadastrarOutroContatoModal={() => setConversaParaOutroContato(selectedConversa)}
             />

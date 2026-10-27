@@ -4,6 +4,7 @@ import {
   decomporTelefone,
   compararTelefonesFlexivel,
   casarRemetenteComContatos,
+  deduplicarCandidatosPorCliente,
 } from './reconhecimentoRemetenteWhatsApp'
 
 describe('Reconhecimento flexível de remetente WhatsApp', () => {
@@ -242,6 +243,124 @@ describe('Reconhecimento flexível de remetente WhatsApp', () => {
       )
       expect(resLid.status).toBe('nenhum')
       expect(resLid.candidatosCompativeis).toHaveLength(0)
+    })
+
+    describe('Cenários do Usuário: Gilberto Christ & Auto-vínculo com 9º Dígito', () => {
+      it('(a) Match único com 9º dígito (5491942664 recebido vs 54991942664 cadastrado) → vincula automático (1 candidato único)', () => {
+        // Gilberto Christ cadastrado com (54) 99194-2664
+        const clientesGilberto = [
+          {
+            id: 'cli-gilberto',
+            nome: 'Gilberto Christ',
+            whatsapp: '(54) 99194-2664',
+            telefone: '(54) 99194-2664',
+          },
+        ]
+
+        // Número que chega no WhatsApp é 5491942664 (sem o 9º dígito)
+        const res = casarRemetenteComContatos('5491942664', clientesGilberto, [])
+        expect(res.status).toBe('exato_unico')
+        expect(res.contatoPrincipal?.clienteId).toBe('cli-gilberto')
+        expect(res.contatoPrincipal?.tipoMatch).toBe('tolerante_nono_digito')
+
+        // Deduplicação deve produzir exatamente 1 candidato
+        const unicos = deduplicarCandidatosPorCliente(res.candidatosCompativeis)
+        expect(unicos).toHaveLength(1)
+        expect(unicos[0].clienteId).toBe('cli-gilberto')
+        expect(unicos[0].clienteNome).toBe('Gilberto Christ')
+      })
+
+      it('(a2) Match único com 9º dígito no sentido inverso (54991942664 recebido vs 5491942664 cadastrado) → vincula automático', () => {
+        const clientesSemNono = [
+          {
+            id: 'cli-gilberto-antigo',
+            nome: 'Gilberto Christ',
+            whatsapp: '(54) 9194-2664',
+          },
+        ]
+
+        // Número que chega tem 9 dígitos
+        const res = casarRemetenteComContatos('54991942664', clientesSemNono, [])
+        expect(res.status).toBe('exato_unico')
+        expect(res.contatoPrincipal?.clienteId).toBe('cli-gilberto-antigo')
+        expect(res.contatoPrincipal?.tipoMatch).toBe('tolerante_nono_digito')
+
+        const unicos = deduplicarCandidatosPorCliente(res.candidatosCompativeis)
+        expect(unicos).toHaveLength(1)
+        expect(unicos[0].clienteId).toBe('cli-gilberto-antigo')
+      })
+
+      it('(b) Mesmo cliente casando por WhatsApp e Telefone → uma única opção/um único candidato', () => {
+        // Cliente com o mesmo número (ou com variação de 9º dígito) em whatsapp E telefone
+        const clienteCamposDuplos = [
+          {
+            id: 'cli-gilberto',
+            nome: 'Gilberto Christ',
+            whatsapp: '(54) 99194-2664',
+            telefone: '(54) 99194-2664',
+          },
+        ]
+
+        const res = casarRemetenteComContatos('5491942664', clienteCamposDuplos, [])
+        // O deduplicarCandidatosPorCliente deve consolidar em 1 só item
+        const unicos = deduplicarCandidatosPorCliente(res.candidatosCompativeis)
+        expect(unicos).toHaveLength(1)
+        expect(unicos[0].clienteId).toBe('cli-gilberto')
+        expect(unicos[0].clienteNome).toBe('Gilberto Christ')
+      })
+
+      it('(c) 2+ clientes diferentes compatíveis → ambiguidade, abre modal', () => {
+        const clientesDistintos = [
+          {
+            id: 'cli-1',
+            nome: 'Gilberto Christ',
+            whatsapp: '(54) 99194-2664',
+          },
+          {
+            id: 'cli-2',
+            nome: 'Outro Gilberto',
+            whatsapp: '(54) 9194-2664',
+          },
+        ]
+
+        // Chega 5491942664: bate exato com cli-2 e tolerante com cli-1
+        // Se ambos forem tolerantes com o número recebido (ex: número sem 9 e dois clientes em DDDs iguais com os mesmos 8 dígitos)
+        const clientesDoisTolerantes = [
+          {
+            id: 'cli-alpha',
+            nome: 'Cliente Alpha',
+            whatsapp: '(54) 99999-1234',
+          },
+          {
+            id: 'cli-beta',
+            nome: 'Cliente Beta',
+            whatsapp: '(54) 98888-1234', // termina em 1234, mas vamos colocar igual
+            telefone: '(54) 99999-1234',
+          },
+        ]
+
+        // Dois clientes diferentes com o mesmo número final (54) 99194-2664 e (54) 89194-2664
+        const clientesConflitoReal = [
+          {
+            id: 'cli-gilberto-1',
+            nome: 'Gilberto Christ',
+            whatsapp: '(54) 99194-2664',
+          },
+          {
+            id: 'cli-gilberto-2',
+            nome: 'Gilberto Silva',
+            telefone: '(54) 89194-2664',
+          },
+        ]
+
+        // Número recebido sem nono dígito (54) 9194-2664
+        const res = casarRemetenteComContatos('5491942664', clientesConflitoReal, [])
+        expect(res.status).toBe('ambiguo')
+        const unicos = deduplicarCandidatosPorCliente(res.candidatosCompativeis)
+        expect(unicos.length).toBeGreaterThanOrEqual(2)
+        expect(unicos.map((u) => u.clienteId)).toContain('cli-gilberto-1')
+        expect(unicos.map((u) => u.clienteId)).toContain('cli-gilberto-2')
+      })
     })
   })
 })
