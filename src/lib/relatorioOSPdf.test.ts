@@ -458,4 +458,132 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
     expect(html).toContain('/2027')
     expect(html).toContain('(conforme plano de manutenção).')
   })
+
+  describe('Reordenamento e filtros estritos da Próxima Manutenção Prevista', () => {
+    it('cenário 1: cliente com data genérica importada + atividade agendada real → deve usar a atividade real (prioridade 2 sobre 3)', () => {
+      const osMock: Partial<OrdemServico> = {
+        id: 'os-reord-1',
+        data_agendada: '2026-10-27T08:00:00Z',
+        tipo: 'limpeza',
+      }
+
+      // Cliente tem data_proxima_atividade importada em massa genérica com tipo genérico
+      const clienteComDataGenerica = {
+        ...clienteMock,
+        contrato_om: null,
+        data_proxima_atividade: '2026-11-24 09:30:00',
+        tipo_proxima_atividade: 'Visita Técnica / Monitoramento',
+        atividades: [
+          {
+            id: 'atv-manut-real-1',
+            status: 'agendada',
+            tipo: 'limpeza_manutencao',
+            data_prevista: '2027-02-10 09:00:00',
+          },
+        ],
+      }
+
+      const html = gerarHTMLRelatorioOS({
+        os: osMock as OrdemServico,
+        cliente: clienteComDataGenerica,
+        sistema: sistemaMock,
+      })
+
+      // Deve usar a data da atividade real (10/02/2027) e NUNCA a data genérica (24/11/2026)
+      expect(html).toContain('10/02/2027')
+      expect(html).not.toContain('24/11/2026')
+    })
+
+    it('cenário 2: cliente com data genérica e SEM atividade agendada de manutenção → não deve usar a data genérica (cai no fallback visita + 6m)', () => {
+      const osMock: Partial<OrdemServico> = {
+        id: 'os-reord-2',
+        data_agendada: '2026-10-27T08:00:00Z',
+        tipo: 'limpeza',
+      }
+
+      const clienteApenasDataGenerica = {
+        ...clienteMock,
+        contrato_om: null,
+        data_proxima_atividade: '2026-11-24 09:30:00',
+        tipo_proxima_atividade: 'Monitoramento',
+        atividades: [],
+      }
+
+      const html = gerarHTMLRelatorioOS({
+        os: osMock as OrdemServico,
+        cliente: clienteApenasDataGenerica,
+        sistema: sistemaMock,
+      })
+
+      // Não deve usar 24/11/2026; deve cair no fallback (27/10/2026 + 6 meses = 27/04/2027)
+      expect(html).not.toContain('24/11/2026')
+      expect(html).toContain('27/04/2027')
+    })
+
+    it('cenário 3: cliente com tipo_proxima_atividade de manutenção e sem contrato/atividade → pode usar a data do cliente', () => {
+      const osMock: Partial<OrdemServico> = {
+        id: 'os-reord-3',
+        data_agendada: '2026-10-27T08:00:00Z',
+        tipo: 'limpeza',
+      }
+
+      const clienteComTipoManutencao = {
+        ...clienteMock,
+        contrato_om: null,
+        data_proxima_atividade: '2027-05-18 10:00:00',
+        tipo_proxima_atividade: 'manutencao_preventiva',
+        atividades: [],
+      }
+
+      const html = gerarHTMLRelatorioOS({
+        os: osMock as OrdemServico,
+        cliente: clienteComTipoManutencao,
+        sistema: sistemaMock,
+      })
+
+      // Como o tipo_proxima_atividade é explicitamente manutenção preventiva, aceita
+      expect(html).toContain('18/05/2027')
+    })
+
+    it('cenário 4: contrato O&M tem prioridade máxima (1) sobre atividade agendada e sobre cliente', () => {
+      const osMock: Partial<OrdemServico> = {
+        id: 'os-reord-4',
+        data_agendada: '2026-10-27T08:00:00Z',
+        tipo: 'limpeza',
+      }
+
+      const contratoOM = {
+        id: 'ct-prioridade-1',
+        plano: 'Plano Completo',
+        proxima_atividade_data: '2027-01-15',
+      }
+
+      const clienteCompleto = {
+        ...clienteMock,
+        contrato_om: contratoOM,
+        data_proxima_atividade: '2027-05-18 10:00:00',
+        tipo_proxima_atividade: 'manutencao_preventiva',
+        atividades: [
+          {
+            id: 'atv-agendada',
+            status: 'agendada',
+            tipo: 'limpeza',
+            data_prevista: '2027-03-20',
+          },
+        ],
+      }
+
+      const html = gerarHTMLRelatorioOS({
+        os: osMock as OrdemServico,
+        cliente: clienteCompleto,
+        contratoOM,
+        sistema: sistemaMock,
+      })
+
+      // O contrato O&M (15/01/2027) tem prioridade sobre atividade agendada (20/03/2027) e cliente (18/05/2027)
+      expect(html).toContain('15/01/2027')
+      expect(html).not.toContain('20/03/2027')
+      expect(html).not.toContain('18/05/2027')
+    })
+  })
 })

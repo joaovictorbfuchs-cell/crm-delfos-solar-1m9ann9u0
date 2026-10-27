@@ -1074,14 +1074,65 @@ export function compilarDadosRelatorioOS(
     os?.expand?.contrato_om ||
     null
 
-  // Resolução da próxima manutenção prevista:
-  // (a) campo proxima_atividade_data do contrato O&M do cliente
-  // (b) se não houver, a data da próxima atividade agendada de manutenção do cliente (mais futura com status agendada)
-  // (c) se nada existir, cair no fallback (visita + 6 meses)
-  let dataRealManutencao: string | null = null
-  let origemDataManutencao: 'contrato' | 'atividade_agendada' | 'fallback' = 'fallback'
+  // Helper estrito: verifica se o tipo/categoria corresponde a uma atividade real de manutenção
+  // Tipos canônicos de manutenção do Delfos Solar:
+  // 'limpeza', 'manutencao_preventiva', 'manutencao_corretiva', 'limpeza_manutencao'
+  // (proibidas heurísticas arbitrárias de título — regra canônica da memória do projeto)
+  const isTipoManutencaoCanonico = (tipoVal?: any, categoriaVal?: any): boolean => {
+    const t = String(tipoVal || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\s-]+/g, '_')
 
-  // (a) Contrato O&M do cliente
+    const tiposValidos = [
+      'limpeza',
+      'manutencao_preventiva',
+      'manutencao_corretiva',
+      'limpeza_manutencao',
+      'limpeza_e_manutencao',
+      'limpeza_dos_modulos',
+      'limpeza_de_modulos',
+      'lavagem',
+      'lavagem_dos_modulos',
+      'lavagem_de_placas',
+      'revisao_preventiva',
+      'inspecao_preventiva',
+      'reparo_corretivo',
+    ]
+
+    if (tiposValidos.includes(t)) return true
+
+    const c = String(categoriaVal || '')
+      .trim()
+      .toLowerCase()
+    if (c === 'manutencao') {
+      // Se a categoria for explicitamente manutenção, valida se não é um tipo divergente genérico
+      if (
+        t === 'visita_tecnica' ||
+        t === 'monitoramento' ||
+        t === 'administrativo' ||
+        t === 'pos_venda' ||
+        t === 'auto_leitura'
+      ) {
+        return false
+      }
+      return true
+    }
+
+    return false
+  }
+
+  // Resolução da próxima manutenção prevista — fontes ordenadas rigorosamente:
+  // (1) Contrato O&M do cliente (campo proxima_atividade_data)
+  // (2) Próxima atividade agendada de manutenção real (tipos canônicos: limpeza, manutencao_preventiva, manutencao_corretiva, limpeza_manutencao)
+  // (3) data_proxima_atividade do cadastro do cliente SOMENTE se tipo_proxima_atividade for de manutenção
+  // (4) Fallback: data da visita + 6 meses
+  let dataRealManutencao: string | null = null
+  let origemDataManutencao: 'contrato' | 'atividade_agendada' | 'cliente' | 'fallback' = 'fallback'
+
+  // (1) Contrato O&M do cliente
   const dataContratoRaw =
     contratoOM?.proxima_atividade_data ||
     opcoes?.proximaManutencaoData ||
@@ -1096,41 +1147,28 @@ export function compilarDadosRelatorioOS(
     }
   }
 
-  // (b) Próxima atividade agendada de manutenção do cliente (mais futura com status agendada)
-  if (!dataRealManutencao) {
-    const dataAtivDirect =
-      opcoes?.proximaAtividadeData ||
-      cliente?.data_proxima_atividade ||
-      os?.expand?.cliente_id?.data_proxima_atividade
-
-    if (dataAtivDirect) {
-      const formatted = formatarDataBrManut(dataAtivDirect)
-      if (formatted) {
-        dataRealManutencao = formatted
-        origemDataManutencao = 'atividade_agendada'
-      }
-    }
-  }
-
+  // (2) Próxima atividade agendada de manutenção real do cliente
+  // Filtra rigorosamente por status 'agendada' (ou pendente agendada com data) e tipos canônicos de manutenção
   if (!dataRealManutencao) {
     const listaAtivs = opcoes?.atividadesCliente || opcoes?.atividades || cliente?.atividades
     if (Array.isArray(listaAtivs) && listaAtivs.length > 0) {
       const ativsAgendadasManut = listaAtivs.filter((a: any) => {
         const st = String(a?.status || '').toLowerCase()
         if (st !== 'agendada') return false
-        const t = String(a?.tipo || a?.tipo_custom_id || '').toLowerCase()
-        const c = String(a?.categoria || '').toLowerCase()
-        return c === 'manutencao' || t.includes('limpeza') || t.includes('manutencao')
+        const t = a?.tipo || a?.tipo_custom_id || ''
+        const c = a?.categoria || ''
+        return isTipoManutencaoCanonico(t, c)
       })
 
       if (ativsAgendadasManut.length > 0) {
+        // Ordena para pegar a atividade agendada mais futura
         ativsAgendadasManut.sort((a: any, b: any) => {
-          const da = new Date(a.data_prevista || a.data_agendada || 0).getTime()
-          const db = new Date(b.data_prevista || b.data_agendada || 0).getTime()
+          const da = new Date(a.data_prevista || a.data_agendada || a.data || 0).getTime()
+          const db = new Date(b.data_prevista || b.data_agendada || b.data || 0).getTime()
           return db - da
         })
         const maisFutura = ativsAgendadasManut[0]
-        const rawDate = maisFutura?.data_prevista || maisFutura?.data_agendada
+        const rawDate = maisFutura?.data_prevista || maisFutura?.data_agendada || maisFutura?.data
         const formatted = formatarDataBrManut(rawDate)
         if (formatted) {
           dataRealManutencao = formatted
@@ -1140,7 +1178,33 @@ export function compilarDadosRelatorioOS(
     }
   }
 
-  // (c) Fallback: data da visita + 6 meses
+  // (3) data_proxima_atividade do cadastro do cliente SOMENTE se tipo_proxima_atividade for de manutenção
+  if (!dataRealManutencao) {
+    const tipoProximaAtividadeCli =
+      cliente?.tipo_proxima_atividade ||
+      os?.expand?.cliente_id?.tipo_proxima_atividade ||
+      (opcoes as any)?.tipoProximaAtividade ||
+      ''
+
+    const ehManutencaoCli = isTipoManutencaoCanonico(tipoProximaAtividadeCli)
+
+    if (ehManutencaoCli) {
+      const dataAtivDirect =
+        opcoes?.proximaAtividadeData ||
+        cliente?.data_proxima_atividade ||
+        os?.expand?.cliente_id?.data_proxima_atividade
+
+      if (dataAtivDirect) {
+        const formatted = formatarDataBrManut(dataAtivDirect)
+        if (formatted) {
+          dataRealManutencao = formatted
+          origemDataManutencao = 'cliente'
+        }
+      }
+    }
+  }
+
+  // (4) Fallback: data da visita + 6 meses
   let proximaManutencao = dataRealManutencao || ''
   if (!proximaManutencao) {
     origemDataManutencao = 'fallback'
