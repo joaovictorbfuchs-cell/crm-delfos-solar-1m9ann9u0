@@ -25,49 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (
-      errObj.response &&
-      typeof errObj.response === 'object' &&
-      ((errObj.response as Record<string, unknown>).status === 401 ||
-        (errObj.response as Record<string, unknown>).status === 403)
-    ) {
-      return true
-    }
-    const msg = String(errObj.message || '')
-    if (/token/i.test(msg) && (/expired/i.test(msg) || /invalid/i.test(msg))) {
-      return true
-    }
-    if (
-      /sess[ãa]o expirada/i.test(msg) ||
-      /login expirou/i.test(msg) ||
-      /failed to authenticate/i.test(msg)
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.isAbort === true) return true
-    if (errObj.name === 'AbortError') return true
-    const msg = String(errObj.message || '')
-    if (/aborted/i.test(msg) || /autocancelled/i.test(msg)) return true
-  }
-  return false
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
