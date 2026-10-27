@@ -16,6 +16,7 @@ import { formatWhatsAppPhone, isWhatsAppLid } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   casarRemetenteComContatos,
+  deduplicarCandidatosPorCliente,
   CandidatoContatoCasamento,
 } from '@/lib/reconhecimentoRemetenteWhatsApp'
 
@@ -46,7 +47,9 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [isReloading, setIsReloading] = useState(false)
 
-  // Reconhecimento inteligente com tolerância ao 9º dígito e busca em contatos adicionais
+  // Reconhecimento inteligente com tolerância ao 9º dígito e busca em contatos adicionais.
+  // Deduplica por ID de cliente para que o mesmo cliente nunca apareça duas vezes
+  // (ex: quando coincide tanto pelo campo WhatsApp quanto pelo Telefone comercial).
   const sugestoesCompativeis = useMemo<CandidatoContatoCasamento[]>(() => {
     if (!isOpen || !conversa?.numero) return []
     const resultado = casarRemetenteComContatos(
@@ -54,7 +57,7 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
       clientes as any,
       contatosAdicionais as any,
     )
-    return resultado.candidatosCompativeis
+    return deduplicarCandidatosPorCliente(resultado.candidatosCompativeis || [])
   }, [isOpen, conversa, clientes, contatosAdicionais])
 
   const handleRecarregarClientes = async () => {
@@ -265,7 +268,7 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
                   const isSelected = selectedClienteId === cand.clienteId
                   return (
                     <div
-                      key={`sugestao_${cand.clienteId}_${cand.origem}_${cand.numeroNormalizado}`}
+                      key={`sugestao_${cand.clienteId}`}
                       onClick={() => setSelectedClienteId(cand.clienteId)}
                       className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-2.5 text-xs ${
                         isSelected

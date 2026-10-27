@@ -485,41 +485,153 @@ export function casarRemetenteComContatos(
   // Separar exatos de tolerantes
   const exatos = candidatos.filter((c) => c.tipoMatch === 'exato')
 
+  // Deduplicar candidatos por clienteId
+  // Preferência:
+  // 1. match 'exato' antes de 'tolerante_nono_digito'
+  // 2. origem 'cliente_whatsapp' antes de 'cliente_telefone', etc.
+  const candidatosDeduplicados = deduplicarCandidatosPorCliente(candidatos)
+
   // Se houver exatos, eles têm prioridade absoluta
   if (exatos.length > 0) {
-    // Agrupar por cliente para ver se múltiplos exatos são na verdade o mesmo cliente
-    const clientesExatosUnicos = Array.from(new Set(exatos.map((e) => e.clienteId)))
-    if (clientesExatosUnicos.length === 1) {
+    const exatosDeduplicados = deduplicarCandidatosPorCliente(exatos)
+    if (exatosDeduplicados.length === 1) {
       return {
         status: 'exato_unico',
-        contatoPrincipal: exatos[0],
-        candidatosCompativeis: exatos,
+        contatoPrincipal: exatosDeduplicados[0],
+        candidatosCompativeis: exatosDeduplicados,
         numeroRecebidoNormalizado: normRecebido,
       }
     }
     // Múltiplos clientes distintos batem exatamente com o mesmo número
     return {
       status: 'ambiguo',
-      candidatosCompativeis: exatos,
+      candidatosCompativeis: exatosDeduplicados,
       numeroRecebidoNormalizado: normRecebido,
     }
   }
 
   // Não houve match exato, mas houve compatíveis com 9º dígito
-  const clientesTolerantesUnicos = Array.from(new Set(candidatos.map((c) => c.clienteId)))
-  if (clientesTolerantesUnicos.length === 1) {
+  if (candidatosDeduplicados.length === 1) {
     return {
       status: 'exato_unico',
-      contatoPrincipal: candidatos[0],
-      candidatosCompativeis: candidatos,
+      contatoPrincipal: candidatosDeduplicados[0],
+      candidatosCompativeis: candidatosDeduplicados,
       numeroRecebidoNormalizado: normRecebido,
     }
   }
 
-  // Mais de um cliente compatível com 9º dígito -> ambiguidade!
+  // Mais de um cliente distinto compatível com 9º dígito -> ambiguidade!
   return {
     status: 'ambiguo',
-    candidatosCompativeis: candidatos,
+    candidatosCompativeis: candidatosDeduplicados,
     numeroRecebidoNormalizado: normRecebido,
   }
+}
+
+/**
+ * Deduplica uma lista de candidatos a casamento agrupando por `clienteId`.
+ *
+ * Quando o mesmo cliente casa tanto pelo campo WhatsApp quanto pelo Telefone (ou múltiplos vínculos):
+ * - Mantém apenas UMA entrada por clienteId;
+ * - Dá preferência para o match 'exato' sobre 'tolerante_nono_digito';
+ * - Dá preferência para a origem 'cliente_whatsapp' como rótulo principal sobre 'cliente_telefone'.
+ */
+export function deduplicarCandidatosPorCliente(
+  candidatos: CandidatoContatoCasamento[],
+): CandidatoContatoCasamento[] {
+  if (!Array.isArray(candidatos) || candidatos.length <= 1) {
+    return candidatos ? [...candidatos] : []
+  }
+
+  const mapa = new Map<string, CandidatoContatoCasamento>()
+
+  const prioridadeOrigem = (origem: CandidatoContatoCasamento['origem']): number => {
+    switch (origem) {
+      case 'cliente_whatsapp':
+        return 5
+      case 'contato_adicional':
+        return 4
+      case 'cliente_telefone':
+        return 3
+      case 'outro_contato':
+        return 2
+      case 'contato_direto':
+        return 1
+      default:
+        return 0
+    }
+  }
+
+  for (const cand of candidatos) {
+    if (!cand || !cand.clienteId) continue
+
+    const existente = mapa.get(cand.clienteId)
+    if (!existente) {
+      mapa.set(cand.clienteId, cand)
+      continue
+    }
+
+    // Comparar qualidade do candidato existente vs o novo candidato do mesmo cliente
+    // 1. Prioridade para tipoMatch 'exato'
+    if (existente.tipoMatch !== 'exato' && cand.tipoMatch === 'exato') {
+      mapa.set(cand.clienteId, cand)
+      continue
+    }
+    if (existente.tipoMatch === 'exato' && cand.tipoMatch !== 'exato') {
+      continue
+    }
+
+    // 2. Se ambos têm o mesmo tipoMatch, priorizar origem: 'cliente_whatsapp' > 'cliente_telefone' etc.
+    const scoreExistente = prioridadeOrigem(existente.origem)
+    const scoreNovo = prioridadeOrigem(cand.origem)
+    if (scoreNovo > scoreExistente) {
+      mapa.set(cand.clienteId, cand)
+    }
+  }
+
+  return Array.from(mapa.values())
+}
+
+export interface ClienteCompativelDeduplicado {
+  cliente: EntidadeClienteParaCasamento
+  candidato: CandidatoContatoCasamento
+}
+
+/**
+ * Dado um número de WhatsApp recebido e uma lista de clientes (e contatos adicionais opcionais),
+ * retorna a lista de clientes compatíveis DEDUPLICADOS por ID.
+ *
+ * Cada cliente compatível aparece exatamente UMA vez na lista, priorizando a informação
+ * do campo WhatsApp para exibição/rótulo caso o cliente tenha casado tanto por WhatsApp quanto por Telefone.
+ */
+export function obterClientesCompativeisDeduplicados(
+  numeroRecebido: string | undefined | null,
+  clientes: EntidadeClienteParaCasamento[],
+  contatosAdicionais: EntidadeContatoAdicionalParaCasamento[] = [],
+): ClienteCompativelDeduplicado[] {
+  const resultado = casarRemetenteComContatos(numeroRecebido, clientes, contatosAdicionais)
+  if (!resultado.candidatosCompativeis || resultado.candidatosCompativeis.length === 0) {
+    return []
+  }
+
+  const clientesMap = new Map<string, EntidadeClienteParaCasamento>()
+  for (const c of clientes) {
+    if (c?.id) clientesMap.set(c.id, c)
+  }
+
+  const deduplicados = deduplicarCandidatosPorCliente(resultado.candidatosCompativeis)
+
+  const resposta: ClienteCompativelDeduplicado[] = []
+  for (const cand of deduplicados) {
+    const cli = clientesMap.get(cand.clienteId) || {
+      id: cand.clienteId,
+      nome: cand.clienteNome,
+    }
+    resposta.push({
+      cliente: cli,
+      candidato: cand,
+    })
+  }
+
+  return resposta
 }
