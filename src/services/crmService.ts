@@ -230,14 +230,17 @@ export async function fetchAtividades(options?: {
   page?: number
   perPage?: number
   fetchAllPages?: boolean
+  filter?: string
 }): Promise<Atividade[]> {
   // Chamada SEM opções (carga global do CRM/histórico) busca TODAS as páginas em lotes de 500;
-  // chamadas explícitas de paginação (page/perPage) mantêm o comportamento antigo (1 página).
-  const isBare = !options?.page && !options?.perPage && options?.fetchAllPages === undefined
+  // chamadas explícitas de paginação (page/perPage) mantêm o comportamento de buscar apenas a página solicitada.
+  const isBare =
+    !options?.page && !options?.perPage && options?.fetchAllPages === undefined && !options?.filter
   const page = options?.page ?? 1
   const perPage = options?.perPage ?? (isBare ? 500 : 100)
   const fetchAllPages = options?.fetchAllPages ?? isBare
-  const cacheKey = `${page}:${perPage}:${fetchAllPages}`
+  const filter = options?.filter
+  const cacheKey = `${page}:${perPage}:${fetchAllPages}:${filter ?? ''}`
 
   const inFlight = _inFlightFetchAtividades.get(cacheKey)
   if (inFlight) {
@@ -246,10 +249,11 @@ export async function fetchAtividades(options?: {
 
   const promise = withNetworkRetry(
     async () => {
-      // Se não foi solicitado buscar todas as páginas, busca apenas a página solicitada (100 itens)
+      // Se não foi solicitado buscar todas as páginas, busca apenas a página solicitada (ex.: 100 itens)
       if (!fetchAllPages) {
         const result = await pb.collection('atividades').getList<Atividade>(page, perPage, {
           sort: '-data',
+          filter: filter || undefined,
           expand: 'cliente_id,responsavel_id,usina_id',
           fields: ATIVIDADES_LISTAGEM_FIELDS,
           requestKey: null,
@@ -265,6 +269,7 @@ export async function fetchAtividades(options?: {
       do {
         const result = await pb.collection('atividades').getList<Atividade>(currentPage, perPage, {
           sort: '-data',
+          filter: filter || undefined,
           expand: 'cliente_id,responsavel_id,usina_id',
           fields: ATIVIDADES_LISTAGEM_FIELDS,
           requestKey: null,

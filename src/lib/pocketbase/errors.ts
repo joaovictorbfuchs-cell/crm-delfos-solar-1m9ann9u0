@@ -25,5 +25,35 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  const status =
+    (error as any)?.status || (error as any)?.statusCode || (error as any)?.response?.status
+  if (status === 401 || status === 403) return true
+  const msg = String((error as any)?.message || '').toLowerCase()
+  return (
+    msg.includes('token') ||
+    msg.includes('autentica') ||
+    msg.includes('auth') ||
+    msg.includes('sessão expirada') ||
+    msg.includes('session expired')
+  )
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.isAbort === true
+  }
+  return (error as any)?.name === 'AbortError' || (error as any)?.isAbort === true
+}
+
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
 }

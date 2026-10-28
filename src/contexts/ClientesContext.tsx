@@ -730,8 +730,18 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // ETAPA 1b: Restante das coleções prioritárias em paralelo,
       // sem bloquear a renderização já liberada acima.
+      // Atividades é carregada de forma limitada e filtrada (status pendente ou agendada, ~100 itens)
+      // para evitar saturação do servidor PocketBase e timeouts que derrubam a aplicação.
       const [aRes, orcRes, uRes, sRes, mRes, pRes, projRes, contRes] = await Promise.allSettled([
-        safeFetch(fetchAtividades, [] as Atividade[]),
+        safeFetch(
+          () =>
+            fetchAtividades({
+              page: 1,
+              perPage: 100,
+              filter: "status='pendente' || status='agendada'",
+            }),
+          [] as Atividade[],
+        ),
         safeFetch(fetchOrcamentosSolar, [] as OrcamentoSolar[]),
         safeFetch(fetchUsuarios, [] as SistemaUsuario[]),
         safeFetch(fetchSistemas, [] as Sistema[]),
@@ -963,11 +973,26 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     isAuthenticated,
   )
 
-  // Realtime updates for atividades
+  // Realtime updates for atividades: aplica apenas o delta (create/update/delete)
+  // em vez de refazer a busca completa de todas as atividades, evitando concorrência
+  // destrutiva e sobrecarga no PocketBase.
   useRealtime<Atividade>(
     'atividades',
-    () => {
-      fetchAtividades().then(setAtividades).catch(console.error)
+    (data) => {
+      if (data.action === 'create') {
+        setAtividades((prev) => {
+          if (prev.some((a) => a.id === data.record.id)) {
+            return prev.map((a) => (a.id === data.record.id ? data.record : a))
+          }
+          return [data.record, ...prev]
+        })
+      } else if (data.action === 'update') {
+        setAtividades((prev) =>
+          prev.map((a) => (a.id === data.record.id ? { ...a, ...data.record } : a)),
+        )
+      } else if (data.action === 'delete') {
+        setAtividades((prev) => prev.filter((a) => a.id !== data.record.id))
+      }
     },
     isAuthenticated,
   )
@@ -1383,8 +1408,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         onProgresso: callbackProgresso,
       })
       setClientes((prev) => prev.map((c) => (c.id === clienteMestreId ? clienteFinal : c)))
-      // Recarregar histórico de atividades para refletir a nota de auditoria
-      fetchAtividades().then(setAtividades).catch(console.error)
       return clienteFinal
     } catch (err) {
       console.error('Erro ao mesclar clientes:', err)
@@ -1504,7 +1527,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return updated
     } catch (err) {
       console.error('Erro ao atualizar atividade:', err)
-      fetchAtividades().then(setAtividades).catch(console.error)
       throw err
     }
   }
@@ -1529,7 +1551,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     } catch (err) {
       console.error('Erro ao atualizar status da atividade:', err)
-      fetchAtividades().then(setAtividades).catch(console.error)
       throw err
     }
   }
@@ -1558,7 +1579,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await apiDeleteAtividade(id)
     } catch (err) {
       console.error('Erro ao excluir atividade:', err)
-      fetchAtividades().then(setAtividades).catch(console.error)
       throw err
     }
   }
@@ -1792,7 +1812,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         observacaoTexto,
       )
       setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
-      fetchAtividades().then(setAtividades).catch(console.error)
       return clienteAtualizado
     } catch (err) {
       console.error('Erro ao marcar cliente como perdido:', err)
@@ -1839,7 +1858,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { reabrirOportunidadeComercial } = await import('@/services/crmService')
       const clienteAtualizado = await reabrirOportunidadeComercial(clienteId, dados)
       setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
-      fetchAtividades().then(setAtividades).catch(console.error)
       return clienteAtualizado
     } catch (err) {
       console.error('Erro ao reabrir oportunidade comercial:', err)
@@ -2891,12 +2909,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (convsRes.status === 'fulfilled') {
         setWhatsAppConversas(convsRes.value)
       }
-      try {
-        const atvs = await fetchAtividades()
-        setAtividades(atvs)
-      } catch {
-        /* intentionally ignored */
-      }
       return res
     } catch (err: any) {
       console.error('Erro ao enviar documento WhatsApp no ClientesContext:', err)
@@ -2929,12 +2941,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       if (convsRes.status === 'fulfilled') {
         setWhatsAppConversas(convsRes.value)
-      }
-      try {
-        const atvs = await fetchAtividades()
-        setAtividades(atvs)
-      } catch {
-        /* intentionally ignored */
       }
       return res
     } catch (err: any) {
@@ -2973,12 +2979,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (convsRes.status === 'fulfilled') {
         setWhatsAppConversas(convsRes.value)
       }
-      try {
-        const atvs = await fetchAtividades()
-        setAtividades(atvs)
-      } catch {
-        /* intentionally ignored */
-      }
       return res
     } catch (err: any) {
       console.error('Erro ao enviar imagem WhatsApp no ClientesContext:', err)
@@ -3014,12 +3014,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       if (convsRes.status === 'fulfilled') {
         setWhatsAppConversas(convsRes.value)
-      }
-      try {
-        const atvs = await fetchAtividades()
-        setAtividades(atvs)
-      } catch {
-        /* intentionally ignored */
       }
       return res
     } catch (err: any) {
