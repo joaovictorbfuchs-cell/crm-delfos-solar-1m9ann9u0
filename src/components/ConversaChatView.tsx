@@ -813,18 +813,6 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOptionsMenu(false)
-                    setShowTemplatesDropdown(true)
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-700"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span>Templates de resposta rápida</span>
-                </button>
-
                 <div className="px-3.5 py-1.5 text-[11px] text-gray-400 border-t border-gray-100 mt-1">
                   Número:{' '}
                   {isWhatsAppLid(conversa.numero) ? (
