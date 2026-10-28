@@ -27,3 +27,52 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
+
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const err = error as Record<string, unknown>
+    if (err.isAbort === true) return true
+    if (err.name === 'AbortError') return true
+    if (typeof err.message === 'string' && /aborted|autocancelled/i.test(err.message)) return true
+  }
+  return false
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // Se for erro de aborto, não é sessão expirada
+  if (isAbortError(error)) return false
+
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+  }
+
+  if (typeof error === 'object') {
+    const err = error as Record<string, unknown>
+    if (err.status === 401 || err.status === 403) return true
+    if (err.response && typeof err.response === 'object') {
+      const resp = err.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
+    if (typeof err.message === 'string') {
+      const msg = err.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('login expirou') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('sessao expirada')
+      ) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
