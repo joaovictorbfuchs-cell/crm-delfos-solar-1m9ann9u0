@@ -3,6 +3,139 @@
 // Fase 2: Suporta fluxos encadeados, regras de desvio por etapa (timeout sem resposta),
 // condições automáticas de saída (negócio ganho, atividade agendada, não perturbe) e trilha de origem.
 
+/**
+ * Normaliza e gera todas as variações canônicas de um número de telefone brasileiro
+ * para comparação bidirecional robusta com ou sem 9º dígito móvel e com ou sem DDI 55.
+ *
+ * Exemplos aceitos e que casam entre si:
+ *   54984025311 <-> 555484025311 <-> 5484025311 <-> 5554984025311
+ *   5499097236  <-> 555499097236  <-> 54999097236 <-> 5554999097236
+ */
+function gerarVariacoesTelefone(tel) {
+  if (!tel) return []
+  let s = String(tel).split('@')[0].split(':')[0].trim()
+  let d = s.replace(/\D/g, '')
+  while (d.startsWith('00')) d = d.slice(2)
+  if (d.startsWith('0') && (d.length === 11 || d.length === 12)) {
+    d = d.slice(1)
+  }
+
+  // Remove DDI 55 se presente no início
+  let nacional = d
+  if (nacional.startsWith('55') && (nacional.length === 12 || nacional.length === 13)) {
+    nacional = nacional.slice(2)
+  }
+
+  // Se tem apenas 8 ou 9 dígitos (sem DDD), assume RS padrão DDD 54
+  if (nacional.length === 8 || nacional.length === 9) {
+    nacional = '54' + nacional
+  }
+
+  const variacoes = new Set()
+  if (d) variacoes.add(d)
+  if (nacional) variacoes.add(nacional)
+
+  // Tratamento específico de DDD (2 dígitos) + número (8 ou 9 dígitos)
+  if (nacional.length === 10) {
+    // Ex: 54 84025311 (sem nono dígito)
+    const ddd = nacional.slice(0, 2)
+    const resto8 = nacional.slice(2) // 8 dígitos
+    const com9 = ddd + '9' + resto8 // 54984025311
+
+    variacoes.add(nacional) // 5484025311
+    variacoes.add('55' + nacional) // 555484025311
+    variacoes.add(com9) // 54984025311
+    variacoes.add('55' + com9) // 5554984025311
+    variacoes.add(resto8)
+  } else if (nacional.length === 11) {
+    // Ex: 54 9 84025311 (com nono dígito) OU 54 99097236 se fosse número menor
+    const ddd = nacional.slice(0, 2)
+    const digito9 = nacional.charAt(2)
+    const resto = nacional.slice(3) // 8 dígitos
+    variacoes.add(nacional) // 54984025311
+    variacoes.add('55' + nacional) // 5554984025311
+
+    if (digito9 === '9') {
+      const sem9 = ddd + resto // 5484025311
+      variacoes.add(sem9)
+      variacoes.add('55' + sem9)
+    }
+    variacoes.add(nacional.slice(2)) // 984025311
+    variacoes.add(resto) // 84025311
+  }
+
+  // Sempre adicionar os últimos 8 dígitos como variação mínima segura
+  if (nacional.length >= 8) {
+    variacoes.add(nacional.slice(-8))
+  }
+
+  return Array.from(variacoes)
+}
+
+/**
+ * Compara dois telefones considerando qualquer variação válida de DDI e 9º dígito
+ */
+function telefonesCasamBidirecional(telA, telB) {
+  if (!telA || !telB) return false
+  const limpoA = String(telA).replace(/\D/g, '')
+  const limpoB = String(telB).replace(/\D/g, '')
+  if (!limpoA || !limpoB) return false
+  if (limpoA === limpoB) return true
+
+  const varsA = gerarVariacoesTelefone(telA)
+  const setB = new Set(gerarVariacoesTelefone(telB))
+
+  for (let i = 0; i < varsA.length; i++) {
+    const v = varsA[i]
+    if (setB.has(v)) {
+      // Se a variação for apenas os 8 dígitos finais, conferir se os DDDs (se existirem) batem
+      if (v.length === 8) {
+        const dddA =
+          limpoA.length >= 10
+            ? limpoA.startsWith('55')
+              ? limpoA.slice(2, 4)
+              : limpoA.slice(0, 2)
+            : ''
+        const dddB =
+          limpoB.length >= 10
+            ? limpoB.startsWith('55')
+              ? limpoB.slice(2, 4)
+              : limpoB.slice(0, 2)
+            : ''
+        if (dddA && dddB && dddA !== dddB) {
+          continue
+        }
+      }
+      return true
+    }
+  }
+
+  // Fallback para os 8 últimos dígitos se o DDD coincidir ou for ausente
+  if (limpoA.length >= 8 && limpoB.length >= 8) {
+    const last8A = limpoA.slice(-8)
+    const last8B = limpoB.slice(-8)
+    if (last8A === last8B) {
+      const dddA =
+        limpoA.length >= 10
+          ? limpoA.startsWith('55')
+            ? limpoA.slice(2, 4)
+            : limpoA.slice(0, 2)
+          : ''
+      const dddB =
+        limpoB.length >= 10
+          ? limpoB.startsWith('55')
+            ? limpoB.slice(2, 4)
+            : limpoB.slice(0, 2)
+          : ''
+      if (!dddA || !dddB || dddA === dddB) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
 function carregarEtapasDoFluxo(app, fluxoId) {
   if (!fluxoId) return []
   try {
@@ -273,24 +406,44 @@ function processarReenviosDisparosMassa(app) {
       let houveResposta = false
       let respostaData = ''
       try {
-        const queryTel =
-          telefoneLimpo.length >= 10 && !telefoneLimpo.startsWith('55')
-            ? '55' + telefoneLimpo
-            : telefoneLimpo
-        const queryTelCurto = queryTel.startsWith('55') ? queryTel.substring(2) : queryTel
         const dataMinimaIso = new Date(dataDisparoMs).toISOString().replace('T', ' ')
+        const variacoesTel = gerarVariacoesTelefone(telefoneLimpo)
 
-        const filtroResp = `direcao = 'recebida' && created >= '${dataMinimaIso}' && (telefone_destino ~ '${queryTelCurto}' || cliente_id = '${item.cliente_id}')`
-        const msgsRecebidas = app.findRecordsByFilter(
-          'whatsapp_mensagens',
-          filtroResp,
-          '-created',
-          1,
-          0,
-        )
-        if (msgsRecebidas && msgsRecebidas.length > 0) {
-          houveResposta = true
-          respostaData = msgsRecebidas[0].getString('created')
+        // Tentar primeiro por cliente_id se cadastrado
+        if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
+          const filtroPorCli = `direcao = 'recebida' && created >= '${dataMinimaIso}' && cliente_id = '${item.cliente_id}'`
+          const msgsCli = app.findRecordsByFilter(
+            'whatsapp_mensagens',
+            filtroPorCli,
+            '-created',
+            1,
+            0,
+          )
+          if (msgsCli && msgsCli.length > 0) {
+            houveResposta = true
+            respostaData = msgsCli[0].getString('created')
+          }
+        }
+
+        // Se ainda não achou por cliente_id, buscar mensagens recebidas recentes e comparar com normalização bidirecional
+        if (!houveResposta && variacoesTel.length > 0) {
+          const ult8 = telefoneLimpo.slice(-8)
+          const filtroPorTel = `direcao = 'recebida' && created >= '${dataMinimaIso}' && telefone_destino ~ '${ult8}'`
+          const msgsTel = app.findRecordsByFilter(
+            'whatsapp_mensagens',
+            filtroPorTel,
+            '-created',
+            20,
+            0,
+          )
+          for (let m = 0; m < msgsTel.length; m++) {
+            const msgT = msgsTel[m].getString('telefone_destino') || ''
+            if (telefonesCasamBidirecional(msgT, telefoneLimpo)) {
+              houveResposta = true
+              respostaData = msgsTel[m].getString('created')
+              break
+            }
+          }
         }
       } catch (errResp) {
         console.log('[REENVIO MASSA] Erro ao checar resposta do cliente:', errResp)
@@ -1014,13 +1167,18 @@ function processarRespostaAutomaticaCliente(app, params) {
     : telefoneRecebido
   const last8 = telefoneRecebido.slice(-8)
 
-  let lotesAtivos = []
+  // BUG 1: Buscar lotes recentes de qualquer status exceto 'cancelado' (últimos 60 dias),
+  // para que respostas a disparos concluídos ou sem reenvio ativo também sejam reconhecidas!
+  const sessentaDiasAtras = new Date(agora.getTime() - 60 * 24 * 60 * 60 * 1000)
+  const dataMinimaLotesIso = sessentaDiasAtras.toISOString().replace('T', ' ')
+
+  let lotesRecentes = []
   try {
-    lotesAtivos = app.findRecordsByFilter(
+    lotesRecentes = app.findRecordsByFilter(
       'disparos_massa',
-      "status = 'ativo' && reenvio_ativo = true",
+      `status != 'cancelado' && created >= '${dataMinimaLotesIso}'`,
       '-created',
-      50,
+      100,
       0,
     )
   } catch (errBusca) {
@@ -1028,15 +1186,15 @@ function processarRespostaAutomaticaCliente(app, params) {
     return { processado: false, error: String(errBusca) }
   }
 
-  if (!lotesAtivos || lotesAtivos.length === 0) {
-    return { processado: false, motivo: 'Nenhum lote ativo encontrado' }
+  if (!lotesRecentes || lotesRecentes.length === 0) {
+    return { processado: false, motivo: 'Nenhum lote recente encontrado' }
   }
 
   const msgsCol = app.findCollectionByNameOrId('whatsapp_mensagens')
   let matchesEncontrados = 0
 
-  for (let l = 0; l < lotesAtivos.length; l++) {
-    const lote = lotesAtivos[l]
+  for (let l = 0; l < lotesRecentes.length; l++) {
+    const lote = lotesRecentes[l]
     let dests = []
     try {
       const raw = lote.get('destinatarios')
@@ -1053,12 +1211,13 @@ function processarRespostaAutomaticaCliente(app, params) {
       const item = dests[d]
       if (!item) continue
 
-      // Verificar se este item corresponde ao cliente/telefone que respondeu
+      // BUG 1b: Matching robusto com normalização bidirecional de telefone e 9º dígito
       const itemTelLimpo = (item.telefone || '').replace(/\D/g, '')
       const matchClienteId = clienteId && item.cliente_id && item.cliente_id === clienteId
       const matchTelefone =
         itemTelLimpo &&
         (itemTelLimpo === telefoneRecebido ||
+          telefonesCasamBidirecional(itemTelLimpo, telefoneRecebido) ||
           (last8 && itemTelLimpo.endsWith(last8)) ||
           (telCurto && itemTelLimpo.includes(telCurto)))
 
@@ -1591,11 +1750,211 @@ function moverClienteParaFluxoManual(app, params) {
   }
 }
 
+/**
+ * BUG 2: Reconciliação retroativa de respostas de clientes em lotes de disparos_massa.
+ *
+ * Percorre todos os lotes de disparos_massa (ou um loteId específico se informado),
+ * cruza cada destinatário com mensagens recebidas em whatsapp_mensagens após data_disparo,
+ * e atualiza o destinatário:
+ *   status: 'respondido'
+ *   marcacao_resposta: 'respondeu'
+ *   respondido_em: data da mensagem recebida
+ *   motivo_saida: 'Resposta detectada retroativamente via WhatsApp'
+ *
+ * Atualiza também as estatísticas do lote e o status do lote se necessário.
+ * Idempotente: rodar mais de uma vez não duplica marcações nem sobrescreve dados já respondidos.
+ */
+function reconciliarRespostasDisparosMassa(app, options) {
+  const opts = options || {}
+  const loteIdFiltro = opts.loteId || ''
+  const agora = new Date()
+  const agoraIso = agora.toISOString()
+
+  let lotes = []
+  try {
+    if (loteIdFiltro) {
+      try {
+        const rec = app.findRecordById('disparos_massa', loteIdFiltro)
+        if (rec) lotes = [rec]
+      } catch (_) {}
+    } else {
+      lotes = app.findRecordsByFilter('disparos_massa', "status != 'cancelado'", '-created', 200, 0)
+    }
+  } catch (errLotes) {
+    console.log('[RECONCILIACAO RESPOSTAS] Erro ao buscar lotes:', errLotes)
+    return { sucesso: false, error: String(errLotes) }
+  }
+
+  const resultados = []
+  let totalReconciliados = 0
+
+  for (let l = 0; l < lotes.length; l++) {
+    const lote = lotes[l]
+    let dests = []
+    try {
+      const raw = lote.get('destinatarios')
+      dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+    } catch (_) {
+      dests = []
+    }
+
+    if (!Array.isArray(dests) || dests.length === 0) continue
+
+    const dataDisparoStr = lote.getString('data_disparo') || lote.getString('created')
+    const dataDisparoMs = new Date(dataDisparoStr).getTime()
+    // Buscar mensagens recebidas a partir de um instante antes da data de disparo (buffer de 5 minutos para envios em andamento)
+    const dataInicioBuscaIso = new Date(Math.max(0, dataDisparoMs - 5 * 60 * 1000))
+      .toISOString()
+      .replace('T', ' ')
+
+    let loteModificado = false
+    let reconciliadosNoLote = 0
+
+    for (let d = 0; d < dests.length; d++) {
+      const item = dests[d]
+      if (!item) continue
+
+      // Se já está marcado como respondido, não mexer (idempotência)
+      if (item.status === 'respondido' || item.marcacao_resposta === 'respondeu') {
+        continue
+      }
+
+      const telItem = (item.telefone || '').replace(/\D/g, '')
+      const cliId = item.cliente_id || ''
+
+      let msgRecebidaEncontrada = null
+
+      // 1. Tentar buscar por cliente_id
+      if (cliId && !cliId.startsWith('demo_')) {
+        try {
+          const filtroCli = `direcao = 'recebida' && created >= '${dataInicioBuscaIso}' && cliente_id = '${cliId}'`
+          const msgsCli = app.findRecordsByFilter('whatsapp_mensagens', filtroCli, 'created', 1, 0)
+          if (msgsCli && msgsCli.length > 0) {
+            msgRecebidaEncontrada = msgsCli[0]
+          }
+        } catch (_) {}
+      }
+
+      // 2. Tentar buscar por telefone (com normalização bidirecional e tolerância a 9º dígito)
+      if (!msgRecebidaEncontrada && telItem && telItem.length >= 8) {
+        try {
+          const ult8 = telItem.slice(-8)
+          const filtroTel = `direcao = 'recebida' && created >= '${dataInicioBuscaIso}' && (telefone_destino ~ '${ult8}' || cliente_id = '${cliId}')`
+          const msgsTel = app.findRecordsByFilter('whatsapp_mensagens', filtroTel, 'created', 20, 0)
+          for (let m = 0; m < msgsTel.length; m++) {
+            const cand = msgsTel[m]
+            const destTel = cand.getString('telefone_destino') || ''
+            const candCli = cand.getString('cliente_id') || ''
+            if (
+              (candCli && candCli === cliId) ||
+              telefonesCasamBidirecional(destTel, telItem) ||
+              (ult8 && destTel.replace(/\D/g, '').endsWith(ult8))
+            ) {
+              msgRecebidaEncontrada = cand
+              break
+            }
+          }
+        } catch (errBuscaTel) {
+          console.log('[RECONCILIACAO] Erro ao buscar mensagem por telefone:', errBuscaTel)
+        }
+      }
+
+      if (msgRecebidaEncontrada) {
+        const dataMsgIso =
+          msgRecebidaEncontrada.getString('enviado_em') ||
+          msgRecebidaEncontrada.getString('created') ||
+          agoraIso
+
+        item.status = 'respondido'
+        item.marcacao_resposta = 'respondeu'
+        item.marcacao_data = dataMsgIso
+        item.respondido_em = dataMsgIso
+        item.motivo_saida = 'Resposta detectada retroativamente via WhatsApp'
+        item.proximo_envio_data = undefined
+        item.proxima_etapa_nome = undefined
+
+        if (!Array.isArray(item.trilha)) {
+          item.trilha = []
+        }
+        item.trilha.push({
+          fluxo_id: item.fluxo_atual_id || lote.getString('fluxo_id'),
+          fluxo_nome: carregarNomeFluxo(app, item.fluxo_atual_id || lote.getString('fluxo_id')),
+          motivo: 'Resposta detectada retroativamente via WhatsApp',
+          resposta_detectada: true,
+          preview_mensagem: (msgRecebidaEncontrada.getString('conteudo_final') || '').substring(
+            0,
+            80,
+          ),
+          data: dataMsgIso,
+        })
+
+        loteModificado = true
+        reconciliadosNoLote++
+        totalReconciliados++
+        console.log(
+          `[RECONCILIACAO] Destinatário ${item.nome} (${telItem}) do lote ${lote.id} reconciliado com resposta em ${dataMsgIso}.`,
+        )
+      }
+    }
+
+    if (loteModificado) {
+      const stats = {
+        total: dests.length,
+        pendentes: dests.filter(
+          (d) =>
+            d.status === 'pendente' ||
+            d.status === 'reenvio_1_agendado' ||
+            d.status === 'reenvio_2_agendado',
+        ).length,
+        respondidos: dests.filter((d) => d.status === 'respondido').length,
+        atendidos: dests.filter((d) => d.status === 'atendido').length,
+        bloqueados: dests.filter((d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp')
+          .length,
+        finalizados: dests.filter(
+          (d) =>
+            d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+        ).length,
+        reenvios_1_enviados: dests.filter(
+          (d) =>
+            Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+        ).length,
+        reenvios_2_enviados: dests.filter(
+          (d) =>
+            Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+        ).length,
+        ultima_verificacao: agoraIso,
+      }
+
+      lote.set('destinatarios', dests)
+      lote.set('estatisticas', stats)
+      app.save(lote)
+
+      resultados.push({
+        loteId: lote.id,
+        titulo: lote.getString('titulo'),
+        reconciliados: reconciliadosNoLote,
+        novosRespondidos: stats.respondidos,
+        novosPendentes: stats.pendentes,
+      })
+    }
+  }
+
+  return {
+    sucesso: true,
+    totalReconciliados,
+    lotesAfetados: resultados.length,
+    detalhes: resultados,
+  }
+}
+
 module.exports = {
   processarReenviosDisparosMassa,
   processarRespostaAutomaticaCliente,
+  reconciliarRespostasDisparosMassa,
   avaliarEntradaAutomaticaEstagio,
   moverClienteParaFluxoManual,
+  gerarVariacoesTelefone,
+  telefonesCasamBidirecional,
   normalizarEstagioComparacao,
   carregarEtapasDoFluxo,
   carregarNomeFluxo,

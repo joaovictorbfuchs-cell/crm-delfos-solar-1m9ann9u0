@@ -416,12 +416,13 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     expect(btnEnviarAgora).toBeDefined()
     expect(btnAgendar).toBeDefined()
 
-    expect(screen.queryByText(/Intervalo entre mensagens:/i)).toBeNull()
+    // Intervalo de segurança anti-bloqueio é exibido tanto no Envio Imediato quanto Agendado
+    expect(screen.getByText(/Intervalo entre cada envio/i)).toBeDefined()
 
     fireEvent.click(btnAgendar)
 
     await waitFor(() => {
-      expect(screen.getByText(/Intervalo entre mensagens:/i)).toBeDefined()
+      expect(screen.getByText(/Intervalo entre cada envio/i)).toBeDefined()
       expect(screen.getByText(/Data e Horário de Início/i)).toBeDefined()
     })
 

@@ -366,6 +366,36 @@ export async function dispararVerificacaoReenviosBackend(): Promise<{
   }
 }
 
+/**
+ * Chama o endpoint de reconciliação retroativa de respostas via WhatsApp (BUG 2).
+ */
+export async function reconciliarRespostasDisparosBackend(loteId?: string): Promise<{
+  success: boolean
+  resultado?: {
+    sucesso: boolean
+    totalReconciliados: number
+    lotesAfetados: number
+    detalhes: Array<{
+      loteId: string
+      titulo: string
+      reconciliados: number
+      novosRespondidos: number
+      novosPendentes: number
+    }>
+  }
+}> {
+  try {
+    const res = await pb.send('/backend/v1/delfos/reconciliar-respostas-disparos', {
+      method: 'POST',
+      body: loteId ? { lote_id: loteId } : {},
+    })
+    return res
+  } catch (err) {
+    console.warn('Erro ao disparar reconciliação no backend:', err)
+    return { success: false }
+  }
+}
+
 export interface MoverParaFluxoResposta {
   success: boolean
   total: number

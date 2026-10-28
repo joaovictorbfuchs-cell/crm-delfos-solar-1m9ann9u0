@@ -108,3 +108,40 @@ routerAdd('POST', '/backend/v1/delfos/mover-para-fluxo', (c) => {
     })
   }
 })
+
+/**
+ * BUG 2: Endpoint de reconciliação retroativa de respostas de WhatsApp
+ * POST /backend/v1/delfos/reconciliar-respostas-disparos
+ * Body opcional: { lote_id?: string }
+ *
+ * Também aceita POST em /reconciliar-respostas-disparos para flexibilidade de rota.
+ */
+function handleReconciliacaoRespostas(c) {
+  try {
+    const authRecord = c.auth
+    if (!authRecord) {
+      return c.json(401, { error: 'Autenticação necessária' })
+    }
+
+    const body = c.requestInfo().body || {}
+    const loteId = (body.lote_id || body.loteId || '').trim()
+
+    const helper = require(`${__hooks}/whatsapp_reenvio_helper.js`)
+    const resultado = helper.reconciliarRespostasDisparosMassa($app, {
+      loteId: loteId || undefined,
+    })
+
+    return c.json(200, {
+      success: true,
+      resultado,
+    })
+  } catch (err) {
+    return c.json(500, {
+      success: false,
+      error: String(err && err.message ? err.message : err),
+    })
+  }
+}
+
+routerAdd('POST', '/backend/v1/delfos/reconciliar-respostas-disparos', handleReconciliacaoRespostas)
+routerAdd('POST', '/reconciliar-respostas-disparos', handleReconciliacaoRespostas)

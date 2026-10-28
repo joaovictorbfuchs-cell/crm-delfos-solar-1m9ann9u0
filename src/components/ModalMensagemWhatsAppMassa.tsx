@@ -1431,6 +1431,12 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             } catch (errAtv) {
               console.warn('Erro ao registrar atividade no CRM:', errAtv)
             }
+
+            // SEGUNDO PONTO: Espaçamento de ~60 segundos entre mensagens sucessivas no envio imediato
+            // Se houver mais destinatários seguintes no loop, aguarda o intervalo configurado
+            if (i < selecionados.length - 1) {
+              await new Promise((resolve) => setTimeout(resolve, intervalMs))
+            }
           }
 
           estadoEnvio.sucessos.push(nomeCliente)
@@ -2622,10 +2628,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                 </button>
               </div>
 
-              {/* Parâmetros de Agendamento e Intervalo */}
-              {tipoEnvio === 'agendar' && (
-                <div className="pt-2 border-t border-gray-100 space-y-2.5 animate-in fade-in duration-150">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Parâmetros de Envio e Intervalo entre Mensagens (Aplicado tanto no Envio Imediato quanto Agendado) */}
+              <div className="pt-2 border-t border-gray-100 space-y-2.5 animate-in fade-in duration-150">
+                <div
+                  className={`grid ${
+                    tipoEnvio === 'agendar' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
+                  } gap-2.5`}
+                >
+                  {tipoEnvio === 'agendar' && (
                     <div>
                       <Label className="text-[11px] font-semibold text-gray-700 block mb-1">
                         Data e Horário de Início (Brasília):
@@ -2637,41 +2647,52 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                         className="h-8 text-xs bg-white font-medium"
                       />
                     </div>
+                  )}
 
-                    <div>
-                      <Label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                        Intervalo entre mensagens:
-                      </Label>
-                      <div className="flex items-center gap-1.5">
-                        <Input
-                          type="number"
-                          min={5}
-                          max={3600}
-                          step={5}
-                          value={intervaloSegundos}
-                          onChange={(e) =>
-                            setIntervaloSegundos(Math.max(5, parseInt(e.target.value) || 60))
-                          }
-                          className="h-8 text-xs bg-white font-medium w-24"
-                        />
-                        <span className="text-xs text-gray-500 font-medium">
-                          segundos (padrão: 60s)
-                        </span>
-                      </div>
+                  <div>
+                    <Label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                      Intervalo entre cada envio (proteção anti-bloqueio WhatsApp):
+                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={5}
+                        max={3600}
+                        step={5}
+                        value={intervaloSegundos}
+                        onChange={(e) =>
+                          setIntervaloSegundos(Math.max(5, parseInt(e.target.value) || 60))
+                        }
+                        className="h-8 text-xs bg-white font-medium w-24"
+                      />
+                      <span className="text-xs text-gray-500 font-medium">
+                        segundos (recomendado: 60s)
+                      </span>
                     </div>
                   </div>
-
-                  <div className="p-2 rounded-lg bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-1.5">
-                    <Info className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
-                    <span>
-                      As mensagens serão gravadas na fila com status <strong>"agendada"</strong> e o
-                      campo <strong>agendado_para</strong> escalonado a cada {intervaloSegundos}s. O
-                      worker periódico do PocketBase (a cada 2 min) fará o envio sequencial
-                      automaticamente.
-                    </span>
-                  </div>
                 </div>
-              )}
+
+                <div className="p-2 rounded-lg bg-sky-50/80 border border-sky-200 text-[11px] text-sky-950 flex items-start gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-sky-700 shrink-0 mt-0.5" />
+                  <span>
+                    {tipoEnvio === 'agendar' ? (
+                      <>
+                        As mensagens serão gravadas na fila com status <strong>"agendada"</strong> e
+                        o campo <strong>agendado_para</strong> escalonado a cada {intervaloSegundos}
+                        s. O worker periódico do PocketBase fará o envio sequencial automaticamente
+                        no horário programado.
+                      </>
+                    ) : (
+                      <>
+                        O disparo imediato respeita uma pausa de{' '}
+                        <strong>{intervaloSegundos}s</strong> entre cada envio sucessivo para
+                        simular digitação natural humana e blindar seu chip contra restrições e
+                        bloqueios da Meta.
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Configuração de Follow-up com Fluxos Dinâmicos */}

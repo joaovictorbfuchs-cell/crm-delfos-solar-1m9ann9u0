@@ -314,6 +314,40 @@ export const PainelAcompanhamentoDisparos: React.FC<PainelAcompanhamentoDisparos
             type="button"
             variant="outline"
             size="sm"
+            onClick={async () => {
+              setIsVerificando(true)
+              try {
+                const { reconciliarRespostasDisparosBackend } =
+                  await import('../services/disparosMassaService')
+                const res = await reconciliarRespostasDisparosBackend()
+                const count = res?.resultado?.totalReconciliados || 0
+                toast({
+                  title: 'Reconciliação concluída',
+                  description: `${count} cliente(s) tiveram respostas retroativas detectadas e reconciliadas.`,
+                })
+                await carregarLotes()
+              } catch (err) {
+                toast({
+                  title: 'Erro na reconciliação',
+                  description: 'Falha ao reconciliar respostas retroativas no servidor.',
+                  variant: 'destructive',
+                })
+              } finally {
+                setIsVerificando(false)
+              }
+            }}
+            disabled={isVerificando}
+            className="text-xs h-8 text-emerald-800 bg-emerald-50 border-emerald-300 hover:bg-emerald-100"
+            title="Reconcilia respostas de WhatsApp recebidas retroativamente em disparos recentes ou concluídos"
+          >
+            <CheckCircle2 className={`w-3.5 h-3.5 mr-1.5 ${isVerificando ? 'animate-spin' : ''}`} />
+            <span>Reconciliar Respostas</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={handleForcarVerificacao}
             disabled={isVerificando}
             className="text-xs h-8 text-sky-800 bg-sky-50 border-sky-300 hover:bg-sky-100"
