@@ -247,14 +247,20 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         const item = dests[d]
         if (!item) continue
 
+        // PONTO 3: Casar destinatário pelo cliente_id primeiro, com telefone normalizado (só dígitos) como fallback
         const itemTelLimpo = (item.telefone || '').replace(/\D/g, '')
-        const matchClienteId = clienteId && item.cliente_id && item.cliente_id === clienteId
+        const matchClienteId = Boolean(
+          clienteId && item.cliente_id && item.cliente_id === clienteId,
+        )
         const matchTelefone =
-          itemTelLimpo &&
-          (itemTelLimpo === telefoneRecebido ||
-            telefonesCasamBidirecionalWebhook(itemTelLimpo, telefoneRecebido) ||
-            (last8 && itemTelLimpo.endsWith(last8)) ||
-            (telCurto && itemTelLimpo.includes(telCurto)))
+          !matchClienteId &&
+          Boolean(
+            itemTelLimpo &&
+            (itemTelLimpo === telefoneRecebido ||
+              telefonesCasamBidirecionalWebhook(itemTelLimpo, telefoneRecebido) ||
+              (last8 && itemTelLimpo.endsWith(last8)) ||
+              (telCurto && itemTelLimpo.includes(telCurto))),
+          )
 
         if (!matchClienteId && !matchTelefone) {
           continue
@@ -519,14 +525,26 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       return d
     }
 
-    // Comparação flexível simétrica ignorando 9º dígito:
+    // Comparação flexível simétrica ignorando 9º dígito e formatação (espaços, parênteses, traços, DDI):
     // Trata ambos os sentidos: número recebido sem 9 e cadastro com 9 (ex: 5491942664 vs 54991942664)
-    // ou número recebido com 9 e cadastro sem 9 (ex: 54991942664 vs 5491942664).
+    // ou número recebido com 9 e cadastro sem 9 (ex: 54991942664 vs 5491942664),
+    // além de variação de 9º dígito no celular (ex: 54 9 8110-8228 vs 555481108228 vs 5554981108228).
     function compararFlexivel(telA, telB) {
+      if (!telA || !telB) return 'nenhum'
+      const limpoA = String(telA).replace(/\D/g, '')
+      const limpoB = String(telB).replace(/\D/g, '')
+      if (!limpoA || !limpoB) return 'nenhum'
+      if (limpoA === limpoB) return 'exato'
+
       const a = normalizarTelefoneCru(telA)
       const b = normalizarTelefoneCru(telB)
       if (!a || !b || a.length < 8 || b.length < 8) return 'nenhum'
       if (a === b) return 'exato'
+
+      // Se temos o comparador bidirecional que cobre todas as variações com/sem 9 e DDI
+      if (telefonesCasamBidirecionalWebhook(telA, telB)) {
+        return 'tolerante_nono_digito'
+      }
 
       const ultA = a.slice(-8)
       const ultB = b.slice(-8)
@@ -892,6 +910,50 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       messageText = '[Mensagem sem texto]'
     }
 
+    // Pré-localizar conversa existente pelo número ou LID
+    // Importante: precisamos saber se já existe uma conversa para esse número ANTES
+    // de finalizar a busca do cliente, pois o cliente_id da conversa é usado como fallback!
+    const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
+    let conversaRecord = null
+
+    try {
+      let filterConversaPrevia = ''
+      if (isLidApenas) {
+        filterConversaPrevia = `numero = '${rawPhone}'`
+      } else if (cleanPhone && cleanPhone.length >= 8) {
+        const last8 = cleanPhone.slice(-8)
+        filterConversaPrevia = `numero ~ '${last8}'`
+      }
+
+      if (filterConversaPrevia) {
+        const convList = $app.findRecordsByFilter(
+          convCol.id,
+          filterConversaPrevia,
+          '-updated',
+          10,
+          0,
+        )
+        if (convList && convList.length > 0) {
+          if (isLidApenas) {
+            conversaRecord = convList[0]
+          } else {
+            for (let i = 0; i < convList.length; i++) {
+              const cNum = convList[i].getString('numero') || ''
+              if (compararFlexivel(cleanPhone, cNum) !== 'nenhum') {
+                conversaRecord = convList[i]
+                break
+              }
+            }
+            if (!conversaRecord) {
+              conversaRecord = convList[0]
+            }
+          }
+        }
+      }
+    } catch (errConvPrevia) {
+      console.log('[WHATSAPP WEBHOOK ERRO BUSCA PREVIA CONVERSA]', errConvPrevia)
+    }
+
     // 1. Localizar ou atualizar o cliente pelo telefone
     // Heurística de Correspondência de Telefone (3 níveis):
     // Nível 1: Exato (comparação direta de dígitos e formato nacional com DDD)
@@ -907,7 +969,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
           'clientes',
           `whatsapp ~ '${ultimos8}' || telefone ~ '${ultimos8}' || telefone_secundario ~ '${ultimos8}' || titular_telefone ~ '${ultimos8}'`,
           '-updated',
-          25,
+          50,
           0,
         )
 
@@ -928,6 +990,15 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
           for (let f = 0; f < camposTelefone.length; f++) {
             const rawCampo = camposTelefone[f]
             if (!rawCampo) continue
+
+            // 1º: Comparação exata de dígitos limpos
+            const cLimpo = String(rawCampo).replace(/\D/g, '')
+            const rawLimpo = String(rawPhone).replace(/\D/g, '')
+            const cleanLimpo = String(cleanPhone).replace(/\D/g, '')
+            if (cLimpo && (cLimpo === rawLimpo || cLimpo === cleanLimpo)) {
+              melhorCandidatoExato = c
+              break
+            }
 
             const match = compararFlexivel(rawPhone, rawCampo)
             if (match === 'exato' && !melhorCandidatoExato) {
@@ -961,16 +1032,29 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       }
     }
 
-    // Se o cliente foi encontrado via telefone real e a conversa atual é LID,
-    // fazer o vínculo retrospectivo suave: NÃO sobrescrever o número LID da conversa,
-    // apenas gravar cliente_id para unificar a ficha!
-    const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
-    let conversaRecord = null
+    // PONTO 1: Se a busca pelo telefone não encontrou o cliente, usar o cliente_id
+    // da própria conversa existente como fallback seguro para resolver o cliente!
+    if (!clienteEncontrado && conversaRecord) {
+      const convClienteId = conversaRecord.getString('cliente_id')
+      if (convClienteId) {
+        try {
+          const cFallback = $app.findRecordById('clientes', convClienteId)
+          if (cFallback) {
+            clienteEncontrado = cFallback
+            tipoCasamentoCliente = 'conversa_fallback'
+            console.log(
+              `[WHATSAPP WEBHOOK] Cliente resolvido via fallback de cliente_id da conversa (${convClienteId}): ${cFallback.getString('nome')}`,
+            )
+          }
+        } catch (errFallbackCli) {
+          console.log('[WHATSAPP WEBHOOK ERRO FALLBACK CLIENTE CONVERSA]', errFallbackCli)
+        }
+      }
+    }
 
-    // 2. Localizar conversa existente
-    // Regra crítica para evitar duplicar conversa ao receber LID e número normal:
-    // a) Se temos clienteEncontrado, priorizar conversa com esse cliente_id
-    if (clienteEncontrado) {
+    // Se encontramos cliente (seja por telefone ou fallback) e ainda não tínhamos achado conversa,
+    // buscar se já existe conversa para esse cliente_id
+    if (clienteEncontrado && !conversaRecord) {
       try {
         const clientConvs = $app.findRecordsByFilter(
           convCol.id,
@@ -984,43 +1068,6 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         }
       } catch (errConvCliente) {
         console.log('[WHATSAPP WEBHOOK ERRO CONV POR CLIENTE]', errConvCliente)
-      }
-    }
-
-    // b) Se não achou por cliente, procurar pelo número ou LID
-    if (!conversaRecord) {
-      try {
-        let filterConversa = ''
-        if (isLidApenas) {
-          // Busca estrita por LID
-          filterConversa = `numero = '${rawPhone}'`
-        } else if (cleanPhone && cleanPhone.length >= 8) {
-          const last8 = cleanPhone.slice(-8)
-          filterConversa = `numero ~ '${last8}'`
-        }
-
-        if (filterConversa) {
-          const convList = $app.findRecordsByFilter(convCol.id, filterConversa, '-updated', 10, 0)
-          if (convList && convList.length > 0) {
-            if (isLidApenas) {
-              conversaRecord = convList[0]
-            } else {
-              // Validar número completo ou tolerância do 9º dígito
-              for (let i = 0; i < convList.length; i++) {
-                const cNum = convList[i].getString('numero') || ''
-                if (compararFlexivel(cleanPhone, cNum) !== 'nenhum') {
-                  conversaRecord = convList[i]
-                  break
-                }
-              }
-              if (!conversaRecord) {
-                conversaRecord = convList[0]
-              }
-            }
-          }
-        }
-      } catch (errConvNum) {
-        console.log('[WHATSAPP WEBHOOK ERRO CONV POR NUMERO]', errConvNum)
       }
     }
 
