@@ -50,6 +50,7 @@ import {
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
 import { compararTelefonesFlexivel } from '@/lib/reconhecimentoRemetenteWhatsApp'
 import { GravadorAudioWhatsApp } from '@/components/GravadorAudioWhatsApp'
+import { FichaClienteWhatsApp } from '@/components/FichaClienteWhatsApp'
 import { useToast } from '@/hooks/use-toast'
 
 // Formata data e horário para exibição compacta na mesma linha:
@@ -175,6 +176,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   onOpenCadastrarOutroContatoModal,
 }) => {
   const {
+    clientes,
     whatsAppTemplates,
     whatsAppMensagens,
     sendWhatsAppMessage,
@@ -203,6 +205,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   const [tipoMidiaModal, setTipoMidiaModal] = useState<TipoMidiaEnvio>('imagem')
   const [arquivoColadoModal, setArquivoColadoModal] = useState<File | null>(null)
   const [callNotice, setCallNotice] = useState(false)
+  const [agendamentoAberto, setAgendamentoAberto] = useState(false)
 
   // Suporte a colar arquivos/imagens da área de transferência
   const { handlePaste: handlePasteChatFiles } = usePasteFiles({
@@ -400,6 +403,15 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     }, 50)
     return () => clearTimeout(timer)
   }, [])
+
+  // Resolução do cliente vinculado à conversa para a FichaClienteWhatsApp
+  const clienteEfetivo = useMemo(() => {
+    if (cliente) return cliente
+    if (conversa.cliente_id) {
+      return clientes.find((c) => c.id === conversa.cliente_id) || null
+    }
+    return null
+  }, [cliente, conversa.cliente_id, clientes])
 
   // Obter último orçamento do cliente para preencher variáveis de template
   const ultimoOrcamento = useMemo(() => {
@@ -786,6 +798,20 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                 )}
 
                 <div className="my-1 border-t border-gray-100" />
+
+                {Boolean(conversa.cliente_id) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOptionsMenu(false)
+                      setAgendamentoAberto(true)
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-700 font-medium"
+                  >
+                    <Calendar className="w-4 h-4 text-emerald-600" />
+                    <span>Agendar mensagem</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1652,6 +1678,44 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                 {previewMediaModal.caption}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Drawer lateral de agendamento de mensagem da ficha do cliente */}
+      {agendamentoAberto && conversa.cliente_id && clienteEfetivo && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Overlay escuro */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-2xs transition-opacity animate-in fade-in"
+            onClick={() => setAgendamentoAberto(false)}
+          />
+
+          {/* Painel lateral direito */}
+          <div className="relative w-full sm:w-[480px] h-full bg-white shadow-2xl z-10 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+            {/* Header com título e botão de fechar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50/80 shrink-0">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-sm font-semibold text-gray-800">Agendar mensagem</h3>
+                <span className="text-xs text-gray-500 font-normal truncate max-w-[200px]">
+                  ({clienteEfetivo.nome})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAgendamentoAberto(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Conteúdo: FichaClienteWhatsApp */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <FichaClienteWhatsApp cliente={clienteEfetivo} onOpenTemplatesModal={() => {}} />
+            </div>
           </div>
         </div>
       )}
