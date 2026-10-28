@@ -247,7 +247,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         const item = dests[d]
         if (!item) continue
 
-        // PONTO 3: Casar destinatário pelo cliente_id primeiro, com telefone normalizado (só dígitos) como fallback
+        // PONTO 3: Casar destinatário pelo cliente_id primeiro como fonte primária;
+        // matching por telefone só entra como fallback secundário
         const itemTelLimpo = (item.telefone || '').replace(/\D/g, '')
         const matchClienteId = Boolean(
           clienteId && item.cliente_id && item.cliente_id === clienteId,
@@ -258,8 +259,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             itemTelLimpo &&
             (itemTelLimpo === telefoneRecebido ||
               telefonesCasamBidirecionalWebhook(itemTelLimpo, telefoneRecebido) ||
-              (last8 && itemTelLimpo.endsWith(last8)) ||
-              (telCurto && itemTelLimpo.includes(telCurto))),
+              (telCurto && telCurto.length >= 10 && itemTelLimpo.endsWith(telCurto))),
           )
 
         if (!matchClienteId && !matchTelefone) {
@@ -981,24 +981,65 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       console.log('[WHATSAPP WEBHOOK ERRO BUSCA PREVIA CONVERSA]', errConvPrevia)
     }
 
-    // 1. Localizar ou atualizar o cliente pelo telefone
-    // PONTO 2: Comparar telefones por apenas dígitos (remover tudo que não é dígito) antes de casar.
-    // O banco armazena telefones com diferentes formatações (ex: "54 9 8110-8228", "(54) 98110-8228").
-    // O filtro PocketBase expande para ultimos8, comHifen e ultimos4 para garantir retorno dos registros candidatos.
+    // ============================================================================
+    // RESOLUÇÃO DE CLIENTE (REGRA DE PRIORIDADE):
+    // REGRA 1: Se a conversa já tem cliente_id, usar esse cliente como fonte PRIMÁRIA.
+    // REGRA 2: A busca por telefone só entra quando a conversa NÃO tem vínculo de cliente.
+    // REGRA 3: Na busca por telefone: igualdade exata dos dígitos normalizados como critério principal;
+    //          "contém" apenas como último recurso, exigindo no mínimo 10–11 dígitos finais (nunca 8 dígitos).
+    // ============================================================================
     let clienteEncontrado = null
     let tipoCasamentoCliente = 'nenhum'
 
-    if (!isLidApenas && normPhone && normPhone.length >= 8) {
-      const ultimos8 = normPhone.slice(-8)
-      const ultimos4 = ultimos8.slice(-4)
-      const comHifen = ultimos8.slice(0, 4) + '-' + ultimos8.slice(4)
+    // 1. Prioridade primária: cliente_id já associado à conversa prévia
+    if (conversaRecord) {
+      const convClienteId = conversaRecord.getString('cliente_id')
+      if (convClienteId) {
+        try {
+          const cVinculado = $app.findRecordById('clientes', convClienteId)
+          if (cVinculado) {
+            clienteEncontrado = cVinculado
+            tipoCasamentoCliente = 'conversa_primaria'
+            console.log(
+              `[WHATSAPP WEBHOOK] Cliente vinculado à conversa usado como fonte primária (${convClienteId}): ${cVinculado.getString('nome')}`,
+            )
+          }
+        } catch (errConvCli) {
+          console.log('[WHATSAPP WEBHOOK ERRO CLIENTE PRIMARIO DA CONVERSA]', errConvCli)
+        }
+      }
+    }
+
+    // 2. Busca por telefone (somente se a conversa NÃO possui cliente vinculado)
+    if (!clienteEncontrado && !isLidApenas && normPhone && normPhone.length >= 8) {
+      // Normalização robusta do telefone recebido
+      const digitosRecebidos = String(cleanPhone || rawPhone).replace(/\D/g, '')
+      const digitosSem55 =
+        digitosRecebidos.startsWith('55') &&
+        (digitosRecebidos.length === 12 || digitosRecebidos.length === 13)
+          ? digitosRecebidos.slice(2)
+          : digitosRecebidos
+
+      // Obter variantes de 10 e 11 dígitos com e sem o 9º dígito
+      let dddRecebido = ''
+      let corpoRecebido = ''
+      if (digitosSem55.length === 10) {
+        dddRecebido = digitosSem55.slice(0, 2)
+        corpoRecebido = digitosSem55.slice(2) // 8 dígitos
+      } else if (digitosSem55.length === 11) {
+        dddRecebido = digitosSem55.slice(0, 2)
+        corpoRecebido = digitosSem55.slice(3) // 8 dígitos finais ignorando o 9º
+      }
+
+      const ultimos8 = digitosSem55.slice(-8)
+      const com9 = dddRecebido && corpoRecebido ? dddRecebido + '9' + corpoRecebido : ''
+      const sem9 = dddRecebido && corpoRecebido ? dddRecebido + corpoRecebido : ''
 
       try {
+        // Filtro amplo para trazer registros candidatos (com/sem máscara)
         const filterBuscaClientes =
-          `whatsapp ~ '${ultimos8}' || whatsapp ~ '${comHifen}' || whatsapp ~ '${ultimos4}' || ` +
-          `telefone ~ '${ultimos8}' || telefone ~ '${comHifen}' || telefone ~ '${ultimos4}' || ` +
-          `telefone_secundario ~ '${ultimos8}' || telefone_secundario ~ '${comHifen}' || telefone_secundario ~ '${ultimos4}' || ` +
-          `titular_telefone ~ '${ultimos8}' || titular_telefone ~ '${comHifen}' || titular_telefone ~ '${ultimos4}'`
+          `whatsapp ~ '${ultimos8}' || telefone ~ '${ultimos8}' || ` +
+          `telefone_secundario ~ '${ultimos8}' || titular_telefone ~ '${ultimos8}'`
 
         const candidatos = $app.findRecordsByFilter(
           'clientes',
@@ -1008,15 +1049,9 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
           0,
         )
 
-        // Classificar candidatos por nível de casamento com apenas dígitos
-        let melhorCandidatoExato = null
-        let melhorCandidatoNonoDigito = null
-        let melhorCandidatoUltimos8 = null
-
-        const rawLimpo = String(rawPhone).replace(/\D/g, '')
-        const cleanLimpo = String(cleanPhone).replace(/\D/g, '')
-        const cleanSem55 =
-          cleanLimpo.startsWith('55') && cleanLimpo.length >= 12 ? cleanLimpo.slice(2) : cleanLimpo
+        let candidatoExato = null
+        let candidatoNonoDigito = null
+        let candidatoContem10Mais = null
 
         for (let i = 0; i < candidatos.length; i++) {
           const c = candidatos[i]
@@ -1031,74 +1066,59 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             const rawCampo = camposTelefone[f]
             if (!rawCampo) continue
 
-            // Apenas dígitos para comparação segura
             const cLimpo = String(rawCampo).replace(/\D/g, '')
             if (!cLimpo || cLimpo.length < 8) continue
 
-            // 1º: Comparação exata de dígitos limpos (com ou sem DDI 55)
-            if (cLimpo === rawLimpo || cLimpo === cleanLimpo) {
-              melhorCandidatoExato = c
+            const cSem55 =
+              cLimpo.startsWith('55') && (cLimpo.length === 12 || cLimpo.length === 13)
+                ? cLimpo.slice(2)
+                : cLimpo
+
+            // Critério Principal: Igualdade EXATA de dígitos normalizados
+            // a) Dígitos completos idênticos (ex: 5554981108228 === 5554981108228 ou 54981108228 === 54981108228)
+            if (cLimpo === digitosRecebidos || cSem55 === digitosSem55) {
+              candidatoExato = c
               break
             }
 
-            const cSem55 = cLimpo.startsWith('55') && cLimpo.length >= 12 ? cLimpo.slice(2) : cLimpo
-            if (cSem55 && cleanSem55 && cSem55 === cleanSem55) {
-              melhorCandidatoExato = c
-              break
+            // b) Variação aceita do 9º dígito móvel brasileiro entre 10 e 11 dígitos com mesmo DDD
+            if (dddRecebido && corpoRecebido) {
+              if (cSem55 === com9 || cSem55 === sem9) {
+                if (!candidatoNonoDigito) candidatoNonoDigito = c
+                continue
+              }
             }
 
-            // 2º: Comparação tolerante ao 9º dígito / bidirecional
-            const match = compararFlexivel(cleanLimpo, cLimpo)
-            if (match === 'exato') {
-              melhorCandidatoExato = c
-              break
-            } else if (match === 'tolerante_nono_digito' && !melhorCandidatoNonoDigito) {
-              melhorCandidatoNonoDigito = c
-            } else if (telefonesCasamBidirecionalWebhook(cleanLimpo, cLimpo)) {
-              if (!melhorCandidatoNonoDigito) melhorCandidatoNonoDigito = c
-            } else {
-              const ultC = cLimpo.slice(-8)
-              if (ultC === ultimos8 && !melhorCandidatoUltimos8) {
-                melhorCandidatoUltimos8 = c
+            // Critério Secundário de Último Recurso: "contém" APENAS se o padrão contiver
+            // NO MÍNIMO 10 a 11 dígitos finais completos (DDD + número), NUNCA apenas 8 dígitos
+            // Isso previne que números mal cadastrados como "(54) 5498110-8228" colidam com números diferentes
+            if (digitosSem55.length >= 10) {
+              if (
+                cLimpo.length >= 10 &&
+                (cLimpo.endsWith(digitosSem55) ||
+                  (com9 && cLimpo.endsWith(com9)) ||
+                  (sem9 && cLimpo.endsWith(sem9)))
+              ) {
+                if (!candidatoContem10Mais) candidatoContem10Mais = c
               }
             }
           }
 
-          if (melhorCandidatoExato) break
+          if (candidatoExato) break
         }
 
-        if (melhorCandidatoExato) {
-          clienteEncontrado = melhorCandidatoExato
-          tipoCasamentoCliente = 'exato'
-        } else if (melhorCandidatoNonoDigito) {
-          clienteEncontrado = melhorCandidatoNonoDigito
+        if (candidatoExato) {
+          clienteEncontrado = candidatoExato
+          tipoCasamentoCliente = 'exato_digitos'
+        } else if (candidatoNonoDigito) {
+          clienteEncontrado = candidatoNonoDigito
           tipoCasamentoCliente = 'tolerante_nono_digito'
-        } else if (melhorCandidatoUltimos8) {
-          clienteEncontrado = melhorCandidatoUltimos8
-          tipoCasamentoCliente = 'ultimos_8_digitos'
+        } else if (candidatoContem10Mais) {
+          clienteEncontrado = candidatoContem10Mais
+          tipoCasamentoCliente = 'contem_minimo_10_digitos'
         }
       } catch (errBuscaCliente) {
         console.log('[WHATSAPP WEBHOOK ERRO BUSCA CLIENTE]', errBuscaCliente)
-      }
-    }
-
-    // PONTO 1: Se a busca pelo telefone não encontrou o cliente, usar o cliente_id
-    // da própria conversa existente como fallback seguro para resolver o cliente!
-    if (!clienteEncontrado && conversaRecord) {
-      const convClienteId = conversaRecord.getString('cliente_id')
-      if (convClienteId) {
-        try {
-          const cFallback = $app.findRecordById('clientes', convClienteId)
-          if (cFallback) {
-            clienteEncontrado = cFallback
-            tipoCasamentoCliente = 'conversa_fallback'
-            console.log(
-              `[WHATSAPP WEBHOOK] Cliente resolvido via fallback de cliente_id da conversa (${convClienteId}): ${cFallback.getString('nome')}`,
-            )
-          }
-        } catch (errFallbackCli) {
-          console.log('[WHATSAPP WEBHOOK ERRO FALLBACK CLIENTE CONVERSA]', errFallbackCli)
-        }
       }
     }
 

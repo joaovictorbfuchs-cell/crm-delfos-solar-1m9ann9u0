@@ -1211,15 +1211,17 @@ function processarRespostaAutomaticaCliente(app, params) {
       const item = dests[d]
       if (!item) continue
 
-      // BUG 1b: Matching robusto com normalização bidirecional de telefone e 9º dígito
+      // Prioridade primária para cliente_id; fallback secundário para matching de telefone seguro
       const itemTelLimpo = (item.telefone || '').replace(/\D/g, '')
-      const matchClienteId = clienteId && item.cliente_id && item.cliente_id === clienteId
+      const matchClienteId = Boolean(clienteId && item.cliente_id && item.cliente_id === clienteId)
       const matchTelefone =
-        itemTelLimpo &&
-        (itemTelLimpo === telefoneRecebido ||
-          telefonesCasamBidirecional(itemTelLimpo, telefoneRecebido) ||
-          (last8 && itemTelLimpo.endsWith(last8)) ||
-          (telCurto && itemTelLimpo.includes(telCurto)))
+        !matchClienteId &&
+        Boolean(
+          itemTelLimpo &&
+          (itemTelLimpo === telefoneRecebido ||
+            telefonesCasamBidirecional(itemTelLimpo, telefoneRecebido) ||
+            (telCurto && telCurto.length >= 10 && itemTelLimpo.endsWith(telCurto))),
+        )
 
       if (!matchClienteId && !matchTelefone) {
         continue

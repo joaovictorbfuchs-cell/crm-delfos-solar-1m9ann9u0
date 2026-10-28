@@ -28,36 +28,24 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  if (typeof error === 'object' && error !== null) {
-    const err = error as Record<string, unknown>
-    if (err.status === 401 || err.status === 403) return true
-    const msg = String(err.message || '').toLowerCase()
-    if (msg.includes('authenticate') || msg.includes('token') || msg.includes('unauthorized')) {
-      return true
-    }
-  }
-  return false
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const anyErr = err as { status?: number; response?: { message?: string } }
+  return anyErr.status === 401 || anyErr.status === 403
 }
 
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return Boolean(error.isAbort) || error.status === 0
-  }
-  if (typeof error === 'object' && error !== null) {
-    const err = error as Record<string, unknown>
-    if (err.isAbort === true || err.name === 'AbortError') return true
-    const msg = String(err.message || '').toLowerCase()
-    if (msg.includes('autocancelled') || msg.includes('abort')) return true
-  }
-  return false
+export function formatPbError(err: unknown, fallback = 'Erro na operação'): string {
+  if (!err) return fallback
+  if (typeof err === 'string') return err
+  return getErrorMessage(err) || fallback
 }
 
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+export function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const anyErr = err as { isAbort?: boolean; name?: string; message?: string }
+  return Boolean(
+    anyErr.isAbort ||
+    anyErr.name === 'AbortError' ||
+    (typeof anyErr.message === 'string' && anyErr.message.toLowerCase().includes('abort')),
+  )
 }
