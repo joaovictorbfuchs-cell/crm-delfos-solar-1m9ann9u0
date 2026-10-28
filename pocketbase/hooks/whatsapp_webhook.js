@@ -440,29 +440,49 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       }
 
       if (loteModificado) {
+        // Preservar estatisticas.total existente se o total gravado for maior que o array de destinatários
+        // (por exemplo, quando o lote guarda apenas amostras/destinatários ativos no JSON mas total reflete a contagem da lista)
+        let statsTotal = dests.length
+        try {
+          const statsRaw = lote.get('estatisticas')
+          const statsAntigas = typeof statsRaw === 'string' ? JSON.parse(statsRaw) : statsRaw || {}
+          if (typeof statsAntigas.total === 'number' && statsAntigas.total > statsTotal) {
+            statsTotal = statsAntigas.total
+          }
+        } catch (_) {}
+
         const stats = {
-          total: dests.length,
+          total: statsTotal,
           pendentes: dests.filter(
             (d) =>
-              d.status === 'pendente' ||
-              d.status === 'reenvio_1_agendado' ||
-              d.status === 'reenvio_2_agendado',
+              d &&
+              (d.status === 'pendente' ||
+                d.status === 'reenvio_1_agendado' ||
+                d.status === 'reenvio_2_agendado'),
           ).length,
-          respondidos: dests.filter((d) => d.status === 'respondido').length,
-          atendidos: dests.filter((d) => d.status === 'atendido').length,
-          bloqueados: dests.filter((d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp')
-            .length,
+          respondidos: dests.filter((d) => d && d.status === 'respondido').length,
+          atendidos: dests.filter((d) => d && d.status === 'atendido').length,
+          bloqueados: dests.filter(
+            (d) => d && (d.status === 'bloqueado' || d.status === 'sem_whatsapp'),
+          ).length,
           finalizados: dests.filter(
             (d) =>
-              d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+              d &&
+              (d.status === 'finalizado' ||
+                d.status === 'arquivado' ||
+                d.status === 'nao_perturbe'),
           ).length,
           reenvios_1_enviados: dests.filter(
             (d) =>
-              Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+              d &&
+              (Boolean(d.reenvio_1_data) ||
+                (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 1)),
           ).length,
           reenvios_2_enviados: dests.filter(
             (d) =>
-              Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+              d &&
+              (Boolean(d.reenvio_2_data) ||
+                (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 2)),
           ).length,
           ultima_verificacao: agoraIso,
         }
@@ -922,7 +942,9 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         filterConversaPrevia = `numero = '${rawPhone}'`
       } else if (cleanPhone && cleanPhone.length >= 8) {
         const last8 = cleanPhone.slice(-8)
-        filterConversaPrevia = `numero ~ '${last8}'`
+        const last4 = cleanPhone.slice(-4)
+        const comHifen = last8.slice(0, 4) + '-' + last8.slice(4)
+        filterConversaPrevia = `numero ~ '${last8}' || numero ~ '${comHifen}' || numero ~ '${last4}'`
       }
 
       if (filterConversaPrevia) {
@@ -930,7 +952,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
           convCol.id,
           filterConversaPrevia,
           '-updated',
-          10,
+          20,
           0,
         )
         if (convList && convList.length > 0) {
@@ -938,8 +960,13 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             conversaRecord = convList[0]
           } else {
             for (let i = 0; i < convList.length; i++) {
-              const cNum = convList[i].getString('numero') || ''
-              if (compararFlexivel(cleanPhone, cNum) !== 'nenhum') {
+              const cNum = (convList[i].getString('numero') || '').replace(/\D/g, '')
+              if (
+                cNum &&
+                (cNum === cleanPhone ||
+                  compararFlexivel(cleanPhone, cNum) !== 'nenhum' ||
+                  telefonesCasamBidirecionalWebhook(cleanPhone, cNum))
+              ) {
                 conversaRecord = convList[i]
                 break
               }
@@ -955,28 +982,41 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     }
 
     // 1. Localizar ou atualizar o cliente pelo telefone
-    // Heurística de Correspondência de Telefone (3 níveis):
-    // Nível 1: Exato (comparação direta de dígitos e formato nacional com DDD)
-    // Nível 2: Tolerante ao 9º dígito (mesmo DDD e últimos 8 dígitos iguais)
-    // Nível 3: Apenas últimos 8 dígitos (quando o DDD não puder ser determinado)
+    // PONTO 2: Comparar telefones por apenas dígitos (remover tudo que não é dígito) antes de casar.
+    // O banco armazena telefones com diferentes formatações (ex: "54 9 8110-8228", "(54) 98110-8228").
+    // O filtro PocketBase expande para ultimos8, comHifen e ultimos4 para garantir retorno dos registros candidatos.
     let clienteEncontrado = null
     let tipoCasamentoCliente = 'nenhum'
 
     if (!isLidApenas && normPhone && normPhone.length >= 8) {
       const ultimos8 = normPhone.slice(-8)
+      const ultimos4 = ultimos8.slice(-4)
+      const comHifen = ultimos8.slice(0, 4) + '-' + ultimos8.slice(4)
+
       try {
+        const filterBuscaClientes =
+          `whatsapp ~ '${ultimos8}' || whatsapp ~ '${comHifen}' || whatsapp ~ '${ultimos4}' || ` +
+          `telefone ~ '${ultimos8}' || telefone ~ '${comHifen}' || telefone ~ '${ultimos4}' || ` +
+          `telefone_secundario ~ '${ultimos8}' || telefone_secundario ~ '${comHifen}' || telefone_secundario ~ '${ultimos4}' || ` +
+          `titular_telefone ~ '${ultimos8}' || titular_telefone ~ '${comHifen}' || titular_telefone ~ '${ultimos4}'`
+
         const candidatos = $app.findRecordsByFilter(
           'clientes',
-          `whatsapp ~ '${ultimos8}' || telefone ~ '${ultimos8}' || telefone_secundario ~ '${ultimos8}' || titular_telefone ~ '${ultimos8}'`,
+          filterBuscaClientes,
           '-updated',
-          50,
+          100,
           0,
         )
 
-        // Classificar candidatos por nível de casamento
+        // Classificar candidatos por nível de casamento com apenas dígitos
         let melhorCandidatoExato = null
         let melhorCandidatoNonoDigito = null
         let melhorCandidatoUltimos8 = null
+
+        const rawLimpo = String(rawPhone).replace(/\D/g, '')
+        const cleanLimpo = String(cleanPhone).replace(/\D/g, '')
+        const cleanSem55 =
+          cleanLimpo.startsWith('55') && cleanLimpo.length >= 12 ? cleanLimpo.slice(2) : cleanLimpo
 
         for (let i = 0; i < candidatos.length; i++) {
           const c = candidatos[i]
@@ -991,24 +1031,34 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             const rawCampo = camposTelefone[f]
             if (!rawCampo) continue
 
-            // 1º: Comparação exata de dígitos limpos
+            // Apenas dígitos para comparação segura
             const cLimpo = String(rawCampo).replace(/\D/g, '')
-            const rawLimpo = String(rawPhone).replace(/\D/g, '')
-            const cleanLimpo = String(cleanPhone).replace(/\D/g, '')
-            if (cLimpo && (cLimpo === rawLimpo || cLimpo === cleanLimpo)) {
+            if (!cLimpo || cLimpo.length < 8) continue
+
+            // 1º: Comparação exata de dígitos limpos (com ou sem DDI 55)
+            if (cLimpo === rawLimpo || cLimpo === cleanLimpo) {
               melhorCandidatoExato = c
               break
             }
 
-            const match = compararFlexivel(rawPhone, rawCampo)
-            if (match === 'exato' && !melhorCandidatoExato) {
+            const cSem55 = cLimpo.startsWith('55') && cLimpo.length >= 12 ? cLimpo.slice(2) : cLimpo
+            if (cSem55 && cleanSem55 && cSem55 === cleanSem55) {
+              melhorCandidatoExato = c
+              break
+            }
+
+            // 2º: Comparação tolerante ao 9º dígito / bidirecional
+            const match = compararFlexivel(cleanLimpo, cLimpo)
+            if (match === 'exato') {
               melhorCandidatoExato = c
               break
             } else if (match === 'tolerante_nono_digito' && !melhorCandidatoNonoDigito) {
               melhorCandidatoNonoDigito = c
-            } else if (match === 'nenhum') {
-              const dCampo = normalizarTelefoneCru(rawCampo)
-              if (dCampo && dCampo.slice(-8) === ultimos8 && !melhorCandidatoUltimos8) {
+            } else if (telefonesCasamBidirecionalWebhook(cleanLimpo, cLimpo)) {
+              if (!melhorCandidatoNonoDigito) melhorCandidatoNonoDigito = c
+            } else {
+              const ultC = cLimpo.slice(-8)
+              if (ultC === ultimos8 && !melhorCandidatoUltimos8) {
                 melhorCandidatoUltimos8 = c
               }
             }

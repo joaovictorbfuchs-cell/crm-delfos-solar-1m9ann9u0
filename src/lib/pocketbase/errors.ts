@@ -28,43 +28,32 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAbortError(error: unknown): boolean {
+export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (err.isAbort === true) return true
-    if (err.name === 'AbortError') return true
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
   }
-  if (error instanceof Error) {
-    if (error.name === 'AbortError') return true
-    if (
-      error.message.includes('autocancelled') ||
-      error.message.includes('The request was aborted')
-    )
+  if (typeof error === 'object' && error !== null) {
+    const err = error as Record<string, unknown>
+    if (err.status === 401 || err.status === 403) return true
+    const msg = String(err.message || '').toLowerCase()
+    if (msg.includes('authenticate') || msg.includes('token') || msg.includes('unauthorized')) {
       return true
+    }
   }
   return false
 }
 
-export function isAuthSessionError(error: unknown): boolean {
+export function isAbortError(error: unknown): boolean {
   if (!error) return false
-  if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (err.status === 401 || err.status === 403) return true
-    const resp = err.response as Record<string, unknown> | undefined
-    if (resp && (resp.status === 401 || resp.status === 403)) return true
+  if (error instanceof ClientResponseError) {
+    return Boolean(error.isAbort) || error.status === 0
   }
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('token is invalid') ||
-      msg.includes('login expirou') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('failed to authenticate')
-    ) {
-      return true
-    }
+  if (typeof error === 'object' && error !== null) {
+    const err = error as Record<string, unknown>
+    if (err.isAbort === true || err.name === 'AbortError') return true
+    const msg = String(err.message || '').toLowerCase()
+    if (msg.includes('autocancelled') || msg.includes('abort')) return true
   }
   return false
 }
