@@ -235,7 +235,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
       // Tenta localizar conversa existente com esse número ou cliente
       const convs = $app.findRecordsByFilter(
         'whatsapp_conversas',
-        "telefone_cliente ~ '" + instaladorTelefone.replace(/\D/g, '').slice(-8) + "'",
+        "numero ~ '" + instaladorTelefone.replace(/\D/g, '').slice(-8) + "'",
         '-updated',
         1,
         0,

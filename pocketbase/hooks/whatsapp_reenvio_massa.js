@@ -530,6 +530,10 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
           })
         }
 
+        if (!Array.isArray(item.etapas_executadas)) {
+          item.etapas_executadas = []
+        }
+
         let ultimaExecucaoFluxoAtual = null
         for (let ex = item.etapas_executadas.length - 1; ex >= 0; ex--) {
           const eExec = item.etapas_executadas[ex]
@@ -601,7 +605,8 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
               const novoFluxoId = ultimaEtapaObj.desvio_fluxo_id
               const nomeNovoFluxo = carregarNomeFluxo(app, novoFluxoId) || 'Fluxo Alternativo'
 
-              const vezesPassou = item.trilha.filter((t) => t.fluxo_id === novoFluxoId).length
+              const trilhaArr = Array.isArray(item.trilha) ? item.trilha : []
+              const vezesPassou = trilhaArr.filter((t) => t && t.fluxo_id === novoFluxoId).length
               if (vezesPassou >= 2) {
                 item.status = 'finalizado'
                 item.motivo_saida = `Encerrado para prevenir ciclo circular no fluxo "${nomeNovoFluxo}"`
@@ -1403,7 +1408,8 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
               const novoFluxoId = ultimaEtapaObj.desvio_fluxo_id
               const nomeNovoFluxo = carregarNomeFluxo(app, novoFluxoId) || 'Fluxo Alternativo'
 
-              const vezesPassou = item.trilha.filter((t) => t.fluxo_id === novoFluxoId).length
+              const trilhaArr = Array.isArray(item.trilha) ? item.trilha : []
+              const vezesPassou = trilhaArr.filter((t) => t && t.fluxo_id === novoFluxoId).length
               if (vezesPassou >= 2) {
                 item.status = 'finalizado'
                 item.motivo_saida = `Encerrado para prevenir ciclo circular no fluxo "${nomeNovoFluxo}"`

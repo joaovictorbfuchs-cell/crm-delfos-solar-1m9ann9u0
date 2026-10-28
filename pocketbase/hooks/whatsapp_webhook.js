@@ -1033,40 +1033,47 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     const previewTexto = messageText.substring(0, 100)
 
     // Se a conversa já existia, atualizar campos
-    if (conversaRecord) {
-      if (clienteEncontrado && !conversaRecord.getString('cliente_id')) {
-        conversaRecord.set('cliente_id', clienteEncontrado.id)
-        conversaRecord.set('vinculada_em', nowIso)
-      }
-      conversaRecord.set('ultima_mensagem_preview', previewTexto)
-      conversaRecord.set('ultima_mensagem_em', nowIso)
-      const currentUnread = conversaRecord.getInt('nao_lidas') || 0
-      conversaRecord.set('nao_lidas', currentUnread + 1)
-      conversaRecord.set('status', 'aguardando_atendente')
+    try {
+      if (conversaRecord) {
+        if (clienteEncontrado && !conversaRecord.getString('cliente_id')) {
+          conversaRecord.set('cliente_id', clienteEncontrado.id)
+          conversaRecord.set('vinculada_em', nowIso)
+        }
+        conversaRecord.set('ultima_mensagem_preview', previewTexto)
+        conversaRecord.set('ultima_mensagem_em', nowIso)
+        const currentUnread = conversaRecord.getInt('nao_lidas') || 0
+        conversaRecord.set('nao_lidas', currentUnread + 1)
+        conversaRecord.set('status', 'aguardando_cliente')
 
-      // Atualizar foto de perfil se não tiver e recebemos uma no payload
-      if (senderPhoto && !conversaRecord.getString('foto_perfil')) {
-        conversaRecord.set('foto_perfil', senderPhoto)
-      }
+        // Atualizar foto de perfil se não tiver e recebemos uma no payload
+        if (senderPhoto && !conversaRecord.getString('foto_perfil')) {
+          conversaRecord.set('foto_perfil', senderPhoto)
+        }
 
-      $app.save(conversaRecord)
-    } else {
-      // Criar nova conversa
-      conversaRecord = new Record(convCol)
-      conversaRecord.set('numero', cleanPhone)
-      if (clienteEncontrado) {
-        conversaRecord.set('cliente_id', clienteEncontrado.id)
-        conversaRecord.set('vinculada_em', nowIso)
+        $app.save(conversaRecord)
+      } else {
+        // Criar nova conversa
+        conversaRecord = new Record(convCol)
+        conversaRecord.set('numero', cleanPhone)
+        if (clienteEncontrado) {
+          conversaRecord.set('cliente_id', clienteEncontrado.id)
+          conversaRecord.set('vinculada_em', nowIso)
+        }
+        conversaRecord.set('nome_contato', senderName)
+        conversaRecord.set('status', 'aguardando_cliente')
+        conversaRecord.set('ultima_mensagem_preview', previewTexto)
+        conversaRecord.set('ultima_mensagem_em', nowIso)
+        conversaRecord.set('nao_lidas', 1)
+        if (senderPhoto) {
+          conversaRecord.set('foto_perfil', senderPhoto)
+        }
+        $app.save(conversaRecord)
       }
-      conversaRecord.set('nome_contato', senderName)
-      conversaRecord.set('status', 'aguardando_atendente')
-      conversaRecord.set('ultima_mensagem_preview', previewTexto)
-      conversaRecord.set('ultima_mensagem_em', nowIso)
-      conversaRecord.set('nao_lidas', 1)
-      if (senderPhoto) {
-        conversaRecord.set('foto_perfil', senderPhoto)
-      }
-      $app.save(conversaRecord)
+    } catch (errSaveConv) {
+      console.log(
+        '[WHATSAPP WEBHOOK] Aviso ao atualizar/gravar conversa (status aguardando_cliente):',
+        errSaveConv,
+      )
     }
 
     // 3. Salvar a mensagem na coleção `whatsapp_mensagens`
@@ -1076,7 +1083,9 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     if (clienteEncontrado) {
       msgRecord.set('cliente_id', clienteEncontrado.id)
     }
-    msgRecord.set('conversa_id', conversaRecord.id)
+    if (conversaRecord && conversaRecord.id) {
+      msgRecord.set('conversa_id', conversaRecord.id)
+    }
     msgRecord.set('telefone_destino', cleanPhone)
     msgRecord.set('conteudo_final', messageText)
     msgRecord.set('tipo_disparo', 'manual')
@@ -1191,8 +1200,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       JSON.stringify({
         phone: cleanPhone,
         hasClient: Boolean(clienteEncontrado),
-        conversaId: conversaRecord.id,
-        statusConversa: conversaRecord.getString('status'),
+        conversaId: conversaRecord ? conversaRecord.id : '',
+        statusConversa: conversaRecord ? conversaRecord.getString('status') : '',
         followUpResposta: respostaFollowUpProcessada,
         messagePreview: messageText.substring(0, 50),
       }),
@@ -1200,8 +1209,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
 
     return e.json(200, {
       ok: true,
-      conversaId: conversaRecord.id,
-      conversaStatus: conversaRecord.getString('status'),
+      conversaId: conversaRecord ? conversaRecord.id : '',
+      conversaStatus: conversaRecord ? conversaRecord.getString('status') : '',
       hasCliente: Boolean(clienteEncontrado),
       msgId: msgRecord.id,
       followUpResposta: respostaFollowUpProcessada,
