@@ -93,8 +93,7 @@ migrate(
         (d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp',
       ).length
       const finalizados = dests.filter(
-        (d) =>
-          d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+        (d) => d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
       ).length
 
       const stats = {

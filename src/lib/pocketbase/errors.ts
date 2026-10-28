@@ -35,10 +35,15 @@ export function formatPbError(error: unknown): string {
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (err.isAbort === true) return true
-    if (err.name === 'AbortError') return true
-    if (typeof err.message === 'string' && /aborted|autocancelled/i.test(err.message)) return true
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
+    const msg = typeof errObj.message === 'string' ? errObj.message : ''
+    if (msg.includes('autocancelled') || msg.includes('abort')) return true
+  }
+  if (error instanceof Error) {
+    if (error.name === 'AbortError') return true
+    if (error.message.includes('autocancelled') || error.message.includes('abort')) return true
   }
   return false
 }
@@ -46,31 +51,53 @@ export function isAbortError(error: unknown): boolean {
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
 
-  // Se for erro de aborto, não é sessão expirada
-  if (isAbortError(error)) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    const status =
+      typeof errObj.status === 'number'
+        ? errObj.status
+        : typeof (errObj.response as Record<string, unknown> | undefined)?.status === 'number'
+          ? (errObj.response as Record<string, unknown>).status
+          : null
 
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
+    if (status === 401 || status === 403) {
+      return true
+    }
+
+    const msg =
+      typeof errObj.message === 'string'
+        ? errObj.message
+        : typeof (errObj.response as Record<string, unknown> | undefined)?.message === 'string'
+          ? ((errObj.response as Record<string, unknown>).message as string)
+          : ''
+
+    const lower = msg.toLowerCase()
+    if (
+      lower.includes('failed to authenticate') ||
+      lower.includes('token is expired') ||
+      lower.includes('the request requires valid') ||
+      lower.includes('sessão expirada') ||
+      lower.includes('login expirou') ||
+      lower.includes('não autorizado') ||
+      lower.includes('unauthorized') ||
+      lower.includes('forbidden')
+    ) {
+      return true
+    }
   }
 
-  if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (err.status === 401 || err.status === 403) return true
-    if (err.response && typeof err.response === 'object') {
-      const resp = err.response as Record<string, unknown>
-      if (resp.status === 401 || resp.status === 403) return true
-    }
-    if (typeof err.message === 'string') {
-      const msg = err.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('login expirou') ||
-        msg.includes('sessão expirada') ||
-        msg.includes('sessao expirada')
-      ) {
-        return true
-      }
+  if (error instanceof Error) {
+    const lower = error.message.toLowerCase()
+    if (
+      lower.includes('failed to authenticate') ||
+      lower.includes('token is expired') ||
+      lower.includes('sessão expirada') ||
+      lower.includes('login expirou') ||
+      lower.includes('não autorizado') ||
+      lower.includes('unauthorized') ||
+      lower.includes('forbidden')
+    ) {
+      return true
     }
   }
 
