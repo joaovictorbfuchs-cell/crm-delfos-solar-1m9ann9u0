@@ -181,5 +181,5 @@ function ensureConversaForMessage(app, clienteId, telefoneDestino, previewTexto,
 }
 
 module.exports = {
-  ensureConversaForMessage,
+  ensureConversaForMessage: ensureConversaForMessage,
 }
