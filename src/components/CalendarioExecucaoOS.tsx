@@ -2407,9 +2407,9 @@ function CalendarioExecucaoOSContent({
 
                         return (
                           <div
-                            key={`card-${os.id}`}
+                            key={`card-${osId}`}
                             draggable={!isBeingResized}
-                            onDragStart={(e) => handleDragStart(e, os.id)}
+                            onDragStart={(e) => handleDragStart(e, osId)}
                             onDragEnd={handleDragEnd}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -2494,7 +2494,7 @@ function CalendarioExecucaoOSContent({
 
                             {/* Alça inferior de redimensionamento (bem fininha, padrão para cards de 1h, 30min e longos) */}
                             <div
-                              data-testid={`resize-handle-${os.id}`}
+                              data-testid={`resize-handle-${osId}`}
                               onMouseDown={(e) => {
                                 e.stopPropagation()
                                 handleResizeStart(e, os)

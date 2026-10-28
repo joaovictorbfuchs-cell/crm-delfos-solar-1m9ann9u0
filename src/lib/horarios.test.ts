@@ -52,4 +52,39 @@ describe('utilitário de horários e duração prevista', () => {
     expect(arredondarParaPasso5(63)).toBe(65)
     expect(arredondarParaPasso5(4)).toBe(5)
   })
+
+  it('resiste a entradas nulas, indefinidas ou formatos anômalos sem lançar exceção', () => {
+    // timeStringToMinutes
+    expect(timeStringToMinutes(null as any)).toBe(0)
+    expect(timeStringToMinutes(undefined as any)).toBe(0)
+    expect(timeStringToMinutes('')).toBe(0)
+    expect(timeStringToMinutes('texto invalido')).toBe(0)
+    expect(timeStringToMinutes('2025-05-10 14:45:00')).toBe(14 * 60 + 45)
+    expect(timeStringToMinutes(new Date(2025, 4, 10, 8, 30))).toBe(8 * 60 + 30)
+
+    // minutesToTimeString
+    expect(minutesToTimeString(NaN)).toBe('00:00')
+    expect(minutesToTimeString(null as any)).toBe('00:00')
+    expect(minutesToTimeString(undefined as any)).toBe('00:00')
+
+    // somarMinutos
+    expect(somarMinutos(null as any, 60)).toBe('01:00')
+    expect(somarMinutos('08:00', null as any)).toBe('08:00')
+    expect(somarMinutos(undefined as any, undefined as any)).toBe('00:00')
+
+    // calcularDiferencaMinutos
+    expect(calcularDiferencaMinutos(null as any, undefined as any)).toBe(0)
+    expect(calcularDiferencaMinutos('invalido', '09:00')).toBe(540)
+
+    // formatarDuracao
+    expect(formatarDuracao(null)).toBe('0min')
+    expect(formatarDuracao(undefined)).toBe('0min')
+    expect(formatarDuracao(NaN)).toBe('0min')
+    expect(formatarDuracao(-10)).toBe('0min')
+
+    // arredondarParaPasso5
+    expect(arredondarParaPasso5(NaN)).toBe(0)
+    expect(arredondarParaPasso5(null)).toBe(0)
+    expect(arredondarParaPasso5(-5)).toBe(0)
+  })
 })
