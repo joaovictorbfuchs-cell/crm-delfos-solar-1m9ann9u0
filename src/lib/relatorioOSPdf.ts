@@ -501,8 +501,6 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
         <div><span class="grid-label">Horários (Início / Término)</span><span class="grid-value">${rel.horarioInicioTermino}</span></div>
         <div><span class="grid-label">Tipo de serviço</span><span class="grid-value">${rel.tipoServico}</span></div>
         <div><span class="grid-label">OS Vinculada</span><span class="grid-value">${rel.osCodigo}</span></div>
-        <div><span class="grid-label">Concessionária &amp; UC</span><span class="grid-value">${rel.concessionariaUc}</span></div>
-        <div style="grid-column: 1 / -1;"><span class="grid-label">Dados do sistema gerador</span><span class="grid-value">${rel.dadosSistemaGerador}</span></div>
       </div>
     </section>
 
@@ -639,9 +637,6 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
         <strong>✓ Conformidade técnica:</strong> ${rel.conformidadeTecnica}
       </div>`
       }
-      <div style="margin-top: 10px; font-size: 0.88rem; font-weight: 600; color: var(--navy-dark);">
-        📅 Próxima manutenção prevista: <strong>${rel.proximaManutencao}</strong> ${rel.proximaManutencaoPeriodicidade}
-      </div>
     </section>
 
 

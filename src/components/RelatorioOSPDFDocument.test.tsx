@@ -116,4 +116,21 @@ describe('RelatorioOSPDFDocument', () => {
     expect(el).toBeDefined()
     expect(el.props.dados.cliente).toBeNull()
   })
+
+  it('não renderiza Concessionária & UC, Dados do sistema gerador e Próxima manutenção prevista', async () => {
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const el = React.createElement(RelatorioOSPDFDocument, {
+      dados: {
+        os: osMock,
+        cliente: clienteMock,
+        sistema: sistemaMock,
+        fotosDataUrls: [],
+      },
+    })
+    const html = renderToStaticMarkup(el)
+    expect(html).not.toContain('Concessionária &amp; UC')
+    expect(html).not.toContain('Concessionária & UC')
+    expect(html).not.toContain('Dados do sistema gerador')
+    expect(html).not.toContain('Próxima manutenção prevista')
+  })
 })

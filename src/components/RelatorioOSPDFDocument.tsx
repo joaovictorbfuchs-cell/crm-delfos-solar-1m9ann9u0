@@ -724,20 +724,9 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
             </View>
           </View>
 
-          <View style={styles.grid2Cols}>
-            <View style={styles.gridCell}>
-              <Text style={styles.gridLabel}>Tipo de serviço</Text>
-              <Text style={styles.gridValue}>{relatorio.tipoServico}</Text>
-            </View>
-            <View style={styles.gridCellLast}>
-              <Text style={styles.gridLabel}>Concessionária &amp; UC</Text>
-              <Text style={styles.gridValue}>{relatorio.concessionariaUc}</Text>
-            </View>
-          </View>
-
           <View style={{ marginTop: 2 }}>
-            <Text style={styles.gridLabel}>Dados do sistema gerador</Text>
-            <Text style={styles.gridValue}>{relatorio.dadosSistemaGerador}</Text>
+            <Text style={styles.gridLabel}>Tipo de serviço</Text>
+            <Text style={styles.gridValue}>{relatorio.tipoServico}</Text>
           </View>
         </View>
 
@@ -1235,7 +1224,6 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
                 borderColor: '#DDE4EE',
                 borderRadius: 4,
                 padding: 6,
-                marginBottom: 6,
               }}
             >
               <Text
@@ -1256,12 +1244,7 @@ export const RelatorioOSPDFDocument: React.FC<RelatorioOSPDFDocumentProps> = ({
               </Text>
             </View>
           )}
-          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#0E2A47' }}>
-            📅 Próxima manutenção prevista: {relatorio.proximaManutencao}{' '}
-            {relatorio.proximaManutencaoPeriodicidade}
-          </Text>
         </View>
-
         {/* 9. Próximos Passos */}
         <View style={styles.repCard} wrap={false}>
           <Text style={styles.sectionTitle}>Próximos passos</Text>

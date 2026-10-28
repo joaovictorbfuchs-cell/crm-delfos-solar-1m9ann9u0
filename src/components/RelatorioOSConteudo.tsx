@@ -770,24 +770,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
                 {relatorio.osCodigo}
               </span>
             </div>
-
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[0.75rem] uppercase tracking-wider text-[#536377] font-semibold">
-                Concessionária &amp; UC
-              </span>
-              <span className="text-[0.9375rem] font-semibold text-[#0E2A47]">
-                {relatorio.concessionariaUc}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-0.5 sm:col-span-2">
-              <span className="text-[0.75rem] uppercase tracking-wider text-[#536377] font-semibold">
-                Dados do sistema gerador
-              </span>
-              <span className="text-[0.9375rem] font-semibold text-[#0E2A47]">
-                {relatorio.dadosSistemaGerador}
-              </span>
-            </div>
           </div>
         </section>
 
@@ -1195,11 +1177,6 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
               {relatorio.conformidadeTecnica}
             </div>
           )}
-          <div className="mt-3.5 text-sm font-semibold text-[#0E2A47]">
-            📅 Próxima manutenção prevista:{' '}
-            <strong className="font-bold">{relatorio.proximaManutencao}</strong>{' '}
-            {relatorio.proximaManutencaoPeriodicidade}
-          </div>
         </section>
 
         {/* 9. Próximos Passos */}
