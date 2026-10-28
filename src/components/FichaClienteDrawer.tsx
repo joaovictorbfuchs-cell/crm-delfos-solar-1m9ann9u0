@@ -3603,7 +3603,7 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* WhatsApp */}
               <div className="space-y-0.5 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-emerald-900">WhatsApp Oficial:</span>
+                  <span className="text-[11px] font-bold text-emerald-900">WhatsApp:</span>
                   <button
                     type="button"
                     onClick={() => setActiveClientTab('whatsapp')}
