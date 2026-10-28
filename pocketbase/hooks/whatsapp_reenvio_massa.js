@@ -280,13 +280,32 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
 
     for (let l = 0; l < lotesAtivos.length; l++) {
       const lote = lotesAtivos[l]
+      if (!lote) continue
+
       let destinatarios = []
       try {
-        const rawDest = lote.get('destinatarios')
-        destinatarios = typeof rawDest === 'string' ? JSON.parse(rawDest) : rawDest || []
+        let rawDest = lote.get('destinatarios')
+        if (typeof rawDest === 'string') {
+          try {
+            rawDest = JSON.parse(rawDest)
+          } catch (_) {
+            rawDest = []
+          }
+        }
+        if (typeof rawDest === 'string') {
+          try {
+            rawDest = JSON.parse(rawDest)
+          } catch (_) {
+            rawDest = []
+          }
+        }
+        destinatarios = Array.isArray(rawDest) ? rawDest : []
       } catch (_) {
         destinatarios = []
       }
+
+      // Filtrar apenas destinatários que sejam de fato objetos válidos
+      destinatarios = destinatarios.filter((d) => d && typeof d === 'object')
 
       if (!Array.isArray(destinatarios) || destinatarios.length === 0) {
         continue
@@ -499,6 +518,13 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
           continue
         }
 
+        if (typeof item.etapas_executadas === 'string') {
+          try {
+            item.etapas_executadas = JSON.parse(item.etapas_executadas)
+          } catch (_) {
+            item.etapas_executadas = []
+          }
+        }
         if (!Array.isArray(item.etapas_executadas)) {
           item.etapas_executadas = []
           if (item.reenvio_1_data) {
@@ -518,7 +544,15 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
             })
           }
         }
+        item.etapas_executadas = item.etapas_executadas.filter((e) => e && typeof e === 'object')
 
+        if (typeof item.trilha === 'string') {
+          try {
+            item.trilha = JSON.parse(item.trilha)
+          } catch (_) {
+            item.trilha = []
+          }
+        }
         if (!Array.isArray(item.trilha)) {
           item.trilha = []
           const nomeOrigem = carregarNomeFluxo(app, fluxoInicialId) || 'Fluxo Inicial'
@@ -529,15 +563,12 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
             data: item.data_envio_inicial || dataDisparoStr,
           })
         }
-
-        if (!Array.isArray(item.etapas_executadas)) {
-          item.etapas_executadas = []
-        }
+        item.trilha = item.trilha.filter((t) => t && typeof t === 'object')
 
         let ultimaExecucaoFluxoAtual = null
         for (let ex = item.etapas_executadas.length - 1; ex >= 0; ex--) {
           const eExec = item.etapas_executadas[ex]
-          if (!eExec.fluxo_id || eExec.fluxo_id === fluxoAtualId) {
+          if (eExec && (!eExec.fluxo_id || eExec.fluxo_id === fluxoAtualId)) {
             ultimaExecucaoFluxoAtual = eExec
             break
           }
@@ -760,44 +791,56 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
           `Lote ${lote.id}: Etapa "${proximaEtapa.nome}" agendada para ${item.nome} (${cleanPhone}) para ${agendadoParaIso}`,
         )
       }
-    }
 
-    const stats = {
-      total: destinatarios.length,
-      pendentes: destinatarios.filter(
-        (d) =>
-          d.status === 'pendente' ||
-          d.status === 'reenvio_1_agendado' ||
-          d.status === 'reenvio_2_agendado',
-      ).length,
-      respondidos: destinatarios.filter((d) => d.status === 'respondido').length,
-      atendidos: destinatarios.filter((d) => d.status === 'atendido').length,
-      bloqueados: destinatarios.filter(
-        (d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp',
-      ).length,
-      finalizados: destinatarios.filter(
-        (d) => d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
-      ).length,
-      reenvios_1_enviados: destinatarios.filter(
-        (d) =>
-          Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
-      ).length,
-      reenvios_2_enviados: destinatarios.filter(
-        (d) =>
-          Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
-      ).length,
-      ultima_verificacao: agoraIso,
-    }
-
-    const todosFinalizados = stats.pendentes === 0
-
-    if (loteModificado || todosFinalizados) {
-      lote.set('destinatarios', destinatarios)
-      lote.set('estatisticas', stats)
-      if (todosFinalizados) {
-        lote.set('status', 'concluido')
+      // ESTATÍSTICAS DO LOTE ATUAL — DENTRO DO LOOP DE LOTES
+      const stats = {
+        total: Array.isArray(destinatarios) ? destinatarios.length : 0,
+        pendentes: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (d.status === 'pendente' ||
+              d.status === 'reenvio_1_agendado' ||
+              d.status === 'reenvio_2_agendado'),
+        ).length,
+        respondidos: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) => d && d.status === 'respondido',
+        ).length,
+        atendidos: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) => d && d.status === 'atendido',
+        ).length,
+        bloqueados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) => d && (d.status === 'bloqueado' || d.status === 'sem_whatsapp'),
+        ).length,
+        finalizados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe'),
+        ).length,
+        reenvios_1_enviados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (Boolean(d.reenvio_1_data) ||
+              (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 1)),
+        ).length,
+        reenvios_2_enviados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (Boolean(d.reenvio_2_data) ||
+              (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 2)),
+        ).length,
+        ultima_verificacao: agoraIso,
       }
-      app.save(lote)
+
+      const todosFinalizados = stats.pendentes === 0
+
+      if (loteModificado || todosFinalizados) {
+        lote.set('destinatarios', destinatarios)
+        lote.set('estatisticas', stats)
+        if (todosFinalizados) {
+          lote.set('status', 'concluido')
+        }
+        app.save(lote)
+      }
     }
   }
 
@@ -1087,13 +1130,31 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
 
     for (let l = 0; l < lotesAtivos.length; l++) {
       const lote = lotesAtivos[l]
+      if (!lote) continue
+
       let destinatarios = []
       try {
-        const rawDest = lote.get('destinatarios')
-        destinatarios = typeof rawDest === 'string' ? JSON.parse(rawDest) : rawDest || []
+        let rawDest = lote.get('destinatarios')
+        if (typeof rawDest === 'string') {
+          try {
+            rawDest = JSON.parse(rawDest)
+          } catch (_) {
+            rawDest = []
+          }
+        }
+        if (typeof rawDest === 'string') {
+          try {
+            rawDest = JSON.parse(rawDest)
+          } catch (_) {
+            rawDest = []
+          }
+        }
+        destinatarios = Array.isArray(rawDest) ? rawDest : []
       } catch (_) {
         destinatarios = []
       }
+
+      destinatarios = destinatarios.filter((d) => d && typeof d === 'object')
 
       if (!Array.isArray(destinatarios) || destinatarios.length === 0) {
         continue
@@ -1306,6 +1367,13 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
           continue
         }
 
+        if (typeof item.etapas_executadas === 'string') {
+          try {
+            item.etapas_executadas = JSON.parse(item.etapas_executadas)
+          } catch (_) {
+            item.etapas_executadas = []
+          }
+        }
         if (!Array.isArray(item.etapas_executadas)) {
           item.etapas_executadas = []
           if (item.reenvio_1_data) {
@@ -1325,7 +1393,15 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
             })
           }
         }
+        item.etapas_executadas = item.etapas_executadas.filter((e) => e && typeof e === 'object')
 
+        if (typeof item.trilha === 'string') {
+          try {
+            item.trilha = JSON.parse(item.trilha)
+          } catch (_) {
+            item.trilha = []
+          }
+        }
         if (!Array.isArray(item.trilha)) {
           item.trilha = []
           const nomeOrigem = carregarNomeFluxo(app, fluxoInicialId) || 'Fluxo Inicial'
@@ -1336,11 +1412,12 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
             data: item.data_envio_inicial || dataDisparoStr,
           })
         }
+        item.trilha = item.trilha.filter((t) => t && typeof t === 'object')
 
         let ultimaExecucaoFluxoAtual = null
         for (let ex = item.etapas_executadas.length - 1; ex >= 0; ex--) {
           const eExec = item.etapas_executadas[ex]
-          if (!eExec.fluxo_id || eExec.fluxo_id === fluxoAtualId) {
+          if (eExec && (!eExec.fluxo_id || eExec.fluxo_id === fluxoAtualId)) {
             ultimaExecucaoFluxoAtual = eExec
             break
           }
@@ -1563,44 +1640,55 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
           `Lote ${lote.id}: Etapa "${proximaEtapa.nome}" agendada para ${item.nome} (${cleanPhone}) para ${agendadoParaIso}`,
         )
       }
-    }
 
-    const stats = {
-      total: destinatarios.length,
-      pendentes: destinatarios.filter(
-        (d) =>
-          d.status === 'pendente' ||
-          d.status === 'reenvio_1_agendado' ||
-          d.status === 'reenvio_2_agendado',
-      ).length,
-      respondidos: destinatarios.filter((d) => d.status === 'respondido').length,
-      atendidos: destinatarios.filter((d) => d.status === 'atendido').length,
-      bloqueados: destinatarios.filter(
-        (d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp',
-      ).length,
-      finalizados: destinatarios.filter(
-        (d) => d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
-      ).length,
-      reenvios_1_enviados: destinatarios.filter(
-        (d) =>
-          Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
-      ).length,
-      reenvios_2_enviados: destinatarios.filter(
-        (d) =>
-          Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
-      ).length,
-      ultima_verificacao: agoraIso,
-    }
-
-    const todosFinalizados = stats.pendentes === 0
-
-    if (loteModificado || todosFinalizados) {
-      lote.set('destinatarios', destinatarios)
-      lote.set('estatisticas', stats)
-      if (todosFinalizados) {
-        lote.set('status', 'concluido')
+      const stats = {
+        total: Array.isArray(destinatarios) ? destinatarios.length : 0,
+        pendentes: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (d.status === 'pendente' ||
+              d.status === 'reenvio_1_agendado' ||
+              d.status === 'reenvio_2_agendado'),
+        ).length,
+        respondidos: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) => d && d.status === 'respondido',
+        ).length,
+        atendidos: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) => d && d.status === 'atendido',
+        ).length,
+        bloqueados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) => d && (d.status === 'bloqueado' || d.status === 'sem_whatsapp'),
+        ).length,
+        finalizados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe'),
+        ).length,
+        reenvios_1_enviados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (Boolean(d.reenvio_1_data) ||
+              (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 1)),
+        ).length,
+        reenvios_2_enviados: (Array.isArray(destinatarios) ? destinatarios : []).filter(
+          (d) =>
+            d &&
+            (Boolean(d.reenvio_2_data) ||
+              (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 2)),
+        ).length,
+        ultima_verificacao: agoraIso,
       }
-      app.save(lote)
+
+      const todosFinalizados = stats.pendentes === 0
+
+      if (loteModificado || todosFinalizados) {
+        lote.set('destinatarios', destinatarios)
+        lote.set('estatisticas', stats)
+        if (todosFinalizados) {
+          lote.set('status', 'concluido')
+        }
+        app.save(lote)
+      }
     }
 
     return {
@@ -2185,13 +2273,31 @@ routerAdd('POST', '/backend/v1/delfos/reconciliar-respostas-disparos', (c) => {
 
     for (let l = 0; l < lotes.length; l++) {
       const lote = lotes[l]
+      if (!lote) continue
+
       let dests = []
       try {
-        const raw = lote.get('destinatarios')
-        dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        let raw = lote.get('destinatarios')
+        if (typeof raw === 'string') {
+          try {
+            raw = JSON.parse(raw)
+          } catch (_) {
+            raw = []
+          }
+        }
+        if (typeof raw === 'string') {
+          try {
+            raw = JSON.parse(raw)
+          } catch (_) {
+            raw = []
+          }
+        }
+        dests = Array.isArray(raw) ? raw : []
       } catch (_) {
         dests = []
       }
+
+      dests = dests.filter((d) => d && typeof d === 'object')
 
       if (!Array.isArray(dests) || dests.length === 0) continue
 
@@ -2276,9 +2382,18 @@ routerAdd('POST', '/backend/v1/delfos/reconciliar-respostas-disparos', (c) => {
           item.proximo_envio_data = undefined
           item.proxima_etapa_nome = undefined
 
+          if (typeof item.trilha === 'string') {
+            try {
+              item.trilha = JSON.parse(item.trilha)
+            } catch (_) {
+              item.trilha = []
+            }
+          }
           if (!Array.isArray(item.trilha)) {
             item.trilha = []
           }
+          item.trilha = item.trilha.filter((t) => t && typeof t === 'object')
+
           item.trilha.push({
             fluxo_id: item.fluxo_atual_id || lote.getString('fluxo_id'),
             fluxo_nome: carregarNomeFluxo(app, item.fluxo_atual_id || lote.getString('fluxo_id')),
@@ -2305,25 +2420,34 @@ routerAdd('POST', '/backend/v1/delfos/reconciliar-respostas-disparos', (c) => {
           total: dests.length,
           pendentes: dests.filter(
             (d) =>
-              d.status === 'pendente' ||
-              d.status === 'reenvio_1_agendado' ||
-              d.status === 'reenvio_2_agendado',
+              d &&
+              (d.status === 'pendente' ||
+                d.status === 'reenvio_1_agendado' ||
+                d.status === 'reenvio_2_agendado'),
           ).length,
-          respondidos: dests.filter((d) => d.status === 'respondido').length,
-          atendidos: dests.filter((d) => d.status === 'atendido').length,
-          bloqueados: dests.filter((d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp')
-            .length,
+          respondidos: dests.filter((d) => d && d.status === 'respondido').length,
+          atendidos: dests.filter((d) => d && d.status === 'atendido').length,
+          bloqueados: dests.filter(
+            (d) => d && (d.status === 'bloqueado' || d.status === 'sem_whatsapp'),
+          ).length,
           finalizados: dests.filter(
             (d) =>
-              d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+              d &&
+              (d.status === 'finalizado' ||
+                d.status === 'arquivado' ||
+                d.status === 'nao_perturbe'),
           ).length,
           reenvios_1_enviados: dests.filter(
             (d) =>
-              Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+              d &&
+              (Boolean(d.reenvio_1_data) ||
+                (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 1)),
           ).length,
           reenvios_2_enviados: dests.filter(
             (d) =>
-              Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+              d &&
+              (Boolean(d.reenvio_2_data) ||
+                (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 2)),
           ).length,
           ultima_verificacao: agoraIso,
         }
@@ -2531,13 +2655,31 @@ routerAdd('POST', '/reconciliar-respostas-disparos', (c) => {
 
     for (let l = 0; l < lotes.length; l++) {
       const lote = lotes[l]
+      if (!lote) continue
+
       let dests = []
       try {
-        const raw = lote.get('destinatarios')
-        dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        let raw = lote.get('destinatarios')
+        if (typeof raw === 'string') {
+          try {
+            raw = JSON.parse(raw)
+          } catch (_) {
+            raw = []
+          }
+        }
+        if (typeof raw === 'string') {
+          try {
+            raw = JSON.parse(raw)
+          } catch (_) {
+            raw = []
+          }
+        }
+        dests = Array.isArray(raw) ? raw : []
       } catch (_) {
         dests = []
       }
+
+      dests = dests.filter((d) => d && typeof d === 'object')
 
       if (!Array.isArray(dests) || dests.length === 0) continue
 
@@ -2622,9 +2764,18 @@ routerAdd('POST', '/reconciliar-respostas-disparos', (c) => {
           item.proximo_envio_data = undefined
           item.proxima_etapa_nome = undefined
 
+          if (typeof item.trilha === 'string') {
+            try {
+              item.trilha = JSON.parse(item.trilha)
+            } catch (_) {
+              item.trilha = []
+            }
+          }
           if (!Array.isArray(item.trilha)) {
             item.trilha = []
           }
+          item.trilha = item.trilha.filter((t) => t && typeof t === 'object')
+
           item.trilha.push({
             fluxo_id: item.fluxo_atual_id || lote.getString('fluxo_id'),
             fluxo_nome: carregarNomeFluxo(app, item.fluxo_atual_id || lote.getString('fluxo_id')),
@@ -2651,25 +2802,34 @@ routerAdd('POST', '/reconciliar-respostas-disparos', (c) => {
           total: dests.length,
           pendentes: dests.filter(
             (d) =>
-              d.status === 'pendente' ||
-              d.status === 'reenvio_1_agendado' ||
-              d.status === 'reenvio_2_agendado',
+              d &&
+              (d.status === 'pendente' ||
+                d.status === 'reenvio_1_agendado' ||
+                d.status === 'reenvio_2_agendado'),
           ).length,
-          respondidos: dests.filter((d) => d.status === 'respondido').length,
-          atendidos: dests.filter((d) => d.status === 'atendido').length,
-          bloqueados: dests.filter((d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp')
-            .length,
+          respondidos: dests.filter((d) => d && d.status === 'respondido').length,
+          atendidos: dests.filter((d) => d && d.status === 'atendido').length,
+          bloqueados: dests.filter(
+            (d) => d && (d.status === 'bloqueado' || d.status === 'sem_whatsapp'),
+          ).length,
           finalizados: dests.filter(
             (d) =>
-              d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+              d &&
+              (d.status === 'finalizado' ||
+                d.status === 'arquivado' ||
+                d.status === 'nao_perturbe'),
           ).length,
           reenvios_1_enviados: dests.filter(
             (d) =>
-              Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+              d &&
+              (Boolean(d.reenvio_1_data) ||
+                (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 1)),
           ).length,
           reenvios_2_enviados: dests.filter(
             (d) =>
-              Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+              d &&
+              (Boolean(d.reenvio_2_data) ||
+                (Array.isArray(d.etapas_executadas) && d.etapas_executadas.length >= 2)),
           ).length,
           ultima_verificacao: agoraIso,
         }
