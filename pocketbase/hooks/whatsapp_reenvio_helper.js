@@ -1,4 +1,4 @@
-// Helper compartilhado para execução de verificação de reenvio de disparos em massa
+// Helper compartilhado para execução de verificação de reenvio de disparos em massa.
 // No PocketBase pb_hooks, módulos require() mantêm isolamento por pool de VM.
 // Fase 2: Suporta fluxos encadeados, regras de desvio por etapa (timeout sem resposta),
 // condições automáticas de saída (negócio ganho, atividade agendada, não perturbe) e trilha de origem.
