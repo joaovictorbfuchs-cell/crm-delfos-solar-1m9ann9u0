@@ -97,7 +97,6 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
 
     // Atualizar conversa existente ou localizar/criar conversa para envio avulso
     try {
-      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
       if (finalConversaId && convRec) {
         if (effectiveClienteId && !convRec.getString('cliente_id')) {
           convRec.set('cliente_id', effectiveClienteId)
@@ -113,7 +112,7 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
         }
         $app.save(convRec)
       } else {
-        const conv = helper.ensureConversaForMessage(
+        const conv = ensureConversaForMessageSend(
           $app,
           effectiveClienteId || clienteId,
           resolvedTelefoneDestino,
@@ -406,3 +405,182 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
     return e.json(500, { error: msg, ok: false })
   }
 })
+
+// ============================================================================
+// HELPER AUTOCONTIDO PARA LOCALIZAR/CRIAR CONVERSA (SEM REQUIRE EXTERNO)
+// ============================================================================
+
+function ensureConversaForMessageSend(
+  app,
+  clienteId,
+  telefoneDestino,
+  previewTexto,
+  atendenteUser,
+) {
+  try {
+    const convCol = app.findCollectionByNameOrId('whatsapp_conversas')
+    const nowIso = new Date().toISOString()
+    const cleanPhone = (telefoneDestino || '').replace(/\D/g, '')
+    const last8 = cleanPhone.length >= 8 ? cleanPhone.slice(-8) : cleanPhone
+
+    let conversaRecord = null
+
+    if (clienteId) {
+      try {
+        const clientConvs = app.findRecordsByFilter(
+          convCol.id,
+          `cliente_id = '${clienteId}'`,
+          '-updated',
+          1,
+          0,
+        )
+        if (clientConvs && clientConvs.length > 0) {
+          conversaRecord = clientConvs[0]
+        }
+      } catch (_) {}
+    }
+
+    const isLid = cleanPhone.length === 14 && cleanPhone.startsWith('24')
+    if (!conversaRecord && cleanPhone) {
+      try {
+        const filterPhone = isLid ? `numero = '${cleanPhone}'` : `numero ~ '${last8}'`
+        const phoneConvs = app.findRecordsByFilter(convCol.id, filterPhone, '-updated', 10, 0)
+        if (phoneConvs && phoneConvs.length > 0) {
+          for (let i = 0; i < phoneConvs.length; i++) {
+            const cNum = (phoneConvs[i].getString('numero') || '').replace(/\D/g, '')
+            if (
+              cNum === cleanPhone ||
+              (cNum.startsWith('55') && cNum.slice(2) === cleanPhone) ||
+              (cleanPhone.startsWith('55') && cleanPhone.slice(2) === cNum)
+            ) {
+              conversaRecord = phoneConvs[i]
+              break
+            }
+          }
+          if (!conversaRecord && !isLid) {
+            conversaRecord = phoneConvs[0]
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!clienteId && !isLid && cleanPhone && cleanPhone.length >= 8) {
+      try {
+        const last8Digits = cleanPhone.slice(-8)
+        const candidatos = app.findRecordsByFilter(
+          'clientes',
+          `whatsapp ~ '${last8Digits}' || telefone ~ '${last8Digits}' || telefone_secundario ~ '${last8Digits}' || titular_telefone ~ '${last8Digits}'`,
+          '-updated',
+          25,
+          0,
+        )
+        const compativeis = []
+        const vistos = {}
+        for (let i = 0; i < candidatos.length; i++) {
+          const c = candidatos[i]
+          const id = c.id
+          if (vistos[id]) continue
+          const campos = [
+            c.getString('whatsapp'),
+            c.getString('telefone'),
+            c.getString('telefone_secundario'),
+            c.getString('titular_telefone'),
+          ]
+          let matched = false
+          for (let f = 0; f < campos.length; f++) {
+            const num = (campos[f] || '').replace(/\D/g, '')
+            if (!num || num.length < 8) continue
+            if (num.slice(-8) === last8Digits) {
+              const dddCand = num.length >= 10 ? num.slice(-10, -8) : ''
+              const dddDest = cleanPhone.length >= 10 ? cleanPhone.slice(-10, -8) : ''
+              if (!dddCand || !dddDest || dddCand === dddDest) {
+                matched = true
+                break
+              }
+            }
+          }
+          if (matched) {
+            vistos[id] = true
+            compativeis.push(c)
+          }
+        }
+        if (compativeis.length === 1) {
+          clienteId = compativeis[0].id
+        }
+      } catch (_) {}
+    }
+
+    let clienteRec = null
+    if (clienteId) {
+      try {
+        clienteRec = app.findRecordsByFilter('clientes', `id = '${clienteId}'`, '', 1, 0)[0]
+      } catch (_) {}
+    }
+
+    const preview = previewTexto ? previewTexto.substring(0, 100) : ''
+
+    if (conversaRecord) {
+      if (clienteId && !conversaRecord.getString('cliente_id')) {
+        conversaRecord.set('cliente_id', clienteId)
+        conversaRecord.set('vinculada_em', nowIso)
+      }
+      conversaRecord.set('status', 'aguardando_cliente')
+      if (preview) {
+        conversaRecord.set('ultima_mensagem_preview', preview)
+      }
+      conversaRecord.set('ultima_mensagem_em', nowIso)
+      conversaRecord.set('nao_lidas', 0)
+      if (atendenteUser && !conversaRecord.getString('atendente')) {
+        conversaRecord.set('atendente', atendenteUser.getString('name') || 'Atendente')
+        conversaRecord.set('atendente_id', atendenteUser.id)
+      }
+      app.save(conversaRecord)
+      return conversaRecord
+    } else {
+      let numParaConversa = cleanPhone
+      if (
+        numParaConversa.length >= 10 &&
+        numParaConversa.length <= 11 &&
+        !numParaConversa.startsWith('55')
+      ) {
+        numParaConversa = '55' + numParaConversa
+      }
+      if (!numParaConversa && clienteRec) {
+        const cTel = (
+          clienteRec.getString('whatsapp') ||
+          clienteRec.getString('telefone') ||
+          ''
+        ).replace(/\D/g, '')
+        if (cTel) {
+          numParaConversa =
+            cTel.length >= 10 && cTel.length <= 11 && !cTel.startsWith('55') ? '55' + cTel : cTel
+        }
+      }
+      if (!numParaConversa) {
+        numParaConversa = cleanPhone || 'desconhecido'
+      }
+
+      const novaConv = new Record(convCol)
+      novaConv.set('numero', numParaConversa)
+      if (clienteId) {
+        novaConv.set('cliente_id', clienteId)
+        novaConv.set('vinculada_em', nowIso)
+      }
+      novaConv.set('status', 'em_atendimento')
+      if (preview) {
+        novaConv.set('ultima_mensagem_preview', preview)
+      }
+      novaConv.set('ultima_mensagem_em', nowIso)
+      novaConv.set('nao_lidas', 0)
+      if (atendenteUser) {
+        novaConv.set('atendente', atendenteUser.getString('name') || 'Atendente')
+        novaConv.set('atendente_id', atendenteUser.id)
+      }
+      app.save(novaConv)
+      return novaConv
+    }
+  } catch (err) {
+    console.log('[CONVERSA SEND HELPER ERRO]', err)
+    return null
+  }
+}

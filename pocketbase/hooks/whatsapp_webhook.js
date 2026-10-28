@@ -775,19 +775,13 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     // Aciona a detecção se o cliente ou número estiver em acompanhamento de follow-up ativo
     let respostaFollowUpProcessada = false
     try {
-      const helperFollowUp = require(`${__hooks}/whatsapp_reenvio_helper.js`)
-      if (
-        helperFollowUp &&
-        typeof helperFollowUp.processarRespostaAutomaticaCliente === 'function'
-      ) {
-        const resFollowUp = helperFollowUp.processarRespostaAutomaticaCliente($app, {
-          clienteId: clienteEncontrado ? clienteEncontrado.id : '',
-          telefone: cleanPhone,
-          mensagem: messageText,
-        })
-        if (resFollowUp && resFollowUp.matchesEncontrados > 0) {
-          respostaFollowUpProcessada = true
-        }
+      const resFollowUp = processarRespostaAutomaticaClienteWebhook($app, {
+        clienteId: clienteEncontrado ? clienteEncontrado.id : '',
+        telefone: cleanPhone,
+        mensagem: messageText,
+      })
+      if (resFollowUp && resFollowUp.matchesEncontrados > 0) {
+        respostaFollowUpProcessada = true
       }
     } catch (errFollowUp) {
       console.log('[WHATSAPP WEBHOOK] Aviso ao processar follow-up Fase 4:', errFollowUp)
@@ -831,3 +825,476 @@ routerAdd('GET', '/backend/v1/whatsapp/webhook', (e) => {
     description: 'Endpoint Webhook para recebimento de mensagens WhatsApp Z-API',
   })
 })
+
+// ============================================================================
+// FUNÇÕES AUTOCONTIDAS DE FOLLOW-UP / FASE 4 (SEM REQUIRE EXTERNO)
+// ============================================================================
+
+function gerarVariacoesTelefoneWebhook(tel) {
+  if (!tel) return []
+  let s = String(tel).split('@')[0].split(':')[0].trim()
+  let d = s.replace(/\D/g, '')
+  while (d.startsWith('00')) d = d.slice(2)
+  if (d.startsWith('0') && (d.length === 11 || d.length === 12)) {
+    d = d.slice(1)
+  }
+
+  let nacional = d
+  if (nacional.startsWith('55') && (nacional.length === 12 || nacional.length === 13)) {
+    nacional = nacional.slice(2)
+  }
+
+  if (nacional.length === 8 || nacional.length === 9) {
+    nacional = '54' + nacional
+  }
+
+  const variacoes = new Set()
+  if (d) variacoes.add(d)
+  if (nacional) variacoes.add(nacional)
+
+  if (nacional.length === 10) {
+    const ddd = nacional.slice(0, 2)
+    const resto8 = nacional.slice(2)
+    const com9 = ddd + '9' + resto8
+
+    variacoes.add(nacional)
+    variacoes.add('55' + nacional)
+    variacoes.add(com9)
+    variacoes.add('55' + com9)
+    variacoes.add(resto8)
+  } else if (nacional.length === 11) {
+    const ddd = nacional.slice(0, 2)
+    const digito9 = nacional.charAt(2)
+    const resto = nacional.slice(3)
+    variacoes.add(nacional)
+    variacoes.add('55' + nacional)
+
+    if (digito9 === '9') {
+      const sem9 = ddd + resto
+      variacoes.add(sem9)
+      variacoes.add('55' + sem9)
+    }
+    variacoes.add(nacional.slice(2))
+    variacoes.add(resto)
+  }
+
+  if (nacional.length >= 8) {
+    variacoes.add(nacional.slice(-8))
+  }
+
+  return Array.from(variacoes)
+}
+
+function telefonesCasamBidirecionalWebhook(telA, telB) {
+  if (!telA || !telB) return false
+  const limpoA = String(telA).replace(/\D/g, '')
+  const limpoB = String(telB).replace(/\D/g, '')
+  if (!limpoA || !limpoB) return false
+  if (limpoA === limpoB) return true
+
+  const varsA = gerarVariacoesTelefoneWebhook(telA)
+  const setB = new Set(gerarVariacoesTelefoneWebhook(telB))
+
+  for (let i = 0; i < varsA.length; i++) {
+    const v = varsA[i]
+    if (setB.has(v)) {
+      if (v.length === 8) {
+        const dddA =
+          limpoA.length >= 10
+            ? limpoA.startsWith('55')
+              ? limpoA.slice(2, 4)
+              : limpoA.slice(0, 2)
+            : ''
+        const dddB =
+          limpoB.length >= 10
+            ? limpoB.startsWith('55')
+              ? limpoB.slice(2, 4)
+              : limpoB.slice(0, 2)
+            : ''
+        if (dddA && dddB && dddA !== dddB) {
+          continue
+        }
+      }
+      return true
+    }
+  }
+
+  if (limpoA.length >= 8 && limpoB.length >= 8) {
+    const last8A = limpoA.slice(-8)
+    const last8B = limpoB.slice(-8)
+    if (last8A === last8B) {
+      const dddA =
+        limpoA.length >= 10
+          ? limpoA.startsWith('55')
+            ? limpoA.slice(2, 4)
+            : limpoA.slice(0, 2)
+          : ''
+      const dddB =
+        limpoB.length >= 10
+          ? limpoB.startsWith('55')
+            ? limpoB.slice(2, 4)
+            : limpoB.slice(0, 2)
+          : ''
+      if (!dddA || !dddB || dddA === dddB) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+function carregarEtapasDoFluxoWebhook(app, fluxoId) {
+  if (!fluxoId) return []
+  try {
+    const etapasRecs = app.findRecordsByFilter(
+      'etapas_follow_up',
+      `fluxo_id = '${fluxoId}' && ativa = true`,
+      'ordem',
+      50,
+      0,
+    )
+    const etapas = []
+    for (let i = 0; i < etapasRecs.length; i++) {
+      const rec = etapasRecs[i]
+      const ordemVal = rec.getInt('ordem') || i + 1
+      const rawDiasApos = rec.get('dias_apos')
+      const diasAposVal =
+        rawDiasApos !== null && rawDiasApos !== undefined && rawDiasApos !== ''
+          ? Number(rawDiasApos)
+          : ordemVal === 1
+            ? 0
+            : 1
+
+      etapas.push({
+        id: rec.id,
+        ordem: ordemVal,
+        nome: rec.getString('nome') || `Etapa ${i + 1}`,
+        dias_apos: isNaN(diasAposVal) ? (ordemVal === 1 ? 0 : 1) : Math.max(0, diasAposVal),
+        mensagem: rec.getString('mensagem') || '',
+        desvio_acao: rec.getString('desvio_acao') || 'nenhuma',
+        desvio_dias: rec.getInt('desvio_dias') || 0,
+        desvio_fluxo_id: rec.getString('desvio_fluxo_id') || '',
+        resposta_acao: rec.getString('resposta_acao') || 'encerrar',
+        resposta_fluxo_id: rec.getString('resposta_fluxo_id') || '',
+      })
+    }
+    etapas.sort((a, b) => a.ordem - b.ordem)
+    return etapas
+  } catch (err) {
+    console.log('[WHATSAPP WEBHOOK] Erro ao carregar etapas do fluxo:', err)
+    return []
+  }
+}
+
+function carregarNomeFluxoWebhook(app, fluxoId) {
+  if (!fluxoId) return ''
+  try {
+    const fRec = app.findRecordById('fluxos_follow_up', fluxoId)
+    if (fRec) return fRec.getString('nome') || ''
+  } catch (_) {}
+  return ''
+}
+
+function carregarFluxoPadraoIdWebhook(app) {
+  try {
+    const padraoRecs = app.findRecordsByFilter(
+      'fluxos_follow_up',
+      'is_padrao = true && ativo = true',
+      '-created',
+      1,
+      0,
+    )
+    if (padraoRecs && padraoRecs.length > 0) {
+      return padraoRecs[0].id
+    }
+  } catch (_) {}
+  return ''
+}
+
+function processarRespostaAutomaticaClienteWebhook(app, params) {
+  const clienteId = params.clienteId || ''
+  const telefoneRecebido = (params.telefone || '').replace(/\D/g, '')
+  const mensagemRecebida = params.mensagem || ''
+  const agora = new Date()
+  const agoraIso = agora.toISOString()
+
+  if (!clienteId && (!telefoneRecebido || telefoneRecebido.length < 8)) {
+    return { processado: false, motivo: 'Sem identificador de cliente ou telefone' }
+  }
+
+  const telCurto = telefoneRecebido.startsWith('55')
+    ? telefoneRecebido.substring(2)
+    : telefoneRecebido
+  const last8 = telefoneRecebido.slice(-8)
+
+  const sessentaDiasAtras = new Date(agora.getTime() - 60 * 24 * 60 * 60 * 1000)
+  const dataMinimaLotesIso = sessentaDiasAtras.toISOString().replace('T', ' ')
+
+  let lotesRecentes = []
+  try {
+    lotesRecentes = app.findRecordsByFilter(
+      'disparos_massa',
+      `status != 'cancelado' && created >= '${dataMinimaLotesIso}'`,
+      '-created',
+      100,
+      0,
+    )
+  } catch (errBusca) {
+    console.log('[WHATSAPP WEBHOOK] Erro ao buscar lotes de disparos_massa:', errBusca)
+    return { processado: false, error: String(errBusca) }
+  }
+
+  if (!lotesRecentes || lotesRecentes.length === 0) {
+    return { processado: false, motivo: 'Nenhum lote recente encontrado' }
+  }
+
+  const msgsCol = app.findCollectionByNameOrId('whatsapp_mensagens')
+  let matchesEncontrados = 0
+
+  for (let l = 0; l < lotesRecentes.length; l++) {
+    const lote = lotesRecentes[l]
+    let dests = []
+    try {
+      const raw = lote.get('destinatarios')
+      dests = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+    } catch (_) {
+      dests = []
+    }
+
+    if (!Array.isArray(dests) || dests.length === 0) continue
+
+    let loteModificado = false
+
+    for (let d = 0; d < dests.length; d++) {
+      const item = dests[d]
+      if (!item) continue
+
+      const itemTelLimpo = (item.telefone || '').replace(/\D/g, '')
+      const matchClienteId = clienteId && item.cliente_id && item.cliente_id === clienteId
+      const matchTelefone =
+        itemTelLimpo &&
+        (itemTelLimpo === telefoneRecebido ||
+          telefonesCasamBidirecionalWebhook(itemTelLimpo, telefoneRecebido) ||
+          (last8 && itemTelLimpo.endsWith(last8)) ||
+          (telCurto && itemTelLimpo.includes(telCurto)))
+
+      if (!matchClienteId && !matchTelefone) {
+        continue
+      }
+
+      const statusAtual = item.status || 'pendente'
+      if (
+        statusAtual === 'respondido' ||
+        statusAtual === 'atendido' ||
+        statusAtual === 'finalizado' ||
+        statusAtual === 'arquivado' ||
+        statusAtual === 'bloqueado' ||
+        statusAtual === 'sem_whatsapp' ||
+        statusAtual === 'nao_perturbe' ||
+        item.marcacao_resposta === 'respondeu' ||
+        item.marcacao_resposta === 'interessado'
+      ) {
+        continue
+      }
+
+      const fluxoAtualId =
+        item.fluxo_atual_id || lote.getString('fluxo_id') || carregarFluxoPadraoIdWebhook(app)
+      const nomeFluxoAtual = carregarNomeFluxoWebhook(app, fluxoAtualId) || 'Fluxo Atual'
+      const etapasAtuais = carregarEtapasDoFluxoWebhook(app, fluxoAtualId)
+
+      let etapaAtualObj = null
+      if (item.etapas_executadas && item.etapas_executadas.length > 0) {
+        const ultExec = item.etapas_executadas[item.etapas_executadas.length - 1]
+        if (ultExec && ultExec.etapa_id) {
+          etapaAtualObj = etapasAtuais.find((e) => e.id === ultExec.etapa_id)
+        }
+        if (!etapaAtualObj && ultExec) {
+          etapaAtualObj = etapasAtuais.find((e) => e.ordem === ultExec.ordem)
+        }
+      }
+      if (!etapaAtualObj && etapasAtuais.length > 0) {
+        etapaAtualObj = etapasAtuais[0]
+      }
+
+      item.status = 'respondido'
+      item.marcacao_resposta = 'respondeu'
+      item.marcacao_data = agoraIso
+      item.respondido_em = agoraIso
+      item.motivo_saida = 'Resposta detectada automaticamente via WhatsApp'
+
+      if (!Array.isArray(item.trilha)) {
+        item.trilha = []
+      }
+
+      const etapaNomeDesc = etapaAtualObj
+        ? etapaAtualObj.nome
+        : item.etapa_atual_nome || 'Follow-up'
+
+      item.trilha.push({
+        fluxo_id: fluxoAtualId,
+        fluxo_nome: nomeFluxoAtual,
+        etapa_origem_id: etapaAtualObj ? etapaAtualObj.id : undefined,
+        etapa_origem_nome: etapaNomeDesc,
+        motivo: 'Resposta detectada automaticamente',
+        resposta_detectada: true,
+        preview_mensagem: mensagemRecebida.substring(0, 80),
+        data: agoraIso,
+      })
+
+      const temRamificacao =
+        etapaAtualObj &&
+        etapaAtualObj.resposta_acao === 'fluxo_alternativo' &&
+        etapaAtualObj.resposta_fluxo_id &&
+        etapaAtualObj.resposta_fluxo_id !== fluxoAtualId
+
+      if (temRamificacao) {
+        const novoFluxoId = etapaAtualObj.resposta_fluxo_id
+        const nomeNovoFluxo = carregarNomeFluxoWebhook(app, novoFluxoId) || 'Fluxo de Resposta'
+
+        const vezesPassou = item.trilha.filter((t) => t.fluxo_id === novoFluxoId).length
+        if (vezesPassou < 2) {
+          item.fluxo_atual_id = novoFluxoId
+          item.fluxo_origem_id = fluxoAtualId
+          item.fluxo_origem_nome = nomeFluxoAtual
+          item.status = 'pendente'
+          item.motivo_saida = `Ramificação de resposta: entrou no fluxo "${nomeNovoFluxo}"`
+
+          item.trilha.push({
+            fluxo_id: novoFluxoId,
+            fluxo_nome: nomeNovoFluxo,
+            fluxo_anterior_id: fluxoAtualId,
+            fluxo_anterior_nome: nomeFluxoAtual,
+            motivo: `Resposta detectada automaticamente → Entrou no fluxo alternativo "${nomeNovoFluxo}"`,
+            data: agoraIso,
+          })
+
+          const etapasNovoFluxo = carregarEtapasDoFluxoWebhook(app, novoFluxoId)
+          if (etapasNovoFluxo.length > 0) {
+            const primeiraEtapaNova = etapasNovoFluxo[0]
+            item.etapa_atual_ordem = primeiraEtapaNova.ordem
+            item.etapa_atual_nome = primeiraEtapaNova.nome
+
+            if (primeiraEtapaNova.dias_apos === 0) {
+              const agendadoParaIso = agoraIso
+              let textoFinal = primeiraEtapaNova.mensagem || ''
+              textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+              textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+              textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
+              textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+
+              let cleanPhone = itemTelLimpo || telefoneRecebido
+              if (
+                cleanPhone.length >= 10 &&
+                cleanPhone.length <= 11 &&
+                !cleanPhone.startsWith('55')
+              ) {
+                cleanPhone = '55' + cleanPhone
+              }
+
+              if (textoFinal) {
+                const novaMsg = new Record(msgsCol)
+                if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
+                  novaMsg.set('cliente_id', item.cliente_id)
+                }
+                novaMsg.set('telefone_destino', cleanPhone)
+                novaMsg.set('conteudo_final', textoFinal)
+                novaMsg.set('status', 'agendada')
+                novaMsg.set('agendado_para', agendadoParaIso)
+                novaMsg.set(
+                  'tipo_disparo',
+                  `massa_fluxo_resposta_imediata_${primeiraEtapaNova.ordem}`,
+                )
+                novaMsg.set(
+                  'referencia_id',
+                  `lote_${lote.id}_resp_f${novoFluxoId}_e${primeiraEtapaNova.ordem}_${item.cliente_id || cleanPhone}`,
+                )
+                app.save(novaMsg)
+
+                if (!Array.isArray(item.etapas_executadas)) {
+                  item.etapas_executadas = []
+                }
+                item.etapas_executadas.push({
+                  ordem: primeiraEtapaNova.ordem,
+                  etapa_id: primeiraEtapaNova.id,
+                  fluxo_id: novoFluxoId,
+                  nome: primeiraEtapaNova.nome,
+                  enviado_em: agendadoParaIso,
+                  mensagem_id: novaMsg.id,
+                })
+              }
+
+              const subsequente = etapasNovoFluxo.find((e) => e.ordem > primeiraEtapaNova.ordem)
+              if (subsequente) {
+                const proxDias = Math.max(1, subsequente.dias_apos || 1)
+                item.proximo_envio_data = new Date(
+                  agora.getTime() + proxDias * 24 * 60 * 60 * 1000,
+                ).toISOString()
+                item.proxima_etapa_nome = subsequente.nome
+              } else {
+                item.proximo_envio_data = undefined
+                item.proxima_etapa_nome = undefined
+              }
+            } else {
+              const proxDias = Math.max(1, primeiraEtapaNova.dias_apos || 1)
+              item.proximo_envio_data = new Date(
+                agora.getTime() + proxDias * 24 * 60 * 60 * 1000,
+              ).toISOString()
+              item.proxima_etapa_nome = primeiraEtapaNova.nome
+            }
+          }
+        }
+      } else {
+        item.proximo_envio_data = undefined
+        item.proxima_etapa_nome = undefined
+      }
+
+      loteModificado = true
+      matchesEncontrados++
+      console.log(
+        `[WHATSAPP WEBHOOK FOLLOW-UP] Resposta detectada automaticamente para ${item.nome} (${itemTelLimpo}). Lote ${lote.id}, fluxo ${fluxoAtualId}. Ramificou: ${Boolean(temRamificacao)}`,
+      )
+    }
+
+    if (loteModificado) {
+      const stats = {
+        total: dests.length,
+        pendentes: dests.filter(
+          (d) =>
+            d.status === 'pendente' ||
+            d.status === 'reenvio_1_agendado' ||
+            d.status === 'reenvio_2_agendado',
+        ).length,
+        respondidos: dests.filter((d) => d.status === 'respondido').length,
+        atendidos: dests.filter((d) => d.status === 'atendido').length,
+        bloqueados: dests.filter((d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp')
+          .length,
+        finalizados: dests.filter(
+          (d) =>
+            d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+        ).length,
+        reenvios_1_enviados: dests.filter(
+          (d) =>
+            Boolean(d.reenvio_1_data) || (d.etapas_executadas && d.etapas_executadas.length >= 1),
+        ).length,
+        reenvios_2_enviados: dests.filter(
+          (d) =>
+            Boolean(d.reenvio_2_data) || (d.etapas_executadas && d.etapas_executadas.length >= 2),
+        ).length,
+        ultima_verificacao: agoraIso,
+      }
+
+      lote.set('destinatarios', dests)
+      lote.set('estatisticas', stats)
+      if (stats.pendentes === 0) {
+        lote.set('status', 'concluido')
+      }
+      app.save(lote)
+    }
+  }
+
+  return {
+    processado: true,
+    matchesEncontrados,
+  }
+}
