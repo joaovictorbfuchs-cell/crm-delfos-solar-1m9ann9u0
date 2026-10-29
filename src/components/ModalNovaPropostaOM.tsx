@@ -21,7 +21,14 @@ import { normalizarNomePlanoOM } from '@/lib/planosOM'
 import { BotaoBaixarPropostaOMPDF } from '@/components/BotaoBaixarPropostaOMPDF'
 import { PreviewPropostaOMDocumento } from '@/components/PreviewPropostaOMDocumento'
 import { PainelEdicaoConteudoOM } from '@/components/PainelEdicaoConteudoOM'
-import { sendWhatsAppDocumento, sendWhatsAppMensagem, createAtividade } from '@/services/crmService'
+import {
+  sendWhatsAppDocumento,
+  sendWhatsAppMensagem,
+  createAtividade,
+  fetchUsinasParaPropostaOM,
+} from '@/services/crmService'
+import type { UsinaCliente } from '@/types/crm'
+import { calcularTotaisUsinasContrato } from '@/services/contratosUsinasService'
 import { criarLinkPropostaOM } from '@/services/propostaOMPublicaService'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { enviarEmail, DEFAULT_EMAIL_FROM } from '@/lib/emailService'
@@ -67,18 +74,18 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   onAbrirContrato,
   onAbrirProcuracao,
 }) => {
-  const {
-    clientes,
-    sistemas,
-    addPropostaOM,
-    updatePropostaOM,
-    addTimelineOM,
-    updateClienteStatus,
-  } = useClientes()
+  const { clientes, addPropostaOM, updatePropostaOM, addTimelineOM, updateClienteStatus } =
+    useClientes()
   const { user } = useAuth()
 
   // Seletor de Cliente
   const [selectedId, setSelectedId] = useState<string>('')
+
+  // Usinas do cliente selecionado (carregadas com dados técnicos completos via fetchUsinasParaPropostaOM)
+  const [usinasCliente, setUsinasCliente] = useState<UsinaCliente[]>([])
+  const [carregandoUsinas, setCarregandoUsinas] = useState<boolean>(false)
+  // 'todas' | id da usina específica
+  const [usinaSelecionadaId, setUsinaSelecionadaId] = useState<string>('')
 
   // Parâmetros informados pelo usuário
   const [valorKwh, setValorKwh] = useState<number>(0.92)
@@ -133,6 +140,55 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       setSelectedId(clientes[0].id)
     }
   }, [initialClienteId, clientes, selectedId])
+
+  // Carga das usinas completas sempre que o cliente mudar
+  useEffect(() => {
+    let ativo = true
+    if (!selectedId) {
+      setUsinasCliente([])
+      setUsinaSelecionadaId('')
+      return
+    }
+
+    setCarregandoUsinas(true)
+    fetchUsinasParaPropostaOM(selectedId)
+      .then((lista) => {
+        if (!ativo) return
+        setUsinasCliente(lista)
+
+        // Se veio usina salva no conteudo_proposta de initialProposta
+        const usinaSalva =
+          (initialProposta?.conteudo_proposta as Record<string, any>)?.usina_selecionada_id ||
+          (initialProposta?.conteudo_proposta as Record<string, any>)?.usina_id
+
+        if (usinaSalva && (usinaSalva === 'todas' || lista.some((u) => u.id === usinaSalva))) {
+          setUsinaSelecionadaId(usinaSalva)
+        } else {
+          // Padrão: se houver mais de uma usina, 'todas' (somatório); se houver só 1, a usina em si; se nenhuma, ''
+          if (lista.length > 1) {
+            setUsinaSelecionadaId('todas')
+          } else if (lista.length === 1) {
+            setUsinaSelecionadaId(lista[0].id)
+          } else {
+            setUsinaSelecionadaId('')
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Erro ao carregar usinas do cliente:', err)
+        if (ativo) {
+          setUsinasCliente([])
+          setUsinaSelecionadaId('')
+        }
+      })
+      .finally(() => {
+        if (ativo) setCarregandoUsinas(false)
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [selectedId, initialProposta])
 
   // Se veio uma proposta para visualizar/regenerar
   useEffect(() => {
@@ -218,48 +274,87 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     }
   }
 
-  const sistemaAtual = useMemo(() => {
-    return sistemas.find((s) => s.cliente_id === selectedId) || null
-  }, [sistemas, selectedId])
+  // Usinas selecionadas para a proposta
+  const isTodasUsinas =
+    usinaSelecionadaId === 'todas' || (!usinaSelecionadaId && usinasCliente.length > 1)
+  const usinasAtivas = useMemo(() => {
+    if (usinasCliente.length === 0) return []
+    if (isTodasUsinas) return usinasCliente
+    const u = usinasCliente.find((item) => item.id === usinaSelecionadaId)
+    return u ? [u] : [usinasCliente[0]]
+  }, [usinasCliente, isTodasUsinas, usinaSelecionadaId])
 
-  // Dados técnicos automáticos
+  // Somatório via calcularTotaisUsinasContrato (reuso canônico das usinas)
+  const totaisUsinas = useMemo(() => {
+    return calcularTotaisUsinasContrato(undefined, selectedId, usinasAtivas, [])
+  }, [selectedId, usinasAtivas])
+
+  // Dados técnicos estritamente derivados da(s) usina(s) selecionada(s)
   const potenciaKwp = useMemo(() => {
-    return sistemaAtual?.potencia_total_kwp ?? clienteAtual?.potencia_kwp ?? 0
-  }, [sistemaAtual, clienteAtual])
+    if (totaisUsinas.potenciaTotalKwp && totaisUsinas.potenciaTotalKwp > 0) {
+      return Math.round(totaisUsinas.potenciaTotalKwp * 100) / 100
+    }
+    return 0
+  }, [totaisUsinas.potenciaTotalKwp])
+
+  const numeroModulos = useMemo(() => {
+    if (totaisUsinas.qtdModulosTotal && totaisUsinas.qtdModulosTotal > 0) {
+      return Math.round(totaisUsinas.qtdModulosTotal)
+    }
+    if (potenciaKwp > 0) {
+      return Math.round((potenciaKwp * 1000) / 450)
+    }
+    return 0
+  }, [totaisUsinas.qtdModulosTotal, potenciaKwp])
 
   const geracaoMensalKwh = useMemo(() => {
-    if (sistemaAtual?.geracao_media_mensal_kwh && sistemaAtual.geracao_media_mensal_kwh > 0) {
-      return sistemaAtual.geracao_media_mensal_kwh
+    if (totaisUsinas.geracaoEstimadaMensalKwh && totaisUsinas.geracaoEstimadaMensalKwh > 0) {
+      return Math.round(totaisUsinas.geracaoEstimadaMensalKwh)
     }
     if (potenciaKwp > 0) {
       return Math.round(potenciaKwp * 130)
     }
     return 1000
-  }, [sistemaAtual, potenciaKwp])
+  }, [totaisUsinas.geracaoEstimadaMensalKwh, potenciaKwp])
 
   const marcaInversores = useMemo(() => {
-    if (sistemaAtual?.fabricante_inversores) {
-      return `${sistemaAtual.fabricante_inversores} ${sistemaAtual.modelo_inversores || ''}`.trim()
-    }
-    if (clienteAtual?.inversor_marca) {
-      return `${clienteAtual.inversor_marca} ${clienteAtual.inversor_modelo || ''}`.trim()
+    if (usinasAtivas.length === 0) return 'Inversores homologados'
+    const descricoes = usinasAtivas
+      .map((u) => {
+        const fab = (u.fabricante_inversores || '').trim()
+        const mod = (u.modelo_inversores || '').trim()
+        const info = (u.inversores_info || '').trim()
+        let desc = [fab, mod].filter(Boolean).join(' ')
+        if (!desc && info) desc = info
+        if (usinasAtivas.length > 1 && desc) {
+          return `${u.nome || 'Usina'}: ${desc}`
+        }
+        return desc
+      })
+      .filter(Boolean)
+
+    if (descricoes.length > 0) {
+      return descricoes.join(' • ')
     }
     return 'Inversores homologados'
-  }, [sistemaAtual, clienteAtual])
+  }, [usinasAtivas])
 
   const tipoTelhadoOuSolo = useMemo(() => {
-    const raw = sistemaAtual?.tipo_telhado || clienteAtual?.telhado_tipo || 'ceramico'
-    return `Telhado ${getTelhadoLabel(raw)}`
-  }, [sistemaAtual, clienteAtual])
-
-  const numeroModulos = useMemo(() => {
-    return (
-      sistemaAtual?.quantidade_modulos ??
-      sistemaAtual?.quantidade_placas ??
-      clienteAtual?.placas_qtd ??
-      (potenciaKwp > 0 ? Math.round((potenciaKwp * 1000) / 450) : 0)
+    const tipos = Array.from(
+      new Set(
+        usinasAtivas
+          .map((u) => {
+            if (u.tipo_estrutura === 'solo') return 'Solo'
+            return u.tipo_telhado ? `Telhado ${getTelhadoLabel(u.tipo_telhado)}` : ''
+          })
+          .filter(Boolean),
+      ),
     )
-  }, [sistemaAtual, clienteAtual, potenciaKwp])
+    if (tipos.length > 0) return tipos.join(' / ')
+    const primeira = usinasAtivas[0]
+    const raw = primeira?.tipo_telhado || 'ceramico'
+    return `Telhado ${getTelhadoLabel(raw)}`
+  }, [usinasAtivas])
 
   // Mapa de valores negociados digitados pelo consultor
   const valoresNegociados = useMemo(() => {
@@ -376,6 +471,17 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       const valorCompletoFinal = calculos.planos.Completo.mensal
       const valorPlanoPersistido = calculos.planos[planoSelecionadoAtual]
 
+      // Persistir usina(s) selecionada(s) dentro de conteudo_proposta sem alterar schema/migrações
+      const conteudoPropostaComUsinas = {
+        ...(conteudoOM || {}),
+        usina_selecionada_id:
+          usinaSelecionadaId || (usinasCliente.length > 1 ? 'todas' : usinasCliente[0]?.id || ''),
+        usina_id:
+          usinaSelecionadaId !== 'todas' ? usinaSelecionadaId || usinasCliente[0]?.id || '' : '',
+        usinas_ids: usinasAtivas.map((u) => u.id),
+        usinas_selecionadas_nomes: usinasAtivas.map((u) => u.nome || 'Usina').join(', '),
+      }
+
       const dadosProposta = {
         cliente_id: clienteAtual.id,
         potencia_kwp: potenciaKwp,
@@ -404,7 +510,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           Inspeção: valoresNegociados.Inspeção,
           Completo: valoresNegociados.Completo,
         },
-        conteudo_proposta: conteudoOM,
+        conteudo_proposta: conteudoPropostaComUsinas,
         data_proposta: new Date().toISOString(),
         autor: user?.name || 'Equipe Comercial Delfos Solar',
         status: ['aprovado', 'aprovada'].includes((initialProposta?.status || '').toLowerCase())
@@ -874,54 +980,106 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 mb-1 block">
-                    Selecione o Cliente do CRM
-                  </label>
-                  <select
-                    value={selectedId}
-                    onChange={(e) => setSelectedId(e.target.value)}
-                    disabled={!!initialClienteId || !!initialProposta}
-                    className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    {clientes.length === 0 ? (
-                      <option value="">Nenhum cliente cadastrado</option>
-                    ) : (
-                      clientes.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome || 'Cliente'} {c.cidade ? `— ${c.cidade}` : ''} (
-                          {c.potencia_kwp || 0} kWp)
-                        </option>
-                      ))
-                    )}
-                  </select>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1 block">
+                      1. Selecione o Cliente do CRM
+                    </label>
+                    <select
+                      value={selectedId}
+                      onChange={(e) => setSelectedId(e.target.value)}
+                      disabled={!!initialClienteId || !!initialProposta}
+                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      {clientes.length === 0 ? (
+                        <option value="">Nenhum cliente cadastrado</option>
+                      ) : (
+                        clientes.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome || 'Cliente'} {c.cidade ? `— ${c.cidade}` : ''}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1 flex items-center justify-between">
+                      <span>2. Selecione a Usina</span>
+                      {carregandoUsinas && (
+                        <span className="text-[10px] text-emerald-600 font-normal animate-pulse">
+                          Carregando usinas...
+                        </span>
+                      )}
+                    </label>
+                    <select
+                      value={usinaSelecionadaId}
+                      onChange={(e) => setUsinaSelecionadaId(e.target.value)}
+                      disabled={carregandoUsinas || usinasCliente.length === 0}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50/30 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:bg-gray-50 disabled:border-gray-200"
+                    >
+                      {carregandoUsinas ? (
+                        <option value="">Carregando usinas do cliente...</option>
+                      ) : usinasCliente.length === 0 ? (
+                        <option value="">Nenhuma usina cadastrada para este cliente</option>
+                      ) : (
+                        <>
+                          {usinasCliente.length > 1 && (
+                            <option value="todas">
+                              Todas as usinas (somatório) — {usinasCliente.length} usinas
+                            </option>
+                          )}
+                          {usinasCliente.map((u) => {
+                            const partes: string[] = []
+                            if (u.nome) partes.push(u.nome)
+                            if (u.potencia_kwp) partes.push(`${u.potencia_kwp} kWp`)
+                            if (u.cidade) partes.push(u.cidade)
+                            else if (u.endereco) partes.push(u.endereco)
+                            return (
+                              <option key={u.id} value={u.id}>
+                                {partes.join(' — ') || `Usina #${u.id}`}
+                              </option>
+                            )
+                          })}
+                        </>
+                      )}
+                    </select>
+                  </div>
                 </div>
 
-                {clienteAtual ? (
-                  <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200/80 text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Documento:</span>
-                      <span className="font-semibold text-gray-800">
-                        {clienteAtual.cnpj || clienteAtual.cpf || 'Não informado'}
+                {clienteAtual && (
+                  <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200/80 text-xs flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-500">
+                        Doc:{' '}
+                        <strong className="text-gray-800">
+                          {clienteAtual.cnpj || clienteAtual.cpf || 'Não informado'}
+                        </strong>
+                      </span>
+                      <span className="text-gray-300">|</span>
+                      <span className="text-gray-500">
+                        Cidade:{' '}
+                        <strong className="text-gray-800">
+                          {clienteAtual.cidade || 'Erechim/RS'}
+                        </strong>
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Localização:</span>
-                      <span className="font-semibold text-gray-800">
-                        {clienteAtual.cidade || 'Erechim/RS'}
-                      </span>
+                    <div className="text-gray-500 text-[11px]">
+                      {usinasCliente.length === 0 ? (
+                        <span className="text-amber-700 font-medium">
+                          ⚠️ Cliente sem usina vinculada — cadastre uma usina para dados precisos
+                        </span>
+                      ) : isTodasUsinas ? (
+                        <span className="text-emerald-700 font-semibold">
+                          ✓ Somatório de {usinasCliente.length} usinas selecionado
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700 font-semibold">
+                          ✓ Usina única selecionada: {usinasAtivas[0]?.nome || usinasAtivas[0]?.id}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Contato:</span>
-                      <span className="font-semibold text-gray-800 truncate max-w-[200px]">
-                        {clienteAtual.telefone || clienteAtual.email || 'Não informado'}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-xs text-amber-800 flex items-center">
-                    <span>Nenhum cliente selecionado ou disponível.</span>
                   </div>
                 )}
               </div>

@@ -167,6 +167,34 @@ export { mapUsinaToSistema }
 export const USINAS_LISTAGEM_FIELDS =
   'id,cliente_id,nome,cidade,estado,potencia_kwp,qtd_modulos,geracao_estimada_kwh,status,contrato_id,numero_uc,created,updated,expand.contrato_id.id,expand.contrato_id.status,expand.contrato_id.numero_contrato,expand.contrato_id.plano'
 
+export const USINAS_PROPOSTA_OM_FIELDS =
+  'id,cliente_id,nome,endereco,cidade,estado,potencia_kwp,qtd_modulos,quantidade_placas,fabricante_inversores,modelo_inversores,inversores_info,fabricante_modulos,modelo_modulos,tipo_telhado,tipo_estrutura,geracao_media_mensal_kwh,geracao_estimada_kwh,tarifa,status,contrato_id,numero_uc,created,updated,expand.contrato_id.id,expand.contrato_id.status,expand.contrato_id.numero_contrato,expand.contrato_id.plano'
+
+/**
+ * Busca dedicada para o Gerador de Propostas O&M.
+ * Carrega todos os campos técnicos necessários da usina para não depender do cadastro resumido do cliente.
+ */
+export async function fetchUsinasParaPropostaOM(
+  clienteId?: string,
+): Promise<import('@/types/crm').UsinaCliente[]> {
+  if (!clienteId || typeof clienteId !== 'string' || !clienteId.trim()) {
+    return []
+  }
+  try {
+    const list = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
+      filter: `cliente_id = '${clienteId.trim()}'`,
+      sort: 'created',
+      fields: USINAS_PROPOSTA_OM_FIELDS,
+      expand: 'contrato_id',
+      requestKey: null,
+    })
+    return list
+  } catch (err) {
+    console.warn(`Erro ao buscar usinas completas para proposta O&M do cliente ${clienteId}:`, err)
+    return []
+  }
+}
+
 export async function fetchSistemas(): Promise<Sistema[]> {
   const now = Date.now()
   if (_cachedSistemas && now - _cachedSistemas.timestamp < USINAS_CACHE_TTL_MS) {
