@@ -25,47 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const obj = error as Record<string, unknown>
-    if (obj.isAbort === true) return true
-    if (obj.name === 'AbortError') return true
-    if (typeof obj.message === 'string' && obj.message.toLowerCase().includes('autocancelled')) {
-      return true
-    }
-  }
-  return false
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const obj = error as Record<string, unknown>
-    const status = (obj.status ?? (obj.response as Record<string, unknown>)?.status) as
-      | number
-      | undefined
-    if (status === 401 || status === 403) return true
-    if (typeof obj.message === 'string') {
-      const msg = obj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('token expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('login expirou') ||
-        msg.includes('sessão expirada') ||
-        msg.includes('sessao expirada')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
