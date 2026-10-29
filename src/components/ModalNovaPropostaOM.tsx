@@ -25,6 +25,7 @@ import {
   sendWhatsAppDocumento,
   sendWhatsAppMensagem,
   createAtividade,
+  fetchSistemasTecnicosCliente,
   fetchUsinasParaPropostaOM,
 } from '@/services/crmService'
 import type { UsinaCliente } from '@/types/crm'
@@ -151,7 +152,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     }
 
     setCarregandoUsinas(true)
-    fetchUsinasParaPropostaOM(selectedId)
+    fetchSistemasTecnicosCliente(selectedId)
       .then((lista) => {
         if (!ativo) return
         setUsinasCliente(lista)

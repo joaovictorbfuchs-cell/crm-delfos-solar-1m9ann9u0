@@ -174,7 +174,7 @@ export const USINAS_PROPOSTA_OM_FIELDS =
  * Busca dedicada para o Gerador de Propostas O&M.
  * Carrega todos os campos técnicos necessários da usina para não depender do cadastro resumido do cliente.
  */
-export async function fetchUsinasParaPropostaOM(
+export async function fetchSistemasTecnicosCliente(
   clienteId?: string,
 ): Promise<import('@/types/crm').UsinaCliente[]> {
   if (!clienteId || typeof clienteId !== 'string' || !clienteId.trim()) {
@@ -194,6 +194,11 @@ export async function fetchUsinasParaPropostaOM(
     return []
   }
 }
+
+/**
+ * Alias de conveniência/compatibilidade para fetchSistemasTecnicosCliente.
+ */
+export const fetchUsinasParaPropostaOM = fetchSistemasTecnicosCliente
 
 export async function fetchSistemas(): Promise<Sistema[]> {
   const now = Date.now()
