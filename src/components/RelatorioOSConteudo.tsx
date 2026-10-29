@@ -36,6 +36,7 @@ import {
   type RelatorioOSCanonicalData,
   type FotoRegistroRelatorio,
 } from '@/lib/relatorioOSCanonical'
+import { obterRelatorioOSPublico } from '@/services/relatorioOSPublicoService'
 import { gerarRelatorioOSPdfBlobBase64 } from '@/components/BotaoBaixarRelatorioOSPDF'
 import { enviarEmail } from '@/lib/emailService'
 import { createAtividade } from '@/services/crmService'
@@ -118,18 +119,47 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
       try {
         let registro: any = null
         let isAuthErrorEncountered = false
+        let clienteEncontrado: any = null
+        let usinaEncontrada: any = null
+        let contratoOMEncontrado: any = null
+        let temContratoOMAtivoFlag = false
+        let eqsCarregados: any[] = []
+        let atvsCarregados: any[] = []
 
-        // 1. Tenta carregar em atividades (expand cliente_id, usina_id)
+        // 1. Tentar primeiro via serviço público resiliente
+        // Isso resolve o problema de regras de acesso user-scoped da sessão (ex.: técnico João vs Daniel)
+        // e carrega de imediato cliente, usina, contrato O&M e equipamentos sem N+1 queries.
         try {
-          registro = await pb.collection('atividades').getOne(id, {
-            expand: 'cliente_id,usina_id,responsavel_id',
-          })
-        } catch (err: any) {
-          if (isAuthSessionError(err)) isAuthErrorEncountered = true
-          registro = null
+          const publicRes = await obterRelatorioOSPublico(id)
+          if (publicRes && publicRes.registro) {
+            registro = publicRes.registro
+            clienteEncontrado = publicRes.cliente || null
+            usinaEncontrada = publicRes.usina || null
+            contratoOMEncontrado = publicRes.contratoOM || null
+            temContratoOMAtivoFlag = Boolean(publicRes.temContratoOMAtivo)
+            eqsCarregados = publicRes.equipamentosUsina || []
+            atvsCarregados = publicRes.ativosUsina || []
+          }
+        } catch (pubErr: any) {
+          console.warn(
+            'Busca pública por obterRelatorioOSPublico falhou, tentando fallback direto:',
+            pubErr,
+          )
         }
 
-        // 2. Fallback para ordens_servico se não encontrar em atividades
+        // 2. Se o endpoint público não retornou registro, tenta carregar diretamente em atividades
+        if (!registro) {
+          try {
+            registro = await pb.collection('atividades').getOne(id, {
+              expand: 'cliente_id,usina_id,responsavel_id',
+            })
+          } catch (err: any) {
+            if (isAuthSessionError(err)) isAuthErrorEncountered = true
+            registro = null
+          }
+        }
+
+        // 3. Fallback para ordens_servico se não encontrar em atividades
         if (!registro) {
           try {
             registro = await pb.collection('ordens_servico').getOne(id, {
@@ -141,7 +171,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           }
         }
 
-        // 3. Fallback inteligente quando o id original foi migrado ou copiado
+        // 4. Fallback inteligente quando o id original foi migrado ou copiado
         // (ex: link enviado com id antigo ou id de migração rastreado em registro_original_id ou chave_importacao)
         if (!registro) {
           try {
@@ -198,6 +228,7 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
         // Extrai cliente vinculado
         const clienteFinal =
           clienteProp ||
+          clienteEncontrado ||
           registro.expand?.cliente_id ||
           (registro.cliente_id
             ? await pb
@@ -209,7 +240,12 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
         // Checa se cliente tem contrato O&M ativo
         const clienteIdFinal = clienteFinal?.id || registro.cliente_id
-        if (clienteIdFinal) {
+        if (contratoOMEncontrado !== null || temContratoOMAtivoFlag) {
+          if (isMounted) {
+            setTemContratoOMAtivo(temContratoOMAtivoFlag)
+            setContratoOMCliente(contratoOMEncontrado)
+          }
+        } else if (clienteIdFinal) {
           try {
             const contratos = await pb.collection('contratos_om').getList(1, 10, {
               filter: `cliente_id = "${clienteIdFinal}"`,
@@ -257,7 +293,11 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
         // Extrai usina / sistema vinculado
         let usinaObj =
-          sistemaProp || registro.expand?.usina_id || registro.expand?.sistema_id || null
+          sistemaProp ||
+          usinaEncontrada ||
+          registro.expand?.usina_id ||
+          registro.expand?.sistema_id ||
+          null
         const usinaIdParaBusca =
           registro.usina_id ||
           registro.sistema_id ||
@@ -284,7 +324,12 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
 
         // Carrega equipamentos da usina vinculada (usina_equipamentos e Ativos) em paralelo
         const usinaIdFinal = usinaObj?.id || usinaIdParaBusca
-        if (usinaIdFinal) {
+        if (eqsCarregados.length > 0 || atvsCarregados.length > 0) {
+          if (isMounted) {
+            setEquipamentosUsina(eqsCarregados)
+            setAtivosUsina(atvsCarregados)
+          }
+        } else if (usinaIdFinal) {
           try {
             const [eqs, atvs] = await Promise.all([
               import('@/services/usinaEquipamentosService')

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-29T13:20:33.186Z",
+  "generatedAt": "2026-10-29T14:57:43.372Z",
   "collections": [
     {
       "name": "users",
@@ -68,7 +68,7 @@
       "type": "base",
       "apiRules": {
         "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "view": "",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.id != ''"
@@ -820,8 +820,8 @@
       "name": "atividades",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.id != \"\" || status = \"concluida\" || status = \"finalizada\" || status = \"em_execucao\" || status = \"dados_registrados\" || status = \"enviado\"",
+        "view": "@request.auth.id != \"\" || status = \"concluida\" || status = \"finalizada\" || status = \"em_execucao\" || status = \"dados_registrados\" || status = \"enviado\"",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.id != ''"
@@ -4415,8 +4415,8 @@
       "name": "ordens_servico",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.id != \"\" || status = \"concluida\" || status = \"finalizada\" || status = \"em_execucao\"",
+        "view": "@request.auth.id != \"\" || status = \"concluida\" || status = \"finalizada\" || status = \"em_execucao\"",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.id != ''"
@@ -4746,7 +4746,7 @@
       "type": "base",
       "apiRules": {
         "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "view": "",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.id != ''"
@@ -5429,7 +5429,7 @@
       "type": "base",
       "apiRules": {
         "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "view": "",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.id != ''"
@@ -6636,8 +6636,8 @@
       "name": "usina_equipamentos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "",
+        "view": "",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.id != ''"

@@ -28,33 +28,44 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object' && 'status' in error) {
-    const status = (error as { status?: number }).status
-    if (status === 401 || status === 403) return true
-  }
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
-  return (
-    msg.includes('auth') ||
-    msg.includes('token') ||
-    msg.includes('session') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden')
-  )
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
 }
 
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof DOMException && error.name === 'AbortError') return true
-  if (error instanceof ClientResponseError && (error.isAbort || error.status === 0)) return true
-  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
-  return msg.includes('autocancelled') || msg.includes('abort')
+  if (typeof error === 'object') {
+    const obj = error as Record<string, unknown>
+    if (obj.isAbort === true) return true
+    if (obj.name === 'AbortError') return true
+    if (typeof obj.message === 'string' && obj.message.toLowerCase().includes('autocancelled')) {
+      return true
+    }
+  }
+  return false
 }
 
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const obj = error as Record<string, unknown>
+    const status = (obj.status ?? (obj.response as Record<string, unknown>)?.status) as
+      | number
+      | undefined
+    if (status === 401 || status === 403) return true
+    if (typeof obj.message === 'string') {
+      const msg = obj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('login expirou') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('sessao expirada')
+      ) {
+        return true
+      }
+    }
+  }
+  return false
 }
