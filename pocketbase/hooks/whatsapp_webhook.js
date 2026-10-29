@@ -520,11 +520,11 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       return e.json(200, { ok: true, ignored: true, reason: 'from_me' })
     }
 
-    // Função auxiliar para detecção de LID (14 dígitos iniciado por 24, ex: "24446987407395")
+    // Função auxiliar para detecção de LID (14 dígitos não iniciando em 55, ex: "24446987407395" ou "94927484661767")
     function isWhatsAppLid(val) {
       if (!val) return false
       const d = val.toString().split('@')[0].split(':')[0].replace(/\D/g, '')
-      return d.length === 14 && d.startsWith('24')
+      return d.length === 14 && !d.startsWith('55')
     }
 
     // Normalizar telefone com regras flexíveis de DDI, prefixo e dígitos essenciais
@@ -931,52 +931,76 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     }
 
     // Pré-localizar conversa existente pelo número ou LID
-    // Importante: precisamos saber se já existe uma conversa para esse número ANTES
-    // de finalizar a busca do cliente, pois o cliente_id da conversa é usado como fallback!
+    // Critério ESTRITO: igualdade exata dos dígitos normalizados (com/sem 55, com/sem 9º dígito).
+    // NUNCA casar por últimos 4 dígitos nem usar fallback para convList[0], evitando misturar conversas de números diferentes.
     const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
     let conversaRecord = null
 
-    try {
-      let filterConversaPrevia = ''
-      if (isLidApenas) {
-        filterConversaPrevia = `numero = '${rawPhone}'`
-      } else if (cleanPhone && cleanPhone.length >= 8) {
-        const last8 = cleanPhone.slice(-8)
-        const last4 = cleanPhone.slice(-4)
-        const comHifen = last8.slice(0, 4) + '-' + last8.slice(4)
-        filterConversaPrevia = `numero ~ '${last8}' || numero ~ '${comHifen}' || numero ~ '${last4}'`
+    // Função auxiliar interna para gerar as variantes válidas exatas do número do contato
+    function gerarVariantesExatasNumero(telDigits) {
+      if (!telDigits) return []
+      const d = String(telDigits).replace(/\D/g, '')
+      if (!d) return []
+      if (isWhatsAppLid(d)) return [d]
+
+      let nac = d
+      if (nac.startsWith('55') && (nac.length === 12 || nac.length === 13)) {
+        nac = nac.slice(2)
+      }
+      if (nac.length === 8 || nac.length === 9) {
+        nac = '54' + nac
       }
 
-      if (filterConversaPrevia) {
-        const convList = $app.findRecordsByFilter(
-          convCol.id,
-          filterConversaPrevia,
-          '-updated',
-          20,
-          0,
-        )
-        if (convList && convList.length > 0) {
-          if (isLidApenas) {
-            conversaRecord = convList[0]
-          } else {
-            for (let i = 0; i < convList.length; i++) {
-              const cNum = (convList[i].getString('numero') || '').replace(/\D/g, '')
-              if (
-                cNum &&
-                (cNum === cleanPhone ||
-                  compararFlexivel(cleanPhone, cNum) !== 'nenhum' ||
-                  telefonesCasamBidirecionalWebhook(cleanPhone, cNum))
-              ) {
-                conversaRecord = convList[i]
-                break
-              }
-            }
-            if (!conversaRecord) {
-              conversaRecord = convList[0]
+      const lista = new Set()
+      lista.add(d)
+      if (nac) {
+        lista.add(nac)
+        lista.add('55' + nac)
+      }
+
+      if (nac.length === 10) {
+        const ddd = nac.slice(0, 2)
+        const resto8 = nac.slice(2)
+        const com9 = ddd + '9' + resto8
+        lista.add(com9)
+        lista.add('55' + com9)
+      } else if (nac.length === 11 && nac.charAt(2) === '9') {
+        const ddd = nac.slice(0, 2)
+        const resto8 = nac.slice(3)
+        const sem9 = ddd + resto8
+        lista.add(sem9)
+        lista.add('55' + sem9)
+      }
+
+      return Array.from(lista)
+    }
+
+    function encontrarConversaPorNumeroExato(digitosBusca) {
+      if (!digitosBusca) return null
+      const variantes = gerarVariantesExatasNumero(digitosBusca)
+      if (variantes.length === 0) return null
+
+      const conds = variantes.map((v) => `numero = '${v}'`)
+      const filterStr = conds.join(' || ')
+      try {
+        const list = $app.findRecordsByFilter(convCol.id, filterStr, '-updated', 20, 0)
+        if (list && list.length > 0) {
+          const varSet = new Set(variantes)
+          for (let i = 0; i < list.length; i++) {
+            const numRec = (list[i].getString('numero') || '').replace(/\D/g, '')
+            if (varSet.has(numRec)) {
+              return list[i]
             }
           }
         }
+      } catch (errBuscaExata) {
+        console.log('[WHATSAPP WEBHOOK ERRO BUSCA EXATA CONVERSA]', errBuscaExata)
       }
+      return null
+    }
+
+    try {
+      conversaRecord = encontrarConversaPorNumeroExato(cleanPhone || rawPhone)
     } catch (errConvPrevia) {
       console.log('[WHATSAPP WEBHOOK ERRO BUSCA PREVIA CONVERSA]', errConvPrevia)
     }
@@ -1122,25 +1146,6 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       }
     }
 
-    // Se encontramos cliente (seja por telefone ou fallback) e ainda não tínhamos achado conversa,
-    // buscar se já existe conversa para esse cliente_id
-    if (clienteEncontrado && !conversaRecord) {
-      try {
-        const clientConvs = $app.findRecordsByFilter(
-          convCol.id,
-          `cliente_id = '${clienteEncontrado.id}'`,
-          '-updated',
-          1,
-          0,
-        )
-        if (clientConvs && clientConvs.length > 0) {
-          conversaRecord = clientConvs[0]
-        }
-      } catch (errConvCliente) {
-        console.log('[WHATSAPP WEBHOOK ERRO CONV POR CLIENTE]', errConvCliente)
-      }
-    }
-
     const senderName =
       (body.senderName || body.pushName || body.name || body.contactName || '').trim() ||
       (clienteEncontrado ? clienteEncontrado.getString('nome') : '') ||
@@ -1149,7 +1154,14 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     const nowIso = new Date().toISOString()
     const previewTexto = messageText.substring(0, 100)
 
-    // Se a conversa já existia, atualizar campos
+    // Se ainda não temos conversaRecord, rebuscar uma vez mais por número exato antes de criar
+    if (!conversaRecord) {
+      try {
+        conversaRecord = encontrarConversaPorNumeroExato(cleanPhone || rawPhone)
+      } catch (_) {}
+    }
+
+    // Se a conversa já existia, atualizar campos; senão criar nova
     try {
       if (conversaRecord) {
         if (clienteEncontrado && !conversaRecord.getString('cliente_id')) {
@@ -1169,28 +1181,79 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
 
         $app.save(conversaRecord)
       } else {
-        // Criar nova conversa
-        conversaRecord = new Record(convCol)
-        conversaRecord.set('numero', cleanPhone)
-        if (clienteEncontrado) {
-          conversaRecord.set('cliente_id', clienteEncontrado.id)
-          conversaRecord.set('vinculada_em', nowIso)
+        // Re-verificar no banco imediatamente antes de inserir nova conversa para evitar race condition
+        const recheckConv = encontrarConversaPorNumeroExato(cleanPhone || rawPhone)
+        if (recheckConv) {
+          conversaRecord = recheckConv
+          if (clienteEncontrado && !conversaRecord.getString('cliente_id')) {
+            conversaRecord.set('cliente_id', clienteEncontrado.id)
+            conversaRecord.set('vinculada_em', nowIso)
+          }
+          conversaRecord.set('ultima_mensagem_preview', previewTexto)
+          conversaRecord.set('ultima_mensagem_em', nowIso)
+          const curUnread = conversaRecord.getInt('nao_lidas') || 0
+          conversaRecord.set('nao_lidas', curUnread + 1)
+          conversaRecord.set('status', 'aguardando_cliente')
+          if (senderPhoto && !conversaRecord.getString('foto_perfil')) {
+            conversaRecord.set('foto_perfil', senderPhoto)
+          }
+          $app.save(conversaRecord)
+        } else {
+          // Criar nova conversa
+          conversaRecord = new Record(convCol)
+          conversaRecord.set('numero', cleanPhone)
+          if (clienteEncontrado) {
+            conversaRecord.set('cliente_id', clienteEncontrado.id)
+            conversaRecord.set('vinculada_em', nowIso)
+          }
+          conversaRecord.set('nome_contato', senderName)
+          conversaRecord.set('status', 'aguardando_cliente')
+          conversaRecord.set('ultima_mensagem_preview', previewTexto)
+          conversaRecord.set('ultima_mensagem_em', nowIso)
+          conversaRecord.set('nao_lidas', 1)
+          if (senderPhoto) {
+            conversaRecord.set('foto_perfil', senderPhoto)
+          }
+          $app.save(conversaRecord)
         }
-        conversaRecord.set('nome_contato', senderName)
-        conversaRecord.set('status', 'aguardando_cliente')
-        conversaRecord.set('ultima_mensagem_preview', previewTexto)
-        conversaRecord.set('ultima_mensagem_em', nowIso)
-        conversaRecord.set('nao_lidas', 1)
-        if (senderPhoto) {
-          conversaRecord.set('foto_perfil', senderPhoto)
-        }
-        $app.save(conversaRecord)
       }
     } catch (errSaveConv) {
       console.log(
         '[WHATSAPP WEBHOOK] Aviso ao atualizar/gravar conversa (status aguardando_cliente):',
         errSaveConv,
       )
+    }
+
+    // IDEMPOTÊNCIA DA MENSAGEM:
+    // Se Z-API enviou messageId/zaapId, verificar se já existe mensagem com esse id_externo_gateway.
+    // Se já existir, abortar processamento sem duplicar a mensagem nem reexecutar ações secundárias.
+    const externalId = (body.messageId || body.id || body.zaapId || '').toString().trim()
+    if (externalId) {
+      try {
+        const msgsExistentes = $app.findRecordsByFilter(
+          'whatsapp_mensagens',
+          `id_externo_gateway = '${externalId}'`,
+          '-created',
+          1,
+          0,
+        )
+        if (msgsExistentes && msgsExistentes.length > 0) {
+          const msgExistente = msgsExistentes[0]
+          console.log(
+            `[WHATSAPP WEBHOOK IDEMPOTENCIA] Mensagem externa ${externalId} já processada (ID PB: ${msgExistente.id}). Abortando duplicata com sucesso 200.`,
+          )
+          return e.json(200, {
+            ok: true,
+            duplicada: true,
+            ignored: true,
+            msgId: msgExistente.id,
+            conversaId: conversaRecord ? conversaRecord.id : '',
+            reason: 'message_already_processed',
+          })
+        }
+      } catch (errCheckMsgDup) {
+        console.log('[WHATSAPP WEBHOOK ERRO VERIFICAR MSG IDEMPOTENCIA]', errCheckMsgDup)
+      }
     }
 
     // 3. Salvar a mensagem na coleção `whatsapp_mensagens`
@@ -1213,7 +1276,6 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     msgRecord.set('tipo_mensagem', tipoMensagem)
 
     // Se Z-API enviou messageId, gravar como id_externo_gateway para idempotência
-    const externalId = (body.messageId || body.id || body.zaapId || '').toString().trim()
     if (externalId) {
       msgRecord.set('id_externo_gateway', externalId)
     }

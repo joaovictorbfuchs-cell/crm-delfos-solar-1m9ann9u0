@@ -21,6 +21,7 @@ import { ModalVincularCliente } from '@/components/ModalVincularCliente'
 import PainelAcompanhamentoDisparos from '@/components/PainelAcompanhamentoDisparos'
 import { ModalCadastrarLeadWhatsApp } from '@/components/ModalCadastrarLeadWhatsApp'
 import { ModalCadastrarOutroContatoWhatsApp } from '@/components/ModalCadastrarOutroContatoWhatsApp'
+import { ModalConsolidarConversas } from '@/components/ModalConsolidarConversas'
 import { ConversaChatView } from '@/components/ConversaChatView'
 import { useToast } from '@/hooks/use-toast'
 import type {
@@ -102,6 +103,7 @@ export const CentralAtendimento: React.FC = () => {
   )
   const [searchTerm, setSearchTerm] = useState('')
   const [painelAcompanhamentoOpen, setPainelAcompanhamentoOpen] = useState(false)
+  const [modalConsolidarOpen, setModalConsolidarOpen] = useState(false)
   const [isStartingConversa, setIsStartingConversa] = useState(false)
   const [outrosContatosLista, setOutrosContatosLista] = useState<OutroContato[]>([])
   const [contatosUnicosLista, setContatosUnicosLista] = useState<
@@ -1234,6 +1236,18 @@ export const CentralAtendimento: React.FC = () => {
             )}
           </button>
 
+          {/* Botão de Consolidação de Conversas Duplicadas */}
+          <button
+            type="button"
+            onClick={() => setModalConsolidarOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+            title="Consolidar conversas duplicadas do mesmo número"
+            aria-label="Consolidar Conversas Duplicadas"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Consolidar Duplicadas</span>
+          </button>
+
           {/* Botão de Acompanhamento de Disparos em Massa */}
           <button
             type="button"
@@ -1751,6 +1765,15 @@ export const CentralAtendimento: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Consolidação de Conversas Duplicadas */}
+      <ModalConsolidarConversas
+        open={modalConsolidarOpen}
+        onOpenChange={setModalConsolidarOpen}
+        onConsolidadoSucesso={() => {
+          refreshConversas()
+        }}
+      />
     </div>
   )
 }

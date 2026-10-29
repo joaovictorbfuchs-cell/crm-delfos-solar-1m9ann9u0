@@ -128,11 +128,18 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       const { isWhatsAppLid } = await import('./formatters')
       expect(isWhatsAppLid('24446987407395')).toBe(true)
       expect(isWhatsAppLid('+24 44698740-7395')).toBe(true)
+      expect(isWhatsAppLid('94927484661767')).toBe(true)
       expect(isWhatsAppLid('54991234567')).toBe(false)
       expect(isWhatsAppLid('5554991234567')).toBe(false)
       expect(isWhatsAppLid(null)).toBe(false)
       expect(formatWhatsAppPhone('24446987407395')).toBe('Número oculto pelo WhatsApp (LID)')
       expect(formatWhatsAppPhone('+24 44698740-7395')).toBe('Número oculto pelo WhatsApp (LID)')
+      expect(formatWhatsAppPhone('94927484661767')).toBe('Número oculto pelo WhatsApp (LID)')
+    })
+
+    it('deve formatar números >11 dígitos não reconhecidos como número não identificado', () => {
+      expect(formatWhatsAppPhone('123456789012')).toBe('Número não identificado pelo WhatsApp')
+      expect(formatWhatsAppPhone('999999999999999')).toBe('Número não identificado pelo WhatsApp')
     })
 
     it('deve formatar número sem DDD assumindo 54 para celular (9 dígitos) e fixo (8 dígitos)', () => {

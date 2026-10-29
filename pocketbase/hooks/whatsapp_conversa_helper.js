@@ -26,28 +26,55 @@ function ensureConversaForMessage(app, clienteId, telefoneDestino, previewTexto,
       } catch (_) {}
     }
 
-    // 2. Se não achou por cliente_id e temos dígitos do telefone, buscar por número com tolerância ao 9º dígito
-    // Se for LID (14 dígitos iniciado por 24), NÃO buscar por last8 para não colidir com número real
-    const isLid = cleanPhone.length === 14 && cleanPhone.startsWith('24')
+    // 2. Se não achou por cliente_id e temos dígitos do telefone, buscar por número com critério estrito
+    // (igualdade exata de dígitos com/sem 55 e com/sem 9º dígito).
+    // NUNCA fazer fallback para phoneConvs[0] para não misturar números diferentes!
+    const isLid = cleanPhone.length === 14 && !cleanPhone.startsWith('55')
     if (!conversaRecord && cleanPhone) {
       try {
-        const filterPhone = isLid ? `numero = '${cleanPhone}'` : `numero ~ '${last8}'`
-        const phoneConvs = app.findRecordsByFilter(convCol.id, filterPhone, '-updated', 10, 0)
+        // Gerar variantes exatas válidas
+        let nac = cleanPhone
+        if (nac.startsWith('55') && (nac.length === 12 || nac.length === 13)) {
+          nac = nac.slice(2)
+        }
+        if (nac.length === 8 || nac.length === 9) {
+          nac = '54' + nac
+        }
+
+        const variantes = new Set()
+        variantes.add(cleanPhone)
+        if (nac) {
+          variantes.add(nac)
+          variantes.add('55' + nac)
+        }
+        if (nac.length === 10) {
+          const ddd = nac.slice(0, 2)
+          const resto8 = nac.slice(2)
+          const com9 = ddd + '9' + resto8
+          variantes.add(com9)
+          variantes.add('55' + com9)
+        } else if (nac.length === 11 && nac.charAt(2) === '9') {
+          const ddd = nac.slice(0, 2)
+          const sem9 = nac.slice(0, 2) + nac.slice(3)
+          variantes.add(sem9)
+          variantes.add('55' + sem9)
+        }
+
+        const conds = Array.from(variantes).map((v) => `numero = '${v}'`)
+        const phoneConvs = app.findRecordsByFilter(
+          convCol.id,
+          conds.join(' || '),
+          '-updated',
+          10,
+          0,
+        )
         if (phoneConvs && phoneConvs.length > 0) {
-          // Prioridade para casamento exato dos dígitos essenciais
           for (let i = 0; i < phoneConvs.length; i++) {
             const cNum = (phoneConvs[i].getString('numero') || '').replace(/\D/g, '')
-            if (
-              cNum === cleanPhone ||
-              (cNum.startsWith('55') && cNum.slice(2) === cleanPhone) ||
-              (cleanPhone.startsWith('55') && cleanPhone.slice(2) === cNum)
-            ) {
+            if (variantes.has(cNum)) {
               conversaRecord = phoneConvs[i]
               break
             }
-          }
-          if (!conversaRecord && !isLid) {
-            conversaRecord = phoneConvs[0]
           }
         }
       } catch (_) {}

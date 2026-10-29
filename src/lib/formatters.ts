@@ -93,13 +93,14 @@ export const formatarDataHora = formatDateTime
 
 /**
  * Detecta se o identificador recebido é um LID (Linked Device Identifier) do WhatsApp.
- * LIDs são identificadores de 14 dígitos iniciados em 24 gerados quando o remetente oculta o número real.
- * Exemplo real: "24446987407395".
+ * LIDs são identificadores de 14 dígitos (ex: iniciados em 24 ou variações como 94927484661767)
+ * que não correspondem a um número telefônico nacional padrão (14 dígitos não começando com 55).
+ * Exemplo real: "24446987407395", "94927484661767".
  */
 export function isWhatsAppLid(phone: string | undefined | null): boolean {
   if (!phone) return false
   const digits = phone.replace(/\D/g, '')
-  return digits.length === 14 && digits.startsWith('24')
+  return digits.length === 14 && !digits.startsWith('55')
 }
 
 export function formatWhatsAppPhone(phone: string | undefined | null): string {
@@ -143,8 +144,8 @@ export function formatWhatsAppPhone(phone: string | undefined | null): string {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`
   }
 
-  // Mais de 11 dígitos (fallback legível sem quebrar: DDD + miolo + 4 finais)
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, digits.length - 4)}-${digits.slice(digits.length - 4)}`
+  // Mais de 11 dígitos não reconhecidos como telefone válido (sem gerar formatação lixo)
+  return 'Número não identificado pelo WhatsApp'
 }
 
 export function cleanPhoneDigits(phone: string | undefined | null): string {
