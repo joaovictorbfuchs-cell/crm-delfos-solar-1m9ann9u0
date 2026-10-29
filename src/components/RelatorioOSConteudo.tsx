@@ -141,6 +141,40 @@ export const RelatorioOSConteudo: React.FC<RelatorioOSConteudoProps> = ({
           }
         }
 
+        // 3. Fallback inteligente quando o id original foi migrado ou copiado
+        // (ex: link enviado com id antigo ou id de migração rastreado em registro_original_id ou chave_importacao)
+        if (!registro) {
+          try {
+            const safeFilter = `registro_original_id = "${id}" || chave_importacao ~ "${id}"`
+            // Tenta em atividades primeiro
+            const atvsEncontradas = await pb.collection('atividades').getList(1, 1, {
+              filter: safeFilter,
+              expand: 'cliente_id,usina_id,responsavel_id',
+            })
+            if (atvsEncontradas.items && atvsEncontradas.items.length > 0) {
+              registro = atvsEncontradas.items[0]
+            }
+          } catch (err: any) {
+            if (isAuthSessionError(err)) isAuthErrorEncountered = true
+          }
+        }
+
+        if (!registro) {
+          try {
+            const safeFilter = `registro_original_id = "${id}" || chave_importacao ~ "${id}"`
+            // Tenta em ordens_servico como contingência
+            const osEncontradas = await pb.collection('ordens_servico').getList(1, 1, {
+              filter: safeFilter,
+              expand: 'cliente_id,sistema_id,responsavel_usuario_id,profissional_id',
+            })
+            if (osEncontradas.items && osEncontradas.items.length > 0) {
+              registro = osEncontradas.items[0]
+            }
+          } catch (err: any) {
+            if (isAuthSessionError(err)) isAuthErrorEncountered = true
+          }
+        }
+
         if (!registro && isAuthErrorEncountered && requireAuth) {
           navigate('/login', {
             state: { from: currentPath },
