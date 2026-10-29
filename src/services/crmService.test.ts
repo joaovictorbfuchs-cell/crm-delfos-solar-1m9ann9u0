@@ -540,5 +540,122 @@ describe('mesclarMultiplosClientes - otimizações e integridade de dados', () =
       await updateAtividade('atv-nova', { status: 'concluida' })
       expect(updateOptions?.expand).toBe('cliente_id,usina_id,responsavel_id')
     })
+
+    it('deleteAtividade arquiva quando possui status concluida e dados de relatório/execução', async () => {
+      const { deleteAtividade } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+      let updatedPayload: any = null
+      let deleteCalled = false
+
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((name: string) => {
+        if (name === 'atividades') {
+          return {
+            getOne: vi.fn().mockResolvedValue({
+              id: 'ativ-concluida-1',
+              status: 'concluida',
+              detalhes_execucao: 'Serviço realizado com sucesso',
+              descricao: 'Descrição original',
+            }),
+            update: vi.fn().mockImplementation((id: string, data: any) => {
+              updatedPayload = data
+              return Promise.resolve({ id, ...data })
+            }),
+            delete: vi.fn().mockImplementation(() => {
+              deleteCalled = true
+              return Promise.resolve(true)
+            }),
+          }
+        }
+        if (name === 'whatsapp_mensagens') {
+          return {
+            getFullList: vi.fn().mockResolvedValue([]),
+          }
+        }
+        return {}
+      }) as any)
+
+      const result = await deleteAtividade('ativ-concluida-1')
+      expect(deleteCalled).toBe(false)
+      expect(result).toEqual({ arquivado: true })
+      expect(updatedPayload?.status).toBe('cancelada')
+      expect(updatedPayload?.descricao).toContain(
+        '[Arquivado por segurança: relatório já enviado ao cliente',
+      )
+    })
+
+    it('deleteAtividade deleta fisicamente quando não possui dados de relatório nem envio whatsapp', async () => {
+      const { deleteAtividade } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+      let deleteCalled = false
+
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((name: string) => {
+        if (name === 'atividades') {
+          return {
+            getOne: vi.fn().mockResolvedValue({
+              id: 'ativ-aberta-1',
+              status: 'pendente',
+              descricao: 'Apenas uma tarefa pendente',
+            }),
+            delete: vi.fn().mockImplementation(() => {
+              deleteCalled = true
+              return Promise.resolve(true)
+            }),
+          }
+        }
+        if (name === 'whatsapp_mensagens') {
+          return {
+            getFullList: vi.fn().mockResolvedValue([]),
+          }
+        }
+        return {}
+      }) as any)
+
+      const result = await deleteAtividade('ativ-aberta-1')
+      expect(deleteCalled).toBe(true)
+      expect(result).toBe(true)
+    })
+
+    it('deleteOrdemServico arquiva quando possui envio em whatsapp_mensagens', async () => {
+      const { deleteOrdemServico } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+      let updatedPayload: any = null
+      let deleteCalled = false
+
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((name: string) => {
+        if (name === 'ordens_servico') {
+          return {
+            getOne: vi.fn().mockResolvedValue({
+              id: 'os-com-whatsapp-1',
+              status: 'em_andamento',
+              instrucoes: 'Instruções iniciais',
+            }),
+            update: vi.fn().mockImplementation((id: string, data: any) => {
+              updatedPayload = data
+              return Promise.resolve({ id, ...data })
+            }),
+            delete: vi.fn().mockImplementation(() => {
+              deleteCalled = true
+              return Promise.resolve(true)
+            }),
+          }
+        }
+        if (name === 'whatsapp_mensagens') {
+          return {
+            getFullList: vi
+              .fn()
+              .mockResolvedValue([{ id: 'msg-1', referencia_id: 'os-com-whatsapp-1' }]),
+          }
+        }
+        return {}
+      }) as any)
+
+      const result = await deleteOrdemServico('os-com-whatsapp-1')
+      expect(deleteCalled).toBe(false)
+      expect(result).toEqual({ arquivado: true })
+      expect(updatedPayload?.status).toBe('cancelada')
+      expect(updatedPayload?.instrucoes).toContain(
+        '[Arquivado por segurança: relatório já enviado ao cliente',
+      )
+    })
   })
 })

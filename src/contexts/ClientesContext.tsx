@@ -146,6 +146,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { pb } from '@/lib/pocketbase/client'
 import { aplicarPrefixoMensagemManual, jaPossuiPrefixoManual } from '@/lib/whatsappPrefixo'
+import { toast } from '@/hooks/use-toast'
 
 export type ClientTabType =
   | 'historico'
@@ -1576,7 +1577,19 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const removeAtividade = async (id: string) => {
     setAtividades((prev) => prev.filter((a) => a.id !== id))
     try {
-      await apiDeleteAtividade(id)
+      const res = await apiDeleteAtividade(id)
+      if (
+        res &&
+        typeof res === 'object' &&
+        'arquivado' in res &&
+        (res as { arquivado: boolean }).arquivado
+      ) {
+        toast({
+          title: 'Atividade arquivada por segurança',
+          description:
+            'O relatório já foi enviado ao cliente. O registro foi cancelado/arquivado e mantido para integridade.',
+        })
+      }
     } catch (err) {
       console.error('Erro ao excluir atividade:', err)
       throw err

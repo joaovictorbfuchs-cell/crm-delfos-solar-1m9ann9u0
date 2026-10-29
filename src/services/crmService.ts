@@ -505,7 +505,47 @@ export async function updateAtividade(id: string, data: Partial<Atividade>): Pro
   }
 }
 
-export async function deleteAtividade(id: string): Promise<boolean> {
+export async function deleteAtividade(id: string): Promise<boolean | { arquivado: boolean }> {
+  // Antes do delete, buscar o registro
+  const rec = await pb
+    .collection('atividades')
+    .getOne(id)
+    .catch(() => null)
+  if (rec) {
+    let hasWhatsAppEnvio = false
+    try {
+      const msgs = await pb.collection('whatsapp_mensagens').getFullList({
+        filter: "referencia_id = '" + id + "'",
+        limit: 1,
+        requestKey: null,
+      })
+      if (msgs && msgs.length > 0) {
+        hasWhatsAppEnvio = true
+      }
+    } catch (_) {
+      // Se a consulta falhar (campo inexistente etc), apenas ignore e siga para os critérios abaixo
+    }
+
+    const hasRelatorioOuExecucao =
+      rec.status === 'concluida' &&
+      Boolean(rec.detalhes_execucao || rec.concluida_em || rec.relatorio_pdf)
+
+    if (hasWhatsAppEnvio || hasRelatorioOuExecucao) {
+      const notaArquivamento =
+        '[Arquivado por segurança: relatório já enviado ao cliente — exclusão bloqueada em ' +
+        new Date().toLocaleString('pt-BR') +
+        ']'
+      const novaDescricao = rec.descricao
+        ? rec.descricao + '\n' + notaArquivamento
+        : notaArquivamento
+      await pb.collection('atividades').update(id, {
+        status: 'cancelada',
+        descricao: novaDescricao,
+      })
+      return { arquivado: true }
+    }
+  }
+
   try {
     await pb.collection('atividades').delete(id)
     return true
@@ -4564,7 +4604,70 @@ export async function salvarRelatorioPdfOrdemServico(
   }
 }
 
-export async function deleteOrdemServico(id: string): Promise<boolean> {
+export async function deleteOrdemServico(id: string): Promise<boolean | { arquivado: boolean }> {
+  // Buscar o registro: primeiro em 'ordens_servico', catch -> 'atividades'
+  let targetCollection: 'ordens_servico' | 'atividades' | null = null
+  let rec: any = await pb
+    .collection('ordens_servico')
+    .getOne(id)
+    .catch(() => null)
+  if (rec) {
+    targetCollection = 'ordens_servico'
+  } else {
+    rec = await pb
+      .collection('atividades')
+      .getOne(id)
+      .catch(() => null)
+    if (rec) {
+      targetCollection = 'atividades'
+    }
+  }
+
+  if (rec && targetCollection) {
+    let hasWhatsAppEnvio = false
+    try {
+      const msgs = await pb.collection('whatsapp_mensagens').getFullList({
+        filter: "referencia_id = '" + id + "'",
+        limit: 1,
+        requestKey: null,
+      })
+      if (msgs && msgs.length > 0) {
+        hasWhatsAppEnvio = true
+      }
+    } catch (_) {
+      // ignorar se falhar
+    }
+
+    const hasRelatorioOuExecucao =
+      rec.status === 'concluida' &&
+      Boolean(rec.detalhes_execucao || rec.concluida_em || rec.relatorio_pdf)
+
+    if (hasWhatsAppEnvio || hasRelatorioOuExecucao) {
+      const notaArquivamento =
+        '[Arquivado por segurança: relatório já enviado ao cliente — exclusão bloqueada em ' +
+        new Date().toLocaleString('pt-BR') +
+        ']'
+      if (targetCollection === 'ordens_servico') {
+        const campoTexto = rec.instrucoes ? 'instrucoes' : 'pendencias_recomendacoes'
+        const textoAtual = rec[campoTexto] || ''
+        const novoTexto = textoAtual ? textoAtual + '\n' + notaArquivamento : notaArquivamento
+        await pb.collection('ordens_servico').update(id, {
+          status: 'cancelada',
+          [campoTexto]: novoTexto,
+        })
+      } else {
+        const novaDescricao = rec.descricao
+          ? rec.descricao + '\n' + notaArquivamento
+          : notaArquivamento
+        await pb.collection('atividades').update(id, {
+          status: 'cancelada',
+          descricao: novaDescricao,
+        })
+      }
+      return { arquivado: true }
+    }
+  }
+
   try {
     await pb.collection('ordens_servico').delete(id)
     return true
