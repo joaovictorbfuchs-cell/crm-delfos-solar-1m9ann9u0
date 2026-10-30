@@ -815,24 +815,25 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       />,
     )
 
-    // Aguarda carregar os fluxos
-    await waitFor(() => {
-      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
-    })
+    // Avança para a Etapa 2 (Mensagem)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
 
     // Limpa o campo de texto da mensagem
     const textarea = screen.getByPlaceholderText(/Campo opcional|Digite a mensagem/i)
     fireEvent.change(textarea, { target: { value: '' } })
 
-    // O aviso informativo deve estar visível no modal
+    // Avança para a Etapa 3 (Momento e Régua)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+
+    // Aguarda carregar os fluxos na etapa 3
     await waitFor(() => {
-      expect(screen.getByTestId('aviso-mensagem-origem-fluxo')).toBeDefined()
-      expect(
-        screen.getByText(/Texto da Mensagem 1 virá da Etapa 1 Imediata do Fluxo/i),
-      ).toBeDefined()
+      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
     })
 
-    // Clica no botão de enviar
+    // Avança para a Etapa 4 (Revisão e Envio)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+
+    // Clica no botão de enviar na etapa 4
     const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })
     fireEvent.click(btnEnviar)
 
@@ -869,23 +870,29 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       />,
     )
 
-    // Aguarda carregar fluxos
-    await waitFor(() => {
-      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
-    })
-
-    // Desativa a régua de follow-up pelo checkbox
-    const checkboxReenvio = screen.getByRole('checkbox', { name: /Ativo|Desativado/i })
-    fireEvent.click(checkboxReenvio)
+    // Avança para a Etapa 2 (Mensagem)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
 
     // Limpa o campo de texto
     const textarea = screen.getByPlaceholderText(/Digite a mensagem com os placeholders/i)
     fireEvent.change(textarea, { target: { value: '   ' } })
 
-    // O aviso informativo de origem no fluxo NÃO deve aparecer
-    expect(screen.queryByTestId('aviso-mensagem-origem-fluxo')).toBeNull()
+    // Avança para a Etapa 3 (Momento e Régua)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
 
-    // Clica em enviar
+    // Aguarda carregar fluxos na etapa 3
+    await waitFor(() => {
+      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
+    })
+
+    // Desativa a régua de follow-up pelo checkbox
+    const checkboxReenvio = screen.getByRole('checkbox', { name: /Ativa|Desativada/i })
+    fireEvent.click(checkboxReenvio)
+
+    // Avança para a Etapa 4 (Revisão e Envio)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+
+    // Clica em enviar na etapa 4
     const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })
     fireEvent.click(btnEnviar)
 
@@ -902,10 +909,8 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       />,
     )
 
-    // Aguarda carregar os fluxos
-    await waitFor(() => {
-      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
-    })
+    // Avança para a Etapa 2 (Mensagem)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
 
     // Preenche um texto customizado no campo
     const textarea = screen.getByPlaceholderText(/Digite a mensagem|Campo opcional/i)
@@ -913,8 +918,16 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       target: { value: 'Mensagem customizada digitada para [nome do cliente]' },
     })
 
-    // O aviso de "virá da etapa 1" NÃO deve estar visível
-    expect(screen.queryByTestId('aviso-mensagem-origem-fluxo')).toBeNull()
+    // Avança para a Etapa 3 (Momento e Régua)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+
+    // Aguarda carregar os fluxos
+    await waitFor(() => {
+      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
+    })
+
+    // Avança para a Etapa 4 (Revisão e Envio)
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
 
     const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })
     fireEvent.click(btnEnviar)
@@ -927,5 +940,40 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
         }),
       )
     })
+  })
+
+  it('permite navegar pelas 4 etapas do assistente e exibe os elementos de cada tela', async () => {
+    render(
+      <ModalMensagemWhatsAppMassa
+        open={true}
+        onOpenChange={vi.fn()}
+        destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+      />,
+    )
+
+    // Etapa 1: Destinatários
+    expect(screen.getByText(/Destinatários/i)).toBeDefined()
+    expect(screen.getByPlaceholderText(/Buscar por nome, cidade ou telefone/i)).toBeDefined()
+    expect(screen.getByText('Carlos Silva')).toBeDefined()
+
+    // Avança para Etapa 2: Mensagem
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+    expect(screen.getByText(/Modelo de Mensagem/i)).toBeDefined()
+    expect(screen.getByText(/Prévia Individual/i)).toBeDefined()
+
+    // Avança para Etapa 3: Momento e Régua
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+    expect(screen.getByRole('button', { name: /Enviar agora/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /Agendar envio/i })).toBeDefined()
+    expect(screen.getByText(/Régua de Follow-up/i)).toBeDefined()
+
+    // Avança para Etapa 4: Revisão e Envio
+    fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+    expect(screen.getByText(/Conferência dos Clientes Selecionados/i)).toBeDefined()
+    expect(screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })).toBeDefined()
+
+    // Clica em Voltar para retornar à etapa 3
+    fireEvent.click(screen.getByRole('button', { name: /Voltar/i }))
+    expect(screen.getByRole('button', { name: /Enviar agora/i })).toBeDefined()
   })
 })
