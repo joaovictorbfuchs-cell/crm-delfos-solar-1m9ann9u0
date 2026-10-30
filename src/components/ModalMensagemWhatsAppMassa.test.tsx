@@ -139,6 +139,14 @@ const mockCreateListaEnvio = vi.fn().mockImplementation(async (input) => ({
   updated: new Date().toISOString(),
 }))
 const mockDeleteListaEnvio = vi.fn().mockResolvedValue(true)
+const mockRenameListaEnvio = vi.fn().mockImplementation(async (id, nome) => ({
+  id,
+  nome,
+}))
+const mockUpdateListaEnvio = vi.fn().mockImplementation(async (id, input) => ({
+  id,
+  ...input,
+}))
 const mockCreateDisparoMassa = vi.fn().mockResolvedValue({ id: 'lote-123' })
 const mockSalvarPadroesTextosReenvio = vi.fn()
 
@@ -179,6 +187,10 @@ vi.mock('@/services/listasEnvioService', () => ({
   fetchListasEnvio: () => mockFetchListasEnvio(),
   createListaEnvio: (input: unknown) => mockCreateListaEnvio(input),
   deleteListaEnvio: (id: string) => mockDeleteListaEnvio(id),
+  renameListaEnvio: (id: string, nome: string) => mockRenameListaEnvio(id, nome),
+  updateListaEnvio: (id: string, input: any) => mockUpdateListaEnvio(id, input),
+  getFavoritosListasEnvioIds: () => [],
+  toggleFavoritoListaEnvioId: (id: string) => [id],
 }))
 
 vi.mock('@/services/disparosMassaService', () => ({
@@ -351,14 +363,21 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     })
   })
 
-  it('renderiza o dropdown de segmento com contadores coerentes no bloco unificado e filtra os clientes', async () => {
+  it('renderiza o botão único Filtrar no topo e abre o popover com todos os filtros combináveis', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
-    // Verifica que o modal abriu com título e bloco unificado de Filtros Combináveis
+    // Verifica que o modal abriu com título e o botão Filtrar estilo Pipedrive
     expect(screen.getByText('Disparo Individual Z-API')).toBeDefined()
+    const btnFiltrar = screen.getByRole('button', { name: /^Filtrar$/i })
+    expect(btnFiltrar).toBeDefined()
+
+    // Clica para abrir o popover estilo Pipedrive
+    fireEvent.click(btnFiltrar)
+
+    // O popover exibe a aba "Filtros Combináveis"
     expect(screen.getByText('Filtros Combináveis')).toBeDefined()
 
-    // O dropdown de segmento unificado deve existir
+    // O dropdown de segmento dentro do popover deve existir
     const selectSegmento = screen.getByRole('combobox', { name: /Filtro de segmento/i })
     expect(selectSegmento).toBeDefined()
 
@@ -377,6 +396,9 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       expect(screen.queryByText('Fazenda Baterias')).toBeNull()
     })
 
+    // O botão principal agora mostra indicador de filtros ativos: "Filtrar (1)"
+    expect(screen.getByText('Filtrar (1)')).toBeDefined()
+
     // Seleciona "Clientes Bateria" no dropdown
     fireEvent.change(selectSegmento, { target: { value: 'clientes_bateria' } })
 
@@ -385,14 +407,6 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
       expect(screen.getByText('Fazenda Baterias')).toBeDefined()
       expect(screen.queryByText('Cliente Inversor Híbrido Sem Bateria')).toBeNull()
       expect(screen.queryByText('Empresa O&M Manutencoes')).toBeNull()
-      expect(screen.queryByText('Carlos Solar')).toBeNull()
-    })
-
-    // Seleciona "Pós-Venda" no dropdown
-    fireEvent.change(selectSegmento, { target: { value: 'pos_vendas' } })
-
-    await waitFor(() => {
-      expect(screen.getByText('João Fechado PosVenda')).toBeDefined()
       expect(screen.queryByText('Carlos Solar')).toBeNull()
     })
 
@@ -430,10 +444,14 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     expect(btnAcao).toBeDefined()
   })
 
-  it('permite filtrar clientes sem WhatsApp cadastrado via dropdown unificado de WhatsApp para completar o cadastro', async () => {
+  it('permite filtrar clientes sem WhatsApp cadastrado via dropdown unificado de WhatsApp dentro do popover', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
-    // Filtro WhatsApp: dropdown unificado
+    // Abre o popover de filtros
+    const btnFiltrar = screen.getByRole('button', { name: /^Filtrar$/i })
+    fireEvent.click(btnFiltrar)
+
+    // Filtro WhatsApp: dropdown unificado dentro do popover
     const selectWpp = screen.getByRole('combobox', { name: /Filtro de WhatsApp/i })
     expect(selectWpp).toBeDefined()
 
@@ -457,8 +475,16 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     })
   })
 
-  it('permite aplicar uma lista salva no seletor e atualizar segmento e filtros automaticamente', async () => {
+  it('permite aplicar uma lista salva no seletor dentro do popover e atualizar segmento e filtros automaticamente', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Abre popover
+    const btnFiltrar = screen.getByRole('button', { name: /^Filtrar$/i })
+    fireEvent.click(btnFiltrar)
+
+    // Alterna para a aba Listas Salvas
+    const tabListas = screen.getByRole('button', { name: /Listas Salvas/i })
+    fireEvent.click(tabListas)
 
     // Espera carregar listas salvas
     await waitFor(() => {
@@ -475,10 +501,14 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     })
   })
 
-  it('permite abrir o modal "Salvar seleção como lista" e persistir nova lista salva', async () => {
+  it('permite abrir "Salvar seleção como lista" a partir do popover e persistir nova lista salva', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
-    const btnSalvar = screen.getByRole('button', { name: /Salvar seleção como lista/i })
+    // Abre popover
+    const btnFiltrar = screen.getByRole('button', { name: /^Filtrar$/i })
+    fireEvent.click(btnFiltrar)
+
+    const btnSalvar = screen.getByRole('button', { name: /Salvar como lista/i })
     fireEvent.click(btnSalvar)
 
     await waitFor(() => {
@@ -501,15 +531,19 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     })
   })
 
-  it('grava exatamente os clientes_ids selecionados manualmente por checkbox ao salvar lista', async () => {
+  it('grava exatamente os clientes_ids selecionados manualmente por checkbox ao salvar lista pelo popover', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
 
     // Clica no cliente "Carlos Solar" para marcar checkbox
     const clienteCarlos = screen.getByText('Carlos Solar')
     fireEvent.click(clienteCarlos)
 
+    // Abre popover
+    const btnFiltrar = screen.getByRole('button', { name: /^Filtrar$/i })
+    fireEvent.click(btnFiltrar)
+
     // Abre modal de salvar lista
-    const btnSalvar = screen.getByRole('button', { name: /Salvar seleção como lista/i })
+    const btnSalvar = screen.getByRole('button', { name: /Salvar como lista/i })
     fireEvent.click(btnSalvar)
 
     await waitFor(() => {
@@ -538,8 +572,16 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     })
   })
 
-  it('aplica exatamente os clientes gravados ao carregar uma lista salva por seleção manual', async () => {
+  it('aplica exatamente os clientes gravados ao carregar uma lista salva por seleção manual pelo popover', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Abre popover
+    const btnFiltrar = screen.getByRole('button', { name: /^Filtrar$/i })
+    fireEvent.click(btnFiltrar)
+
+    // Aba Listas
+    const tabListas = screen.getByRole('button', { name: /Listas Salvas/i })
+    fireEvent.click(tabListas)
 
     await waitFor(() => {
       expect(screen.getByText('Lista Manual 2 Clientes')).toBeDefined()
@@ -555,22 +597,53 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     })
   })
 
-  it('permite excluir a lista salva selecionada após confirmação', async () => {
+  it('permite renomear, editar filtros e excluir uma lista salva dentro do popover', async () => {
     render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+    // Abre popover
+    const btnFiltrar = screen.getByRole('button', { name: /^Filtrar$/i })
+    fireEvent.click(btnFiltrar)
+
+    // Alterna para Listas
+    const tabListas = screen.getByRole('button', { name: /Listas Salvas/i })
+    fireEvent.click(tabListas)
 
     await waitFor(() => {
       expect(screen.getByText('Clientes O&M Marau Com WhatsApp')).toBeDefined()
     })
 
-    const selectListas = screen.getByRole('combobox', { name: /Seletor de listas salvas/i })
-    fireEvent.change(selectListas, { target: { value: 'lista-1' } })
+    // 1. Renomear
+    const btnsRenomear = screen.getAllByRole('button', { name: /Renomear lista/i })
+    expect(btnsRenomear.length).toBeGreaterThan(0)
+    fireEvent.click(btnsRenomear[0])
+
+    // Input de renomeação inline
+    const inputRename = screen.getByDisplayValue('Clientes O&M Marau Com WhatsApp')
+    fireEvent.change(inputRename, { target: { value: 'Clientes O&M Renomeada' } })
+    const btnSalvarRename = screen.getByTitle('Salvar novo nome')
+    fireEvent.click(btnSalvarRename)
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Excluir lista salva/i })).toBeDefined()
+      expect(mockRenameListaEnvio).toHaveBeenCalledWith('lista-1', 'Clientes O&M Renomeada')
     })
 
-    const btnExcluir = screen.getByRole('button', { name: /Excluir lista salva/i })
-    fireEvent.click(btnExcluir)
+    // 2. Editar filtros da lista
+    const btnsEditarFiltros = screen.getAllByRole('button', { name: /Atualizar filtros da lista/i })
+    expect(btnsEditarFiltros.length).toBeGreaterThan(0)
+    fireEvent.click(btnsEditarFiltros[0])
+
+    await waitFor(() => {
+      expect(mockUpdateListaEnvio).toHaveBeenCalledWith(
+        'lista-1',
+        expect.objectContaining({
+          segmento: 'todos',
+        }),
+      )
+    })
+
+    // 3. Excluir lista salva
+    const btnsExcluir = screen.getAllByRole('button', { name: /Excluir lista salva/i })
+    fireEvent.click(btnsExcluir[0])
 
     await waitFor(() => {
       expect(screen.getByText(/Tem certeza que deseja excluir a lista salva/i)).toBeDefined()

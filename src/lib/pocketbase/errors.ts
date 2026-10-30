@@ -2,6 +2,62 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
+/**
+ * Verifica se um erro retornado pelo PocketBase decorre de sessão de autenticação expirada, inválida ou ausente (401/403).
+ */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  if (typeof error === 'object') {
+    const errObj = error as { status?: number; response?: { status?: number }; message?: string }
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.response?.status === 401 || errObj.response?.status === 403) return true
+    const msg = (errObj.message || '').toLowerCase()
+    if (
+      msg.includes('authenticate') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden') ||
+      msg.includes('invalid token')
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Verifica se o erro foi originado por cancelamento de requisição (AbortError / autoCancellation do PocketBase).
+ */
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as { isAbort?: boolean; name?: string; message?: string }
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
+    if ((errObj.message || '').toLowerCase().includes('request was aborted')) return true
+  }
+  return false
+}
+
+/**
+ * Formata um erro de requisição do PocketBase de forma legível.
+ */
+export function formatPbError(error: unknown, fallback = 'Ocorreu um erro na requisição.'): string {
+  if (!error) return fallback
+  if (error instanceof ClientResponseError) {
+    const errs = extractFieldErrors(error)
+    const errValues = Object.values(errs)
+    if (errValues.length > 0) return errValues.join(', ')
+    return error.message || fallback
+  }
+  if (error instanceof Error) {
+    return error.message || fallback
+  }
+  return fallback
+}
+
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -26,49 +82,4 @@ export function getErrorMessage(error: unknown): string {
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.isAbort === true) return true
-    if (errObj.name === 'AbortError') return true
-    if (typeof errObj.message === 'string' && errObj.message.includes('The request was aborted'))
-      return true
-  }
-  return false
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (isAbortError(error)) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    const status = (errObj.status as number) || (errObj.response as Record<string, unknown>)?.status
-    if (status === 401 || status === 403) return true
-    const message = String(
-      errObj.message || (errObj.response as Record<string, unknown>)?.message || '',
-    )
-    const lower = message.toLowerCase()
-    if (
-      lower.includes('token is expired') ||
-      lower.includes('failed to authenticate') ||
-      lower.includes('login expirou') ||
-      lower.includes('sessão expirada') ||
-      lower.includes('sessao expirada')
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
-export function formatPbError(
-  error: unknown,
-  fallbackMessage = 'Ocorreu um erro na requisição.',
-): string {
-  if (!error) return fallbackMessage
-  if (isAbortError(error)) return 'Requisição cancelada.'
-  return getErrorMessage(error) || fallbackMessage
 }
