@@ -284,24 +284,29 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
       if (!lote) continue
 
       let destinatarios = []
+      let rawDestVal = lote.get('destinatarios')
+      let parseError = null
       try {
-        let rawDest = lote.get('destinatarios')
+        let rawDest = rawDestVal
         if (typeof rawDest === 'string') {
           try {
             rawDest = JSON.parse(rawDest)
-          } catch (_) {
+          } catch (e1) {
+            parseError = e1
             rawDest = []
           }
         }
         if (typeof rawDest === 'string') {
           try {
             rawDest = JSON.parse(rawDest)
-          } catch (_) {
+          } catch (e2) {
+            parseError = e2
             rawDest = []
           }
         }
         destinatarios = Array.isArray(rawDest) ? rawDest : []
-      } catch (_) {
+      } catch (errParse) {
+        parseError = errParse
         destinatarios = []
       }
 
@@ -309,6 +314,34 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
       destinatarios = destinatarios.filter((d) => d && typeof d === 'object')
 
       if (!Array.isArray(destinatarios) || destinatarios.length === 0) {
+        const motivoPulo = parseError
+          ? `Destinatários corrompidos / falha de parse: ${parseError && parseError.message ? parseError.message : String(parseError)}`
+          : `Destinatários vazios ou formato inválido (tipo bruto: ${typeof rawDestVal})`
+
+        console.log(
+          `[REENVIO MASSA CRON] AVISO: Lote ${lote.id} ("${lote.getString('titulo')}") sem destinatários válidos. Motivo: ${motivoPulo}. Atualizando última verificação...`,
+        )
+
+        // Nunca pular em silêncio: atualizar ultima_verificacao nas estatísticas para o lote não ficar como "nunca verificado"
+        try {
+          let statsExistente = {}
+          try {
+            const rawStats = lote.get('estatisticas')
+            statsExistente = typeof rawStats === 'string' ? JSON.parse(rawStats) : rawStats || {}
+          } catch (_) {}
+          if (!statsExistente || typeof statsExistente !== 'object') {
+            statsExistente = {}
+          }
+          statsExistente.ultima_verificacao = agoraIso
+          statsExistente.aviso_processamento = motivoPulo
+          lote.set('estatisticas', statsExistente)
+          app.save(lote)
+        } catch (errSaveStatsVazio) {
+          console.log(
+            `[REENVIO MASSA CRON] Erro ao salvar última verificação de lote sem destinatários (${lote.id}):`,
+            errSaveStatsVazio,
+          )
+        }
         continue
       }
 
@@ -909,7 +942,7 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
     const res = processarReenviosDisparosMassa($app)
     if (res && res.reenviosAgendados > 0) {
       console.log(
-        `[REENVIO MASSA CRON] Executado com sucesso: ${res.reenviosAgendados} reenvio(s) agendado(s).`,
+        `[REENVIO MASSA CRON] Executado: ${res.lotesProcessados || 0} lote(s) processado(s), ${res.reenviosAgendados || 0} reenvio(s) agendado(s).`,
       )
     }
   } catch (err) {
@@ -1195,30 +1228,63 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
       if (!lote) continue
 
       let destinatarios = []
+      let rawDestVal = lote.get('destinatarios')
+      let parseError = null
       try {
-        let rawDest = lote.get('destinatarios')
+        let rawDest = rawDestVal
         if (typeof rawDest === 'string') {
           try {
             rawDest = JSON.parse(rawDest)
-          } catch (_) {
+          } catch (e1) {
+            parseError = e1
             rawDest = []
           }
         }
         if (typeof rawDest === 'string') {
           try {
             rawDest = JSON.parse(rawDest)
-          } catch (_) {
+          } catch (e2) {
+            parseError = e2
             rawDest = []
           }
         }
         destinatarios = Array.isArray(rawDest) ? rawDest : []
-      } catch (_) {
+      } catch (errParse) {
+        parseError = errParse
         destinatarios = []
       }
 
       destinatarios = destinatarios.filter((d) => d && typeof d === 'object')
 
       if (!Array.isArray(destinatarios) || destinatarios.length === 0) {
+        const motivoPulo = parseError
+          ? `Destinatários corrompidos / falha de parse: ${parseError && parseError.message ? parseError.message : String(parseError)}`
+          : `Destinatários vazios ou formato inválido (tipo bruto: ${typeof rawDestVal})`
+
+        console.log(
+          `[REENVIO MASSA ROTA] AVISO: Lote ${lote.id} ("${lote.getString('titulo')}") sem destinatários válidos. Motivo: ${motivoPulo}. Atualizando última verificação...`,
+        )
+
+        // Nunca pular em silêncio: atualizar ultima_verificacao nas estatísticas para o lote não ficar como "nunca verificado"
+        try {
+          let statsExistente = {}
+          try {
+            const rawStats = lote.get('estatisticas')
+            statsExistente = typeof rawStats === 'string' ? JSON.parse(rawStats) : rawStats || {}
+          } catch (_) {}
+          if (!statsExistente || typeof statsExistente !== 'object') {
+            statsExistente = {}
+          }
+          statsExistente.ultima_verificacao = agoraIso
+          statsExistente.aviso_processamento = motivoPulo
+          lote.set('estatisticas', statsExistente)
+          app.save(lote)
+        } catch (errSaveStatsVazio) {
+          console.log(
+            `[REENVIO MASSA ROTA] Erro ao salvar última verificação de lote sem destinatários (${lote.id}):`,
+            errSaveStatsVazio,
+          )
+        }
         continue
       }
 
