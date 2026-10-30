@@ -37,7 +37,17 @@ import {
   Plus,
   Trash2,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
+import {
+  AssistenteProgresso,
+  type EtapaAssistente,
+  Etapa1Destinatarios,
+  Etapa2Mensagem,
+  Etapa3MomentoFollowUp,
+  Etapa4RevisaoEnvio,
+} from './disparo-massa'
 import { parseSaoPauloToUtcIso, formatUtcToSaoPauloInput } from '@/lib/datetimeSaoPaulo'
 import { useClientes } from '@/contexts/ClientesContext'
 import { toast } from 'sonner'
@@ -254,6 +264,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const [templates, setTemplates] =
     useState<Array<{ id: string; titulo: string; conteudo: string }>>(TEMPLATES_PADRAO_FALLBACK)
   const [templateSelecionadoId, setTemplateSelecionadoId] = useState<string>('')
+
+  // Assistente de 4 Etapas: 1 (Destinatários), 2 (Mensagem), 3 (Momento e Régua), 4 (Revisão e Envio)
+  const [etapaAtual, setEtapaAtual] = useState<EtapaAssistente>(1)
 
   // Estado da mensagem
   const [templateTexto, setTemplateTexto] = useState(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)
@@ -758,6 +771,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       return
     }
 
+    setEtapaAtual(1)
     setTemplateTexto(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)
     setSegmentoAtivo(segmentoInicial)
     setFiltroSalvoAtivo(null)
@@ -1797,750 +1811,157 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           </div>
         )}
 
-        {/* Corpo do Modal em 2 Colunas */}
-        <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* ======================================================== */}
-          {/* COLUNA ESQUERDA (lg:col-span-6): DESTINATÁRIOS & FILTRO ESTILO PIPEDRIVE */}
-          {/* ======================================================== */}
-          <div className="lg:col-span-6 flex flex-col space-y-3">
-            {/* Barra de Ações Superior estilo Pipedrive: Botão Filtrar (com indicador e popover) + Selecionar Todos */}
-            <div className="flex items-center justify-between gap-2 flex-wrap bg-slate-50/90 p-2.5 rounded-xl border border-slate-200/90">
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Botão único "Filtrar" no estilo Pipedrive com popover completo */}
-                <ModalDisparoFiltroPopover
-                  segmentoAtivo={segmentoAtivo}
-                  onMudarSegmento={handleMudarSegmento}
-                  filtroWhatsApp={filtroWhatsApp}
-                  onMudarWhatsApp={(val) => {
-                    setFiltroWhatsApp(val)
-                    setListaSelecionadaId('')
-                  }}
-                  filtroCidade={filtroCidade}
-                  onMudarCidade={(val) => {
-                    setFiltroCidade(val)
-                    setListaSelecionadaId('')
-                  }}
-                  filtroConcessionaria={filtroConcessionaria}
-                  onMudarConcessionaria={(val) => {
-                    setFiltroConcessionaria(val)
-                    setListaSelecionadaId('')
-                  }}
-                  filtroTipoCliente={filtroTipoCliente}
-                  onMudarTipoCliente={(val) => {
-                    setFiltroTipoCliente(val)
-                    setListaSelecionadaId('')
-                  }}
-                  filtroStatus={filtroStatus}
-                  onMudarStatus={(val) => {
-                    setFiltroStatus(val)
-                    setListaSelecionadaId('')
-                  }}
-                  busca={busca}
-                  onMudarBusca={setBusca}
-                  opcoesFiltrosExtras={opcoesFiltrosExtras}
-                  countSegmento={countSegmento}
-                  totalDestinatariosEncontrados={itensFiltrados.length}
-                  onLimparFiltros={handleLimparTodosFiltros}
-                  listasSalvas={listasSalvas}
-                  listaSelecionadaId={listaSelecionadaId}
-                  onSelecionarLista={handleSelecionarListaSalva}
-                  onSalvarSelecaoComoNovaLista={handleAbrirModalSalvarLista}
-                  onRenomearLista={handleRenomearLista}
-                  onEditarFiltrosLista={handleEditarFiltrosLista}
-                  onExcluirLista={(lista) => setListaParaExcluir(lista)}
-                />
+        {/* Assistente de 4 Etapas: Indicador de Progresso no Topo */}
+        <AssistenteProgresso
+          etapaAtual={etapaAtual}
+          onSelecionarEtapa={(etapa) => setEtapaAtual(etapa)}
+          totalSelecionados={selectedIds.length}
+        />
 
-                <span className="text-xs text-gray-500 font-medium">
-                  <strong>{itensFiltrados.length}</strong> encontrados
-                </span>
-              </div>
+        {/* Corpo do Assistente: renderiza cada uma das 4 telas de forma dedicada */}
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-5">
+          {etapaAtual === 1 && (
+            <Etapa1Destinatarios
+              itensFiltrados={itensFiltrados}
+              selectedIds={selectedIds}
+              onToggleCliente={handleToggleCliente}
+              onSelectAll={handleSelectAll}
+              isAllSelected={isAllSelected}
+              onLimparSelecao={() => setSelectedIds([])}
+              busca={busca}
+              onMudarBusca={setBusca}
+              limiteExibicao={limiteExibicao}
+              onCarregarMais={() => setLimiteExibicao((prev) => prev + 50)}
+              segmentoAtivo={segmentoAtivo}
+              onMudarSegmento={handleMudarSegmento}
+              filtroWhatsApp={filtroWhatsApp}
+              onMudarWhatsApp={(val) => {
+                setFiltroWhatsApp(val)
+                setListaSelecionadaId('')
+              }}
+              filtroCidade={filtroCidade}
+              onMudarCidade={(val) => {
+                setFiltroCidade(val)
+                setListaSelecionadaId('')
+              }}
+              filtroConcessionaria={filtroConcessionaria}
+              onMudarConcessionaria={(val) => {
+                setFiltroConcessionaria(val)
+                setListaSelecionadaId('')
+              }}
+              filtroTipoCliente={filtroTipoCliente}
+              onMudarTipoCliente={(val) => {
+                setFiltroTipoCliente(val)
+                setListaSelecionadaId('')
+              }}
+              filtroStatus={filtroStatus}
+              onMudarStatus={(val) => {
+                setFiltroStatus(val)
+                setListaSelecionadaId('')
+              }}
+              opcoesFiltrosExtras={opcoesFiltrosExtras}
+              countSegmento={countSegmento}
+              onLimparFiltros={handleLimparTodosFiltros}
+              listasSalvas={listasSalvas}
+              listaSelecionadaId={listaSelecionadaId}
+              onSelecionarLista={handleSelecionarListaSalva}
+              onSalvarSelecaoComoNovaLista={handleAbrirModalSalvarLista}
+              onRenomearLista={handleRenomearLista}
+              onEditarFiltrosLista={handleEditarFiltrosLista}
+              onExcluirLista={(lista) => setListaParaExcluir(lista)}
+              editandoTelefoneId={editandoTelefoneId}
+              telefoneEmEdicao={telefoneEmEdicao}
+              onIniciarEdicaoTelefone={(id, tel) => {
+                setEditandoTelefoneId(id)
+                setTelefoneEmEdicao(tel)
+              }}
+              onCancelarEdicaoTelefone={() => {
+                setEditandoTelefoneId(null)
+                setTelefoneEmEdicao('')
+              }}
+              onSalvarTelefoneInline={handleSalvarTelefoneInline}
+              onMudarTelefoneEmEdicao={setTelefoneEmEdicao}
+              clienteFocadoId={clienteFocadoId}
+              onFocarCliente={(id) => setClienteFocadoId(id)}
+            />
+          )}
 
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  className="text-xs font-bold text-[#0284C7] hover:underline"
-                >
-                  {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
-                </button>
-              </div>
-            </div>
+          {etapaAtual === 2 && (
+            <Etapa2Mensagem
+              templates={templates}
+              templateSelecionadoId={templateSelecionadoId}
+              onSelecionarTemplate={handleSelecionarTemplate}
+              templateTexto={templateTexto}
+              onMudarTemplateTexto={setTemplateTexto}
+              onRestaurarPadrao={() => setTemplateTexto(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)}
+              textoVeraDoFluxo={textoVeraDoFluxo}
+              etapaImediataFluxo={etapaImediataFluxo}
+              fluxoSelecionadoObj={fluxoSelecionadoObj}
+              mensagemPreviaResolvida={mensagemPreviaResolvida}
+              itemFocado={itemFocado}
+              destinatariosParaPrevia={
+                selectedIds.length > 0
+                  ? itensProcessados.filter((i) => selectedIds.includes(i.cliente.id))
+                  : itensFiltrados
+              }
+              onSelecionarClienteFocado={(id) => setClienteFocadoId(id)}
+            />
+          )}
 
-            {/* Resumo de Seleção */}
-            <div className="flex items-center justify-between text-xs text-gray-600 px-1">
-              <span>
-                <strong className="text-gray-900">{selectedIds.length}</strong> de{' '}
-                {itensFiltrados.length} destinatários selecionados
-              </span>
-              {selectedIds.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds([])}
-                  className="text-gray-400 hover:text-gray-700 underline text-[11px]"
-                >
-                  Limpar seleção
-                </button>
+          {etapaAtual === 3 && (
+            <Etapa3MomentoFollowUp
+              tipoEnvio={tipoEnvio}
+              onMudarTipoEnvio={setTipoEnvio}
+              dataHoraAgendada={dataHoraAgendada}
+              onMudarDataHoraAgendada={setDataHoraAgendada}
+              intervaloSegundos={intervaloSegundos}
+              onMudarIntervaloSegundos={setIntervaloSegundos}
+              reenvioAtivo={reenvioAtivo}
+              onMudarReenvioAtivo={setReenvioAtivo}
+              fluxosDisponiveis={fluxosDisponiveis}
+              fluxoSelecionadoId={fluxoSelecionadoId}
+              onMudarFluxoSelecionadoId={setFluxoSelecionadoId}
+              textoVeraDoFluxo={textoVeraDoFluxo}
+              etapaImediataFluxo={etapaImediataFluxo}
+              fluxoSelecionadoObj={fluxoSelecionadoObj}
+              textoReenvio1={textoReenvio1}
+              onMudarTextoReenvio1={setTextoReenvio1}
+              textoReenvio2={textoReenvio2}
+              onMudarTextoReenvio2={setTextoReenvio2}
+            />
+          )}
+
+          {etapaAtual === 4 && (
+            <Etapa4RevisaoEnvio
+              destinatariosSelecionados={itensProcessados.filter((i) =>
+                selectedIds.includes(i.cliente.id),
               )}
-            </div>
-
-            {/* Lista com Rolagem e Seleção com Checkbox Múltiplo */}
-            <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden bg-white max-h-[360px] overflow-y-auto divide-y divide-gray-100 shadow-2xs">
-              {itensFiltrados.length === 0 ? (
-                <div className="p-8 text-center text-xs text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-700">Nenhum cliente neste filtro</p>
-                  <p>Tente selecionar outro segmento ou limpar a busca.</p>
-                </div>
-              ) : (
-                <>
-                  {itensFiltrados.slice(0, limiteExibicao).map((item) => {
-                    const isChecked = selectedIds.includes(item.cliente.id)
-                    const isFocado = itemFocado?.cliente.id === item.cliente.id
-                    const isEditandoTel = editandoTelefoneId === item.cliente.id
-
-                    return (
-                      <div
-                        key={item.cliente.id}
-                        onClick={() => setClienteFocadoId(item.cliente.id)}
-                        className={`p-3 transition-colors cursor-pointer flex flex-col gap-1.5 ${
-                          isFocado
-                            ? 'bg-sky-50/70 border-l-4 border-l-[#0284C7]'
-                            : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div
-                            className="flex items-start gap-2.5 flex-1 min-w-0"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleToggleCliente(item.cliente.id)
-                            }}
-                          >
-                            <button
-                              type="button"
-                              className="mt-0.5 text-gray-400 hover:text-[#0284C7] transition-colors shrink-0"
-                            >
-                              {isChecked ? (
-                                <CheckSquare className="w-4 h-4 text-[#0284C7]" />
-                              ) : (
-                                <Square className="w-4 h-4 text-gray-400" />
-                              )}
-                            </button>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-xs sm:text-sm text-gray-900 truncate">
-                                  {item.cliente.nome}
-                                </span>
-                                {item.cidade && (
-                                  <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded">
-                                    {item.cidade}
-                                  </span>
-                                )}
-                                {item.isExemploDemo && (
-                                  <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded font-bold">
-                                    Exemplo (Demo)
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5 flex-wrap">
-                                <span className="flex items-center gap-1 text-amber-700 font-semibold">
-                                  <Zap className="w-3 h-3 text-amber-500 shrink-0" />
-                                  {item.potenciaTexto}
-                                </span>
-                                {item.valorItem && item.valorItem > 0 ? (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                                      <DollarSign className="w-3 h-3" />
-                                      {formatCurrency(item.valorItem)}
-                                    </span>
-                                  </>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Linha do Telefone / WhatsApp */}
-                        <div
-                          className="flex items-center justify-between text-[11px] pt-1 border-t border-gray-100/80 gap-2"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {isEditandoTel ? (
-                            <div className="flex items-center gap-1.5 w-full">
-                              <Input
-                                value={telefoneEmEdicao}
-                                onChange={(e) =>
-                                  setTelefoneEmEdicao(formatWhatsAppPhone(e.target.value))
-                                }
-                                placeholder="(00) 00000-0000"
-                                className="h-7 text-xs bg-white flex-1"
-                                autoFocus
-                              />
-                              <Button
-                                size="sm"
-                                type="button"
-                                onClick={() => handleSalvarTelefoneInline(item.cliente)}
-                                className="h-7 px-2 text-xs bg-[#0284C7] hover:bg-[#0369a1] text-white"
-                              >
-                                Salvar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                type="button"
-                                onClick={() => {
-                                  setEditandoTelefoneId(null)
-                                  setTelefoneEmEdicao('')
-                                }}
-                                className="h-7 px-2 text-xs"
-                              >
-                                Cancelar
-                              </Button>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex flex-col gap-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <Phone className="w-3 h-3 text-[#0284C7]" />
-                                  {item.temWhatsAppValido ? (
-                                    <span className="font-medium text-gray-800">
-                                      {item.telefoneAutoritativo}
-                                    </span>
-                                  ) : (
-                                    <span className="font-semibold text-rose-600 flex items-center gap-1">
-                                      <AlertCircle className="w-3 h-3" />
-                                      Sem número cadastrado
-                                    </span>
-                                  )}
-                                </div>
-                                {item.origemNumero === 'contato_adicional_whatsapp' && (
-                                  <span className="text-[10px] text-blue-700 font-medium">
-                                    Contato adicional: {item.contatoAdicionalNome || 'Contato'}{' '}
-                                    (utilizado como alternativa)
-                                  </span>
-                                )}
-                                {item.origemNumero === 'cliente_telefone' && (
-                                  <span className="text-[10px] text-amber-700 font-medium">
-                                    Telefone fixo/comercial (sem WhatsApp próprio)
-                                  </span>
-                                )}
-                              </div>
-                              {!item.isExemploDemo && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditandoTelefoneId(item.cliente.id)
-                                    setTelefoneEmEdicao(item.telefoneAutoritativo)
-                                  }}
-                                  className="text-[10px] text-[#0284C7] hover:underline font-semibold inline-flex items-center gap-1"
-                                >
-                                  <Edit2 className="w-2.5 h-2.5" />
-                                  <span>
-                                    {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
-                                  </span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-
-                  {itensFiltrados.length > limiteExibicao && (
-                    <div className="p-2.5 bg-slate-50 text-center border-t border-slate-200">
-                      <button
-                        type="button"
-                        onClick={() => setLimiteExibicao((prev) => prev + 50)}
-                        className="text-xs font-semibold text-[#0284C7] hover:underline py-1 px-3 rounded-lg hover:bg-sky-50 transition-colors"
-                      >
-                        Carregar mais 50 (mostrando {limiteExibicao} de {itensFiltrados.length})
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="text-[11px] text-gray-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-start gap-2">
-              <Info className="w-4 h-4 text-[#0284C7] shrink-0 mt-0.5" />
-              <span>
-                O envio utiliza o número autoritativo do WhatsApp do cliente via Z-API, sem abrir
-                WhatsApp Web. Cada disparo registra uma atividade <strong>mensagem_enviada</strong>{' '}
-                no histórico do CRM.
-              </span>
-            </div>
-          </div>
-
-          {/* ======================================================== */}
-          {/* COLUNA DIREITA (lg:col-span-6): MODELOS & PRÉ-VISUALIZAÇÃO */}
-          {/* ======================================================== */}
-          <div className="lg:col-span-6 flex flex-col space-y-3">
-            {/* Dropdown com Modelos Pré-Cadastrados */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-[#0284C7]" />
-                  <span>Modelos de Mensagem</span>
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => setTemplateTexto(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)}
-                  className="text-[11px] text-gray-500 hover:text-[#0284C7] underline flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Restaurar padrão</span>
-                </button>
-              </div>
-
-              <select
-                value={templateSelecionadoId}
-                onChange={(e) => handleSelecionarTemplate(e.target.value)}
-                className="w-full text-xs font-medium py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]"
-              >
-                <option value="">Selecione um modelo pré-cadastrado...</option>
-                {templates.map((tpl) => (
-                  <option key={tpl.id} value={tpl.id}>
-                    {tpl.titulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Campo de Texto Editável */}
-            <div className="space-y-1.5 flex-1 flex flex-col">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
-                  Texto da Mensagem (com Tags Dinâmicas)
-                </Label>
-                {textoVeraDoFluxo && (
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-emerald-600" />
-                    <span>Usando etapa 1 do fluxo</span>
-                  </span>
-                )}
-              </div>
-              <Textarea
-                ref={textareaRef}
-                rows={5}
-                value={templateTexto}
-                onChange={(e) => setTemplateTexto(e.target.value)}
-                className={`text-xs font-mono bg-white resize-none p-2.5 leading-relaxed ${
-                  textoVeraDoFluxo ? 'border-emerald-300 focus:ring-emerald-500' : ''
-                }`}
-                placeholder={
-                  etapaImediataFluxo
-                    ? `Campo opcional: o texto da Etapa 1 imediata do fluxo "${fluxoSelecionadoObj?.nome || 'Follow-up'}" será usado se deixar vazio...`
-                    : 'Digite a mensagem com os placeholders [nome do cliente], [cidade], [potência], [valor]...'
-                }
-              />
-
-              {/* Inserção das Tags Dinâmicas com Um Clique */}
-              <div className="space-y-1 pt-1">
-                <span className="text-[10px] font-bold text-gray-700 block">
-                  Inserir tag com um clique:
-                </span>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {PLACEHOLDERS_ENVIO_MASSA.map((p) => (
-                    <button
-                      key={p.tag}
-                      type="button"
-                      onClick={() => handleInsertPlaceholder(p.tag)}
-                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 font-mono font-medium transition-colors shadow-2xs"
-                      title={p.descricao}
-                    >
-                      <span>{p.tag}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Opção de Envio: Enviar Agora vs Agendar */}
-            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-[#0284C7]" />
-                  <span>Momento do Envio</span>
-                </Label>
-              </div>
-
-              {/* Botões alternadores Enviar agora vs Agendar */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTipoEnvio('agora')}
-                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
-                    tipoEnvio === 'agora'
-                      ? 'bg-sky-50 border-[#0284C7] text-[#0284C7] shadow-2xs'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Enviar agora</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTipoEnvio('agendar')}
-                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
-                    tipoEnvio === 'agendar'
-                      ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-2xs'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Agendar envio</span>
-                </button>
-              </div>
-
-              {/* Parâmetros de Envio e Intervalo entre Mensagens (Aplicado tanto no Envio Imediato quanto Agendado) */}
-              <div className="pt-2 border-t border-gray-100 space-y-2.5 animate-in fade-in duration-150">
-                <div
-                  className={`grid ${
-                    tipoEnvio === 'agendar' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
-                  } gap-2.5`}
-                >
-                  {tipoEnvio === 'agendar' && (
-                    <div>
-                      <Label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                        Data e Horário de Início (Brasília):
-                      </Label>
-                      <Input
-                        type="datetime-local"
-                        value={dataHoraAgendada}
-                        onChange={(e) => setDataHoraAgendada(e.target.value)}
-                        className="h-8 text-xs bg-white font-medium"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <Label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Intervalo entre cada envio (proteção anti-bloqueio WhatsApp):
-                    </Label>
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        type="number"
-                        min={5}
-                        max={3600}
-                        step={5}
-                        value={intervaloSegundos}
-                        onChange={(e) =>
-                          setIntervaloSegundos(Math.max(5, parseInt(e.target.value) || 60))
-                        }
-                        className="h-8 text-xs bg-white font-medium w-24"
-                      />
-                      <span className="text-xs text-gray-500 font-medium">
-                        segundos (recomendado: 60s)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-2 rounded-lg bg-sky-50/80 border border-sky-200 text-[11px] text-sky-950 flex items-start gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-sky-700 shrink-0 mt-0.5" />
-                  <span>
-                    {tipoEnvio === 'agendar' ? (
-                      <>
-                        As mensagens serão gravadas na fila com status <strong>"agendada"</strong> e
-                        o campo <strong>agendado_para</strong> escalonado a cada {intervaloSegundos}
-                        s. O worker periódico do PocketBase fará o envio sequencial automaticamente
-                        no horário programado.
-                      </>
-                    ) : (
-                      <>
-                        O disparo imediato respeita uma pausa de{' '}
-                        <strong>{intervaloSegundos}s</strong> entre cada envio sucessivo para
-                        simular digitação natural humana e blindar seu chip contra restrições e
-                        bloqueios da Meta.
-                      </>
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Configuração de Follow-up com Fluxos Dinâmicos */}
-            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded-md bg-emerald-50 text-emerald-700">
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="toggle-reenvio-ativo"
-                      className="text-xs font-bold uppercase tracking-wider text-gray-800 cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span>Régua de Follow-up</span>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        Fluxos Dinâmicos
-                      </span>
-                    </Label>
-                    <p className="text-[11px] text-gray-500">
-                      Dispara etapas de follow-up com prazos e mensagens configuráveis caso o
-                      cliente não responda
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    id="toggle-reenvio-ativo"
-                    type="checkbox"
-                    checked={reenvioAtivo}
-                    onChange={(e) => setReenvioAtivo(e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-600 cursor-pointer"
-                  />
-                  <Label
-                    htmlFor="toggle-reenvio-ativo"
-                    className="text-xs font-semibold text-gray-700 cursor-pointer select-none"
-                  >
-                    {reenvioAtivo ? 'Ativo' : 'Desativado'}
-                  </Label>
-                </div>
-              </div>
-
-              {reenvioAtivo && (
-                <div className="pt-2 border-t border-gray-100 space-y-3 animate-in fade-in duration-150">
-                  {/* Seletor do Fluxo de Follow-up */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
-                        <span>Fluxo de Follow-up a Seguir</span>
-                      </Label>
-                      <span className="text-[10px] text-emerald-700 font-semibold">
-                        {fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId)?.nome ||
-                          'Padrão'}
-                      </span>
-                    </div>
-
-                    <select
-                      value={fluxoSelecionadoId}
-                      onChange={(e) => setFluxoSelecionadoId(e.target.value)}
-                      className="w-full text-xs font-medium py-1.5 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                    >
-                      {fluxosDisponiveis.length === 0 ? (
-                        <option value="">Padrão Delfos (+3d e +90d)</option>
-                      ) : (
-                        fluxosDisponiveis.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            {f.nome} {f.is_padrao ? '(Padrão Delfos)' : ''} ({f.etapas?.length || 0}{' '}
-                            etapa{f.etapas?.length === 1 ? '' : 's'})
-                          </option>
-                        ))
-                      )}
-                    </select>
-
-                    {/* Aviso informativo claro quando o campo de texto está vazio e o texto virá da etapa 1 imediata do fluxo */}
-                    {textoVeraDoFluxo && etapaImediataFluxo && (
-                      <div
-                        data-testid="aviso-mensagem-origem-fluxo"
-                        className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-1.5 animate-in fade-in duration-150"
-                      >
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-900">
-                          <Info className="w-4 h-4 text-emerald-700 shrink-0" />
-                          <span>Texto da Mensagem 1 virá da Etapa 1 Imediata do Fluxo</span>
-                        </div>
-                        <p className="text-[11px] text-emerald-800 leading-relaxed">
-                          Como o campo de texto acima está vazio, o disparo usará a{' '}
-                          <strong>Etapa 1 (Imediata)</strong> do fluxo{' '}
-                          <strong>"{fluxoSelecionadoObj?.nome}"</strong> com as tags dinâmicas de
-                          cada cliente resolvidas automaticamente:
-                        </p>
-                        <div className="p-2 rounded bg-white/90 border border-emerald-200 font-mono text-[11px] text-gray-800 italic whitespace-pre-wrap leading-relaxed shadow-2xs">
-                          "{etapaImediataFluxo.mensagem}"
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Exibição resumida das etapas do fluxo selecionado */}
-                    {(() => {
-                      const fluxoEscolhido = fluxosDisponiveis.find(
-                        (f) => f.id === fluxoSelecionadoId,
-                      )
-                      const etapas = fluxoEscolhido?.etapas || []
-                      if (etapas.length === 0) return null
-
-                      return (
-                        <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-200/60 space-y-1.5">
-                          <span className="text-[10px] font-bold text-emerald-900 block uppercase tracking-wider">
-                            Etapas programadas neste fluxo:
-                          </span>
-                          <div className="space-y-1">
-                            {etapas.map((et, idx) => (
-                              <div
-                                key={et.id}
-                                className={`text-[11px] flex items-start gap-2 p-1.5 rounded ${
-                                  et.ativa
-                                    ? 'bg-white border border-emerald-100 text-gray-700'
-                                    : 'bg-gray-100 text-gray-400 line-through'
-                                }`}
-                              >
-                                <span className="font-bold text-emerald-700 shrink-0">
-                                  #{idx + 1}
-                                </span>
-                                <span className="font-semibold text-gray-900 shrink-0">
-                                  {et.dias_apos === 0 ? 'Imediato:' : `+${et.dias_apos}d:`}
-                                </span>
-                                <span className="truncate flex-1 italic text-gray-600">
-                                  "{et.mensagem}"
-                                </span>
-                                {!et.ativa && (
-                                  <span className="text-[10px] text-gray-400 font-sans not-italic">
-                                    (inativa)
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
-
-                  {/* Fallback de edição rápida de textos legado/compatibilidade se não houver etapas dinâmicas */}
-                  {(!fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId)?.etapas ||
-                    fluxosDisponiveis.find((f) => f.id === fluxoSelecionadoId)?.etapas?.length ===
-                      0) && (
-                    <>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                            <span>1º Reenvio (+3 dias sem resposta)</span>
-                          </Label>
-                          <span className="text-[10px] text-gray-400">
-                            Suporta [nome do cliente]
-                          </span>
-                        </div>
-                        <Textarea
-                          rows={2}
-                          value={textoReenvio1}
-                          onChange={(e) => setTextoReenvio1(e.target.value)}
-                          className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
-                          placeholder="Olá, [nome do cliente]! Passando para checar se conseguiu ver a mensagem anterior..."
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                            <span>2º Reenvio (+90 dias sem resposta)</span>
-                          </Label>
-                          <span className="text-[10px] text-gray-400">Sem 3º reenvio</span>
-                        </div>
-                        <Textarea
-                          rows={2}
-                          value={textoReenvio2}
-                          onChange={(e) => setTextoReenvio2(e.target.value)}
-                          className="text-xs font-mono bg-white resize-none p-2 leading-relaxed"
-                          placeholder="Olá, [nome do cliente]! Já faz um tempo desde nosso último contato..."
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex items-center justify-between gap-2 pt-1 text-[10px] text-gray-500">
-                    <span>
-                      O robô consome as etapas ativas do fluxo com intervalo automático e checagem
-                      de respostas.
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* PREVIEW da Mensagem Resolvida para o Primeiro Cliente Selecionado */}
-            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#0284C7]" />
-                  <span>
-                    Prévia:{' '}
-                    <strong className="text-sky-900">
-                      {itemFocado ? itemFocado.cliente.nome : 'Nenhum cliente selecionado'}
-                    </strong>
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(mensagemPreviaResolvida)
-                    toast.success('Mensagem copiada para a área de transferência')
-                  }}
-                  className="text-[10px] text-gray-500 hover:text-gray-900 inline-flex items-center gap-1 font-semibold"
-                  title="Copiar texto da prévia"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>Copiar</span>
-                </button>
-              </div>
-
-              {/* Balão WhatsApp Prévia */}
-              <div className="bg-[#DCF8C6]/85 text-gray-900 text-xs p-3 rounded-xl rounded-tr-none shadow-xs border border-emerald-200/60 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto font-sans">
-                {mensagemPreviaResolvida || (
-                  <span className="italic text-gray-500">
-                    Nenhum texto informado para a mensagem. Digite uma mensagem acima ou selecione
-                    um fluxo com etapa imediata.
-                  </span>
-                )}
-              </div>
-              {textoVeraDoFluxo && etapaImediataFluxo && (
-                <div className="text-[10px] text-emerald-700 font-medium flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-emerald-600 shrink-0" />
-                  <span>
-                    Prévia gerada a partir da <strong>Etapa 1 (Imediata)</strong> do fluxo{' '}
-                    <strong>"{fluxoSelecionadoObj?.nome}"</strong>.
-                  </span>
-                </div>
-              )}
-
-              {/* Dados Resolvidos na Prévia */}
-              {itemFocado && (
-                <div className="grid grid-cols-3 gap-2 text-center text-[10px] pt-1">
-                  <div className="p-1.5 bg-white rounded border border-gray-200">
-                    <span className="text-gray-400 block">Destinatário</span>
-                    <span className="font-bold text-gray-800 truncate block">
-                      {extrairPrimeiroNomeCliente(itemFocado.cliente)}
-                    </span>
-                  </div>
-                  <div className="p-1.5 bg-white rounded border border-gray-200">
-                    <span className="text-gray-400 block">Cidade</span>
-                    <span className="font-bold text-gray-800 truncate block">
-                      {itemFocado.cidade}
-                    </span>
-                  </div>
-                  <div className="p-1.5 bg-white rounded border border-gray-200">
-                    <span className="text-gray-400 block">Potência</span>
-                    <span className="font-bold text-sky-800">{itemFocado.potenciaTexto}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+              templateTextoEfetivo={templateEfetivo}
+              templateTitulo={templates.find((t) => t.id === templateSelecionadoId)?.titulo}
+              tipoEnvio={tipoEnvio}
+              dataHoraAgendada={dataHoraAgendada}
+              intervaloSegundos={intervaloSegundos}
+              reenvioAtivo={reenvioAtivo}
+              fluxoSelecionadoObj={fluxoSelecionadoObj}
+              isEnviando={isEnviando}
+              onConfirmarEnvio={handleConfirmarEnvio}
+              onVoltarParaEtapa={(et) => setEtapaAtual(et)}
+            />
+          )}
         </div>
 
-        {/* Rodapé de Ações */}
+        {/* Rodapé de Ações do Assistente com Navegação entre Etapas */}
         <div className="p-3.5 sm:p-5 border-t bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-gray-600 text-center sm:text-left">
+          <div className="text-xs text-gray-600 text-center sm:text-left flex items-center gap-2">
             <span className="font-bold text-gray-900">
               {selectedIds.length === 1
                 ? '1 cliente selecionado'
                 : `${selectedIds.length} clientes selecionados`}
             </span>
-            <span className="hidden sm:inline">
-              {' '}
-              •{' '}
-              {tipoEnvio === 'agendar'
-                ? 'Agendamento escalonado na fila PocketBase'
-                : 'Disparo sequencial via Z-API com registro de atividade no CRM'}
-            </span>
+            <span className="hidden sm:inline">• Etapa {etapaAtual} de 4</span>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <Button
               type="button"
               variant="outline"
@@ -2551,44 +1972,80 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               Cancelar
             </Button>
 
-            <Button
-              type="button"
-              disabled={isEnviando || selectedIds.length === 0}
-              onClick={handleConfirmarEnvio}
-              className={`text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4 ${
-                tipoEnvio === 'agendar'
-                  ? 'bg-amber-600 hover:bg-amber-700'
-                  : 'bg-[#0284C7] hover:bg-[#0369a1]'
-              }`}
-            >
-              {isEnviando ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>
-                    {tipoEnvio === 'agendar' ? 'Agendando' : 'Enviando'}{' '}
-                    {progressoEnvio?.atual || 0} de {progressoEnvio?.total || selectedIds.length}...
-                  </span>
-                </>
-              ) : tipoEnvio === 'agendar' ? (
-                <>
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    {selectedIds.length <= 1
-                      ? 'Agendar Envio'
-                      : `Agendar para ${selectedIds.length} Clientes`}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>
-                    {selectedIds.length <= 1
-                      ? 'Enviar Mensagem'
-                      : `Enviar para ${selectedIds.length} Clientes`}
-                  </span>
-                </>
-              )}
-            </Button>
+            {/* Botão Voltar Etapa (visível a partir da etapa 2) */}
+            {etapaAtual > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isEnviando}
+                onClick={() => setEtapaAtual((prev) => Math.max(1, prev - 1) as EtapaAssistente)}
+                className="text-xs flex items-center gap-1.5"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Voltar</span>
+              </Button>
+            )}
+
+            {/* Botão Avançar Etapa (etapas 1, 2 e 3) */}
+            {etapaAtual < 4 && (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (etapaAtual === 1 && selectedIds.length === 0) {
+                    toast.warning('Selecione pelo menos um cliente para avançar')
+                    return
+                  }
+                  setEtapaAtual((prev) => Math.min(4, prev + 1) as EtapaAssistente)
+                }}
+                className="text-white text-xs font-bold bg-[#0284C7] hover:bg-[#0369a1] shadow-xs flex items-center gap-1.5 px-4"
+              >
+                <span>Avançar</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            )}
+
+            {/* Botão Final de Disparo na Etapa 4 (ou direto se na etapa 4) */}
+            {etapaAtual === 4 && (
+              <Button
+                type="button"
+                disabled={isEnviando || selectedIds.length === 0}
+                onClick={handleConfirmarEnvio}
+                className={`text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4 ${
+                  tipoEnvio === 'agendar'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-[#0284C7] hover:bg-[#0369a1]'
+                }`}
+              >
+                {isEnviando ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>
+                      {tipoEnvio === 'agendar' ? 'Agendando' : 'Enviando'}{' '}
+                      {progressoEnvio?.atual || 0} de {progressoEnvio?.total || selectedIds.length}
+                      ...
+                    </span>
+                  </>
+                ) : tipoEnvio === 'agendar' ? (
+                  <>
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      {selectedIds.length <= 1
+                        ? 'Agendar Envio'
+                        : `Agendar para ${selectedIds.length} Clientes`}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>
+                      {selectedIds.length <= 1
+                        ? 'Enviar Mensagem'
+                        : `Enviar para ${selectedIds.length} Clientes`}
+                    </span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
 
