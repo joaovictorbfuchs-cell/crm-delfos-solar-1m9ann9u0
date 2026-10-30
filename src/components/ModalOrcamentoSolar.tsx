@@ -85,7 +85,6 @@ import {
 import { injetarEdicaoNoPreview, setCaminhoConteudo } from '@/lib/propostaEdicaoPreview'
 import { injetarPaginacaoA4 } from '@/lib/propostaPaginacaoA4'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
-import { BotaoBaixarPropostaSolarPDF } from '@/components/BotaoBaixarPropostaSolarPDF'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
@@ -3873,26 +3872,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    {propostaPDFData ? (
-                      <BotaoBaixarPropostaSolarPDF
-                        dados={propostaPDFData}
-                        htmlProposta={htmlPropostaLimpo}
-                        nomeArquivo={`proposta-solar-${(clienteAtual?.nome || 'cliente').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`}
-                        rotulo="Baixar PDF"
-                        desabilitado={!clienteAtual}
-                        className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs h-auto"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600/50 text-white flex items-center gap-1.5 transition-colors shadow-2xs cursor-not-allowed"
-                        title="Selecione um cliente para gerar o PDF"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>Baixar PDF</span>
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={handleGerarPDF}

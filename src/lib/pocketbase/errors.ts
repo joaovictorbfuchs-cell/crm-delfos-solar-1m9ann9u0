@@ -28,44 +28,47 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  if (typeof error === 'object' && error !== null) {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    const msg = String(errObj.message || '').toLowerCase()
-    return (
-      msg.includes('authenticate') ||
-      msg.includes('token') ||
-      msg.includes('session expired') ||
-      msg.includes('unauthorized') ||
-      msg.includes('forbidden')
-    )
-  }
-  return false
-}
-
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.isAbort === true || error.status === 0
-  }
-  if (typeof error === 'object' && error !== null) {
+  if (typeof error === 'object') {
     const errObj = error as Record<string, unknown>
-    return (
-      errObj.isAbort === true ||
-      errObj.name === 'AbortError' ||
-      String(errObj.message || '').includes('autocancelled')
-    )
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
+    if (typeof errObj.message === 'string' && errObj.message.includes('The request was aborted'))
+      return true
   }
   return false
 }
 
-export function formatPbError(error: unknown, fallback: string = 'Erro inesperado'): string {
-  if (!error) return fallback
-  const msg = getErrorMessage(error)
-  return msg && msg !== 'An unexpected error occurred.' ? msg : fallback
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (isAbortError(error)) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    const status = (errObj.status as number) || (errObj.response as Record<string, unknown>)?.status
+    if (status === 401 || status === 403) return true
+    const message = String(
+      errObj.message || (errObj.response as Record<string, unknown>)?.message || '',
+    )
+    const lower = message.toLowerCase()
+    if (
+      lower.includes('token is expired') ||
+      lower.includes('failed to authenticate') ||
+      lower.includes('login expirou') ||
+      lower.includes('sessão expirada') ||
+      lower.includes('sessao expirada')
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+export function formatPbError(
+  error: unknown,
+  fallbackMessage = 'Ocorreu um erro na requisição.',
+): string {
+  if (!error) return fallbackMessage
+  if (isAbortError(error)) return 'Requisição cancelada.'
+  return getErrorMessage(error) || fallbackMessage
 }

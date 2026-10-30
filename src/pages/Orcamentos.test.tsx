@@ -318,6 +318,13 @@ describe('Tela Orcamentos (/propostas) - Nova disposição visual da tabela', ()
     // Agora deve estar no Passo 4: "4. Resumo & Proposta Oficial"
     expect(screen.getByText(/Proposta Técnico-Comercial da Delfos Solar/i)).toBeDefined()
 
+    // O botão "Baixar PDF" foi removido conforme solicitação (não baixava o PDF da proposta)
+    expect(screen.queryByRole('button', { name: /Baixar PDF/i })).toBeNull()
+    // Os botões "Imprimir / Gerar PDF", "Enviar por WhatsApp" e "Enviar por e-mail" continuam existindo
+    expect(screen.getByRole('button', { name: /Imprimir \/ Gerar PDF/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /Enviar por WhatsApp/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /Enviar por e-mail/i })).toBeDefined()
+
     // No último passo (Passo 4), o botão Continuar NÃO deve mais existir (somente Cancelar e Salvar Orçamento)
     expect(screen.queryByRole('button', { name: /Continuar/i })).toBeNull()
     expect(screen.getByRole('button', { name: /Salvar Orçamento/i })).toBeDefined()
