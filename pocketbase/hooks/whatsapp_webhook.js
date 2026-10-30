@@ -247,8 +247,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         const item = dests[d]
         if (!item) continue
 
-        // PONTO 3: Casar destinatário pelo cliente_id primeiro como fonte primária;
-        // matching por telefone só entra como fallback secundário
+        // Casar destinatário pelo cliente_id primeiro como fonte primária,
+        // ou por telefone/conversa de forma flexível (mensagens recebidas chegam sem referencia_id e com tipo_disparo manual)
         const itemTelLimpo = (item.telefone || '').replace(/\D/g, '')
         const matchClienteId = Boolean(
           clienteId && item.cliente_id && item.cliente_id === clienteId,
@@ -259,7 +259,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             itemTelLimpo &&
             (itemTelLimpo === telefoneRecebido ||
               telefonesCasamBidirecionalWebhook(itemTelLimpo, telefoneRecebido) ||
-              (telCurto && telCurto.length >= 10 && itemTelLimpo.endsWith(telCurto))),
+              (telCurto && telCurto.length >= 10 && itemTelLimpo.endsWith(telCurto)) ||
+              (last8 && itemTelLimpo.slice(-8) === last8)),
           )
 
         if (!matchClienteId && !matchTelefone) {
@@ -1369,9 +1370,13 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       })
       if (resFollowUp && resFollowUp.matchesEncontrados > 0) {
         respostaFollowUpProcessada = true
+      } else if (resFollowUp && resFollowUp.error) {
+        console.log('[WHATSAPP WEBHOOK] Erro retornado na Fase 4:', resFollowUp.error)
       }
     } catch (errFollowUp) {
-      console.log('[WHATSAPP WEBHOOK] Aviso ao processar follow-up Fase 4:', errFollowUp)
+      const errDetail =
+        errFollowUp && errFollowUp.message ? errFollowUp.message : String(errFollowUp)
+      console.log('[WHATSAPP WEBHOOK] Aviso ao processar follow-up Fase 4:', errDetail)
     }
 
     console.log(

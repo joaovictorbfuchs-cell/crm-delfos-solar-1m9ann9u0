@@ -970,10 +970,139 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
     // Avança para Etapa 4: Revisão e Envio
     fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
     expect(screen.getByText(/Conferência dos Clientes Selecionados/i)).toBeDefined()
-    expect(screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })).toBeDefined()
+    expect(
+      screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i }),
+    ).toBeDefined()
 
     // Clica em Voltar para retornar à etapa 3
     fireEvent.click(screen.getByRole('button', { name: /Voltar/i }))
     expect(screen.getByRole('button', { name: /Enviar agora/i })).toBeDefined()
+  })
+
+  describe('Assistente de 4 etapas detalhado e filtro Pipedrive com listas salvas', () => {
+    it('Etapa 1: Destinatários exibe linha compacta com checkbox, nome, telefone, cidade e potência', async () => {
+      render(
+        <ModalMensagemWhatsAppMassa
+          open={true}
+          onOpenChange={vi.fn()}
+          destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+        />,
+      )
+
+      // Na Etapa 1, verifica a linha do cliente Carlos Silva (potência 12.5 kWp, cidade Passo Fundo, tel (54) 99999-0001)
+      expect(screen.getByText('Carlos Silva')).toBeDefined()
+      expect(screen.getByText('(54) 99999-0001')).toBeDefined()
+      expect(screen.getByText('Passo Fundo')).toBeDefined()
+      expect(screen.getByText(/12[,.]5\s*kWp/i)).toBeDefined()
+    })
+
+    it('Etapa 2: Mensagem exibe seletor de modelo, tags de substituição e preview individual com dados reais', async () => {
+      render(
+        <ModalMensagemWhatsAppMassa
+          open={true}
+          onOpenChange={vi.fn()}
+          destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+        />,
+      )
+
+      // Avança para a Etapa 2
+      fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+
+      // Seletor de modelo de mensagem
+      expect(screen.getByText(/Modelo de Mensagem/i)).toBeDefined()
+
+      // Tags / badges de variáveis disponíveis
+      expect(screen.getByText('[nome do cliente]')).toBeDefined()
+      expect(screen.getByText('[cidade]')).toBeDefined()
+      expect(screen.getByText('[potência]')).toBeDefined()
+
+      // Preview individual
+      expect(screen.getByText(/Prévia Individual/i)).toBeDefined()
+      // O preview deve ter resolvido o nome Carlos e a cidade Passo Fundo
+      await waitFor(() => {
+        expect(screen.getByText(/Olá, Carlos/i)).toBeDefined()
+      })
+    })
+
+    it('Etapa 3: Momento do envio permite alternar Enviar Agora / Agendar Envio e configurar Régua de Follow-up', async () => {
+      render(
+        <ModalMensagemWhatsAppMassa
+          open={true}
+          onOpenChange={vi.fn()}
+          destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+        />,
+      )
+
+      // Avança para a Etapa 2 e depois para a Etapa 3
+      fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+
+      // Botões de alternância Enviar agora / Agendar envio
+      const btnEnviarAgora = screen.getByRole('button', { name: /Enviar agora/i })
+      const btnAgendar = screen.getByRole('button', { name: /Agendar envio/i })
+      expect(btnEnviarAgora).toBeDefined()
+      expect(btnAgendar).toBeDefined()
+
+      // Clica em Agendar envio e verifica o campo de data/hora
+      fireEvent.click(btnAgendar)
+      await waitFor(() => {
+        expect(screen.getByText(/Data e horário do disparo/i)).toBeDefined()
+      })
+
+      // Régua de Follow-up com reenvios automáticos (+3d/+90d ou configurados no fluxo)
+      expect(screen.getByText(/Régua de Follow-up/i)).toBeDefined()
+      expect(screen.getByText(/Fluxo Pós-Atendimento Imediato/i)).toBeDefined()
+    })
+
+    it('Etapa 4: Revisão e envio exibe tabela paginada de conferência com dados dos destinatários', async () => {
+      render(
+        <ModalMensagemWhatsAppMassa
+          open={true}
+          onOpenChange={vi.fn()}
+          destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+        />,
+      )
+
+      // Avança pelas etapas 1 -> 2 -> 3 -> 4
+      fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Avançar/i }))
+
+      // Tabela de conferência
+      expect(screen.getByText(/Conferência dos Clientes Selecionados/i)).toBeDefined()
+      expect(screen.getByText('Carlos Silva')).toBeDefined()
+      expect(screen.getByText('(54) 99999-0001')).toBeDefined()
+      expect(screen.getByText('Passo Fundo')).toBeDefined()
+
+      // Resumo dos parâmetros do envio
+      expect(screen.getByText(/Intervalo de 60s entre mensagens/i)).toBeDefined()
+      expect(
+        screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i }),
+      ).toBeDefined()
+    })
+
+    it('filtro Pipedrive carrega listas salvas e sincroniza seleção de destinatários', async () => {
+      render(<ModalMensagemWhatsAppMassa open={true} onOpenChange={vi.fn()} />)
+
+      // Abre seletor de filtros salvos
+      const btnFiltros = screen.getByRole('button', { name: /Carregar filtro salvo/i })
+      fireEvent.click(btnFiltros)
+
+      await waitFor(() => {
+        expect(screen.getByText('Clientes de Passo Fundo')).toBeDefined()
+      })
+
+      // Seleciona a lista salva "Clientes de Passo Fundo"
+      fireEvent.click(screen.getByText('Clientes de Passo Fundo'))
+
+      // Deve aplicar o filtro e exibir chip do filtro salvo
+      await waitFor(() => {
+        expect(screen.getByText(/Filtro Salvo: Clientes de Passo Fundo/i)).toBeDefined()
+      })
+
+      // Apenas Carlos Solar (Passo Fundo) deve estar visível na listagem
+      expect(screen.getByText('Carlos Solar')).toBeDefined()
+      expect(screen.queryByText('Empresa O&M Manutencoes')).toBeNull()
+    })
   })
 })

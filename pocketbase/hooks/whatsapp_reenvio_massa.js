@@ -6,7 +6,7 @@
 // REGISTRO DE CRON E ROTAS HTTP
 // ============================================================================
 
-cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
+cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
   function gerarVariacoesTelefone(tel) {
     if (!tel) return []
     let s = String(tel).split('@')[0].split(':')[0].trim()
@@ -244,11 +244,12 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
 
     let lotesAtivos = []
     try {
+      // Buscar TODOS os lotes ativos (mesmo com reenvio_ativo = false, pois respostas de clientes devem ser detectadas)
       lotesAtivos = app.findRecordsByFilter(
         'disparos_massa',
-        "status = 'ativo' && reenvio_ativo = true",
-        'created',
-        50,
+        "status = 'ativo'",
+        '-created',
+        100,
         0,
       )
     } catch (err) {
@@ -257,7 +258,7 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
     }
 
     if (!lotesAtivos || lotesAtivos.length === 0) {
-      return { lotesProcessados: 0, mensagem: 'Nenhum lote ativo com reenvio pendente' }
+      return { lotesProcessados: 0, mensagem: 'Nenhum lote ativo pendente' }
     }
 
     const telefonesBloqueados = new Set()
@@ -390,16 +391,19 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
         let houveResposta = false
         let respostaData = ''
         try {
-          const dataMinimaIso = new Date(dataDisparoMs).toISOString().replace('T', ' ')
+          // Tolerância de 10 minutos antes do início do lote para capturar respostas imediatas
+          const dataMinimaMs = Math.max(0, dataDisparoMs - 10 * 60 * 1000)
+          const dataMinimaIso = new Date(dataMinimaMs).toISOString().replace('T', ' ')
           const variacoesTel = gerarVariacoesTelefone(telefoneLimpo)
 
+          // 1. Detecção por cliente_id
           if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
             const filtroPorCli = `direcao = 'recebida' && created >= '${dataMinimaIso}' && cliente_id = '${item.cliente_id}'`
             const msgsCli = app.findRecordsByFilter(
               'whatsapp_mensagens',
               filtroPorCli,
               '-created',
-              1,
+              5,
               0,
             )
             if (msgsCli && msgsCli.length > 0) {
@@ -408,7 +412,8 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
             }
           }
 
-          if (!houveResposta && variacoesTel.length > 0) {
+          // 2. Detecção por telefone/número (mensagens recebidas com tipo_disparo manual sem referencia_id)
+          if (!houveResposta && (telefoneLimpo.length >= 8 || variacoesTel.length > 0)) {
             const ult8 = telefoneLimpo.slice(-8)
             const filtroPorTel = `direcao = 'recebida' && created >= '${dataMinimaIso}' && telefone_destino ~ '${ult8}'`
             const msgsTel = app.findRecordsByFilter(
@@ -420,12 +425,47 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
             )
             for (let m = 0; m < msgsTel.length; m++) {
               const msgT = msgsTel[m].getString('telefone_destino') || ''
-              if (telefonesCasamBidirecional(msgT, telefoneLimpo)) {
+              if (
+                telefonesCasamBidirecional(msgT, telefoneLimpo) ||
+                (ult8 && msgT.replace(/\D/g, '').endsWith(ult8))
+              ) {
                 houveResposta = true
                 respostaData = msgsTel[m].getString('created')
                 break
               }
             }
+          }
+
+          // 3. Detecção por conversa associada ao cliente ou telefone
+          if (!houveResposta) {
+            try {
+              const filtroConv =
+                item.cliente_id && !item.cliente_id.startsWith('demo_')
+                  ? `cliente_id = '${item.cliente_id}' || numero ~ '${telefoneLimpo.slice(-8)}'`
+                  : `numero ~ '${telefoneLimpo.slice(-8)}'`
+              const convs = app.findRecordsByFilter(
+                'whatsapp_conversas',
+                filtroConv,
+                '-updated',
+                5,
+                0,
+              )
+              for (let c = 0; c < convs.length; c++) {
+                const convId = convs[c].id
+                const msgsConv = app.findRecordsByFilter(
+                  'whatsapp_mensagens',
+                  `conversa_id = '${convId}' && direcao = 'recebida' && created >= '${dataMinimaIso}'`,
+                  '-created',
+                  1,
+                  0,
+                )
+                if (msgsConv && msgsConv.length > 0) {
+                  houveResposta = true
+                  respostaData = msgsConv[0].getString('created')
+                  break
+                }
+              }
+            } catch (_) {}
           }
         } catch (errResp) {
           console.log('[REENVIO MASSA] Erro ao checar resposta do cliente:', errResp)
@@ -475,6 +515,18 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
           item.motivo_saida = 'Atendido na Central de Atendimento'
           item.proximo_envio_data = undefined
           loteModificado = true
+          continue
+        }
+
+        // Se a automação de reenvio deste lote estiver desativada, NÃO agendar novos envios (+3d/+90d),
+        // mas o lote continua com destinatários e respostas perfeitamente rastreados.
+        if (!lote.getBool('reenvio_ativo')) {
+          continue
+        }
+
+        // Se a automação de reenvio deste lote estiver desativada, NÃO agendar novos envios (+3d/+90d),
+        // mas o lote continua com destinatários e respostas perfeitamente rastreados.
+        if (!lote.getBool('reenvio_ativo')) {
           continue
         }
 
@@ -833,13 +885,22 @@ cronAdd('whatsapp_reenvios_massa_worker', '30 9-18 * * *', () => {
 
       const todosFinalizados = stats.pendentes === 0
 
-      if (loteModificado || todosFinalizados) {
-        lote.set('destinatarios', destinatarios)
-        lote.set('estatisticas', stats)
-        if (todosFinalizados) {
-          lote.set('status', 'concluido')
-        }
+      // Garantir que as estatísticas do lote (incl. ultima_verificacao) sejam salvas a cada passada, mesmo sem mudanças
+      lote.set('destinatarios', destinatarios)
+      lote.set('estatisticas', stats)
+      if (todosFinalizados) {
+        lote.set('status', 'concluido')
+      }
+      try {
         app.save(lote)
+        console.log(
+          `[REENVIO MASSA CRON] Lote ${lote.id} ("${lote.getString('titulo')}"): ${stats.pendentes} pendente(s), ${stats.respondidos} respondido(s), ${stats.atendidos} atendido(s), ${stats.finalizados} finalizado(s). Modificado: ${loteModificado}`,
+        )
+      } catch (errSaveLote) {
+        console.log(
+          `[REENVIO MASSA CRON] Erro ao salvar estatísticas do lote ${lote.id}:`,
+          errSaveLote,
+        )
       }
     }
   }
@@ -1094,11 +1155,12 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
 
     let lotesAtivos = []
     try {
+      // Buscar TODOS os lotes ativos (mesmo com reenvio_ativo = false, pois respostas de clientes devem ser detectadas)
       lotesAtivos = app.findRecordsByFilter(
         'disparos_massa',
-        "status = 'ativo' && reenvio_ativo = true",
-        'created',
-        50,
+        "status = 'ativo'",
+        '-created',
+        100,
         0,
       )
     } catch (err) {
@@ -1107,7 +1169,7 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
     }
 
     if (!lotesAtivos || lotesAtivos.length === 0) {
-      return { lotesProcessados: 0, mensagem: 'Nenhum lote ativo com reenvio pendente' }
+      return { lotesProcessados: 0, mensagem: 'Nenhum lote ativo pendente' }
     }
 
     const telefonesBloqueados = new Set()
@@ -1239,16 +1301,19 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
         let houveResposta = false
         let respostaData = ''
         try {
-          const dataMinimaIso = new Date(dataDisparoMs).toISOString().replace('T', ' ')
+          // Tolerância de 10 minutos antes do início do lote para capturar respostas imediatas
+          const dataMinimaMs = Math.max(0, dataDisparoMs - 10 * 60 * 1000)
+          const dataMinimaIso = new Date(dataMinimaMs).toISOString().replace('T', ' ')
           const variacoesTel = gerarVariacoesTelefone(telefoneLimpo)
 
+          // 1. Detecção por cliente_id
           if (item.cliente_id && !item.cliente_id.startsWith('demo_')) {
             const filtroPorCli = `direcao = 'recebida' && created >= '${dataMinimaIso}' && cliente_id = '${item.cliente_id}'`
             const msgsCli = app.findRecordsByFilter(
               'whatsapp_mensagens',
               filtroPorCli,
               '-created',
-              1,
+              5,
               0,
             )
             if (msgsCli && msgsCli.length > 0) {
@@ -1257,7 +1322,8 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
             }
           }
 
-          if (!houveResposta && variacoesTel.length > 0) {
+          // 2. Detecção por telefone/número (mensagens recebidas com tipo_disparo manual sem referencia_id)
+          if (!houveResposta && (telefoneLimpo.length >= 8 || variacoesTel.length > 0)) {
             const ult8 = telefoneLimpo.slice(-8)
             const filtroPorTel = `direcao = 'recebida' && created >= '${dataMinimaIso}' && telefone_destino ~ '${ult8}'`
             const msgsTel = app.findRecordsByFilter(
@@ -1269,12 +1335,47 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
             )
             for (let m = 0; m < msgsTel.length; m++) {
               const msgT = msgsTel[m].getString('telefone_destino') || ''
-              if (telefonesCasamBidirecional(msgT, telefoneLimpo)) {
+              if (
+                telefonesCasamBidirecional(msgT, telefoneLimpo) ||
+                (ult8 && msgT.replace(/\D/g, '').endsWith(ult8))
+              ) {
                 houveResposta = true
                 respostaData = msgsTel[m].getString('created')
                 break
               }
             }
+          }
+
+          // 3. Detecção por conversa associada ao cliente ou telefone
+          if (!houveResposta) {
+            try {
+              const filtroConv =
+                item.cliente_id && !item.cliente_id.startsWith('demo_')
+                  ? `cliente_id = '${item.cliente_id}' || numero ~ '${telefoneLimpo.slice(-8)}'`
+                  : `numero ~ '${telefoneLimpo.slice(-8)}'`
+              const convs = app.findRecordsByFilter(
+                'whatsapp_conversas',
+                filtroConv,
+                '-updated',
+                5,
+                0,
+              )
+              for (let c = 0; c < convs.length; c++) {
+                const convId = convs[c].id
+                const msgsConv = app.findRecordsByFilter(
+                  'whatsapp_mensagens',
+                  `conversa_id = '${convId}' && direcao = 'recebida' && created >= '${dataMinimaIso}'`,
+                  '-created',
+                  1,
+                  0,
+                )
+                if (msgsConv && msgsConv.length > 0) {
+                  houveResposta = true
+                  respostaData = msgsConv[0].getString('created')
+                  break
+                }
+              }
+            } catch (_) {}
           }
         } catch (errResp) {
           console.log('[REENVIO MASSA] Erro ao checar resposta do cliente:', errResp)
@@ -1681,13 +1782,22 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
 
       const todosFinalizados = stats.pendentes === 0
 
-      if (loteModificado || todosFinalizados) {
-        lote.set('destinatarios', destinatarios)
-        lote.set('estatisticas', stats)
-        if (todosFinalizados) {
-          lote.set('status', 'concluido')
-        }
+      // Garantir que as estatísticas do lote (incl. ultima_verificacao) sejam salvas a cada passada, mesmo sem mudanças
+      lote.set('destinatarios', destinatarios)
+      lote.set('estatisticas', stats)
+      if (todosFinalizados) {
+        lote.set('status', 'concluido')
+      }
+      try {
         app.save(lote)
+        console.log(
+          `[REENVIO MASSA ROTA] Lote ${lote.id} ("${lote.getString('titulo')}"): ${stats.pendentes} pendente(s), ${stats.respondidos} respondido(s), ${stats.atendidos} atendido(s), ${stats.finalizados} finalizado(s). Modificado: ${loteModificado}`,
+        )
+      } catch (errSaveLote) {
+        console.log(
+          `[REENVIO MASSA ROTA] Erro ao salvar estatísticas do lote ${lote.id}:`,
+          errSaveLote,
+        )
       }
     }
 

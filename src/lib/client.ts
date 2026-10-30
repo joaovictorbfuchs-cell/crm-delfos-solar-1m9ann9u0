@@ -1,4 +1,5 @@
 // Arquivo de salvaguarda e compatibilidade: reexporta a instância do PocketBase
-import pb, { isAuthSessionError } from './pocketbase/client'
+import pb from './pocketbase/client'
+import { isAuthSessionError } from './pocketbase/errors'
 export { pb, isAuthSessionError }
 export default pb
