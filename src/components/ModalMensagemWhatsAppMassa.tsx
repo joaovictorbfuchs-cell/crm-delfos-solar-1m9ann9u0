@@ -63,6 +63,7 @@ import {
   getPadroesTextosReenvio,
   salvarPadroesTextosReenvio,
   createDisparoMassa,
+  updateDisparoMassa,
   type DestinatarioLoteMassa,
 } from '@/services/disparosMassaService'
 import {
@@ -1283,9 +1284,112 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       let totalPuladosSemNumero = 0
       const intervalMs = Math.max(intervaloSegundos || 60, 5) * 1000
       const isAgendamento = tipoEnvio === 'agendar'
+      const agoraIso = new Date().toISOString()
 
-      // Estrutura para registrar o lote em disparos_massa
-      const destinatariosLote: DestinatarioLoteMassa[] = []
+      // Monta os destinatários iniciais do lote ANTES do loop de envio
+      // Cada destinatário é pré-cadastrado com status inicial 'pendente' (ou 'sem_whatsapp' se não tiver número)
+      const destinatariosLote: DestinatarioLoteMassa[] = selecionados.map((item) => {
+        const nomeCliente = item?.cliente?.nome || 'Cliente sem nome'
+        const idCliente = item?.cliente?.id || ''
+        const temNumero = Boolean(item?.temWhatsAppValido && item?.numeroLimpo)
+
+        let fluxoAplicadoId = reenvioAtivo ? fluxoSelecionadoId || undefined : undefined
+        let origemAplicada: 'por_disparo' | 'automatica_por_estagio' = 'por_disparo'
+        let estagioGatilhoAplicado: string | undefined = undefined
+
+        const estagioCliente = (item?.cliente?.status || '').trim().toLowerCase()
+        if (estagioCliente && fluxosDisponiveis && fluxosDisponiveis.length > 0) {
+          for (const fl of fluxosDisponiveis) {
+            if (!fl.ativo || !fl.regras_entrada || fl.regras_entrada.length === 0) continue
+            const regraCasou = fl.regras_entrada.some((r) => {
+              if (!r.ativo) return false
+              const rEst = r.estagio_funil.trim().toLowerCase()
+              return rEst === estagioCliente
+            })
+            if (regraCasou) {
+              fluxoAplicadoId = fl.id
+              origemAplicada = 'automatica_por_estagio'
+              estagioGatilhoAplicado = item.cliente.status
+              break
+            }
+          }
+        }
+
+        const nomeFluxoAplicado = fluxoAplicadoId
+          ? fluxosDisponiveis.find((f) => f.id === fluxoAplicadoId)?.nome || 'Fluxo Follow-up'
+          : undefined
+
+        return {
+          cliente_id: idCliente,
+          nome: nomeCliente,
+          telefone: item?.numeroLimpo || '',
+          status: temNumero ? 'pendente' : 'sem_whatsapp',
+          data_envio_inicial: agoraIso,
+          fluxo_atual_id: fluxoAplicadoId,
+          origem_entrada: origemAplicada,
+          estagio_origem: estagioGatilhoAplicado,
+          trilha: fluxoAplicadoId
+            ? [
+                {
+                  fluxo_id: fluxoAplicadoId,
+                  fluxo_nome: nomeFluxoAplicado,
+                  origem_entrada: origemAplicada,
+                  estagio_gatilho: estagioGatilhoAplicado,
+                  motivo:
+                    origemAplicada === 'automatica_por_estagio'
+                      ? `Entrou automaticamente — estágio "${estagioGatilhoAplicado}" → Fluxo "${nomeFluxoAplicado}"`
+                      : `Incluído no disparo em lote → Fluxo "${nomeFluxoAplicado}"`,
+                  data: agoraIso,
+                },
+              ]
+            : undefined,
+        }
+      })
+
+      // REQUISITO (1): Gravar o registro do lote ANTES do loop de envio,
+      // para que o lote apareça no menu "Disparos em Massa" imediatamente,
+      // mesmo que o envio ainda esteja em andamento ou seja interrompido.
+      // REQUISITO (2): Se a gravação falhar, exibir erro claro na tela em vez de engolir.
+      let loteCriadoId: string | null = null
+      const loteTitulo = `Lote WhatsApp ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+
+      try {
+        const novoLote = await createDisparoMassa({
+          titulo: loteTitulo,
+          segmento: segmentoAtivo,
+          filtros: {
+            segmento: segmentoAtivo,
+            filtroWhatsApp,
+            filtroCidade,
+            filtroConcessionaria,
+            filtroTipoCliente,
+            filtroStatus,
+            busca,
+            listaSalvaId: listaSelecionadaId || undefined,
+          },
+          total_destinatarios: selecionados.length,
+          intervalo_segundos: intervaloSegundos,
+          data_disparo: isAgendamento && dataAgendamentoUtcIso ? dataAgendamentoUtcIso : agoraIso,
+          mensagem_original: textoMensagem1Base,
+          reenvio_ativo: Boolean(reenvioAtivo),
+          texto_reenvio_1: reenvioAtivo ? textoReenvio1 : '',
+          texto_reenvio_2: reenvioAtivo ? textoReenvio2 : '',
+          fluxo_id: reenvioAtivo ? fluxoSelecionadoId || undefined : undefined,
+          destinatarios: destinatariosLote,
+        })
+        loteCriadoId = novoLote.id
+      } catch (errLote: unknown) {
+        console.error('Erro crítico ao criar registro do lote em disparos_massa:', errLote)
+        setIsEnviando(false)
+        const detalhe =
+          errLote instanceof Error
+            ? errLote.message
+            : 'Falha de comunicação ou validação com o banco de dados.'
+        toast.error('Falha ao registrar o lote de disparo', {
+          description: `Não foi possível criar o lote em "Disparos em Massa": ${detalhe}. O envio não foi iniciado para evitar perda do histórico.`,
+        })
+        return
+      }
 
       const estadoEnvio = {
         total: selecionados.length,
@@ -1333,6 +1437,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               ? 'Agendamento não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.'
               : 'Envio não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.',
           })
+          if (destinatariosLote[i]) {
+            destinatariosLote[i].status = 'sem_whatsapp'
+            destinatariosLote[i].motivo_saida = 'Sem número de WhatsApp cadastrado'
+          }
           setProgressoEnvio({ ...estadoEnvio })
           continue
         }
@@ -1428,58 +1536,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
           estadoEnvio.sucessos.push(nomeCliente)
           const agoraEnvioIso = new Date().toISOString()
-          // Fase 3: Detecção de regra de entrada ativa por estágio do negócio/cliente
-          let fluxoAplicadoId = reenvioAtivo ? fluxoSelecionadoId || undefined : undefined
-          let origemAplicada: 'por_disparo' | 'automatica_por_estagio' = 'por_disparo'
-          let estagioGatilhoAplicado: string | undefined = undefined
-
-          const estagioCliente = (item.cliente.status || '').trim().toLowerCase()
-          if (estagioCliente && fluxosDisponiveis && fluxosDisponiveis.length > 0) {
-            for (const fl of fluxosDisponiveis) {
-              if (!fl.ativo || !fl.regras_entrada || fl.regras_entrada.length === 0) continue
-              const regraCasou = fl.regras_entrada.some((r) => {
-                if (!r.ativo) return false
-                const rEst = r.estagio_funil.trim().toLowerCase()
-                return rEst === estagioCliente
-              })
-              if (regraCasou) {
-                fluxoAplicadoId = fl.id
-                origemAplicada = 'automatica_por_estagio'
-                estagioGatilhoAplicado = item.cliente.status
-                break
-              }
-            }
+          if (destinatariosLote[i]) {
+            destinatariosLote[i].data_envio_inicial = agoraEnvioIso
+            destinatariosLote[i].status = 'pendente'
           }
-
-          const nomeFluxoAplicado = fluxoAplicadoId
-            ? fluxosDisponiveis.find((f) => f.id === fluxoAplicadoId)?.nome || 'Fluxo Follow-up'
-            : undefined
-
-          destinatariosLote.push({
-            cliente_id: idCliente,
-            nome: nomeCliente,
-            telefone: item.numeroLimpo,
-            status: 'pendente',
-            data_envio_inicial: agoraEnvioIso,
-            fluxo_atual_id: fluxoAplicadoId,
-            origem_entrada: origemAplicada,
-            estagio_origem: estagioGatilhoAplicado,
-            trilha: fluxoAplicadoId
-              ? [
-                  {
-                    fluxo_id: fluxoAplicadoId,
-                    fluxo_nome: nomeFluxoAplicado,
-                    origem_entrada: origemAplicada,
-                    estagio_gatilho: estagioGatilhoAplicado,
-                    motivo:
-                      origemAplicada === 'automatica_por_estagio'
-                        ? `Entrou automaticamente — estágio "${estagioGatilhoAplicado}" → Fluxo "${nomeFluxoAplicado}"`
-                        : `Incluído no disparo em lote → Fluxo "${nomeFluxoAplicado}"`,
-                    data: agoraEnvioIso,
-                  },
-                ]
-              : undefined,
-          })
           setProgressoEnvio({ ...estadoEnvio })
         } catch (err: unknown) {
           console.error(`Erro ao processar mensagem para ${nomeCliente}:`, err)
@@ -1489,6 +1549,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               clienteNome: nomeCliente,
               erro: 'Sessão expirada. Faça login novamente.',
             })
+            if (destinatariosLote[i]) {
+              destinatariosLote[i].status = 'finalizado'
+              destinatariosLote[i].motivo_saida = 'Sessão expirada durante o envio'
+            }
             setProgressoEnvio({ ...estadoEnvio })
             break
           }
@@ -1503,46 +1567,52 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             clienteNome: nomeCliente,
             erro: msgErro,
           })
-          destinatariosLote.push({
-            cliente_id: idCliente,
-            nome: nomeCliente,
-            telefone: item.numeroLimpo,
-            status: 'finalizado',
-            motivo_saida: msgErro,
-          })
+          if (destinatariosLote[i]) {
+            destinatariosLote[i].status = 'finalizado'
+            destinatariosLote[i].motivo_saida = msgErro
+          }
           setProgressoEnvio({ ...estadoEnvio })
         }
       }
 
-      // Criação do registro de lote na coleção disparos_massa
-      try {
-        const loteTitulo = `Lote WhatsApp ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-        const agoraIso = new Date().toISOString()
-        await createDisparoMassa({
-          titulo: loteTitulo,
-          segmento: segmentoAtivo,
-          filtros: {
-            segmento: segmentoAtivo,
-            filtroWhatsApp,
-            filtroCidade,
-            filtroConcessionaria,
-            filtroTipoCliente,
-            filtroStatus,
-            busca,
-            listaSalvaId: listaSelecionadaId || undefined,
-          },
-          total_destinatarios: selecionados.length,
-          intervalo_segundos: intervaloSegundos,
-          data_disparo: isAgendamento && dataAgendamentoUtcIso ? dataAgendamentoUtcIso : agoraIso,
-          mensagem_original: textoMensagem1Base,
-          reenvio_ativo: Boolean(reenvioAtivo),
-          texto_reenvio_1: reenvioAtivo ? textoReenvio1 : '',
-          texto_reenvio_2: reenvioAtivo ? textoReenvio2 : '',
-          fluxo_id: reenvioAtivo ? fluxoSelecionadoId || undefined : undefined,
-          destinatarios: destinatariosLote,
-        })
-      } catch (errLote) {
-        console.warn('Erro ao salvar registro do lote de disparos_massa:', errLote)
+      // Ao final do envio, atualiza o lote criado com os dados finais dos destinatários e estatísticas recalculadas
+      if (loteCriadoId) {
+        try {
+          const agoraFimIso = new Date().toISOString()
+          const totalDests = destinatariosLote.length
+          const pendentesCount = destinatariosLote.filter(
+            (d) =>
+              d.status === 'pendente' ||
+              d.status === 'reenvio_1_agendado' ||
+              d.status === 'reenvio_2_agendado',
+          ).length
+          const respondidosCount = destinatariosLote.filter((d) => d.status === 'respondido').length
+          const atendidosCount = destinatariosLote.filter((d) => d.status === 'atendido').length
+          const bloqueadosCount = destinatariosLote.filter(
+            (d) => d.status === 'bloqueado' || d.status === 'sem_whatsapp',
+          ).length
+          const finalizadosCount = destinatariosLote.filter(
+            (d) =>
+              d.status === 'finalizado' || d.status === 'arquivado' || d.status === 'nao_perturbe',
+          ).length
+
+          await updateDisparoMassa(loteCriadoId, {
+            destinatarios: destinatariosLote,
+            estatisticas: {
+              total: totalDests,
+              pendentes: pendentesCount,
+              respondidos: respondidosCount,
+              atendidos: atendidosCount,
+              bloqueados: bloqueadosCount,
+              finalizados: finalizadosCount,
+              reenvios_1_enviados: 0,
+              reenvios_2_enviados: 0,
+              ultima_verificacao: agoraFimIso,
+            },
+          })
+        } catch (errAtualizarLote) {
+          console.warn('Aviso: erro ao atualizar estatísticas finais do lote:', errAtualizarLote)
+        }
       }
 
       setIsEnviando(false)

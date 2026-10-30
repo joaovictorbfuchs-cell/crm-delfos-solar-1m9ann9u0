@@ -262,6 +262,17 @@ export async function updateStatusDisparoMassa(
 }
 
 /**
+ * Atualiza campos arbitrários de um lote (ex: destinatários, estatísticas, status ao concluir envio).
+ */
+export async function updateDisparoMassa(
+  id: string,
+  dados: Partial<DisparoMassaRegistro>,
+): Promise<DisparoMassaRegistro> {
+  const record = await pb.collection('disparos_massa').update<DisparoMassaRegistro>(id, dados)
+  return record
+}
+
+/**
  * Atualiza a marcação manual de um destinatário em um lote de disparo em massa.
  * Alimenta as regras de desvio / encerramento imediato.
  */

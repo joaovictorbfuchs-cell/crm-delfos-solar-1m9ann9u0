@@ -193,6 +193,11 @@ vi.mock('@/services/listasEnvioService', () => ({
   toggleFavoritoListaEnvioId: (id: string) => [id],
 }))
 
+const mockUpdateDisparoMassa = vi.fn().mockImplementation(async (id, dados) => ({
+  id,
+  ...dados,
+}))
+
 vi.mock('@/services/disparosMassaService', () => ({
   getPadroesTextosReenvio: () => ({
     texto1: 'Olá, [nome do cliente]! Passando para checar se viu a mensagem anterior...',
@@ -200,6 +205,7 @@ vi.mock('@/services/disparosMassaService', () => ({
   }),
   salvarPadroesTextosReenvio: (p: any) => mockSalvarPadroesTextosReenvio(p),
   createDisparoMassa: (data: any) => mockCreateDisparoMassa(data),
+  updateDisparoMassa: (id: any, dados: any) => mockUpdateDisparoMassa(id, dados),
 }))
 
 const clientesMock = [
@@ -700,6 +706,30 @@ describe('ModalMensagemWhatsAppMassa - Filtros de Segmento e Listas Salvas', () 
         }),
       )
     })
+  })
+
+  it('grava o lote ANTES do loop de envio e exibe erro explícito na tela se createDisparoMassa falhar, sem disparar Z-API', async () => {
+    mockCreateDisparoMassa.mockRejectedValueOnce(new Error('Erro simulado ao gravar lote no banco'))
+
+    render(
+      <ModalMensagemWhatsAppMassa
+        open={true}
+        onOpenChange={vi.fn()}
+        destinatariosIniciais={[{ cliente: clientesMock[0] }]}
+      />,
+    )
+
+    // Botão de envio habilitado
+    const btnEnviar = screen.getByRole('button', { name: /Enviar Mensagem|Enviar para 1 Cliente/i })
+    fireEvent.click(btnEnviar)
+
+    // createDisparoMassa deve ter sido chamado ANTES do envio
+    await waitFor(() => {
+      expect(mockCreateDisparoMassa).toHaveBeenCalled()
+    })
+
+    // Como createDisparoMassa falhou, o gateway Z-API NÃO deve ter sido chamado
+    expect(mockSendWhatsAppMessage).not.toHaveBeenCalled()
   })
 
   it('permite carregar um filtro salvo de clientes como base dos destinatários, exibe chip ativo e contagem', async () => {
