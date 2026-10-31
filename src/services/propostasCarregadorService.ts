@@ -524,9 +524,12 @@ export function gerarValoresIniciaisPropostaCarregador(
     .filter(Boolean)
     .join(' — ')
 
+  const rawNumCarregador = (cliente?.numero || '').trim()
+  const numFmtCarregador =
+    rawNumCarregador && rawNumCarregador.toUpperCase() !== 'S/N' ? `nº ${rawNumCarregador}` : ''
   const enderecoPartes = [
     cliente?.endereco,
-    cliente?.numero ? `nº ${cliente.numero}` : '',
+    numFmtCarregador,
     cliente?.bairro ? `Bairro ${cliente.bairro}` : '',
     cliente?.cidade || 'Erechim',
     cliente?.estado || 'RS',

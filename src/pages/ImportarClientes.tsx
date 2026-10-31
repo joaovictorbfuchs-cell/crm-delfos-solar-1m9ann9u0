@@ -708,6 +708,8 @@ export default function ImportarClientes() {
               email: item.email || undefined,
               cidade: item.cidade || undefined,
               estado: item.estado || undefined,
+              endereco: item.endereco || undefined,
+              numero: item.numero || undefined,
               status: item.status,
               valor_estimado: item.valor_estimado || undefined,
               observacoes: item.observacoes,

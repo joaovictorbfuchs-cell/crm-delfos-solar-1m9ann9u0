@@ -241,11 +241,11 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     const ucUsina = usinas.find((u) => u.numero_uc)?.numero_uc || ''
     setNumeroUc((prev) => (prev ? prev : ucCliente || ucUsina || ''))
 
+    const rawNum = (clienteSelecionado.numero || '').trim()
+    const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
     const partesEndereco = [
       clienteSelecionado.endereco,
-      clienteSelecionado.numero && clienteSelecionado.numero !== 'S/N'
-        ? `nº ${clienteSelecionado.numero}`
-        : clienteSelecionado.numero,
+      numFmt,
       clienteSelecionado.bairro,
       clienteSelecionado.cidade,
     ].filter(Boolean)

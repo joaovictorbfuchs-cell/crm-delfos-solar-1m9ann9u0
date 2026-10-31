@@ -435,9 +435,13 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
             ) : (
               clientesFiltrados.map((cliente) => {
                 const isSelected = selectedClienteId === cliente.id
+                const rawNum = (cliente.numero || '').trim()
+                const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
                 const enderecoUsina =
                   cliente.usina_endereco ||
-                  [cliente.endereco, cliente.numero, cliente.cidade].filter(Boolean).join(', ')
+                  [cliente.endereco, numFmt, cliente.bairro, cliente.cidade]
+                    .filter(Boolean)
+                    .join(', ')
 
                 return (
                   <div

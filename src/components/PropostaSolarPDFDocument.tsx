@@ -297,8 +297,14 @@ export const PropostaSolarPDFDocument: React.FC<PropostaSolarPDFDocumentProps> =
           </Text>
           <Text style={styles.paragrafo}>
             <Text style={styles.bold}>Endereço:</Text>{' '}
-            {[cliente.endereco, cliente.municipio || cliente.cidade].filter(Boolean).join(', ') ||
-              'Erechim / RS'}
+            {(() => {
+              const rawNum = ((cliente as any).numero || '').trim()
+              const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+              const partes = [cliente.endereco, numFmt, cliente.municipio || cliente.cidade].filter(
+                Boolean,
+              )
+              return partes.length > 0 ? partes.join(', ') : 'Erechim / RS'
+            })()}
             {cliente.telefone ? ` • Telefone: ${cliente.telefone}` : ''}
             {cliente.email ? ` • E-mail: ${cliente.email}` : ''}
           </Text>

@@ -430,8 +430,10 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     const valorStr = valorNum > 0 ? formatCurrency(valorNum) : 'sob consulta'
     texto = texto.replace(/\{\{valor_proposta\}\}/g, valorStr)
 
+    const rawNum = (cliente?.numero || '').trim()
+    const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
     const enderecoFormatado =
-      [cliente?.endereco, cliente?.numero, cliente?.cidade].filter(Boolean).join(', ') ||
+      [cliente?.endereco, numFmt, cliente?.bairro, cliente?.cidade].filter(Boolean).join(', ') ||
       cliente?.cidade ||
       'endereço cadastrado'
     texto = texto.replace(/\{\{endereco\}\}/g, enderecoFormatado)

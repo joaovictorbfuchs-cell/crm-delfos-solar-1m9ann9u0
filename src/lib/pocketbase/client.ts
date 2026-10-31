@@ -1,8 +1,8 @@
 import PocketBase from 'pocketbase'
 import { isAuthSessionError } from './errors'
 
-const url = (import.meta as any).env?.VITE_POCKETBASE_URL || '/'
-export const pb = new PocketBase(url)
+const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
+pb.autoCancellation(false)
 
-export { isAuthSessionError }
+export { pb, isAuthSessionError }
 export default pb

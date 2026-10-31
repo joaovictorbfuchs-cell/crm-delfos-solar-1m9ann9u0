@@ -335,7 +335,12 @@ export function ModalGerarPropostaTecnicoComercial({
         cliente: {
           nome: clienteNome || 'Cliente',
           cpfOuCnpj: clienteDocumento || '',
-          endereco: cliente?.endereco || '',
+          endereco: (() => {
+            const rawNum = ((cliente as any)?.numero || '').trim()
+            const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+            const partes = [cliente?.endereco, numFmt].filter(Boolean)
+            return partes.length > 0 ? partes.join(', ') : cliente?.endereco || ''
+          })(),
           municipio: cliente?.municipio || '',
           cidade: (cliente as any)?.cidade || cliente?.municipio || '',
           tipoCliente: cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial',

@@ -23,6 +23,7 @@ export interface ItemRevisaoPipedrive {
   cidade: string
   estado: string
   endereco: string
+  numero?: string
   statusSugerido: ClienteStatus // 'Fechado' para duplicata Conta Azul, 'Novo Lead' para lead novo
   tipo_pessoa: TipoPessoa
   valor_estimado: number
@@ -310,6 +311,7 @@ export function mesclarDadosPipedriveNoCadastro(
     cidade: itemPipedrive.cidade || existente.cidade,
     estado: itemPipedrive.estado || existente.estado,
     endereco: itemPipedrive.endereco || existente.endereco,
+    numero: itemPipedrive.numero || existente.numero,
     // Valor estimado se informado
     valor_estimado: itemPipedrive.valor_estimado || existente.valor_estimado,
     observacoes,

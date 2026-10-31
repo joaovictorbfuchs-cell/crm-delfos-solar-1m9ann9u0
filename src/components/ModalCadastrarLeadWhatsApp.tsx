@@ -72,6 +72,7 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
   const [endereco, setEndereco] = useState('')
+  const [numero, setNumero] = useState('')
   const [tipoCliente, setTipoCliente] = useState<ClienteTipo>('residencial')
   const [origemLead, setOrigemLead] = useState<OrigemLeadTipo>('WhatsApp')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -140,10 +141,10 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
       setCpf(dados.cpf)
       setTipoCliente('residencial')
     }
+    if (dados.numero) setNumero(dados.numero)
 
     const endPartes = [
       dados.endereco,
-      dados.numero ? `nº ${dados.numero}` : '',
       dados.bairro ? `- ${dados.bairro}` : '',
       dados.cidade ? dados.cidade : '',
     ]
@@ -156,10 +157,10 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
     const nomePrincipal = d.nome_fantasia || d.razao_social
     if (sobrescrever || !nome) setNome(nomePrincipal || nome)
     if (sobrescrever || !razaoSocial) setRazaoSocial(d.razao_social || razaoSocial)
+    if (d.numero && (sobrescrever || !numero)) setNumero(d.numero)
     if (d.logradouro && (sobrescrever || !endereco)) {
       const endComp = [
         d.logradouro,
-        d.numero ? `nº ${d.numero}` : '',
         d.bairro ? `- ${d.bairro}` : '',
         d.municipio ? `${d.municipio}/${d.uf}` : '',
       ]
@@ -272,6 +273,7 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
         email: email.trim() || undefined,
         cpf: cpf.trim() || undefined,
         endereco: endereco.trim() || undefined,
+        numero: numero.trim() || undefined,
         tipo_cliente: tipoCliente,
         produto: tipoCliente as ProdutoTipo,
         origem_lead: origemLead,
@@ -382,6 +384,7 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
           email: email.trim() || undefined,
           cpf: cpf.trim() || undefined,
           endereco: endereco.trim() || undefined,
+          numero: numero.trim() || undefined,
         },
       })
 
@@ -578,17 +581,31 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="lead-endereco" className="text-xs font-medium">
-              Endereço da Usina / Imóvel
-            </Label>
-            <Input
-              id="lead-endereco"
-              placeholder="Rua, número, bairro, cidade - UF"
-              value={endereco}
-              onChange={(e) => setEndereco(e.target.value)}
-              className="h-9 text-sm"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label htmlFor="lead-endereco" className="text-xs font-medium">
+                Logradouro / Rua
+              </Label>
+              <Input
+                id="lead-endereco"
+                placeholder="Rua, Avenida..."
+                value={endereco}
+                onChange={(e) => setEndereco(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="lead-numero" className="text-xs font-medium">
+                Número
+              </Label>
+              <Input
+                id="lead-numero"
+                placeholder="Nº ou S/N"
+                value={numero}
+                onChange={(e) => setNumero(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">

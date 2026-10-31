@@ -1173,9 +1173,14 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     const telefoneCadastral = cliente?.telefone
                     const whatsappCadastral = cliente?.whatsapp || cliente?.telefone
                     const emailCadastral = cliente?.email
+                    const rawNumCadastral = (cliente?.numero || '').trim()
+                    const numFmtCadastral =
+                      rawNumCadastral && rawNumCadastral.toUpperCase() !== 'S/N'
+                        ? `nº ${rawNumCadastral}`
+                        : null
                     const enderecoPartes = [
                       cliente?.endereco,
-                      cliente?.numero ? `nº ${cliente.numero}` : null,
+                      numFmtCadastral,
                       cliente?.bairro,
                       cliente?.cidade && cliente?.estado
                         ? `${cliente.cidade} - ${cliente.estado}`
