@@ -1,78 +1,97 @@
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
+import ClientResponseError from 'pocketbase'
 
-  // Objeto com status HTTP
-  const withStatus = error as { status?: number; response?: { status?: number } }
-  if (withStatus.status === 401 || withStatus.status === 403) return true
-  if (withStatus.response?.status === 401 || withStatus.response?.status === 403) return true
-
-  // Mensagens típicas de erro de sessão / autenticação
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof (error as { message?: unknown }).message === 'string'
-        ? String((error as { message?: unknown }).message)
-        : ''
-
-  if (!message) return false
-
-  const normalized = message.toLowerCase()
-  return (
-    normalized.includes('token is expired') ||
-    normalized.includes('invalid token') ||
-    normalized.includes('token expired') ||
-    normalized.includes('login expirou') ||
-    normalized.includes('sessão expirada') ||
-    normalized.includes('sessao expirada') ||
-    normalized.includes('failed to authenticate') ||
-    normalized.includes('authentication required') ||
-    normalized.includes('unauthorized')
-  )
+export interface FieldErrors {
+  [key: string]: string
 }
 
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  const err = error as { isAbort?: boolean; name?: string; message?: string }
-  if (err.isAbort === true) return true
-  if (err.name === 'AbortError') return true
-  if (typeof err.message === 'string' && err.message.toLowerCase().includes('aborted')) return true
+/**
+ * Verifica se um erro retornado pelo PocketBase decorre de autenticação/sessão expirada
+ * (HTTP 401, 403, ou mensagens textuais indicando login/sessão expirados).
+ */
+export function isAuthSessionError(err: unknown): boolean {
+  if (!err) return false
+
+  const anyErr = err as any
+
+  // Erros abortados não são erros de sessão
+  if (isAbortError(err)) return false
+
+  // Status HTTP clássicos de autenticação/autorização
+  const status = anyErr.status ?? anyErr.statusCode ?? anyErr.response?.status
+  if (status === 401 || status === 403) {
+    return true
+  }
+
+  // Checagem por texto da mensagem
+  const message = String(anyErr.message || anyErr.data?.message || '')
+  if (
+    /token\s+(is\s+)?(expired|invalid)/i.test(message) ||
+    /failed\s+to\s+authenticate/i.test(message) ||
+    /sess[aã]o\s+expirada/i.test(message) ||
+    /login\s+expirou/i.test(message) ||
+    (/autentica[cç][aã]o/i.test(message) && /inv[aá]lida|expirad/i.test(message))
+  ) {
+    return true
+  }
+
   return false
 }
 
-export function formatPbError(error: unknown): string {
-  if (!error) return 'Erro desconhecido'
-  if (typeof error === 'string') return error
-  if (error instanceof Error) return error.message
-  const err = error as { message?: string }
-  return err.message || 'Erro inesperado no servidor'
+/**
+ * Verifica se a requisição foi abortada pelo autocancel do PocketBase ou AbortController.
+ */
+export function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  const anyErr = err as any
+  if (anyErr.isAbort === true) return true
+  if (anyErr.name === 'AbortError') return true
+  if (String(anyErr.message || '').includes('The request was aborted')) return true
+  return false
 }
 
-import { ClientResponseError } from 'pocketbase'
-
-export type FieldErrors = Record<string, string>
-
-export function extractFieldErrors(error: unknown): FieldErrors {
-  if (!(error instanceof ClientResponseError)) return {}
-  const data = error.response?.data
-  if (!data || typeof data !== 'object') return {}
-  const errors: FieldErrors = {}
-  for (const [field, detail] of Object.entries(data)) {
-    if (
-      detail &&
-      typeof detail === 'object' &&
-      'message' in detail &&
-      typeof (detail as { message: unknown }).message === 'string'
-    ) {
-      errors[field] = (detail as { message: string }).message
+/**
+ * Extrai erros por campo (validação) retornados pelo PocketBase.
+ */
+export function extractFieldErrors(err: unknown): FieldErrors {
+  if (!err) return {}
+  const anyErr = err as any
+  const data = anyErr.data?.data || anyErr.response?.data || anyErr.data
+  if (data && typeof data === 'object') {
+    const res: FieldErrors = {}
+    for (const [k, v] of Object.entries(data)) {
+      if (typeof v === 'string') {
+        res[k] = v
+      } else if (v && typeof v === 'object' && 'message' in (v as any)) {
+        res[k] = String((v as any).message)
+      }
     }
+    return res
   }
-  return errors
+  return {}
 }
 
-export function getErrorMessage(error: unknown): string {
-  if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'An unexpected error occurred.'
-  }
-  const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+/**
+ * Retorna mensagem legível para o usuário a partir de um erro PocketBase.
+ */
+export function getErrorMessage(err: unknown, fallback = 'Ocorreu um erro inesperado'): string {
+  if (!err) return fallback
+  const anyErr = err as any
+  if (anyErr.data?.message) return String(anyErr.data.message)
+  if (anyErr.message && typeof anyErr.message === 'string') return anyErr.message
+  return fallback
+}
+
+/**
+ * Formata um erro do PocketBase para texto exibível.
+ */
+export function formatPbError(err: unknown, fallback = 'Erro ao processar requisição'): string {
+  return getErrorMessage(err, fallback)
+}
+
+export default {
+  isAuthSessionError,
+  isAbortError,
+  extractFieldErrors,
+  getErrorMessage,
+  formatPbError,
 }

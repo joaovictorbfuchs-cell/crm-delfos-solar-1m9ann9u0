@@ -331,10 +331,14 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
                 d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             } catch (_) {}
 
+            const rawNumVisita = (clienteRec.getString('numero') || '').trim()
+            const numVisitaFormatado =
+              rawNumVisita && rawNumVisita.toUpperCase() !== 'S/N' ? `nº ${rawNumVisita}` : ''
+
             const enderecoCliente =
               [
                 clienteRec.getString('endereco'),
-                clienteRec.getString('numero'),
+                numVisitaFormatado,
                 clienteRec.getString('bairro'),
                 clienteRec.getString('cidade'),
               ]
@@ -1169,10 +1173,14 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
             ).trim()
             if (!telCliente) continue
 
+            const rawNumFollow = (cliente.getString('numero') || '').trim()
+            const numFollowFormatado =
+              rawNumFollow && rawNumFollow.toUpperCase() !== 'S/N' ? `nº ${rawNumFollow}` : ''
+
             const enderecoCliente =
               [
                 cliente.getString('endereco'),
-                cliente.getString('numero'),
+                numFollowFormatado,
                 cliente.getString('bairro'),
                 cliente.getString('cidade'),
               ]

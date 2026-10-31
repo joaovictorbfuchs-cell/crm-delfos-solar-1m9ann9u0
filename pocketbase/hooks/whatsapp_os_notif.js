@@ -84,9 +84,13 @@ onRecordAfterCreateSuccess((e) => {
           clienteNome =
             clienteRec.getString('nome') || clienteRec.getString('razao_social') || clienteNome
           if (!clienteEndereco) {
+            const rawNumCli = (clienteRec.getString('numero') || '').trim()
+            const numCliFormatado =
+              rawNumCli && rawNumCli.toUpperCase() !== 'S/N' ? `nº ${rawNumCli}` : ''
+
             clienteEndereco = [
               clienteRec.getString('endereco'),
-              clienteRec.getString('numero'),
+              numCliFormatado,
               clienteRec.getString('bairro'),
               clienteRec.getString('cidade'),
             ]
@@ -379,9 +383,13 @@ onRecordAfterUpdateSuccess((e) => {
           clienteNome =
             clienteRec.getString('nome') || clienteRec.getString('razao_social') || clienteNome
           if (!clienteEndereco) {
+            const rawNumCli = (clienteRec.getString('numero') || '').trim()
+            const numCliFormatado =
+              rawNumCli && rawNumCli.toUpperCase() !== 'S/N' ? `nº ${rawNumCli}` : ''
+
             clienteEndereco = [
               clienteRec.getString('endereco'),
-              clienteRec.getString('numero'),
+              numCliFormatado,
               clienteRec.getString('bairro'),
               clienteRec.getString('cidade'),
             ]
