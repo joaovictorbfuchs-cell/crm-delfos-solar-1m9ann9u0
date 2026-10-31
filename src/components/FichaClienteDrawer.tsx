@@ -770,9 +770,13 @@ export const FichaClienteDrawer: React.FC = () => {
       tipo,
       clienteNome: selectedCliente.nome || '',
       clienteCpfCnpj: selectedCliente.cpf || selectedCliente.cnpj || '',
-      clienteEndereco: [selectedCliente.endereco, selectedCliente.numero, selectedCliente.bairro]
-        .filter(Boolean)
-        .join(', '),
+      clienteEndereco: (() => {
+        const numFmt =
+          selectedCliente.numero && selectedCliente.numero.trim().toUpperCase() !== 'S/N'
+            ? `nº ${selectedCliente.numero.trim()}`
+            : ''
+        return [selectedCliente.endereco, numFmt, selectedCliente.bairro].filter(Boolean).join(', ')
+      })(),
       clienteTelefone: selectedCliente.telefone || selectedCliente.whatsapp || '',
       clienteEmail: selectedCliente.email || '',
       titularNome: selectedCliente.titular_nome || selectedCliente.nome || '',

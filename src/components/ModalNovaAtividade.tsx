@@ -216,11 +216,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       return partesUsina.join(' - ')
     }
     if (clienteSelecionadoAtual?.endereco && clienteSelecionadoAtual.endereco.trim()) {
-      const complemento = [
-        clienteSelecionadoAtual.numero,
-        clienteSelecionadoAtual.bairro,
-        clienteSelecionadoAtual.cidade,
-      ]
+      const rawNum = (clienteSelecionadoAtual.numero || '').trim()
+      const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+      const complemento = [numFmt, clienteSelecionadoAtual.bairro, clienteSelecionadoAtual.cidade]
         .filter(Boolean)
         .join(', ')
       return complemento

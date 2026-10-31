@@ -128,11 +128,9 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
       const nomeEfetivo = cliente.titular_nome || cliente.nome || ''
       const cpfEfetivo = cliente.titular_cpf || cliente.cpf || ''
 
-      const enderecoPartes = [
-        cliente.endereco,
-        cliente.numero && cliente.numero !== 'S/N' ? `nº ${cliente.numero}` : cliente.numero,
-        cliente.bairro,
-      ].filter(Boolean)
+      const rawNum = (cliente.numero || '').trim()
+      const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+      const enderecoPartes = [cliente.endereco, numFmt, cliente.bairro].filter(Boolean)
       const enderecoEfetivo =
         enderecoPartes.length > 0 ? enderecoPartes.join(', ') : cliente.endereco || ''
 

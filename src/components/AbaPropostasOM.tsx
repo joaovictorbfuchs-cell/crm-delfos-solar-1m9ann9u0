@@ -280,9 +280,11 @@ export const AbaPropostasOM: React.FC<AbaPropostasOMProps> = ({
   const montarPDFData = (prop: PropostaOM, cliente?: Cliente | null): PropostaPDFInput => {
     const cpfOuCnpj = cliente?.cnpj || cliente?.cpf || ''
     const municipio = cliente?.cidade || 'Erechim/RS'
-    const endereco = [cliente?.endereco, cliente?.numero, cliente?.bairro]
-      .filter(Boolean)
-      .join(', ')
+    const numFmt =
+      cliente?.numero && cliente.numero.trim().toUpperCase() !== 'S/N'
+        ? `nº ${cliente.numero.trim()}`
+        : ''
+    const endereco = [cliente?.endereco, numFmt, cliente?.bairro].filter(Boolean).join(', ')
 
     const sistema = sistemas.find((s) => s.cliente_id === prop.cliente_id)
     const geracaoMensalKwh = prop.geracao_mensal_kwh || sistema?.geracao_media_mensal_kwh || 1000

@@ -261,7 +261,13 @@ export function construirPropostaSolarPDFInput(
     cliente: {
       nome: nomeCliente,
       cpfOuCnpj: cliente?.cpf || cliente?.cnpj || '',
-      endereco: [cliente?.endereco, cliente?.numero, cliente?.bairro].filter(Boolean).join(', '),
+      endereco: (() => {
+        const numFmt =
+          cliente?.numero && cliente.numero.trim().toUpperCase() !== 'S/N'
+            ? `nº ${cliente.numero.trim()}`
+            : ''
+        return [cliente?.endereco, numFmt, cliente?.bairro].filter(Boolean).join(', ')
+      })(),
       municipio: cliente?.cidade || 'Erechim / RS',
       email: cliente?.email || '',
       telefone:

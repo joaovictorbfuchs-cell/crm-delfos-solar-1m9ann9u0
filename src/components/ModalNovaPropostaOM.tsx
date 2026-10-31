@@ -398,9 +398,11 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
 
     const cpfOuCnpj = clienteAtual.cnpj || clienteAtual.cpf || ''
     const municipio = clienteAtual.cidade || 'Erechim/RS'
-    const endereco = [clienteAtual.endereco, clienteAtual.numero, clienteAtual.bairro]
-      .filter(Boolean)
-      .join(', ')
+    const numFmt =
+      clienteAtual.numero && clienteAtual.numero.trim().toUpperCase() !== 'S/N'
+        ? `nº ${clienteAtual.numero.trim()}`
+        : ''
+    const endereco = [clienteAtual.endereco, numFmt, clienteAtual.bairro].filter(Boolean).join(', ')
 
     return {
       cliente: {

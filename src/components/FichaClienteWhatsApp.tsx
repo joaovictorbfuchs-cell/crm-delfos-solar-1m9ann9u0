@@ -266,10 +266,12 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     texto = texto.replace(/\{\{valor_proposta\}\}/g, valorStr)
 
     // Variável {{endereco}}
+    const numFmt =
+      cliente.numero && cliente.numero.trim().toUpperCase() !== 'S/N'
+        ? `nº ${cliente.numero.trim()}`
+        : ''
     const enderecoFormatado =
-      [cliente.endereco, cliente.numero, cliente.bairro, cliente.cidade]
-        .filter(Boolean)
-        .join(', ') ||
+      [cliente.endereco, numFmt, cliente.bairro, cliente.cidade].filter(Boolean).join(', ') ||
       cliente.cidade ||
       'endereço cadastrado'
     texto = texto.replace(/\{\{endereco\}\}/g, enderecoFormatado)
@@ -311,8 +313,12 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
         const valorNum = ultimoOrcamento?.valor_investimento || cliente.valor_estimado || 0
         const valorStr = valorNum > 0 ? formatCurrency(valorNum) : 'sob consulta'
         texto = texto.replace(/\{\{valor_proposta\}\}/g, valorStr)
+        const numFmtCont =
+          cliente.numero && cliente.numero.trim().toUpperCase() !== 'S/N'
+            ? `nº ${cliente.numero.trim()}`
+            : ''
         const enderecoFormatado =
-          [cliente.endereco, cliente.numero, cliente.bairro, cliente.cidade]
+          [cliente.endereco, numFmtCont, cliente.bairro, cliente.cidade]
             .filter(Boolean)
             .join(', ') ||
           cliente.cidade ||

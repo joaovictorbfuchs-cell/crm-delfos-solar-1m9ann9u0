@@ -89,7 +89,14 @@ routerAdd(
           clienteRecord = $app.findRecordById('clientes', clienteId)
           clienteNome = clienteRecord.getString('nome') || ''
           clienteUcCadastrada = clienteRecord.getString('uc') || ''
-          clienteEnderecoCadastrado = clienteRecord.getString('endereco') || ''
+          const rawNum = (clienteRecord.getString('numero') || '').trim()
+          const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+          const partesEnd = [
+            clienteRecord.getString('endereco'),
+            numFmt,
+            clienteRecord.getString('bairro'),
+          ].filter(Boolean)
+          clienteEnderecoCadastrado = partesEnd.join(', ') || ''
           clienteCidadeCadastrada = clienteRecord.getString('cidade') || ''
         } catch (errCli) {
           console.log('[ANALISE COMPLETA] Cliente não encontrado pelo id:', clienteId)
@@ -103,7 +110,7 @@ Analise cuidadosamente as faturas de energia em anexo.
 CONTEXTO CADASTRAL EXISTENTE DO CLIENTE NO CRM:
 - Nome do cliente: "${clienteNome || 'Não informado'}"
 - UC já cadastrada no sistema: "${clienteUcCadastrada || 'Não informada'}"
-- Endereço cadastrado: "${clienteEnderecoCadastrado || 'Não informado'}, ${clienteCidadeCadastrada || ''}"
+- Endereço cadastrado: "${clienteEnderecoCadastrado || 'Não informado'}${clienteCidadeCadastrada ? ', ' + clienteCidadeCadastrada : ''}"
 
 REGRAS RÍGIDAS DE ANÁLISE:
 1. TODO NÚMERO DEVE VIR DA FATURA. NUNCA INVENTE VALORES. Se ausente, preencha "não informado na fatura" ou null.

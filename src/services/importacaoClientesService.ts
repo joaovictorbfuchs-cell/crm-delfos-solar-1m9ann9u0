@@ -152,8 +152,27 @@ export const CAMPOS_DESTINO_IMPORTACAO: CampoMapeado[] = [
     key: 'endereco',
     label: 'Endereço / Logradouro',
     required: false,
-    description: 'Rua, avenida, bairro e número',
+    description: 'Rua, avenida ou logradouro',
     variacoes: ['endereco', 'endereço', 'address', 'rua', 'logradouro', 'street'],
+  },
+  {
+    key: 'numero',
+    label: 'Número',
+    required: false,
+    description: 'Número do imóvel / endereço',
+    variacoes: [
+      'numero',
+      'número',
+      'num',
+      'nº',
+      'no',
+      'nro',
+      'number',
+      'numero do imovel',
+      'número do imóvel',
+      'numero endereco',
+      'número endereço',
+    ],
   },
   {
     key: 'valor_estimado',
@@ -326,6 +345,7 @@ export interface ClienteImportadoNormalizado {
   cidade: string
   estado: string
   endereco: string
+  numero?: string
   status: ClienteStatus
   data_ultimo_contato: string
   valor_estimado: number
@@ -408,7 +428,28 @@ export function normalizarLinhaParaCliente(
   const estado = (getValor('estado') || 'RS').toUpperCase().slice(0, 2)
   const status = mapearStatusCRM(getValor('status'))
   const dataUltimo = getValor('data_ultimo_contato')
-  const endereco = getValor('endereco')
+  let endereco = getValor('endereco')
+  let numero = getValor('numero')
+
+  // Se o número não veio em coluna própria, tentar extrair se o endereço terminar com ", 123" ou "nº 123"
+  if (!numero && endereco) {
+    const matchEndNum = endereco.match(/^(.*?)(?:,\s*(?:n[ºo°]?\s*)?(\d+[a-zA-Z]?|S\/N|s\/n))\s*$/i)
+    if (matchEndNum) {
+      endereco = matchEndNum[1].trim()
+      numero = matchEndNum[2].trim()
+    }
+  }
+
+  // Se ainda sem número mas dados_importados tiver 'numero' ou similar, aproveita
+  if (!numero && dadosImportados) {
+    for (const k of Object.keys(dadosImportados)) {
+      const normK = normalizarChave(k)
+      if (normK === 'numero' || normK === 'num' || normK === 'nro') {
+        numero = dadosImportados[k].trim()
+        break
+      }
+    }
+  }
 
   const rawValor = getValor('valor_estimado')
     .replace(/[^\d.,]/g, '')
@@ -435,6 +476,7 @@ export function normalizarLinhaParaCliente(
     cidade,
     estado,
     endereco,
+    numero: numero || undefined,
     status,
     data_ultimo_contato: dataUltimo,
     valor_estimado: valorEstimado,

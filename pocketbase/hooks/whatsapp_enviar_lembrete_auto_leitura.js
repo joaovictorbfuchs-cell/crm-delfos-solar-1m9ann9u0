@@ -132,11 +132,21 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       clienteRecord.getString('numero_instalacao') ||
       'não informado'
 
-    const enderecoInstalacao =
-      (usinaRecord ? usinaRecord.getString('endereco') : '') ||
-      clienteRecord.getString('endereco') ||
-      clienteRecord.getString('cidade') ||
-      'endereço cadastrado'
+    let enderecoInstalacao = ''
+    if (usinaRecord && usinaRecord.getString('endereco')) {
+      enderecoInstalacao = usinaRecord.getString('endereco')
+    } else {
+      const rawNum = (clienteRecord.getString('numero') || '').trim()
+      const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+      const partes = [
+        clienteRecord.getString('endereco'),
+        numFmt,
+        clienteRecord.getString('bairro'),
+        clienteRecord.getString('cidade'),
+      ].filter(Boolean)
+      enderecoInstalacao =
+        partes.join(', ') || clienteRecord.getString('cidade') || 'endereço cadastrado'
+    }
 
     // Template no banco se existir
     let tplLeitura = null

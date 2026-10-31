@@ -308,7 +308,11 @@ export function analisarBaseCentralAtendimento(params: {
       email: cli.email || '',
       cidade: cli.cidade || '',
       estado: cli.estado || '',
-      endereco: [cli.endereco, cli.numero, cli.bairro].filter(Boolean).join(', '),
+      endereco: (() => {
+        const numFmt =
+          cli.numero && cli.numero.trim().toUpperCase() !== 'S/N' ? `nº ${cli.numero.trim()}` : ''
+        return [cli.endereco, numFmt, cli.bairro].filter(Boolean).join(', ')
+      })(),
       tipoNegocio: cli.tipo_negocio || cli.tipo_venda || cli.produto || 'Energia Solar',
       etapaFunil: cli.status || 'Novo Lead',
       potenciaKwp: cli.potencia_kwp || '',

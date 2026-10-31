@@ -31,6 +31,12 @@ export const PLACEHOLDERS_ENVIO_MASSA: PlaceholderInfo[] = [
     exemplo: 'Erechim',
   },
   {
+    tag: '[endereco]',
+    label: 'Endereço',
+    descricao: 'Endereço do cliente formatado com logradouro, número e bairro',
+    exemplo: 'Rua Espírito Santo, nº 275, Centro',
+  },
+  {
     tag: '[data atual]',
     label: 'Data Atual',
     descricao: 'Data de hoje por extenso ou formatada (ex: 28/09/2026)',
@@ -198,6 +204,14 @@ export function resolverPlaceholdersMensagemMassa(params: {
   const nome = extrairPrimeiroNomeCliente(cliente, contatoNome)
   const empresaCliente = (cliente.nome_fantasia || cliente.razao_social || 'Delfos Solar').trim()
   const cidade = cidadeManual || extrairCidadeCliente(cliente, usina)
+  const numFmt =
+    cliente.numero && cliente.numero.trim().toUpperCase() !== 'S/N'
+      ? `nº ${cliente.numero.trim()}`
+      : ''
+  const enderecoFormatado =
+    [cliente.endereco, numFmt, cliente.bairro, cliente.cidade].filter(Boolean).join(', ') ||
+    cliente.cidade ||
+    'endereço cadastrado'
   const dataHoje = new Date().toLocaleDateString('pt-BR')
   const potencia =
     potenciaManual !== undefined && potenciaManual !== null
@@ -212,6 +226,8 @@ export function resolverPlaceholdersMensagemMassa(params: {
     .replace(/\[nome da empresa\]/gi, empresaCliente)
     .replace(/\[empresa\]/gi, empresaCliente)
     .replace(/\[cidade\]/gi, cidade)
+    .replace(/\[endereco\]/gi, enderecoFormatado)
+    .replace(/\[endereço\]/gi, enderecoFormatado)
     .replace(/\[data atual\]/gi, dataHoje)
     .replace(/\[data\]/gi, dataHoje)
     .replace(/\[potência\]/gi, potencia)

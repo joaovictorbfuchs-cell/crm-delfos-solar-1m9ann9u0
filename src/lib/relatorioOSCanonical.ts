@@ -171,10 +171,19 @@ export function compilarDadosRelatorioOS(
     : sistema?.cidade
       ? `${sistema.cidade}/RS`
       : 'Erechim/RS'
+  let enderecoClienteFormatado = ''
+  if (cliente?.endereco) {
+    const rawNum = (cliente.numero || '').trim()
+    const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+    const partesEnd = [cliente.endereco, numFmt, cliente.bairro].filter(Boolean)
+    enderecoClienteFormatado = partesEnd.join(', ')
+  }
+
   const enderecoBase =
     os?.endereco ||
     os?.endereco_uc ||
     sistema?.endereco ||
+    enderecoClienteFormatado ||
     cliente?.endereco ||
     'Rua Espírito Santo, 275'
   const enderecoUsina = enderecoBase.includes(cidadeEstado)

@@ -1193,9 +1193,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           ? `${clienteAtual.nome} (${clienteAtual.nome_fantasia})`
           : clienteAtual.nome,
         cpfOuCnpj: clienteAtual.cnpj || clienteAtual.cpf || '',
-        endereco: [clienteAtual.endereco, clienteAtual.numero, clienteAtual.bairro]
-          .filter(Boolean)
-          .join(', '),
+        endereco: (() => {
+          const numFmt =
+            clienteAtual.numero && clienteAtual.numero.trim().toUpperCase() !== 'S/N'
+              ? `nº ${clienteAtual.numero.trim()}`
+              : ''
+          return [clienteAtual.endereco, numFmt, clienteAtual.bairro].filter(Boolean).join(', ')
+        })(),
         municipio: clienteAtual.cidade || 'Erechim / RS',
         email: clienteAtual.email || '',
         telefone: clienteAtual.telefone || '',

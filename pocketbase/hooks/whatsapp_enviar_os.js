@@ -131,9 +131,11 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
           clienteNome =
             clienteRec.getString('nome') || clienteRec.getString('razao_social') || clienteNome
           if (!clienteEndereco) {
+            const rawNum = (clienteRec.getString('numero') || '').trim()
+            const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
             clienteEndereco = [
               clienteRec.getString('endereco'),
-              clienteRec.getString('numero'),
+              numFmt,
               clienteRec.getString('bairro'),
               clienteRec.getString('cidade'),
             ]

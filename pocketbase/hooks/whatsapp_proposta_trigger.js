@@ -82,10 +82,12 @@ onRecordAfterUpdateSuccess((e) => {
       }
       const valorFormatado = 'R$ ' + formatDinheiroBR(valorInvestimento)
 
+      const rawNum = (clienteRec.getString('numero') || '').trim()
+      const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
       const enderecoCliente =
         [
           clienteRec.getString('endereco'),
-          clienteRec.getString('numero'),
+          numFmt,
           clienteRec.getString('bairro'),
           clienteRec.getString('cidade'),
         ]

@@ -309,11 +309,9 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
       const nomeEfetivo = cliente.razao_social || cliente.nome || cliente.titular_nome || ''
       const docEfetivo = cliente.cnpj || cliente.cpf || cliente.titular_cpf || ''
 
-      const enderecoPartes = [
-        cliente.endereco,
-        cliente.numero && cliente.numero !== 'S/N' ? `nº ${cliente.numero}` : cliente.numero,
-        cliente.bairro,
-      ].filter(Boolean)
+      const rawNum = (cliente.numero || '').trim()
+      const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+      const enderecoPartes = [cliente.endereco, numFmt, cliente.bairro].filter(Boolean)
       const enderecoEfetivo =
         enderecoPartes.length > 0 ? enderecoPartes.join(', ') : cliente.endereco || ''
 

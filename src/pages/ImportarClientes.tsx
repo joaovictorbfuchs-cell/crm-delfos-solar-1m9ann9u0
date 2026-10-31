@@ -296,6 +296,7 @@ export default function ImportarClientes() {
           cidade: normalizado.cidade,
           estado: normalizado.estado,
           endereco: normalizado.endereco,
+          numero: normalizado.numero,
           // Requisito: "Nestes casos, o status deve ser automaticamente 'Cliente' (já fechou negócio)"
           statusSugerido: 'Fechado',
           tipo_pessoa: normalizado.tipo_pessoa,
@@ -323,6 +324,7 @@ export default function ImportarClientes() {
         cidade: normalizado.cidade,
         estado: normalizado.estado,
         endereco: normalizado.endereco,
+        numero: normalizado.numero,
         statusSugerido: 'Novo Lead',
         tipo_pessoa: normalizado.tipo_pessoa,
         valor_estimado: normalizado.valor_estimado,
@@ -628,6 +630,7 @@ export default function ImportarClientes() {
               cidade: item.cidade || 'Erechim',
               estado: item.estado || 'RS',
               endereco: item.endereco,
+              numero: item.numero,
               // Status Lead para quem não fechou negócio
               status: 'Novo Lead',
               valor_estimado: item.valor_estimado || 0,
@@ -724,6 +727,7 @@ export default function ImportarClientes() {
             cidade: item.cidade,
             estado: item.estado,
             endereco: item.endereco,
+            numero: item.numero,
             status: item.status,
             valor_estimado: item.valor_estimado,
             potencia_kwp: item.valor_estimado

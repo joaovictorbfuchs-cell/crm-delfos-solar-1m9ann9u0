@@ -68,13 +68,13 @@ routerAdd('GET', '/backend/v1/propostas-om/public/{token}', (e) => {
     cliente: {
       nome: nomeCliente,
       cpfOuCnpj: documentoCliente,
-      endereco: [
-        client.getString('endereco'),
-        client.getString('numero'),
-        client.getString('bairro'),
-      ]
-        .filter(Boolean)
-        .join(', '),
+      endereco: (() => {
+        const rawNum = (client.getString('numero') || '').trim()
+        const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
+        return [client.getString('endereco'), numFmt, client.getString('bairro')]
+          .filter(Boolean)
+          .join(', ')
+      })(),
       municipio: client.getString('cidade') || 'Erechim/RS',
       email: client.getString('email'),
       telefone: client.getString('whatsapp') || client.getString('telefone'),
