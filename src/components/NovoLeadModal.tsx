@@ -26,6 +26,11 @@ import {
   CnpjConflictField,
 } from '@/components/CnpjInputWithLookup'
 import { CnpjDataNormalized } from '@/services/cnpjLookupService'
+import {
+  SecoesCadastroNovoCliente,
+  DadosCadastroNovoCliente,
+  DADOS_NOVO_CLIENTE_INICIAIS,
+} from './SecoesCadastroNovoCliente'
 import { createNegocio } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import {
@@ -89,6 +94,9 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
   const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
   const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
+  const [dadosNovoCliente, setDadosNovoCliente] = useState<DadosCadastroNovoCliente>(
+    DADOS_NOVO_CLIENTE_INICIAIS,
+  )
   const [dadosFaturaArmazenados, setDadosFaturaArmazenados] =
     useState<DadosImportadosContaRGE | null>(null)
 
@@ -156,6 +164,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     setOrigem('Indicação')
     setProduto('Energia Solar')
     setCidade('Erechim/RS')
+    setDadosNovoCliente(DADOS_NOVO_CLIENTE_INICIAIS)
     setErrors({})
     setConflitosCnpj([])
     setPendenteDadosReceita(null)
@@ -307,15 +316,52 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   }
 
   const montarPayloadLead = () => {
-    const consumoNum = consumoKwhMes ? Number(consumoKwhMes) : 0
-    const potenciaEstimada = consumoNum > 0 ? Number((consumoNum / 120).toFixed(1)) : 0
+    // Integra campos preenchidos pelas 3 seções completas de Novo Cliente
+    const nomeFinal = (dadosNovoCliente.nome || nome).trim()
+    const razaoSocialFinal = (dadosNovoCliente.razao_social || razaoSocial || nomeFinal).trim()
+    const nomeFantasiaFinal = (dadosNovoCliente.nome_fantasia || nomeFantasia).trim()
+    const docFinal = (dadosNovoCliente.cnpj_cpf || cnpj).trim()
+    const docLimpo = docFinal.replace(/\D/g, '')
+    const isCnpj = docLimpo.length === 14
+    const isCpf = docLimpo.length === 11
+
+    const telFinal = (
+      dadosNovoCliente.telefone ||
+      telefone ||
+      dadosNovoCliente.whatsapp ||
+      whatsapp
+    ).trim()
+    const whatsFinal = (
+      dadosNovoCliente.whatsapp ||
+      whatsapp ||
+      dadosNovoCliente.telefone ||
+      telefone
+    ).trim()
+    const emailFinal = (dadosNovoCliente.email || email).trim().toLowerCase()
+
+    const enderecoFinal = (dadosNovoCliente.endereco || endereco).trim()
+    const numeroFinal = (dadosNovoCliente.numero || numero).trim()
+    const complementoFinal = (dadosNovoCliente.complemento || complemento).trim()
+    const bairroFinal = (dadosNovoCliente.bairro || bairro).trim()
+    const estadoFinal = (dadosNovoCliente.estado || estado || 'RS').trim().toUpperCase()
+    const cepFinal = (dadosNovoCliente.cep || cep).trim()
+    const cidadeBase = (dadosNovoCliente.cidade || cidade).trim() || 'Erechim'
+    const cidadeComUf =
+      cidadeBase.includes('/') || !estadoFinal ? cidadeBase : `${cidadeBase}/${estadoFinal}`
+
+    const consumoNum = dadosNovoCliente.consumo_kwh_mes
+      ? Number(dadosNovoCliente.consumo_kwh_mes)
+      : consumoKwhMes
+        ? Number(consumoKwhMes)
+        : 0
+    const potenciaEstimada = dadosNovoCliente.potencia_kwp
+      ? Number(dadosNovoCliente.potencia_kwp)
+      : consumoNum > 0
+        ? Number((consumoNum / 120).toFixed(1))
+        : 0
     const valorEstimado = potenciaEstimada > 0 ? Math.round(potenciaEstimada * 3500) : 0
 
-    const telFinal = telefone.trim() || whatsapp.trim()
-    const whatsFinal = whatsapp.trim() || telefone.trim()
-
     // Mapear tipoVenda para um valor válido do enum aceito no campo select `produto` da coleção clientes:
-    // 'Energia Solar' | 'Manutenção avulsa' | 'Plano de O&M' | 'Sistemas Híbridos' | 'Carregadores veiculares' | residencial | comercial | industrial | rural | investidor
     let produtoEnum: ProdutoTipo = 'Energia Solar'
     if (tipoVenda === 'O&M (Operação e Manutenção)') {
       produtoEnum = 'Plano de O&M'
@@ -330,29 +376,36 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     }
 
     const payloadNovoCliente: Record<string, unknown> = {
-      nome: nome.trim(),
-      razao_social: razaoSocial.trim() || undefined,
-      nome_fantasia: nomeFantasia.trim() || undefined,
-      cnpj: cnpj.trim() || undefined,
+      nome: nomeFinal,
+      razao_social: razaoSocialFinal || undefined,
+      nome_fantasia: nomeFantasiaFinal || undefined,
+      cnpj: isCnpj ? docFinal : undefined,
+      cpf: isCpf ? docFinal : undefined,
+      rg: (dadosNovoCliente.rg || '').trim() || undefined,
+      inscricao_estadual:
+        (dadosNovoCliente.inscricao_estadual || dadosNovoCliente.rg_ie || '').trim() || undefined,
       telefone: telFinal,
       whatsapp: whatsFinal,
-      email: email.trim() || undefined,
-      endereco: endereco.trim() || undefined,
-      numero: numero.trim() || undefined,
-      complemento: complemento.trim() || undefined,
-      bairro: bairro.trim() || undefined,
-      estado: estado.trim() || undefined,
-      cep: cep.trim() || undefined,
+      email: emailFinal || undefined,
+      endereco: enderecoFinal || undefined,
+      numero: numeroFinal || undefined,
+      complemento: complementoFinal || undefined,
+      bairro: bairroFinal || undefined,
+      estado: estadoFinal || undefined,
+      cep: cepFinal || undefined,
+      concessionaria: (dadosNovoCliente.concessionaria || 'RGE').trim() || 'RGE',
+      uc: (dadosNovoCliente.uc || '').trim() || undefined,
+      tipo_fornecimento: dadosNovoCliente.tipo_fornecimento || 'trifásico',
       cnae_principal: cnaePrincipal.trim() || undefined,
       situacao_cadastral: situacaoCadastral.trim() || undefined,
       data_nascimento_fundacao: dataAbertura.trim() || undefined,
-      tipo_cliente: cnpj.replace(/\D/g, '').length === 14 ? 'comercial' : 'residencial',
+      tipo_cliente: isCnpj ? 'comercial' : 'residencial',
       consumo_kwh_mes: consumoNum,
       origem_lead: origem,
       produto: produtoEnum,
       tipo_venda: tipoVenda,
       status: 'Novo Lead',
-      cidade: cidade.trim() || 'Erechim/RS',
+      cidade: cidadeComUf,
       potencia_kwp: potenciaEstimada,
       valor_estimado: valorEstimado,
     }
@@ -784,234 +837,46 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
             {/* SEÇÃO 3: CAMPOS DO LEAD OU CLIENTE EXISTENTE (GRID DE 2 COLUNAS NO DESKTOP) */}
             {modoCliente === 'novo' ? (
               <div className="space-y-4">
-                {/* Grid 2 colunas: Identificação e Dados de Contato */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Coluna 1: Dados do Lead / Razão Social com CNPJ */}
-                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-3">
-                    <div className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
-                      Identificação do Lead
-                    </div>
+                <SecoesCadastroNovoCliente
+                  dados={dadosNovoCliente}
+                  onChange={(novos) => {
+                    setDadosNovoCliente(novos)
+                    setNome(novos.nome)
+                    setRazaoSocial(novos.razao_social)
+                    setNomeFantasia(novos.nome_fantasia)
+                    setCnpj(novos.cnpj_cpf)
+                    setTelefone(novos.telefone)
+                    setWhatsapp(novos.whatsapp)
+                    setEmail(novos.email)
+                    setEndereco(novos.endereco)
+                    setNumero(novos.numero)
+                    setComplemento(novos.complemento)
+                    setBairro(novos.bairro)
+                    setCidade(novos.cidade)
+                    setEstado(novos.estado)
+                    setCep(novos.cep)
+                    if (novos.consumo_kwh_mes) setConsumoKwhMes(novos.consumo_kwh_mes)
+                  }}
+                  disabled={isSubmitting}
+                />
 
-                    {/* Campo CNPJ dentro do quadro Identificação do Lead */}
-                    <div className="space-y-2">
-                      <TooltipProvider delayDuration={150}>
-                        <CnpjInputWithLookup
-                          value={cnpj}
-                          onChange={(val) => {
-                            setCnpj(val)
-                            if (conflitosCnpj.length > 0) setConflitosCnpj([])
-                          }}
-                          onBlur={handleCnpjBlur}
-                          onLookupClick={() =>
-                            lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
-                          }
-                          status={cnpjStatus}
-                          errorMessage={cnpjErrorMessage}
-                          isLoading={isCnpjLoading}
-                          label="CNPJ"
-                          hideDefaultAction
-                          customEndAdornment={
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    lookupCnpj(cnpj, true).then(
-                                      (r) => r && aplicarDadosReceita(r, true),
-                                    )
-                                  }
-                                  disabled={isCnpjLoading}
-                                  aria-label="Carregar dados da Receita Federal"
-                                  className="p-1 rounded text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                  {isCnpjLoading ? (
-                                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                                  ) : (
-                                    <Landmark className="w-4 h-4 text-emerald-700" />
-                                  )}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="text-xs font-medium z-50">
-                                Carregar dados da Receita Federal
-                              </TooltipContent>
-                            </Tooltip>
-                          }
-                        />
-                      </TooltipProvider>
-
-                      <CnpjConflictBanner
-                        conflitos={conflitosCnpj}
-                        onManterMeusDados={() => {
-                          setConflitosCnpj([])
-                          setPendenteDadosReceita(null)
-                        }}
-                        onUsarDadosReceita={() => {
-                          if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
-                        }}
-                      />
-
-                      {situacaoCadastral && (
-                        <div className="flex items-center gap-2 pt-0.5 text-xs text-gray-600 flex-wrap">
-                          <span className="font-semibold text-gray-700">Situação:</span>
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                            {situacaoCadastral}
-                          </span>
-                          {cnaePrincipal && (
-                            <span
-                              className="text-[11px] text-gray-500 truncate"
-                              title={cnaePrincipal}
-                            >
-                              • CNAE: {cnaePrincipal}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
-                        Nome do Lead / Razão Social <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: João da Silva ou Fazenda Esperança"
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                        className={`w-full px-3.5 py-2 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                          errors.nome ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                        }`}
-                      />
-                      {errors.nome && (
-                        <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                          {errors.nome}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
-                        Cidade / Região
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Erechim/RS, Passo Fundo/RS, Chapecó/SC"
-                        value={cidade}
-                        onChange={(e) => setCidade(e.target.value)}
-                        className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Coluna 2: Contato e Comunicação */}
-                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-3">
-                    <div className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
-                      Contato e WhatsApp
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
-                          WhatsApp{' '}
-                          <span className="text-emerald-600 font-bold">(XX) XXXXX-XXXX</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="(54) 99876-5432"
-                          value={whatsapp}
-                          onChange={(e) => {
-                            const formatted = formatWhatsAppPhone(e.target.value)
-                            setWhatsapp(formatted)
-                            if (!telefone) setTelefone(formatted)
-                          }}
-                          className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
-                          Telefone <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="(54) 3522-1234"
-                          value={telefone}
-                          onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
-                          className={`w-full px-3.5 py-2 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                            errors.telefone ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                          }`}
-                        />
-                        {errors.telefone && (
-                          <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5" />
-                            {errors.telefone}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">
-                        E-mail de Contato (Opcional)
-                      </label>
-                      <input
-                        type="email"
-                        placeholder="contato@empresa.com.br"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grid 2 colunas: Detalhes da Oportunidade e Origem */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Consumo */}
-                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
-                      Consumo (kWh/mês)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="Ex: 850"
-                      value={consumoKwhMes}
-                      onChange={(e) => setConsumoKwhMes(e.target.value)}
-                      className={`w-full px-3.5 py-2 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                        errors.consumo ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                      }`}
-                    />
-                    <p className="text-[11px] text-gray-400">
-                      Calcula potência e valor estimado automaticamente.
-                    </p>
-                    {errors.consumo && (
-                      <p className="text-xs text-red-500 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        {errors.consumo}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Origem do Lead */}
-                  <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
-                      Origem do Lead <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={origem}
-                      onChange={(e) => setOrigem(e.target.value as OrigemLeadTipo)}
-                      className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                    >
-                      {ORIGENS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[11px] text-gray-400">Canal de captação comercial.</p>
-                  </div>
+                {/* Origem do Lead */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200/80 space-y-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    Origem do Lead <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={origem}
+                    onChange={(e) => setOrigem(e.target.value as OrigemLeadTipo)}
+                    className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                  >
+                    {ORIGENS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-gray-400">Canal de captação comercial.</p>
                 </div>
               </div>
             ) : (

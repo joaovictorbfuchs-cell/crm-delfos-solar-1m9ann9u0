@@ -29,6 +29,11 @@ import { createNegocio } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { TipoNegocioSelect, EtapaFunilSelect, NegocioStatus, Cliente } from '@/types/crm'
 import { TIPOS_NEGOCIO_OPCOES, getTipoNegocioConfig } from '@/constants/tipoNegocio'
+import {
+  SecoesCadastroNovoCliente,
+  DadosCadastroNovoCliente,
+  DADOS_NOVO_CLIENTE_INICIAIS,
+} from './SecoesCadastroNovoCliente'
 import { toast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 
@@ -73,11 +78,14 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
   const [clienteId, setClienteId] = useState<string>('')
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
 
-  // Novo cliente rápido
+  // Novo cliente rápido / completo
+  const [dadosNovoCliente, setDadosNovoCliente] = useState<DadosCadastroNovoCliente>(
+    DADOS_NOVO_CLIENTE_INICIAIS,
+  )
   const [novoNome, setNovoNome] = useState('')
   const [novoTelefone, setNovoTelefone] = useState('')
   const [novoWhatsapp, setNovoWhatsapp] = useState('')
-  const [novaCidade, setNovaCidade] = useState('Erechim/RS')
+  const [novaCidade, setNovaCidade] = useState('Erechim')
   const [novoCnpjCpf, setNovoCnpjCpf] = useState('')
 
   // Dados do Negócio
@@ -193,10 +201,11 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
     setModoCliente('existente')
     setClienteId('')
     setClienteSelecionado(null)
+    setDadosNovoCliente(DADOS_NOVO_CLIENTE_INICIAIS)
     setNovoNome('')
     setNovoTelefone('')
     setNovoWhatsapp('')
-    setNovaCidade('Erechim/RS')
+    setNovaCidade('Erechim')
     setNovoCnpjCpf('')
     setTitulo('')
     setTipoNegocio('venda usina')
@@ -225,12 +234,17 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
 
     // Se estiver no modo novo cliente, valida e cria o cliente primeiro
     if (modoCliente === 'novo') {
-      const nomeLimpo = novoNome.trim()
+      const nomeLimpo = (dadosNovoCliente.nome || novoNome).trim()
       if (!nomeLimpo) {
-        setErroValidacao('Informe o nome do novo cliente.')
+        setErroValidacao('Informe a razão social ou nome completo do novo cliente.')
         return
       }
-      const telFinal = novoTelefone.trim() || novoWhatsapp.trim()
+      const telFinal = (
+        dadosNovoCliente.telefone ||
+        novoTelefone ||
+        dadosNovoCliente.whatsapp ||
+        novoWhatsapp
+      ).trim()
       if (!telFinal) {
         setErroValidacao('Informe ao menos um telefone ou WhatsApp para o novo cliente.')
         return
@@ -238,21 +252,66 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
 
       setIsSubmitting(true)
       try {
-        const docLimpo = novoCnpjCpf.replace(/\D/g, '')
+        const rawCnpjCpf = (dadosNovoCliente.cnpj_cpf || novoCnpjCpf).trim()
+        const docLimpo = rawCnpjCpf.replace(/\D/g, '')
         const isCnpj = docLimpo.length === 14
+        const isCpf = docLimpo.length === 11
         const tipoVendaConfig = getTipoNegocioConfig(tipoNegocio)
 
-        const novoCliente = await addCliente({
+        const consumoNum = dadosNovoCliente.consumo_kwh_mes
+          ? Number(dadosNovoCliente.consumo_kwh_mes)
+          : undefined
+        const potenciaNum = dadosNovoCliente.potencia_kwp
+          ? Number(dadosNovoCliente.potencia_kwp)
+          : consumoNum && consumoNum > 0
+            ? Number((consumoNum / 120).toFixed(2))
+            : undefined
+
+        const cidadeFinal = (dadosNovoCliente.cidade || novaCidade).trim() || 'Erechim'
+        const estadoFinal = (dadosNovoCliente.estado || 'RS').trim().toUpperCase()
+        const cidadeComUf =
+          cidadeFinal.includes('/') || !estadoFinal ? cidadeFinal : `${cidadeFinal}/${estadoFinal}`
+
+        const whatsFinal = (
+          dadosNovoCliente.whatsapp ||
+          novoWhatsapp ||
+          dadosNovoCliente.telefone ||
+          novoTelefone
+        ).trim()
+
+        const payloadCliente: Record<string, unknown> = {
           nome: removerPrefixoMensagemManual(nomeLimpo),
-          telefone: novoTelefone.trim() || novoWhatsapp.trim(),
-          whatsapp: novoWhatsapp.trim() || novoTelefone.trim(),
-          cidade: novaCidade.trim() || 'Erechim/RS',
-          cnpj: isCnpj ? novoCnpjCpf.trim() : undefined,
-          cpf: !isCnpj && docLimpo.length === 11 ? novoCnpjCpf.trim() : undefined,
+          razao_social: dadosNovoCliente.razao_social.trim() || nomeLimpo,
+          nome_fantasia: dadosNovoCliente.nome_fantasia.trim() || undefined,
+          telefone: telFinal,
+          whatsapp: whatsFinal,
+          email: dadosNovoCliente.email.trim().toLowerCase() || undefined,
+          cnpj: isCnpj ? rawCnpjCpf : undefined,
+          cpf: isCpf ? rawCnpjCpf : undefined,
+          rg: dadosNovoCliente.rg.trim() || undefined,
+          inscricao_estadual:
+            dadosNovoCliente.inscricao_estadual.trim() ||
+            dadosNovoCliente.rg_ie.trim() ||
+            undefined,
+          endereco: dadosNovoCliente.endereco.trim() || undefined,
+          numero: dadosNovoCliente.numero.trim() || undefined,
+          complemento: dadosNovoCliente.complemento.trim() || undefined,
+          bairro: dadosNovoCliente.bairro.trim() || undefined,
+          cidade: cidadeComUf,
+          estado: estadoFinal || undefined,
+          cep: dadosNovoCliente.cep.trim() || undefined,
+          concessionaria: dadosNovoCliente.concessionaria.trim() || 'RGE',
+          uc: dadosNovoCliente.uc.trim() || undefined,
+          consumo_kwh_mes: consumoNum,
+          tipo_fornecimento: dadosNovoCliente.tipo_fornecimento || 'trifásico',
+          potencia_kwp: potenciaNum,
+          tipo_cliente: isCnpj ? 'comercial' : 'residencial',
           tipo_venda: tipoVendaConfig?.tipoVenda || 'Energia Solar',
           status: 'Novo Lead',
           valor_estimado: valorEstimado ? Number(valorEstimado) : 0,
-        })
+        }
+
+        const novoCliente = await addCliente(payloadCliente as any)
         finalClienteId = novoCliente.id
       } catch (err: unknown) {
         console.error('Erro ao cadastrar novo cliente para o negócio:', err)
@@ -469,77 +528,22 @@ export const ModalNovoNegocioFunil: React.FC<ModalNovoNegocioFunilProps> = ({
                 )}
               </div>
             ) : (
-              <div className="space-y-2.5 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700">
-                      Nome do Novo Cliente *
-                    </Label>
-                    <Input
-                      type="text"
-                      value={novoNome}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setNovoNome(val)
-                        if (!titulo || titulo.startsWith('Negócio - ')) {
-                          setTitulo(val ? `Negócio - ${val}` : '')
-                        }
-                      }}
-                      placeholder="Ex: Carlos Eduardo Silveira"
-                      className="text-xs h-9 bg-white"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700">
-                      Telefone / Celular *
-                    </Label>
-                    <Input
-                      type="text"
-                      value={novoTelefone}
-                      onChange={(e) => setNovoTelefone(e.target.value)}
-                      placeholder="(54) 99999-0000"
-                      className="text-xs h-9 bg-white"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700">
-                      WhatsApp (opcional)
-                    </Label>
-                    <Input
-                      type="text"
-                      value={novoWhatsapp}
-                      onChange={(e) => setNovoWhatsapp(e.target.value)}
-                      placeholder="(54) 99999-0000"
-                      className="text-xs h-9 bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700">Cidade / UF</Label>
-                    <Input
-                      type="text"
-                      value={novaCidade}
-                      onChange={(e) => setNovaCidade(e.target.value)}
-                      placeholder="Erechim/RS"
-                      className="text-xs h-9 bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700">CPF ou CNPJ</Label>
-                    <Input
-                      type="text"
-                      value={novoCnpjCpf}
-                      onChange={(e) => setNovoCnpjCpf(e.target.value)}
-                      placeholder="000.000.000-00"
-                      className="text-xs h-9 bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
+              <SecoesCadastroNovoCliente
+                dados={dadosNovoCliente}
+                onChange={(novos) => {
+                  setDadosNovoCliente(novos)
+                  setNovoNome(novos.nome)
+                  setNovoTelefone(novos.telefone)
+                  setNovoWhatsapp(novos.whatsapp)
+                  setNovaCidade(novos.cidade)
+                  setNovoCnpjCpf(novos.cnpj_cpf)
+                  if (!titulo || titulo.startsWith('Negócio - ')) {
+                    const nomeFinal = novos.nome.trim()
+                    setTitulo(nomeFinal ? `Negócio - ${nomeFinal}` : '')
+                  }
+                }}
+                disabled={isSubmitting}
+              />
             )}
           </div>
 
