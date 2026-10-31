@@ -1,6 +1,7 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { isChunkLoadError, reloadPageForChunkUpdate } from '@/lib/lazyWithRetry'
+import pb from '@/lib/pocketbase/client'
 
 export interface ErrorBoundaryProps {
   children: ReactNode
@@ -56,6 +57,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             time: new Date().toISOString(),
           }),
         )
+      }
+
+      // Envio fire-and-forget de telemetria de erro para o backend
+      try {
+        pb.collection('logs_erro_frontend')
+          .create({
+            message: error?.message || '',
+            stack: error?.stack || '',
+            component_stack: errorInfo?.componentStack || '',
+            rota: typeof window !== 'undefined' ? window.location?.pathname || '' : '',
+            user_agent: typeof navigator !== 'undefined' ? navigator?.userAgent || '' : '',
+          })
+          .catch(() => {})
+      } catch {
+        // Ignora qualquer erro no disparo
       }
     } catch {
       // Ignora erro de logging

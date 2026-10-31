@@ -1,6 +1,7 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react'
 import { DelfosLogo } from '@/components/DelfosLogo'
 import { isChunkLoadError, reloadPageForChunkUpdate } from '@/lib/lazyWithRetry'
+import pb from '@/lib/pocketbase/client'
 
 interface Props {
   children: ReactNode
@@ -29,6 +30,38 @@ export class RootErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('[RootErrorBoundary] Erro crítico na raiz capturado:', error, errorInfo)
+
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem(
+          'delfos_last_boundary_error',
+          JSON.stringify({
+            message: error?.message,
+            stack: error?.stack,
+            componentStack: errorInfo?.componentStack,
+            time: new Date().toISOString(),
+          }),
+        )
+      }
+
+      // Envio fire-and-forget de telemetria de erro para o backend
+      try {
+        pb.collection('logs_erro_frontend')
+          .create({
+            message: error?.message || '',
+            stack: error?.stack || '',
+            component_stack: errorInfo?.componentStack || '',
+            rota: typeof window !== 'undefined' ? window.location?.pathname || '' : '',
+            user_agent: typeof navigator !== 'undefined' ? navigator?.userAgent || '' : '',
+          })
+          .catch(() => {})
+      } catch {
+        // Ignora qualquer erro no disparo
+      }
+    } catch {
+      // Ignora erro de logging
+    }
+
     if (isChunkLoadError(error)) {
       console.warn(
         '[RootErrorBoundary] ChunkLoadError capturado na raiz. Tentando recarga automática...',
