@@ -1081,6 +1081,8 @@ export interface Atividade extends RecordModel {
   status?: AtividadeStatus
   responsavel_id?: string
   responsavel_nome?: string
+  tecnicos_ids?: string[]
+  tecnicos_nomes?: string[]
   valor_servico?: number
   valor_por_placa?: number
   qtd_modulos?: number
@@ -1466,6 +1468,8 @@ export interface OrdemServico extends RecordModel {
   atribuida_a?: string
   responsavel_usuario_id?: string
   profissional_id?: string
+  tecnicos_ids?: string[]
+  tecnicos_nomes?: string[]
   instrucoes?: string
   checklist?: OSChecklistItem[]
   detalhes_execucao?: string

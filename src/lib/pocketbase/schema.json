@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T17:03:58.542Z",
+  "generatedAt": "2026-11-01T21:51:05.175Z",
   "collections": [
     {
       "name": "users",
@@ -1301,6 +1301,18 @@
         {
           "name": "avaliacao_google_link",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tecnicos_ids",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tecnicos_nomes",
+          "type": "json",
           "required": false,
           "system": false
         }
