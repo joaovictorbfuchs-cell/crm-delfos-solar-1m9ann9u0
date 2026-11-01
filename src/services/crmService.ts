@@ -254,7 +254,7 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
 }
 
 export const ATIVIDADES_LISTAGEM_FIELDS =
-  'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,autor,data,status,responsavel_id,responsavel_nome,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
+  'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,autor,data,status,responsavel_id,responsavel_nome,tecnicos_ids,tecnicos_nomes,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
 
 // Cache de promessa em voo para deduplicar chamadas concorrentes idênticas a fetchAtividades
 const _inFlightFetchAtividades = new Map<string, Promise<Atividade[]>>()
@@ -408,6 +408,8 @@ export async function createAtividade(data: {
   status?: AtividadeStatus
   responsavel_id?: string
   responsavel_nome?: string
+  tecnicos_ids?: string[]
+  tecnicos_nomes?: string[]
   valor_servico?: number
   valor_por_placa?: number
   qtd_modulos?: number
