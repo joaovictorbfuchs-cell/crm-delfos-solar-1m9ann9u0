@@ -1168,7 +1168,12 @@ function CalendarioExecucaoOSContent({
         tipo_servico: tipoServicoCanonico,
         checklist: checklistCanonico,
       }
-      if (os.origem === 'atividades') {
+      const isAtividadeItem =
+        os.origem === 'atividades' ||
+        os.collectionId === 'atividades' ||
+        (os as any)?.collectionName === 'atividades' ||
+        Boolean((os as any)?.tipo && os.origem !== 'ordens_servico')
+      if (isAtividadeItem) {
         payload.origem = 'atividades'
       }
 
@@ -1333,7 +1338,12 @@ function CalendarioExecucaoOSContent({
           tipo_servico: tipoServicoCanonico,
           checklist: checklistCanonico,
         }
-        if (os.origem === 'atividades') {
+        const isAtividadeItem =
+          os.origem === 'atividades' ||
+          os.collectionId === 'atividades' ||
+          (os as any)?.collectionName === 'atividades' ||
+          Boolean((os as any)?.tipo && os.origem !== 'ordens_servico')
+        if (isAtividadeItem) {
           payload.origem = 'atividades'
         }
 

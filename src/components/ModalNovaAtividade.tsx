@@ -852,6 +852,22 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         atividadePrincipalPayload.mensagem_cliente = mensagemClienteAutoLeitura.trim()
       }
 
+      // Garantir que campos de lista json sejam arrays válidos
+      if (atividadePrincipalPayload.tecnicos_ids !== undefined) {
+        atividadePrincipalPayload.tecnicos_ids = Array.isArray(
+          atividadePrincipalPayload.tecnicos_ids,
+        )
+          ? atividadePrincipalPayload.tecnicos_ids
+          : []
+      }
+      if (atividadePrincipalPayload.tecnicos_nomes !== undefined) {
+        atividadePrincipalPayload.tecnicos_nomes = Array.isArray(
+          atividadePrincipalPayload.tecnicos_nomes,
+        )
+          ? atividadePrincipalPayload.tecnicos_nomes
+          : []
+      }
+
       // Salva a atividade principal (mãe)
       const maeCriada = await addAtividade(atividadePrincipalPayload)
 
@@ -897,8 +913,22 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       // Fecha o modal imediatamente para o usuário não ficar preso esperando
       onClose()
     } catch (err: unknown) {
-      console.error('Falha ao agendar atividade:', err)
-      setFormError('Erro ao agendar atividade. Tente novamente.')
+      const pbErr = err as any
+      console.error('Falha ao agendar atividade (detalhes da validação):', {
+        status: pbErr?.status,
+        message: pbErr?.message,
+        data: pbErr?.data,
+        response: pbErr?.response,
+      })
+      const detalhesCampos = pbErr?.data?.data
+        ? Object.entries(pbErr.data.data)
+            .map(([campo, erroObj]: [string, any]) => `${campo}: ${erroObj?.message || 'inválido'}`)
+            .join(' | ')
+        : ''
+      const msgErro = detalhesCampos
+        ? `Erro de validação no formulário: ${detalhesCampos}`
+        : pbErr?.message || 'Erro ao agendar atividade. Tente novamente.'
+      setFormError(msgErro)
     } finally {
       setIsSubmitting(false)
     }

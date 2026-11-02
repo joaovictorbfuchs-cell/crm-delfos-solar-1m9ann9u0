@@ -253,6 +253,28 @@ export function getDefaultChecklist(tipo: OSTipoServico): OSChecklistItem[] {
   }
 }
 
+/**
+ * Helper local que resolve se um item pertence à coleção 'atividades' ou 'ordens_servico'.
+ * Retorna 'atividades' quando collectionName, collectionId ou origem indicarem atividades
+ * OU quando o registro vier do fluxo de atividades (ex: propriedade `tipo` presente).
+ */
+export function resolverColecaoItem(
+  item?: Partial<OrdemServico> | null,
+): 'atividades' | 'ordens_servico' {
+  if (!item) return 'ordens_servico'
+  const cName = (item as any)?.collectionName
+  const cId = (item as any)?.collectionId
+  const orig = (item as any)?.origem
+  if (cName === 'atividades' || cId === 'atividades' || orig === 'atividades') {
+    return 'atividades'
+  }
+  // Se tem a propriedade canônica de atividade ('tipo') e não foi explicitamente setado como ordens_servico
+  if ((item as any)?.tipo && orig !== 'ordens_servico') {
+    return 'atividades'
+  }
+  return 'ordens_servico'
+}
+
 export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   os,
   templates,
@@ -637,7 +659,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     if (!os?.id) return
     setIsExcluindoOS(true)
     try {
-      if (os.origem === 'atividades') {
+      const colecaoAlvo = resolverColecaoItem(os)
+      if (colecaoAlvo === 'atividades') {
         const { deleteAtividade } = await import('@/services/crmService')
         await deleteAtividade(os.id)
       } else {
@@ -874,7 +897,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const payloadReabertura: Partial<OrdemServico> = {
         status: 'pendente',
         concluida_em: null as unknown as string,
-        origem: os.origem || undefined,
+        origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
       }
       if (checklistPreservado && checklistPreservado.length > 0) {
         payloadReabertura.checklist = checklistPreservado
@@ -1053,6 +1076,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       const updated = await updateOrdemServico(os.id, {
         detalhes_execucao: novosDetalhes,
         checklist: updatedChecklist,
+        origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
       })
 
       setDetalhesExecucao(novosDetalhes)
@@ -1089,11 +1113,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     setChecklistSaveStatus('saving')
 
     try {
-      const colecao =
-        os.collectionName ||
-        (os.collectionId === 'atividades' || os.origem === 'atividades'
-          ? 'atividades'
-          : 'ordens_servico')
+      const colecao = resolverColecaoItem(os)
 
       await pb.collection(colecao).update(os.id, {
         checklist: checklistParaSalvar,
@@ -1164,11 +1184,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
 
     try {
-      const colecao =
-        os.collectionName ||
-        (os.collectionId === 'atividades' || os.origem === 'atividades'
-          ? 'atividades'
-          : 'ordens_servico')
+      const colecao = resolverColecaoItem(os)
 
       // Criar metadados preliminares para as novas fotos
       const novosItensMetadados: FotoMetadadoItem[] = listaArquivos.map((file, idx) => ({
@@ -1358,11 +1374,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     // Persiste alteração de vínculo direto no banco PocketBase
     if (os?.id) {
       try {
-        const colecao =
-          os.collectionName ||
-          (os.collectionId === 'atividades' || os.origem === 'atividades'
-            ? 'atividades'
-            : 'ordens_servico')
+        const colecao = resolverColecaoItem(os)
         await pb.collection(colecao).update(os.id, {
           fotos_metadados: novosMetadados,
         })
@@ -1436,11 +1448,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     const nomeDoArquivo = fotoParaRemover
     setIsRemovendoFotoSalva(true)
     try {
-      const colecao =
-        os.collectionName ||
-        (os.collectionId === 'atividades' || os.origem === 'atividades'
-          ? 'atividades'
-          : 'ordens_servico')
+      const colecao = resolverColecaoItem(os)
 
       const isFotoMedidor = (os as any)?.foto_medidor === nomeDoArquivo
 
@@ -1524,6 +1532,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
         avaliacao_google_link: avaliacaoGoogleLink.trim(),
         fotos_metadados: metadadosConsolidados,
+        origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
       }
       if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
         payload.responsavel_usuario_id = responsavelId
@@ -2068,7 +2077,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         cliente_id: os.cliente_id,
         tipo_servico: os.tipo_servico,
         tecnico_nome: os.atribuida_a,
-        origem: os.origem,
+        origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
       })
 
       // Se marcou "Salvar como padrão", grava no banco e no cache
@@ -3032,13 +3041,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             {/* Fotos já persistidas no PocketBase */}
             {fotosSalvas.map((fotoNome, idx) => {
               // Garante que o objeto passado para pb.files.getURL contenha collectionId ou collectionName resolvido
+              const colecaoFoto = resolverColecaoItem(os)
               const recordRef = {
                 ...os,
-                collectionId:
-                  os.collectionId || (os.origem === 'atividades' ? 'atividades' : 'ordens_servico'),
-                collectionName:
-                  os.collectionName ||
-                  (os.origem === 'atividades' ? 'atividades' : 'ordens_servico'),
+                collectionId: os.collectionId || colecaoFoto,
+                collectionName: os.collectionName || colecaoFoto,
               }
               const fileUrl = pb.files.getURL(recordRef, fotoNome)
 

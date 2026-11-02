@@ -62,16 +62,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Envio fire-and-forget de telemetria de erro para o backend
       try {
         pb.collection('logs_erro_frontend')
-          .create({
-            message: error?.message || '',
-            stack: error?.stack || '',
-            component_stack: errorInfo?.componentStack || '',
-            rota: typeof window !== 'undefined' ? window.location?.pathname || '' : '',
-            user_agent: typeof navigator !== 'undefined' ? navigator?.userAgent || '' : '',
+          .create(
+            {
+              message: String(error?.message || '').slice(0, 5000),
+              stack: String(error?.stack || '').slice(0, 10000),
+              component_stack: String(errorInfo?.componentStack || '').slice(0, 10000),
+              rota: typeof window !== 'undefined' ? window.location?.pathname || '' : '',
+              user_agent: typeof navigator !== 'undefined' ? navigator?.userAgent || '' : '',
+              versao_app: '1.0.0',
+            },
+            { requestKey: null },
+          )
+          .catch((pbErr) => {
+            console.warn('[ErrorBoundary] Falha ao registrar log em logs_erro_frontend:', pbErr)
           })
-          .catch(() => {})
-      } catch {
-        // Ignora qualquer erro no disparo
+      } catch (logErr) {
+        console.warn('[ErrorBoundary] Exceção ao invocar gravação de log:', logErr)
       }
     } catch {
       // Ignora erro de logging

@@ -501,10 +501,21 @@ export async function createAtividade(data: {
     )
   }
 
-  const record = await pb.collection('atividades').create<Atividade>(payload as any, {
-    expand: 'cliente_id,usina_id,responsavel_id',
-  })
-  return record
+  try {
+    const record = await pb.collection('atividades').create<Atividade>(payload as any, {
+      expand: 'cliente_id,usina_id,responsavel_id',
+    })
+    return record
+  } catch (err: any) {
+    console.error('Erro detalhado ao criar atividade no PocketBase:', {
+      status: err?.status,
+      message: err?.message,
+      data: err?.data,
+      response: err?.response,
+      payloadEnviado: payload,
+    })
+    throw err
+  }
 }
 
 export async function updateAtividade(id: string, data: Partial<Atividade>): Promise<Atividade> {
@@ -4548,6 +4559,17 @@ export async function updateOrdemServico(
     return await updateAtividadeComoOrdemServico(id, data, newPhotos, relatorioPdfFile)
   }
 
+  // ANTES do PATCH cego em ordens_servico: verificar se o registro existe em ordens_servico
+  // Se não existir lá (catch -> null), rotear direto para atividades evitando o 404 que derruba a rota
+  const osExistente = await pb
+    .collection('ordens_servico')
+    .getOne(id)
+    .catch(() => null)
+
+  if (!osExistente) {
+    return await updateAtividadeComoOrdemServico(id, data, newPhotos, relatorioPdfFile)
+  }
+
   const hasFiles = (newPhotos && newPhotos.length > 0) || Boolean(relatorioPdfFile)
 
   try {
@@ -4619,6 +4641,16 @@ export async function salvarRelatorioPdfOrdemServico(
   id: string,
   pdfFile: File,
 ): Promise<import('@/types/crm').OrdemServico> {
+  // ANTES do PATCH em ordens_servico: verificar se existe lá
+  const osExistente = await pb
+    .collection('ordens_servico')
+    .getOne(id)
+    .catch(() => null)
+
+  if (!osExistente) {
+    return await updateAtividadeComoOrdemServico(id, {}, undefined, pdfFile)
+  }
+
   try {
     const formData = new FormData()
     formData.append('relatorio_pdf', pdfFile)
