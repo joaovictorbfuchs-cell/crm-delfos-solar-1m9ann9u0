@@ -24,6 +24,7 @@ import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { somarMinutos, minutesToTimeString, timeStringToMinutes } from '@/lib/horarios'
 import { useToast } from '@/hooks/use-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { calcularLayoutCamadas } from '@/lib/calendarioLayoutCamadas'
 
 interface CalendarioExecucaoOSProps {
   ordens: OrdemServico[]
@@ -1581,76 +1582,18 @@ function CalendarioExecucaoOSContent({
   }, [])
 
   /**
-   * Calcula o layout de colunas lado a lado estilo Google Calendar para eventos sobrepostos.
-   * Algoritmo guloso com reuso de coluna:
-   * - Varre eventos já ordenados por top.
-   * - Mantém o cluster atual (eventos concorrentes) e as colunas dele (maior "end" em cada coluna).
-   * - Se o evento atual inicia após ou no fim do cluster (start >= maxEnd do cluster):
-   *     fecha o cluster anterior e calcula leftPct / widthPct para todos os eventos dele.
-   * - Senão:
-   *     aloca o evento na PRIMEIRA coluna cujo último end <= start (reuso de coluna);
-   *     se nenhuma coluna estiver livre, abre uma coluna nova.
-   * - Atualiza o maxEnd do cluster.
-   * - Ao final da lista, fecha o último cluster.
+   * Calcula o layout de sobreposição em camadas estilo Google Calendar.
+   * - O evento que começa antes é a base com largura cheia (left: 0, width: 100%).
+   * - Cada sobreposto entra por cima (zIndex maior), mais estreito e recuado à direita (left = N * 8%),
+   *   mantendo a base visível nas laterais.
+   * - Eventos com o MESMO horário de início dividem a largura da camada lado a lado em colunas.
+   * - Tocar no fim NÃO é sobreposição (08:00–12:00 e 12:00–13:00 não se sobrepõem).
+   * - Delegado à função pura e testada calcularLayoutCamadas.
    */
   const calcularLayoutColunas = (
-    itens: { top: number; height: number }[],
-  ): Map<any, { leftPct: number; widthPct: number }> => {
-    const layoutMap = new Map<any, { leftPct: number; widthPct: number }>()
-    if (!itens || itens.length === 0) return layoutMap
-
-    type EventoInfo = { item: any; start: number; end: number; colIndex: number }
-    let clusterEventos: EventoInfo[] = []
-    let clusterFim = -1
-    let colunasFim: number[] = []
-
-    const fecharCluster = () => {
-      if (clusterEventos.length === 0) return
-      const totalColunas = Math.max(1, colunasFim.length)
-      const widthPct = 100 / totalColunas
-      for (const ev of clusterEventos) {
-        const leftPct = (ev.colIndex / totalColunas) * 100
-        layoutMap.set(ev.item, { leftPct, widthPct })
-      }
-      clusterEventos = []
-      clusterFim = -1
-      colunasFim = []
-    }
-
-    for (const item of itens) {
-      const start = Number(item.top) || 0
-      const height = Number(item.height) || 0
-      const end = start + height
-
-      // Se inicia no fim ou depois do cluster atual, o cluster fechou
-      if (clusterEventos.length > 0 && start >= clusterFim) {
-        fecharCluster()
-      }
-
-      // Procura primeira coluna cujo último fim seja <= start (reuso de coluna)
-      let colIndex = -1
-      for (let c = 0; c < colunasFim.length; c++) {
-        if (colunasFim[c] <= start) {
-          colIndex = c
-          colunasFim[c] = end
-          break
-        }
-      }
-
-      // Se nenhuma coluna estava livre, abre uma nova coluna
-      if (colIndex === -1) {
-        colIndex = colunasFim.length
-        colunasFim.push(end)
-      }
-
-      clusterEventos.push({ item, start, end, colIndex })
-      clusterFim = Math.max(clusterFim, end)
-    }
-
-    // Fecha o último cluster pendente
-    fecharCluster()
-
-    return layoutMap
+    itens: Array<{ top: number; height: number; duracaoMinutos?: number }>,
+  ): Map<any, { leftPct: number; widthPct: number; zIndex?: number }> => {
+    return calcularLayoutCamadas(itens, { incrementoPct: 8, minWidthPct: 35, zIndexBase: 10 })
   }
 
   // Agrupar ordens por chave de data (YYYY-MM-DD)
@@ -2675,6 +2618,12 @@ function CalendarioExecucaoOSContent({
                           const layout = layoutSobrepostos.get(item)
                           const leftPct = layout != null ? layout.leftPct : 0
                           const widthPct = layout != null ? layout.widthPct : 100
+                          const cardZIndex =
+                            isDragging || isBeingResized
+                              ? 30
+                              : layout != null && typeof layout.zIndex === 'number'
+                                ? layout.zIndex
+                                : 10
 
                           return (
                             <div
@@ -2705,7 +2654,7 @@ function CalendarioExecucaoOSContent({
                                     ? undefined
                                     : tipoConfig.hex,
                                 backgroundColor: isConcluida ? '#F9FAFB' : tipoConfig.pillBg,
-                                zIndex: isDragging || isBeingResized ? 30 : 10,
+                                zIndex: cardZIndex,
                               }}
                               title={cardTooltip}
                             >
