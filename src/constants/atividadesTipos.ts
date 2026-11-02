@@ -458,7 +458,8 @@ export const ALIASES_TIPOS_CANONICOS: Record<string, string[]> = {
   ],
   manutencao_preventiva: ['manutencao preventiva', 'revisao preventiva', 'inspecao preventiva'],
   manutencao_corretiva: ['manutencao corretiva', 'reparo corretivo', 'correcao de falha'],
-  instalacao: ['instalacao', 'montagem', 'visita tecnica'],
+  instalacao: ['instalacao', 'montagem'],
+  visita_tecnica: ['visita tecnica', 'vistoria tecnica', 'vistoria', 'atendimento tecnico'],
   configuracao_datalogger: ['configuracao datalogger', 'configuracao de datalogger', 'datalogger'],
   garantia_equipamento: [
     'garantia de equipamento',
@@ -796,7 +797,7 @@ export function getTipoAtividadeConfig(
       }
     case 'visita_tecnica':
       return {
-        id: 'instalacao',
+        id: 'visita_tecnica',
         categoria: 'manutencao',
         tituloPadrao: 'Visita Técnica',
         descricaoAjuda: 'Vistoria e atendimento técnico no local',
