@@ -202,6 +202,20 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
 
   // --- Categoria 2: Atividades de Manutenção ---
   {
+    id: 'visita_tecnica',
+    categoria: 'manutencao',
+    tituloPadrao: 'Visita Técnica',
+    descricaoAjuda: 'Vistoria técnica, diagnóstico em campo e atendimento no local da usina',
+    corHex: '#16A34A',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    iconText: 'text-emerald-600',
+    borderClass: 'border-emerald-400',
+    icon: Hammer,
+    isPadrao: true,
+    valor_base: 350,
+  },
+  {
     id: 'instalacao',
     categoria: 'manutencao',
     tituloPadrao: 'Instalação',
@@ -796,19 +810,22 @@ export function getTipoAtividadeConfig(
         isPadrao: true,
       }
     case 'visita_tecnica':
-      return {
-        id: 'visita_tecnica',
-        categoria: 'manutencao',
-        tituloPadrao: 'Visita Técnica',
-        descricaoAjuda: 'Vistoria e atendimento técnico no local',
-        corHex: '#16A34A',
-        badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-        iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        iconText: 'text-emerald-600',
-        borderClass: 'border-emerald-400',
-        icon: Hammer,
-        isPadrao: true,
-      }
+      return (
+        ATIVIDADES_PADRAO.find((t) => t.id === 'visita_tecnica') || {
+          id: 'visita_tecnica',
+          categoria: 'manutencao',
+          tituloPadrao: 'Visita Técnica',
+          descricaoAjuda: 'Vistoria e atendimento técnico no local',
+          corHex: '#16A34A',
+          badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          iconText: 'text-emerald-600',
+          borderClass: 'border-emerald-400',
+          icon: Hammer,
+          isPadrao: true,
+          valor_base: 350,
+        }
+      )
     case 'mudanca_estagio':
       return {
         id: 'mudanca_estagio',

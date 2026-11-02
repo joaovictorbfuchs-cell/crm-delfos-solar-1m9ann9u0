@@ -4249,13 +4249,40 @@ export async function fetchOrdemServicoById(
         const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
         const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
 
+        let tipoServicoResolvido = ''
+        if (atv.tipo === 'custom') {
+          tipoServicoResolvido =
+            atv.expand?.tipo_custom_id?.nome ||
+            atv.subtipo ||
+            atv.tipo_unificado ||
+            'Serviço Customizado'
+        } else if (atv.tipo === 'limpeza_manutencao') {
+          tipoServicoResolvido = 'Limpeza e Manutenção'
+        } else if (atv.tipo === 'limpeza') {
+          tipoServicoResolvido = 'Limpeza dos Módulos'
+        } else if (atv.tipo === 'manutencao_preventiva') {
+          tipoServicoResolvido = 'Manutenção Preventiva'
+        } else if (atv.tipo === 'manutencao_corretiva') {
+          tipoServicoResolvido = 'Manutenção Corretiva'
+        } else if (atv.tipo === 'instalacao') {
+          tipoServicoResolvido = 'Instalação'
+        } else if (atv.tipo === 'visita_tecnica') {
+          tipoServicoResolvido = 'Visita Técnica'
+        } else if (atv.tipo === 'garantia_equipamento') {
+          tipoServicoResolvido = 'Garantia de Equipamento'
+        } else if (atv.tipo === 'configuracao_datalogger') {
+          tipoServicoResolvido = 'Configuração Datalogger'
+        } else {
+          tipoServicoResolvido = atv.titulo || 'Manutenção'
+        }
+
         return {
           id: atv.id,
           collectionId: atv.collectionId || 'atividades',
           collectionName: atv.collectionName || 'atividades',
           cliente_id: atv.cliente_id,
           usina_id: atv.usina_id || undefined,
-          tipo_servico: atv.titulo || 'Manutenção',
+          tipo_servico: tipoServicoResolvido || 'Manutenção',
           tipo: atv.tipo || undefined,
           tipo_custom_id: atv.tipo_custom_id || atv.expand?.tipo_custom_id?.id || undefined,
           endereco,

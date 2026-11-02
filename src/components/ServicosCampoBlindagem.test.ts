@@ -259,6 +259,47 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(errors.isAbortError({ name: 'AbortError' })).toBe(true)
     })
 
+    it('garante que FichaExecucaoOS e getDefaultChecklist associam Visita Técnica ao checklist de manutenção/vistoria', async () => {
+      const { getDefaultChecklist, FichaExecucaoOS } = await import('@/components/FichaExecucaoOS')
+      const React = await import('react')
+      const { renderToStaticMarkup } = await import('react-dom/server')
+
+      const checklistVT = getDefaultChecklist('Visita Técnica' as any)
+      expect(checklistVT).toHaveLength(5)
+      expect(checklistVT[0].item).toContain('Inspeção visual geral')
+      expect(checklistVT[1].item).toContain('Termografia em módulos')
+      expect(checklistVT[2].item).toContain('Reaperto de bornes')
+
+      // Garante que NÃO é o gabarito de instalação
+      const itensTexto = checklistVT.map((i) => i.item).join(' ')
+      expect(itensTexto).not.toContain('Fixou suportes e perfis')
+      expect(itensTexto).not.toContain('Conferiu lista de materiais e projeto')
+
+      // Renderiza FichaExecucaoOS para uma atividade/OS com tipo_servico = 'Visita Técnica' sem checklist prévio
+      const fakeOSVisitaTecnica = {
+        id: 'ic8xx1i7thvdse4',
+        origem: 'atividades',
+        tipo_servico: 'Visita Técnica',
+        tipo: 'visita_tecnica',
+        status: 'pendente',
+        checklist: [],
+      }
+
+      const html = renderToStaticMarkup(
+        React.createElement(FichaExecucaoOS, {
+          os: fakeOSVisitaTecnica as any,
+          onBack: () => {},
+          onOSUpdated: () => {},
+          onOSFinalizada: () => {},
+        }),
+      )
+
+      expect(html).toContain('3. Checklist de Execução')
+      expect(html).toContain('Inspeção visual geral da usina e cabeamento')
+      expect(html).toContain('Termografia em módulos, caixas e barramentos elétricos')
+      expect(html).not.toContain('Fixou suportes e perfis na estrutura do telhado')
+    })
+
     it('garante que a rota /servicos-campo e o componente ExecucaoOS podem ser importados para montagem', async () => {
       const page = await import('@/pages/ExecucaoOS')
       expect(page.default).toBeDefined()

@@ -188,7 +188,12 @@ export function getDefaultChecklist(tipo: OSTipoServico): OSChecklistItem[] {
         { id: '4', item: 'Conectou inversor, stringbox e condutores CC/CA', concluido: false },
         { id: '5', item: 'Testou parâmetros elétricos e funcionamento da usina', concluido: false },
       ]
+    case 'Visita Técnica':
+    case 'Vistoria':
+    case 'Vistoria Técnica':
     case 'Manutenção':
+    case 'Manutenção Preventiva':
+    case 'Manutenção Corretiva':
       return [
         { id: '1', item: 'Inspeção visual geral da usina e cabeamento', concluido: false },
         {

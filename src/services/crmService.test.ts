@@ -507,6 +507,59 @@ describe('mesclarMultiplosClientes - otimizações e integridade de dados', () =
       expect(res2).toEqual(res3)
     })
 
+    it('cria atividade de manutenção do tipo Visita Técnica gravando tipo="visita_tecnica" e lê de volta corretamente', async () => {
+      const { createAtividade } = await import('./crmService')
+      const pbModule = await import('@/lib/pocketbase/client')
+
+      let atvArmazenada: any = null
+      vi.spyOn(pbModule.default, 'collection').mockImplementation(((colName: string) => {
+        if (colName === 'atividades') {
+          return {
+            create: vi.fn().mockImplementation((payload: any) => {
+              atvArmazenada = {
+                id: 'atv-visita-tecnica-teste',
+                collectionId: 'atividades',
+                collectionName: 'atividades',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+                ...payload,
+              }
+              return Promise.resolve(atvArmazenada)
+            }),
+            getOne: vi.fn().mockImplementation((id: string) => {
+              if (atvArmazenada && atvArmazenada.id === id) {
+                return Promise.resolve(atvArmazenada)
+              }
+              return Promise.reject(new Error('Not found'))
+            }),
+          }
+        }
+        return {}
+      }) as any)
+
+      // Simula a criação de uma atividade pela categoria Manutenção, tipo "Visita Técnica"
+      const novaAtividade = await createAtividade({
+        cliente_id: 'cli-visita-123',
+        titulo: 'Visita Técnica',
+        tipo: 'visita_tecnica',
+        data: '2026-11-04 13:00:00.000Z',
+        descricao: 'Visita Técnica e vistoria do inversor',
+        status: 'pendente',
+      })
+
+      expect(novaAtividade.id).toBe('atv-visita-tecnica-teste')
+      expect(novaAtividade.tipo).toBe('visita_tecnica')
+      expect(novaAtividade.titulo).toBe('Visita Técnica')
+
+      // Lê de volta do backend usando o client pb diretamente
+      const lida: any = await pbModule.default
+        .collection('atividades')
+        .getOne('atv-visita-tecnica-teste')
+      expect(lida).not.toBeNull()
+      expect(lida?.tipo).toBe('visita_tecnica')
+      expect(lida?.titulo).toBe('Visita Técnica')
+    })
+
     it('createAtividade e updateAtividade usam expand reduzido "cliente_id,usina_id,responsavel_id"', async () => {
       const { createAtividade, updateAtividade } = await import('./crmService')
       const pbModule = await import('@/lib/pocketbase/client')
