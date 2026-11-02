@@ -1580,6 +1580,79 @@ function CalendarioExecucaoOSContent({
     return { diaInteiro, comHorario }
   }, [])
 
+  /**
+   * Calcula o layout de colunas lado a lado estilo Google Calendar para eventos sobrepostos.
+   * Algoritmo guloso com reuso de coluna:
+   * - Varre eventos já ordenados por top.
+   * - Mantém o cluster atual (eventos concorrentes) e as colunas dele (maior "end" em cada coluna).
+   * - Se o evento atual inicia após ou no fim do cluster (start >= maxEnd do cluster):
+   *     fecha o cluster anterior e calcula leftPct / widthPct para todos os eventos dele.
+   * - Senão:
+   *     aloca o evento na PRIMEIRA coluna cujo último end <= start (reuso de coluna);
+   *     se nenhuma coluna estiver livre, abre uma coluna nova.
+   * - Atualiza o maxEnd do cluster.
+   * - Ao final da lista, fecha o último cluster.
+   */
+  const calcularLayoutColunas = (
+    itens: { top: number; height: number }[],
+  ): Map<any, { leftPct: number; widthPct: number }> => {
+    const layoutMap = new Map<any, { leftPct: number; widthPct: number }>()
+    if (!itens || itens.length === 0) return layoutMap
+
+    type EventoInfo = { item: any; start: number; end: number; colIndex: number }
+    let clusterEventos: EventoInfo[] = []
+    let clusterFim = -1
+    let colunasFim: number[] = []
+
+    const fecharCluster = () => {
+      if (clusterEventos.length === 0) return
+      const totalColunas = Math.max(1, colunasFim.length)
+      const widthPct = 100 / totalColunas
+      for (const ev of clusterEventos) {
+        const leftPct = (ev.colIndex / totalColunas) * 100
+        layoutMap.set(ev.item, { leftPct, widthPct })
+      }
+      clusterEventos = []
+      clusterFim = -1
+      colunasFim = []
+    }
+
+    for (const item of itens) {
+      const start = Number(item.top) || 0
+      const height = Number(item.height) || 0
+      const end = start + height
+
+      // Se inicia no fim ou depois do cluster atual, o cluster fechou
+      if (clusterEventos.length > 0 && start >= clusterFim) {
+        fecharCluster()
+      }
+
+      // Procura primeira coluna cujo último fim seja <= start (reuso de coluna)
+      let colIndex = -1
+      for (let c = 0; c < colunasFim.length; c++) {
+        if (colunasFim[c] <= start) {
+          colIndex = c
+          colunasFim[c] = end
+          break
+        }
+      }
+
+      // Se nenhuma coluna estava livre, abre uma nova coluna
+      if (colIndex === -1) {
+        colIndex = colunasFim.length
+        colunasFim.push(end)
+      }
+
+      clusterEventos.push({ item, start, end, colIndex })
+      clusterFim = Math.max(clusterFim, end)
+    }
+
+    // Fecha o último cluster pendente
+    fecharCluster()
+
+    return layoutMap
+  }
+
   // Agrupar ordens por chave de data (YYYY-MM-DD)
   // Somente ordens/atividades com data_agendada explícita e válida devem ser exibidas no calendário.
   // Registros sem data ou malformados não devem quebrar o grid nem cair em chaves corrompidas.
@@ -2501,241 +2574,253 @@ function CalendarioExecucaoOSContent({
                       })}
 
                       {/* Cards de OS Posicionados na Grade */}
-                      {comHorario.map((item) => {
-                        if (!item || !item.os || typeof item.os !== 'object') return null
-                        const rawOs = item.os
-                        const os = {
-                          ...rawOs,
-                          checklist: normalizeChecklist(rawOs.checklist),
-                        }
-                        const osId = safeStr(os.id) || `os_pos_${item.hora}_${item.minuto}`
-                        const tipoServico = safeStr(os.tipo_servico) || 'Manutenção'
-                        const tipoConfig = getTipoServicoConfig(tipoServico)
-                        const isConcluida = os.status === 'concluida'
-                        const isDragging = draggingOSId === osId
-                        const isBeingResized = resizing?.osId === osId
-                        const horaInicioStr =
-                          (os.horario_inicio && /^\d{1,2}:\d{2}/.test(safeStr(os.horario_inicio))
-                            ? safeStr(os.horario_inicio).slice(0, 5)
-                            : '') || extractHorario(os.data_agendada)
+                      {(() => {
+                        const layoutSobrepostos = calcularLayoutColunas(comHorario)
+                        return comHorario.map((item) => {
+                          if (!item || !item.os || typeof item.os !== 'object') return null
+                          const rawOs = item.os
+                          const os = {
+                            ...rawOs,
+                            checklist: normalizeChecklist(rawOs.checklist),
+                          }
+                          const osId = safeStr(os.id) || `os_pos_${item.hora}_${item.minuto}`
+                          const tipoServico = safeStr(os.tipo_servico) || 'Manutenção'
+                          const tipoConfig = getTipoServicoConfig(tipoServico)
+                          const isConcluida = os.status === 'concluida'
+                          const isDragging = draggingOSId === osId
+                          const isBeingResized = resizing?.osId === osId
+                          const horaInicioStr =
+                            (os.horario_inicio && /^\d{1,2}:\d{2}/.test(safeStr(os.horario_inicio))
+                              ? safeStr(os.horario_inicio).slice(0, 5)
+                              : '') || extractHorario(os.data_agendada)
 
-                        // Calcula hora de término prevista com validação matemática segura contra NaN/Infinity
-                        const numHora = Number(item.hora)
-                        const safeHora =
-                          !isNaN(numHora) && isFinite(numHora) ? numHora : HORA_INICIAL
-                        const numMinuto = Number(item.minuto)
-                        const safeMinuto = !isNaN(numMinuto) && isFinite(numMinuto) ? numMinuto : 0
-                        const minutosInicio = safeHora * 60 + safeMinuto
+                          // Calcula hora de término prevista com validação matemática segura contra NaN/Infinity
+                          const numHora = Number(item.hora)
+                          const safeHora =
+                            !isNaN(numHora) && isFinite(numHora) ? numHora : HORA_INICIAL
+                          const numMinuto = Number(item.minuto)
+                          const safeMinuto =
+                            !isNaN(numMinuto) && isFinite(numMinuto) ? numMinuto : 0
+                          const minutosInicio = safeHora * 60 + safeMinuto
 
-                        const numDuracaoItem = Number(item.duracaoMinutos)
-                        const safeDuracaoItem =
-                          !isNaN(numDuracaoItem) && isFinite(numDuracaoItem) && numDuracaoItem > 0
-                            ? numDuracaoItem
-                            : DURACAO_PADRAO_MINUTOS
+                          const numDuracaoItem = Number(item.duracaoMinutos)
+                          const safeDuracaoItem =
+                            !isNaN(numDuracaoItem) && isFinite(numDuracaoItem) && numDuracaoItem > 0
+                              ? numDuracaoItem
+                              : DURACAO_PADRAO_MINUTOS
 
-                        const rawMinutosFim = minutosInicio + safeDuracaoItem
-                        const minutosFim =
-                          !isNaN(rawMinutosFim) && isFinite(rawMinutosFim)
-                            ? Math.min(24 * 60 - 1, Math.max(0, rawMinutosFim))
-                            : minutosInicio + DURACAO_PADRAO_MINUTOS
+                          const rawMinutosFim = minutosInicio + safeDuracaoItem
+                          const minutosFim =
+                            !isNaN(rawMinutosFim) && isFinite(rawMinutosFim)
+                              ? Math.min(24 * 60 - 1, Math.max(0, rawMinutosFim))
+                              : minutosInicio + DURACAO_PADRAO_MINUTOS
 
-                        const horaFimCalc = Math.floor(minutosFim / 60)
-                        const minutoFimCalc = Math.floor(minutosFim % 60)
-                        const safeHoraFimValida =
-                          !isNaN(horaFimCalc) && isFinite(horaFimCalc)
-                            ? Math.min(23, Math.max(0, horaFimCalc))
-                            : 22
-                        const safeMinutoFimValido =
-                          !isNaN(minutoFimCalc) && isFinite(minutoFimCalc)
-                            ? Math.min(59, Math.max(0, minutoFimCalc))
-                            : 0
-                        const horaFimCalculada = `${String(safeHoraFimValida).padStart(2, '0')}:${String(safeMinutoFimValido).padStart(2, '0')}`
+                          const horaFimCalc = Math.floor(minutosFim / 60)
+                          const minutoFimCalc = Math.floor(minutosFim % 60)
+                          const safeHoraFimValida =
+                            !isNaN(horaFimCalc) && isFinite(horaFimCalc)
+                              ? Math.min(23, Math.max(0, horaFimCalc))
+                              : 22
+                          const safeMinutoFimValido =
+                            !isNaN(minutoFimCalc) && isFinite(minutoFimCalc)
+                              ? Math.min(59, Math.max(0, minutoFimCalc))
+                              : 0
+                          const horaFimCalculada = `${String(safeHoraFimValida).padStart(2, '0')}:${String(safeMinutoFimValido).padStart(2, '0')}`
 
-                        const horaFimStr =
-                          (os.horario_fim &&
-                          /^\d{1,2}:\d{2}/.test(safeStr(os.horario_fim)) &&
-                          !isBeingResized
-                            ? safeStr(os.horario_fim).slice(0, 5)
-                            : '') || horaFimCalculada
+                          const horaFimStr =
+                            (os.horario_fim &&
+                            /^\d{1,2}:\d{2}/.test(safeStr(os.horario_fim)) &&
+                            !isBeingResized
+                              ? safeStr(os.horario_fim).slice(0, 5)
+                              : '') || horaFimCalculada
 
-                        const rawDuracaoEfetiva =
-                          isBeingResized && resizing ? resizing.currentDuracao : item.duracaoMinutos
-                        const numDuracaoEfetiva = Number(rawDuracaoEfetiva)
-                        const duracaoEfetiva =
-                          !isNaN(numDuracaoEfetiva) &&
-                          isFinite(numDuracaoEfetiva) &&
-                          numDuracaoEfetiva > 0
-                            ? numDuracaoEfetiva
-                            : DURACAO_PADRAO_MINUTOS
-                        const rawHeightCalc = (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2
-                        const cardHeight = Math.max(
-                          28,
-                          Math.max(
+                          const rawDuracaoEfetiva =
+                            isBeingResized && resizing
+                              ? resizing.currentDuracao
+                              : item.duracaoMinutos
+                          const numDuracaoEfetiva = Number(rawDuracaoEfetiva)
+                          const duracaoEfetiva =
+                            !isNaN(numDuracaoEfetiva) &&
+                            isFinite(numDuracaoEfetiva) &&
+                            numDuracaoEfetiva > 0
+                              ? numDuracaoEfetiva
+                              : DURACAO_PADRAO_MINUTOS
+                          const rawHeightCalc = (duracaoEfetiva / 60) * ALTURA_HORA_PX - 2
+                          const cardHeight = Math.max(
+                            28,
+                            Math.max(
+                              0,
+                              isFinite(rawHeightCalc) && !isNaN(rawHeightCalc)
+                                ? Math.round(rawHeightCalc)
+                                : 28,
+                            ),
+                          )
+
+                          const rawCardTop = Number(item.top)
+                          const cardTop = Math.max(
                             0,
-                            isFinite(rawHeightCalc) && !isNaN(rawHeightCalc)
-                              ? Math.round(rawHeightCalc)
-                              : 28,
-                          ),
-                        )
+                            isFinite(rawCardTop) && !isNaN(rawCardTop) ? Math.round(rawCardTop) : 0,
+                          )
 
-                        const rawCardTop = Number(item.top)
-                        const cardTop = Math.max(
-                          0,
-                          isFinite(rawCardTop) && !isNaN(rawCardTop) ? Math.round(rawCardTop) : 0,
-                        )
+                          const clienteNome =
+                            os.expand?.cliente_id?.nome ||
+                            os.expand?.cliente_id?.razao_social ||
+                            'Cliente Solar'
 
-                        const clienteNome =
-                          os.expand?.cliente_id?.nome ||
-                          os.expand?.cliente_id?.razao_social ||
-                          'Cliente Solar'
+                          const tecnicosLista = extrairListaTecnicos(os)
+                          const isMultiTecnico = tecnicosLista.length > 1
+                          const tecnicosNomesStr = tecnicosLista.map((t) => t.nome).join(', ')
+                          const cardTooltip = `${clienteNome} (${tipoServico}) • ${horaInicioStr} - ${horaFimStr}\nTécnicos: ${tecnicosNomesStr || 'Não atribuído'}\nClique para abrir ficha de execução\nArraste para mover horário/dia\nPuxe a borda inferior para ajustar duração`
 
-                        const tecnicosLista = extrairListaTecnicos(os)
-                        const isMultiTecnico = tecnicosLista.length > 1
-                        const tecnicosNomesStr = tecnicosLista.map((t) => t.nome).join(', ')
-                        const cardTooltip = `${clienteNome} (${tipoServico}) • ${horaInicioStr} - ${horaFimStr}\nTécnicos: ${tecnicosNomesStr || 'Não atribuído'}\nClique para abrir ficha de execução\nArraste para mover horário/dia\nPuxe a borda inferior para ajustar duração`
+                          const layout = layoutSobrepostos.get(item)
+                          const leftPct = layout != null ? layout.leftPct : 0
+                          const widthPct = layout != null ? layout.widthPct : 100
 
-                        return (
-                          <div
-                            key={`card-${osId}`}
-                            draggable={!isBeingResized}
-                            onDragStart={(e) => handleDragStart(e, osId)}
-                            onDragEnd={handleDragEnd}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onSelectOS(os)
-                            }}
-                            className={`absolute left-1 right-1 rounded-xl p-1.5 pb-2 border shadow-2xs transition-all flex flex-col justify-between overflow-hidden cursor-pointer group ${
-                              isDragging ? 'opacity-40 scale-95 ring-2 ring-emerald-500' : ''
-                            } ${draggingOSId != null && !isDragging ? 'pointer-events-none' : ''} ${
-                              isConcluida
-                                ? 'bg-gray-50 text-gray-500 border-gray-300 opacity-80'
-                                : 'bg-white hover:border-gray-400 hover:shadow-md'
-                            }`}
-                            style={{
-                              top: `${cardTop}px`,
-                              height: `${cardHeight}px`,
-                              borderLeftWidth: isMultiTecnico ? '1px' : '4px',
-                              borderLeftColor: isConcluida
-                                ? '#9CA3AF'
-                                : isMultiTecnico
-                                  ? undefined
-                                  : tipoConfig.hex,
-                              backgroundColor: isConcluida ? '#F9FAFB' : tipoConfig.pillBg,
-                              zIndex: isDragging || isBeingResized ? 30 : 10,
-                            }}
-                            title={cardTooltip}
-                          >
-                            {/* Bloco único repartido em faixas verticais estilo Outlook se multi-técnico */}
-                            {isMultiTecnico && (
-                              <div className="absolute inset-0 flex pointer-events-none z-0 opacity-15">
-                                {tecnicosLista.map((tec, tIdx) => {
-                                  const cor = getTecnicoCor(tec.nome)
-                                  return (
-                                    <div
-                                      key={`stripe-${tec.nome}-${tIdx}`}
-                                      className="flex-1 h-full border-r border-black/10 last:border-r-0"
-                                      style={{ backgroundColor: cor.hex }}
-                                      title={tec.nome}
-                                    />
-                                  )
-                                })}
-                              </div>
-                            )}
-
-                            {/* Conteúdo do Card */}
-                            <div className="min-w-0 flex-1 overflow-hidden pb-1 relative z-10">
-                              {/* Topo: Horário + Tipo */}
-                              <div className="flex items-center justify-between gap-1 mb-0.5">
-                                <span className="text-[10px] font-bold text-gray-700 font-mono flex items-center gap-0.5 shrink-0">
-                                  <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                  {horaInicioStr} - {horaFimStr}
-                                </span>
-
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <span
-                                    className="text-[8px] font-extrabold uppercase tracking-wider truncate"
-                                    style={{ color: tipoConfig.hex }}
-                                  >
-                                    {tipoServico}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Nome do Cliente */}
-                              <div
-                                className={`text-[11px] font-bold leading-tight truncate ${
-                                  isConcluida
-                                    ? 'text-gray-400 line-through'
-                                    : 'text-gray-900 group-hover:text-emerald-800'
-                                }`}
-                              >
-                                {clienteNome}
-                              </div>
-
-                              {/* Faixas / Avatares e Responsáveis por técnico estilo Outlook na Semana/Dia */}
-                              {cardHeight >= 46 && (
-                                <div className="mt-1 flex items-center justify-between text-[10px] text-gray-600 gap-1 overflow-hidden">
-                                  {isMultiTecnico ? (
-                                    <div className="flex items-center gap-1 overflow-hidden flex-1 pointer-events-auto">
-                                      {tecnicosLista.map((tec, tIdx) => {
-                                        const cor = getTecnicoCor(tec.nome)
-                                        return (
-                                          <div
-                                            key={`badge-tec-${tec.nome}-${tIdx}`}
-                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/90 border border-gray-200/90 shadow-2xs text-[9px] font-semibold text-gray-800 hover:bg-white hover:scale-105 transition-all cursor-default shrink-0 max-w-[120px]"
-                                            title={`Técnico: ${tec.nome}`}
-                                          >
-                                            <span
-                                              className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-extrabold shrink-0 ${cor.bgClass} ${cor.textClass}`}
-                                            >
-                                              {getIniciaisNome(tec.nome)}
-                                            </span>
-                                            <span className="truncate">
-                                              {tec.nome.split(' ')[0]}
-                                            </span>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <span className="truncate flex items-center gap-0.5">
-                                      <User className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                                      <span className="truncate">
-                                        {os.atribuida_a || 'Não atribuído'}
-                                      </span>
-                                    </span>
-                                  )}
-                                  <span className="text-[9px] text-gray-400 shrink-0 font-medium ml-auto">
-                                    {item.duracaoMinutos}m
-                                  </span>
+                          return (
+                            <div
+                              key={`card-${osId}`}
+                              draggable={!isBeingResized}
+                              onDragStart={(e) => handleDragStart(e, osId)}
+                              onDragEnd={handleDragEnd}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onSelectOS(os)
+                              }}
+                              className={`absolute rounded-xl p-1.5 pb-2 border shadow-2xs transition-all flex flex-col justify-between overflow-hidden cursor-pointer group ${
+                                isDragging ? 'opacity-40 scale-95 ring-2 ring-emerald-500' : ''
+                              } ${draggingOSId != null && !isDragging ? 'pointer-events-none' : ''} ${
+                                isConcluida
+                                  ? 'bg-gray-50 text-gray-500 border-gray-300 opacity-80'
+                                  : 'bg-white hover:border-gray-400 hover:shadow-md'
+                              }`}
+                              style={{
+                                top: `${cardTop}px`,
+                                height: `${cardHeight}px`,
+                                left: `calc(${leftPct}% + 2px)`,
+                                width: `calc(${widthPct}% - 4px)`,
+                                borderLeftWidth: isMultiTecnico ? '1px' : '4px',
+                                borderLeftColor: isConcluida
+                                  ? '#9CA3AF'
+                                  : isMultiTecnico
+                                    ? undefined
+                                    : tipoConfig.hex,
+                                backgroundColor: isConcluida ? '#F9FAFB' : tipoConfig.pillBg,
+                                zIndex: isDragging || isBeingResized ? 30 : 10,
+                              }}
+                              title={cardTooltip}
+                            >
+                              {/* Bloco único repartido em faixas verticais estilo Outlook se multi-técnico */}
+                              {isMultiTecnico && (
+                                <div className="absolute inset-0 flex pointer-events-none z-0 opacity-15">
+                                  {tecnicosLista.map((tec, tIdx) => {
+                                    const cor = getTecnicoCor(tec.nome)
+                                    return (
+                                      <div
+                                        key={`stripe-${tec.nome}-${tIdx}`}
+                                        className="flex-1 h-full border-r border-black/10 last:border-r-0"
+                                        style={{ backgroundColor: cor.hex }}
+                                        title={tec.nome}
+                                      />
+                                    )
+                                  })}
                                 </div>
                               )}
-                            </div>
 
-                            {/* Alça inferior de redimensionamento (bem fininha, padrão para cards de 1h, 30min e longos) */}
-                            <div
-                              data-testid={`resize-handle-${osId}`}
-                              onMouseDown={(e) => {
-                                e.stopPropagation()
-                                handleResizeStart(e, os)
-                              }}
-                              onPointerDown={(e) => {
-                                e.stopPropagation()
-                                handleResizeStart(e, os)
-                              }}
-                              onClick={(e) => {
-                                // Evita que o clique na alça abra a ficha de execução da OS
-                                e.stopPropagation()
-                              }}
-                              style={{ touchAction: 'none', userSelect: 'none' }}
-                              className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
-                              title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
-                            >
-                              <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 group-hover:h-[3px] transition-all pointer-events-none shadow-2xs" />
+                              {/* Conteúdo do Card */}
+                              <div className="min-w-0 flex-1 overflow-hidden pb-1 relative z-10">
+                                {/* Topo: Horário + Tipo */}
+                                <div className="flex items-center justify-between gap-1 mb-0.5">
+                                  <span className="text-[10px] font-bold text-gray-700 font-mono flex items-center gap-0.5 shrink-0">
+                                    <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                    {horaInicioStr} - {horaFimStr}
+                                  </span>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span
+                                      className="text-[8px] font-extrabold uppercase tracking-wider truncate"
+                                      style={{ color: tipoConfig.hex }}
+                                    >
+                                      {tipoServico}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Nome do Cliente */}
+                                <div
+                                  className={`text-[11px] font-bold leading-tight truncate ${
+                                    isConcluida
+                                      ? 'text-gray-400 line-through'
+                                      : 'text-gray-900 group-hover:text-emerald-800'
+                                  }`}
+                                >
+                                  {clienteNome}
+                                </div>
+
+                                {/* Faixas / Avatares e Responsáveis por técnico estilo Outlook na Semana/Dia */}
+                                {cardHeight >= 46 && (
+                                  <div className="mt-1 flex items-center justify-between text-[10px] text-gray-600 gap-1 overflow-hidden">
+                                    {isMultiTecnico ? (
+                                      <div className="flex items-center gap-1 overflow-hidden flex-1 pointer-events-auto">
+                                        {tecnicosLista.map((tec, tIdx) => {
+                                          const cor = getTecnicoCor(tec.nome)
+                                          return (
+                                            <div
+                                              key={`badge-tec-${tec.nome}-${tIdx}`}
+                                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/90 border border-gray-200/90 shadow-2xs text-[9px] font-semibold text-gray-800 hover:bg-white hover:scale-105 transition-all cursor-default shrink-0 max-w-[120px]"
+                                              title={`Técnico: ${tec.nome}`}
+                                            >
+                                              <span
+                                                className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-extrabold shrink-0 ${cor.bgClass} ${cor.textClass}`}
+                                              >
+                                                {getIniciaisNome(tec.nome)}
+                                              </span>
+                                              <span className="truncate">
+                                                {tec.nome.split(' ')[0]}
+                                              </span>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <span className="truncate flex items-center gap-0.5">
+                                        <User className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                        <span className="truncate">
+                                          {os.atribuida_a || 'Não atribuído'}
+                                        </span>
+                                      </span>
+                                    )}
+                                    <span className="text-[9px] text-gray-400 shrink-0 font-medium ml-auto">
+                                      {item.duracaoMinutos}m
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Alça inferior de redimensionamento (bem fininha, padrão para cards de 1h, 30min e longos) */}
+                              <div
+                                data-testid={`resize-handle-${osId}`}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation()
+                                  handleResizeStart(e, os)
+                                }}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation()
+                                  handleResizeStart(e, os)
+                                }}
+                                onClick={(e) => {
+                                  // Evita que o clique na alça abra a ficha de execução da OS
+                                  e.stopPropagation()
+                                }}
+                                style={{ touchAction: 'none', userSelect: 'none' }}
+                                className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
+                                title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
+                              >
+                                <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 group-hover:h-[3px] transition-all pointer-events-none shadow-2xs" />
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })
+                      })()}
                     </div>
                   )
                 })}
