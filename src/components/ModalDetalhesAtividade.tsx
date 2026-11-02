@@ -109,6 +109,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [horarioFim, setHorarioFim] = useState<string>('09:00')
   const [duracaoMinutos, setDuracaoMinutos] = useState<number>(60)
   const [responsavelId, setResponsavelId] = useState('')
+  const [tecnicosIds, setTecnicosIds] = useState<string[]>([])
   const [responsavelAvisoBloqueio, setResponsavelAvisoBloqueio] = useState<string | null>(null)
   const [descricao, setDescricao] = useState('')
   const [status, setStatus] = useState<AtividadeStatus>('pendente')
@@ -193,7 +194,15 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setHorarioFim(fimAtual)
       setDuracaoMinutos(durAtual)
 
-      setResponsavelId(atividade.responsavel_id || '')
+      // Tratamento de lista de técnicos: se tecnicos_ids existir, carrega; se não, trata atividade antiga como lista de 1 [responsavel_id]
+      const idsIniciais =
+        Array.isArray(atividade.tecnicos_ids) && atividade.tecnicos_ids.length > 0
+          ? atividade.tecnicos_ids
+          : atividade.responsavel_id
+            ? [atividade.responsavel_id]
+            : []
+      setTecnicosIds(idsIniciais)
+      setResponsavelId(idsIniciais[0] || atividade.responsavel_id || '')
       setDescricao(atividade.descricao || '')
       setStatus((atividade.status as 'pendente' | 'concluida') || 'pendente')
 
@@ -291,19 +300,18 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setTitulo(conf.tituloPadrao)
     }
 
-    // Se o novo tipo não for de manutenção, checa se o responsável atual é instalador/técnico
-    if (conf.categoria !== 'manutencao' && responsavelId) {
-      const respAtual = usuariosValidosCadastrados.find((u) => u.id === responsavelId)
-      if (
-        respAtual &&
-        (respAtual.role === 'instalador' || (respAtual.role as string) === 'tecnico')
-      ) {
-        const outro = usuariosValidosCadastrados.find(
-          (u) => u.role !== 'instalador' && (u.role as string) !== 'tecnico',
-        )
-        setResponsavelId(outro ? outro.id : '')
+    // Se o novo tipo não for de manutenção, checa se os técnicos atuais são instalador/técnico
+    if (conf.categoria !== 'manutencao') {
+      const tecnicosFiltrados = tecnicosIds.filter((tId) => {
+        const u = usuariosValidosCadastrados.find((usr) => usr.id === tId)
+        return u && u.role !== 'instalador' && (u.role as string) !== 'tecnico'
+      })
+      if (tecnicosFiltrados.length !== tecnicosIds.length) {
+        setTecnicosIds(tecnicosFiltrados)
+        const novoResp = tecnicosFiltrados[0] || ''
+        setResponsavelId(novoResp)
         setResponsavelAvisoBloqueio(
-          'O responsável anterior (instalador/técnico) foi desvinculado porque só recebe atividades de manutenção.',
+          'Técnicos com perfil instalador/técnico foram desvinculados porque só recebem atividades de manutenção.',
         )
       } else {
         setResponsavelAvisoBloqueio(null)
@@ -369,8 +377,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     if (!isAutoLeitura && !dataHora) {
       newErrors.dataHora = 'Informe a data e horário da atividade.'
     }
-    if (!responsavelId) {
-      newErrors.responsavel = 'Selecione um usuário responsável.'
+    if (!responsavelId && tecnicosIds.length === 0) {
+      newErrors.responsavel = 'Selecione pelo menos um técnico responsável.'
     }
 
     // Validação de usina obrigatória para atividades de manutenção e administrativas
@@ -405,8 +413,19 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setIsSubmitting(true)
       setFormError(null)
 
-      const selectedUser = usuarios.find((u) => u.id === responsavelId)
-      const responsavelNome = selectedUser?.name || atividade.responsavel_nome || 'Responsável'
+      // Lista final de técnicos e seus nomes
+      const finalTecnicosIds =
+        tecnicosIds.length > 0 ? tecnicosIds : responsavelId ? [responsavelId] : []
+      const finalTecnicosNomes = finalTecnicosIds.map((tId) => {
+        const u = usuarios.find((usr) => usr.id === tId)
+        return u?.name || 'Técnico'
+      })
+
+      // O primeiro técnico da lista é o responsável principal
+      const primeiroTecnicoId = finalTecnicosIds[0] || responsavelId
+      const selectedUser = usuarios.find((u) => u.id === primeiroTecnicoId)
+      const responsavelNome =
+        selectedUser?.name || finalTecnicosNomes[0] || atividade.responsavel_nome || 'Responsável'
 
       const isoDate = dataHora ? new Date(dataHora).toISOString() : new Date().toISOString()
       const isManutencao = configAtual.categoria === 'manutencao'
@@ -426,8 +445,10 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               duracao_minutos: duracaoMinutos,
             }
           : {}),
-        responsavel_id: responsavelId,
+        responsavel_id: primeiroTecnicoId,
         responsavel_nome: responsavelNome,
+        tecnicos_ids: finalTecnicosIds,
+        tecnicos_nomes: finalTecnicosNomes,
         descricao: descricao.trim(),
         status,
         valor_servico: custosValores?.valorServico ?? atividade.valor_servico,
@@ -991,17 +1012,71 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                   </div>
                 )}
 
-                <div className={`space-y-1 ${isAutoLeitura ? 'sm:col-span-2' : ''}`}>
-                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-emerald-600" />
-                    Usuário Responsável <span className="text-red-500">*</span>
+                <div className={`space-y-1.5 ${isAutoLeitura ? 'sm:col-span-2' : ''}`}>
+                  <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <User className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Técnicos / Responsáveis</span> <span className="text-red-500">*</span>
+                    </span>
+                    {tecnicosIds.length > 0 && (
+                      <span className="text-[10px] text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        1º da lista = Responsável Principal
+                      </span>
+                    )}
                   </label>
+
+                  {/* Chips removíveis de técnicos selecionados */}
+                  {tecnicosIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 p-2 bg-emerald-50/50 rounded-xl border border-emerald-200/60">
+                      {tecnicosIds.map((tId, idx) => {
+                        const u = usuariosValidosCadastrados.find((usr) => usr.id === tId)
+                        const nome = u?.name || 'Técnico'
+                        const isPrincipal = idx === 0
+                        return (
+                          <span
+                            key={tId}
+                            className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border font-medium shadow-2xs transition-all ${
+                              isPrincipal
+                                ? 'bg-emerald-600 text-white border-emerald-700 font-semibold'
+                                : 'bg-white text-gray-800 border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <span className="truncate max-w-[160px]">
+                              {isPrincipal && (
+                                <span className="text-[10px] opacity-90 mr-1 font-bold">
+                                  ★ Principal:
+                                </span>
+                              )}
+                              {nome}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const novaLista = tecnicosIds.filter((id) => id !== tId)
+                                setTecnicosIds(novaLista)
+                                const novoPrimeiro = novaLista[0] || ''
+                                setResponsavelId(novoPrimeiro)
+                              }}
+                              className={`rounded-full p-0.5 hover:bg-black/10 transition-colors ${
+                                isPrincipal ? 'text-white' : 'text-gray-400 hover:text-gray-700'
+                              }`}
+                              title="Remover técnico"
+                              aria-label={`Remover ${nome}`}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
                   <select
-                    value={responsavelId}
+                    value=""
                     onChange={(e) => {
-                      const targetUser = usuariosValidosCadastrados.find(
-                        (u) => u.id === e.target.value,
-                      )
+                      const novoId = e.target.value
+                      if (!novoId) return
+                      const targetUser = usuariosValidosCadastrados.find((u) => u.id === novoId)
                       const isPerfilTecnico =
                         targetUser?.role === 'instalador' ||
                         (targetUser?.role as string) === 'tecnico'
@@ -1012,29 +1087,40 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                         return
                       }
                       setResponsavelAvisoBloqueio(null)
-                      setResponsavelId(e.target.value)
-                      if (errors.responsavel)
-                        setErrors((prev) => ({ ...prev, responsavel: undefined }))
+                      if (!tecnicosIds.includes(novoId)) {
+                        const novaLista = [...tecnicosIds, novoId]
+                        setTecnicosIds(novaLista)
+                        if (!responsavelId || novaLista.length === 1) {
+                          setResponsavelId(novaLista[0])
+                        }
+                        if (errors.responsavel)
+                          setErrors((prev) => ({ ...prev, responsavel: undefined }))
+                      }
                     }}
-                    required
                     className={`w-full text-xs px-3 py-2.5 rounded-xl border bg-white text-gray-900 transition-all focus:outline-none ${
                       errors.responsavel
                         ? 'border-red-300 ring-2 ring-red-200 bg-red-50/20'
                         : 'border-gray-200 focus:ring-2 focus:ring-emerald-500'
                     }`}
                   >
-                    <option value="">Selecione o responsável...</option>
-                    {usuariosValidosCadastrados.map((u) => {
-                      const isPerfilTecnico =
-                        u.role === 'instalador' || (u.role as string) === 'tecnico'
-                      const bloqueado = isPerfilTecnico && configAtual.categoria !== 'manutencao'
-                      return (
-                        <option key={u.id} value={u.id} disabled={bloqueado}>
-                          {u.name} {u.role ? `[${u.role}]` : ''}{' '}
-                          {bloqueado ? '— (somente manutenção)' : ''}
-                        </option>
-                      )
-                    })}
+                    <option value="">
+                      {tecnicosIds.length === 0
+                        ? 'Selecione o responsável principal...'
+                        : '+ Adicionar outro técnico à atividade...'}
+                    </option>
+                    {usuariosValidosCadastrados
+                      .filter((u) => !tecnicosIds.includes(u.id))
+                      .map((u) => {
+                        const isPerfilTecnico =
+                          u.role === 'instalador' || (u.role as string) === 'tecnico'
+                        const bloqueado = isPerfilTecnico && configAtual.categoria !== 'manutencao'
+                        return (
+                          <option key={u.id} value={u.id} disabled={bloqueado}>
+                            {u.name} {u.role ? `[${u.role}]` : ''}{' '}
+                            {bloqueado ? '— (somente manutenção)' : ''}
+                          </option>
+                        )
+                      })}
                   </select>
                 </div>
               </div>

@@ -152,6 +152,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [negociosDoCliente, setNegociosDoCliente] = useState<import('@/types/crm').Negocio[]>([])
   const [selectedNegocioId, setSelectedNegocioId] = useState<string>(initialNegocioId || '')
   const [responsavelId, setResponsavelId] = useState('')
+  const [tecnicosIds, setTecnicosIds] = useState<string[]>([])
   const [dataHora, setDataHora] = useState(() => {
     if (initialDataHora && initialDataHora.length >= 16) {
       return initialDataHora.slice(0, 16)
@@ -327,12 +328,12 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       }
 
       // Definir responsável padrão: usuário logado se encontrado na lista, ou primeiro usuário
-      if (!responsavelId) {
+      if (!responsavelId && tecnicosIds.length === 0) {
         const foundUser = usuarios.find((u) => u.email === user?.email || u.id === user?.id)
-        if (foundUser) {
-          setResponsavelId(foundUser.id)
-        } else if (usuarios.length > 0) {
-          setResponsavelId(usuarios[0].id)
+        const idInicial = foundUser ? foundUser.id : usuarios.length > 0 ? usuarios[0].id : ''
+        if (idInicial) {
+          setResponsavelId(idInicial)
+          setTecnicosIds([idInicial])
         }
       }
 
@@ -512,24 +513,18 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(firstOfCat))
     }
 
-    // Se a nova categoria não for manutenção, verifica se o responsável atual é instalador/técnico
-    if (catId !== 'manutencao' && responsavelId) {
-      const respAtual = usuariosValidosCadastrados.find((u) => u.id === responsavelId)
-      if (
-        respAtual &&
-        (respAtual.role === 'instalador' || (respAtual.role as string) === 'tecnico')
-      ) {
-        // Redefine para outro usuário válido que não seja técnico/instalador, ou limpa
-        const outroUsuario = usuariosValidosCadastrados.find(
-          (u) => u.role !== 'instalador' && (u.role as string) !== 'tecnico',
-        )
-        if (outroUsuario) {
-          setResponsavelId(outroUsuario.id)
-        } else {
-          setResponsavelId('')
-        }
+    // Se a nova categoria não for manutenção, verifica se algum técnico/responsável atual é instalador/técnico
+    if (catId !== 'manutencao') {
+      const tecnicosFiltrados = tecnicosIds.filter((tId) => {
+        const u = usuariosValidosCadastrados.find((usr) => usr.id === tId)
+        return u && u.role !== 'instalador' && (u.role as string) !== 'tecnico'
+      })
+      if (tecnicosFiltrados.length !== tecnicosIds.length) {
+        setTecnicosIds(tecnicosFiltrados)
+        const novoResp = tecnicosFiltrados[0] || ''
+        setResponsavelId(novoResp)
         setResponsavelAvisoBloqueio(
-          'O responsável anterior (instalador/técnico) foi desvinculado porque só recebe atividades de manutenção.',
+          'Técnicos com perfil instalador/técnico foram desvinculados porque só recebem atividades de manutenção.',
         )
       } else {
         setResponsavelAvisoBloqueio(null)
@@ -696,8 +691,21 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         }
       }
 
-      const selectedUser = usuarios.find((u) => u.id === responsavelId)
-      const responsavelNome = selectedUser?.name || user?.name || 'João Victor Bagetti Fuchs'
+      // Lista final de técnicos: se tecnicosIds estiver preenchido, usa ela; caso contrário fallback para responsavelId
+      const finalTecnicosIds =
+        tecnicosIds.length > 0 ? tecnicosIds : responsavelId ? [responsavelId] : []
+      const finalTecnicosNomes = finalTecnicosIds.map((tId) => {
+        const u = usuarios.find((usr) => usr.id === tId)
+        return u?.name || 'Técnico'
+      })
+
+      // O primeiro técnico da lista é o responsável principal canônico
+      const primeiroTecnicoId = finalTecnicosIds[0] || responsavelId
+      const responsavelIdLimpo =
+        primeiroTecnicoId && primeiroTecnicoId.trim() ? primeiroTecnicoId.trim() : undefined
+      const selectedUser = usuarios.find((u) => u.id === responsavelIdLimpo)
+      const responsavelNome =
+        selectedUser?.name || finalTecnicosNomes[0] || user?.name || 'João Victor Bagetti Fuchs'
 
       // Normalização de data para o padrão datetime do PocketBase com espaço (sem 'T' nem ms)
       const normalizarParaPocketBase = (isoOuData: string): string => {
@@ -722,9 +730,6 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         selectedCategoria !== 'manutencao' && selectedNegocioId && selectedNegocioId.trim()
           ? selectedNegocioId.trim()
           : undefined
-      const responsavelIdLimpo =
-        responsavelId && responsavelId.trim() ? responsavelId.trim() : undefined
-
       // Defaults de custos/deslocamento para manter integridade downstream se for manutenção
       let defaultsManutencao: {
         valor_servico?: number
@@ -831,6 +836,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           : {}),
         responsavel_id: responsavelIdLimpo,
         responsavel_nome: responsavelNome,
+        tecnicos_ids: finalTecnicosIds,
+        tecnicos_nomes: finalTecnicosNomes,
         status: isRegistroSemPrazo ? 'concluida' : 'pendente',
         ...(isRegistroSemPrazo ? { data_conclusao: dataFormatadaPocketBase || agoraIso } : {}),
         autor: user?.name || 'João Victor Bagetti Fuchs',
@@ -1176,16 +1183,73 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               />
             </div>
 
-            {/* Usuário Responsável */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-emerald-600" />
-                Usuário Responsável <span className="text-red-500">*</span>
+            {/* Usuário Responsável / Técnicos Designados (Seleção múltipla com chips removíveis) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Técnicos / Responsáveis</span> <span className="text-red-500">*</span>
+                </span>
+                {tecnicosIds.length > 0 && (
+                  <span className="text-[10px] text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    1º da lista = Responsável Principal
+                  </span>
+                )}
               </label>
+
+              {/* Chips removíveis dos técnicos selecionados */}
+              {tecnicosIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 p-2 bg-emerald-50/50 rounded-xl border border-emerald-200/60">
+                  {tecnicosIds.map((tId, idx) => {
+                    const u = usuariosValidosCadastrados.find((usr) => usr.id === tId)
+                    const nome = u?.name || 'Técnico'
+                    const isPrincipal = idx === 0
+                    return (
+                      <span
+                        key={tId}
+                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border font-medium shadow-2xs transition-all ${
+                          isPrincipal
+                            ? 'bg-emerald-600 text-white border-emerald-700 font-semibold'
+                            : 'bg-white text-gray-800 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <span className="truncate max-w-[160px]">
+                          {isPrincipal && (
+                            <span className="text-[10px] opacity-90 mr-1 font-bold">
+                              ★ Principal:
+                            </span>
+                          )}
+                          {nome}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const novaLista = tecnicosIds.filter((id) => id !== tId)
+                            setTecnicosIds(novaLista)
+                            const novoPrimeiro = novaLista[0] || ''
+                            setResponsavelId(novoPrimeiro)
+                          }}
+                          className={`rounded-full p-0.5 hover:bg-black/10 transition-colors ${
+                            isPrincipal ? 'text-white' : 'text-gray-400 hover:text-gray-700'
+                          }`}
+                          title="Remover técnico"
+                          aria-label={`Remover ${nome}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Dropdown para adicionar técnico à lista */}
               <select
-                value={responsavelId}
+                value=""
                 onChange={(e) => {
-                  const targetUser = usuariosValidosCadastrados.find((u) => u.id === e.target.value)
+                  const novoId = e.target.value
+                  if (!novoId) return
+                  const targetUser = usuariosValidosCadastrados.find((u) => u.id === novoId)
                   const isPerfilTecnico =
                     targetUser?.role === 'instalador' || (targetUser?.role as string) === 'tecnico'
                   if (isPerfilTecnico && selectedCategoria !== 'manutencao') {
@@ -1195,24 +1259,36 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                     return
                   }
                   setResponsavelAvisoBloqueio(null)
-                  setResponsavelId(e.target.value)
+                  if (!tecnicosIds.includes(novoId)) {
+                    const novaLista = [...tecnicosIds, novoId]
+                    setTecnicosIds(novaLista)
+                    if (!responsavelId || novaLista.length === 1) {
+                      setResponsavelId(novaLista[0])
+                    }
+                  }
                 }}
-                required
                 className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
               >
-                <option value="">Selecione o responsável...</option>
-                {usuariosValidosCadastrados.map((u) => {
-                  const isPerfilTecnico =
-                    u.role === 'instalador' || (u.role as string) === 'tecnico'
-                  const bloqueado = isPerfilTecnico && selectedCategoria !== 'manutencao'
-                  return (
-                    <option key={u.id} value={u.id} disabled={bloqueado}>
-                      {u.name} {u.role ? `[${u.role}]` : ''}{' '}
-                      {bloqueado ? '— (somente manutenção)' : ''}
-                    </option>
-                  )
-                })}
+                <option value="">
+                  {tecnicosIds.length === 0
+                    ? 'Selecione o responsável principal...'
+                    : '+ Adicionar outro técnico à atividade...'}
+                </option>
+                {usuariosValidosCadastrados
+                  .filter((u) => !tecnicosIds.includes(u.id))
+                  .map((u) => {
+                    const isPerfilTecnico =
+                      u.role === 'instalador' || (u.role as string) === 'tecnico'
+                    const bloqueado = isPerfilTecnico && selectedCategoria !== 'manutencao'
+                    return (
+                      <option key={u.id} value={u.id} disabled={bloqueado}>
+                        {u.name} {u.role ? `[${u.role}]` : ''}{' '}
+                        {bloqueado ? '— (somente manutenção)' : ''}
+                      </option>
+                    )
+                  })}
               </select>
+
               {responsavelAvisoBloqueio && (
                 <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />

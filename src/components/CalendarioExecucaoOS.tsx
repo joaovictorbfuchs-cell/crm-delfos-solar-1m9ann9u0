@@ -136,6 +136,65 @@ function getHashColorConfig(nome: string): TipoServicoCorConfig {
   }
 }
 
+// Cores e iniciais para avatares e faixas de técnicos
+export const PALETA_TECNICOS_CORES = [
+  { hex: '#059669', bgClass: 'bg-emerald-600', textClass: 'text-white' }, // esmeralda
+  { hex: '#2563EB', bgClass: 'bg-blue-600', textClass: 'text-white' }, // azul
+  { hex: '#D97706', bgClass: 'bg-amber-600', textClass: 'text-white' }, // âmbar
+  { hex: '#7C3AED', bgClass: 'bg-violet-600', textClass: 'text-white' }, // violeta
+  { hex: '#E11D48', bgClass: 'bg-rose-600', textClass: 'text-white' }, // rosa
+  { hex: '#0891B2', bgClass: 'bg-cyan-600', textClass: 'text-white' }, // ciano
+  { hex: '#4B5563', bgClass: 'bg-gray-600', textClass: 'text-white' }, // grafite
+  { hex: '#EA580C', bgClass: 'bg-orange-600', textClass: 'text-white' }, // laranja
+]
+
+export function getTecnicoCor(nomeOuId: string) {
+  const safe = String(nomeOuId || '').trim()
+  if (!safe) return PALETA_TECNICOS_CORES[0]
+  let hash = 0
+  for (let i = 0; i < safe.length; i++) {
+    hash = (hash << 5) - hash + safe.charCodeAt(i)
+    hash |= 0
+  }
+  const idx = Math.abs(hash) % PALETA_TECNICOS_CORES.length
+  return PALETA_TECNICOS_CORES[idx]
+}
+
+export function getIniciaisNome(nome?: string) {
+  const safe = String(nome || '').trim()
+  if (!safe) return 'T'
+  const partes = safe.split(' ').filter(Boolean)
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+}
+
+export function extrairListaTecnicos(os?: any): Array<{ id?: string; nome: string }> {
+  if (!os || typeof os !== 'object') return []
+  const ids: string[] = Array.isArray(os.tecnicos_ids) ? os.tecnicos_ids : []
+  const nomes: string[] = Array.isArray(os.tecnicos_nomes) ? os.tecnicos_nomes : []
+
+  if (nomes.length > 0) {
+    return nomes.map((nome, idx) => ({
+      id: ids[idx] || undefined,
+      nome: String(nome || '').trim() || 'Técnico',
+    }))
+  }
+
+  if (ids.length > 0) {
+    return ids.map((id) => ({
+      id,
+      nome: 'Técnico',
+    }))
+  }
+
+  const responsavel = String(os.atribuida_a || os.responsavel_nome || '').trim()
+  if (responsavel) {
+    return [{ id: os.responsavel_usuario_id, nome: responsavel }]
+  }
+
+  return []
+}
+
 // Paleta completa de cores por tipo de atividade:
 // Aditivo: preserva as chaves clássicas e adiciona diferenciação por tipo de manutenção
 // - Manutenção Preventiva: ÂMBAR / AMARELO OURO (#F59E0B)
@@ -528,6 +587,21 @@ export function sanitizeOS(os: any): OrdemServico {
     horarioFimStr = somarMinutos(horarioInicioStr, duracaoNum)
   }
 
+  // Preserva tecnicos_ids e tecnicos_nomes caso presentes
+  const tecnicosIdsArray: string[] =
+    Array.isArray(os.tecnicos_ids) && os.tecnicos_ids.length > 0
+      ? os.tecnicos_ids.filter((id: any) => typeof id === 'string' && id.trim())
+      : os.responsavel_usuario_id || os.responsavel_id
+        ? [os.responsavel_usuario_id || os.responsavel_id]
+        : []
+
+  const tecnicosNomesArray: string[] =
+    Array.isArray(os.tecnicos_nomes) && os.tecnicos_nomes.length > 0
+      ? os.tecnicos_nomes.filter((nome: any) => typeof nome === 'string' && nome.trim())
+      : atribuidaAStr || os.atribuida_a
+        ? [atribuidaAStr || os.atribuida_a]
+        : []
+
   return {
     ...os,
     data_agendada: dataAgendadaStr,
@@ -536,6 +610,8 @@ export function sanitizeOS(os: any): OrdemServico {
     horario_fim: horarioFimStr,
     duracao_minutos: duracaoNum,
     tempo_previsto_minutos: duracaoNum,
+    tecnicos_ids: tecnicosIdsArray,
+    tecnicos_nomes: tecnicosNomesArray,
     checklist: checklistNormalizada,
   }
 }
@@ -1976,6 +2052,18 @@ function CalendarioExecucaoOSContent({
                           os.expand?.cliente_id?.razao_social ||
                           'Cliente Solar'
 
+                        const tecnicosLista = extrairListaTecnicos(os)
+                        const isMultiTecnico = tecnicosLista.length > 1
+                        const tecnicosNomesStr = tecnicosLista.map((t) => t.nome).join(', ')
+
+                        // Tooltip completo com todos os técnicos
+                        const tooltipCompleto = `${horario} • ${clienteNome} (${tipoServico})\nTécnicos: ${tecnicosNomesStr || 'Não atribuído'}\nClique para abrir a ficha de execução`
+
+                        // Leque de cores na borda esquerda se for multi-técnico
+                        const gradientColors = isMultiTecnico
+                          ? tecnicosLista.map((t) => getTecnicoCor(t.nome).hex).join(', ')
+                          : null
+
                         return (
                           <div
                             key={safeStr(os.id)}
@@ -1993,11 +2081,14 @@ function CalendarioExecucaoOSContent({
                             }}
                             style={{
                               borderLeftWidth: '3.5px',
-                              borderLeftColor: tipoConfig.borderColor,
+                              borderLeftColor: isMultiTecnico ? undefined : tipoConfig.borderColor,
+                              borderImage: isMultiTecnico
+                                ? `linear-gradient(to bottom, ${gradientColors}) 1 100%`
+                                : undefined,
                               backgroundColor: tipoConfig.pillBg,
                             }}
-                            className="p-1 sm:p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer"
-                            title={`${horario} • ${clienteNome} (${tipoServico}) - Clique para abrir a ficha de execução`}
+                            className="p-1 sm:p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer relative"
+                            title={tooltipCompleto}
                           >
                             {/* Horário + Tipo (com cor) */}
                             <div className="flex items-center justify-between gap-1 leading-none mb-0.5">
@@ -2015,25 +2106,67 @@ function CalendarioExecucaoOSContent({
                               </div>
                             </div>
 
-                            {/* Nome do Cliente */}
+                            {/* Nome do Cliente + Avatares empilhados / Responsável */}
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[10px] sm:text-xs font-semibold text-gray-900 truncate group-hover:text-emerald-800 transition-colors">
                                 {clienteNome}
                               </span>
-                              {isAdmin && onDeleteOS && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onDeleteOS(os)
-                                  }}
-                                  className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer shrink-0"
-                                  title="Excluir atividade / OS"
-                                  aria-label="Excluir atividade / OS"
-                                >
-                                  <Trash2 className="w-2.5 h-2.5" />
-                                </button>
-                              )}
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                {/* Avatares empilhados para multi-técnico com (+N) acima de 3 */}
+                                {isMultiTecnico ? (
+                                  <div
+                                    className="flex items-center -space-x-1.5"
+                                    title={`Técnicos: ${tecnicosNomesStr}`}
+                                  >
+                                    {tecnicosLista.slice(0, 3).map((tec, tIdx) => {
+                                      const cor = getTecnicoCor(tec.nome)
+                                      return (
+                                        <span
+                                          key={`${tec.nome}-${tIdx}`}
+                                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ring-1 ring-white ${cor.bgClass} ${cor.textClass}`}
+                                          title={tec.nome}
+                                        >
+                                          {getIniciaisNome(tec.nome)}
+                                        </span>
+                                      )
+                                    })}
+                                    {tecnicosLista.length > 3 && (
+                                      <span
+                                        className="w-4 h-4 rounded-full bg-gray-700 text-white flex items-center justify-center text-[7px] font-extrabold ring-1 ring-white"
+                                        title={`+${tecnicosLista.length - 3} outros: ${tecnicosLista
+                                          .slice(3)
+                                          .map((t) => t.nome)
+                                          .join(', ')}`}
+                                      >
+                                        +{tecnicosLista.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : tecnicosLista.length === 1 ? (
+                                  <span
+                                    className="text-[9px] text-gray-500 truncate max-w-[50px] hidden sm:inline"
+                                    title={tecnicosLista[0].nome}
+                                  >
+                                    {tecnicosLista[0].nome.split(' ')[0]}
+                                  </span>
+                                ) : null}
+
+                                {isAdmin && onDeleteOS && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onDeleteOS(os)
+                                    }}
+                                    className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer shrink-0"
+                                    title="Excluir atividade / OS"
+                                    aria-label="Excluir atividade / OS"
+                                  >
+                                    <Trash2 className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         )
@@ -2405,6 +2538,11 @@ function CalendarioExecucaoOSContent({
                           os.expand?.cliente_id?.razao_social ||
                           'Cliente Solar'
 
+                        const tecnicosLista = extrairListaTecnicos(os)
+                        const isMultiTecnico = tecnicosLista.length > 1
+                        const tecnicosNomesStr = tecnicosLista.map((t) => t.nome).join(', ')
+                        const cardTooltip = `${clienteNome} (${tipoServico}) • ${horaInicioStr} - ${horaFimStr}\nTécnicos: ${tecnicosNomesStr || 'Não atribuído'}\nClique para abrir ficha de execução\nArraste para mover horário/dia\nPuxe a borda inferior para ajustar duração`
+
                         return (
                           <div
                             key={`card-${osId}`}
@@ -2425,15 +2563,36 @@ function CalendarioExecucaoOSContent({
                             style={{
                               top: `${cardTop}px`,
                               height: `${cardHeight}px`,
-                              borderLeftWidth: '4px',
-                              borderLeftColor: isConcluida ? '#9CA3AF' : tipoConfig.hex,
+                              borderLeftWidth: isMultiTecnico ? '1px' : '4px',
+                              borderLeftColor: isConcluida
+                                ? '#9CA3AF'
+                                : isMultiTecnico
+                                  ? undefined
+                                  : tipoConfig.hex,
                               backgroundColor: isConcluida ? '#F9FAFB' : tipoConfig.pillBg,
                               zIndex: isDragging || isBeingResized ? 30 : 10,
                             }}
-                            title={`${clienteNome} (${tipoServico}) • ${horaInicioStr} - ${horaFimStr}\nClique para abrir ficha de execução\nArraste para mover horário/dia\nPuxe a borda inferior para ajustar duração`}
+                            title={cardTooltip}
                           >
+                            {/* Bloco único repartido em faixas verticais estilo Outlook se multi-técnico */}
+                            {isMultiTecnico && (
+                              <div className="absolute inset-0 flex pointer-events-none z-0 opacity-15">
+                                {tecnicosLista.map((tec, tIdx) => {
+                                  const cor = getTecnicoCor(tec.nome)
+                                  return (
+                                    <div
+                                      key={`stripe-${tec.nome}-${tIdx}`}
+                                      className="flex-1 h-full border-r border-black/10 last:border-r-0"
+                                      style={{ backgroundColor: cor.hex }}
+                                      title={tec.nome}
+                                    />
+                                  )
+                                })}
+                              </div>
+                            )}
+
                             {/* Conteúdo do Card */}
-                            <div className="min-w-0 flex-1 overflow-hidden pb-1">
+                            <div className="min-w-0 flex-1 overflow-hidden pb-1 relative z-10">
                               {/* Topo: Horário + Tipo */}
                               <div className="flex items-center justify-between gap-1 mb-0.5">
                                 <span className="text-[10px] font-bold text-gray-700 font-mono flex items-center gap-0.5 shrink-0">
@@ -2476,16 +2635,40 @@ function CalendarioExecucaoOSContent({
                                 {clienteNome}
                               </div>
 
-                              {/* Responsável / Duração (se couber na altura) */}
-                              {cardHeight >= 48 && (
-                                <div className="flex items-center justify-between text-[10px] text-gray-500 mt-0.5 truncate gap-1">
-                                  <span className="truncate flex items-center gap-0.5">
-                                    <User className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                                    <span className="truncate">
-                                      {os.atribuida_a || 'Não atribuído'}
+                              {/* Faixas / Avatares e Responsáveis por técnico estilo Outlook na Semana/Dia */}
+                              {cardHeight >= 46 && (
+                                <div className="mt-1 flex items-center justify-between text-[10px] text-gray-600 gap-1 overflow-hidden">
+                                  {isMultiTecnico ? (
+                                    <div className="flex items-center gap-1 overflow-hidden flex-1 pointer-events-auto">
+                                      {tecnicosLista.map((tec, tIdx) => {
+                                        const cor = getTecnicoCor(tec.nome)
+                                        return (
+                                          <div
+                                            key={`badge-tec-${tec.nome}-${tIdx}`}
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/90 border border-gray-200/90 shadow-2xs text-[9px] font-semibold text-gray-800 hover:bg-white hover:scale-105 transition-all cursor-default shrink-0 max-w-[120px]"
+                                            title={`Técnico: ${tec.nome}`}
+                                          >
+                                            <span
+                                              className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-extrabold shrink-0 ${cor.bgClass} ${cor.textClass}`}
+                                            >
+                                              {getIniciaisNome(tec.nome)}
+                                            </span>
+                                            <span className="truncate">
+                                              {tec.nome.split(' ')[0]}
+                                            </span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <span className="truncate flex items-center gap-0.5">
+                                      <User className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                      <span className="truncate">
+                                        {os.atribuida_a || 'Não atribuído'}
+                                      </span>
                                     </span>
-                                  </span>
-                                  <span className="text-[9px] text-gray-400 shrink-0">
+                                  )}
+                                  <span className="text-[9px] text-gray-400 shrink-0 font-medium ml-auto">
                                     {item.duracaoMinutos}m
                                   </span>
                                 </div>
@@ -2680,13 +2863,17 @@ function CalendarioExecucaoOSContent({
                         </span>
                       </div>
 
-                      {/* Responsável */}
+                      {/* Responsável / Técnicos vinculados */}
                       <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
                         <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span>
-                          Instalador:{' '}
+                          {extrairListaTecnicos(os).length > 1 ? 'Técnicos: ' : 'Instalador: '}
                           <strong className="text-gray-700">
-                            {os.atribuida_a || 'Não atribuído'}
+                            {extrairListaTecnicos(os).length > 0
+                              ? extrairListaTecnicos(os)
+                                  .map((t) => t.nome)
+                                  .join(', ')
+                              : os.atribuida_a || 'Não atribuído'}
                           </strong>
                         </span>
                       </div>
@@ -2838,13 +3025,17 @@ function CalendarioExecucaoOSContent({
                         </span>
                       </div>
 
-                      {/* Responsável */}
+                      {/* Responsável / Técnicos vinculados */}
                       <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
                         <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span>
-                          Instalador:{' '}
+                          {extrairListaTecnicos(os).length > 1 ? 'Técnicos: ' : 'Instalador: '}
                           <strong className="text-gray-700">
-                            {os.atribuida_a || 'Não atribuído'}
+                            {extrairListaTecnicos(os).length > 0
+                              ? extrairListaTecnicos(os)
+                                  .map((t) => t.nome)
+                                  .join(', ')
+                              : os.atribuida_a || 'Não atribuído'}
                           </strong>
                         </span>
                       </div>

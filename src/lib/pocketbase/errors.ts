@@ -33,25 +33,30 @@ export function isAuthSessionError(error: unknown): boolean {
   if (typeof error === 'object') {
     const errObj = error as Record<string, unknown>
     if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.response && typeof errObj.response === 'object') {
+      const resp = errObj.response as Record<string, unknown>
+      if (resp.status === 401 || resp.status === 403) return true
+    }
+  }
+  const msg =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : (error as any)?.message
+  if (typeof msg === 'string') {
+    const lower = msg.toLowerCase()
     if (
-      errObj.response &&
-      typeof errObj.response === 'object' &&
-      ((errObj.response as Record<string, unknown>).status === 401 ||
-        (errObj.response as Record<string, unknown>).status === 403)
+      lower.includes('token is expired') ||
+      lower.includes('token expired') ||
+      lower.includes('sessão expirada') ||
+      lower.includes('sessao expirada') ||
+      lower.includes('login expirou') ||
+      lower.includes('failed to authenticate') ||
+      lower.includes('the request requires valid record authorization token')
     ) {
       return true
     }
-  }
-  const message =
-    error instanceof Error
-      ? error.message
-      : String((error as Record<string, unknown>)?.message || '')
-  if (
-    /Token is expired or invalid|Sessão expirada|Login expirou|Failed to authenticate|autocancelled|autocancel/i.test(
-      message,
-    )
-  ) {
-    return true
   }
   return false
 }
@@ -61,7 +66,12 @@ export function isAbortError(error: unknown): boolean {
   const errObj = error as Record<string, unknown>
   if (errObj.isAbort === true) return true
   if (errObj.name === 'AbortError') return true
-  if (typeof errObj.message === 'string' && /aborted|autocancel/i.test(errObj.message)) return true
+  if (
+    typeof errObj.message === 'string' &&
+    errObj.message.toLowerCase().includes('request was aborted')
+  ) {
+    return true
+  }
   return false
 }
 

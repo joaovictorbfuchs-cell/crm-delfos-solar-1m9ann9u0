@@ -345,6 +345,20 @@ function ExecucaoOSContent() {
           ? [atv.fotos.trim()]
           : []
 
+      // Extrai e normaliza arrays de técnicos vinculados à atividade
+      const tecnicosIdsArray: string[] =
+        Array.isArray(atv.tecnicos_ids) && atv.tecnicos_ids.length > 0
+          ? atv.tecnicos_ids.filter((id: any) => typeof id === 'string' && id.trim())
+          : atv.responsavel_id
+            ? [atv.responsavel_id]
+            : []
+      const tecnicosNomesArray: string[] =
+        Array.isArray(atv.tecnicos_nomes) && atv.tecnicos_nomes.length > 0
+          ? atv.tecnicos_nomes.filter((nome: any) => typeof nome === 'string' && nome.trim())
+          : atribuidaA
+            ? [atribuidaA]
+            : []
+
       return {
         id: atv.id || 'atv-' + Math.random().toString(36).slice(2, 7),
         collectionId: atv.collectionId || 'atividades',
@@ -366,6 +380,8 @@ function ExecucaoOSContent() {
         atribuida_a: atribuidaA,
         responsavel_usuario_id: atv.responsavel_id || undefined,
         profissional_id: undefined,
+        tecnicos_ids: tecnicosIdsArray,
+        tecnicos_nomes: tecnicosNomesArray,
         instrucoes,
         detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
         concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
@@ -469,8 +485,8 @@ function ExecucaoOSContent() {
         // Projeção segura de atividades incluindo checklist e fotos para que cheguem à tela
         // tanto para instalador quanto para admin/outros perfis
         const fieldsAtividades = isInstalador
-          ? 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,checklist,fotos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
-          : 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,horario_inicio,horario_fim,duracao_minutos,checklist,fotos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.responsavel_id.id,expand.responsavel_id.name,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
+          ? 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,tecnicos_ids,tecnicos_nomes,autor,horario_inicio,horario_fim,duracao_minutos,checklist,fotos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
+          : 'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,titulo,descricao,data,status,responsavel_id,responsavel_nome,tecnicos_ids,tecnicos_nomes,autor,horario_inicio,horario_fim,duracao_minutos,checklist,fotos,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.cliente_id.cidade,expand.cliente_id.endereco,expand.usina_id.id,expand.usina_id.nome,expand.usina_id.endereco,expand.responsavel_id.id,expand.responsavel_id.name,expand.tipo_custom_id.id,expand.tipo_custom_id.nome,expand.tipo_custom_id.categoria'
 
         const osPromise = withTimeoutSeguro(
           () =>
@@ -937,12 +953,29 @@ function ExecucaoOSContent() {
         }
 
         // Filtro por prestador (ignorado para instalador, pois a visão já é filtrada/atribuída a ele)
+        // Regra do usuário: lógica OU (tecnicos_ids.includes OU responsavel_id === OU atribuida_a / tecnicos_nomes contendo o nome)
         if (!isInstalador && selectedPrestadorFilter !== 'todos') {
           const prestadorOS = String(os?.atribuida_a || '').toLowerCase()
           const target = String(selectedPrestadorFilter || '').toLowerCase()
           const matchesPrestador = prestadorOS.includes(target)
           const matchesResponsavelId = os?.responsavel_usuario_id === selectedPrestadorFilter
-          if (!matchesPrestador && !matchesResponsavelId) {
+
+          const matchesTecnicosIds =
+            Array.isArray(os?.tecnicos_ids) && os.tecnicos_ids.includes(selectedPrestadorFilter)
+          const matchesTecnicosNomes =
+            Array.isArray(os?.tecnicos_nomes) &&
+            os.tecnicos_nomes.some((nome: string) =>
+              String(nome || '')
+                .toLowerCase()
+                .includes(target),
+            )
+
+          if (
+            !matchesPrestador &&
+            !matchesResponsavelId &&
+            !matchesTecnicosIds &&
+            !matchesTecnicosNomes
+          ) {
             return false
           }
         }
