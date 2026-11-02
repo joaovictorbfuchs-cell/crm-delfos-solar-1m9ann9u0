@@ -160,17 +160,16 @@ export function compilarDadosRelatorioOS(
   const dataEmissao = hoje.toLocaleDateString('pt-BR')
 
   // Cliente
-  const clienteNome =
-    cliente?.nome || cliente?.razao_social || os?.cliente_nome || 'Cliente Delfos Solar'
+  const clienteNome = cliente?.nome || cliente?.razao_social || os?.cliente_nome || '—'
   const clienteDoc = cliente?.cpf || cliente?.cnpj || ''
-  const clienteTelefone = cliente?.whatsapp || cliente?.telefone || '(54) 99129-2121'
+  const clienteTelefone = cliente?.whatsapp || cliente?.telefone || '—'
 
   // Endereço da usina
   const cidadeEstado = cliente?.cidade
     ? `${cliente.cidade}/${cliente.estado || 'RS'}`
     : sistema?.cidade
       ? `${sistema.cidade}/RS`
-      : 'Erechim/RS'
+      : '—'
   let enderecoClienteFormatado = ''
   if (cliente?.endereco) {
     const rawNum = (cliente.numero || '').trim()
@@ -185,10 +184,14 @@ export function compilarDadosRelatorioOS(
     sistema?.endereco ||
     enderecoClienteFormatado ||
     cliente?.endereco ||
-    'Rua Espírito Santo, 275'
-  const enderecoUsina = enderecoBase.includes(cidadeEstado)
-    ? enderecoBase
-    : `${enderecoBase} – ${cidadeEstado}`
+    ''
+  const enderecoUsina = enderecoBase
+    ? cidadeEstado && cidadeEstado !== '—' && !enderecoBase.includes(cidadeEstado)
+      ? `${enderecoBase} – ${cidadeEstado}`
+      : enderecoBase
+    : cidadeEstado && cidadeEstado !== '—'
+      ? cidadeEstado
+      : 'Não informado'
 
   // Data do atendimento e horários
   const dataAgendadaRaw = os?.data_agendada || os?.created
@@ -205,9 +208,10 @@ export function compilarDadosRelatorioOS(
   }
 
   // Horários e duração
-  let horarioInicio = '08:00'
-  let horarioFim = '09:30'
-  let duracaoStr = '01h30min'
+  let horarioInicio: string | null = null
+  let horarioFim: string | null = null
+  let duracaoStr: string | null = null
+  let dataInicioRealObj: Date | null = null
 
   // Tenta extrair do texto detalhes_execucao se houver "[INÍCIO DO ATENDIMENTO: ...]"
   const detalhesRaw = String(os?.detalhes_execucao || os?.observacoes || os?.descricao || '')
@@ -219,11 +223,23 @@ export function compilarDadosRelatorioOS(
     if (matchHora) {
       horarioInicio = matchHora[1]
     }
-  } else if (os?.data_agendada) {
+    // Tenta montar Date para início se houver data/hora completa no match
+    try {
+      const dMatch = new Date(rawInicio)
+      if (!isNaN(dMatch.getTime())) {
+        dataInicioRealObj = dMatch
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (!horarioInicio && os?.data_agendada) {
     try {
       const d = new Date(os.data_agendada)
       if (!isNaN(d.getTime())) {
         horarioInicio = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        dataInicioRealObj = d
       }
     } catch {
       /* ignore */
@@ -235,10 +251,11 @@ export function compilarDadosRelatorioOS(
       const dFim = new Date(os.concluida_em)
       if (!isNaN(dFim.getTime())) {
         horarioFim = dFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        // Se houver data agendada para início, calcula a duração real
-        if (os.data_agendada) {
-          const dIni = new Date(os.data_agendada)
-          const diffMs = Math.max(0, dFim.getTime() - dIni.getTime())
+        // Se houver data real para início, calcula a duração real
+        const dIniParaCalculo =
+          dataInicioRealObj || (os.data_agendada ? new Date(os.data_agendada) : null)
+        if (dIniParaCalculo && !isNaN(dIniParaCalculo.getTime())) {
+          const diffMs = Math.max(0, dFim.getTime() - dIniParaCalculo.getTime())
           const diffMinTotal = Math.floor(diffMs / 60000)
           const horas = Math.floor(diffMinTotal / 60)
           const minutos = diffMinTotal % 60
@@ -248,54 +265,121 @@ export function compilarDadosRelatorioOS(
     } catch {
       /* ignore */
     }
-  } else {
-    horarioFim = '11:00'
-    duracaoStr = '01h30min'
   }
 
-  const horarioInicioTermino = `${horarioInicio} às ${horarioFim} (Duração: ${duracaoStr})`
+  // Montagem da string de horário de início, término e duração (independentes)
+  let horarioInicioTermino = 'Não informado'
+  if (horarioInicio && horarioFim) {
+    horarioInicioTermino = duracaoStr
+      ? `${horarioInicio} às ${horarioFim} (Duração: ${duracaoStr})`
+      : `${horarioInicio} às ${horarioFim}`
+  } else if (horarioInicio) {
+    horarioInicioTermino = `Início: ${horarioInicio} (Término não informado)`
+  } else if (horarioFim) {
+    horarioInicioTermino = `Término: ${horarioFim} (Início não informado)`
+  }
 
-  // Tipo de serviço
-  const tipoServico =
-    os?.tipo_servico ||
-    (os?.tipo === 'limpeza'
-      ? 'Manutenção preventiva — Limpeza de módulos'
-      : os?.tipo === 'manutencao_preventiva'
-        ? 'Manutenção preventiva técnica'
-        : os?.tipo === 'manutencao_corretiva'
-          ? 'Manutenção corretiva'
-          : os?.titulo || 'Manutenção preventiva — Limpeza de módulos')
+  // Tipo de serviço canônico (sem heurística de os.titulo)
+  const tipoCanonicoRaw = String(os?.tipo_custom_id || os?.tipo || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s-]+/g, '_')
+
+  let tipoServico = os?.tipo_servico || ''
+  if (!tipoServico) {
+    if (tipoCanonicoRaw === 'limpeza') {
+      tipoServico = 'Manutenção preventiva — Limpeza de módulos'
+    } else if (tipoCanonicoRaw === 'manutencao_preventiva') {
+      tipoServico = 'Manutenção preventiva técnica'
+    } else if (tipoCanonicoRaw === 'manutencao_corretiva') {
+      tipoServico = 'Manutenção corretiva'
+    } else if (
+      tipoCanonicoRaw === 'limpeza_manutencao' ||
+      tipoCanonicoRaw === 'limpeza_e_manutencao'
+    ) {
+      tipoServico = 'Limpeza e Manutenção Preventiva'
+    } else {
+      tipoServico = 'Não informado'
+    }
+  }
 
   // Concessionária & UC
-  const concessionaria = sistema?.concessionaria || cliente?.concessionaria || 'RGE'
-  const uc = sistema?.numero_uc || cliente?.uc || '4004280183'
-  const concessionariaUc = `${concessionaria} • UC: ${uc}`
+  const concessionaria = sistema?.concessionaria || cliente?.concessionaria || '—'
+  const uc = sistema?.numero_uc || cliente?.uc || '—'
+  const concessionariaUc =
+    concessionaria === '—' && uc === '—'
+      ? '—'
+      : concessionaria !== '—' && uc !== '—'
+        ? `${concessionaria} • UC: ${uc}`
+        : concessionaria !== '—'
+          ? concessionaria
+          : `UC: ${uc}`
 
-  // Dados do sistema gerador
-  const potencia = sistema?.potencia_total_kwp || cliente?.potencia_kwp || '2,00'
+  // Dados do sistema gerador (vêm EXCLUSIVAMENTE da usina vinculada e do cliente real)
+  const potenciaRaw = sistema?.potencia_total_kwp ?? cliente?.potencia_kwp ?? null
   const potenciaFormatada =
-    typeof potencia === 'number'
-      ? potencia.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : String(potencia).replace('.', ',')
-  const qtdModulos = sistema?.quantidade_modulos || cliente?.placas_qtd || '5'
+    potenciaRaw !== null && potenciaRaw !== undefined && potenciaRaw !== ''
+      ? typeof potenciaRaw === 'number'
+        ? potenciaRaw.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
+        : String(potenciaRaw).replace('.', ',')
+      : null
+
+  const qtdModulosRaw = sistema?.quantidade_modulos ?? cliente?.placas_qtd ?? null
+  const qtdModulos =
+    qtdModulosRaw !== null && qtdModulosRaw !== undefined && qtdModulosRaw !== ''
+      ? String(qtdModulosRaw)
+      : '—'
+
   const marcaModulos =
     sistema?.fabricante_modulos ||
     sistema?.marca_placas ||
     cliente?.marca_placas ||
     cliente?.fabricante_modulos ||
-    'TSUN'
-  const inversor =
-    sistema?.fabricante_inversores || sistema?.inversor_marca || cliente?.inversor_marca || 'Solis'
-  const tipoEstrutura = sistema?.tipo_telhado || cliente?.telhado_tipo || 'Telhado cerâmico'
-  const estruturaFormatada = tipoEstrutura.toLowerCase().includes('solo')
-    ? 'Solo'
-    : tipoEstrutura.toLowerCase().includes('metal')
-      ? 'Telhado metálico'
-      : tipoEstrutura.toLowerCase().includes('fibrocimento')
-        ? 'Fibrocimento'
-        : 'Telhado cerâmico'
+    '—'
 
-  const dadosSistemaGerador = `Potência: ${potenciaFormatada} kWp • ${qtdModulos} módulos ${marcaModulos} • Inversor ${inversor} • Estrutura: ${estruturaFormatada}`
+  const inversor =
+    sistema?.fabricante_inversores || sistema?.inversor_marca || cliente?.inversor_marca || '—'
+
+  const tipoEstruturaRaw = sistema?.tipo_telhado || cliente?.telhado_tipo || ''
+  const tipoEstruturaNorm = tipoEstruturaRaw.toLowerCase().trim()
+  const estruturaFormatada = !tipoEstruturaNorm
+    ? '—'
+    : tipoEstruturaNorm.includes('solo')
+      ? 'Solo'
+      : tipoEstruturaNorm.includes('metal')
+        ? 'Telhado metálico'
+        : tipoEstruturaNorm.includes('fibrocimento')
+          ? 'Fibrocimento'
+          : tipoEstruturaNorm.includes('ceramico') || tipoEstruturaNorm.includes('cerâmica')
+            ? 'Telhado cerâmico'
+            : tipoEstruturaRaw
+
+  // Montagem de dadosSistemaGerador omitindo partes sem dado
+  const partesSistema: string[] = []
+  if (potenciaFormatada) {
+    partesSistema.push(`Potência: ${potenciaFormatada} kWp`)
+  }
+  if (qtdModulos !== '—' && marcaModulos !== '—') {
+    partesSistema.push(`${qtdModulos} módulos ${marcaModulos}`)
+  } else if (qtdModulos !== '—') {
+    partesSistema.push(`${qtdModulos} módulos`)
+  } else if (marcaModulos !== '—') {
+    partesSistema.push(`Módulos ${marcaModulos}`)
+  }
+
+  if (inversor !== '—') {
+    partesSistema.push(`Inversor ${inversor}`)
+  }
+  if (estruturaFormatada !== '—') {
+    partesSistema.push(`Estrutura: ${estruturaFormatada}`)
+  }
+
+  const dadosSistemaGerador = partesSistema.length > 0 ? partesSistema.join(' • ') : '—'
 
   // Situação do atendimento e condição do sistema
   const isConcluida =
@@ -633,14 +717,50 @@ export function compilarDadosRelatorioOS(
     })
   } else {
     // 3 registros padrão com placeholder ilustrativo elegante
+    const subtituloFoto1 =
+      marcaModulos !== '—' && estruturaFormatada !== '—'
+        ? `Módulos ${marcaModulos} (${estruturaFormatada})`
+        : marcaModulos !== '—'
+          ? `Módulos ${marcaModulos}`
+          : estruturaFormatada !== '—'
+            ? `Módulos (${estruturaFormatada})`
+            : 'Módulos fotovoltaicos'
+
+    const subtituloFoto2 =
+      marcaModulos !== '—' ? `Módulos ${marcaModulos} — Conclusão` : 'Módulos — Conclusão'
+
+    const subtituloFoto3 =
+      estruturaFormatada !== '—'
+        ? `Estrutura (${estruturaFormatada}) e Conexões MC4`
+        : 'Estrutura e Conexões MC4'
+
+    const descFoto1 =
+      qtdModulos !== '—' && marcaModulos !== '—'
+        ? `Vista geral dos ${qtdModulos} módulos ${marcaModulos} antes do procedimento de manutenção. Presença de camada de poeira e sujidade superficial pré-intervenção.`
+        : qtdModulos !== '—'
+          ? `Vista geral dos ${qtdModulos} módulos antes do procedimento de manutenção. Presença de camada de poeira e sujidade superficial pré-intervenção.`
+          : 'Vista geral dos módulos antes do procedimento de manutenção. Presença de camada de poeira e sujidade superficial pré-intervenção.'
+
+    const descFoto3 =
+      estruturaFormatada !== '—'
+        ? `Inspeção detalhada de fixadores no ${estruturaFormatada.toLowerCase()} e integridade do chicote elétrico acessível do arranjo.`
+        : 'Inspeção detalhada de fixadores na estrutura e integridade do chicote elétrico acessível do arranjo.'
+
+    const horaFoto1 = horarioInicio
+      ? `${dataAtendimento} às ${horarioInicio} • Técnico executor`
+      : `${dataAtendimento} • Técnico executor`
+    const horaFotoFim = horarioFim
+      ? `${dataAtendimento} às ${horarioFim} • Técnico executor`
+      : `${dataAtendimento} • Técnico executor`
+
     fotos.push(
       {
         id: '1',
         url: '',
         titulo: 'Atividade 1 — Foto 1',
-        subtitulo: `Módulos ${marcaModulos} (${estruturaFormatada})`,
-        descricao: `Vista geral dos ${qtdModulos} módulos ${marcaModulos} antes do procedimento de manutenção. Presença de camada de poeira e sujidade superficial pré-intervenção.`,
-        dataHora: `${dataAtendimento} às ${horarioInicio} • Técnico executor`,
+        subtitulo: subtituloFoto1,
+        descricao: descFoto1,
+        dataHora: horaFoto1,
         item_checklist_id: checklistItens[0]?.id,
         item_checklist_texto: checklistItens[0]?.item,
         numeroGlobal: 1,
@@ -649,10 +769,10 @@ export function compilarDadosRelatorioOS(
         id: '2',
         url: '',
         titulo: 'Atividade 1 — Foto 2',
-        subtitulo: `Módulos ${marcaModulos} — Conclusão`,
+        subtitulo: subtituloFoto2,
         descricao:
           'Superfície dos módulos após lavagem e escovação técnica com cerdas macias e água limpa. Remoção completa de impurezas conforme manual técnico.',
-        dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
+        dataHora: horaFotoFim,
         item_checklist_id: checklistItens[0]?.id,
         item_checklist_texto: checklistItens[0]?.item,
         numeroGlobal: 2,
@@ -661,9 +781,9 @@ export function compilarDadosRelatorioOS(
         id: '3',
         url: '',
         titulo: 'Atividade 2 — Foto 1',
-        subtitulo: 'Estrutura e Conexões MC4',
-        descricao: `Inspeção detalhada de fixadores no ${estruturaFormatada.toLowerCase()} e integridade do chicote elétrico acessível do arranjo.`,
-        dataHora: `${dataAtendimento} às ${horarioFim} • Técnico executor`,
+        subtitulo: subtituloFoto3,
+        descricao: descFoto3,
+        dataHora: horaFotoFim,
         item_checklist_id: checklistItens[1]?.id,
         item_checklist_texto: checklistItens[1]?.item,
         numeroGlobal: 3,

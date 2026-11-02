@@ -7,10 +7,9 @@
  * do usuário logado (ex.: técnico João vs Daniel vs cliente anônimo).
  *
  * Mantém suporte transparente a:
- * - ID direto de atividades
- * - ID direto de ordens_servico
- * - Fallback por registro_original_id
- * - Fallback por chave_importacao
+ * - ID direto de atividades (retorna imediatamente se encontrado, sem fallback cruzado para ordens_servico)
+ * - ID direto de ordens_servico (apenas se não encontrado em atividades)
+ * - Fallback por registro_original_id / chave_importacao apenas quando o id não existir em atividades nem em ordens_servico
  * - Fallback de rede direto ao PocketBase caso o hook não responda
  */
 
@@ -65,7 +64,8 @@ export async function obterRelatorioOSPublico(
   // 2. Fallback resiliente usando as coleções do PocketBase
   let registro: any = null
 
-  // 2.1 Buscar em atividades por id direto
+  // 2.1 Buscar em atividades por id direto.
+  // Se o id existir em atividades, NÃO prosseguir para buscas cruzadas em ordens_servico nem fallbacks.
   try {
     registro = await pb.collection('atividades').getOne(cleanId, {
       expand: 'cliente_id,usina_id,responsavel_id',
@@ -76,7 +76,7 @@ export async function obterRelatorioOSPublico(
     }
   }
 
-  // 2.2 Buscar em ordens_servico por id direto
+  // 2.2 Buscar em ordens_servico por id direto (apenas se NÃO achou em atividades)
   if (!registro) {
     try {
       registro = await pb.collection('ordens_servico').getOne(cleanId, {
@@ -88,6 +88,7 @@ export async function obterRelatorioOSPublico(
   }
 
   // 2.3 Fallback por registro_original_id ou chave_importacao em atividades
+  // (executado apenas para IDs que NÃO existem em atividades nem em ordens_servico por ID direto)
   if (!registro) {
     try {
       const safeFilter = `registro_original_id = "${cleanId}" || chave_importacao ~ "${cleanId}"`
@@ -104,6 +105,7 @@ export async function obterRelatorioOSPublico(
   }
 
   // 2.4 Fallback por registro_original_id ou chave_importacao em ordens_servico
+  // (executado apenas para IDs que NÃO existem em atividades nem em ordens_servico por ID direto)
   if (!registro) {
     try {
       const safeFilter = `registro_original_id = "${cleanId}" || chave_importacao ~ "${cleanId}"`
