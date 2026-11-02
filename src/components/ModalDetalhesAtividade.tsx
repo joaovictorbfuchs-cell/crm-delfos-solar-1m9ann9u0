@@ -294,11 +294,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const handleTipoChange = (novoTipo: AtividadeTipo) => {
     setTipo(novoTipo)
     const conf = getTipoAtividadeConfig(novoTipo)
-    // Se o título atual for vazio ou for o título padrão de outro tipo, sugere o novo título
-    const currentConf = getTipoAtividadeConfig(tipo)
-    if (!titulo.trim() || titulo.trim() === currentConf.tituloPadrao) {
-      setTitulo(conf.tituloPadrao)
-    }
+    // Trocar tipo -> título = tituloPadrao do novo tipo, editável
+    setTitulo(conf.tituloPadrao)
 
     // Se o novo tipo não for de manutenção, checa se os técnicos atuais são instalador/técnico
     if (conf.categoria !== 'manutencao') {

@@ -507,9 +507,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       customDefs.find((t) => t.categoria === catId)
     if (firstOfCat) {
       setSelectedTipo(firstOfCat.id)
-      // Preserva o título livre se o usuário já tiver digitado algo diferente do padrão anterior,
-      // mas se estiver vazio preenche com o padrão do primeiro tipo
-      setTitulo((prev) => (prev.trim() ? prev : firstOfCat.tituloPadrao))
+      setTitulo(firstOfCat.tituloPadrao)
       setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(firstOfCat))
     }
 
@@ -541,11 +539,11 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     const conf = getTipoAtividadeConfig(novoTipo, customDefs)
     // Herda a definição de usina obrigatória a partir da configuração deste padrão de atividade
     setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(conf))
-    // Título livre: preenche se estiver vazio ou com o padrão anterior
-    setTitulo((prev) => (!prev.trim() ? conf.tituloPadrao : prev))
+    // Título livre: título base = nome do tipo sempre
+    setTitulo(conf.tituloPadrao)
     if (novoTipo === 'auto_leitura_rge') {
-      // Se tiver UC preenchida e título vazio ou genérico, sugere padrão "Auto Leitura RGE - UC <numero>"
-      if (numeroUcAutoLeitura && (!titulo || titulo === 'Auto Leitura - RGE')) {
+      // Se tiver UC preenchida, sugere padrão "Auto Leitura RGE - UC <numero>"
+      if (numeroUcAutoLeitura) {
         setTitulo(`Auto Leitura RGE - UC ${numeroUcAutoLeitura}`)
       }
     } else if (novoTipo === 'solicitar_contas_rge') {
