@@ -265,10 +265,11 @@ export function resolverColecaoItem(
   const cName = (item as any)?.collectionName
   const cId = (item as any)?.collectionId
   const orig = (item as any)?.origem
-  if (cName === 'atividades' || cId === 'atividades' || orig === 'atividades') {
+  // Prioridade 1: se qualquer indício canônico for 'atividades', SEMPRE 'atividades'
+  if (orig === 'atividades' || cName === 'atividades' || cId === 'atividades') {
     return 'atividades'
   }
-  // Se tem a propriedade canônica de atividade ('tipo') e não foi explicitamente setado como ordens_servico
+  // Se tiver a propriedade canônica de atividade ('tipo') e não for explicitamente ordens_servico
   if ((item as any)?.tipo && orig !== 'ordens_servico') {
     return 'atividades'
   }
@@ -1500,91 +1501,104 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
-  // Salvar rascunho / alterações intermediárias
+  // Salvar rascunho / alterações intermediárias (não-fatal, blindado com try/catch)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const handleSalvarRascunho = async () => {
-    if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Usina obrigatória',
-        description: MSG_USINA_OBRIGATORIA,
-      })
-      return
-    }
-
-    setIsSavingDraft(true)
     try {
-      const filesToUpload = novasFotos.map((nf) => nf.file)
-      const targetInstalador = instaladores.find((i) => i.id === responsavelId)
-      const blocosPayload = Array.isArray(os.blocos_relatorio) ? os.blocos_relatorio : undefined
-
-      const metadadosConsolidados = compilarMetadadosFinais()
-      const checklistAtual = checklistRef.current?.length > 0 ? checklistRef.current : checklist
-
-      const payload: Partial<OrdemServico> = {
-        instrucoes: instrucoesTexto,
-        checklist: checklistAtual,
-        detalhes_execucao: detalhesExecucao,
-        usina_id: selectedUsinaId || undefined,
-        ...(blocosPayload !== undefined ? { blocos_relatorio: blocosPayload } : {}),
-        pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
-        solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
-        avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
-        avaliacao_google_link: avaliacaoGoogleLink.trim(),
-        fotos_metadados: metadadosConsolidados,
-        origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
-      }
-      if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
-        payload.responsavel_usuario_id = responsavelId
-        payload.atribuida_a = targetInstalador ? targetInstalador.name : ''
+      if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
+        toast({
+          variant: 'destructive',
+          title: 'Usina obrigatória',
+          description: MSG_USINA_OBRIGATORIA,
+        })
+        return
       }
 
-      const updated = await updateOrdemServico(
-        os.id,
-        payload,
-        filesToUpload.length > 0 ? filesToUpload : undefined,
-      )
-      const fotosDoRetorno = normalizarFotosIniciais(updated.fotos, (updated as any)?.foto_medidor)
-      // Mesclar fotos salvas anteriores com as novas fotos retornadas pelo backend (garantindo unicidade)
-      const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
-      const metadadosSalvos = Array.isArray(updated.fotos_metadados)
-        ? (updated.fotos_metadados as FotoMetadadoItem[])
-        : metadadosConsolidados
-      const updatedComFotos: OrdemServico = {
-        ...updated,
-        fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
-        fotos_metadados: metadadosSalvos,
-      }
-      setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
-      setFotosMetadados(metadadosSalvos)
-      setNovasFotos([])
-      // Se marcou "Salvar como padrão", grava no banco e no cache via setAvaliacaoGoogleConfigPadrao
-      if (salvarAvaliacaoComoPadrao) {
-        try {
-          await setAvaliacaoGoogleConfigPadrao({
-            texto: avaliacaoGoogleTexto.trim() || TEXTO_AVALIACAO_GOOGLE_PADRAO,
-            link: avaliacaoGoogleLink.trim() || LINK_AVALIACAO_GOOGLE_PADRAO,
-          })
-          setSalvarAvaliacaoComoPadrao(false)
-        } catch (padraoErr) {
-          console.warn('Erro ao salvar padrão global de avaliação:', padraoErr)
+      setIsSavingDraft(true)
+      try {
+        const filesToUpload = novasFotos.map((nf) => nf.file)
+        const targetInstalador = instaladores.find((i) => i.id === responsavelId)
+        const blocosPayload = Array.isArray(os.blocos_relatorio) ? os.blocos_relatorio : undefined
+
+        const metadadosConsolidados = compilarMetadadosFinais()
+        const checklistAtual = checklistRef.current?.length > 0 ? checklistRef.current : checklist
+
+        const payload: Partial<OrdemServico> = {
+          instrucoes: instrucoesTexto,
+          checklist: checklistAtual,
+          detalhes_execucao: detalhesExecucao,
+          usina_id: selectedUsinaId || undefined,
+          ...(blocosPayload !== undefined ? { blocos_relatorio: blocosPayload } : {}),
+          pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
+          solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
+          avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
+          avaliacao_google_link: avaliacaoGoogleLink.trim(),
+          fotos_metadados: metadadosConsolidados,
+          origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
         }
-      }
+        if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
+          payload.responsavel_usuario_id = responsavelId
+          payload.atribuida_a = targetInstalador ? targetInstalador.name : ''
+        }
 
-      onOSUpdated(updatedComFotos)
-      toast({
-        title: 'Progresso salvo!',
-        description: 'Os dados da OS foram atualizados com sucesso.',
-      })
-    } catch (err) {
-      console.error('Erro ao salvar rascunho:', err)
+        const updated = await updateOrdemServico(
+          os.id,
+          payload,
+          filesToUpload.length > 0 ? filesToUpload : undefined,
+        )
+        const fotosDoRetorno = normalizarFotosIniciais(
+          updated.fotos,
+          (updated as any)?.foto_medidor,
+        )
+        // Mesclar fotos salvas anteriores com as novas fotos retornadas pelo backend (garantindo unicidade)
+        const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
+        const metadadosSalvos = Array.isArray(updated.fotos_metadados)
+          ? (updated.fotos_metadados as FotoMetadadoItem[])
+          : metadadosConsolidados
+        const updatedComFotos: OrdemServico = {
+          ...updated,
+          fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
+          fotos_metadados: metadadosSalvos,
+        }
+        setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
+        setFotosMetadados(metadadosSalvos)
+        setNovasFotos([])
+        // Se marcou "Salvar como padrão", grava no banco e no cache via setAvaliacaoGoogleConfigPadrao
+        if (salvarAvaliacaoComoPadrao) {
+          try {
+            await setAvaliacaoGoogleConfigPadrao({
+              texto: avaliacaoGoogleTexto.trim() || TEXTO_AVALIACAO_GOOGLE_PADRAO,
+              link: avaliacaoGoogleLink.trim() || LINK_AVALIACAO_GOOGLE_PADRAO,
+            })
+            setSalvarAvaliacaoComoPadrao(false)
+          } catch (padraoErr) {
+            console.warn('Erro ao salvar padrão global de avaliação:', padraoErr)
+          }
+        }
+
+        onOSUpdated(updatedComFotos)
+        toast({
+          title: 'Progresso salvo!',
+          description: 'Os dados da OS foram atualizados com sucesso.',
+        })
+      } catch (err) {
+        console.error('Erro ao salvar rascunho:', err)
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao salvar',
+          description: 'Não foi possível salvar as alterações da OS.',
+        })
+      } finally {
+        setIsSavingDraft(false)
+      }
+    } catch (fatalErr) {
+      console.error('Erro inesperado em handleSalvarRascunho:', fatalErr)
+      setIsSavingDraft(false)
       toast({
         variant: 'destructive',
-        title: 'Erro ao salvar',
-        description: 'Não foi possível salvar as alterações da OS.',
+        title: 'Erro ao salvar rascunho',
+        description: 'Ocorreu um erro inesperado ao salvar o rascunho.',
       })
-    } finally {
-      setIsSavingDraft(false)
     }
   }
 
@@ -1925,208 +1939,232 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     setHorarioFim(novoFim)
   }
 
-  // Salvar alterações de horário e responsável diretamente pela tela da atividade
+  // Salvar alterações de horário e responsável diretamente pela tela da atividade (manutenção rápida)
   const handleSalvarAlteracoesAtividade = async () => {
-    if (!isOrigemAtividades) return
+    try {
+      if (!isOrigemAtividades) return
 
-    if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
+      if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
+        toast({
+          variant: 'destructive',
+          title: 'Usina obrigatória',
+          description: MSG_USINA_OBRIGATORIA,
+        })
+        return
+      }
+
+      setIsSalvandoAtividade(true)
+      try {
+        const respObj = instaladores.find((i) => i.id === atividadeResponsavelId)
+        const dataFormatada = atividadeDataHora
+          ? atividadeDataHora.replace('T', ' ') + (atividadeDataHora.length === 16 ? ':00' : '')
+          : os.data_agendada
+
+        const payload: Record<string, any> = {
+          data: dataFormatada,
+          horario_inicio: horarioInicio,
+          horario_fim: horarioFim,
+          duracao_minutos: duracaoMinutos,
+          usina_id: selectedUsinaId || null,
+          responsavel_id: atividadeResponsavelId || null,
+          responsavel_nome: respObj?.name || '',
+        }
+
+        const atualizado = await updateAtividade(os.id, payload)
+
+        const duracaoFinal =
+          typeof atualizado.duracao_minutos === 'number' && atualizado.duracao_minutos > 0
+            ? atualizado.duracao_minutos
+            : duracaoMinutos
+
+        const osAtualizada: OrdemServico = {
+          ...os,
+          data_agendada: atualizado.data || dataFormatada,
+          horario_inicio: atualizado.horario_inicio || horarioInicio,
+          horario_fim: atualizado.horario_fim || horarioFim,
+          duracao_minutos: duracaoFinal,
+          tempo_previsto_minutos: duracaoFinal,
+          responsavel_usuario_id: atualizado.responsavel_id || atividadeResponsavelId || undefined,
+          atribuida_a: atualizado.responsavel_nome || respObj?.name || os.atribuida_a,
+        }
+
+        onOSUpdated(osAtualizada)
+        toast({
+          title: 'Atividade atualizada com sucesso',
+          description: 'Horário e responsável foram salvos com sucesso.',
+        })
+      } catch (err) {
+        console.error('Erro ao salvar alterações da atividade de manutenção:', err)
+        if (isAuthSessionError(err)) {
+          toast({
+            variant: 'destructive',
+            title: 'Sessão expirada',
+            description: 'Sua sessão expirou. Faça login novamente.',
+          })
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao salvar atividade',
+            description: 'Não foi possível salvar as alterações da atividade.',
+          })
+        }
+      } finally {
+        setIsSalvandoAtividade(false)
+      }
+    } catch (unexpectedErr) {
+      console.error('Erro inesperado em handleSalvarAlteracoesAtividade:', unexpectedErr)
+      setIsSalvandoAtividade(false)
       toast({
         variant: 'destructive',
-        title: 'Usina obrigatória',
-        description: MSG_USINA_OBRIGATORIA,
+        title: 'Erro ao salvar manutenção rápida',
+        description: 'Ocorreu uma instabilidade ao salvar a manutenção.',
       })
-      return
-    }
-
-    setIsSalvandoAtividade(true)
-    try {
-      const respObj = instaladores.find((i) => i.id === atividadeResponsavelId)
-      const dataFormatada = atividadeDataHora
-        ? atividadeDataHora.replace('T', ' ') + (atividadeDataHora.length === 16 ? ':00' : '')
-        : os.data_agendada
-
-      const payload: Record<string, any> = {
-        data: dataFormatada,
-        horario_inicio: horarioInicio,
-        horario_fim: horarioFim,
-        duracao_minutos: duracaoMinutos,
-        usina_id: selectedUsinaId || null,
-        responsavel_id: atividadeResponsavelId || null,
-        responsavel_nome: respObj?.name || '',
-      }
-
-      const atualizado = await updateAtividade(os.id, payload)
-
-      const duracaoFinal =
-        typeof atualizado.duracao_minutos === 'number' && atualizado.duracao_minutos > 0
-          ? atualizado.duracao_minutos
-          : duracaoMinutos
-
-      const osAtualizada: OrdemServico = {
-        ...os,
-        data_agendada: atualizado.data || dataFormatada,
-        horario_inicio: atualizado.horario_inicio || horarioInicio,
-        horario_fim: atualizado.horario_fim || horarioFim,
-        duracao_minutos: duracaoFinal,
-        tempo_previsto_minutos: duracaoFinal,
-        responsavel_usuario_id: atualizado.responsavel_id || atividadeResponsavelId || undefined,
-        atribuida_a: atualizado.responsavel_nome || respObj?.name || os.atribuida_a,
-      }
-
-      onOSUpdated(osAtualizada)
-      toast({
-        title: 'Atividade atualizada com sucesso',
-        description: 'Horário e responsável foram salvos com sucesso.',
-      })
-    } catch (err) {
-      console.error('Erro ao salvar alterações da atividade de manutenção:', err)
-      if (isAuthSessionError(err)) {
-        toast({
-          variant: 'destructive',
-          title: 'Sessão expirada',
-          description: 'Sua sessão expirou. Faça login novamente.',
-        })
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao salvar atividade',
-          description: 'Não foi possível salvar as alterações da atividade.',
-        })
-      }
-    } finally {
-      setIsSalvandoAtividade(false)
     }
   }
 
-  // Finalizar OS com geração automática de Relatório em PDF
+  // Finalizar OS com geração automática de Relatório em PDF (não-fatal, blindado com try/catch)
   const handleFinalizarOS = async () => {
-    if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
-      setShowConfirmModal(false)
-      toast({
-        variant: 'destructive',
-        title: 'Usina obrigatória',
-        description: MSG_USINA_OBRIGATORIA,
-      })
-      return
-    }
-
-    setIsSubmitting(true)
     try {
-      const filesToUpload = novasFotos.map((nf) => nf.file)
-      const checklistAtual = checklistRef.current?.length > 0 ? checklistRef.current : checklist
+      if (isManutencaoOuAdmin && !selectedUsinaId?.trim()) {
+        setShowConfirmModal(false)
+        toast({
+          variant: 'destructive',
+          title: 'Usina obrigatória',
+          description: MSG_USINA_OBRIGATORIA,
+        })
+        return
+      }
 
-      // Geração automática do PDF do relatório (não bloqueante caso ocorra falha na renderização)
-      let relatorioPdfFile: File | undefined = undefined
+      setIsSubmitting(true)
       try {
-        const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
-        const inversoresStr =
-          inversoresUsina.length > 0
-            ? inversoresUsina
-                .map((i) => `${i.marca || ''} ${i.modelo || ''}`.trim())
-                .filter(Boolean)
-                .join(', ')
-            : inversoresLista.length > 0
-              ? inversoresLista
-                  .map((i) => `${i.marca_inversor || ''} ${i.modelo_inversor || ''}`.trim())
+        const filesToUpload = novasFotos.map((nf) => nf.file)
+        const checklistAtual = checklistRef.current?.length > 0 ? checklistRef.current : checklist
+
+        // Geração automática do PDF do relatório (não bloqueante caso ocorra falha na renderização)
+        let relatorioPdfFile: File | undefined = undefined
+        try {
+          const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
+          const inversoresStr =
+            inversoresUsina.length > 0
+              ? inversoresUsina
+                  .map((i) => `${i.marca || ''} ${i.modelo || ''}`.trim())
                   .filter(Boolean)
                   .join(', ')
-              : undefined
+              : inversoresLista.length > 0
+                ? inversoresLista
+                    .map((i) => `${i.marca_inversor || ''} ${i.modelo_inversor || ''}`.trim())
+                    .filter(Boolean)
+                    .join(', ')
+                : undefined
 
-        const osAtualizadaParaPdf: OrdemServico = {
-          ...os,
+          const osAtualizadaParaPdf: OrdemServico = {
+            ...os,
+            checklist: checklistAtual,
+            detalhes_execucao: detalhesExecucao,
+            pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
+            solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
+            avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
+            avaliacao_google_link: avaliacaoGoogleLink.trim(),
+            concluida_em: new Date().toISOString(),
+            status: 'concluida',
+          }
+
+          const pdfResult = await gerarPdfRelatorioOS(osAtualizadaParaPdf, {
+            cliente,
+            sistema,
+            newPhotos: filesToUpload,
+            inversoresInfo: inversoresStr,
+          })
+          if (pdfResult?.file) {
+            relatorioPdfFile = pdfResult.file
+          }
+        } catch (pdfErr) {
+          console.warn(
+            'Geração do PDF automático falhou, concluindo OS sem anexo do relatório:',
+            pdfErr,
+          )
+        }
+
+        const blocosFinalizacao = Array.isArray(os.blocos_relatorio)
+          ? os.blocos_relatorio
+          : undefined
+        const metadadosConsolidados = compilarMetadadosFinais()
+
+        const finalized = await finalizarOrdemServico(os.id, {
           checklist: checklistAtual,
           detalhes_execucao: detalhesExecucao,
+          ...(blocosFinalizacao !== undefined ? { blocos_relatorio: blocosFinalizacao } : {}),
           pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
           solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
           avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
           avaliacao_google_link: avaliacaoGoogleLink.trim(),
-          concluida_em: new Date().toISOString(),
-          status: 'concluida',
-        }
-
-        const pdfResult = await gerarPdfRelatorioOS(osAtualizadaParaPdf, {
-          cliente,
-          sistema,
-          newPhotos: filesToUpload,
-          inversoresInfo: inversoresStr,
+          fotos_metadados: metadadosConsolidados,
+          newPhotos: filesToUpload.length > 0 ? filesToUpload : undefined,
+          relatorioPdfFile,
+          cliente_id: os.cliente_id,
+          tipo_servico: os.tipo_servico,
+          tecnico_nome: os.atribuida_a,
+          origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
         })
-        if (pdfResult?.file) {
-          relatorioPdfFile = pdfResult.file
+
+        // Se marcou "Salvar como padrão", grava no banco e no cache
+        if (salvarAvaliacaoComoPadrao) {
+          try {
+            await setAvaliacaoGoogleConfigPadrao({
+              texto: avaliacaoGoogleTexto.trim() || TEXTO_AVALIACAO_GOOGLE_PADRAO,
+              link: avaliacaoGoogleLink.trim() || LINK_AVALIACAO_GOOGLE_PADRAO,
+            })
+            setSalvarAvaliacaoComoPadrao(false)
+          } catch (padraoErr) {
+            console.warn('Erro ao salvar padrão global de avaliação na conclusão:', padraoErr)
+          }
         }
-      } catch (pdfErr) {
-        console.warn(
-          'Geração do PDF automático falhou, concluindo OS sem anexo do relatório:',
-          pdfErr,
+
+        const fotosDoRetorno = normalizarFotosIniciais(
+          finalized.fotos,
+          (finalized as any)?.foto_medidor,
         )
-      }
-
-      const blocosFinalizacao = Array.isArray(os.blocos_relatorio) ? os.blocos_relatorio : undefined
-      const metadadosConsolidados = compilarMetadadosFinais()
-
-      const finalized = await finalizarOrdemServico(os.id, {
-        checklist: checklistAtual,
-        detalhes_execucao: detalhesExecucao,
-        ...(blocosFinalizacao !== undefined ? { blocos_relatorio: blocosFinalizacao } : {}),
-        pendencias_recomendacoes: pendenciasRecomendacoes.trim(),
-        solicitar_avaliacao_google: solicitarAvaliacaoGoogle,
-        avaliacao_google_texto: avaliacaoGoogleTexto.trim(),
-        avaliacao_google_link: avaliacaoGoogleLink.trim(),
-        fotos_metadados: metadadosConsolidados,
-        newPhotos: filesToUpload.length > 0 ? filesToUpload : undefined,
-        relatorioPdfFile,
-        cliente_id: os.cliente_id,
-        tipo_servico: os.tipo_servico,
-        tecnico_nome: os.atribuida_a,
-        origem: resolverColecaoItem(os) === 'atividades' ? 'atividades' : os.origem || undefined,
-      })
-
-      // Se marcou "Salvar como padrão", grava no banco e no cache
-      if (salvarAvaliacaoComoPadrao) {
-        try {
-          await setAvaliacaoGoogleConfigPadrao({
-            texto: avaliacaoGoogleTexto.trim() || TEXTO_AVALIACAO_GOOGLE_PADRAO,
-            link: avaliacaoGoogleLink.trim() || LINK_AVALIACAO_GOOGLE_PADRAO,
-          })
-          setSalvarAvaliacaoComoPadrao(false)
-        } catch (padraoErr) {
-          console.warn('Erro ao salvar padrão global de avaliação na conclusão:', padraoErr)
+        const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
+        const metadadosFinalizados = Array.isArray(finalized.fotos_metadados)
+          ? (finalized.fotos_metadados as FotoMetadadoItem[])
+          : metadadosConsolidados
+        const finalizedComFotos: OrdemServico = {
+          ...finalized,
+          fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
+          fotos_metadados: metadadosFinalizados,
         }
-      }
+        setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
+        setFotosMetadados(metadadosFinalizados)
+        setNovasFotos([])
 
-      const fotosDoRetorno = normalizarFotosIniciais(
-        finalized.fotos,
-        (finalized as any)?.foto_medidor,
-      )
-      const fotosAtualizadas = Array.from(new Set([...fotosSalvas, ...fotosDoRetorno]))
-      const metadadosFinalizados = Array.isArray(finalized.fotos_metadados)
-        ? (finalized.fotos_metadados as FotoMetadadoItem[])
-        : metadadosConsolidados
-      const finalizedComFotos: OrdemServico = {
-        ...finalized,
-        fotos: fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno,
-        fotos_metadados: metadadosFinalizados,
+        setShowConfirmModal(false)
+        toast({
+          title: 'OS Finalizada com Sucesso! 🎉',
+          description: relatorioPdfFile
+            ? 'Ordem concluída e Relatório em PDF gerado automaticamente para o Administrador.'
+            : 'Ordem de serviço marcada como concluída e registrada no histórico.',
+        })
+        onOSFinalizada(finalizedComFotos)
+      } catch (err) {
+        console.error('Erro ao finalizar OS:', err)
+        setShowConfirmModal(false)
+        toast({
+          variant: 'destructive',
+          title: 'Falha ao finalizar OS',
+          description: 'Ocorreu um erro ao concluir a OS. Tente novamente.',
+        })
+      } finally {
+        setIsSubmitting(false)
       }
-      setFotosSalvas(fotosAtualizadas.length > 0 ? fotosAtualizadas : fotosDoRetorno)
-      setFotosMetadados(metadadosFinalizados)
-      setNovasFotos([])
-
+    } catch (fatalErr) {
+      console.error('Erro fatal protegido em handleFinalizarOS:', fatalErr)
       setShowConfirmModal(false)
-      toast({
-        title: 'OS Finalizada com Sucesso! 🎉',
-        description: relatorioPdfFile
-          ? 'Ordem concluída e Relatório em PDF gerado automaticamente para o Administrador.'
-          : 'Ordem de serviço marcada como concluída e registrada no histórico.',
-      })
-      onOSFinalizada(finalizedComFotos)
-    } catch (err) {
-      console.error('Erro ao finalizar OS:', err)
+      setIsSubmitting(false)
       toast({
         variant: 'destructive',
-        title: 'Falha ao finalizar OS',
-        description: 'Ocorreu um erro ao concluir a OS. Tente novamente.',
+        title: 'Erro ao concluir',
+        description: 'Não foi possível concluir a ordem de serviço no momento.',
       })
-    } finally {
-      setIsSubmitting(false)
     }
   }
 

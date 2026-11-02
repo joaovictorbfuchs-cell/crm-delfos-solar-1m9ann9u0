@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { formatDateTime } from '@/lib/formatters'
 import { updateOrdemServico } from '@/services/crmService'
+import pb from '@/lib/pocketbase/client'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { somarMinutos, minutesToTimeString, timeStringToMinutes } from '@/lib/horarios'
 import { useToast } from '@/hooks/use-toast'
@@ -1175,6 +1176,19 @@ function CalendarioExecucaoOSContent({
         Boolean((os as any)?.tipo && os.origem !== 'ordens_servico')
       if (isAtividadeItem) {
         payload.origem = 'atividades'
+      } else {
+        // Checagem defensiva: se o ID pertencer a atividades, direciona para atividades
+        try {
+          const atvCheck = await pb
+            .collection('atividades')
+            .getOne(osId)
+            .catch(() => null)
+          if (atvCheck) {
+            payload.origem = 'atividades'
+          }
+        } catch {
+          // ignore
+        }
       }
 
       const updated = await updateOrdemServico(osId, payload)
@@ -1345,6 +1359,19 @@ function CalendarioExecucaoOSContent({
           Boolean((os as any)?.tipo && os.origem !== 'ordens_servico')
         if (isAtividadeItem) {
           payload.origem = 'atividades'
+        } else {
+          // Checagem defensiva: se o ID pertencer a atividades, direciona para atividades
+          try {
+            const atvCheck = await pb
+              .collection('atividades')
+              .getOne(targetOSId)
+              .catch(() => null)
+            if (atvCheck) {
+              payload.origem = 'atividades'
+            }
+          } catch {
+            // ignore
+          }
         }
 
         const updated = await updateOrdemServico(targetOSId, payload)

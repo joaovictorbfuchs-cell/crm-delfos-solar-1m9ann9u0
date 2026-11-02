@@ -467,6 +467,26 @@ export async function createAtividade(data: {
     }
   }
 
+  // Higienização de tecnicos_ids e tecnicos_nomes (devem ser arrays JSON válidos ou removidos)
+  if ('tecnicos_ids' in payload) {
+    const tIds = payload.tecnicos_ids
+    if (Array.isArray(tIds)) {
+      const filtrados = tIds.filter((item: any) => typeof item === 'string' && item.trim())
+      payload.tecnicos_ids = filtrados.length > 0 ? filtrados : null
+    } else if (!tIds) {
+      payload.tecnicos_ids = null
+    }
+  }
+  if ('tecnicos_nomes' in payload) {
+    const tNomes = payload.tecnicos_nomes
+    if (Array.isArray(tNomes)) {
+      const filtrados = tNomes.filter((item: any) => typeof item === 'string' && item.trim())
+      payload.tecnicos_nomes = filtrados.length > 0 ? filtrados : null
+    } else if (!tNomes) {
+      payload.tecnicos_nomes = null
+    }
+  }
+
   // Sanitização e normalização de campos opcionais do tipo data
   const dateFields = [
     'data_leitura',
@@ -519,6 +539,47 @@ export async function createAtividade(data: {
 }
 
 export async function updateAtividade(id: string, data: Partial<Atividade>): Promise<Atividade> {
+  const payload: Record<string, any> = { ...data }
+
+  // Sanitização defensiva de relations conhecidas em update (string vazia -> null para PB desvincular ou deletar)
+  const relationFields = [
+    'cliente_id',
+    'usina_id',
+    'responsavel_id',
+    'fornecedor_id',
+    'parent_id',
+    'negocio_id',
+    'tipo_custom_id',
+  ]
+  for (const field of relationFields) {
+    if (field in payload) {
+      const val = payload[field]
+      if (typeof val === 'string' && !val.trim()) {
+        payload[field] = null
+      }
+    }
+  }
+
+  // Higienização de tecnicos_ids e tecnicos_nomes
+  if ('tecnicos_ids' in payload) {
+    const tIds = payload.tecnicos_ids
+    if (Array.isArray(tIds)) {
+      const filtrados = tIds.filter((item: any) => typeof item === 'string' && item.trim())
+      payload.tecnicos_ids = filtrados.length > 0 ? filtrados : null
+    } else if (tIds === '' || tIds === undefined) {
+      payload.tecnicos_ids = null
+    }
+  }
+  if ('tecnicos_nomes' in payload) {
+    const tNomes = payload.tecnicos_nomes
+    if (Array.isArray(tNomes)) {
+      const filtrados = tNomes.filter((item: any) => typeof item === 'string' && item.trim())
+      payload.tecnicos_nomes = filtrados.length > 0 ? filtrados : null
+    } else if (tNomes === '' || tNomes === undefined) {
+      payload.tecnicos_nomes = null
+    }
+  }
+
   const currentUserRole = pb.authStore.model?.role as string | undefined
   const ehInstalador = currentUserRole === 'instalador'
   const expandQuery = ehInstalador
@@ -526,7 +587,7 @@ export async function updateAtividade(id: string, data: Partial<Atividade>): Pro
     : 'cliente_id,usina_id,responsavel_id,tipo_custom_id'
 
   try {
-    const record = await pb.collection('atividades').update<Atividade>(id, data, {
+    const record = await pb.collection('atividades').update<Atividade>(id, payload, {
       expand: expandQuery,
     })
     return record
@@ -4554,13 +4615,26 @@ export async function updateOrdemServico(
   newPhotos?: File[],
   relatorioPdfFile?: File,
 ): Promise<import('@/types/crm').OrdemServico> {
-  // Se o objeto explicitamente indicar origem 'atividades', direcionar diretamente
-  if (data.origem === 'atividades') {
+  // Se o objeto explicitamente indicar origem 'atividades', executar EXCLUSIVAMENTE em atividades
+  if (
+    data.origem === 'atividades' ||
+    (data as any)?.collectionName === 'atividades' ||
+    (data as any)?.collectionId === 'atividades'
+  ) {
     return await updateAtividadeComoOrdemServico(id, data, newPhotos, relatorioPdfFile)
   }
 
-  // ANTES do PATCH cego em ordens_servico: verificar se o registro existe em ordens_servico
-  // Se não existir lá (catch -> null), rotear direto para atividades evitando o 404 que derruba a rota
+  // Verificar se o id pertence à coleção atividades
+  const atvExistente = await pb
+    .collection('atividades')
+    .getOne(id)
+    .catch(() => null)
+
+  if (atvExistente) {
+    return await updateAtividadeComoOrdemServico(id, data, newPhotos, relatorioPdfFile)
+  }
+
+  // Se não existir em ordens_servico, rotear para atividades antes de qualquer PATCH cego
   const osExistente = await pb
     .collection('ordens_servico')
     .getOne(id)
@@ -4672,21 +4746,21 @@ export async function salvarRelatorioPdfOrdemServico(
 }
 
 export async function deleteOrdemServico(id: string): Promise<boolean | { arquivado: boolean }> {
-  // Buscar o registro: primeiro em 'ordens_servico', catch -> 'atividades'
+  // Resolver a coleção correta: se o id pertencer a atividades, executar EXCLUSIVAMENTE em atividades
   let targetCollection: 'ordens_servico' | 'atividades' | null = null
   let rec: any = await pb
-    .collection('ordens_servico')
+    .collection('atividades')
     .getOne(id)
     .catch(() => null)
   if (rec) {
-    targetCollection = 'ordens_servico'
+    targetCollection = 'atividades'
   } else {
     rec = await pb
-      .collection('atividades')
+      .collection('ordens_servico')
       .getOne(id)
       .catch(() => null)
     if (rec) {
-      targetCollection = 'atividades'
+      targetCollection = 'ordens_servico'
     }
   }
 
@@ -4714,15 +4788,7 @@ export async function deleteOrdemServico(id: string): Promise<boolean | { arquiv
         '[Arquivado por segurança: relatório já enviado ao cliente — exclusão bloqueada em ' +
         new Date().toLocaleString('pt-BR') +
         ']'
-      if (targetCollection === 'ordens_servico') {
-        const campoTexto = rec.instrucoes ? 'instrucoes' : 'pendencias_recomendacoes'
-        const textoAtual = rec[campoTexto] || ''
-        const novoTexto = textoAtual ? textoAtual + '\n' + notaArquivamento : notaArquivamento
-        await pb.collection('ordens_servico').update(id, {
-          status: 'cancelada',
-          [campoTexto]: novoTexto,
-        })
-      } else {
+      if (targetCollection === 'atividades') {
         const novaDescricao = rec.descricao
           ? rec.descricao + '\n' + notaArquivamento
           : notaArquivamento
@@ -4730,8 +4796,31 @@ export async function deleteOrdemServico(id: string): Promise<boolean | { arquiv
           status: 'cancelada',
           descricao: novaDescricao,
         })
+      } else {
+        const campoTexto = rec.instrucoes ? 'instrucoes' : 'pendencias_recomendacoes'
+        const textoAtual = rec[campoTexto] || ''
+        const novoTexto = textoAtual ? textoAtual + '\n' + notaArquivamento : notaArquivamento
+        await pb.collection('ordens_servico').update(id, {
+          status: 'cancelada',
+          [campoTexto]: novoTexto,
+        })
       }
       return { arquivado: true }
+    }
+  }
+
+  // Execução EXCLUSIVA na coleção identificada — nunca disparar delete cego em ordens_servico se for atividade
+  if (targetCollection === 'atividades') {
+    try {
+      await pb.collection('atividades').delete(id)
+      return true
+    } catch (err: any) {
+      const is404 =
+        err?.status === 404 ||
+        err?.statusCode === 404 ||
+        (typeof err?.message === 'string' && err.message.toLowerCase().includes("wasn't found"))
+      if (is404) return true
+      throw err
     }
   }
 
@@ -4744,7 +4833,10 @@ export async function deleteOrdemServico(id: string): Promise<boolean | { arquiv
       err?.statusCode === 404 ||
       (typeof err?.message === 'string' && err.message.toLowerCase().includes("wasn't found"))
     if (is404) {
-      await pb.collection('atividades').delete(id)
+      await pb
+        .collection('atividades')
+        .delete(id)
+        .catch(() => null)
       return true
     }
     throw err
@@ -4808,9 +4900,16 @@ export async function finalizarOrdemServico(
     dadosFinalizacao.relatorioPdfFile,
   )
 
+  // Determinar se pertence à coleção atividades para não duplicar registro
+  const isAtividadeFinalizada =
+    dadosFinalizacao.origem === 'atividades' ||
+    updatedOS.origem === 'atividades' ||
+    updatedOS.collectionName === 'atividades' ||
+    updatedOS.collectionId === 'atividades'
+
   // Registrar atividade na timeline/histórico do cliente se for OS original
   // (se já for da coleção atividades, o próprio registro da atividade já foi marcado como concluído)
-  if (dadosFinalizacao.cliente_id && updatedOS.origem !== 'atividades') {
+  if (dadosFinalizacao.cliente_id && !isAtividadeFinalizada) {
     try {
       const tipoAtividade =
         dadosFinalizacao.tipo_servico === 'Instalação'

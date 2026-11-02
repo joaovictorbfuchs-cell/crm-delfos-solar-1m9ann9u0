@@ -46,15 +46,34 @@ export class RootErrorBoundary extends Component<Props, State> {
 
       // Envio fire-and-forget de telemetria de erro para o backend
       try {
+        const currentUser = pb.authStore?.model
+        const errMessage = String(error?.message || '').slice(0, 5000)
+        const errStack = String(error?.stack || '').slice(0, 10000)
+        const compStack = String(errorInfo?.componentStack || '').slice(0, 10000)
+        const currentPath = typeof window !== 'undefined' ? window.location?.pathname || '' : ''
+        const uAgent = typeof navigator !== 'undefined' ? navigator?.userAgent || '' : ''
+
         pb.collection('logs_erro_frontend')
           .create(
             {
-              message: String(error?.message || '').slice(0, 5000),
-              stack: String(error?.stack || '').slice(0, 10000),
-              component_stack: String(errorInfo?.componentStack || '').slice(0, 10000),
-              rota: typeof window !== 'undefined' ? window.location?.pathname || '' : '',
-              user_agent: typeof navigator !== 'undefined' ? navigator?.userAgent || '' : '',
+              mensagem: errMessage,
+              message: errMessage,
+              stack: errStack,
+              component_stack: compStack,
+              rota: currentPath,
+              usuario_id: currentUser?.id || '',
+              usuario_email: currentUser?.email || '',
+              userAgent: uAgent,
+              user_agent: uAgent,
               versao_app: '1.0.0',
+              metadata: {
+                href: typeof window !== 'undefined' ? window.location?.href : '',
+                timestamp: new Date().toISOString(),
+                screen:
+                  typeof window !== 'undefined'
+                    ? `${window.innerWidth}x${window.innerHeight}`
+                    : undefined,
+              },
             },
             { requestKey: null },
           )
