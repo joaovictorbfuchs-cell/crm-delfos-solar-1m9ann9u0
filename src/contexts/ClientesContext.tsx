@@ -285,6 +285,8 @@ interface ClientesContextType {
     status?: AtividadeStatus
     responsavel_id?: string
     responsavel_nome?: string
+    tecnicos_ids?: string[]
+    tecnicos_nomes?: string[]
     valor_servico?: number
     valor_por_placa?: number
     qtd_modulos?: number
@@ -1473,6 +1475,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     status?: AtividadeStatus
     responsavel_id?: string
     responsavel_nome?: string
+    tecnicos_ids?: string[]
+    tecnicos_nomes?: string[]
     valor_servico?: number
     valor_por_placa?: number
     qtd_modulos?: number
