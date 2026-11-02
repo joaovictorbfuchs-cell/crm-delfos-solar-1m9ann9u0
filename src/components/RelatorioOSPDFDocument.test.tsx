@@ -133,4 +133,22 @@ describe('RelatorioOSPDFDocument', () => {
     expect(html).not.toContain('Dados do sistema gerador')
     expect(html).not.toContain('Próxima manutenção prevista')
   })
+
+  it('exibe o tipo de serviço canônico + título real no documento PDF', async () => {
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const el = React.createElement(RelatorioOSPDFDocument, {
+      dados: {
+        os: {
+          ...osMock,
+          tipo_servico: 'Manutenção Preventiva',
+          titulo: 'Revisão Semestral Usina Sul',
+        },
+        cliente: clienteMock,
+        sistema: sistemaMock,
+        fotosDataUrls: [],
+      },
+    })
+    const html = renderToStaticMarkup(el)
+    expect(html).toContain('Manutenção Preventiva — Revisão Semestral Usina Sul')
+  })
 })

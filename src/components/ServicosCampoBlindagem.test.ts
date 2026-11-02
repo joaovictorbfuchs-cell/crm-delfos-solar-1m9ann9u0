@@ -329,6 +329,43 @@ describe('Blindagens e Regressão de Tipos em Serviços de Campo (FichaExecucaoO
       expect(canonicalSem.solicitarAvaliacaoGoogle).toBe(false)
     })
 
+    it('compilarDadosRelatorioOS formata tipoServico com rótulo do tipo + título real do registro', async () => {
+      const { compilarDadosRelatorioOS } = await import('@/lib/relatorioOSCanonical')
+
+      // 1. Tipo canônico + título real
+      const osComTitulo = {
+        id: 'os-tit-1',
+        tipo: 'manutencao_corretiva',
+        titulo: 'Inversor em Falha E023',
+      }
+      const canonical1 = compilarDadosRelatorioOS(osComTitulo, null, null)
+      expect(canonical1.tipoServico).toBe('Manutenção corretiva — Inversor em Falha E023')
+
+      // 2. Sem título real -> apenas rótulo do tipo
+      const osSemTitulo = {
+        id: 'os-tit-2',
+        tipo: 'manutencao_preventiva',
+      }
+      const canonical2 = compilarDadosRelatorioOS(osSemTitulo, null, null)
+      expect(canonical2.tipoServico).toBe('Manutenção preventiva técnica')
+
+      // 3. Título idêntico ao tipo -> sem duplicação ("Manutenção corretiva", não "Manutenção corretiva — Manutenção corretiva")
+      const osTituloIgual = {
+        id: 'os-tit-3',
+        tipo_servico: 'Manutenção Corretiva',
+        titulo: 'Manutenção Corretiva',
+      }
+      const canonical3 = compilarDadosRelatorioOS(osTituloIgual, null, null)
+      expect(canonical3.tipoServico).toBe('Manutenção Corretiva')
+
+      // 4. Sem tipo e sem título -> 'Não informado'
+      const osVazio = {
+        id: 'os-tit-4',
+      }
+      const canonical4 = compilarDadosRelatorioOS(osVazio, null, null)
+      expect(canonical4.tipoServico).toBe('Não informado')
+    })
+
     it('updateAtividadeComoOrdemServico e fetchOrdemServicoById persistem e retornam campos de avaliação Google', async () => {
       const { pb } = await import('@/lib/pocketbase/client')
       const { updateAtividadeComoOrdemServico, fetchOrdemServicoById } =

@@ -549,5 +549,25 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
       expect(canonical.proximaManutencao).not.toBe('20/03/2027')
       expect(canonical.proximaManutencao).not.toBe('18/05/2027')
     })
+
+    it('formata tipoServico com rótulo canônico + título real do atendimento', async () => {
+      const { compilarDadosRelatorioOS } = await import('./relatorioOSCanonical')
+      const osComTitulo = {
+        id: 'os-tipo-tit',
+        tipo: 'manutencao_corretiva',
+        titulo: 'Inversor em Falha E023',
+      }
+      const canonical = compilarDadosRelatorioOS(osComTitulo, clienteMock, sistemaMock)
+      expect(canonical.tipoServico).toBe('Manutenção corretiva — Inversor em Falha E023')
+
+      // HTML gerado deve incluir o tipo de serviço formatado
+      const { gerarHTMLRelatorioOS } = await import('./relatorioOSPdf')
+      const html = gerarHTMLRelatorioOS({
+        os: osComTitulo as any,
+        cliente: clienteMock,
+        sistema: sistemaMock,
+      })
+      expect(html).toContain('Manutenção corretiva — Inversor em Falha E023')
+    })
   })
 })

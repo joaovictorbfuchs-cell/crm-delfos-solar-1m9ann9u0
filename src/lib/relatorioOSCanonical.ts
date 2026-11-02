@@ -287,22 +287,41 @@ export function compilarDadosRelatorioOS(
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[\s-]+/g, '_')
 
-  let tipoServico = os?.tipo_servico || ''
-  if (!tipoServico) {
+  let rotuloTipo = os?.tipo_servico || ''
+  if (!rotuloTipo) {
     if (tipoCanonicoRaw === 'limpeza') {
-      tipoServico = 'Manutenção preventiva — Limpeza de módulos'
+      rotuloTipo = 'Manutenção preventiva — Limpeza de módulos'
     } else if (tipoCanonicoRaw === 'manutencao_preventiva') {
-      tipoServico = 'Manutenção preventiva técnica'
+      rotuloTipo = 'Manutenção preventiva técnica'
     } else if (tipoCanonicoRaw === 'manutencao_corretiva') {
-      tipoServico = 'Manutenção corretiva'
+      rotuloTipo = 'Manutenção corretiva'
     } else if (
       tipoCanonicoRaw === 'limpeza_manutencao' ||
       tipoCanonicoRaw === 'limpeza_e_manutencao'
     ) {
-      tipoServico = 'Limpeza e Manutenção Preventiva'
+      rotuloTipo = 'Limpeza e Manutenção Preventiva'
+    } else if (tipoCanonicoRaw) {
+      rotuloTipo = safeStr(os?.tipo_custom_id || os?.tipo)
     } else {
-      tipoServico = 'Não informado'
+      rotuloTipo = 'Não informado'
     }
+  }
+
+  // Título real do registro (os.titulo ou atividade.titulo) para exibição aditiva
+  const tituloRegistro = safeStr(os?.titulo || os?.atividade_titulo || os?.nome)
+
+  // Formato: "Rotulo do Tipo — {titulo}". Sem título -> só o rótulo do tipo; sem tipo -> 'Não informado'
+  let tipoServico = rotuloTipo
+  if (rotuloTipo && rotuloTipo !== 'Não informado') {
+    if (tituloRegistro && tituloRegistro.toLowerCase() !== rotuloTipo.toLowerCase()) {
+      tipoServico = `${rotuloTipo} — ${tituloRegistro}`
+    } else {
+      tipoServico = rotuloTipo
+    }
+  } else if (tituloRegistro) {
+    tipoServico = tituloRegistro
+  } else {
+    tipoServico = 'Não informado'
   }
 
   // Concessionária & UC
