@@ -14,7 +14,6 @@ import {
   AlertCircle,
   ArrowRight,
   GripVertical,
-  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -1090,10 +1089,16 @@ function CalendarioExecucaoOSContent({
   }
 
   const handleDragOverSlot = (e: React.DragEvent, dateKey: string, hora: number) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    if (!dragOverSlot || dragOverSlot.dateKey !== dateKey || dragOverSlot.hora !== hora) {
-      setDragOverSlot({ dateKey, hora })
+    try {
+      e.preventDefault()
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move'
+      }
+      if (!dragOverSlot || dragOverSlot.dateKey !== dateKey || dragOverSlot.hora !== hora) {
+        setDragOverSlot({ dateKey, hora })
+      }
+    } catch (err) {
+      console.error('Erro em handleDragOverSlot:', err)
     }
   }
 
@@ -1102,132 +1107,158 @@ function CalendarioExecucaoOSContent({
     targetDateKey: string,
     targetHora: number,
   ) => {
-    e.preventDefault()
-    const osId = e.dataTransfer.getData('text/plain') || draggingOSId
-    setDraggingOSId(null)
-    setDragOverSlot(null)
-    if (!osId) return
-
-    const os = ordensMescladas.find((o) => o?.id === osId)
-    if (!os) return
-
-    // Detecta se a posição do mouse dentro do slot indica primeira metade (0-29px) ou segunda metade (>=28px)
-    const targetElement = e.currentTarget as HTMLElement
-    const rect = targetElement.getBoundingClientRect()
-    const relativeY = e.clientY - rect.top
-    const isSecondHalf = relativeY >= ALTURA_HORA_PX / 2
-
-    // Snap de 30 em 30 minutos para atividades de manutenção (00 ou 30)
-    let minutos = isSecondHalf ? 30 : 0
-
-    // Se for OS real (não-atividade), preserva minutos originais arredondados para múltiplos de 5 caso não seja snap
-    if (os.origem !== 'atividades') {
-      if (os.data_agendada && os.data_agendada.length >= 16) {
-        const rawMin = parseInt(os.data_agendada.slice(14, 16), 10) || 0
-        minutos = Math.min(55, Math.max(0, Math.round(rawMin / 5) * 5))
-      }
-    }
-
-    const safeTargetDateKey =
-      typeof targetDateKey === 'string' && targetDateKey.trim()
-        ? targetDateKey.trim()
-        : getLocalDateKey(new Date())
-
-    const horaFormatada = String(targetHora).padStart(2, '0')
-    const minutoFormatado = String(minutos).padStart(2, '0')
-    const horarioInicioStr = `${horaFormatada}:${minutoFormatado}`
-    // Padrão PocketBase (YYYY-MM-DD HH:mm:00)
-    const novaDataIso = `${safeTargetDateKey} ${horaFormatada}:${minutoFormatado}:00`
-
-    // Duração atual da atividade (mantida durante o drag)
-    const duracaoAtual = getDuracaoMinutosOS(os)
-    const horarioFimStr = somarMinutos(horarioInicioStr, duracaoAtual)
-
-    // Tipo canônico estritamente preservado para evitar "pisca-tipo"
-    const tipoServicoCanonico = os.tipo_servico || 'Manutenção'
-    const checklistCanonico = normalizeChecklist(os.checklist)
-
-    // Atualização otimista preservando tipo_servico e checklist
-    setOverrides((prev) => ({
-      ...prev,
-      [osId]: {
-        ...prev[osId],
-        data_agendada: novaDataIso,
-        horario_inicio: horarioInicioStr,
-        horario_fim: horarioFimStr,
-        duracao_minutos: duracaoAtual,
-      },
-    }))
-
     try {
-      const payload: Partial<OrdemServico> = {
-        data_agendada: novaDataIso,
-        horario_inicio: horarioInicioStr,
-        horario_fim: horarioFimStr,
-        duracao_minutos: duracaoAtual,
-        tempo_previsto_minutos: duracaoAtual,
-        tipo_servico: tipoServicoCanonico,
-        checklist: checklistCanonico,
-      }
-      const isAtividadeItem =
-        os.origem === 'atividades' ||
-        os.collectionId === 'atividades' ||
-        (os as any)?.collectionName === 'atividades' ||
-        Boolean((os as any)?.tipo && os.origem !== 'ordens_servico')
-      if (isAtividadeItem) {
-        payload.origem = 'atividades'
-      } else {
-        // Checagem defensiva: se o ID pertencer a atividades, direciona para atividades
-        try {
-          const atvCheck = await pb
-            .collection('atividades')
-            .getOne(osId)
-            .catch(() => null)
-          if (atvCheck) {
-            payload.origem = 'atividades'
-          }
-        } catch {
-          // ignore
+      e.preventDefault()
+      const osId = e.dataTransfer?.getData('text/plain') || draggingOSId
+      setDraggingOSId(null)
+      setDragOverSlot(null)
+      if (!osId) return
+
+      const os = ordensMescladas.find((o) => o?.id === osId)
+      if (!os) return
+
+      // Calcula hora/minuto relativo ao elemento receptor de drop
+      const targetElement = e.currentTarget as HTMLElement
+      let horaEfetiva = targetHora
+      let minutos = 0
+
+      if (targetElement && typeof targetElement.getBoundingClientRect === 'function') {
+        const rect = targetElement.getBoundingClientRect()
+        const relativeY = Math.max(0, e.clientY - rect.top)
+
+        // Se o drop ocorreu em um container de coluna completo (altura ~ TOTAL_HORAS * ALTURA_HORA_PX)
+        // calcula a hora exata a partir da divisão da posição vertical pela altura da hora
+        if (rect.height > ALTURA_HORA_PX * 1.5) {
+          const totalHorasFracao = relativeY / ALTURA_HORA_PX
+          const horaOffset = Math.floor(totalHorasFracao)
+          horaEfetiva = Math.min(22, Math.max(HORA_INICIAL, HORA_INICIAL + horaOffset))
+          const restoMinutosFracao = (totalHorasFracao - horaOffset) * 60
+          minutos = restoMinutosFracao >= 30 ? 30 : 0
+        } else {
+          // Drop sobre slot individual de 1 hora: snap 00 ou 30 min
+          const isSecondHalf = relativeY >= ALTURA_HORA_PX / 2
+          minutos = isSecondHalf ? 30 : 0
         }
       }
 
-      const updated = await updateOrdemServico(osId, payload)
-      // Sanitiza resposta do update antes de setar estado / passar para callback
-      const sanitizedUpdated = sanitizeOS(updated)
+      // Se for OS real (não-atividade), preserva minutos originais arredondados para múltiplos de 5 caso não seja snap
+      if (os.origem !== 'atividades') {
+        if (os.data_agendada && os.data_agendada.length >= 16) {
+          const rawMin = parseInt(os.data_agendada.slice(14, 16), 10) || 0
+          minutos = Math.min(55, Math.max(0, Math.round(rawMin / 5) * 5))
+        }
+      }
 
-      const dataFormatada =
-        typeof safeTargetDateKey === 'string' && safeTargetDateKey.includes('-')
-          ? safeTargetDateKey.split('-').reverse().join('/')
-          : safeTargetDateKey || ''
+      const safeTargetDateKey =
+        typeof targetDateKey === 'string' && targetDateKey.trim()
+          ? targetDateKey.trim()
+          : getLocalDateKey(new Date())
+
+      const horaFormatada = String(horaEfetiva).padStart(2, '0')
+      const minutoFormatado = String(minutos).padStart(2, '0')
+      const horarioInicioStr = `${horaFormatada}:${minutoFormatado}`
+      // Padrão PocketBase (YYYY-MM-DD HH:mm:00)
+      const novaDataIso = `${safeTargetDateKey} ${horaFormatada}:${minutoFormatado}:00`
+
+      // Duração atual da atividade (mantida durante o drag)
+      const duracaoAtual = getDuracaoMinutosOS(os)
+      const horarioFimStr = somarMinutos(horarioInicioStr, duracaoAtual)
+
+      // Tipo canônico estritamente preservado para evitar "pisca-tipo"
+      const tipoServicoCanonico = os.tipo_servico || 'Manutenção'
+      const checklistCanonico = normalizeChecklist(os.checklist)
+
+      // Atualização otimista preservando tipo_servico e checklist
+      setOverrides((prev) => ({
+        ...prev,
+        [osId]: {
+          ...prev[osId],
+          data_agendada: novaDataIso,
+          horario_inicio: horarioInicioStr,
+          horario_fim: horarioFimStr,
+          duracao_minutos: duracaoAtual,
+        },
+      }))
+
+      try {
+        const payload: Partial<OrdemServico> = {
+          data_agendada: novaDataIso,
+          horario_inicio: horarioInicioStr,
+          horario_fim: horarioFimStr,
+          duracao_minutos: duracaoAtual,
+          tempo_previsto_minutos: duracaoAtual,
+          tipo_servico: tipoServicoCanonico,
+          checklist: checklistCanonico,
+        }
+        const isAtividadeItem =
+          os.origem === 'atividades' ||
+          os.collectionId === 'atividades' ||
+          (os as any)?.collectionName === 'atividades' ||
+          Boolean((os as any)?.tipo && os.origem !== 'ordens_servico')
+        if (isAtividadeItem) {
+          payload.origem = 'atividades'
+        } else {
+          // Checagem defensiva: se o ID pertencer a atividades, direciona para atividades
+          try {
+            const atvCheck = await pb
+              .collection('atividades')
+              .getOne(osId)
+              .catch(() => null)
+            if (atvCheck) {
+              payload.origem = 'atividades'
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        const updated = await updateOrdemServico(osId, payload)
+        // Sanitiza resposta do update antes de setar estado / passar para callback
+        const sanitizedUpdated = sanitizeOS(updated)
+
+        const dataFormatada =
+          typeof safeTargetDateKey === 'string' && safeTargetDateKey.includes('-')
+            ? safeTargetDateKey.split('-').reverse().join('/')
+            : safeTargetDateKey || ''
+        toast({
+          title: 'Horário reagendado com sucesso! 📅',
+          description: `Agendado para ${dataFormatada} às ${horaFormatada}:${minutoFormatado}h (${duracaoAtual}min).`,
+        })
+        if (onOSUpdated) {
+          onOSUpdated(sanitizedUpdated)
+        }
+      } catch (err) {
+        console.error('Erro ao reagendar ordem de serviço:', err)
+        // Reverte override
+        setOverrides((prev) => {
+          const copy = { ...prev }
+          delete copy[osId]
+          return copy
+        })
+
+        if (isAuthSessionError(err)) {
+          toast({
+            variant: 'destructive',
+            title: 'Sessão expirada',
+            description: 'Faça login novamente para reagendar a ordem de serviço.',
+          })
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Não foi possível mover esta atividade',
+            description: 'Não foi possível salvar o novo horário no banco de dados.',
+          })
+        }
+      }
+    } catch (topLevelDropErr) {
+      console.error('Exceção ao processar drop de atividade:', topLevelDropErr)
+      setDraggingOSId(null)
+      setDragOverSlot(null)
       toast({
-        title: 'Horário reagendado com sucesso! 📅',
-        description: `Agendado para ${dataFormatada} às ${horaFormatada}:${minutoFormatado}h (${duracaoAtual}min).`,
+        variant: 'destructive',
+        title: 'Não foi possível mover esta atividade',
+        description: 'Ocorreu um erro ao processar o novo horário. Tente novamente.',
       })
-      if (onOSUpdated) {
-        onOSUpdated(sanitizedUpdated)
-      }
-    } catch (err) {
-      console.error('Erro ao reagendar ordem de serviço:', err)
-      // Reverte override
-      setOverrides((prev) => {
-        const copy = { ...prev }
-        delete copy[osId]
-        return copy
-      })
-
-      if (isAuthSessionError(err)) {
-        toast({
-          variant: 'destructive',
-          title: 'Sessão expirada',
-          description: 'Faça login novamente para reagendar a ordem de serviço.',
-        })
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao reagendar',
-          description: 'Não foi possível salvar o novo horário no banco de dados.',
-        })
-      }
     }
   }
 
@@ -2023,6 +2054,9 @@ function CalendarioExecucaoOSContent({
                 return (
                   <div
                     key={cell.dateKey}
+                    data-testid={`mes-cell-${cell.dateKey}`}
+                    onDragOver={(e) => handleDragOverSlot(e, cell.dateKey, HORA_INICIAL)}
+                    onDrop={(e) => handleDropOnSlot(e, cell.dateKey, HORA_INICIAL)}
                     onClick={() => setSelectedDayKey(cell.dateKey)}
                     role="button"
                     tabIndex={0}
@@ -2124,7 +2158,9 @@ function CalendarioExecucaoOSContent({
                                 : undefined,
                               backgroundColor: tipoConfig.pillBg,
                             }}
-                            className="p-1 sm:p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer relative"
+                            className={`p-1 sm:p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer relative ${
+                              draggingOSId != null ? 'pointer-events-none' : ''
+                            }`}
                             title={tooltipCompleto}
                           >
                             {/* Horário + Tipo (com cor) */}
@@ -2188,21 +2224,6 @@ function CalendarioExecucaoOSContent({
                                     {tecnicosLista[0].nome.split(' ')[0]}
                                   </span>
                                 ) : null}
-
-                                {isAdmin && onDeleteOS && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      onDeleteOS(os)
-                                    }}
-                                    className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer shrink-0"
-                                    title="Excluir atividade / OS"
-                                    aria-label="Excluir atividade / OS"
-                                  >
-                                    <Trash2 className="w-2.5 h-2.5" />
-                                  </button>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -2316,7 +2337,11 @@ function CalendarioExecucaoOSContent({
                                   e.stopPropagation()
                                   onSelectOS(os)
                                 }}
-                                className="px-1.5 py-0.5 rounded text-[10px] font-semibold truncate border bg-white shadow-2xs hover:border-gray-400 cursor-pointer transition-all hover:shadow-xs flex items-center justify-between gap-1"
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold truncate border bg-white shadow-2xs hover:border-gray-400 cursor-pointer transition-all hover:shadow-xs flex items-center justify-between gap-1 ${
+                                  draggingOSId != null && draggingOSId !== safeStr(os.id)
+                                    ? 'pointer-events-none'
+                                    : ''
+                                }`}
                                 style={{
                                   borderLeftWidth: '3px',
                                   borderLeftColor: tipoConfig.hex,
@@ -2328,20 +2353,6 @@ function CalendarioExecucaoOSContent({
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
                                   <span className="text-[9px] text-gray-400">Dia todo</span>
-                                  {isAdmin && onDeleteOS && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        onDeleteOS(os)
-                                      }}
-                                      className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                                      title="Excluir atividade / OS"
-                                      aria-label="Excluir atividade / OS"
-                                    >
-                                      <Trash2 className="w-2.5 h-2.5" />
-                                    </button>
-                                  )}
                                 </div>
                               </div>
                             )
@@ -2451,6 +2462,9 @@ function CalendarioExecucaoOSContent({
                   return (
                     <div
                       key={`col-${dia.dateKey}`}
+                      data-testid={`col-${dia.dateKey}`}
+                      onDragOver={(e) => handleDragOverSlot(e, dia.dateKey, HORA_INICIAL)}
+                      onDrop={(e) => handleDropOnSlot(e, dia.dateKey, HORA_INICIAL)}
                       className={`relative ${dia.isToday ? 'bg-emerald-50/10' : 'bg-white'}`}
                       style={{ height: `${TOTAL_HORAS * ALTURA_HORA_PX}px` }}
                     >
@@ -2592,7 +2606,7 @@ function CalendarioExecucaoOSContent({
                             }}
                             className={`absolute left-1 right-1 rounded-xl p-1.5 pb-2 border shadow-2xs transition-all flex flex-col justify-between overflow-hidden cursor-pointer group ${
                               isDragging ? 'opacity-40 scale-95 ring-2 ring-emerald-500' : ''
-                            } ${
+                            } ${draggingOSId != null && !isDragging ? 'pointer-events-none' : ''} ${
                               isConcluida
                                 ? 'bg-gray-50 text-gray-500 border-gray-300 opacity-80'
                                 : 'bg-white hover:border-gray-400 hover:shadow-md'
@@ -2644,20 +2658,6 @@ function CalendarioExecucaoOSContent({
                                   >
                                     {tipoServico}
                                   </span>
-                                  {isAdmin && onDeleteOS && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        onDeleteOS(os)
-                                      }}
-                                      className="p-0.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                                      title="Excluir atividade / OS"
-                                      aria-label="Excluir atividade / OS"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  )}
                                 </div>
                               </div>
 
@@ -2841,7 +2841,9 @@ function CalendarioExecucaoOSContent({
                       borderLeftWidth: '4px',
                       borderLeftColor: tipoConfig.borderColor,
                     }}
-                    className="p-3.5 sm:p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50/80 transition-all cursor-pointer shadow-2xs hover:shadow-xs group flex flex-col justify-between"
+                    className={`p-3.5 sm:p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50/80 transition-all cursor-pointer shadow-2xs hover:shadow-xs group flex flex-col justify-between ${
+                      draggingOSId != null ? 'pointer-events-none' : ''
+                    }`}
                   >
                     <div>
                       {/* Topo do card do dia */}
@@ -2864,20 +2866,6 @@ function CalendarioExecucaoOSContent({
                             <Clock className="w-3.5 h-3.5 text-gray-500" />
                             {horario}
                           </span>
-                          {isAdmin && onDeleteOS && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDeleteOS(os)
-                              }}
-                              className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                              title="Excluir atividade / OS"
-                              aria-label="Excluir atividade / OS"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
                         </div>
                       </div>
 
@@ -3003,7 +2991,9 @@ function CalendarioExecucaoOSContent({
                       borderLeftWidth: '4px',
                       borderLeftColor: tipoConfig.borderColor,
                     }}
-                    className="p-3 sm:p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50/80 transition-all cursor-pointer shadow-2xs hover:shadow-xs group flex flex-col justify-between"
+                    className={`p-3 sm:p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50/80 transition-all cursor-pointer shadow-2xs hover:shadow-xs group flex flex-col justify-between ${
+                      draggingOSId != null ? 'pointer-events-none' : ''
+                    }`}
                   >
                     <div>
                       {/* Topo do card do dia */}
@@ -3026,20 +3016,6 @@ function CalendarioExecucaoOSContent({
                             <Clock className="w-3.5 h-3.5 text-gray-500" />
                             {horario}
                           </span>
-                          {isAdmin && onDeleteOS && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDeleteOS(os)
-                              }}
-                              className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                              title="Excluir atividade / OS"
-                              aria-label="Excluir atividade / OS"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
                         </div>
                       </div>
 
