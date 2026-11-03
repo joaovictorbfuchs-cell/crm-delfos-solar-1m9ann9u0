@@ -1058,9 +1058,9 @@ function CalendarioExecucaoOSContent({
   const handleCurrentMonth = handleCurrent
   const handleNextMonth = handleNext
 
-  // Mesclar ordens com overrides locais de reagendamento/redimensionamento
+  // Mesclar ordens com overrides locais e aplicar filtro restritivo de técnico se role === 'instalador'
   const ordensMescladas = useMemo(() => {
-    return (ordens || []).map((os) => {
+    const base = (ordens || []).map((os) => {
       if (!os) return os
       const ov = overrides[os.id]
       if (!ov) return os
@@ -1073,12 +1073,59 @@ function CalendarioExecucaoOSContent({
         tempo_previsto_minutos: ov.duracao_minutos ?? os.tempo_previsto_minutos,
       }
     })
-  }, [ordens, overrides])
+
+    // Se usuário for instalador/técnico, blindar exibição: só vê ordens atribuídas a ele
+    if (isInstalador) {
+      const myId = String(userId || userProfile?.id || '').trim()
+      const myName = String(userProfile?.name || '')
+        .trim()
+        .toLowerCase()
+
+      return base.filter((os) => {
+        if (!os) return false
+        const respId = String(os.responsavel_usuario_id || (os as any).responsavel_id || '').trim()
+        const atribuida = String(os.atribuida_a || '')
+          .trim()
+          .toLowerCase()
+
+        if (myId && respId === myId) return true
+        if (
+          myId &&
+          Array.isArray(os.tecnicos_ids) &&
+          os.tecnicos_ids.some((tId: any) => String(tId).trim() === myId)
+        ) {
+          return true
+        }
+        if (myName && atribuida.includes(myName)) return true
+        if (
+          myName &&
+          Array.isArray((os as any).tecnicos_nomes) &&
+          (os as any).tecnicos_nomes.some((nome: any) =>
+            String(nome || '')
+              .toLowerCase()
+              .includes(myName),
+          )
+        ) {
+          return true
+        }
+        return false
+      })
+    }
+
+    return base
+  }, [ordens, overrides, isInstalador, userId, userProfile?.name])
+
+  // Instalador NÃO tem permissão de reagendar (drag/drop) nem redimensionar (resize)
+  const podeReagendarCalendario = Boolean(isAdmin && !isInstalador)
 
   // ==========================================================
-  // DRAG & DROP: Reposicionar OS em outro horário / dia
+  // DRAG & DROP: Reposicionar OS em outro horário / dia (Somente Admin)
   // ==========================================================
   const handleDragStart = (e: React.DragEvent, osId: string) => {
+    if (!podeReagendarCalendario) {
+      e.preventDefault()
+      return
+    }
     e.dataTransfer.setData('text/plain', osId)
     e.dataTransfer.effectAllowed = 'move'
     setDraggingOSId(osId)
@@ -1277,6 +1324,9 @@ function CalendarioExecucaoOSContent({
 
   const handleResizeStart = (e: React.MouseEvent | React.PointerEvent, os: OrdemServico) => {
     e.stopPropagation()
+    if (!podeReagendarCalendario) {
+      return
+    }
     if (typeof (e as any).preventDefault === 'function') {
       e.preventDefault()
     }
@@ -2346,7 +2396,7 @@ function CalendarioExecucaoOSContent({
                             return (
                               <div
                                 key={`allday-${safeStr(os.id)}`}
-                                draggable
+                                draggable={podeReagendarCalendario}
                                 onDragStart={(e) => handleDragStart(e, safeStr(os.id))}
                                 onDragEnd={handleDragEnd}
                                 onClick={(e) => {
@@ -2628,7 +2678,7 @@ function CalendarioExecucaoOSContent({
                           return (
                             <div
                               key={`card-${osId}`}
-                              draggable={!isBeingResized}
+                              draggable={podeReagendarCalendario && !isBeingResized}
                               onDragStart={(e) => handleDragStart(e, osId)}
                               onDragEnd={handleDragEnd}
                               onClick={(e) => {
@@ -2745,27 +2795,29 @@ function CalendarioExecucaoOSContent({
                                 )}
                               </div>
 
-                              {/* Alça inferior de redimensionamento (bem fininha, padrão para cards de 1h, 30min e longos) */}
-                              <div
-                                data-testid={`resize-handle-${osId}`}
-                                onMouseDown={(e) => {
-                                  e.stopPropagation()
-                                  handleResizeStart(e, os)
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation()
-                                  handleResizeStart(e, os)
-                                }}
-                                onClick={(e) => {
-                                  // Evita que o clique na alça abra a ficha de execução da OS
-                                  e.stopPropagation()
-                                }}
-                                style={{ touchAction: 'none', userSelect: 'none' }}
-                                className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
-                                title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
-                              >
-                                <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 group-hover:h-[3px] transition-all pointer-events-none shadow-2xs" />
-                              </div>
+                              {/* Alça inferior de redimensionamento (somente Admin) */}
+                              {podeReagendarCalendario && (
+                                <div
+                                  data-testid={`resize-handle-${osId}`}
+                                  onMouseDown={(e) => {
+                                    e.stopPropagation()
+                                    handleResizeStart(e, os)
+                                  }}
+                                  onPointerDown={(e) => {
+                                    e.stopPropagation()
+                                    handleResizeStart(e, os)
+                                  }}
+                                  onClick={(e) => {
+                                    // Evita que o clique na alça abra a ficha de execução da OS
+                                    e.stopPropagation()
+                                  }}
+                                  style={{ touchAction: 'none', userSelect: 'none' }}
+                                  className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center bg-transparent hover:bg-emerald-400/30 active:bg-emerald-500/40 transition-colors select-none z-30"
+                                  title="Puxe a borda inferior para aumentar ou reduzir o tempo previsto (blocos de 30 min)"
+                                >
+                                  <div className="w-12 h-[2.5px] rounded-full bg-gray-400/90 group-hover:bg-emerald-600 group-hover:h-[3px] transition-all pointer-events-none shadow-2xs" />
+                                </div>
+                              )}
                             </div>
                           )
                         })

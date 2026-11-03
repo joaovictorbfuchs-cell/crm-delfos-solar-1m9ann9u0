@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import {
   OrdemServico,
   OSTemplate,
@@ -310,6 +310,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Se o item tem origem em 'atividades', estado dedicado para data/horário e responsável da atividade
   const isOrigemAtividades = os.origem === 'atividades'
+  const podeEditarPainelAtividade = isAdmin && !isInstalador
   const isAutoLeituraOS =
     os?.tipo_servico === 'auto_leitura_rge' ||
     os?.tipo_servico === 'Auto Leitura – RGE' ||
@@ -389,6 +390,20 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [atividadeResponsavelId, setAtividadeResponsavelId] = useState<string>(
     os?.responsavel_usuario_id || '',
   )
+  const responsavelNomeExibicao = useMemo(() => {
+    return (
+      instaladores.find((i) => i.id === (responsavelId || atividadeResponsavelId))?.name ||
+      os.atribuida_a ||
+      os.expand?.responsavel_usuario_id?.name ||
+      ''
+    )
+  }, [
+    instaladores,
+    responsavelId,
+    atividadeResponsavelId,
+    os.atribuida_a,
+    os.expand?.responsavel_usuario_id?.name,
+  ])
   const [isSalvandoAtividade, setIsSalvandoAtividade] = useState(false)
 
   const cliente: Cliente | undefined = os?.expand?.cliente_id
@@ -399,6 +414,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [usinaVinculada, setUsinaVinculada] = useState<UsinaCliente | null>(() => {
     return (os.expand?.usina_id as UsinaCliente) || null
   })
+  const usinaNomeExibicao = useMemo(() => {
+    if (usinaVinculada?.nome) {
+      return `${usinaVinculada.nome}${usinaVinculada.potencia_kwp ? ` (${usinaVinculada.potencia_kwp} kWp)` : ''}`
+    }
+    const found = usinasDoCliente.find((u) => u.id === selectedUsinaId)
+    if (found) {
+      return `${found.nome}${found.potencia_kwp ? ` (${found.potencia_kwp} kWp)` : ''}`
+    }
+    return 'Nenhuma usina vinculada'
+  }, [usinaVinculada, usinasDoCliente, selectedUsinaId])
   const [equipamentosUsina, setEquipamentosUsina] = useState<UsinaEquipamentoAtivo[]>([])
   const [ativosUsina, setAtivosUsina] = useState<AtivoUsina[]>([])
   const [carregandoUsina, setCarregandoUsina] = useState<boolean>(false)
@@ -2284,53 +2309,37 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 )}
               </div>
 
-              {/* Select compacto do Responsável com ícone de enviar OS por WhatsApp ao lado */}
+              {/* Informação e ação de WhatsApp do Responsável no topo (seleção unificada no painel de detalhes) */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {isAdmin ? (
+                {(responsavelNomeExibicao || isAdmin) && (
                   <div className="flex items-center gap-1.5 text-xs text-slate-200 bg-white/10 px-2 py-1 rounded-lg">
                     <User className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
                     <span className="font-medium text-[11px] text-slate-300 shrink-0 hidden sm:inline">
                       Resp:
                     </span>
-                    <select
-                      value={responsavelId}
-                      onChange={(e) => setResponsavelId(e.target.value)}
-                      disabled={!podeEditarOS}
-                      className="bg-slate-900/90 border border-slate-600 text-white text-[11px] rounded px-1.5 py-0.5 max-w-[150px] sm:max-w-[180px] focus:outline-hidden focus:border-[#16A34A] disabled:opacity-60"
+                    <span
+                      className="font-bold text-white text-[11px] max-w-[140px] sm:max-w-[180px] truncate"
+                      title={responsavelNomeExibicao || 'Não atribuído'}
                     >
-                      <option value="">-- Não atribuído --</option>
-                      {instaladores.map((inst) => (
-                        <option key={inst.id} value={inst.id}>
-                          {inst.name}
-                        </option>
-                      ))}
-                    </select>
+                      {responsavelNomeExibicao || 'Não atribuído'}
+                    </span>
 
-                    <BotaoEnviarOSWhatsApp
-                      osId={os.id}
-                      responsavelNome={
-                        instaladores.find((i) => i.id === responsavelId)?.name ||
-                        os.atribuida_a ||
-                        os.expand?.responsavel_usuario_id?.name
-                      }
-                      responsavelTelefone={
-                        instaladores.find((i) => i.id === responsavelId)?.phone ||
-                        os.expand?.responsavel_usuario_id?.phone
-                      }
-                      responsavelId={responsavelId || os.responsavel_usuario_id}
-                      size="icon"
-                      variant="ghost"
-                      showLabel={false}
-                      className="h-6 w-6 p-0 rounded-sm bg-[#16A34A] hover:bg-[#15803D] text-white border-0"
-                    />
+                    {isAdmin && (
+                      <BotaoEnviarOSWhatsApp
+                        osId={os.id}
+                        responsavelNome={responsavelNomeExibicao}
+                        responsavelTelefone={
+                          instaladores.find((i) => i.id === responsavelId)?.phone ||
+                          os.expand?.responsavel_usuario_id?.phone
+                        }
+                        responsavelId={responsavelId || os.responsavel_usuario_id}
+                        size="icon"
+                        variant="ghost"
+                        showLabel={false}
+                        className="h-6 w-6 p-0 rounded-sm bg-[#16A34A] hover:bg-[#15803D] text-white border-0"
+                      />
+                    )}
                   </div>
-                ) : (
-                  os.atribuida_a && (
-                    <div className="flex items-center gap-1 text-[11px] text-slate-200 bg-white/10 px-2 py-0.5 rounded">
-                      <User className="w-3 h-3 text-[#4ade80]" />
-                      <span>{os.atribuida_a}</span>
-                    </div>
-                  )
                 )}
               </div>
             </div>
@@ -2407,386 +2416,475 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               )}
             </div>
 
-            {/* Linha 4: Dados técnicos comprimidos da usina (Inversor + Links Datasheet/Datalogger + Módulos) */}
-            <div className="bg-slate-900/80 border border-slate-700/80 rounded-lg p-2 text-xs space-y-1.5">
-              {/* Inversores */}
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
-                    Inversor:
-                  </span>
-                  {inversoresUsina.length > 0 ? (
-                    inversoresUsina.map((inv, idx) => (
-                      <div key={inv.id || idx} className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-white text-xs">
-                          {inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}
-                          {[inv.marca, inv.modelo].filter(Boolean).join(' ') || 'Inversor Solar'}
-                          {inv.potencia_w ? ` (${(inv.potencia_w / 1000).toFixed(1)} kW)` : ''}
-                        </span>
-                        {inv.numero_serie && (
-                          <span className="text-[10px] text-[#4ade80] bg-white/10 px-1 rounded">
-                            SN: {inv.numero_serie}
-                          </span>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-slate-400 text-[11px]">
-                      {carregandoUsina ? 'Carregando...' : 'Nenhum inversor vinculado'}
+            {/* Linha 4: Dados técnicos da usina organizados em grade consistente de 2 colunas com links agrupados */}
+            <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 divide-y md:divide-y-0 md:divide-x divide-slate-700/70">
+                {/* Coluna 1: Inversor e respectivos links (Datasheet / Monitoramento / Datalogger) */}
+                <div className="flex flex-col gap-1.5 md:pr-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase font-black text-[#4ade80] tracking-wider shrink-0">
+                      INVERSOR:
                     </span>
-                  )}
-                </div>
-
-                {/* Links clicáveis de Datasheet do Inversor e Configuração do Datalogger / Monitoramento */}
-                <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-1">
-                  {inversoresUsina.map((inv, idx) => (
-                    <div key={`links-${inv.id || idx}`} className="contents">
-                      {inv.datasheetUrl && (
-                        <a
-                          href={inv.datasheetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4ade80] hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-[#16A34A]/40 transition-colors shadow-2xs"
-                          title="Ver Datasheet do Inversor (PDF)"
-                        >
-                          <FileCode2 className="w-3 h-3 text-[#4ade80]" />
-                          <span>Datasheet Inversor</span>
-                          <ExternalLink className="w-2.5 h-2.5 opacity-70" />
-                        </a>
+                    <div className="min-w-0 flex-1">
+                      {inversoresUsina.length > 0 ? (
+                        <div className="space-y-0.5">
+                          {inversoresUsina.map((inv, idx) => (
+                            <div
+                              key={inv.id || idx}
+                              className="flex items-center gap-1.5 flex-wrap"
+                            >
+                              <span className="font-semibold text-white text-xs">
+                                {inv.quantidade > 1 ? `${inv.quantidade}x ` : ''}
+                                {[inv.marca, inv.modelo].filter(Boolean).join(' ') ||
+                                  'Inversor Solar'}
+                                {inv.potencia_w
+                                  ? ` (${(inv.potencia_w / 1000).toFixed(1)} kW)`
+                                  : ''}
+                              </span>
+                              {inv.numero_serie && (
+                                <span className="text-[10px] text-[#4ade80] bg-white/10 px-1 rounded font-mono">
+                                  SN: {inv.numero_serie}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">
+                          {carregandoUsina ? 'Carregando...' : 'Nenhum inversor vinculado'}
+                        </span>
                       )}
+                    </div>
+                  </div>
 
-                      {/* Configuração de Monitoramento do Datalogger vinculada ao inversor (PDF / Link / Ambos) */}
-                      {inv.configMonitoramento ? (
-                        <MonitoramentoConfigBadge
-                          configuracao={inv.configMonitoramento}
-                          rotulo="Monitoramento"
-                          mostrarTipo
-                        />
-                      ) : inv.dataloggerUrl ? (
+                  {/* Links agrupados do Inversor */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    {inversoresUsina.map((inv, idx) => (
+                      <div key={`links-${inv.id || idx}`} className="contents">
+                        {inv.datasheetUrl && (
+                          <a
+                            href={inv.datasheetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4ade80] hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-[#16A34A]/40 transition-colors shadow-2xs"
+                            title="Ver Datasheet do Inversor (PDF)"
+                          >
+                            <FileCode2 className="w-3 h-3 text-[#4ade80]" />
+                            <span>Datasheet Inversor</span>
+                            <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                          </a>
+                        )}
+
+                        {inv.configMonitoramento ? (
+                          <MonitoramentoConfigBadge
+                            configuracao={inv.configMonitoramento}
+                            rotulo="Monitoramento"
+                            mostrarTipo
+                          />
+                        ) : inv.dataloggerUrl ? (
+                          <a
+                            href={inv.dataloggerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
+                            title="Abrir página/tutorial de Configuração do Datalogger"
+                          >
+                            <Wifi className="w-3 h-3 text-amber-300" />
+                            <span>Configurar Datalogger</span>
+                            <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                          </a>
+                        ) : null}
+                      </div>
+                    ))}
+
+                    {!inversoresUsina.some((i) => i.configMonitoramento || i.dataloggerUrl) &&
+                      (usinaVinculada?.monitoramento_datalogger_url ||
+                        cliente?.monitoramento_datalogger_url) && (
                         <a
-                          href={inv.dataloggerUrl}
+                          href={
+                            usinaVinculada?.monitoramento_datalogger_url ||
+                            cliente?.monitoramento_datalogger_url
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
-                          title="Abrir página/tutorial de Configuração do Datalogger"
+                          title="Abrir link de configuração do datalogger"
                         >
                           <Wifi className="w-3 h-3 text-amber-300" />
                           <span>Configurar Datalogger</span>
                           <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                         </a>
-                      ) : null}
-                    </div>
-                  ))}
-
-                  {/* Caso o link ou configuração de datalogger venha da usina/cliente mas nenhum inversor tenha o item específico */}
-                  {!inversoresUsina.some((i) => i.configMonitoramento || i.dataloggerUrl) &&
-                    (usinaVinculada?.monitoramento_datalogger_url ||
-                      cliente?.monitoramento_datalogger_url) && (
-                      <a
-                        href={
-                          usinaVinculada?.monitoramento_datalogger_url ||
-                          cliente?.monitoramento_datalogger_url
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-amber-400/40 transition-colors shadow-2xs"
-                        title="Abrir link de configuração do datalogger"
-                      >
-                        <Wifi className="w-3 h-3 text-amber-300" />
-                        <span>Configurar Datalogger</span>
-                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
-                      </a>
-                    )}
+                      )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Módulos */}
-              <div className="flex items-center gap-1.5 flex-wrap border-t border-slate-700/80 pt-1">
-                <span className="text-[10px] uppercase font-bold text-[#4ade80] tracking-wider">
-                  Módulos:
-                </span>
-                {modulosUsina.length > 0 ? (
-                  modulosUsina.map((mod, idx) => (
-                    <div key={mod.id || idx} className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-white text-xs">
-                        {mod.quantidade ? `${mod.quantidade}x ` : ''}
-                        {[mod.marca, mod.modelo].filter(Boolean).join(' ') ||
-                          'Módulos Fotovoltaicos'}
-                        {mod.potencia_w ? ` (${mod.potencia_w}W)` : ''}
-                      </span>
-                      {mod.datasheetUrl && (
-                        <a
-                          href={mod.datasheetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] text-[#4ade80] hover:text-white underline decoration-[#16A34A] underline-offset-2 transition-colors ml-1"
-                          title="Ver Datasheet do Módulo (PDF)"
-                        >
-                          <FileCode2 className="w-3 h-3 text-[#4ade80]" />
-                          <span>Datasheet Módulo</span>
-                          <ExternalLink className="w-2 h-2 opacity-70" />
-                        </a>
+                {/* Coluna 2: Módulos e respectivos links (Datasheet do Módulo) */}
+                <div className="flex flex-col gap-1.5 pt-2.5 md:pt-0 md:pl-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase font-black text-[#4ade80] tracking-wider shrink-0">
+                      MÓDULOS:
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      {modulosUsina.length > 0 ? (
+                        <div className="space-y-0.5">
+                          {modulosUsina.map((mod, idx) => (
+                            <div
+                              key={mod.id || idx}
+                              className="flex items-center gap-1.5 flex-wrap"
+                            >
+                              <span className="font-semibold text-white text-xs">
+                                {mod.quantidade ? `${mod.quantidade}x ` : ''}
+                                {[mod.marca, mod.modelo].filter(Boolean).join(' ') ||
+                                  'Módulos Fotovoltaicos'}
+                                {mod.potencia_w ? ` (${mod.potencia_w}W)` : ''}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">
+                          {carregandoUsina ? 'Carregando...' : 'Nenhum módulo vinculado'}
+                        </span>
                       )}
                     </div>
-                  ))
-                ) : (
-                  <span className="text-slate-400 text-[11px]">
-                    {carregandoUsina ? 'Carregando...' : 'Nenhum módulo vinculado'}
-                  </span>
-                )}
+                  </div>
+
+                  {/* Links agrupados dos Módulos */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    {modulosUsina.map((mod, idx) => (
+                      <div key={`mod-links-${mod.id || idx}`} className="contents">
+                        {mod.datasheetUrl && (
+                          <a
+                            href={mod.datasheetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4ade80] hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded border border-[#16A34A]/40 transition-colors shadow-2xs"
+                            title="Ver Datasheet do Módulo (PDF)"
+                          >
+                            <FileCode2 className="w-3 h-3 text-[#4ade80]" />
+                            <span>Datasheet Módulo</span>
+                            <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </TooltipProvider>
 
-      {/* PAINEL DE ALTERAÇÃO DIRETA DE HORÁRIO E RESPONSÁVEL (QUANDO ORIGEM É ATIVIDADES DE MANUTENÇÃO) - Oculto para instalador */}
-      {isOrigemAtividades && !isInstalador && (
-        <div className="bg-emerald-50/70 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
-          <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2.5 flex-wrap gap-2">
+      {/* PAINEL: Horário, Duração e Responsável da Atividade de Manutenção */}
+      {/* Padrão visual do sistema: card claro, borda sutil, detalhes em verde solar. Somente leitura para instalador, editável para admin */}
+      {isOrigemAtividades && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2.5 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-emerald-700" />
-              <h3 className="text-xs sm:text-sm font-bold text-emerald-950">
+              <Clock className="w-4 h-4 text-[#16A34A]" />
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900">
                 Horário, Duração e Responsável da Atividade de Manutenção
               </h3>
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300/80">
-              Edição Rápida de Campo
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              {podeEditarPainelAtividade ? 'Edição Rápida de Campo' : 'Consulta da Programação'}
             </span>
           </div>
 
-          {/* Seletor de Usina na Edição da Atividade */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
-                <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
-                <span>Usina Vinculada:</span>
-                {isManutencaoOuAdmin ? (
-                  <span className="text-red-500">*</span>
-                ) : (
-                  <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
-                )}
-              </label>
-              {isManutencaoOuAdmin && (
-                <span className="text-[10px] text-emerald-900 font-medium">
-                  Obrigatória para manutenção
-                </span>
-              )}
-            </div>
-
-            <select
-              value={selectedUsinaId}
-              onChange={(e) => setSelectedUsinaId(e.target.value)}
-              className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-            >
-              <option value="">
-                {isManutencaoOuAdmin
-                  ? '-- Selecione a Usina (obrigatória) --'
-                  : '-- Nenhuma usina vinculada --'}
-              </option>
-              {usinasDoCliente.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            {/* Data Agendada */}
-            {!isAutoLeituraOS && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Data Agendada:</span>
-                </label>
-                <input
-                  type="date"
-                  value={(() => {
-                    const base = atividadeDataHora || os?.data_agendada || ''
-                    return base && base.length >= 10 ? base.slice(0, 10) : ''
-                  })()}
-                  onChange={(e) => {
-                    const novaData = e.target.value
-                    const horaAtual = horarioInicio || '08:00'
-                    if (novaData) {
-                      setAtividadeDataHora(`${novaData}T${horaAtual}`)
-                    }
-                  }}
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-                />
-              </div>
-            )}
-
-            {/* Campo de Responsável */}
-            <div className={`space-y-1.5 ${isAutoLeituraOS ? 'sm:col-span-2' : ''}`}>
-              <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Responsável da Atividade:</span>
-              </label>
-              <select
-                value={atividadeResponsavelId}
-                onChange={(e) => {
-                  setAtividadeResponsavelId(e.target.value)
-                  setResponsavelId(e.target.value)
-                }}
-                className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-              >
-                <option value="">-- Não atribuído --</option>
-                {instaladores.map((inst) => (
-                  <option key={inst.id} value={inst.id}>
-                    {inst.name} {inst.email ? `(${inst.email})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Grid com Horário de Início, Horário de Fim e Duração Prevista (Editáveis com passos de 5 em 5) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-emerald-200/60 text-xs">
-            {/* Horário de Início */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-emerald-950 flex items-center gap-1">
-                <span>Horário de Início</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-1">
-                <select
-                  value={safeHorarioStr(horarioInicio, '08:00').split(':')[0] || '08'}
-                  onChange={(e) => {
-                    const h = e.target.value.padStart(2, '0')
-                    const m = safeHorarioStr(horarioInicio, '08:00').split(':')[1] || '00'
-                    handleHorarioInicioChange(`${h}:${m}`)
-                  }}
-                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                >
-                  {HORAS_24.map((h) => (
-                    <option key={`ficha-ini-h-${h}`} value={h}>
-                      {h}h
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={(() => {
-                    const mRaw =
-                      parseInt(safeHorarioStr(horarioInicio, '08:00').split(':')[1] || '0', 10) || 0
-                    const mRound = Math.round(mRaw / 5) * 5
-                    const mBound = mRound >= 60 ? 55 : mRound
-                    return String(mBound).padStart(2, '0')
-                  })()}
-                  onChange={(e) => {
-                    const h = safeHorarioStr(horarioInicio, '08:00').split(':')[0] || '08'
-                    const m = e.target.value
-                    handleHorarioInicioChange(`${h}:${m}`)
-                  }}
-                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                >
-                  {MINUTOS_PASSO_5.map((m) => (
-                    <option key={`ficha-ini-m-${m}`} value={m}>
-                      {m}m
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Horário de Fim */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-emerald-950 flex items-center gap-1">
-                <span>Horário de Fim</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-1">
-                <select
-                  value={safeHorarioStr(horarioFim, '09:00').split(':')[0] || '09'}
-                  onChange={(e) => {
-                    const h = e.target.value.padStart(2, '0')
-                    const m = safeHorarioStr(horarioFim, '09:00').split(':')[1] || '00'
-                    handleHorarioFimChange(`${h}:${m}`)
-                  }}
-                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                >
-                  {HORAS_24.map((h) => (
-                    <option key={`ficha-fim-h-${h}`} value={h}>
-                      {h}h
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={(() => {
-                    const mRaw =
-                      parseInt(safeHorarioStr(horarioFim, '09:00').split(':')[1] || '0', 10) || 0
-                    const mRound = Math.round(mRaw / 5) * 5
-                    const mBound = mRound >= 60 ? 55 : mRound
-                    return String(mBound).padStart(2, '0')
-                  })()}
-                  onChange={(e) => {
-                    const h = safeHorarioStr(horarioFim, '09:00').split(':')[0] || '09'
-                    const m = e.target.value
-                    handleHorarioFimChange(`${h}:${m}`)
-                  }}
-                  className="w-full text-xs px-1.5 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-mono font-medium"
-                >
-                  {MINUTOS_PASSO_5.map((m) => (
-                    <option key={`ficha-fim-m-${m}`} value={m}>
-                      {m}m
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Duração Prevista (Editável) */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-emerald-950">Duração Prevista</label>
-                <span className="text-[10px] font-extrabold text-emerald-900 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
-                  {formatarDuracao(duracaoMinutos)}
-                </span>
-              </div>
-              <select
-                value={duracaoMinutos}
-                onChange={(e) => handleDuracaoChange(parseInt(e.target.value, 10))}
-                className="w-full text-xs px-2 py-2 rounded-xl border border-emerald-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-              >
-                {DURACOES_PREVISTAS_SUGESTOES.map((d) => (
-                  <option key={`ficha-dur-${d.minutos}`} value={d.minutos}>
-                    {d.label}
-                  </option>
-                ))}
-                {!DURACOES_PREVISTAS_SUGESTOES.some((d) => d.minutos === duracaoMinutos) && (
-                  <option value={duracaoMinutos}>
-                    {formatarDuracao(duracaoMinutos)} (personalizado)
-                  </option>
-                )}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-            <p className="text-[11px] text-emerald-900/80">
-              Previsão padrão: 1 hora. Alterar o fim recalcula a duração, e alterar a duração
-              recalcula o fim.
-            </p>
-            <button
-              type="button"
-              onClick={handleSalvarAlteracoesAtividade}
-              disabled={isSalvandoAtividade}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer ml-auto"
-            >
-              {isSalvandoAtividade ? (
-                <div className="contents" key="salvando">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Salvando...</span>
+          {podeEditarPainelAtividade ? (
+            /* MODO ADMIN: Edição completa com selects e botão Salvar Alterações */
+            <>
+              {/* Seletor de Usina na Edição da Atividade */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                    <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                    <span>Usina Vinculada:</span>
+                    {isManutencaoOuAdmin ? (
+                      <span className="text-red-500">*</span>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                    )}
+                  </label>
+                  {isManutencaoOuAdmin && (
+                    <span className="text-[10px] text-emerald-900 font-medium">
+                      Obrigatória para manutenção
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <div className="contents" key="salvar">
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Salvar Alterações</span>
+
+                <select
+                  value={selectedUsinaId}
+                  onChange={(e) => setSelectedUsinaId(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-medium"
+                >
+                  <option value="">
+                    {isManutencaoOuAdmin
+                      ? '-- Selecione a Usina (obrigatória) --'
+                      : '-- Nenhuma usina vinculada --'}
+                  </option>
+                  {usinasDoCliente.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {/* Data Agendada */}
+                {!isAutoLeituraOS && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-[#16A34A]" />
+                      <span>Data Agendada:</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={(() => {
+                        const base = atividadeDataHora || os?.data_agendada || ''
+                        return base && base.length >= 10 ? base.slice(0, 10) : ''
+                      })()}
+                      onChange={(e) => {
+                        const novaData = e.target.value
+                        const horaAtual = horarioInicio || '08:00'
+                        if (novaData) {
+                          setAtividadeDataHora(`${novaData}T${horaAtual}`)
+                        }
+                      }}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-medium"
+                    />
+                  </div>
+                )}
+
+                {/* Campo Único de Responsável */}
+                <div className={`space-y-1.5 ${isAutoLeituraOS ? 'sm:col-span-2' : ''}`}>
+                  <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span>Responsável da Atividade:</span>
+                  </label>
+                  <select
+                    value={responsavelId}
+                    onChange={(e) => {
+                      const novoId = e.target.value
+                      setResponsavelId(novoId)
+                      setAtividadeResponsavelId(novoId)
+                    }}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-medium"
+                  >
+                    <option value="">-- Não atribuído --</option>
+                    {instaladores.map((inst) => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.name} {inst.email ? `(${inst.email})` : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
-            </button>
-          </div>
+              </div>
+
+              {/* Grid com Horário de Início, Horário de Fim e Duração Prevista */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-100 text-xs">
+                {/* Horário de Início */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-gray-900 flex items-center gap-1">
+                    <span>Horário de Início</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-1">
+                    <select
+                      value={safeHorarioStr(horarioInicio, '08:00').split(':')[0] || '08'}
+                      onChange={(e) => {
+                        const h = e.target.value.padStart(2, '0')
+                        const m = safeHorarioStr(horarioInicio, '08:00').split(':')[1] || '00'
+                        handleHorarioInicioChange(`${h}:${m}`)
+                      }}
+                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-mono font-medium"
+                    >
+                      {HORAS_24.map((h) => (
+                        <option key={`ficha-ini-h-${h}`} value={h}>
+                          {h}h
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={(() => {
+                        const mRaw =
+                          parseInt(
+                            safeHorarioStr(horarioInicio, '08:00').split(':')[1] || '0',
+                            10,
+                          ) || 0
+                        const mRound = Math.round(mRaw / 5) * 5
+                        const mBound = mRound >= 60 ? 55 : mRound
+                        return String(mBound).padStart(2, '0')
+                      })()}
+                      onChange={(e) => {
+                        const h = safeHorarioStr(horarioInicio, '08:00').split(':')[0] || '08'
+                        const m = e.target.value
+                        handleHorarioInicioChange(`${h}:${m}`)
+                      }}
+                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-mono font-medium"
+                    >
+                      {MINUTOS_PASSO_5.map((m) => (
+                        <option key={`ficha-ini-m-${m}`} value={m}>
+                          {m}m
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Horário de Fim */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-gray-900 flex items-center gap-1">
+                    <span>Horário de Fim</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-1">
+                    <select
+                      value={safeHorarioStr(horarioFim, '09:00').split(':')[0] || '09'}
+                      onChange={(e) => {
+                        const h = e.target.value.padStart(2, '0')
+                        const m = safeHorarioStr(horarioFim, '09:00').split(':')[1] || '00'
+                        handleHorarioFimChange(`${h}:${m}`)
+                      }}
+                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-mono font-medium"
+                    >
+                      {HORAS_24.map((h) => (
+                        <option key={`ficha-fim-h-${h}`} value={h}>
+                          {h}h
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={(() => {
+                        const mRaw =
+                          parseInt(safeHorarioStr(horarioFim, '09:00').split(':')[1] || '0', 10) ||
+                          0
+                        const mRound = Math.round(mRaw / 5) * 5
+                        const mBound = mRound >= 60 ? 55 : mRound
+                        return String(mBound).padStart(2, '0')
+                      })()}
+                      onChange={(e) => {
+                        const h = safeHorarioStr(horarioFim, '09:00').split(':')[0] || '09'
+                        const m = e.target.value
+                        handleHorarioFimChange(`${h}:${m}`)
+                      }}
+                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-mono font-medium"
+                    >
+                      {MINUTOS_PASSO_5.map((m) => (
+                        <option key={`ficha-fim-m-${m}`} value={m}>
+                          {m}m
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Duração Prevista (Editável) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-gray-900">Duração Prevista</label>
+                    <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      {formatarDuracao(duracaoMinutos)}
+                    </span>
+                  </div>
+                  <select
+                    value={duracaoMinutos}
+                    onChange={(e) => handleDuracaoChange(parseInt(e.target.value, 10))}
+                    className="w-full text-xs px-2 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-medium"
+                  >
+                    {DURACOES_PREVISTAS_SUGESTOES.map((d) => (
+                      <option key={`ficha-dur-${d.minutos}`} value={d.minutos}>
+                        {d.label}
+                      </option>
+                    ))}
+                    {!DURACOES_PREVISTAS_SUGESTOES.some((d) => d.minutos === duracaoMinutos) && (
+                      <option value={duracaoMinutos}>
+                        {formatarDuracao(duracaoMinutos)} (personalizado)
+                      </option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              {/* Botão de Salvar Alterações (somente Admin) */}
+              <div className="flex items-center justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleSalvarAlteracoesAtividade}
+                  disabled={isSalvandoAtividade}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  {isSalvandoAtividade ? (
+                    <div className="contents" key="salvando">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Salvando...</span>
+                    </div>
+                  ) : (
+                    <div className="contents" key="salvar">
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Salvar Alterações</span>
+                    </div>
+                  )}
+                </button>
+              </div>
+            </>
+          ) : (
+            /* MODO SOMENTE LEITURA: Para Técnico/Instalador - Texto limpo, sem selects e sem botão salvar */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100 flex flex-col justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                  <Sun className="w-3 h-3 text-[#E0A838]" />
+                  <span>Usina Vinculada</span>
+                </span>
+                <span
+                  className="font-bold text-gray-900 text-xs mt-1 truncate"
+                  title={usinaNomeExibicao}
+                >
+                  {usinaNomeExibicao}
+                </span>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100 flex flex-col justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#16A34A]" />
+                  <span>Data Agendada</span>
+                </span>
+                <span className="font-bold text-gray-900 text-xs mt-1">
+                  {formatDateTime(atividadeDataHora || os?.data_agendada)}
+                </span>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100 flex flex-col justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                  <User className="w-3 h-3 text-[#16A34A]" />
+                  <span>Responsável</span>
+                </span>
+                <span
+                  className="font-bold text-gray-900 text-xs mt-1 truncate"
+                  title={responsavelNomeExibicao}
+                >
+                  {responsavelNomeExibicao}
+                </span>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100 flex flex-col justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#16A34A]" />
+                  <span>Horário e Duração</span>
+                </span>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <span className="font-bold text-gray-900 text-xs font-mono">
+                    {safeHorarioStr(horarioInicio, '08:00')} - {safeHorarioStr(horarioFim, '09:00')}
+                  </span>
+                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                    {formatarDuracao(duracaoMinutos)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

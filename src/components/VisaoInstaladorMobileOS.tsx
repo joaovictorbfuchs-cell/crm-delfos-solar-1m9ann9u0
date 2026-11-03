@@ -305,13 +305,31 @@ export default function VisaoInstaladorMobileOS({
       // Se não houver ID e Nome informados, exibe todas passadas (já filtradas no backend/pai)
       if (!safeUserId && !safeUserName) return true
 
-      const osRespId = String(os.responsavel_usuario_id || '').trim()
+      const osRespId = String(os.responsavel_usuario_id || (os as any).responsavel_id || '').trim()
       const osAtribuida = String(os.atribuida_a || '')
         .toLowerCase()
         .trim()
 
       if (safeUserId && osRespId === safeUserId) return true
+      if (
+        safeUserId &&
+        Array.isArray(os.tecnicos_ids) &&
+        os.tecnicos_ids.some((tId: any) => String(tId).trim() === safeUserId)
+      ) {
+        return true
+      }
       if (safeUserName && osAtribuida.includes(safeUserName)) return true
+      if (
+        safeUserName &&
+        Array.isArray((os as any).tecnicos_nomes) &&
+        (os as any).tecnicos_nomes.some((nome: any) =>
+          String(nome || '')
+            .toLowerCase()
+            .includes(safeUserName),
+        )
+      ) {
+        return true
+      }
 
       return false
     })
