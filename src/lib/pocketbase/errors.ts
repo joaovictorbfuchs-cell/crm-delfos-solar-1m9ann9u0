@@ -25,42 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as { name?: string; isAbort?: boolean }
-  return err.name === 'AbortError' || err.isAbort === true
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  if (isAbortError(error)) return false
-
-  const err = error as {
-    status?: number
-    statusCode?: number
-    response?: { status?: number }
-    message?: string
-  }
-
-  const status = err.status ?? err.statusCode ?? err.response?.status
-  if (status === 401 || status === 403) return true
-
-  const msg = typeof err.message === 'string' ? err.message.toLowerCase() : ''
-  if (
-    msg.includes('token is expired') ||
-    msg.includes('sessão expirada') ||
-    msg.includes('login expirou') ||
-    msg.includes('failed to authenticate')
-  ) {
-    return true
-  }
-
-  return false
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
