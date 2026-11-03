@@ -196,7 +196,56 @@ cronAdd('automacoes_worker', '0 * * * *', () => {
             const telDestino = clienteRec
               ? (clienteRec.getString('whatsapp') || clienteRec.getString('telefone') || '').trim()
               : ''
-            if (!telDestino) {
+            // Janela comercial (regra do usuário): fora de dia útil ou fora de 08:00–16:30
+            // de Brasília (UTC−3 fixo) a automação NÃO envia na hora — grava a mensagem
+            // como 'agendada' para o próximo dia útil dentro da janela; o worker da fila
+            // agendada (whatsapp_cron PARTE 1) faz o envio. A execução é registrada como
+            // sucesso para a idempotência não reprocessar no próximo ciclo.
+            let deferidoJanela = false
+            try {
+              const hcJanela = require(`${__hooks}/horario_comercial_util.js`)
+              if (telDestino && !hcJanela.estaNaJanelaComercial(now)) {
+                deferidoJanela = true
+                const textoFinalJ = formatTexto(
+                  configAcao.mensagem || 'Mensagem automática Delfos Solar',
+                )
+                const agPara = hcJanela.ajustarDataEnvio(now, 'adiar').toISOString()
+                const msgsColJ = $app.findCollectionByNameOrId('whatsapp_mensagens')
+                const msgAgJ = new Record(msgsColJ)
+                if (clienteRec) msgAgJ.set('cliente_id', clienteRec.id)
+                try {
+                  const helperJ = require(`${__hooks}/whatsapp_conversa_helper.js`)
+                  const convJ = helperJ.ensureConversaForMessage(
+                    $app,
+                    clienteRec ? clienteRec.id : null,
+                    telDestino,
+                    textoFinalJ,
+                    null,
+                  )
+                  if (convJ) msgAgJ.set('conversa_id', convJ.id)
+                } catch (_) {}
+                msgAgJ.set('telefone_destino', telDestino)
+                msgAgJ.set('conteudo_final', textoFinalJ)
+                msgAgJ.set('status', 'agendada')
+                msgAgJ.set('agendado_para', agPara)
+                msgAgJ.set('tipo_disparo', 'automacao_' + gatilho)
+                msgAgJ.set('direcao', 'enviada')
+                if (refKey) msgAgJ.set('referencia_id', refKey)
+                $app.save(msgAgJ)
+                sucesso = true
+                mensagemResultado = `Fora da janela comercial (08:00–16:30 BRT, dias úteis): WhatsApp agendado para ${agPara}`
+                payloadGravado = { agendado_para: agPara, telefone: telDestino }
+              }
+            } catch (eJanelaAuto) {
+              console.log(
+                '[AUTOMACOES RUNNER] Janela comercial indisponível, seguindo com envio imediato:',
+                eJanelaAuto,
+              )
+            }
+            if (deferidoJanela) {
+              // Fora da janela: nada a enviar agora; o worker da fila agendada envia
+              // no próximo dia útil dentro de 08:00–16:30 BRT.
+            } else if (!telDestino) {
               sucesso = false
               mensagemResultado = 'Cliente sem telefone/WhatsApp cadastrado para envio'
             } else {
