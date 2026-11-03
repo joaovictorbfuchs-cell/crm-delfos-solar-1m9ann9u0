@@ -23,6 +23,7 @@ import pb from '@/lib/pocketbase/client'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { somarMinutos, minutesToTimeString, timeStringToMinutes } from '@/lib/horarios'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { calcularLayoutCamadas } from '@/lib/calendarioLayoutCamadas'
 
@@ -866,6 +867,7 @@ function CalendarioExecucaoOSContent({
 }: CalendarioExecucaoOSProps) {
   const now = new Date()
   const { toast } = useToast()
+  const { userProfile, user } = useAuth()
 
   // Wrapper sanitizado de onSelectOS para garantir que o objeto passado à Ficha de Execução
   // não contenha tipos divergentes (data_agendada Date, horario_inicio numérico, checklist null)
@@ -1076,8 +1078,8 @@ function CalendarioExecucaoOSContent({
 
     // Se usuário for instalador/técnico, blindar exibição: só vê ordens atribuídas a ele
     if (isInstalador) {
-      const myId = String(userId || userProfile?.id || '').trim()
-      const myName = String(userProfile?.name || '')
+      const myId = String(userProfile?.id || user?.id || '').trim()
+      const myName = String(instaladorNome || userProfile?.name || '')
         .trim()
         .toLowerCase()
 
@@ -1113,7 +1115,15 @@ function CalendarioExecucaoOSContent({
     }
 
     return base
-  }, [ordens, overrides, isInstalador, userId, userProfile?.name])
+  }, [
+    ordens,
+    overrides,
+    isInstalador,
+    userProfile?.id,
+    user?.id,
+    instaladorNome,
+    userProfile?.name,
+  ])
 
   // Instalador NÃO tem permissão de reagendar (drag/drop) nem redimensionar (resize)
   const podeReagendarCalendario = Boolean(isAdmin && !isInstalador)
