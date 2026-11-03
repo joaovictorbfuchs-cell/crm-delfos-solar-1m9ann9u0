@@ -22,234 +22,251 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
     // -------------------------------------------------------------
     // PARTE 1: PROCESSAR FILA DE MENSAGENS AGENDADAS
     // Respeita intervalo configurado (seja do lote em agendado_para ou sleep entre envios)
+    // Guarda de janela comercial (regra do usuário): não envia em fins de semana,
+    // feriados ou fora de 08:00–16:30 de Brasília. Mensagens ficam na fila para o próximo ciclo.
     // -------------------------------------------------------------
     try {
-      // Buscar mensagens agendadas cuja data agendada <= now
-      const filterAgendadas = `status = 'agendada' && agendado_para <= '${nowIso}'`
-      const agendadas = $app.findRecordsByFilter(
-        msgsCol.id,
-        filterAgendadas,
-        'agendado_para',
-        20,
-        0,
-      )
-
-      for (let i = 0; i < agendadas.length; i++) {
-        // Se houver mais de uma mensagem no mesmo ciclo, introduz um pequeno espaçamento seguro
-        if (i > 0) {
-          try {
-            sleep(1000)
-          } catch (_) {}
+      let dentroJanela = true
+      try {
+        const hcUtil = require(`${__hooks}/horario_comercial_util.js`)
+        if (!hcUtil.estaNaJanelaComercial(now)) {
+          dentroJanela = false
         }
-
-        const msg = agendadas[i]
-        const dest = (msg.getString('telefone_destino') || '').trim()
-        const texto = msg.getString('conteudo_final') || ''
-
-        if (!dest || !texto) {
-          msg.set('status', 'falha')
-          msg.set('log_erro', 'Telefone ou mensagem vazia na fila agendada')
-          $app.save(msg)
-          continue
-        }
-
-        if (!rawApiUrl) {
-          msg.set('status', 'falha')
-          msg.set(
-            'log_erro',
-            'Gateway não configurado no envio agendado (defina WHATSAPP_API_URL nos Secrets).',
-          )
-          $app.save(msg)
-          continue
-        }
-
-        let cleanPhone = dest.replace(/\D/g, '')
-        if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
-          cleanPhone = '55' + cleanPhone
-        }
-
-        try {
-          let cleanUrl = rawApiUrl.replace(/\/+$/, '')
-          if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-            cleanUrl = 'https://' + cleanUrl
-          }
-
-          const lowerUrl = cleanUrl.toLowerCase()
-          const isZApi = lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
-          let targetUrl = cleanUrl
-          let payloadGateway = {}
-          const headers = { 'Content-Type': 'application/json' }
-
-          const arquivoNome = msg.getString('nome_arquivo') || ''
-          const arquivoPb = msg.getString('arquivo') || ''
-          const docUrl = msg.getString('documento_url') || ''
-          const tipoMsg = msg.getString('tipo_mensagem') || ''
-
-          // Determinar se a mensagem agendada possui mídia física para envio
-          let mediaUrlFinal = docUrl
-          if (!mediaUrlFinal && arquivoPb) {
-            const pbHost = (
-              $os.getenv('PB_INSTANCE_URL') ||
-              $os.getenv('VITE_POCKETBASE_URL') ||
-              $os.getenv('SITE_URL') ||
-              ''
-            ).replace(/\/+$/, '')
-            if (pbHost) {
-              mediaUrlFinal = `${pbHost}/api/files/whatsapp_mensagens/${msg.id}/${encodeURIComponent(arquivoPb)}`
-            }
-          }
-
-          const hasMedia = Boolean(mediaUrlFinal || arquivoPb)
-          const isImagem =
-            tipoMsg === 'imagem' ||
-            (hasMedia && /\.(jpe?g|png|webp|gif)$/i.test(arquivoNome || arquivoPb))
-
-          if (isZApi) {
-            let baseWithoutSuffix = cleanUrl
-              .replace(/\/+send-text\/?$/i, '')
-              .replace(/\/+send-document(\/[^/?#]+)?\/?$/i, '')
-              .replace(/\/+send-image\/?$/i, '')
-              .replace(/\/+send-video\/?$/i, '')
-              .replace(/\/+send-audio\/?$/i, '')
-              .replace(/\/+$/, '')
-
-            const zapiMatch = baseWithoutSuffix.match(
-              /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
-            )
-
-            if (apiKey) {
-              headers['Client-Token'] = apiKey
-            }
-
-            if (hasMedia) {
-              if (isImagem) {
-                if (zapiMatch) {
-                  targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-image`
-                } else {
-                  targetUrl = `${baseWithoutSuffix}/send-image`
-                }
-                payloadGateway = {
-                  phone: cleanPhone,
-                  image: mediaUrlFinal,
-                }
-                if (texto && texto !== '[Imagem]') {
-                  payloadGateway.caption = texto
-                }
-              } else {
-                let fileExtension = 'pdf'
-                if (arquivoNome && arquivoNome.includes('.')) {
-                  const parts = arquivoNome.split('.')
-                  fileExtension =
-                    parts[parts.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf'
-                }
-                if (zapiMatch) {
-                  targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-document/${fileExtension}`
-                } else {
-                  targetUrl = `${baseWithoutSuffix}/send-document/${fileExtension}`
-                }
-                payloadGateway = {
-                  phone: cleanPhone,
-                  document: mediaUrlFinal,
-                  fileName: arquivoNome || 'documento.pdf',
-                }
-                if (texto && texto !== arquivoNome) {
-                  payloadGateway.caption = texto
-                }
-              }
-            } else {
-              if (zapiMatch) {
-                targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
-              } else {
-                targetUrl = `${baseWithoutSuffix}/send-text`
-              }
-              payloadGateway = {
-                phone: cleanPhone,
-                message: texto,
-              }
-            }
-          } else {
-            if (apiKey) {
-              headers['apikey'] = apiKey
-              headers['Authorization'] = 'Bearer ' + apiKey
-              headers['X-Api-Key'] = apiKey
-            }
-
-            if (hasMedia) {
-              if (isImagem) {
-                targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-image`
-                payloadGateway = {
-                  number: cleanPhone,
-                  phone: cleanPhone,
-                  image: mediaUrlFinal,
-                  media: mediaUrlFinal,
-                  caption: texto && texto !== '[Imagem]' ? texto : '',
-                  sender: originNumber,
-                }
-              } else {
-                targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-document`
-                payloadGateway = {
-                  number: cleanPhone,
-                  phone: cleanPhone,
-                  document: mediaUrlFinal,
-                  fileName: arquivoNome || 'documento.pdf',
-                  caption: texto && texto !== arquivoNome ? texto : '',
-                  sender: originNumber,
-                }
-              }
-            } else {
-              targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-text`
-              payloadGateway = {
-                number: cleanPhone,
-                phone: cleanPhone,
-                message: texto,
-                text: texto,
-                sender: originNumber,
-              }
-            }
-          }
-
-          const res = $http.send({
-            url: targetUrl,
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payloadGateway),
-            timeout: 15,
-          })
-
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            let externalId = ''
-            try {
-              if (res.json) {
-                if (res.json.messageId) externalId = String(res.json.messageId)
-                else if (res.json.id) externalId = String(res.json.id)
-                else if (res.json.zaapId) externalId = String(res.json.zaapId)
-                else if (res.json.key && res.json.key.id) externalId = String(res.json.key.id)
-              }
-            } catch (_) {}
-
-            msg.set('status', 'enviada')
-            msg.set('enviado_em', new Date().toISOString())
-            if (externalId) msg.set('id_externo_gateway', externalId)
-            msg.set('log_erro', '')
-            $app.save(msg)
-          } else {
-            const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
-            let hint = ''
-            if (res.statusCode === 404 && errStr.indexOf('Instance not found') !== -1) {
-              hint =
-                ' (Instância não encontrada na Z-API: verifique a URL da instância em WHATSAPP_API_URL)'
-            }
-            msg.set('status', 'falha')
-            msg.set('log_erro', `Gateway erro HTTP ${res.statusCode}: ${errStr}${hint}`)
-            $app.save(msg)
-          }
-        } catch (httpErr) {
-          const errStr = httpErr && httpErr.message ? httpErr.message : String(httpErr)
-          msg.set('status', 'falha')
-          msg.set('log_erro', `Falha de rede ao disparar agendado: ${errStr}`)
-          $app.save(msg)
-        }
+      } catch (eHc) {
+        console.log('[WHATSAPP CRON PARTE 1] Erro ao checar janela comercial:', eHc)
       }
+
+      if (!dentroJanela) {
+        // Fora da janela comercial (08:00–16:30 BRT, dias úteis): mantém a fila agendada intacta
+      } else {
+        // Buscar mensagens agendadas cuja data agendada <= now
+        const filterAgendadas = `status = 'agendada' && agendado_para <= '${nowIso}'`
+        const agendadas = $app.findRecordsByFilter(
+          msgsCol.id,
+          filterAgendadas,
+          'agendado_para',
+          20,
+          0,
+        )
+
+        for (let i = 0; i < agendadas.length; i++) {
+          // Se houver mais de uma mensagem no mesmo ciclo, introduz um pequeno espaçamento seguro
+          if (i > 0) {
+            try {
+              sleep(1000)
+            } catch (_) {}
+          }
+
+          const msg = agendadas[i]
+          const dest = (msg.getString('telefone_destino') || '').trim()
+          const texto = msg.getString('conteudo_final') || ''
+
+          if (!dest || !texto) {
+            msg.set('status', 'falha')
+            msg.set('log_erro', 'Telefone ou mensagem vazia na fila agendada')
+            $app.save(msg)
+            continue
+          }
+
+          if (!rawApiUrl) {
+            msg.set('status', 'falha')
+            msg.set(
+              'log_erro',
+              'Gateway não configurado no envio agendado (defina WHATSAPP_API_URL nos Secrets).',
+            )
+            $app.save(msg)
+            continue
+          }
+
+          let cleanPhone = dest.replace(/\D/g, '')
+          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
+            cleanPhone = '55' + cleanPhone
+          }
+
+          try {
+            let cleanUrl = rawApiUrl.replace(/\/+$/, '')
+            if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+              cleanUrl = 'https://' + cleanUrl
+            }
+
+            const lowerUrl = cleanUrl.toLowerCase()
+            const isZApi =
+              lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
+            let targetUrl = cleanUrl
+            let payloadGateway = {}
+            const headers = { 'Content-Type': 'application/json' }
+
+            const arquivoNome = msg.getString('nome_arquivo') || ''
+            const arquivoPb = msg.getString('arquivo') || ''
+            const docUrl = msg.getString('documento_url') || ''
+            const tipoMsg = msg.getString('tipo_mensagem') || ''
+
+            // Determinar se a mensagem agendada possui mídia física para envio
+            let mediaUrlFinal = docUrl
+            if (!mediaUrlFinal && arquivoPb) {
+              const pbHost = (
+                $os.getenv('PB_INSTANCE_URL') ||
+                $os.getenv('VITE_POCKETBASE_URL') ||
+                $os.getenv('SITE_URL') ||
+                ''
+              ).replace(/\/+$/, '')
+              if (pbHost) {
+                mediaUrlFinal = `${pbHost}/api/files/whatsapp_mensagens/${msg.id}/${encodeURIComponent(arquivoPb)}`
+              }
+            }
+
+            const hasMedia = Boolean(mediaUrlFinal || arquivoPb)
+            const isImagem =
+              tipoMsg === 'imagem' ||
+              (hasMedia && /\.(jpe?g|png|webp|gif)$/i.test(arquivoNome || arquivoPb))
+
+            if (isZApi) {
+              let baseWithoutSuffix = cleanUrl
+                .replace(/\/+send-text\/?$/i, '')
+                .replace(/\/+send-document(\/[^/?#]+)?\/?$/i, '')
+                .replace(/\/+send-image\/?$/i, '')
+                .replace(/\/+send-video\/?$/i, '')
+                .replace(/\/+send-audio\/?$/i, '')
+                .replace(/\/+$/, '')
+
+              const zapiMatch = baseWithoutSuffix.match(
+                /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+              )
+
+              if (apiKey) {
+                headers['Client-Token'] = apiKey
+              }
+
+              if (hasMedia) {
+                if (isImagem) {
+                  if (zapiMatch) {
+                    targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-image`
+                  } else {
+                    targetUrl = `${baseWithoutSuffix}/send-image`
+                  }
+                  payloadGateway = {
+                    phone: cleanPhone,
+                    image: mediaUrlFinal,
+                  }
+                  if (texto && texto !== '[Imagem]') {
+                    payloadGateway.caption = texto
+                  }
+                } else {
+                  let fileExtension = 'pdf'
+                  if (arquivoNome && arquivoNome.includes('.')) {
+                    const parts = arquivoNome.split('.')
+                    fileExtension =
+                      parts[parts.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf'
+                  }
+                  if (zapiMatch) {
+                    targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-document/${fileExtension}`
+                  } else {
+                    targetUrl = `${baseWithoutSuffix}/send-document/${fileExtension}`
+                  }
+                  payloadGateway = {
+                    phone: cleanPhone,
+                    document: mediaUrlFinal,
+                    fileName: arquivoNome || 'documento.pdf',
+                  }
+                  if (texto && texto !== arquivoNome) {
+                    payloadGateway.caption = texto
+                  }
+                }
+              } else {
+                if (zapiMatch) {
+                  targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
+                } else {
+                  targetUrl = `${baseWithoutSuffix}/send-text`
+                }
+                payloadGateway = {
+                  phone: cleanPhone,
+                  message: texto,
+                }
+              }
+            } else {
+              if (apiKey) {
+                headers['apikey'] = apiKey
+                headers['Authorization'] = 'Bearer ' + apiKey
+                headers['X-Api-Key'] = apiKey
+              }
+
+              if (hasMedia) {
+                if (isImagem) {
+                  targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-image`
+                  payloadGateway = {
+                    number: cleanPhone,
+                    phone: cleanPhone,
+                    image: mediaUrlFinal,
+                    media: mediaUrlFinal,
+                    caption: texto && texto !== '[Imagem]' ? texto : '',
+                    sender: originNumber,
+                  }
+                } else {
+                  targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-document`
+                  payloadGateway = {
+                    number: cleanPhone,
+                    phone: cleanPhone,
+                    document: mediaUrlFinal,
+                    fileName: arquivoNome || 'documento.pdf',
+                    caption: texto && texto !== arquivoNome ? texto : '',
+                    sender: originNumber,
+                  }
+                }
+              } else {
+                targetUrl = `${cleanUrl.replace(/\/+$/, '')}/send-text`
+                payloadGateway = {
+                  number: cleanPhone,
+                  phone: cleanPhone,
+                  message: texto,
+                  text: texto,
+                  sender: originNumber,
+                }
+              }
+            }
+
+            const res = $http.send({
+              url: targetUrl,
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(payloadGateway),
+              timeout: 15,
+            })
+
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              let externalId = ''
+              try {
+                if (res.json) {
+                  if (res.json.messageId) externalId = String(res.json.messageId)
+                  else if (res.json.id) externalId = String(res.json.id)
+                  else if (res.json.zaapId) externalId = String(res.json.zaapId)
+                  else if (res.json.key && res.json.key.id) externalId = String(res.json.key.id)
+                }
+              } catch (_) {}
+
+              msg.set('status', 'enviada')
+              msg.set('enviado_em', new Date().toISOString())
+              if (externalId) msg.set('id_externo_gateway', externalId)
+              msg.set('log_erro', '')
+              $app.save(msg)
+            } else {
+              const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
+              let hint = ''
+              if (res.statusCode === 404 && errStr.indexOf('Instance not found') !== -1) {
+                hint =
+                  ' (Instância não encontrada na Z-API: verifique a URL da instância em WHATSAPP_API_URL)'
+              }
+              msg.set('status', 'falha')
+              msg.set('log_erro', `Gateway erro HTTP ${res.statusCode}: ${errStr}${hint}`)
+              $app.save(msg)
+            }
+          } catch (httpErr) {
+            const errStr = httpErr && httpErr.message ? httpErr.message : String(httpErr)
+            msg.set('status', 'falha')
+            msg.set('log_erro', `Falha de rede ao disparar agendado: ${errStr}`)
+            $app.save(msg)
+          }
+        }
+      } // fim if (dentroJanela)
     } catch (errFila) {
       console.log('Erro ao processar fila agendada WhatsApp:', errFila)
     }
@@ -492,24 +509,25 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
         return spDate.getUTCDay() // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
       }
 
-      function getSaoPauloHour(d) {
-        const utcMs = d.getTime()
-        const spOffsetMs = -3 * 60 * 60 * 1000
-        const spDate = new Date(utcMs + spOffsetMs)
-        return spDate.getUTCHours()
+      let dentroJanelaLeitura = true
+      let hcLeitura = null
+      try {
+        hcLeitura = require(`${__hooks}/horario_comercial_util.js`)
+        if (!hcLeitura.estaNaJanelaComercial(now)) {
+          dentroJanelaLeitura = false
+        }
+      } catch (eHcLeitura) {
+        console.log('[AUTO LEITURA CRON] Erro ao carregar horario_comercial_util:', eHcLeitura)
       }
 
-      const horaHojeSp = getSaoPauloHour(now)
-
-      // Só permitir disparo quando a hora de Brasília for >= 09:00.
-      // Se < 9, pular a rodada sem marcar nada — a idempotência garante que envia na rodada seguinte após as 9h.
-      if (horaHojeSp < 9) {
-        // Horário comercial ainda não atingido em Brasília (< 09:00). Pula rodada sem marcar nada.
+      // Regra do usuário: disparo de mensagens automáticas de auto leitura deve ocorrer
+      // EXCLUSIVAMENTE em dias úteis dentro da janela comercial (08:00–16:30 de Brasília).
+      // Se fora da janela ou fim de semana/feriado, pula a rodada sem marcar nada.
+      if (!dentroJanelaLeitura) {
+        // Fora da janela comercial de Brasília (08:00–16:30) ou fim de semana/feriado. Pula rodada.
       } else {
         const hojeSpStr = getSaoPauloDateStr(now)
         const diaSemanaHojeSp = getSaoPauloDayOfWeek(now)
-
-        // Regra: NUNCA disparar no fim de semana (sábado ou domingo)
         const isFimDeSemanaHoje = diaSemanaHojeSp === 0 || diaSemanaHojeSp === 6
 
         if (!isFimDeSemanaHoje) {
@@ -566,16 +584,21 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
               Date.UTC(partesLeitura[0], partesLeitura[1] - 1, partesLeitura[2], 12, 0, 0),
             )
 
-            // Calcular data prevista do envio: 2 dias antes
-            // Se 2 dias antes cair em sábado (dia 6) ou domingo (dia 0), recuar para sexta-feira anterior
+            // Calcular data prevista do envio: 2 dias antes.
+            // Regra do usuário para auto leitura: antecipar se cair em fim de semana ou feriado
+            // (recua dia a dia enquanto não for dia útil).
             const dtEnvioAlvo = new Date(dtLeitura.getTime() - 2 * 24 * 60 * 60 * 1000)
-            const dowAlvo = dtEnvioAlvo.getUTCDay()
-            if (dowAlvo === 0) {
-              // Domingo -> recua 2 dias para Sexta
-              dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 2)
-            } else if (dowAlvo === 6) {
-              // Sábado -> recua 1 dia para Sexta
-              dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 1)
+            if (hcLeitura && typeof hcLeitura.ehDiaUtil === 'function') {
+              while (!hcLeitura.ehDiaUtil(dtEnvioAlvo)) {
+                dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 1)
+              }
+            } else {
+              const dowAlvo = dtEnvioAlvo.getUTCDay()
+              if (dowAlvo === 0) {
+                dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 2)
+              } else if (dowAlvo === 6) {
+                dtEnvioAlvo.setUTCDate(dtEnvioAlvo.getUTCDate() - 1)
+              }
             }
 
             const envioAlvoYmd = dtEnvioAlvo.toISOString().substring(0, 10)

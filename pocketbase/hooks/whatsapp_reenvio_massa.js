@@ -807,7 +807,12 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
           cleanPhone = '55' + cleanPhone
         }
 
-        const agendadoParaIso = new Date(agendamentoBaseMs).toISOString()
+        let agendadoParaDate = new Date(agendamentoBaseMs)
+        try {
+          const hcMassa = require(`${__hooks}/horario_comercial_util.js`)
+          agendadoParaDate = hcMassa.ajustarDataEnvio(agendadoParaDate, 'adiar')
+        } catch (_) {}
+        const agendadoParaIso = agendadoParaDate.toISOString()
         agendamentoBaseMs += intervalMs
         reenviosAgendadosLote++
         totalReenviosAgendados++
@@ -864,7 +869,12 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
             typeof subsequente.dias_apos === 'number' ? subsequente.dias_apos : 1,
           )
           const proxPrazoMs = proxPrazoDias * 24 * 60 * 60 * 1000
-          item.proximo_envio_data = new Date(agora.getTime() + proxPrazoMs).toISOString()
+          let proxDataDate = new Date(agora.getTime() + proxPrazoMs)
+          try {
+            const hcMassa = require(`${__hooks}/horario_comercial_util.js`)
+            proxDataDate = hcMassa.ajustarDataEnvio(proxDataDate, 'adiar')
+          } catch (_) {}
+          item.proximo_envio_data = proxDataDate.toISOString()
           item.proxima_etapa_nome = subsequente.nome
         } else {
           item.proximo_envio_data = undefined
@@ -1738,7 +1748,12 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
           cleanPhone = '55' + cleanPhone
         }
 
-        const agendadoParaIso = new Date(agendamentoBaseMs).toISOString()
+        let agendadoParaDate2 = new Date(agendamentoBaseMs)
+        try {
+          const hcMassa2 = require(`${__hooks}/horario_comercial_util.js`)
+          agendadoParaDate2 = hcMassa2.ajustarDataEnvio(agendadoParaDate2, 'adiar')
+        } catch (_) {}
+        const agendadoParaIso = agendadoParaDate2.toISOString()
         agendamentoBaseMs += intervalMs
         reenviosAgendadosLote++
         totalReenviosAgendados++
@@ -1795,7 +1810,12 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
             typeof subsequente.dias_apos === 'number' ? subsequente.dias_apos : 1,
           )
           const proxPrazoMs = proxPrazoDias * 24 * 60 * 60 * 1000
-          item.proximo_envio_data = new Date(agora.getTime() + proxPrazoMs).toISOString()
+          let proxDataDate2 = new Date(agora.getTime() + proxPrazoMs)
+          try {
+            const hcMassa2 = require(`${__hooks}/horario_comercial_util.js`)
+            proxDataDate2 = hcMassa2.ajustarDataEnvio(proxDataDate2, 'adiar')
+          } catch (_) {}
+          item.proximo_envio_data = proxDataDate2.toISOString()
           item.proxima_etapa_nome = subsequente.nome
         } else {
           item.proximo_envio_data = undefined

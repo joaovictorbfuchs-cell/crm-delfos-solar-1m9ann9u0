@@ -360,7 +360,12 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
               item.etapa_atual_nome = primeiraEtapaNova.nome
 
               if (primeiraEtapaNova.dias_apos === 0) {
-                const agendadoParaIso = agoraIso
+                let agendadoDate = agora
+                try {
+                  const hcWebhook = require(`${__hooks}/horario_comercial_util.js`)
+                  agendadoDate = hcWebhook.ajustarDataEnvio(agora, 'adiar')
+                } catch (_) {}
+                const agendadoParaIso = agendadoDate.toISOString()
                 let textoFinal = primeiraEtapaNova.mensagem || ''
                 textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
                 textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
@@ -411,9 +416,12 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
                 const subsequente = etapasNovoFluxo.find((e) => e.ordem > primeiraEtapaNova.ordem)
                 if (subsequente) {
                   const proxDias = Math.max(1, subsequente.dias_apos || 1)
-                  item.proximo_envio_data = new Date(
-                    agora.getTime() + proxDias * 24 * 60 * 60 * 1000,
-                  ).toISOString()
+                  let proxDataDate = new Date(agora.getTime() + proxDias * 24 * 60 * 60 * 1000)
+                  try {
+                    const hcWebhook = require(`${__hooks}/horario_comercial_util.js`)
+                    proxDataDate = hcWebhook.ajustarDataEnvio(proxDataDate, 'adiar')
+                  } catch (_) {}
+                  item.proximo_envio_data = proxDataDate.toISOString()
                   item.proxima_etapa_nome = subsequente.nome
                 } else {
                   item.proximo_envio_data = undefined
@@ -421,9 +429,12 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
                 }
               } else {
                 const proxDias = Math.max(1, primeiraEtapaNova.dias_apos || 1)
-                item.proximo_envio_data = new Date(
-                  agora.getTime() + proxDias * 24 * 60 * 60 * 1000,
-                ).toISOString()
+                let proxDataDate = new Date(agora.getTime() + proxDias * 24 * 60 * 60 * 1000)
+                try {
+                  const hcWebhook = require(`${__hooks}/horario_comercial_util.js`)
+                  proxDataDate = hcWebhook.ajustarDataEnvio(proxDataDate, 'adiar')
+                } catch (_) {}
+                item.proximo_envio_data = proxDataDate.toISOString()
                 item.proxima_etapa_nome = primeiraEtapaNova.nome
               }
             }

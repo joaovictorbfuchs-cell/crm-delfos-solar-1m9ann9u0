@@ -59,11 +59,15 @@ export const PainelLembretesHoje: React.FC = () => {
     setAtividadeSelecionada(null)
   }
 
-  // Estado vazio amigável quando não há atividades hoje nem atrasadas
-  if (totalCount === 0) {
-    return (
-      <>
-        <div className="bg-gradient-to-r from-emerald-50/70 to-teal-50/40 rounded-xl p-4 sm:p-5 border border-emerald-100 shadow-2xs">
+  // Renderização estável envolvida em container com key estável para impedir
+  // erros de reconciliação do DOM (ex.: "Failed to execute 'insertBefore'")
+  const renderPainelCorpo = () => {
+    if (totalCount === 0) {
+      return (
+        <div
+          key="painel-vazio"
+          className="bg-gradient-to-r from-emerald-50/70 to-teal-50/40 rounded-xl p-4 sm:p-5 border border-emerald-100 shadow-2xs"
+        >
           <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-3 text-center sm:text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
@@ -88,19 +92,14 @@ export const PainelLembretesHoje: React.FC = () => {
             </div>
           </div>
         </div>
+      )
+    }
 
-        <ModalDetalhesAtividade
-          isOpen={Boolean(atividadeModalAtual)}
-          onClose={handleCloseModal}
-          atividade={atividadeModalAtual}
-        />
-      </>
-    )
-  }
-
-  return (
-    <>
-      <div className="bg-white rounded-xl border border-gray-200/90 shadow-2xs overflow-hidden transition-all">
+    return (
+      <div
+        key="painel-lista"
+        className="bg-white rounded-xl border border-gray-200/90 shadow-2xs overflow-hidden transition-all"
+      >
         {/* Header do Painel */}
         <div className="px-4 py-3.5 sm:px-5 sm:py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50/70 to-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5">
@@ -149,9 +148,9 @@ export const PainelLembretesHoje: React.FC = () => {
 
         {/* Lista de Atividades (Grid responsivo: 1 col no mobile/tablet, 2 col em telas maiores se tiver várias) */}
         <div className="p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto">
-          {todasPendentesHojeEAtrasadas.map((atv) => (
+          {todasPendentesHojeEAtrasadas.map((atv, idx) => (
             <LembreteCardItem
-              key={atv.id}
+              key={atv.id ? `lembrete-${atv.id}` : `lembrete-idx-${idx}`}
               atividade={atv}
               todayStr={todayStr}
               isConcluindo={concluindoId === atv.id}
@@ -162,14 +161,22 @@ export const PainelLembretesHoje: React.FC = () => {
           ))}
         </div>
       </div>
+    )
+  }
 
-      {/* Modal de Detalhes e Edição da Atividade */}
-      <ModalDetalhesAtividade
-        isOpen={Boolean(atividadeModalAtual)}
-        onClose={handleCloseModal}
-        atividade={atividadeModalAtual}
-      />
-    </>
+  return (
+    <div className="painel-lembretes-hoje-root">
+      {renderPainelCorpo()}
+
+      {/* Modal de Detalhes e Edição da Atividade (montado apenas quando ativo, isolado) */}
+      {Boolean(atividadeModalAtual) && (
+        <ModalDetalhesAtividade
+          isOpen={true}
+          onClose={handleCloseModal}
+          atividade={atividadeModalAtual}
+        />
+      )}
+    </div>
   )
 }
 
