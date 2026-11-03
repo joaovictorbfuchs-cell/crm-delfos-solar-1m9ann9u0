@@ -327,13 +327,38 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           })
       }
 
-      // Definir responsável padrão: usuário logado se encontrado na lista, ou primeiro usuário
+      // Definir responsável padrão:
+      // Para manutenção (limpeza, preventiva, corretiva, limpeza_manutencao, visita_tecnica):
+      // Padrão obrigatório = "Instalador Delfos" (hc3lwxfsp2dmmyv)
+      // Para comercial/administrativa: usuário logado ou primeiro usuário não-técnico
       if (!responsavelId && tecnicosIds.length === 0) {
-        const foundUser = usuarios.find((u) => u.email === user?.email || u.id === user?.id)
-        const idInicial = foundUser ? foundUser.id : usuarios.length > 0 ? usuarios[0].id : ''
-        if (idInicial) {
-          setResponsavelId(idInicial)
-          setTecnicosIds([idInicial])
+        const confAtual = getTipoAtividadeConfig(tipoParaUsar, customDefs)
+        const isManut = confAtual.categoria === 'manutencao' || apenasManutencao
+
+        if (isManut) {
+          const instaladorDelfos = usuarios.find(
+            (u) =>
+              u.id === 'hc3lwxfsp2dmmyv' || u.name?.trim().toLowerCase() === 'instalador delfos',
+          )
+          const idPadrao = instaladorDelfos ? instaladorDelfos.id : 'hc3lwxfsp2dmmyv'
+          setResponsavelId(idPadrao)
+          setTecnicosIds([idPadrao])
+        } else {
+          // Tipos comerciais/administrativas: perfil instalador/técnico não deve ser pré-selecionado
+          const foundUser = usuarios.find(
+            (u) =>
+              (u.email === user?.email || u.id === user?.id) &&
+              u.role !== 'instalador' &&
+              (u.role as string) !== 'tecnico',
+          )
+          const idInicial = foundUser
+            ? foundUser.id
+            : usuarios.find((u) => u.role !== 'instalador' && (u.role as string) !== 'tecnico')
+                ?.id || ''
+          if (idInicial) {
+            setResponsavelId(idInicial)
+            setTecnicosIds([idInicial])
+          }
         }
       }
 
@@ -528,6 +553,15 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         setResponsavelAvisoBloqueio(null)
       }
     } else {
+      // Se migrou para manutenção e não tem responsável ou tinha não-instalador, sugere Instalador Delfos
+      if (!responsavelId) {
+        const instaladorDelfos = usuariosValidosCadastrados.find(
+          (u) => u.id === 'hc3lwxfsp2dmmyv' || u.name?.trim().toLowerCase() === 'instalador delfos',
+        )
+        const idPadrao = instaladorDelfos ? instaladorDelfos.id : 'hc3lwxfsp2dmmyv'
+        setResponsavelId(idPadrao)
+        setTecnicosIds([idPadrao])
+      }
       setResponsavelAvisoBloqueio(null)
     }
   }
@@ -541,6 +575,18 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     setUsinaObrigatoria(isUsinaObrigatoriaPorPadrao(conf))
     // Título livre: título base = nome do tipo sempre
     setTitulo(conf.tituloPadrao)
+    // Se mudou para tipo de manutenção e ainda não selecionou técnico, pré-seleciona Instalador Delfos
+    if (conf.categoria === 'manutencao') {
+      if (!responsavelId) {
+        const instaladorDelfos = usuariosValidosCadastrados.find(
+          (u) => u.id === 'hc3lwxfsp2dmmyv' || u.name?.trim().toLowerCase() === 'instalador delfos',
+        )
+        const idPadrao = instaladorDelfos ? instaladorDelfos.id : 'hc3lwxfsp2dmmyv'
+        setResponsavelId(idPadrao)
+        setTecnicosIds([idPadrao])
+      }
+    }
+
     if (novoTipo === 'auto_leitura_rge') {
       // Se tiver UC preenchida, sugere padrão "Auto Leitura RGE - UC <numero>"
       if (numeroUcAutoLeitura) {
@@ -650,6 +696,13 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     const clienteIdLimpo = typeof clienteId === 'string' ? clienteId.trim() : ''
     if (!clienteIdLimpo) {
       setFormError('Selecione um cliente para vincular à atividade.')
+      return
+    }
+
+    // Validação de técnico único e obrigatório (mín. 1, máx. 1)
+    const respValidacao = responsavelId || tecnicosIds[0]
+    if (!respValidacao || !respValidacao.trim()) {
+      setFormError('Selecione o técnico responsável da atividade.')
       return
     }
 
@@ -1211,72 +1264,28 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               />
             </div>
 
-            {/* Usuário Responsável / Técnicos Designados (Seleção múltipla com chips removíveis) */}
+            {/* Usuário Responsável / Técnico Único (mínimo 1, máximo 1) */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
                 <span className="flex items-center gap-1">
                   <User className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Técnicos / Responsáveis</span> <span className="text-red-500">*</span>
+                  <span>Técnico Responsável</span> <span className="text-red-500">*</span>
                 </span>
-                {tecnicosIds.length > 0 && (
-                  <span className="text-[10px] text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    1º da lista = Responsável Principal
-                  </span>
-                )}
+                <span className="text-[10px] text-gray-400 font-normal">
+                  (técnico único obrigatório)
+                </span>
               </label>
 
-              {/* Chips removíveis dos técnicos selecionados */}
-              {tecnicosIds.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 p-2 bg-emerald-50/50 rounded-xl border border-emerald-200/60">
-                  {tecnicosIds.map((tId, idx) => {
-                    const u = usuariosValidosCadastrados.find((usr) => usr.id === tId)
-                    const nome = u?.name || 'Técnico'
-                    const isPrincipal = idx === 0
-                    return (
-                      <span
-                        key={tId}
-                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border font-medium shadow-2xs transition-all ${
-                          isPrincipal
-                            ? 'bg-emerald-600 text-white border-emerald-700 font-semibold'
-                            : 'bg-white text-gray-800 border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <span className="truncate max-w-[160px]">
-                          {isPrincipal && (
-                            <span className="text-[10px] opacity-90 mr-1 font-bold">
-                              ★ Principal:
-                            </span>
-                          )}
-                          {nome}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const novaLista = tecnicosIds.filter((id) => id !== tId)
-                            setTecnicosIds(novaLista)
-                            const novoPrimeiro = novaLista[0] || ''
-                            setResponsavelId(novoPrimeiro)
-                          }}
-                          className={`rounded-full p-0.5 hover:bg-black/10 transition-colors ${
-                            isPrincipal ? 'text-white' : 'text-gray-400 hover:text-gray-700'
-                          }`}
-                          title="Remover técnico"
-                          aria-label={`Remover ${nome}`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Dropdown para adicionar técnico à lista */}
+              {/* Seletor único de técnico responsável */}
               <select
-                value=""
+                value={responsavelId || tecnicosIds[0] || ''}
                 onChange={(e) => {
                   const novoId = e.target.value
-                  if (!novoId) return
+                  if (!novoId) {
+                    setResponsavelId('')
+                    setTecnicosIds([])
+                    return
+                  }
                   const targetUser = usuariosValidosCadastrados.find((u) => u.id === novoId)
                   const isPerfilTecnico =
                     targetUser?.role === 'instalador' || (targetUser?.role as string) === 'tecnico'
@@ -1287,34 +1296,24 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                     return
                   }
                   setResponsavelAvisoBloqueio(null)
-                  if (!tecnicosIds.includes(novoId)) {
-                    const novaLista = [...tecnicosIds, novoId]
-                    setTecnicosIds(novaLista)
-                    if (!responsavelId || novaLista.length === 1) {
-                      setResponsavelId(novaLista[0])
-                    }
-                  }
+                  setResponsavelId(novoId)
+                  setTecnicosIds([novoId])
                 }}
-                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+                required
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
               >
-                <option value="">
-                  {tecnicosIds.length === 0
-                    ? 'Selecione o responsável principal...'
-                    : '+ Adicionar outro técnico à atividade...'}
-                </option>
-                {usuariosValidosCadastrados
-                  .filter((u) => !tecnicosIds.includes(u.id))
-                  .map((u) => {
-                    const isPerfilTecnico =
-                      u.role === 'instalador' || (u.role as string) === 'tecnico'
-                    const bloqueado = isPerfilTecnico && selectedCategoria !== 'manutencao'
-                    return (
-                      <option key={u.id} value={u.id} disabled={bloqueado}>
-                        {u.name} {u.role ? `[${u.role}]` : ''}{' '}
-                        {bloqueado ? '— (somente manutenção)' : ''}
-                      </option>
-                    )
-                  })}
+                <option value="">Selecione o técnico responsável...</option>
+                {usuariosValidosCadastrados.map((u) => {
+                  const isPerfilTecnico =
+                    u.role === 'instalador' || (u.role as string) === 'tecnico'
+                  const bloqueado = isPerfilTecnico && selectedCategoria !== 'manutencao'
+                  return (
+                    <option key={u.id} value={u.id} disabled={bloqueado}>
+                      {u.name} {u.role ? `[${u.role}]` : ''}{' '}
+                      {bloqueado ? '— (somente manutenção)' : ''}
+                    </option>
+                  )
+                })}
               </select>
 
               {responsavelAvisoBloqueio && (

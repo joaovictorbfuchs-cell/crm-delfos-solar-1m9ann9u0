@@ -70,16 +70,38 @@ export default function MinhasOS() {
       try {
         // Buscar todas as ordens com expand
         const todas = await fetchOrdensServico()
-        // Filtro real e estrito por prestador logado (responsavel_usuario_id ou atribuida_a)
+        // Filtro real e estrito por prestador logado (responsavel_usuario_id, tecnicos_ids ou atribuida_a / tecnicos_nomes)
+        const safeUserName = currentUserName.trim().toLowerCase()
         const minhas = todas.filter((os) => {
           if (!os) return false
-          if (currentUserId && os.responsavel_usuario_id === currentUserId) return true
-          if (
-            currentUserName &&
-            os.atribuida_a &&
-            os.atribuida_a.trim().toLowerCase() === currentUserName.trim().toLowerCase()
-          ) {
-            return true
+          if (currentUserId) {
+            if (
+              os.responsavel_usuario_id === currentUserId ||
+              (os as any).responsavel_id === currentUserId
+            ) {
+              return true
+            }
+            if (
+              Array.isArray(os.tecnicos_ids) &&
+              os.tecnicos_ids.some((tId: any) => String(tId).trim() === currentUserId)
+            ) {
+              return true
+            }
+          }
+          if (safeUserName) {
+            if (os.atribuida_a && os.atribuida_a.trim().toLowerCase().includes(safeUserName)) {
+              return true
+            }
+            if (
+              Array.isArray((os as any).tecnicos_nomes) &&
+              (os as any).tecnicos_nomes.some((nome: any) =>
+                String(nome || '')
+                  .toLowerCase()
+                  .includes(safeUserName),
+              )
+            ) {
+              return true
+            }
           }
           return false
         })

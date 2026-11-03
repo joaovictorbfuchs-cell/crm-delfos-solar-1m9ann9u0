@@ -671,21 +671,45 @@ function ExecucaoOSContent() {
         const atividadesDeduplicadas = atividadesMapeadas.filter((a) => a?.id && !osIdSet.has(a.id))
         const ordensCombinadas = [...osReais, ...atividadesDeduplicadas]
 
-        // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável (com blindagem a nulo)
+        // Se instalador comum logado, isolamento estrito: só vê OSs atribuídas a ele
+        // (responsavel_usuario_id === id OU tecnicos_ids contendo id OU atribuida_a / tecnicos_nomes batendo com o nome)
         const safeUserName = String(userProfile?.name || '')
           .trim()
           .toLowerCase()
         const ordensFinais =
-          responsavelFiltro && !isAdmin
-            ? ordensCombinadas.filter(
-                (o) =>
-                  o &&
-                  (o.responsavel_usuario_id === responsavelFiltro ||
-                    (safeUserName.length > 0 &&
-                      String(o.atribuida_a || '')
-                        .toLowerCase()
-                        .includes(safeUserName))),
-              )
+          isInstalador && !isAdmin && userProfile?.id
+            ? ordensCombinadas.filter((o) => {
+                if (!o) return false
+                const uid = userProfile.id
+                if (o.responsavel_usuario_id === uid || (o as any).responsavel_id === uid) {
+                  return true
+                }
+                if (
+                  Array.isArray(o.tecnicos_ids) &&
+                  o.tecnicos_ids.some((tId: any) => String(tId).trim() === uid)
+                ) {
+                  return true
+                }
+                if (
+                  safeUserName.length > 0 &&
+                  String(o.atribuida_a || '')
+                    .toLowerCase()
+                    .includes(safeUserName)
+                ) {
+                  return true
+                }
+                if (
+                  Array.isArray((o as any).tecnicos_nomes) &&
+                  (o as any).tecnicos_nomes.some((nome: any) =>
+                    String(nome || '')
+                      .toLowerCase()
+                      .includes(safeUserName),
+                  )
+                ) {
+                  return true
+                }
+                return false
+              })
             : ordensCombinadas
 
         setOrdens(ordensFinais)
