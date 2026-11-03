@@ -87,8 +87,8 @@ describe('KanbanProjetos - Drag and Drop e Transição de Etapa', () => {
       created: '2026-01-01',
       updated: '2026-01-01',
       nome: 'Carlos Engenheiro',
-      ativo: true,
-      tipo: 'engenheiro',
+      telefone: '(54) 99999-9999',
+      especialidade: 'Instalação',
     },
   ]
 
