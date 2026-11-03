@@ -472,14 +472,10 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
     if (!targetProj) return
     if (targetProj.etapa === targetEtapa && !options?.profissional_id) return
 
-    const previousEtapa = targetProj.etapa
     const tituloCard = targetProj.titulo_usina || getTituloUsina(targetProj)
 
-    // Atualização otimista imediata na referência do card para feedback instantâneo na UI
-    targetProj.etapa = targetEtapa
-
     try {
-      await updateProjetoEtapa(projId, targetEtapa, options)
+      const updatedProj = await updateProjetoEtapa(projId, targetEtapa, options)
       toast({
         title: 'Etapa atualizada',
         description: `"${tituloCard}" movido para ${targetEtapa}.`,
@@ -490,13 +486,11 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
       // Se moveu para Instalação e ainda não tem profissional, abre modal para atribuir
       if (
         options?.abrirModalAtribuir ||
-        (targetEtapa === 'Instalação' && !targetProj.profissional_id)
+        (targetEtapa === 'Instalação' && !updatedProj.profissional_id)
       ) {
-        onOpenAtribuirModal(targetProj, targetEtapa)
+        onOpenAtribuirModal(updatedProj, targetEtapa)
       }
     } catch (err: any) {
-      // Reverte em caso de erro
-      targetProj.etapa = previousEtapa
       console.error('Falha ao mover card de projeto:', err)
       const errorMsg =
         err?.message || err?.data?.message || 'Não foi possível alterar a etapa do projeto.'

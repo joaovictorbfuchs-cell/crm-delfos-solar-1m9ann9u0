@@ -29,41 +29,51 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  if ('isAbort' in error && Boolean((error as { isAbort: unknown }).isAbort)) return true
-  if ('name' in error && (error as { name: unknown }).name === 'AbortError') return true
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
+  }
   return false
+}
+
+export function formatPbError(
+  error: unknown,
+  fallbackMessage = 'Ocorreu um erro no servidor.',
+): string {
+  return getErrorMessage(error) || fallbackMessage
 }
 
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
+
+  // Se for abort de requisição, não é erro de sessão expirada
   if (isAbortError(error)) return false
 
   if (typeof error === 'object') {
     const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    const status =
+      errObj.status ??
+      errObj.statusCode ??
+      (errObj.response as Record<string, unknown> | undefined)?.status
+    if (status === 401 || status === 403) {
+      return true
+    }
+  }
+
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
     if (
-      errObj.response &&
-      typeof errObj.response === 'object' &&
-      ((errObj.response as Record<string, unknown>).status === 401 ||
-        (errObj.response as Record<string, unknown>).status === 403)
+      msg.includes('token is expired') ||
+      msg.includes('invalid token') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('login expirou') ||
+      msg.includes('failed to authenticate')
     ) {
       return true
     }
   }
 
-  const message = error instanceof Error ? error.message : String(error)
-  const lower = message.toLowerCase()
-  return (
-    lower.includes('token is expired') ||
-    lower.includes('sessão expirada') ||
-    lower.includes('login expirou') ||
-    lower.includes('failed to authenticate') ||
-    lower.includes('the request requires valid record authorization token')
-  )
-}
-
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
+  return false
 }

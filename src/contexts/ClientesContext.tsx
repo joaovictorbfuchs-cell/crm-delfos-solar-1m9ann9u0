@@ -664,6 +664,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [activeClientTab, setActiveClientTab] = useState<ClientTabType>('historico')
 
   const isLoadingRef = useRef(false)
+  const loadSequenceRef = useRef(0)
 
   const loadAllData = useCallback(async () => {
     if (!isAuthenticated || (!user?.id && !token)) {
@@ -675,6 +676,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return
     }
 
+    const currentSeq = ++loadSequenceRef.current
     isLoadingRef.current = true
     let isCompleted = false
 
@@ -796,6 +798,11 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setError(`Falha ao obter ${failedPriority.join(', ')}: ${primaryReason}`)
       }
 
+      // Se outra carga mais recente iniciou enquanto esta executava, ignora dados obsoletos
+      if (currentSeq !== loadSequenceRef.current) {
+        return
+      }
+
       const aList = getValue(aRes, [])
       const orcList = getValue(orcRes, [])
       const uList = getValue(uRes, [])
@@ -880,6 +887,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             _syncRes,
             notifRes,
           ]) => {
+            if (currentSeq !== loadSequenceRef.current) return
             setProjetoEventos(getValue(evRes, []))
             setAnomaliasOM(getValue(anomRes, []))
             setServicosAdicionaisOM(getValue(adicRes, []))
@@ -2124,7 +2132,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const prevProj = projetos.find((p) => p.id === projetoId)
     const etapaAnterior = prevProj?.etapa || ''
     if (etapaAnterior === novaEtapa && !options?.profissional_id) {
-      return prevProj!
+      return prevProj || ({ id: projetoId, etapa: novaEtapa } as Projeto)
     }
 
     const payload: Partial<Projeto> = {
