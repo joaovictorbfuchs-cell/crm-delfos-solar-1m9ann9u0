@@ -1,5 +1,8 @@
 import pb from '@/lib/pocketbase/client'
+import { ClientResponseError } from 'pocketbase'
 import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import type { FieldErrors } from '@/lib/pocketbase/errors'
 import type {
   Cliente,
   ClienteStatus,
@@ -119,6 +122,12 @@ function mapSistemaPayloadToUsina(
   data: Partial<Sistema>,
 ): Partial<import('@/types/crm').UsinaCliente> {
   const result: Record<string, any> = { ...data }
+
+  // Remove chaves marcadas como undefined (o spread acima as copia, mas o
+  // PocketBase recusa valores undefined serializados como null em selects).
+  Object.keys(result).forEach((k) => {
+    if (result[k] === undefined) delete result[k]
+  })
 
   if (data.potencia_total_kwp !== undefined) {
     result.potencia_kwp = data.potencia_total_kwp
@@ -2116,10 +2125,53 @@ export async function mesclarClientes(opcoes: MesclagemOpcoes): Promise<Cliente>
   })
 }
 
+// Formata o erro do PocketBase (400 "Failed to update record.") para mostrar
+// ao usuário qual campo e motivo falhou, em português.
+export function formatarErroGravacaoUsina(err: unknown): Error {
+  if (err instanceof ClientResponseError && err.status === 400) {
+    const fieldErrors: FieldErrors = extractFieldErrors(err)
+    const nomesAmigaveis: Record<string, string> = {
+      potencia_kwp: 'Potência (kWp)',
+      qtd_modulos: 'Quantidade de módulos',
+      quantidade_placas: 'Quantidade de placas',
+      geracao_estimada_kwh: 'Geração estimada (kWh)',
+      geracao_media_mensal_kwh: 'Geração média mensal (kWh)',
+      data_instalacao: 'Data de instalação',
+      tipo_telhado: 'Tipo de telhado',
+      tipo_atendimento: 'Tipo de atendimento',
+      numero_fases: 'Número de fases',
+      tipo_usina: 'Tipo de usina',
+      tipo_estrutura: 'Tipo de estrutura',
+      status: 'Status',
+      latitude: 'Latitude',
+      longitude: 'Longitude',
+      tarifa: 'Tarifa',
+      consumo_medio: 'Consumo médio',
+      cliente_id: 'Cliente',
+      nome: 'Nome',
+    }
+    const detalhes = Object.entries(fieldErrors).map(([campo, msg]) => {
+      const nome = nomesAmigaveis[campo] || campo
+      return `• ${nome}: ${msg}`
+    })
+    if (detalhes.length > 0) {
+      return new Error(
+        `O PocketBase recusou a gravação dos dados da usina. Verifique os campos:\n${detalhes.join('\n')}`,
+      )
+    }
+    return new Error(
+      `Falha ao gravar os dados da usina (erro 400 do servidor).${err.message ? ` Detalhe: ${err.message}` : ''}`,
+    )
+  }
+  return err instanceof Error ? err : new Error(String(err))
+}
+
 export async function createSistema(
   data: Partial<Sistema> & { cliente_id: string },
 ): Promise<Sistema> {
-  const usinaData = mapSistemaPayloadToUsina(data)
+  // Sanitiza o payload: descarta campos fora do schema e corrige tipos
+  // (evita o 400 "Failed to update record." do PocketBase).
+  const usinaData = sanitizarPayloadUsina(mapSistemaPayloadToUsina(data) as Record<string, unknown>)
   let nomeUsina = 'Usina Principal'
   try {
     const cli = await pb.collection('clientes').getOne<Cliente>(data.cliente_id)
@@ -2130,22 +2182,29 @@ export async function createSistema(
     /* intentionally ignored */
   }
 
-  const record = await pb.collection('usinas').create<import('@/types/crm').UsinaCliente>({
-    nome: nomeUsina,
-    status: 'ativo',
-    tipo_estrutura: 'telhado',
-    tipo_usina: 'residencial',
-    ...usinaData,
-    cliente_id: data.cliente_id,
-  })
-  return mapUsinaToSistema(record)
+  try {
+    const record = await pb.collection('usinas').create<import('@/types/crm').UsinaCliente>({
+      nome: nomeUsina,
+      status: 'ativo',
+      tipo_estrutura: 'telhado',
+      tipo_usina: 'residencial',
+      ...usinaData,
+      cliente_id: data.cliente_id,
+    } as Record<string, unknown>)
+    return mapUsinaToSistema(record)
+  } catch (err) {
+    throw formatarErroGravacaoUsina(err)
+  }
 }
 
 export async function updateSistema(
   idOrClienteId: string,
   data: Partial<Sistema>,
 ): Promise<Sistema> {
-  const usinaData = mapSistemaPayloadToUsina(data)
+  // Sanitiza o payload: descarta campos fora do schema da coleção usinas e
+  // normaliza tipos (números com vírgula, datas brasileiras, selects vazios)
+  // — causa do 400 "Failed to update record." ao importar dados de documento.
+  const usinaData = sanitizarPayloadUsina(mapSistemaPayloadToUsina(data) as Record<string, unknown>)
   let usinaId = idOrClienteId
   try {
     // Tenta carregar direto por id da usina
@@ -2168,10 +2227,14 @@ export async function updateSistema(
     }
   }
 
-  const record = await pb
-    .collection('usinas')
-    .update<import('@/types/crm').UsinaCliente>(usinaId, usinaData)
-  return mapUsinaToSistema(record)
+  try {
+    const record = await pb
+      .collection('usinas')
+      .update<import('@/types/crm').UsinaCliente>(usinaId, usinaData as Record<string, unknown>)
+    return mapUsinaToSistema(record)
+  } catch (err) {
+    throw formatarErroGravacaoUsina(err)
+  }
 }
 
 export async function upsertSistemaForCliente(

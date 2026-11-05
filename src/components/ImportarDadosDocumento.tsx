@@ -995,13 +995,25 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
             ;(clienteUpdates as any).numero_uc = ucFormatada
             sistemaUpdates.numero_uc = ucFormatada
           } else if (item.targetKey === 'consumo_kwh_mes' || item.targetKey === 'consumo_medio') {
-            const valConsumo = Number(item.extractedValue)
+            // "1,5" → 1.5 (vírgula decimal quebra o PocketBase)
+            const valConsumo = Number(
+              String(item.extractedValue)
+                .replace(/[^\d.,-]/g, '')
+                .replace(',', '.'),
+            )
+            if (isNaN(valConsumo)) return
             clienteUpdates.consumo_medio = valConsumo
             clienteUpdates.consumo_kwh_mes = valConsumo
             sistemaUpdates.consumo_medio = valConsumo
           } else if (item.targetKey === 'tarifa') {
-            clienteUpdates.tarifa = Number(item.extractedValue)
-            sistemaUpdates.tarifa = Number(item.extractedValue)
+            const valTarifa = Number(
+              String(item.extractedValue)
+                .replace(/[^\d.,-]/g, '')
+                .replace(',', '.'),
+            )
+            if (isNaN(valTarifa)) return
+            clienteUpdates.tarifa = valTarifa
+            sistemaUpdates.tarifa = valTarifa
           } else if (item.targetKey === 'classe_consumo') {
             clienteUpdates.classe_consumo = String(item.extractedValue)
             sistemaUpdates.classe_consumo = String(item.extractedValue)
@@ -1036,13 +1048,24 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         } else if (item.targetEntity === 'sistema') {
           // Tipagem segura para campos de sistema
           if (item.targetKey === 'potencia_total_kwp') {
-            const num = Number(item.extractedValue)
+            // "1,5" → 1.5 (número com vírgula decimal quebra o PocketBase)
+            const num = Number(
+              String(item.extractedValue)
+                .replace(/[^\d.,-]/g, '')
+                .replace(',', '.'),
+            )
+            if (isNaN(num)) return
             sistemaUpdates.potencia_total_kwp = num
             sistemaUpdates.potencia_pico_modulos_kwp = num
             sistemaUpdates.potencia_pico_inversores_kwp = num
             clienteUpdates.potencia_kwp = num
           } else if (item.targetKey === 'quantidade_modulos') {
-            const num = Number(item.extractedValue)
+            const num = Number(
+              String(item.extractedValue)
+                .replace(/[^\d.,-]/g, '')
+                .replace(',', '.'),
+            )
+            if (isNaN(num)) return
             sistemaUpdates.quantidade_modulos = num
             sistemaUpdates.quantidade_placas = num
             clienteUpdates.placas_qtd = num
@@ -1062,17 +1085,49 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
             sistemaUpdates.modelo_inversores = str
             clienteUpdates.inversor_modelo = str
           } else if (item.targetKey === 'tipo_telhado') {
-            const val = item.extractedValue as TelhadoTipo
-            sistemaUpdates.tipo_telhado = val
-            clienteUpdates.telhado_tipo = val
+            // Valor deve estar na lista do select da coleção usinas/clientes
+            // (ceramico|metalico|laje|fibrocimento) — valor fora dela causa 400
+            const telValidos = ['ceramico', 'metalico', 'laje', 'fibrocimento']
+            const telRaw = String(item.extractedValue).trim().toLowerCase()
+            const telVal = telValidos.find((t) => telRaw.includes(t))
+            if (telVal) {
+              const val = telVal as TelhadoTipo
+              sistemaUpdates.tipo_telhado = val
+              clienteUpdates.telhado_tipo = val
+            }
           } else if (item.targetKey === 'padrao_entrada') {
             sistemaUpdates.padrao_entrada = String(item.extractedValue)
           } else if (item.targetKey === 'tipo_atendimento') {
-            sistemaUpdates.tipo_atendimento = item.extractedValue as TipoAtendimento
+            // Valor deve estar na lista do select da coleção usinas
+            // (aéreo|subterrâneo) — valor fora dela causa 400
+            const atValidos = [
+              { chave: 'aereo', valor: 'aéreo' },
+              { chave: 'aéreo', valor: 'aéreo' },
+              { chave: 'subterraneo', valor: 'subterrâneo' },
+              { chave: 'subterrâneo', valor: 'subterrâneo' },
+            ]
+            const atRaw = String(item.extractedValue).trim().toLowerCase()
+            const atVal = atValidos.find((v) => atRaw.includes(v.chave))
+            if (atVal) sistemaUpdates.tipo_atendimento = atVal.valor as TipoAtendimento
           } else if (item.targetKey === 'numero_fases') {
-            sistemaUpdates.numero_fases = item.extractedValue as NumeroFases
+            // Valor deve estar na lista do select da coleção usinas
+            // (monofásico|bifásico|trifásico) — valor fora dela causa 400
+            const nfValidos = ['monofásico', 'bifásico', 'trifásico']
+            const nfRaw = String(item.extractedValue).trim().toLowerCase()
+            const nfSemAcento = nfRaw.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            const nfVal =
+              nfValidos.find((v) => nfRaw.includes(v)) ??
+              nfValidos.find((v) =>
+                nfSemAcento.includes(v.normalize('NFD').replace(/[\u0300-\u036f]/g, '')),
+              )
+            if (nfVal) sistemaUpdates.numero_fases = nfVal as NumeroFases
           } else if (item.targetKey === 'geracao_media_mensal_kwh') {
-            sistemaUpdates.geracao_media_mensal_kwh = Number(item.extractedValue)
+            const numGen = Number(
+              String(item.extractedValue)
+                .replace(/[^\d.,-]/g, '')
+                .replace(',', '.'),
+            )
+            if (!isNaN(numGen)) sistemaUpdates.geracao_media_mensal_kwh = numGen
           }
         }
       })
@@ -1127,8 +1182,11 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
       const msg = err instanceof Error ? err.message : 'Falha ao gravar alterações no banco'
       toast({
         title: 'Erro ao salvar',
+        // msg já pode conter o detalhe por campo do erro 400 do PocketBase
+        // (ex.: "• Tipo de telhado: valor inválido") via formatarErroGravacaoUsina
         description: msg,
         variant: 'destructive',
+        duration: 8000,
       })
     } finally {
       setIsSaving(false)
