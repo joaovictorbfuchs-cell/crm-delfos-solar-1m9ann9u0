@@ -1,5 +1,6 @@
 import React from 'react'
-import { Plug, Layers, KeyRound, Clock, Sparkles, Server, Zap } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plug, Layers, KeyRound, Clock, Sparkles, Server, Zap, ArrowRight } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -118,6 +119,38 @@ export function IntegracoesPage() {
           </div>
         </div>
       </div>
+
+      {/* Integração disponível: contas de energia RGE/CPFL */}
+      <Card className="border border-blue-200 rounded-2xl shadow-xs bg-gradient-to-r from-blue-50/70 to-white overflow-hidden">
+        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center shrink-0">
+              <Server className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-bold text-gray-900">Contas de Energia — RGE / CPFL</h2>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border-emerald-200"
+                >
+                  Disponível
+                </Badge>
+              </div>
+              <p className="text-xs text-gray-600 leading-relaxed max-w-2xl">
+                Cadastre a UC e o acesso do cliente e baixe a conta em PDF e o histórico de consumo
+                de 13 meses direto do portal da CPFL, sem sair do CRM.
+              </p>
+            </div>
+          </div>
+          <Button asChild className="shrink-0">
+            <Link to="/integracoes/rge">
+              Abrir contas de energia
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Cards de Integrações */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
