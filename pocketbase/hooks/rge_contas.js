@@ -1,9 +1,5 @@
 // RGE/CPFL — rotas /backend/v1/rge/*  (tudo inline: JSVM não herda escopo de topo)
 
-routerAdd('GET', '/backend/v1/rge/ping', (e) => {
-  return e.json(200, { ok: true, ping: 'rge' })
-})
-
 routerAdd(
   'GET',
   '/backend/v1/rge/credenciais',
