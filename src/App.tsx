@@ -56,6 +56,7 @@ const BaseConhecimento = lazyWithRetry(() => import('./pages/BaseConhecimento'))
 const MensagensWhatsApp = lazyWithRetry(() => import('./pages/MensagensWhatsApp'))
 const Configuracoes = lazyWithRetry(() => import('./pages/Configuracoes'))
 const Integracoes = lazyWithRetry(() => import('./pages/Integracoes'))
+const IntegracoesRge = lazyWithRetry(() => import('./pages/IntegracoesRge'))
 const Financeiro = lazyWithRetry(() => import('./pages/Financeiro'))
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'))
 
@@ -405,6 +406,16 @@ const App = () => (
                   <ProtectedRoute requiredRole="admin">
                     <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Central de Integrações">
                       <Integracoes />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/integracoes/rge"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar as contas de energia RGE/CPFL">
+                      <IntegracoesRge />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }
