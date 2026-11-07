@@ -45,6 +45,7 @@ export const GRUPOS_ALIASES: Record<string, string[]> = {
   tipo_servico: ['tipo_servico', 'tipo de serviço', 'tipo de servico', 'servico', 'serviço'],
   nome_instalador: ['nome_instalador', 'nome do instalador', 'instalador', 'tecnico', 'técnico'],
   dia_anterior: ['dia_anterior', 'dia anterior'],
+  mes: ['mes', 'mês'],
 }
 
 export function normalizarChave(chave: string): string {

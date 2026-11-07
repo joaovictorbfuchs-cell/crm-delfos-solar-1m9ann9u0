@@ -367,10 +367,19 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
                 } catch (_) {}
                 const agendadoParaIso = agendadoDate.toISOString()
                 let textoFinal = primeiraEtapaNova.mensagem || ''
-                textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
-                textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-                textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
-                textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+                try {
+                  const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+                  textoFinal = tplHelper.interpolarTemplate(textoFinal, {
+                    nome_cliente: item.nome || 'Cliente',
+                    empresa: 'Delfos Solar',
+                  })
+                } catch (_) {
+                  textoFinal = (textoFinal || '')
+                    .replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+                    .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+                    .replace(/\[empresa\]/gi, 'Delfos Solar')
+                    .replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+                }
 
                 let cleanPhone = itemTelLimpo || telefoneRecebido
                 if (

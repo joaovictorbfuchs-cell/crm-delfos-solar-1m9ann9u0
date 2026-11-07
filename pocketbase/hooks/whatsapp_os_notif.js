@@ -135,13 +135,25 @@ onRecordAfterCreateSuccess((e) => {
         ? tpl.getString('conteudo')
         : '📋 *Nova Ordem de Serviço atribuída*\n👤 Cliente: {{nome_cliente}}\n🔧 Serviço: {{tipo_servico}}\n📍 Endereço: {{endereco}}\n📅 Data: {{data_agendada}}\n\nAcesse o CRM para ver a ficha de execução.'
 
-    conteudo = conteudo
-      .replace(/\{\{nome_cliente\}\}/g, clienteNome)
-      .replace(/\{\{tipo_servico\}\}/g, tipoServico)
-      .replace(/\{\{endereco\}\}/g, clienteEndereco)
-      .replace(/\{\{data_agendada\}\}/g, dataFormatada)
-      .replace(/\{\{nome_instalador\}\}/g, instaladorNome)
-      .replace(/\{\{id_os\}\}/g, osId)
+    try {
+      const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+      conteudo = tplHelper.interpolarTemplate(conteudo, {
+        nome_cliente: clienteNome,
+        tipo_servico: tipoServico,
+        endereco: clienteEndereco,
+        data_agendada: dataFormatada,
+        nome_instalador: instaladorNome,
+        id_os: osId,
+      })
+    } catch (_) {
+      conteudo = (conteudo || '')
+        .replace(/\{\{nome_cliente\}\}/g, clienteNome)
+        .replace(/\{\{tipo_servico\}\}/g, tipoServico)
+        .replace(/\{\{endereco\}\}/g, clienteEndereco)
+        .replace(/\{\{data_agendada\}\}/g, dataFormatada)
+        .replace(/\{\{nome_instalador\}\}/g, instaladorNome)
+        .replace(/\{\{id_os\}\}/g, osId)
+    }
 
     let convOSId = ''
     try {
@@ -434,13 +446,25 @@ onRecordAfterUpdateSuccess((e) => {
         ? tpl.getString('conteudo')
         : '📋 *Nova Ordem de Serviço atribuída*\n👤 Cliente: {{nome_cliente}}\n🔧 Serviço: {{tipo_servico}}\n📍 Endereço: {{endereco}}\n📅 Data: {{data_agendada}}\n\nAcesse o CRM para ver a ficha de execução.'
 
-    conteudo = conteudo
-      .replace(/\{\{nome_cliente\}\}/g, clienteNome)
-      .replace(/\{\{tipo_servico\}\}/g, tipoServico)
-      .replace(/\{\{endereco\}\}/g, clienteEndereco)
-      .replace(/\{\{data_agendada\}\}/g, dataFormatada)
-      .replace(/\{\{nome_instalador\}\}/g, instaladorNome)
-      .replace(/\{\{id_os\}\}/g, osId)
+    try {
+      const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+      conteudo = tplHelper.interpolarTemplate(conteudo, {
+        nome_cliente: clienteNome,
+        tipo_servico: tipoServico,
+        endereco: clienteEndereco,
+        data_agendada: dataFormatada,
+        nome_instalador: instaladorNome,
+        id_os: osId,
+      })
+    } catch (_) {
+      conteudo = (conteudo || '')
+        .replace(/\{\{nome_cliente\}\}/g, clienteNome)
+        .replace(/\{\{tipo_servico\}\}/g, tipoServico)
+        .replace(/\{\{endereco\}\}/g, clienteEndereco)
+        .replace(/\{\{data_agendada\}\}/g, dataFormatada)
+        .replace(/\{\{nome_instalador\}\}/g, instaladorNome)
+        .replace(/\{\{id_os\}\}/g, osId)
+    }
 
     let convOSIdUpdate = ''
     try {

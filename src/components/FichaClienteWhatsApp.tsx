@@ -34,6 +34,7 @@ import {
   formatUtcToSaoPaulo,
 } from '@/lib/datetimeSaoPaulo'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
+import { interpolarTemplate } from '@/lib/whatsappTemplateVars'
 import {
   resolverNumeroDestinoCliente,
   MENSAGEM_ALERTA_SEM_NUMERO,
@@ -253,19 +254,11 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
   }, [orcamentosSolar, cliente.id])
 
   // Substituição de variáveis do template com dados do cliente e contato selecionado
-  const aplicarVariaveisTemplate = (template: WhatsAppTemplate) => {
-    let texto = template.conteudo
-
-    // Variável {{nome_cliente}} prioriza o primeiro nome do contato selecionado ou contato principal
-    const nomePersonalizado = primeiroNomeEfetivo || cliente.nome || 'Cliente'
-    texto = texto.replace(/\{\{nome_cliente\}\}/g, nomePersonalizado)
-
-    // Variável {{valor_proposta}}
+  const aplicarVariaveisTemplate = (template: WhatsAppTemplate, overrideNome?: string) => {
+    const nomePersonalizado = overrideNome || primeiroNomeEfetivo || cliente.nome || 'Cliente'
     const valorNum = ultimoOrcamento?.valor_investimento || cliente.valor_estimado || 0
-    const valorStr = valorNum > 0 ? formatCurrency(valorNum) : 'sob consulta'
-    texto = texto.replace(/\{\{valor_proposta\}\}/g, valorStr)
+    const valorStr = valorNum > 0 ? formatCurrency(valorNum) : ''
 
-    // Variável {{endereco}}
     const numFmt =
       cliente.numero && cliente.numero.trim().toUpperCase() !== 'S/N'
         ? `nº ${cliente.numero.trim()}`
@@ -273,14 +266,15 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     const enderecoFormatado =
       [cliente.endereco, numFmt, cliente.bairro, cliente.cidade].filter(Boolean).join(', ') ||
       cliente.cidade ||
-      'endereço cadastrado'
-    texto = texto.replace(/\{\{endereco\}\}/g, enderecoFormatado)
+      ''
 
-    // Variável {{data}}
-    const dataAtual = new Date().toLocaleDateString('pt-BR')
-    texto = texto.replace(/\{\{data\}\}/g, dataAtual)
-
-    return texto
+    return interpolarTemplate(template.conteudo, {
+      nome_cliente: nomePersonalizado,
+      valor_proposta: valorStr,
+      endereco: enderecoFormatado,
+      cidade: cliente.cidade || '',
+      empresa: 'Delfos Solar',
+    })
   }
 
   const handleSelectTemplate = (templateId: string) => {
@@ -309,23 +303,8 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
           nomeContato = contatoAdicionalNome
         }
         const primeiroNome = nomeContato.trim().split(' ')[0] || 'Cliente'
-        let texto = tpl.conteudo.replace(/\{\{nome_cliente\}\}/g, primeiroNome)
-        const valorNum = ultimoOrcamento?.valor_investimento || cliente.valor_estimado || 0
-        const valorStr = valorNum > 0 ? formatCurrency(valorNum) : 'sob consulta'
-        texto = texto.replace(/\{\{valor_proposta\}\}/g, valorStr)
-        const numFmtCont =
-          cliente.numero && cliente.numero.trim().toUpperCase() !== 'S/N'
-            ? `nº ${cliente.numero.trim()}`
-            : ''
-        const enderecoFormatado =
-          [cliente.endereco, numFmtCont, cliente.bairro, cliente.cidade]
-            .filter(Boolean)
-            .join(', ') ||
-          cliente.cidade ||
-          'endereço cadastrado'
-        texto = texto.replace(/\{\{endereco\}\}/g, enderecoFormatado)
-        texto = texto.replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
-        setMensagemTexto(texto)
+        const parsedTexto = aplicarVariaveisTemplate(tpl, primeiroNome)
+        setMensagemTexto(parsedTexto)
       }
     }
   }

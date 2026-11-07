@@ -36,6 +36,7 @@ var GRUPOS_ALIASES = {
   tipo_servico: ['tipo_servico', 'tipo de serviço', 'tipo de servico', 'servico', 'serviço'],
   nome_instalador: ['nome_instalador', 'nome do instalador', 'instalador', 'tecnico', 'técnico'],
   dia_anterior: ['dia_anterior', 'dia anterior'],
+  mes: ['mes', 'mês'],
 }
 
 function dobrarChave(s) {

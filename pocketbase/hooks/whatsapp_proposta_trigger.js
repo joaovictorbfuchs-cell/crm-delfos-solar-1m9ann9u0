@@ -99,20 +99,29 @@ onRecordAfterUpdateSuccess((e) => {
           ? tpl.getString('conteudo')
           : 'Olá, {{nome_cliente}}! Sua proposta solar de {{valor_proposta}} foi Aprovada com sucesso! Em breve entraremos em contato para os próximos passos.'
 
-      conteudo = conteudo
-        .replace(/\{\{nome_cliente\}\}/g, clienteRec.getString('nome'))
-        .replace(/\{\{valor_proposta\}\}/g, valorFormatado)
-        .replace(/\{\{endereco\}\}/g, enderecoCliente)
-        .replace(
-          /\{\{data\}\}/g,
-          (() => {
-            const d = new Date()
-            const dia = String(d.getDate()).padStart(2, '0')
-            const mes = String(d.getMonth() + 1).padStart(2, '0')
-            const ano = d.getFullYear()
-            return `${dia}/${mes}/${ano}`
-          })(),
-        )
+      try {
+        const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+        conteudo = tplHelper.interpolarTemplate(conteudo, {
+          nome_cliente: clienteRec.getString('nome'),
+          valor_proposta: valorFormatado,
+          endereco: enderecoCliente,
+        })
+      } catch (_) {
+        conteudo = (conteudo || '')
+          .replace(/\{\{nome_cliente\}\}/g, clienteRec.getString('nome'))
+          .replace(/\{\{valor_proposta\}\}/g, valorFormatado)
+          .replace(/\{\{endereco\}\}/g, enderecoCliente)
+          .replace(
+            /\{\{data\}\}/g,
+            (() => {
+              const d = new Date()
+              const dia = String(d.getDate()).padStart(2, '0')
+              const mes = String(d.getMonth() + 1).padStart(2, '0')
+              const ano = d.getFullYear()
+              return `${dia}/${mes}/${ano}`
+            })(),
+          )
+      }
 
       let conversaPropostaId = ''
       try {

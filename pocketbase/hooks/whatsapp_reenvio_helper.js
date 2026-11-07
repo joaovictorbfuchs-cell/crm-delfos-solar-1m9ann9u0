@@ -748,12 +748,21 @@ function processarReenviosDisparosMassa(app) {
         reenviosAgendadosLote++
         totalReenviosAgendados++
 
-        // Substituição de placeholders consistente
+        // Substituição de placeholders consistente via módulo central
         let textoFinal = proximaEtapa.mensagem
-        textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
-        textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+        try {
+          const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+          textoFinal = tplHelper.interpolarTemplate(textoFinal, {
+            nome_cliente: item.nome || 'Cliente',
+            empresa: 'Delfos Solar',
+          })
+        } catch (_) {
+          textoFinal = (textoFinal || '')
+            .replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+            .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+            .replace(/\[empresa\]/gi, 'Delfos Solar')
+            .replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+        }
 
         let cleanPhone = telefoneLimpo
         if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
@@ -1349,10 +1358,19 @@ function processarRespostaAutomaticaCliente(app, params) {
               } catch (_) {}
               const agendadoParaIso = agendadoRespDate.toISOString()
               let textoFinal = primeiraEtapaNova.mensagem || ''
-              textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
-              textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-              textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
-              textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+              try {
+                const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+                textoFinal = tplHelper.interpolarTemplate(textoFinal, {
+                  nome_cliente: item.nome || 'Cliente',
+                  empresa: 'Delfos Solar',
+                })
+              } catch (_) {
+                textoFinal = (textoFinal || '')
+                  .replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+                  .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+                  .replace(/\[empresa\]/gi, 'Delfos Solar')
+                  .replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+              }
 
               let cleanPhone = itemTelLimpo || telefoneRecebido
               if (
@@ -1678,10 +1696,19 @@ function moverClienteParaFluxoManual(app, params) {
     try {
       const msgsCol = app.findCollectionByNameOrId('whatsapp_mensagens')
       let textoFinal = primeiraEtapa.mensagem || ''
-      textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, clienteNome)
-      textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-      textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
-      textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, clienteNome)
+      try {
+        const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+        textoFinal = tplHelper.interpolarTemplate(textoFinal, {
+          nome_cliente: clienteNome,
+          empresa: 'Delfos Solar',
+        })
+      } catch (_) {
+        textoFinal = (textoFinal || '')
+          .replace(/\[nome do cliente\]/gi, clienteNome)
+          .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+          .replace(/\[empresa\]/gi, 'Delfos Solar')
+          .replace(/\{\{nome_cliente\}\}/g, clienteNome)
+      }
 
       let cleanPhone = telefoneLimpo
       if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {

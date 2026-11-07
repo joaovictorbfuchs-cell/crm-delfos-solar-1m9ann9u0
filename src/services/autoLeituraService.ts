@@ -1,5 +1,6 @@
 import pb from '@/lib/pocketbase/client'
 import type { Atividade } from '@/types/crm'
+import { interpolarTemplate } from '@/lib/whatsappTemplateVars'
 
 /**
  * Helper unificado para detectar se uma atividade é do tipo Auto Leitura - RGE,
@@ -581,40 +582,13 @@ export function substituirVariaveisAutoLeitura(
     }
   }
 
-  let resultado = texto
-
-  // 1. [nome do cliente] / {{nome_cliente}} / [nome_cliente] / {{nome do cliente}} / {nome_cliente}
-  resultado = resultado.replace(
-    /(?:\[\s*(?:nome\s+do\s+cliente|nome_cliente|cliente)\s*\]|\{\{?\s*(?:nome_cliente|nome\s+do\s+cliente|cliente)\s*\}?\})/gi,
-    clienteValor,
-  )
-
-  // 2. {{usina}} / [usina] / {usina}
-  resultado = resultado.replace(/(?:\[\s*usina\s*\]|\{\{?\s*usina\s*\}?\})/gi, usinaValor)
-
-  // 3. {{numero_uc}} / [numero_uc] / [numero uc] / {{numero uc}} / {numero_uc} / {{uc}} / [uc]
-  resultado = resultado.replace(
-    /(?:\[\s*(?:numero_uc|numero\s+uc|uc)\s*\]|\{\{?\s*(?:numero_uc|numero\s+uc|uc)\s*\}?\})/gi,
-    ucValor,
-  )
-
-  // 4. {{endereco}} / [endereco] / [endereço] / {{endereço}} / {endereco}
-  resultado = resultado.replace(
-    /(?:\[\s*(?:endereco|endereço)\s*\]|\{\{?\s*(?:endereco|endereço)\s*\}?\})/gi,
-    enderecoValor,
-  )
-
-  // 5. [data] / {{data}} / {data} / {{data_leitura}} / [data da leitura] / [data_leitura]
-  resultado = resultado.replace(
-    /(?:\[\s*(?:data|data_leitura|data\s+da\s+leitura)\s*\]|\{\{?\s*(?:data|data_leitura|data\s+da\s+leitura)\s*\}?\})/gi,
-    dataLeituraValor,
-  )
-
-  // 6. [dia anterior] / [dia_anterior] / {{dia_anterior}} / {{dia anterior}} / {dia_anterior}
-  resultado = resultado.replace(
-    /(?:\[\s*(?:dia\s+anterior|dia_anterior)\s*\]|\{\{?\s*(?:dia\s+anterior|dia_anterior)\s*\}?\})/gi,
-    dataLembreteValor,
-  )
-
-  return resultado
+  return interpolarTemplate(texto, {
+    nome_cliente: clienteValor,
+    usina: usinaValor,
+    numero_uc: ucValor,
+    endereco: enderecoValor,
+    data: dataLeituraValor,
+    data_leitura: dataLeituraValor,
+    dia_anterior: dataLembreteValor,
+  })
 }

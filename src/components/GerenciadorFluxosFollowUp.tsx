@@ -55,6 +55,7 @@ import {
 } from '@/services/fluxosFollowUpService'
 import { OPCOES_ETAPA_FUNIL_SCHEMA } from '@/services/negociosService'
 import { PLACEHOLDERS_ENVIO_MASSA } from '@/lib/placeholdersMensagemMassa'
+import { interpolarTemplate } from '@/lib/whatsappTemplateVars'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
 import { useWhatsAppTemplateTaxonomia } from '@/hooks/useWhatsAppTemplateTaxonomia'
@@ -643,17 +644,13 @@ export const GerenciadorFluxosFollowUp: React.FC<GerenciadorFluxosFollowUpProps>
   // Pré-visualização com dados de exemplo
   const renderPreviaMensagem = (texto: string) => {
     if (!texto) return 'Digite a mensagem para visualizar a prévia...'
-    return texto
-      .replace(/\[nome do cliente\]/gi, 'João')
-      .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-      .replace(/\[empresa\]/gi, 'Delfos Solar')
-      .replace(/\[cidade\]/gi, 'Erechim')
-      .replace(/\[data atual\]/gi, new Date().toLocaleDateString('pt-BR'))
-      .replace(/\[data\]/gi, new Date().toLocaleDateString('pt-BR'))
-      .replace(/\[potência\]/gi, '7,1 kWp')
-      .replace(/\[potencia\]/gi, '7,1 kWp')
-      .replace(/\[valor\]/gi, 'R$ 350,00')
-      .replace(/\{\{nome_cliente\}\}/g, 'João')
+    return interpolarTemplate(texto, {
+      nome_cliente: 'João',
+      empresa: 'Delfos Solar',
+      cidade: 'Erechim',
+      potencia: '7,1 kWp',
+      valor: 'R$ 350,00',
+    })
   }
 
   // Inserir tag no editor

@@ -790,10 +790,19 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
         }
 
         let textoFinal = proximaEtapa.mensagem || ''
-        textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
-        textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+        try {
+          const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+          textoFinal = tplHelper.interpolarTemplate(textoFinal, {
+            nome_cliente: item.nome || 'Cliente',
+            empresa: 'Delfos Solar',
+          })
+        } catch (_) {
+          textoFinal = (textoFinal || '')
+            .replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+            .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+            .replace(/\[empresa\]/gi, 'Delfos Solar')
+            .replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+        }
 
         if (!textoFinal.trim()) {
           console.log(
@@ -1731,10 +1740,19 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
         }
 
         let textoFinal = proximaEtapa.mensagem || ''
-        textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
-        textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+        try {
+          const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+          textoFinal = tplHelper.interpolarTemplate(textoFinal, {
+            nome_cliente: item.nome || 'Cliente',
+            empresa: 'Delfos Solar',
+          })
+        } catch (_) {
+          textoFinal = (textoFinal || '')
+            .replace(/\[nome do cliente\]/gi, item.nome || 'Cliente')
+            .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+            .replace(/\[empresa\]/gi, 'Delfos Solar')
+            .replace(/\{\{nome_cliente\}\}/g, item.nome || 'Cliente')
+        }
 
         if (!textoFinal.trim()) {
           console.log(
@@ -2151,10 +2169,19 @@ routerAdd('POST', '/backend/v1/delfos/mover-para-fluxo', (c) => {
       try {
         const msgsCol = app.findCollectionByNameOrId('whatsapp_mensagens')
         let textoFinal = primeiraEtapa.mensagem || ''
-        textoFinal = textoFinal.replace(/\[nome do cliente\]/gi, clienteNome)
-        textoFinal = textoFinal.replace(/\[nome da empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\[empresa\]/gi, 'Delfos Solar')
-        textoFinal = textoFinal.replace(/\{\{nome_cliente\}\}/g, clienteNome)
+        try {
+          const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+          textoFinal = tplHelper.interpolarTemplate(textoFinal, {
+            nome_cliente: clienteNome,
+            empresa: 'Delfos Solar',
+          })
+        } catch (_) {
+          textoFinal = (textoFinal || '')
+            .replace(/\[nome do cliente\]/gi, clienteNome)
+            .replace(/\[nome da empresa\]/gi, 'Delfos Solar')
+            .replace(/\[empresa\]/gi, 'Delfos Solar')
+            .replace(/\{\{nome_cliente\}\}/g, clienteNome)
+        }
 
         let cleanPhone = telefoneLimpo
         if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {

@@ -363,10 +363,19 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
                 .join(', ') || 'endereço cadastrado'
 
             let tplTexto = tplLembrete.getString('conteudo')
-            tplTexto = tplTexto
-              .replace(/\{\{nome_cliente\}\}/g, clienteRec.getString('nome'))
-              .replace(/\{\{data\}\}/g, dataVisitaStr)
-              .replace(/\{\{endereco\}\}/g, enderecoCliente)
+            try {
+              const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+              tplTexto = tplHelper.interpolarTemplate(tplTexto, {
+                nome_cliente: clienteRec.getString('nome'),
+                data: dataVisitaStr,
+                endereco: enderecoCliente,
+              })
+            } catch (_) {
+              tplTexto = (tplTexto || '')
+                .replace(/\{\{nome_cliente\}\}/g, clienteRec.getString('nome'))
+                .replace(/\{\{data\}\}/g, dataVisitaStr)
+                .replace(/\{\{endereco\}\}/g, enderecoCliente)
+            }
 
             // Criar registro de mensagem com tipo_disparo = lembrete_visita
             const novaMsg = new Record(msgsCol)
@@ -708,15 +717,95 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
               (tplAutoLeitura ? tplAutoLeitura.getString('conteudo') : '') ||
               'Olá, [nome do cliente]! Sua usina está com a auto leitura do medidor agendada para [data]. Pedimos, gentilmente, que nos envie pelo WhatsApp a leitura do medidor até [dia anterior], para mantermos o acompanhamento da sua geração em dia. Qualquer dúvida, estamos à disposição. Atenciosamente, equipe Delfos Engenharia.'
 
-            // Substituições de variáveis: [nome do cliente], [data], [dia anterior]
+            // Buscar dados da usina para auto leitura (usina, numero_uc, endereco)
+            let usinaAutoNome = ''
+            let numeroUcAuto = ''
+            let enderecoAuto = ''
+            try {
+              let aldAuto = atvFilha.get('auto_leitura_dados') || {}
+              if (typeof aldAuto === 'string') {
+                try {
+                  aldAuto = JSON.parse(aldAuto)
+                } catch (_) {
+                  aldAuto = {}
+                }
+              }
+              usinaAutoNome = aldAuto.usina_nome || aldAuto.usina || ''
+              numeroUcAuto = aldAuto.numero_uc || aldAuto.uc || ''
+              enderecoAuto = aldAuto.endereco || ''
+            } catch (_) {}
+
+            const usinaIdAuto =
+              atvFilha.getString('usina_id') || (atvMae ? atvMae.getString('usina_id') : '')
+            if (usinaIdAuto) {
+              try {
+                const uRec = $app.findRecordById('usinas', usinaIdAuto)
+                if (uRec) {
+                  if (!usinaAutoNome) usinaAutoNome = uRec.getString('nome')
+                  if (!numeroUcAuto) numeroUcAuto = uRec.getString('numero_uc')
+                  if (!enderecoAuto) {
+                    const endU = [
+                      uRec.getString('endereco'),
+                      uRec.getString('numero'),
+                      uRec.getString('bairro'),
+                      uRec.getString('cidade'),
+                    ]
+                      .filter(Boolean)
+                      .join(', ')
+                    if (endU) enderecoAuto = endU
+                  }
+                }
+              } catch (_) {}
+            }
+
+            if (!usinaAutoNome) {
+              usinaAutoNome =
+                atvFilha.getString('usina_nome') ||
+                (atvMae ? atvMae.getString('usina_nome') : '') ||
+                nomeCliente
+            }
+            if (!numeroUcAuto) {
+              numeroUcAuto =
+                atvFilha.getString('numero_uc') ||
+                (atvMae ? atvMae.getString('numero_uc') : '') ||
+                (clienteRec ? clienteRec.getString('uc') : '')
+            }
+            if (!enderecoAuto && clienteRec) {
+              const rawNumCli = (clienteRec.getString('numero') || '').trim()
+              const numCliFmt =
+                rawNumCli && rawNumCli.toUpperCase() !== 'S/N' ? `nº ${rawNumCli}` : ''
+              enderecoAuto =
+                [
+                  clienteRec.getString('endereco'),
+                  numCliFmt,
+                  clienteRec.getString('bairro'),
+                  clienteRec.getString('cidade'),
+                ]
+                  .filter(Boolean)
+                  .join(', ') || ''
+            }
+
             let textoFinal = textoBase
-              .replace(/\[nome do cliente\]/gi, nomeCliente)
-              .replace(/\[data\]/gi, diaLeituraStr)
-              .replace(/\[dia anterior\]/gi, diaAnteriorStr)
-              // Compatibilidade com possíveis sintaxes de chaves do template do banco
-              .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
-              .replace(/\{\{data\}\}/g, diaLeituraStr)
-              .replace(/\{\{dia_anterior\}\}/g, diaAnteriorStr)
+            try {
+              const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+              textoFinal = tplHelper.interpolarTemplate(textoBase, {
+                nome_cliente: nomeCliente,
+                usina: usinaAutoNome,
+                numero_uc: numeroUcAuto,
+                endereco: enderecoAuto,
+                data: diaLeituraStr,
+                dia_anterior: diaAnteriorStr,
+                empresa: 'Delfos Solar',
+              })
+            } catch (_) {
+              textoFinal = (textoBase || '')
+                .replace(/\[nome do cliente\]/gi, nomeCliente)
+                .replace(/\[data\]/gi, diaLeituraStr)
+                .replace(/\[dia anterior\]/gi, diaAnteriorStr)
+                .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
+                .replace(/\{\{data\}\}/g, diaLeituraStr)
+                .replace(/\{\{dia_anterior\}\}/g, diaAnteriorStr)
+            }
 
             // Conversa de WhatsApp (CRM)
             let conversaId = ''
@@ -1211,10 +1300,20 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
                 .join(', ') || 'seu endereço'
 
             let tplTexto = tplFollowup.getString('conteudo')
-            tplTexto = tplTexto
-              .replace(/\{\{nome_cliente\}\}/g, cliente.getString('nome'))
-              .replace(/\{\{endereco\}\}/g, enderecoCliente)
-              .replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
+            try {
+              const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+              tplTexto = tplHelper.interpolarTemplate(tplTexto, {
+                nome_cliente: cliente.getString('nome'),
+                endereco: enderecoCliente,
+                data: new Date(),
+                empresa: 'Delfos Solar',
+              })
+            } catch (_) {
+              tplTexto = (tplTexto || '')
+                .replace(/\{\{nome_cliente\}\}/g, cliente.getString('nome'))
+                .replace(/\{\{endereco\}\}/g, enderecoCliente)
+                .replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
+            }
 
             const novaMsg = new Record(msgsCol)
             novaMsg.set('cliente_id', cliente.id)

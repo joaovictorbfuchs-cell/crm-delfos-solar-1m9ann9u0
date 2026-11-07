@@ -41,6 +41,7 @@ import {
   removerPrefixoMensagemManual,
   extrairNomeAutorMensagem,
 } from '@/lib/whatsappPrefixo'
+import { interpolarTemplate } from '@/lib/whatsappTemplateVars'
 import {
   formatDateTime,
   formatCurrency,
@@ -422,24 +423,24 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
 
   // Aplicar template com substituição das variáveis do cliente
   const handleAplicarTemplate = (tpl: WhatsAppTemplate) => {
-    let texto = tpl.conteudo
     const nomeCliente = cliente?.nome || 'Cliente'
-    texto = texto.replace(/\{\{nome_cliente\}\}/g, nomeCliente)
-
     const valorNum = ultimoOrcamento?.valor_investimento || cliente?.valor_estimado || 0
-    const valorStr = valorNum > 0 ? formatCurrency(valorNum) : 'sob consulta'
-    texto = texto.replace(/\{\{valor_proposta\}\}/g, valorStr)
+    const valorStr = valorNum > 0 ? formatCurrency(valorNum) : ''
 
     const rawNum = (cliente?.numero || '').trim()
     const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
     const enderecoFormatado =
       [cliente?.endereco, numFmt, cliente?.bairro, cliente?.cidade].filter(Boolean).join(', ') ||
       cliente?.cidade ||
-      'endereço cadastrado'
-    texto = texto.replace(/\{\{endereco\}\}/g, enderecoFormatado)
+      ''
 
-    const dataAtual = new Date().toLocaleDateString('pt-BR')
-    texto = texto.replace(/\{\{data\}\}/g, dataAtual)
+    const texto = interpolarTemplate(tpl.conteudo, {
+      nome_cliente: nomeCliente,
+      valor_proposta: valorStr,
+      endereco: enderecoFormatado,
+      cidade: cliente?.cidade || '',
+      empresa: 'Delfos Solar',
+    })
 
     setMensagemTexto(texto)
     setSelectedTemplateId(tpl.id)

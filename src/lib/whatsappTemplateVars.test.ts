@@ -88,9 +88,72 @@ describe('interpolarTemplate', () => {
     expect(saida).toBe('Olá, veja, ok e ?')
   })
 
-  it('não remove colchetes legítimos com dígitos', () => {
-    const saida = interpolarTemplate('Atenção: [1] item obrigatório', { nome: 'Ana' })
-    expect(saida).toBe('Atenção: [1] item obrigatório')
+  it('renderiza todos os templates ativos sem deixar {{ nem colchetes órfãos', () => {
+    const templatesAtivos = [
+      'Olá, {{nome_cliente}}! Passando para lembrar da sua visita técnica com o time de engenharia da Delfos Solar, agendada para {{data}} no endereço {{endereco}}.',
+      'Olá, {{nome_cliente}}! Tudo bem? Já se passaram alguns dias desde a conclusão da instalação do seu sistema solar fotovoltaico em {{endereco}}.',
+      '📋 *Nova Ordem de Serviço atribuída* 👤 Cliente: {{nome_cliente}} 🔧 Serviço: {{tipo_servico}} 📍 Endereço: {{endereco}} 📅 Data: {{data_agendada}} Acesse o App Delfos para ver a ficha de execução.',
+      'Olá, {{nome_cliente}}! Chegou o momento da leitura do medidor de energia na usina {{usina}}, instalação consumidora {{numero_uc}} e endereço {{endereco}}. Solicitamos a leitura referente a {{data}}.',
+      'Prezados, Venho por meio deste solicitar o envio das faturas/contas de energia elétrica dos últimos 5 (cinco) anos, referentes à Unidade Consumidora de número [número da UC], localizada em [endereço da UC] do titular [nome do cliente].',
+      'Olá! Tudo bem? Aqui é a equipe Delfos Solar 🌞 Sua usina está gerando o que deveria?',
+      'Olá, [nome do cliente]! Temos uma condição especial exclusiva este mês na Delfos Solar para ampliação do seu sistema solar, inclusão de baterias ou plano de monitoramento em [cidade].',
+      'Olá, [nome do cliente]! Constatamos uma pendência financeira referente à sua fatura de serviços da Delfos Solar em [cidade], com vencimento recente.',
+      'Olá, {{nome}}! Tudo bem? Passando rapidinho para confirmar se você conseguiu abrir e dar uma olhada na proposta de energia solar que enviamos.',
+      'Olá, {{nome}}! Pensando no seu projeto, fiz questão de destacar um ponto: com essa proposta, sua economia estimada anual chega a um valor muito expressivo.',
+      'Oi, {{nome}}, tudo bem? Sei que a rotina é corrida. Queria saber se você gostaria de avaliar uma opção com outro arranjo de potência ou até parcelamento em mais vezes.',
+      'Olá, {{nome}}! Tudo certo? Finalizamos recentemente uma instalação muito parecida com a que projetamos para você, gerando resultados acima da média logo no primeiro mês.',
+      'Olá, {{nome}}! Estamos fechando o lote de pedidos desta quinzena com a distribuidora para segurar as condições e preços dos módulos e inversores.',
+      'Olá, {{nome}}! Imagino que agora não seja o momento ideal para avançar com o projeto solar, então não quero te incomodar.',
+      'Olá, {{nome}}! Tudo bem? Sou da Delfos Solar. Vi que você tem interesse em energia solar fotovoltaica para reduzir sua conta de luz.',
+      'Obrigado pelo retorno, {{nome}}! Além da conta de luz, o imóvel possui telhado com boa incidência de sol?',
+      'Olá, {{nome}}! Seu estudo prévio ficou pronto. O próximo passo recomendado é fazermos uma visita técnica rápida no local para avaliar o telhado.',
+      'Olá, {{nome}}! Segue a sua proposta técnico-comercial personalizada da Delfos Solar no valor de {{valor}}.',
+      'Olá, {{nome}}! Passando apenas para lembrar que a fatura referente aos serviços da Delfos Solar no valor de {{valor}} vence em {{data}}.',
+      'Olá, {{nome}}, tudo bem? Constatamos que a fatura de {{valor}} com vencimento em {{data}} ainda não consta liquidada em nosso sistema.',
+      'Olá, {{nome}}! Entramos em contato referente à pendência financeira no valor de {{valor}}, vencida desde {{data}}.',
+      'Prezado(a) {{nome}}, seu contrato possui fatura em aberto de {{valor}} desde {{data}}.',
+      'Olá, {{nome}}! Lembramos que a sua fatura no valor de {{valor}} tem vencimento programado para hoje ({{data}}).',
+      'Olá, {{nome}}! Para garantir a máxima eficiência e a longevidade do seu investimento solar, preparamos uma proposta para o Plano Anual de O&M Delfos no valor de {{valor}}.',
+      'Olá, {{nome}}! Faz 30 dias que sua usina solar Delfos foi instalada e comissionada.',
+      'Olá, {{nome}}! Tudo bem? Com o aumento do consumo elétrico, muitos clientes optam por ampliar o sistema solar existente.',
+      'Olá, [Nome]! Tudo bem? Aqui é a equipe Delfos Solar 🌞 Já faz cerca de 6 meses desde a limpeza e manutenção que fizemos na usina de vocês.',
+      'Olá, [Nome]! Tudo bem? Aqui é a equipe Delfos Solar 🌞 Quando conversamos, você comentou que ia avaliar a limpeza mais para frente. Estou fechando a agenda de [mês] e queria deixar a usina de vocês reservada.',
+      'Olá, [Nome]! Tudo bem? Aqui é a equipe Delfos Solar 🌞 Anteriormente havíamos conversado e você comentou que não era o momento da limpeza das placas por questão de orçamento.',
+      'Olá! Tudo bem? Aqui é a equipe Delfos Solar 🌞 Como combinamos, estou te chamando sobre a limpeza da usina de vocês.',
+      'Olá, [Nome]! Tudo bem? Aqui é a equipe Delfos Solar 🌞 Chegou dezembro, como a gente tinha falado.',
+      '[Nome], vou encerrar a programação de atendimentos deste mês na sexta. Deixo a usina de vocês fora da agenda desta leva ou reservo um horário?',
+      '[Nome], fico à disposição! Só me ajuda em uma coisa para eu te atender melhor: o que pesou mais foi o valor, a data de execução, ou o escopo não ter ficado claro?',
+    ]
+
+    const contextoCompleto = {
+      nome: 'Carlos Souza',
+      empresa: 'Delfos Solar',
+      valor: 'R$ 1.500,00',
+      data: '08/11/2026',
+      data_agendada: '10/11/2026',
+      endereco: 'Rua Principal, 500, Erechim-RS',
+      tipo_servico: 'Manutenção Preventiva',
+      usina: 'Usina Solar Fazenda Boa Esperança',
+      numero_uc: '7001234567',
+      cidade: 'Erechim',
+      potencia: '15 kWp',
+      mes: 'Novembro',
+      id_os: 'OS-2026-0042',
+    }
+
+    for (const tpl of templatesAtivos) {
+      const resultadoComContexto = interpolarTemplate(tpl, contextoCompleto)
+      expect(resultadoComContexto).not.toContain('{{')
+      expect(resultadoComContexto).not.toContain('}}')
+      // Verifica ausência de colchetes de placeholder (ex.: [cidade], [Nome], [mês], [número da UC])
+      expect(resultadoComContexto).not.toMatch(/\[[a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ\s_]+\]/)
+
+      // Sem contexto (órfãs removidas limpas)
+      const resultadoSemContexto = interpolarTemplate(tpl, {})
+      expect(resultadoSemContexto).not.toContain('{{')
+      expect(resultadoSemContexto).not.toContain('}}')
+      expect(resultadoSemContexto).not.toMatch(/\[[a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ\s_]+\]/)
+    }
   })
 
   it('interpolarComDetalhe reporta as órfãs (deduplicadas)', () => {

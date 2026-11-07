@@ -160,21 +160,41 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
 
     let mensagemTexto = mensagemPersonalizada
     if (!mensagemTexto) {
-      if (tplLeitura && tplLeitura.getString('conteudo')) {
-        mensagemTexto = tplLeitura
-          .getString('conteudo')
+      const dataStr =
+        atvRecord.getString('data_vencimento') || atvRecord.getString('data_inicio') || ''
+      let dataFormatada = ''
+      if (dataStr) {
+        try {
+          const d = new Date(dataStr)
+          if (!isNaN(d.getTime())) {
+            const dia = String(d.getUTCDate()).padStart(2, '0')
+            const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
+            const ano = d.getUTCFullYear()
+            dataFormatada = `${dia}/${mes}/${ano}`
+          }
+        } catch (_) {}
+      }
+      const rawConteudo =
+        tplLeitura && tplLeitura.getString('conteudo')
+          ? tplLeitura.getString('conteudo')
+          : `Olá, {{nome_cliente}}! Chegou o momento da leitura do medidor de energia na usina {{usina}}, instalação consumidora {{numero_uc}} e endereço {{endereco}}. A leitura referente a {{data}} é fundamental para garantirmos o correto envio à RGE. Pedimos que nos encaminhe foto ou vídeo nítido do medidor com as grandezas 03 (consumo kWh) e 103 (injeção kWh), e em seguida nos informe os valores por escrito para validação.`
+
+      try {
+        const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+        mensagemTexto = tplHelper.interpolarTemplate(rawConteudo, {
+          nome_cliente: clienteRecord.getString('nome') || 'Cliente',
+          usina: nomeUsinaOuCliente,
+          numero_uc: numeroInstalacao,
+          endereco: enderecoInstalacao,
+          data: dataFormatada,
+        })
+      } catch (_) {
+        mensagemTexto = rawConteudo
           .replace(/\{\{nome_cliente\}\}/g, clienteRecord.getString('nome') || 'Cliente')
           .replace(/\{\{usina\}\}/g, nomeUsinaOuCliente)
           .replace(/\{\{numero_uc\}\}/g, numeroInstalacao)
           .replace(/\{\{endereco\}\}/g, enderecoInstalacao)
-      } else {
-        mensagemTexto =
-          `Olá, boa tarde! Chegou o momento da leitura do medidor de energia na instalação da ${nomeUsinaOuCliente}, ` +
-          `instalação consumidora ${numeroInstalacao} e endereço ${enderecoInstalacao}. ` +
-          `Para garantirmos o correto envio das informações à RGE, pedimos que nos encaminhe um vídeo ou fotos do medidor, ` +
-          `onde apareçam claramente as seguintes grandezas: 03 – Energia consumida (kWh) e 103 – Energia injetada (kWh). ` +
-          `Após o envio das imagens, pedimos também que nos informe por escrito os valores das grandezas 03 e 103, ` +
-          `para conferência e validação dos dados antes do envio à RGE.`
+          .replace(/\{\{data\}\}/g, dataFormatada)
       }
     }
 
