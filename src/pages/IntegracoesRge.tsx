@@ -124,7 +124,14 @@ export function IntegracoesRgePage() {
 
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<Credencial | null>(null)
-  const [form, setForm] = useState({ uc: '', login: '', senha: '', documento: '', rotulo: '' })
+  const [form, setForm] = useState({
+    uc: '',
+    login: '',
+    senha: '',
+    documento: '',
+    rotulo: '',
+    token: '',
+  })
   const [salvando, setSalvando] = useState(false)
 
   const [credSelecionada, setCredSelecionada] = useState<string>('')
@@ -158,7 +165,7 @@ export function IntegracoesRgePage() {
 
   function abrirNovo() {
     setEditando(null)
-    setForm({ uc: '', login: '', senha: '', documento: '', rotulo: '' })
+    setForm({ uc: '', login: '', senha: '', documento: '', rotulo: '', token: '' })
     setModalAberto(true)
   }
 
@@ -170,6 +177,7 @@ export function IntegracoesRgePage() {
       senha: '',
       documento: cred.documento || '',
       rotulo: cred.rotulo || '',
+      token: '',
     })
     setModalAberto(true)
   }
@@ -187,6 +195,7 @@ export function IntegracoesRgePage() {
           senha: form.senha || undefined,
           documento: form.documento,
           rotulo: form.rotulo,
+          token: form.token || undefined,
         }),
       })
       setModalAberto(false)
@@ -545,10 +554,23 @@ export function IntegracoesRgePage() {
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="token" className="text-xs font-semibold">
+                Token do portal {editando?.tem_token ? '(já existe — cole para substituir)' : ''}
+              </Label>
+              <Input
+                id="token"
+                placeholder="Cole aqui o token gerado no navegador"
+                value={form.token}
+                onChange={(ev) => setForm({ ...form, token: ev.target.value })}
+              />
+            </div>
+
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-900 leading-relaxed">
-              <strong>Token:</strong> a CPFL não aceita login por e-mail e senha fora do navegador.
-              Para conectar, gere o token no portal (F12 → Console) e cole em “Editar → Token”. Sem
-              o token, a senha sozinha não baixa a conta.
+              <strong>Por que o token:</strong> a CPFL guarda a conta no login novo (Azure B2C) e
+              não aceita e-mail e senha por conexão direta — testado, responde “LOG008”. O token é
+              gerado no portal, uma vez, e dura algumas horas. Com ele, sincronizar e baixar a conta
+              funcionam sozinhos.
             </div>
           </div>
 
