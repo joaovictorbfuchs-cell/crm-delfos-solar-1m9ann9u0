@@ -1,0 +1,383 @@
+// RGE/CPFL — rotas /backend/v1/rge/*  (tudo inline: JSVM não herda escopo de topo)
+
+routerAdd('GET', '/backend/v1/rge/ping', (e) => {
+  return e.json(200, { ok: true, ping: 'rge' })
+})
+
+routerAdd(
+  'GET',
+  '/backend/v1/rge/credenciais',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var role = String(e.auth.get('role') || e.auth.get('perfil') || '').toLowerCase()
+      var email = String(e.auth.get('email') || '').toLowerCase()
+      var admins = String($os.getenv('RGE_ADMIN_EMAILS') || '').split(',')
+      var ok = role === 'admin' || role === 'administrador'
+      for (var i = 0; i < admins.length; i++) {
+        if (admins[i].trim().toLowerCase() === email && email) ok = true
+      }
+      try {
+        if (e.auth.getBool('is_admin')) ok = true
+      } catch (err) {}
+      if (!ok) return e.json(403, { ok: false, error: 'Somente administradores' })
+
+      var recs = $app.findRecordsByFilter('rge_credenciais', '', '-created', 300, 0)
+      var itens = []
+      for (var j = 0; j < recs.length; j++) {
+        var r = recs[j]
+        itens.push({
+          id: r.id,
+          uc: r.getString('uc'),
+          rotulo: r.getString('rotulo'),
+          documento: r.getString('documento'),
+          login: r.getString('login'),
+          tem_senha: !!r.getString('senha'),
+          tem_token: !!r.getString('token'),
+          modo_auth: r.getString('modo_auth'),
+          status: r.getString('status'),
+          ultimo_login: r.getString('ultimo_login'),
+          ultimo_erro: r.getString('ultimo_erro'),
+          ativo: r.getBool('ativo'),
+          cliente_id: r.getString('cliente_id'),
+          usina_id: r.getString('usina_id'),
+        })
+      }
+      return e.json(200, { ok: true, itens: itens })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
+  '/backend/v1/rge/credenciais',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var body = e.requestInfo().body || {}
+      var uc = String(body.uc == null ? '' : body.uc).replace(/\D/g, '')
+      if (!uc) return e.json(400, { ok: false, error: 'Informe o número da UC' })
+      var doc = String(body.documento == null ? '' : body.documento).replace(/\D/g, '')
+
+      var rec = null
+      if (body.id) {
+        try {
+          rec = $app.findRecordById('rge_credenciais', body.id)
+        } catch (err) {}
+      }
+      if (!rec) {
+        var achados = $app.findRecordsByFilter('rge_credenciais', 'uc = "' + uc + '"', '', 1, 0)
+        if (achados.length) rec = achados[0]
+      }
+      if (!rec) rec = new Record($app.findCollectionByNameOrId('rge_credenciais'))
+
+      rec.set('uc', uc)
+      if (body.rotulo !== undefined) rec.set('rotulo', body.rotulo)
+      if (body.documento !== undefined) rec.set('documento', doc)
+      if (body.login !== undefined) rec.set('login', body.login)
+      if (body.senha) rec.set('senha', body.senha)
+      if (body.token) {
+        rec.set('token', String(body.token).trim())
+        rec.set('modo_auth', 'token')
+      }
+      if (body.cliente_id) rec.set('cliente_id', body.cliente_id)
+      if (body.usina_id) rec.set('usina_id', body.usina_id)
+      rec.set('ativo', body.ativo === undefined ? true : !!body.ativo)
+      if (!rec.getString('status')) rec.set('status', 'novo')
+      $app.save(rec)
+
+      return e.json(200, {
+        ok: true,
+        item: {
+          id: rec.id,
+          uc: rec.getString('uc'),
+          login: rec.getString('login'),
+          tem_senha: !!rec.getString('senha'),
+          tem_token: !!rec.getString('token'),
+          status: rec.getString('status'),
+        },
+      })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
+  '/backend/v1/rge/sincronizar',
+  (e) => {
+    var t0 = Date.now()
+    var cred = null
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var body = e.requestInfo().body || {}
+      if (!body.credencial_id) return e.json(400, { ok: false, error: 'Informe credencial_id' })
+      cred = $app.findRecordById('rge_credenciais', body.credencial_id)
+
+      var uc = String(cred.getString('uc') || '').replace(/\D/g, '')
+      if (!uc) return e.json(400, { ok: false, error: 'Credencial sem UC' })
+
+      var token = cred.getString('token')
+      if (!token) {
+        var msg = 'Sem token. Gere o token no navegador e cole na credencial.'
+        cred.set('status', 'erro')
+        cred.set('ultimo_erro', msg)
+        $app.save(cred)
+        return e.json(200, { ok: false, error: msg, precisa_token: true })
+      }
+
+      var H = {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        Accept: 'application/json, text/plain, */*',
+        Origin: 'https://servicosonline.cpfl.com.br',
+        Referer: 'https://servicosonline.cpfl.com.br/agencia-webapp/',
+        Authorization: 'Bearer ' + token,
+      }
+      var API = 'https://servicosonline.cpfl.com.br/agencia-webapi'
+
+      var infoR = $http.send({
+        url: API + '/api/instalacao/informacoes-instalacao/' + encodeURIComponent(uc),
+        method: 'GET',
+        headers: H,
+        timeout: 90000,
+      })
+      var stInfo = infoR.statusCode !== undefined ? infoR.statusCode : infoR.status
+      if (stInfo === 401) {
+        cred.set('status', 'expirado')
+        cred.set('ultimo_erro', 'Token expirado (401)')
+        $app.save(cred)
+        return e.json(200, {
+          ok: false,
+          precisa_token: true,
+          error: 'Token expirado. Gere outro no navegador e cole na credencial.',
+        })
+      }
+      var info = {}
+      try {
+        info = JSON.parse(String(infoR.body || infoR.raw || '{}'))
+      } catch (err) {}
+
+      var pega = function (nomes) {
+        for (var a = 0; a < nomes.length; a++) {
+          var alvo = nomes[a].toLowerCase()
+          for (var k in info) {
+            if (String(k).toLowerCase() === alvo && info[k] !== null && info[k] !== '')
+              return info[k]
+          }
+        }
+        return null
+      }
+
+      var consR = $http.send({
+        url: API + '/api/historico-consumo/busca-graficos',
+        method: 'POST',
+        headers: Object.assign({}, H, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          Instalacao: uc,
+          CodigoClasse: pega(['CodigoClasse', 'CodClasse']),
+          CodEmpresaSAP: pega(['CodEmpresaSAP', 'CodEmpresa']),
+          NumeroContrato: pega(['Contrato', 'NumeroContrato']),
+          TipoGrafico: 'Todos',
+          ParceiroNegocio: null,
+        }),
+        timeout: 120000,
+      })
+
+      var cons = {}
+      try {
+        cons = JSON.parse(String(consR.body || consR.raw || '{}'))
+      } catch (err) {}
+      var graficos = (cons.data && cons.data.Graficos) || []
+
+      var series = []
+      var competencia = ''
+      var recente = null
+      for (var g = 0; g < graficos.length; g++) {
+        var gr = graficos[g]
+        if (!gr || !gr.Dados || !gr.Dados.length) continue
+        var pontos = []
+        for (var d = 0; d < gr.Dados.length; d++) {
+          var dd = gr.Dados[d]
+          pontos.push({ competencia: dd.Categoria, valor: dd.Valor, media: dd.MediaConsumo })
+        }
+        series.push({ tipo: gr.TipoGrafico, pontos: pontos })
+        if (!competencia && pontos.length) {
+          competencia = String(pontos[pontos.length - 1].competencia || '')
+          if (recente === null) recente = pontos[pontos.length - 1].valor
+        }
+      }
+
+      var col = $app.findCollectionByNameOrId('rge_contas')
+      var rec = new Record(col)
+      rec.set('uc', uc)
+      rec.set('credencial_id', cred.id)
+      if (cred.getString('cliente_id')) rec.set('cliente_id', cred.getString('cliente_id'))
+      if (cred.getString('usina_id')) rec.set('usina_id', cred.getString('usina_id'))
+      rec.set('origem', 'portal')
+      rec.set('competencia', competencia || new Date().toISOString().slice(0, 7))
+      if (recente !== null) rec.set('consumo_kwh', Number(recente))
+      rec.set('nome_arquivo', 'conta-' + uc + '.pdf')
+      rec.set('dados', { info_instalacao: info, series: series })
+      $app.save(rec)
+
+      cred.set('status', 'ok')
+      cred.set('ultimo_login', new Date().toISOString())
+      cred.set('ultimo_erro', '')
+      $app.save(cred)
+
+      var total = 0
+      for (var z = 0; z < series.length; z++) total += series[z].pontos.length
+
+      return e.json(200, {
+        ok: true,
+        conta_id: rec.id,
+        uc: uc,
+        series: series.length,
+        pontos: total,
+        competencia: competencia,
+        ms: Date.now() - t0,
+      })
+    } catch (err) {
+      try {
+        if (cred) {
+          cred.set('status', 'erro')
+          cred.set('ultimo_erro', String(err).slice(0, 300))
+          $app.save(cred)
+        }
+      } catch (e2) {}
+      return e.json(400, { ok: false, error: String(err) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'GET',
+  '/backend/v1/rge/contas',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var q = e.requestInfo().query || {}
+      var filtro = ''
+      if (q.uc) filtro = 'uc = "' + String(q.uc).replace(/\D/g, '') + '"'
+      var recs = $app.findRecordsByFilter('rge_contas', filtro, '-created', 100, 0)
+      var itens = []
+      for (var i = 0; i < recs.length; i++) {
+        var r = recs[i]
+        itens.push({
+          id: r.id,
+          uc: r.getString('uc'),
+          competencia: r.getString('competencia'),
+          consumo_kwh: r.getFloat('consumo_kwh'),
+          nome_arquivo: r.getString('nome_arquivo'),
+          created: r.getString('created'),
+        })
+      }
+      return e.json(200, { ok: true, itens: itens })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'GET',
+  '/backend/v1/rge/conta-pdf',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var q = e.requestInfo().query || {}
+      var cred = null
+      if (q.credencial_id) {
+        cred = $app.findRecordById('rge_credenciais', q.credencial_id)
+      } else if (q.uc) {
+        var uc0 = String(q.uc).replace(/\D/g, '')
+        var ach = $app.findRecordsByFilter('rge_credenciais', 'uc = "' + uc0 + '"', '', 1, 0)
+        if (ach.length) cred = ach[0]
+      }
+      if (!cred) return e.json(404, { ok: false, error: 'Credencial não encontrada' })
+
+      var uc = String(cred.getString('uc') || '').replace(/\D/g, '')
+      var token = cred.getString('token')
+      if (!token) {
+        return e.json(200, {
+          ok: false,
+          precisa_token: true,
+          error: 'Sem token. Gere no navegador e cole na credencial.',
+        })
+      }
+
+      var res = $http.send({
+        url:
+          'https://servicosonline.cpfl.com.br/agencia-webapi/api/historico-contas/conta-completa-pdf?instalacao=' +
+          encodeURIComponent(uc),
+        method: 'GET',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          Accept: 'application/pdf,*/*',
+          Origin: 'https://servicosonline.cpfl.com.br',
+          Referer: 'https://servicosonline.cpfl.com.br/agencia-webapp/',
+          Authorization: 'Bearer ' + token,
+        },
+        timeout: 180000,
+      })
+      var st = res.statusCode !== undefined ? res.statusCode : res.status
+      if (st === 401) {
+        cred.set('status', 'expirado')
+        cred.set('ultimo_erro', 'Token expirado ao buscar PDF')
+        $app.save(cred)
+        return e.json(200, {
+          ok: false,
+          precisa_token: true,
+          error: 'Token expirado. Gere outro no navegador.',
+        })
+      }
+      if (st !== 200) return e.json(200, { ok: false, error: 'A CPFL respondeu HTTP ' + st })
+
+      var bruto = res.raw !== undefined && res.raw !== null ? res.raw : res.body
+      if (bruto === undefined || bruto === null) {
+        return e.json(200, { ok: false, error: 'PDF vazio na resposta' })
+      }
+
+      var bytes = bruto
+      if (typeof bruto === 'string') {
+        var arr = []
+        for (var i = 0; i < bruto.length; i++) arr.push(bruto.charCodeAt(i) & 0xff)
+        bytes = arr
+      }
+      var alf = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+      var saida = ''
+      var n = bytes.length
+      var k = 0
+      while (k < n) {
+        var b1 = bytes[k++] & 0xff
+        var t2 = k < n
+        var b2 = t2 ? bytes[k++] & 0xff : 0
+        var t3 = k < n
+        var b3 = t3 ? bytes[k++] & 0xff : 0
+        saida += alf.charAt(b1 >> 2)
+        saida += alf.charAt(((b1 & 3) << 4) | (b2 >> 4))
+        saida += t2 ? alf.charAt(((b2 & 15) << 2) | (b3 >> 6)) : '='
+        saida += t3 ? alf.charAt(b3 & 63) : '='
+      }
+
+      return e.json(200, {
+        ok: true,
+        uc: uc,
+        nome_arquivo: 'conta-' + uc + '.pdf',
+        base64: saida,
+      })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err) })
+    }
+  },
+  $apis.requireAuth(),
+)
