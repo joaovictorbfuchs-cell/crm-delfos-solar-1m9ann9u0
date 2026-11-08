@@ -396,7 +396,7 @@ routerAdd(
   $apis.requireAuth(),
 )
 
-// ---------------- senha: revelar (olho) ----------------
+// (rotas de senha e beneficiarias ficam em pocketbase/hooks/rge_beneficiarias.js)
 routerAdd(
   'GET',
   '/backend/v1/rge/senha',
