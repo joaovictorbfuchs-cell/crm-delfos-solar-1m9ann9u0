@@ -486,6 +486,22 @@ routerAdd('POST', '/backend/v1/rge/importar-credenciais', (e) => {
   }
 })
 
+// ---------------- remover credencial (manutencao, segredo do robo) ----------------
+routerAdd('DELETE', '/backend/v1/rge/credencial-remover', (e) => {
+  try {
+    var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+    var env = e.request.header.get('X-Robo-Secret') || ''
+    if (!seg || env !== seg) return e.json(401, { ok: false, error: 'Segredo invalido' })
+    var q = e.requestInfo().query || {}
+    if (!q.id) return e.json(400, { ok: false, error: 'Informe id' })
+    var rec = $app.findRecordById('rge_credenciais', String(q.id))
+    $app.delete(rec)
+    return e.json(200, { ok: true })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 300) })
+  }
+})
+
 // ---------------- senha: revelar (olho) ----------------
 routerAdd(
   'GET',
