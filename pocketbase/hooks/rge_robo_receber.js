@@ -143,7 +143,41 @@ routerAdd('GET', '/backend/v1/rge/robo-ping', (e) => {
     if (!segredo) return e.json(500, { ok: false, error: 'RGE_ROBO_SECRET nao configurado' })
     var enviado = e.request.header.get('X-Robo-Secret') || ''
     if (enviado !== segredo) return e.json(401, { ok: false, error: 'Segredo invalido' })
-    return e.json(200, { ok: true, hora: new Date().toISOString() })
+
+    // diagnostico: quantas contas existem e como o filtro se comporta
+    var info = { ok: true, hora: new Date().toISOString() }
+    try {
+      var todos = $app.findRecordsByFilter('rge_contas', '', '', 500, 0)
+      info.total_contas = todos.length
+      var resumo = []
+      for (var i = 0; i < todos.length && i < 8; i++) {
+        var r = todos[i]
+        var dd = null
+        try {
+          dd = r.get('dados')
+        } catch (e1) {}
+        resumo.push({
+          id: r.id,
+          uc: r.getString('uc'),
+          comp: r.getString('competencia'),
+          tipo: dd ? String(dd.tipo) : '',
+        })
+      }
+      info.ultimas = resumo
+      var filtrados = $app.findRecordsByFilter('rge_contas', 'uc = "20390600115"', '', 50, 0)
+      info.filtro_por_uc = filtrados.length
+      var filtrados2 = $app.findRecordsByFilter(
+        'rge_contas',
+        'uc = "20390600115" && competencia = "2026-out"',
+        '',
+        50,
+        0,
+      )
+      info.filtro_uc_comp = filtrados2.length
+    } catch (eDiag) {
+      info.diag_erro = String(eDiag).slice(0, 300)
+    }
+    return e.json(200, info)
   } catch (err) {
     return e.json(400, { ok: false, error: String(err) })
   }
