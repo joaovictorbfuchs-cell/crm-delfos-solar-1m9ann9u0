@@ -130,6 +130,26 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
       })
     }
 
+    // Precisa também varrer usinas SEM portal_login: as que já foram migradas
+    // perderam os campos, mas ainda têm o CPF/CNPJ do titular — que é o que o
+    // robô usa para achar o titular no portal.
+    var mapaUsinaPorUc = {}
+    for (var w = 0; w < todas.length; w++) {
+      var uw = todas[w]
+      var ucW = ''
+      var brutaW = String(uw.getString('numero_uc') || '')
+      for (var qw = 0; qw < brutaW.length; qw++) {
+        var cw = brutaW.charAt(qw)
+        if (cw >= '0' && cw <= '9') ucW += cw
+      }
+      if (!ucW) continue
+      mapaUsinaPorUc[ucW] = {
+        id: uw.id,
+        nome: uw.getString('nome'),
+        doc: String(uw.getString('titular_cpf') || ''),
+      }
+    }
+
     if (!limpar) {
       var soInfo = []
       for (var x = 0; x < achadas.length; x++) {
@@ -210,6 +230,15 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
       // não sobrescreve senha já cadastrada na tela de Integrações
       if (!String(rec.getString('senha') || '')) rec.set('senha', a.senha)
       if (a.usina_id) rec.set('usina_id', a.usina_id)
+      // documento (CPF/CNPJ do titular) é o que o robô usa para achar o
+      // titular no Select2 do portal. Vem do titular_cpf da usina.
+      var docUsina = mapaUsinaPorUc[a.uc] ? mapaUsinaPorUc[a.uc].doc : ''
+      var docNum = ''
+      for (var qd = 0; qd < docUsina.length; qd++) {
+        var cd = docUsina.charAt(qd)
+        if (cd >= '0' && cd <= '9') docNum += cd
+      }
+      if (docNum && !String(rec.getString('documento') || '')) rec.set('documento', docNum)
       if (!rec.getString('status')) rec.set('status', 'novo')
       rec.set('ativo', true)
       $app.save(rec)
