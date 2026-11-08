@@ -76,6 +76,52 @@ routerAdd(
   $apis.requireAuth(),
 )
 
+// Diagnóstico: quantas usinas têm portal_login/portal_senha preenchidos?
+// (só contagem, sem devolver senha)
+routerAdd(
+  'GET',
+  '/backend/v1/rge/diag-usinas',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var todas = []
+      try {
+        todas = $app.findRecordsByFilter('usinas', '', '', 500, 0)
+      } catch (err) {
+        todas = []
+      }
+      var comLogin = 0
+      var comSenha = 0
+      var exemplos = []
+      for (var i = 0; i < todas.length; i++) {
+        var u = todas[i]
+        var lg = u.getString('portal_login') || ''
+        var sn = u.getString('portal_senha') || ''
+        if (lg) comLogin++
+        if (sn) comSenha++
+        if ((lg || sn) && exemplos.length < 10) {
+          exemplos.push({
+            nome: u.getString('nome'),
+            uc: u.getString('numero_uc'),
+            tem_login: !!lg,
+            tem_senha: !!sn,
+          })
+        }
+      }
+      return e.json(200, {
+        ok: true,
+        total_usinas: todas.length,
+        com_login: comLogin,
+        com_senha: comSenha,
+        exemplos: exemplos,
+      })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err).slice(0, 300) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
 routerAdd(
   'POST',
   '/backend/v1/rge/anexar-conta',
