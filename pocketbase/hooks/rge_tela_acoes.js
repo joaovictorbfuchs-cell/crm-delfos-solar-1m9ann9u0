@@ -159,20 +159,12 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
       // original: UC aparece como "200.419.001-19" (sempre com pontos no campo).
       // CPF digitado no lugar da UC aparece como "383.904.420-00" — mesmo
       // formato, então checamos também o valor.
-      if (a.uc.length < 10 || a.uc.length > 11) {
+      // UC da RGE: 10 ou 11 dígitos. Não dá para filtrar por tamanho.
+      // O que identifica CPF é o dígito verificador fechar — só isso.
+      if (a.uc.length < 10 || a.uc.length > 12) {
         puladas.push({ usina: a.usina_nome, uc: a.uc, motivo: 'numero_uc nao parece uma UC' })
         continue
       }
-      if (a.ucOriginal && a.ucOriginal.indexOf('.') < 0) {
-        puladas.push({
-          usina: a.usina_nome,
-          uc: a.uc,
-          motivo: 'numero_uc sem o formato NNN.NNN.NNN-NN — conferir na ficha',
-        })
-        continue
-      }
-      // CPF tem 11 dígitos e o dígito verificador calculável: se fechar a conta
-      // do CPF, é CPF e não UC.
       if (a.uc.length === 11) {
         var d1 = 0
         for (var cp = 0; cp < 9; cp++) d1 += Number(a.uc.charAt(cp)) * (10 - cp)
