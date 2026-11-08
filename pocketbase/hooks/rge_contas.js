@@ -396,6 +396,96 @@ routerAdd(
   $apis.requireAuth(),
 )
 
+// ---------------- importacao em massa (planilha) ----------------
+// Aceita UCs repetidas: duas linhas com a mesma UC sao USINAS DIFERENTES
+// (nao beneficiarias). A chave e login + uc + rotulo.
+routerAdd(
+  'POST',
+  '/backend/v1/rge/importar-credenciais',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticacao necessaria' })
+      var body = e.requestInfo().body || {}
+      var lista = body.credenciais || []
+      if (!lista.length) return e.json(400, { ok: false, error: 'Nenhuma credencial enviada' })
+
+      var criadas = 0
+      var atualizadas = 0
+      var puladas = []
+      var col = $app.findCollectionByNameOrId('rge_credenciais')
+
+      for (var i = 0; i < lista.length; i++) {
+        var it = lista[i]
+        var uc = String(it.uc == null ? '' : it.uc).replace(/\D/g, '')
+        var login = String(it.login == null ? '' : it.login).trim()
+        var rotulo = String(it.rotulo == null ? '' : it.rotulo)
+          .trim()
+          .slice(0, 120)
+        var senha = String(it.senha == null ? '' : it.senha)
+        if (!uc || uc.length < 10) {
+          puladas.push({ rotulo: rotulo, motivo: 'UC invalida' })
+          continue
+        }
+        if (!login) {
+          puladas.push({ rotulo: rotulo, motivo: 'sem login' })
+          continue
+        }
+
+        // casa por login + uc + rotulo (permite UC repetida em usinas diferentes)
+        var rec = null
+        try {
+          var ach = $app.findRecordsByFilter(
+            'rge_credenciais',
+            'uc = "' + uc + '" && login = "' + login.replace(/"/g, '') + '"',
+            '',
+            20,
+            0,
+          )
+          for (var a = 0; a < ach.length; a++) {
+            if (String(ach[a].getString('rotulo') || '') === rotulo) {
+              rec = ach[a]
+              break
+            }
+          }
+        } catch (errF) {}
+
+        var novo = !rec
+        if (novo) rec = new Record(col)
+
+        rec.set('uc', uc)
+        rec.set('login', login)
+        if (senha) rec.set('senha', senha)
+        rec.set('rotulo', rotulo || 'UC ' + uc)
+        if (it.documento !== undefined)
+          rec.set('documento', String(it.documento || '').replace(/\D/g, ''))
+        rec.set('ativo', true)
+        if (it.usina_id) rec.set('usina_id', String(it.usina_id))
+        if (it.cliente_id) rec.set('cliente_id', String(it.cliente_id))
+        if (novo || !rec.getString('status')) rec.set('status', 'novo')
+
+        try {
+          $app.save(rec)
+          if (novo) criadas++
+          else atualizadas++
+        } catch (errSave) {
+          puladas.push({ rotulo: rotulo, motivo: String(errSave).slice(0, 120) })
+        }
+      }
+
+      return e.json(200, {
+        ok: true,
+        criadas: criadas,
+        atualizadas: atualizadas,
+        puladas: puladas.length,
+        detalhe_puladas: puladas,
+      })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
 // ---------------- senha: revelar (olho) ----------------
 routerAdd(
   'GET',

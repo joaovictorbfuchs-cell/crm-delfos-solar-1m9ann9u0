@@ -1351,18 +1351,25 @@ export function IntegracoesRgePage() {
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                                 Integrado
                               </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCredencialEmEdicao(c)
-                                  setFormToken(c.token || '')
-                                  setModalEditarTokenAberto(true)
-                                }}
-                                className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            ) : c.status === 'erro' ? (
+                              <span
+                                title={c.ultimo_erro || 'Erro sem detalhe'}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-100 text-rose-700 cursor-help"
                               >
-                                Promover
-                              </button>
+                                Erro
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-600">
+                                Novo
+                              </span>
+                            )}
+                            {c.status === 'erro' && c.ultimo_erro && (
+                              <span
+                                title={c.ultimo_erro}
+                                className="text-[10px] text-rose-600 leading-tight max-w-[190px] cursor-help line-clamp-2"
+                              >
+                                {c.ultimo_erro}
+                              </span>
                             )}
                             <span className="text-[11px] text-slate-400">{tempoRel}</span>
                           </div>
