@@ -168,6 +168,14 @@ describe('IntegracoesRgePage', () => {
     const competencias = await screen.findAllByText('NOV/2026')
     expect(competencias.length).toBe(2)
 
+    // Colunas da tabela Faturas conforme layout
+    expect(screen.getByText('CONCESSIONÁRIA')).toBeTruthy()
+    expect(screen.getByText('UNIDADE')).toBeTruthy()
+    expect(screen.getByText('Nº UNIDADE')).toBeTruthy()
+    expect(screen.getByText('MÊS')).toBeTruthy()
+    expect(screen.getByText('ALERTAS')).toBeTruthy()
+    expect(screen.getByText('ORIGEM')).toBeTruthy()
+
     // Alertas COM ERRO e SEM ALERTA
     expect(screen.getByText('COM ERRO')).toBeTruthy()
     expect(screen.getByText('SEM ALERTA')).toBeTruthy()
@@ -175,6 +183,79 @@ describe('IntegracoesRgePage', () => {
     // Origens
     expect(screen.getByText('AUTOMÁTICO')).toBeTruthy()
     expect(screen.getByText('MANUAL')).toBeTruthy()
+  })
+
+  it('renderiza e navega na paginação numerada (10 por página) quando há mais de 10 itens', async () => {
+    // Gerar 15 credenciais para forçar 2 páginas
+    const quinzeCredenciais = Array.from({ length: 15 }).map((_, i) => ({
+      id: `cred-${i + 1}`,
+      uc: `1000000000${i}`,
+      login: `user${i + 1}@email.com`,
+      rotulo: `Unidade ${i + 1}`,
+      status: 'ok',
+      ultimo_login: new Date().toISOString(),
+    }))
+
+    global.fetch = vi.fn().mockImplementation((url: RequestInfo | URL) => {
+      const urlStr = String(url)
+      if (urlStr.includes('/backend/v1/rge/credenciais')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true, itens: quinzeCredenciais }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, itens: [] }),
+      })
+    }) as unknown as typeof fetch
+
+    render(<IntegracoesRgePage />)
+
+    // Botões de página 1 e 2
+    const btnPagina1 = await screen.findByRole('button', { name: '1' })
+    const btnPagina2 = screen.getByRole('button', { name: '2' })
+    expect(btnPagina1).toBeTruthy()
+    expect(btnPagina2).toBeTruthy()
+
+    // Página 1 mostra Unidade 1 até 10
+    expect(screen.getByText('Unidade 1')).toBeTruthy()
+    expect(screen.getByText('Unidade 10')).toBeTruthy()
+    expect(screen.queryByText('Unidade 11')).toBeNull()
+
+    // Navegar para a página 2
+    fireEvent.click(btnPagina2)
+    expect(screen.getByText('Unidade 11')).toBeTruthy()
+    expect(screen.getByText('Unidade 15')).toBeTruthy()
+    expect(screen.queryByText('Unidade 1')).toBeNull()
+  })
+
+  it('abre o menu ⋮ de ações na linha da credencial e da fatura sem erro', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    // Menu ⋮ na aba Concessionária
+    const botoesMenuCred = await screen.findAllByRole('button', { name: 'Ações da credencial' })
+    expect(botoesMenuCred.length).toBeGreaterThan(0)
+    fireEvent.click(botoesMenuCred[0])
+
+    expect(await screen.findByText('Colar Token')).toBeTruthy()
+    expect(screen.getByText('Sincronizar Agora')).toBeTruthy()
+    expect(screen.getByText('Baixar Última Conta')).toBeTruthy()
+    expect(screen.getByText('Remover')).toBeTruthy()
+
+    // Alternar para Faturas e abrir menu ⋮ da fatura
+    const btnFaturas = screen.getByRole('button', { name: 'Gerenciar Faturas' })
+    fireEvent.click(btnFaturas)
+
+    const botoesMenuFat = await screen.findAllByRole('button', { name: 'Ações da fatura' })
+    expect(botoesMenuFat.length).toBeGreaterThan(0)
+    fireEvent.click(botoesMenuFat[0])
+
+    expect(await screen.findByText('Ver Detalhes')).toBeTruthy()
+    expect(screen.getByText('Baixar PDF')).toBeTruthy()
   })
 
   it('permite filtrar na busca global', async () => {

@@ -1018,7 +1018,7 @@ export function IntegracoesRgePage() {
                     onClick={() => alternarOrdemFat('uc')}
                   >
                     <div className="flex items-center gap-1">
-                      <span>Nº DA UNIDADE CONSUMIDORA</span>
+                      <span>Nº UNIDADE</span>
                       <ArrowUpDown className="w-3 h-3 text-slate-400" />
                     </div>
                   </th>
@@ -1073,7 +1073,7 @@ export function IntegracoesRgePage() {
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-44">
+                            <DropdownMenuContent align="start" className="w-48">
                               <DropdownMenuItem
                                 onClick={() => {
                                   setContaSelecionada(fat)
@@ -1083,8 +1083,17 @@ export function IntegracoesRgePage() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 Ver Detalhes
                               </DropdownMenuItem>
-                              {info.cred && (
+                              {info.cred ? (
                                 <DropdownMenuItem onClick={() => handleBaixarConta(info.cred!)}>
+                                  <FileDown className="w-4 h-4 mr-2" />
+                                  Baixar PDF
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleBaixarConta({ id: fat.credencial_id || '', uc: fat.uc })
+                                  }
+                                >
                                   <FileDown className="w-4 h-4 mr-2" />
                                   Baixar PDF
                                 </DropdownMenuItem>
