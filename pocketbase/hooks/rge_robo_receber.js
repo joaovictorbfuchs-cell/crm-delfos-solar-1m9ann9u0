@@ -35,14 +35,33 @@ routerAdd(
       if (b64.length < 1000)
         return e.json(400, { ok: false, error: 'pdf_base64 ausente ou muito pequeno' })
 
-      var bytes = null
-      try {
-        bytes = $filesystem.base64ToBytes(b64)
-      } catch (eDec) {
-        return e.json(400, { ok: false, error: 'base64 invalido: ' + String(eDec).slice(0, 150) })
+      // decodifica base64 manualmente (nao existe base64ToBytes nesta versao)
+      var ALF = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+      var limpo = String(b64).replace(/[^A-Za-z0-9+/=]/g, '')
+      var tam = limpo.length
+      var sobra = 0
+      if (tam > 0 && limpo.charAt(tam - 1) === '=') sobra++
+      if (tam > 1 && limpo.charAt(tam - 2) === '=') sobra++
+      var outLen = Math.floor((tam * 3) / 4) - sobra
+      if (outLen < 1000)
+        return e.json(400, {
+          ok: false,
+          error: 'PDF vazio apos decodificar (' + outLen + ' bytes)',
+        })
+      var bytes = new Uint8Array(outLen)
+      var pos = 0
+      var jj = 0
+      while (jj < tam) {
+        var c1 = ALF.indexOf(limpo.charAt(jj++))
+        var c2 = ALF.indexOf(limpo.charAt(jj++))
+        var c3 = ALF.indexOf(limpo.charAt(jj++))
+        var c4 = ALF.indexOf(limpo.charAt(jj++))
+        if (c1 < 0 || c2 < 0) break
+        bytes[pos++] = ((c1 << 2) | (c2 >> 4)) & 0xff
+        if (c3 >= 0 && pos < outLen) bytes[pos++] = (((c2 & 15) << 4) | (c3 >> 2)) & 0xff
+        if (c4 >= 0 && pos < outLen) bytes[pos++] = (((c3 & 3) << 6) | c4) & 0xff
       }
-      if (!bytes || bytes.length < 1000)
-        return e.json(400, { ok: false, error: 'PDF vazio apos decodificar' })
+      if (pos < outLen) bytes = bytes.subarray(0, pos)
 
       var tipo = String(body.tipo == null ? '' : body.tipo).toLowerCase()
       var filtro = 'uc = "' + uc + '" && competencia = "' + competencia + '"'
