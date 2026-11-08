@@ -204,6 +204,97 @@ routerAdd('GET', '/backend/v1/rge/robo-ping', (e) => {
   }
 })
 
+// O robô pergunta "tem trabalho novo?" -> devolve as credenciais ativas com senha.
+// Assim o João cadastra na tela e o robô busca, sem mexer em arquivo.
+routerAdd('GET', '/backend/v1/rge/fila-do-robo', (e) => {
+  try {
+    var segredo = $secrets.get('RGE_ROBO_SECRET') || ''
+    if (!segredo) return e.json(500, { ok: false, error: 'RGE_ROBO_SECRET nao configurado' })
+    var enviado = e.request.header.get('X-Robo-Secret') || ''
+    if (enviado !== segredo) return e.json(401, { ok: false, error: 'Segredo invalido' })
+
+    var recs = []
+    try {
+      recs = $app.findRecordsByFilter('rge_credenciais', 'ativo = true', '-id', 500, 0)
+    } catch (err) {
+      try {
+        recs = $app.findRecordsByFilter('rge_credenciais', '', '-id', 500, 0)
+      } catch (e2) {
+        recs = []
+      }
+    }
+
+    var itens = []
+    for (var i = 0; i < recs.length; i++) {
+      var r = recs[i]
+      var senha = String(r.getString('senha') || '')
+      var login = String(r.getString('login') || '')
+      if (!senha || !login) continue
+
+      // quantas contas já temos desta UC e qual a mais recente
+      var contas = []
+      try {
+        contas = $app.findRecordsByFilter(
+          'rge_contas',
+          'uc = "' + r.getString('uc') + '"',
+          '',
+          200,
+          0,
+        )
+      } catch (eC) {
+        contas = []
+      }
+      var comps = []
+      for (var c = 0; c < contas.length; c++) {
+        var cp = String(contas[c].getString('competencia') || '')
+        if (cp) comps.push(cp)
+      }
+      comps.sort()
+
+      itens.push({
+        id: r.id,
+        uc: r.getString('uc'),
+        rotulo: r.getString('rotulo'),
+        documento: r.getString('documento'),
+        login: login,
+        senha: senha,
+        usina_id: r.getString('usina_id'),
+        cliente_id: r.getString('cliente_id'),
+        tem_contas: comps.length,
+        ultima_competencia: comps.length ? comps[comps.length - 1] : '',
+        status: r.getString('status'),
+        ultimo_login: r.getString('ultimo_login'),
+      })
+    }
+
+    return e.json(200, { ok: true, total: itens.length, itens: itens })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+  }
+})
+
+// O robô avisa que terminou uma credencial (atualiza status/último login)
+routerAdd('POST', '/backend/v1/rge/robo-marcar', (e) => {
+  try {
+    var segredo = $secrets.get('RGE_ROBO_SECRET') || ''
+    if (!segredo) return e.json(500, { ok: false, error: 'RGE_ROBO_SECRET nao configurado' })
+    var enviado = e.request.header.get('X-Robo-Secret') || ''
+    if (enviado !== segredo) return e.json(401, { ok: false, error: 'Segredo invalido' })
+
+    var body = e.requestInfo().body || {}
+    if (!body.credencial_id) return e.json(400, { ok: false, error: 'Informe credencial_id' })
+    var rec = $app.findRecordById('rge_credenciais', body.credencial_id)
+    var ok = body.status !== 'erro'
+    rec.set('status', ok ? 'ok' : 'erro')
+    rec.set('ultimo_login', new Date().toISOString())
+    rec.set('ultimo_erro', ok ? '' : String(body.erro || '').slice(0, 300))
+    $app.save(rec)
+    return e.json(200, { ok: true })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+  }
+})
+
 routerAdd(
   'GET',
   '/backend/v1/rge/contas-pdf',

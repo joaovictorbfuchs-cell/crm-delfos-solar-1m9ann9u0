@@ -76,47 +76,133 @@ routerAdd(
   $apis.requireAuth(),
 )
 
-// Diagnóstico: quantas usinas têm portal_login/portal_senha preenchidos?
-// (só contagem, sem devolver senha)
+// Migra as credenciais de portal da FICHA DA USINA (portal_login/portal_senha)
+// para a coleção rge_credenciais, e só então limpa os campos da usina.
+//
+// Body:
+//   {}                        -> só diagnostica (não grava nada)
+//   { limpar: true }          -> migra e limpa os campos da usina
+//   { limpar: true, limpar_campos: false } -> migra mas mantém os campos
 routerAdd(
-  'GET',
-  '/backend/v1/rge/diag-usinas',
+  'POST',
+  '/backend/v1/rge/migrar-credenciais-usinas',
   (e) => {
     try {
       if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+
+      var body = e.requestInfo().body || {}
+      var limpar = !!body.limpar
+      var limparCampos = body.limpar_campos === undefined ? true : !!body.limpar_campos
+
       var todas = []
       try {
         todas = $app.findRecordsByFilter('usinas', '', '', 500, 0)
       } catch (err) {
         todas = []
       }
-      var comLogin = 0
-      var comSenha = 0
-      var exemplos = []
+
+      var achadas = []
       for (var i = 0; i < todas.length; i++) {
         var u = todas[i]
-        var lg = u.getString('portal_login') || ''
-        var sn = u.getString('portal_senha') || ''
-        if (lg) comLogin++
-        if (sn) comSenha++
-        if ((lg || sn) && exemplos.length < 10) {
-          exemplos.push({
-            nome: u.getString('nome'),
-            uc: u.getString('numero_uc'),
-            tem_login: !!lg,
-            tem_senha: !!sn,
+        var lg = String(u.getString('portal_login') || '').trim()
+        var sn = String(u.getString('portal_senha') || '').trim()
+        if (!lg && !sn) continue
+        achadas.push({
+          usina_id: u.id,
+          usina_nome: u.getString('nome'),
+          uc: String(u.getString('numero_uc') || '').replace(/\\D/g, ''),
+          login: lg,
+          tem_senha: !!sn,
+          senha: sn,
+        })
+      }
+
+      if (!limpar) {
+        var soInfo = []
+        for (var x = 0; x < achadas.length; x++) {
+          soInfo.push({
+            usina: achadas[x].usina_nome,
+            uc: achadas[x].uc || '(sem UC)',
+            login: achadas[x].login || '(sem login)',
+            tem_senha: achadas[x].tem_senha,
           })
         }
+        return e.json(200, {
+          ok: true,
+          modo: 'diagnostico',
+          total_usinas: todas.length,
+          com_credencial: achadas.length,
+          itens: soInfo,
+        })
       }
+
+      // ---- migração ----
+      var criadas = 0
+      var atualizadas = 0
+      var puladas = []
+      var migradosIds = []
+
+      for (var k = 0; k < achadas.length; k++) {
+        var a = achadas[k]
+        if (!a.uc) {
+          puladas.push({ usina: a.usina_nome, motivo: 'sem numero_uc preenchido' })
+          continue
+        }
+        if (!a.tem_senha) {
+          puladas.push({ usina: a.usina_nome, uc: a.uc, motivo: 'sem senha preenchida' })
+          continue
+        }
+
+        var existentes = []
+        try {
+          existentes = $app.findRecordsByFilter('rge_credenciais', 'uc = "' + a.uc + '"', '', 1, 0)
+        } catch (eF) {
+          existentes = []
+        }
+        var rec = existentes.length ? existentes[0] : null
+        var novo = !rec
+        if (!rec) rec = new Record($app.findCollectionByNameOrId('rge_credenciais'))
+
+        rec.set('uc', a.uc)
+        if (a.usina_nome) rec.set('rotulo', String(a.usina_nome).slice(0, 200))
+        if (a.login) rec.set('login', String(a.login).slice(0, 200))
+        // não sobrescreve senha já cadastrada na tela de Integrações
+        if (!String(rec.getString('senha') || '')) rec.set('senha', a.senha)
+        if (a.usina_id) rec.set('usina_id', a.usina_id)
+        if (!rec.getString('status')) rec.set('status', 'novo')
+        rec.set('ativo', true)
+        $app.save(rec)
+        migradosIds.push(a.usina_id)
+        if (novo) criadas++
+        else atualizadas++
+      }
+
+      // ---- limpa os campos da usina (só das que migraram) ----
+      var limpas = 0
+      if (limparCampos) {
+        for (var m = 0; m < migradosIds.length; m++) {
+          try {
+            var us = $app.findRecordById('usinas', migradosIds[m])
+            us.set('portal_login', '')
+            us.set('portal_senha', '')
+            $app.save(us)
+            limpas++
+          } catch (eU) {}
+        }
+      }
+
       return e.json(200, {
         ok: true,
-        total_usinas: todas.length,
-        com_login: comLogin,
-        com_senha: comSenha,
-        exemplos: exemplos,
+        modo: 'migracao',
+        com_credencial: achadas.length,
+        criadas: criadas,
+        atualizadas: atualizadas,
+        usinas_limpas: limpas,
+        campos_limpos: limparCampos,
+        puladas: puladas,
       })
     } catch (err) {
-      return e.json(400, { ok: false, error: String(err).slice(0, 300) })
+      return e.json(400, { ok: false, error: String(err).slice(0, 400) })
     }
   },
   $apis.requireAuth(),
