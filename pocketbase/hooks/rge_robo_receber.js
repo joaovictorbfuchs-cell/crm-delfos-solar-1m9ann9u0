@@ -279,6 +279,27 @@ routerAdd('GET', '/backend/v1/rge/fila-do-robo', (e) => {
         return na - nb
       })
 
+      // beneficiárias ativas: o robô baixa a conta de cada uma
+      // com o MESMO login desta UC geradora
+      var bens = []
+      try {
+        var rb = $app.findRecordsByFilter(
+          'rge_beneficiarias',
+          'credencial_id = "' + r.id + '" && ativo = true',
+          '',
+          200,
+          0,
+        )
+        for (var bi = 0; bi < rb.length; bi++) {
+          bens.push({
+            id: rb[bi].id,
+            uc: String(rb[bi].getString('uc') || '').replace(/\D/g, ''),
+            rotulo: rb[bi].getString('rotulo'),
+            percentual: rb[bi].getFloat('percentual'),
+          })
+        }
+      } catch (eB) {}
+
       itens.push({
         id: r.id,
         uc: r.getString('uc'),
@@ -290,6 +311,10 @@ routerAdd('GET', '/backend/v1/rge/fila-do-robo', (e) => {
         cliente_id: r.getString('cliente_id'),
         tem_contas: comps.length,
         ultima_competencia: comps.length ? comps[comps.length - 1] : '',
+        // todas as competências já baixadas desta UC (o robô usa para
+        // saber quais meses do histórico ainda faltam)
+        competencias: comps,
+        beneficiarias: bens,
         status: r.getString('status'),
         ultimo_login: r.getString('ultimo_login'),
       })

@@ -20,6 +20,10 @@ import {
   Pencil,
   Upload,
   FileText,
+  EyeOff,
+  Users,
+  Percent,
+  UserPlus,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { toast } from '@/hooks/use-toast'
@@ -62,6 +66,18 @@ export interface Credencial {
   }
 }
 
+export interface Beneficiaria {
+  id: string
+  credencial_id: string
+  uc: string
+  rotulo?: string
+  percentual?: number
+  cliente_id?: string
+  usina_id?: string
+  ativo?: boolean
+  observacao?: string
+}
+
 export interface ContaRge {
   id: string
   uc: string
@@ -87,7 +103,9 @@ export interface ContaRge {
 }
 
 export function IntegracoesRgePage() {
-  const [abaAtiva, setAbaAtiva] = useState<'concessionaria' | 'faturas'>('concessionaria')
+  const [abaAtiva, setAbaAtiva] = useState<'concessionaria' | 'faturas' | 'beneficiarias'>(
+    'concessionaria',
+  )
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [credenciais, setCredenciais] = useState<Credencial[]>([])
@@ -157,6 +175,26 @@ export function IntegracoesRgePage() {
   const [contasDaUc, setContasDaUc] = useState<ContaRge[]>([])
   const [carregandoContasUc, setCarregandoContasUc] = useState(false)
   const [tituloContasUc, setTituloContasUc] = useState('')
+
+  // --- Senha: olho (revelar) e lápis (alterar) ---
+  const [senhasVisiveis, setSenhasVisiveis] = useState<Record<string, string>>({})
+  const [modalSenhaAberto, setModalSenhaAberto] = useState(false)
+  const [senhaCredencial, setSenhaCredencial] = useState<Credencial | null>(null)
+  const [novaSenhaEdit, setNovaSenhaEdit] = useState('')
+
+  // --- Beneficiárias ---
+  const [beneficiarias, setBeneficiarias] = useState<Beneficiaria[]>([])
+  const [carregandoBen, setCarregandoBen] = useState(false)
+  const [buscaBen, setBuscaBen] = useState('')
+  const [paginaBen, setPaginaBen] = useState(1)
+  const [modalBenAberto, setModalBenAberto] = useState(false)
+  const [benEmEdicao, setBenEmEdicao] = useState<Beneficiaria | null>(null)
+  const [benCredencial, setBenCredencial] = useState<Credencial | null>(null)
+  const [fBenUc, setFBenUc] = useState('')
+  const [fBenRotulo, setFBenRotulo] = useState('')
+  const [fBenPercentual, setFBenPercentual] = useState('')
+  const [fBenObs, setFBenObs] = useState('')
+  const [salvandoBen, setSalvandoBen] = useState(false)
 
   // Chamada autenticada para o backend
   const chamar = useCallback(
@@ -259,6 +297,14 @@ export function IntegracoesRgePage() {
       }
       if (rCont && rCont.itens) {
         setContas(rCont.itens)
+      }
+
+      // beneficiárias (coleção pode não existir em instalações antigas)
+      try {
+        const rBen = await chamar<{ ok: boolean; itens: Beneficiaria[] }>('/rge/beneficiarias')
+        if (rBen && rBen.itens) setBeneficiarias(rBen.itens)
+      } catch {
+        setBeneficiarias([])
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -469,6 +515,141 @@ export function IntegracoesRgePage() {
       toast({ title: 'Erro ao anexar', description: msg, variant: 'destructive' })
     } finally {
       setAnEnviando(false)
+    }
+  }
+
+  // ---------- Senha: revelar / alterar ----------
+  const alternarSenha = async (c: Credencial) => {
+    if (senhasVisiveis[c.id]) {
+      setSenhasVisiveis((prev) => {
+        const novo = { ...prev }
+        delete novo[c.id]
+        return novo
+      })
+      return
+    }
+    try {
+      const res = await chamar<{ ok: boolean; senha?: string; error?: string }>(
+        `/rge/senha?credencial_id=${encodeURIComponent(c.id)}`,
+      )
+      if (!res.ok) throw new Error(res.error || 'Não foi possível ler a senha')
+      if (!res.senha) {
+        toast({
+          title: 'Esta UC ainda não tem senha',
+          description: 'Clique no lápis para cadastrar.',
+        })
+        return
+      }
+      setSenhasVisiveis((prev) => ({ ...prev, [c.id]: res.senha as string }))
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao mostrar a senha', description: msg, variant: 'destructive' })
+    }
+  }
+
+  const abrirEditarSenha = (c: Credencial) => {
+    setSenhaCredencial(c)
+    setNovaSenhaEdit('')
+    setModalSenhaAberto(true)
+  }
+
+  const handleSalvarSenha = async (ev: React.FormEvent) => {
+    ev.preventDefault()
+    if (!senhaCredencial) return
+    if (!novaSenhaEdit.trim()) {
+      toast({ title: 'Digite a nova senha', variant: 'destructive' })
+      return
+    }
+    setSalvando(true)
+    try {
+      await chamar('/rge/senha', {
+        method: 'POST',
+        body: JSON.stringify({ credencial_id: senhaCredencial.id, senha: novaSenhaEdit }),
+      })
+      setSenhasVisiveis((prev) => ({ ...prev, [senhaCredencial.id]: novaSenhaEdit }))
+      setModalSenhaAberto(false)
+      setNovaSenhaEdit('')
+      toast({
+        title: 'Senha atualizada',
+        description: 'O robô vai usar esta senha na próxima rodada.',
+      })
+      await carregarDados()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao salvar a senha', description: msg, variant: 'destructive' })
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  // ---------- Beneficiárias ----------
+  const abrirBeneficiarias = (c: Credencial) => {
+    setBenCredencial(c)
+    setBenEmEdicao(null)
+    setFBenUc('')
+    setFBenRotulo('')
+    setFBenPercentual('')
+    setFBenObs('')
+    setModalBenAberto(true)
+  }
+
+  const editarBeneficiaria = (b: Beneficiaria) => {
+    setBenEmEdicao(b)
+    setFBenUc(b.uc)
+    setFBenRotulo(b.rotulo || '')
+    setFBenPercentual(b.percentual != null ? String(b.percentual) : '')
+    setFBenObs(b.observacao || '')
+  }
+
+  const limparFormBen = () => {
+    setBenEmEdicao(null)
+    setFBenUc('')
+    setFBenRotulo('')
+    setFBenPercentual('')
+    setFBenObs('')
+  }
+
+  const handleSalvarBeneficiaria = async (ev: React.FormEvent) => {
+    ev.preventDefault()
+    if (!benCredencial) return
+    if (!fBenUc.trim()) {
+      toast({ title: 'Informe a UC da beneficiária', variant: 'destructive' })
+      return
+    }
+    setSalvandoBen(true)
+    try {
+      await chamar('/rge/beneficiarias', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: benEmEdicao?.id,
+          credencial_id: benCredencial.id,
+          uc: fBenUc,
+          rotulo: fBenRotulo,
+          percentual: fBenPercentual,
+          observacao: fBenObs,
+          ativo: true,
+        }),
+      })
+      const r = await chamar<{ ok: boolean; itens: Beneficiaria[] }>('/rge/beneficiarias')
+      setBeneficiarias(r.itens || [])
+      limparFormBen()
+      toast({ title: 'Beneficiária salva' })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao salvar beneficiária', description: msg, variant: 'destructive' })
+    } finally {
+      setSalvandoBen(false)
+    }
+  }
+
+  const removerBeneficiaria = async (b: Beneficiaria) => {
+    try {
+      await chamar(`/rge/beneficiarias?id=${encodeURIComponent(b.id)}`, { method: 'DELETE' })
+      setBeneficiarias((prev) => prev.filter((x) => x.id !== b.id))
+      toast({ title: 'Beneficiária removida' })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao remover', description: msg, variant: 'destructive' })
     }
   }
 
@@ -738,6 +919,40 @@ export function IntegracoesRgePage() {
     return lista
   }, [credenciais, busca, ordemCampoCred, ordemDirCred, resolverInfoCredencial])
 
+  // Beneficiárias: busca, paginação e rótulo
+  const resolverRotuloBen = useCallback(
+    (b: Beneficiaria) => {
+      if (b.rotulo) return b.rotulo
+      if (b.usina_id && usinasMap[b.usina_id]) return usinasMap[b.usina_id].nome
+      if (b.cliente_id && clientesMap[b.cliente_id]) return clientesMap[b.cliente_id].nome
+      return `UC ${b.uc}`
+    },
+    [usinasMap, clientesMap],
+  )
+
+  const beneficiariasFiltradas = useMemo(() => {
+    let lista = [...beneficiarias]
+    if (busca.trim()) {
+      const q = busca.toLowerCase().trim()
+      lista = lista.filter(
+        (b) =>
+          b.uc.toLowerCase().includes(q) ||
+          resolverRotuloBen(b).toLowerCase().includes(q),
+      )
+    }
+    lista.sort((a, b) => {
+      const ca = credenciais.find((k) => k.id === a.credencial_id)
+      return resolverRotuloBen(a).localeCompare(resolverRotuloBen(b)) || (ca ? 0 : 0)
+    })
+    return lista
+  }, [beneficiarias, busca, resolverRotuloBen, credenciais])
+
+  const totalPaginasBen = Math.max(1, Math.ceil(beneficiariasFiltradas.length / ITENS_POR_PAGINA))
+  const beneficiariasPaginadas = useMemo(() => {
+    const inicio = (paginaBen - 1) * ITENS_POR_PAGINA
+    return beneficiariasFiltradas.slice(inicio, inicio + ITENS_POR_PAGINA)
+  }, [beneficiariasFiltradas, paginaBen])
+
   // Paginação Concessionária
   const totalPaginasCredenciais = Math.max(
     1,
@@ -903,6 +1118,17 @@ export function IntegracoesRgePage() {
           >
             Gerenciar Faturas
           </button>
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('beneficiarias')}
+            className={`pb-2.5 text-xl font-bold tracking-tight transition-colors border-b-2 ${
+              abaAtiva === 'beneficiarias'
+                ? 'text-blue-600 border-blue-600'
+                : 'text-slate-600 border-transparent hover:text-slate-900'
+            }`}
+          >
+            Gestão de Beneficiárias
+          </button>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -1064,9 +1290,9 @@ export function IntegracoesRgePage() {
                                 <Upload className="w-4 h-4 mr-2" />
                                 Anexar conta baixada
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => abrirContasDaUc(c)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                Ver contas da UC
+                              <DropdownMenuItem onClick={() => abrirBeneficiarias(c)}>
+                                <Users className="w-4 h-4 mr-2" />
+                                Gerenciar beneficiárias
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -1093,8 +1319,32 @@ export function IntegracoesRgePage() {
 
                         <td className="py-3 px-4 text-slate-700">{c.login || '-'}</td>
 
-                        <td className="py-3 px-4 text-slate-400 tracking-widest text-xs font-mono">
-                          ••••••••
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-400 tracking-widest text-xs font-mono">
+                              {senhasVisiveis[c.id] ? senhasVisiveis[c.id] : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              title={senhasVisiveis[c.id] ? 'Ocultar senha' : 'Mostrar senha'}
+                              onClick={() => alternarSenha(c)}
+                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                              {senhasVisiveis[c.id] ? (
+                                <EyeOff className="w-3.5 h-3.5" />
+                              ) : (
+                                <Eye className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              title="Alterar senha"
+                              onClick={() => abrirEditarSenha(c)}
+                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
 
                         <td className="py-3 px-4">
@@ -1421,6 +1671,149 @@ export function IntegracoesRgePage() {
               </Button>
             </div>
           </div>
+        ) : (
+          /* (5) Aba Gestão de Beneficiárias */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/40 text-[11px] font-semibold text-slate-500 uppercase tracking-wider select-none">
+                  <th className="py-3.5 pl-6 pr-2 w-10 text-slate-400">
+                    <span className="sr-only">Ações</span>
+                  </th>
+                  <th className="py-3.5 px-4">UNIDADE</th>
+                  <th className="py-3.5 px-4">Nº DA UC</th>
+                  <th className="py-3.5 px-4">DISTRIBUIÇÃO</th>
+                  <th className="py-3.5 px-4">ALERTAS</th>
+                  <th className="py-3.5 px-4">CONCESSIONÁRIA</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {beneficiariasFiltradas.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500">
+                      Nenhuma beneficiária cadastrada.
+                      <br />
+                      <span className="text-xs">
+                        Use o menu da aba Gerenciar Concessionária → Gerenciar beneficiárias.
+                      </span>
+                    </td>
+                  </tr>
+                ) : (
+                  beneficiariasPaginadas.map((b) => {
+                    const cred = credenciais.find((k) => k.id === b.credencial_id)
+                    const rot = b.rotulo || resolverRotuloBen(b)
+                    const pct = b.percentual
+                    return (
+                      <tr key={b.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 pl-6 pr-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Ações da beneficiária"
+                                className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-52">
+                              <DropdownMenuItem onClick={() => editarBeneficiaria(b)}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => removerBeneficiaria(b)}
+                                className="text-rose-600 focus:text-rose-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Remover
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-slate-800">{rot}</span>
+                            <span className="text-[11px] text-slate-400">
+                              Geradora: {cred?.uc || b.credencial_id}
+                              {cred?.rotulo ? ` · ${cred.rotulo}` : ''}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-xs text-slate-600">{b.uc}</td>
+                        <td className="py-3 px-4">
+                          {pct != null ? (
+                            <span
+                              className={`inline-flex items-center gap-1 font-semibold ${
+                                pct === 0 ? 'text-slate-400' : 'text-blue-600'
+                              }`}
+                            >
+                              {pct}%
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-[11px] font-medium text-slate-400 tracking-wide">
+                            SEM ALERTA
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-blue-600">RGE</td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+
+            <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-white">
+              <span className="text-xs text-slate-500">
+                Mostrando {beneficiariasPaginadas.length} de {beneficiariasFiltradas.length} itens
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={paginaBen <= 1}
+                  onClick={() => setPaginaBen((p) => Math.max(1, p - 1))}
+                  className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900"
+                  aria-label="Página anterior beneficiárias"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                {Array.from({ length: totalPaginasBen }).map((_, idx) => {
+                  const num = idx + 1
+                  const ativa = paginaBen === num
+                  return (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setPaginaBen(num)}
+                      className={`h-8 w-8 rounded text-xs font-semibold transition-colors ${
+                        ativa
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  )
+                })}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={paginaBen >= totalPaginasBen}
+                  onClick={() => setPaginaBen((p) => Math.min(totalPaginasBen, p + 1))}
+                  className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900"
+                  aria-label="Próxima página beneficiárias"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -1558,6 +1951,183 @@ export function IntegracoesRgePage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Alterar Senha */}
+      <Dialog open={modalSenhaAberto} onOpenChange={setModalSenhaAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar senha do portal</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSalvarSenha} className="space-y-4 pt-2">
+            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600">
+              <div>
+                <strong>UC:</strong> {senhaCredencial?.uc}
+              </div>
+              <div>
+                <strong>Login:</strong> {senhaCredencial?.login || '-'}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">Nova senha</label>
+              <Input
+                type="text"
+                value={novaSenhaEdit}
+                onChange={(e) => setNovaSenhaEdit(e.target.value)}
+                placeholder="Digite a senha do portal da RGE"
+                autoFocus
+                required
+              />
+            </div>
+            <p className="text-[11px] text-slate-400">
+              A senha fica guardada no CRM e é usada só pelo robô. Ao salvar, o status volta para
+              «novo» e o robô busca as contas na próxima rodada.
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setModalSenhaAberto(false)}
+                disabled={salvando}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={salvando}>
+                {salvando ? 'Salvando...' : 'Salvar senha'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Beneficiárias da credencial */}
+      <Dialog open={modalBenAberto} onOpenChange={setModalBenAberto}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-blue-600" />
+              Beneficiárias — UC {benCredencial?.uc}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <form onSubmit={handleSalvarBeneficiaria} className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-600">Nº da UC *</label>
+                  <Input
+                    value={fBenUc}
+                    onChange={(e) => setFBenUc(e.target.value)}
+                    placeholder="Ex.: 94509700157"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-600">Nome / Apelido</label>
+                  <Input
+                    value={fBenRotulo}
+                    onChange={(e) => setFBenRotulo(e.target.value)}
+                    placeholder="Ex.: Flavio Tirello — Av Tiradentes"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-600">Distribuição (%)</label>
+                  <Input
+                    value={fBenPercentual}
+                    onChange={(e) => setFBenPercentual(e.target.value)}
+                    placeholder="Ex.: 15"
+                    inputMode="decimal"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Observação</label>
+                <Input
+                  value={fBenObs}
+                  onChange={(e) => setFBenObs(e.target.value)}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={salvandoBen}
+                >
+                  <UserPlus className="w-4 h-4 mr-1.5" />
+                  {benEmEdicao ? 'Salvar alterações' : 'Adicionar beneficiária'}
+                </Button>
+                {benEmEdicao && (
+                  <Button type="button" variant="outline" onClick={limparFormBen}>
+                    Cancelar edição
+                  </Button>
+                )}
+                <span className="text-[11px] text-slate-400 ml-auto">
+                  O robô usa o mesmo login desta UC para baixar a conta de cada beneficiária.
+                </span>
+              </div>
+            </form>
+
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-slate-50/60 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="py-2 px-3">Unidade</th>
+                    <th className="py-2 px-3">Nº da UC</th>
+                    <th className="py-2 px-3">Distribuição</th>
+                    <th className="py-2 px-3 w-16"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {beneficiarias.filter((b) => b.credencial_id === benCredencial?.id).length ===
+                  0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-slate-500 text-xs">
+                        Nenhuma beneficiária cadastrada para esta UC.
+                      </td>
+                    </tr>
+                  ) : (
+                    beneficiarias
+                      .filter((b) => b.credencial_id === benCredencial?.id)
+                      .map((b) => (
+                        <tr key={b.id} className="hover:bg-slate-50/60">
+                          <td className="py-2 px-3">{resolverRotuloBen(b)}</td>
+                          <td className="py-2 px-3 font-mono text-xs">{b.uc}</td>
+                          <td className="py-2 px-3 font-semibold text-blue-600">
+                            {b.percentual != null ? `${b.percentual}%` : '—'}
+                          </td>
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => editarBeneficiaria(b)}
+                                className="p-1 rounded text-slate-400 hover:text-blue-600"
+                                title="Editar"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removerBeneficiaria(b)}
+                                className="p-1 rounded text-slate-400 hover:text-rose-600"
+                                title="Remover"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setModalBenAberto(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
