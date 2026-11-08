@@ -18,7 +18,16 @@ routerAdd(
       } catch (err) {}
       if (!ok) return e.json(403, { ok: false, error: 'Somente administradores' })
 
-      var recs = $app.findRecordsByFilter('rge_credenciais', '', '-created', 300, 0)
+      var recs = []
+      try {
+        recs = $app.findRecordsByFilter('rge_credenciais', '', '-id', 300, 0)
+      } catch (errSort) {
+        try {
+          recs = $app.findRecordsByFilter('rge_credenciais', '', '', 300, 0)
+        } catch (errFallback) {
+          recs = []
+        }
+      }
       var itens = []
       for (var j = 0; j < recs.length; j++) {
         var r = recs[j]
@@ -262,7 +271,16 @@ routerAdd(
       var q = e.requestInfo().query || {}
       var filtro = ''
       if (q.uc) filtro = 'uc = "' + String(q.uc).replace(/\D/g, '') + '"'
-      var recs = $app.findRecordsByFilter('rge_contas', filtro, '-created', 100, 0)
+      var recs = []
+      try {
+        recs = $app.findRecordsByFilter('rge_contas', filtro, '-id', 100, 0)
+      } catch (errSort) {
+        try {
+          recs = $app.findRecordsByFilter('rge_contas', filtro, '', 100, 0)
+        } catch (errFallback) {
+          recs = []
+        }
+      }
       var itens = []
       for (var i = 0; i < recs.length; i++) {
         var r = recs[i]
