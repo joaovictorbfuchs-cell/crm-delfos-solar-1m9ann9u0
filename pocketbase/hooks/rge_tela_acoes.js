@@ -112,10 +112,12 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
       var lg = String(u.getString('portal_login') || '').trim()
       var sn = String(u.getString('portal_senha') || '').trim()
       if (!lg && !sn) continue
+      var ucBruta = String(u.getString('numero_uc') || '').trim()
       achadas.push({
         usina_id: u.id,
         usina_nome: u.getString('nome'),
-        uc: String(u.getString('numero_uc') || '').replace(/\\D/g, ''),
+        uc: ucBruta.replace(/\\D/g, ''),
+        ucOriginal: ucBruta,
         login: lg,
         tem_senha: !!sn,
         senha: sn,
@@ -152,6 +154,42 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
       if (!a.uc) {
         puladas.push({ usina: a.usina_nome, motivo: 'sem numero_uc preenchido' })
         continue
+      }
+      // UC da RGE tem 10 ou 11 dígitos. O que separa UC de CPF é o FORMATO
+      // original: UC aparece como "200.419.001-19" (sempre com pontos no campo).
+      // CPF digitado no lugar da UC aparece como "383.904.420-00" — mesmo
+      // formato, então checamos também o valor.
+      if (a.uc.length < 10 || a.uc.length > 11) {
+        puladas.push({ usina: a.usina_nome, uc: a.uc, motivo: 'numero_uc nao parece uma UC' })
+        continue
+      }
+      if (a.ucOriginal && a.ucOriginal.indexOf('.') < 0) {
+        puladas.push({
+          usina: a.usina_nome,
+          uc: a.uc,
+          motivo: 'numero_uc sem o formato NNN.NNN.NNN-NN — conferir na ficha',
+        })
+        continue
+      }
+      // CPF tem 11 dígitos e o dígito verificador calculável: se fechar a conta
+      // do CPF, é CPF e não UC.
+      if (a.uc.length === 11) {
+        var d1 = 0
+        for (var cp = 0; cp < 9; cp++) d1 += Number(a.uc.charAt(cp)) * (10 - cp)
+        d1 = (d1 * 10) % 11
+        if (d1 === 10) d1 = 0
+        var d2 = 0
+        for (var cq = 0; cq < 10; cq++) d2 += Number(a.uc.charAt(cq)) * (11 - cq)
+        d2 = (d2 * 10) % 11
+        if (d2 === 10) d2 = 0
+        if (d1 === Number(a.uc.charAt(9)) && d2 === Number(a.uc.charAt(10))) {
+          puladas.push({
+            usina: a.usina_nome,
+            uc: a.uc,
+            motivo: 'o numero confere como CPF, nao como UC — conferir na ficha',
+          })
+          continue
+        }
       }
       if (!a.tem_senha) {
         puladas.push({ usina: a.usina_nome, uc: a.uc, motivo: 'sem senha preenchida' })
