@@ -1,9 +1,13 @@
 // RGE/CPFL — recebimento de contas vindas do robo no PC da Delfos.
+//
 // Rotas:
-//   POST /backend/v1/rge/receber-conta   (autenticada por X-Robo-Secret)
-//   GET  /backend/v1/rge/contas-pdf      (lista contas com flag tem_pdf)
-//   GET  /backend/v1/rge/conta-por-id    (devolve o base64 de uma conta)
+//   POST /backend/v1/rge/receber-conta   (auth por X-Robo-Secret)
 //   GET  /backend/v1/rge/robo-ping       (diagnostico do segredo)
+//   GET  /backend/v1/rge/contas-pdf      (lista contas, marcando tem_pdf)
+//   GET  /backend/v1/rge/conta-por-id    (qual o arquivo PDF de uma conta)
+//
+// O PDF vai como ARQUIVO (campo arquivo_pdf), nao como texto:
+// o campo de texto tem limite de 5.000 caracteres e a conta tem ~770 mil.
 //
 // Segredo: $secrets.get('RGE_ROBO_SECRET').
 // As SENHAS da CPFL NAO passam por aqui: ficam apenas no PC da Delfos.
@@ -31,6 +35,15 @@ routerAdd(
       if (b64.length < 1000)
         return e.json(400, { ok: false, error: 'pdf_base64 ausente ou muito pequeno' })
 
+      var bytes = null
+      try {
+        bytes = $filesystem.base64ToBytes(b64)
+      } catch (eDec) {
+        return e.json(400, { ok: false, error: 'base64 invalido: ' + String(eDec).slice(0, 150) })
+      }
+      if (!bytes || bytes.length < 1000)
+        return e.json(400, { ok: false, error: 'PDF vazio apos decodificar' })
+
       var tipo = String(body.tipo == null ? '' : body.tipo).toLowerCase()
       var filtro = 'uc = "' + uc + '" && competencia = "' + competencia + '"'
       var achados = []
@@ -54,6 +67,12 @@ routerAdd(
       }
       if (!rec) rec = new Record($app.findCollectionByNameOrId('rge_contas'))
 
+      var nomeArq = String(body.nome_arquivo || 'conta-' + uc + '-' + competencia + '.pdf').slice(
+        0,
+        180,
+      )
+      if (!/\.pdf$/i.test(nomeArq)) nomeArq = nomeArq + '.pdf'
+
       rec.set('uc', uc)
       rec.set('competencia', competencia)
       if (body.vencimento !== undefined) rec.set('vencimento', String(body.vencimento).slice(0, 20))
@@ -65,11 +84,7 @@ routerAdd(
         var k = Number(body.consumo_kwh)
         if (!isNaN(k)) rec.set('consumo_kwh', k)
       }
-      rec.set(
-        'nome_arquivo',
-        String(body.nome_arquivo || 'conta-' + uc + '-' + competencia + '.pdf').slice(0, 200),
-      )
-      rec.set('pdf_base64', b64)
+      rec.set('nome_arquivo', nomeArq)
       rec.set('origem', 'robo')
       if (body.cliente_id) rec.set('cliente_id', body.cliente_id)
       if (body.usina_id) rec.set('usina_id', body.usina_id)
@@ -81,8 +96,11 @@ routerAdd(
         endereco: String(body.endereco || '').slice(0, 300),
         url_conta: String(body.url_conta || '').slice(0, 400),
         recebido_em: new Date().toISOString(),
-        bytes: b64.length,
+        bytes: bytes.length,
       })
+
+      var f = $filesystem.fileFromBytes(bytes, nomeArq)
+      rec.set('arquivo_pdf', f)
       $app.save(rec)
 
       return e.json(200, {
@@ -91,7 +109,7 @@ routerAdd(
         uc: uc,
         competencia: competencia,
         tipo: tipo,
-        kb: Math.round(b64.length / 1024),
+        kb: Math.round(bytes.length / 1024),
       })
     } catch (err) {
       return e.json(400, { ok: false, error: String(err).slice(0, 400) })
@@ -99,6 +117,18 @@ routerAdd(
   },
   $apis.bodyLimit(30 * 1024 * 1024),
 )
+
+routerAdd('GET', '/backend/v1/rge/robo-ping', (e) => {
+  try {
+    var segredo = $secrets.get('RGE_ROBO_SECRET') || ''
+    if (!segredo) return e.json(500, { ok: false, error: 'RGE_ROBO_SECRET nao configurado' })
+    var enviado = e.request.header.get('X-Robo-Secret') || ''
+    if (enviado !== segredo) return e.json(401, { ok: false, error: 'Segredo invalido' })
+    return e.json(200, { ok: true, hora: new Date().toISOString() })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err) })
+  }
+})
 
 routerAdd(
   'GET',
@@ -120,15 +150,20 @@ routerAdd(
         }
       }
       var itens = []
-      for (var i = 0; i < recs.length; i++) {
-        var r = recs[i]
+      for (var j = 0; j < recs.length; j++) {
+        var r = recs[j]
         var dd = null
         try {
           dd = r.get('dados')
         } catch (e3) {}
         var temPdf = false
+        var nomeArq = r.getString('nome_arquivo') || ''
         try {
-          temPdf = String(r.getString('pdf_base64') || '').length > 1000
+          var arqs = r.getStringSlice('arquivo_pdf')
+          if (arqs && arqs.length > 0) {
+            temPdf = true
+            if (!nomeArq) nomeArq = arqs[0]
+          }
         } catch (e4) {}
         itens.push({
           id: r.id,
@@ -137,7 +172,7 @@ routerAdd(
           vencimento: r.getString('vencimento'),
           valor: r.getFloat('valor'),
           consumo_kwh: r.getFloat('consumo_kwh'),
-          nome_arquivo: r.getString('nome_arquivo'),
+          nome_arquivo: nomeArq,
           origem: r.getString('origem'),
           tem_pdf: temPdf,
           tipo: dd && dd.tipo ? dd.tipo : '',
@@ -159,16 +194,19 @@ routerAdd(
   (e) => {
     try {
       if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
-      var q = e.requestInfo().query || {}
-      if (!q.id) return e.json(400, { ok: false, error: 'Informe id' })
-      var rec = $app.findRecordById('rge_contas', q.id)
-      var b64 = String(rec.getString('pdf_base64') || '')
-      if (b64.length < 1000)
-        return e.json(200, { ok: false, error: 'Esta conta nao tem PDF salvo' })
+      var q2 = e.requestInfo().query || {}
+      if (!q2.id) return e.json(400, { ok: false, error: 'Informe id' })
+      var rec = $app.findRecordById('rge_contas', q2.id)
+      var arqs = []
+      try {
+        arqs = rec.getStringSlice('arquivo_pdf')
+      } catch (e2) {}
+      if (!arqs || !arqs.length)
+        return e.json(200, { ok: false, error: 'Esta conta ainda nao tem PDF salvo' })
       return e.json(200, {
         ok: true,
-        nome_arquivo: rec.getString('nome_arquivo') || 'conta.pdf',
-        base64: b64,
+        nome_arquivo: rec.getString('nome_arquivo') || arqs[0],
+        arquivo: String(arqs[0]),
       })
     } catch (err) {
       return e.json(400, { ok: false, error: String(err).slice(0, 400) })
@@ -176,15 +214,3 @@ routerAdd(
   },
   $apis.requireAuth(),
 )
-
-routerAdd('GET', '/backend/v1/rge/robo-ping', (e) => {
-  try {
-    var segredo = $secrets.get('RGE_ROBO_SECRET') || ''
-    if (!segredo) return e.json(500, { ok: false, error: 'RGE_ROBO_SECRET nao configurado' })
-    var enviado = e.request.header.get('X-Robo-Secret') || ''
-    if (enviado !== segredo) return e.json(401, { ok: false, error: 'Segredo invalido' })
-    return e.json(200, { ok: true, hora: new Date().toISOString() })
-  } catch (err) {
-    return e.json(400, { ok: false, error: String(err) })
-  }
-})
