@@ -113,10 +113,16 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
       var sn = String(u.getString('portal_senha') || '').trim()
       if (!lg && !sn) continue
       var ucBruta = String(u.getString('numero_uc') || '').trim()
+      // limpa sem regex (o escape de \\D se perde ao salvar o hook)
+      var ucNum = ''
+      for (var q = 0; q < ucBruta.length; q++) {
+        var ch = ucBruta.charAt(q)
+        if (ch >= '0' && ch <= '9') ucNum += ch
+      }
       achadas.push({
         usina_id: u.id,
         usina_nome: u.getString('nome'),
-        uc: ucBruta.replace(/\\D/g, ''),
+        uc: ucNum,
         ucOriginal: ucBruta,
         login: lg,
         tem_senha: !!sn,
