@@ -249,7 +249,35 @@ routerAdd('GET', '/backend/v1/rge/fila-do-robo', (e) => {
         var cp = String(contas[c].getString('competencia') || '')
         if (cp) comps.push(cp)
       }
-      comps.sort()
+      // "2026-out" ordenado como TEXTO deixa out antes de set, e a "mais recente"
+      // saia errada (set/2026). Converte para ano*12+mes antes de comparar.
+      var MESES_ = [
+        'jan',
+        'fev',
+        'mar',
+        'abr',
+        'mai',
+        'jun',
+        'jul',
+        'ago',
+        'set',
+        'out',
+        'nov',
+        'dez',
+      ]
+      comps.sort(function (a, b) {
+        var na = 0
+        var nb = 0
+        var ma = String(a)
+          .toLowerCase()
+          .match(/^(\d{4})-([a-z]{3})$/)
+        var mb = String(b)
+          .toLowerCase()
+          .match(/^(\d{4})-([a-z]{3})$/)
+        if (ma) na = Number(ma[1]) * 12 + MESES_.indexOf(ma[2])
+        if (mb) nb = Number(mb[1]) * 12 + MESES_.indexOf(mb[2])
+        return na - nb
+      })
 
       itens.push({
         id: r.id,
