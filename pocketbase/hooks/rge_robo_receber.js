@@ -64,24 +64,24 @@ routerAdd(
       if (pos < outLen) bytes = bytes.subarray(0, pos)
 
       var tipo = String(body.tipo == null ? '' : body.tipo).toLowerCase()
+
+      // Uma conta por UC + mes. Casa so por esses dois campos: o `dados` JSON
+      // nao volta como objeto confiavel aqui, e comparar por ele criava duplicata.
       var filtro = 'uc = "' + uc + '" && competencia = "' + competencia + '"'
       var achados = []
       try {
-        achados = $app.findRecordsByFilter('rge_contas', filtro, '', 5, 0)
+        achados = $app.findRecordsByFilter('rge_contas', filtro, '', 10, 0)
       } catch (err) {
         achados = []
       }
 
-      var rec = null
-      for (var i = 0; i < achados.length; i++) {
-        var t = ''
-        try {
-          var dd = achados[i].get('dados')
-          t = dd && dd.tipo ? String(dd.tipo) : ''
-        } catch (e2) {}
-        if (t === tipo) {
-          rec = achados[i]
-          break
+      var rec = achados.length ? achados[0] : null
+      // limpa duplicatas antigas do mesmo mes, se houver
+      if (achados.length > 1) {
+        for (var d = 1; d < achados.length; d++) {
+          try {
+            $app.delete(achados[d])
+          } catch (eDel) {}
         }
       }
       if (!rec) rec = new Record($app.findCollectionByNameOrId('rge_contas'))
