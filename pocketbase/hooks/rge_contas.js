@@ -418,7 +418,7 @@ routerAdd(
 // ---------------- senha: gravar (lapis) ----------------
 routerAdd(
   'POST',
-  '/backend/v1/rge/senha',
+  '/backend/v1/rge/credencial-senha',
   (e) => {
     try {
       if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticacao necessaria' })
@@ -442,7 +442,7 @@ routerAdd(
 // ---------------- beneficiarias: listar ----------------
 routerAdd(
   'GET',
-  '/backend/v1/rge/beneficiarias',
+  '/backend/v1/rge/beneficiarias-uc',
   (e) => {
     try {
       if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticacao necessaria' })
@@ -481,7 +481,7 @@ routerAdd(
 // ---------------- beneficiarias: criar/atualizar ----------------
 routerAdd(
   'POST',
-  '/backend/v1/rge/beneficiarias',
+  '/backend/v1/rge/beneficiarias-uc',
   (e) => {
     try {
       if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticacao necessaria' })
@@ -537,7 +537,7 @@ routerAdd(
 // ---------------- beneficiarias: remover ----------------
 routerAdd(
   'DELETE',
-  '/backend/v1/rge/beneficiarias',
+  '/backend/v1/rge/beneficiarias-uc',
   (e) => {
     try {
       if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticacao necessaria' })

@@ -301,7 +301,7 @@ export function IntegracoesRgePage() {
 
       // beneficiárias (coleção pode não existir em instalações antigas)
       try {
-        const rBen = await chamar<{ ok: boolean; itens: Beneficiaria[] }>('/rge/beneficiarias')
+        const rBen = await chamar<{ ok: boolean; itens: Beneficiaria[] }>('/rge/beneficiarias-uc')
         if (rBen && rBen.itens) setBeneficiarias(rBen.itens)
       } catch {
         setBeneficiarias([])
@@ -530,7 +530,7 @@ export function IntegracoesRgePage() {
     }
     try {
       const res = await chamar<{ ok: boolean; senha?: string; error?: string }>(
-        `/rge/senha?credencial_id=${encodeURIComponent(c.id)}`,
+        `/rge/credencial-senha?credencial_id=${encodeURIComponent(c.id)}`,
       )
       if (!res.ok) throw new Error(res.error || 'Não foi possível ler a senha')
       if (!res.senha) {
@@ -562,7 +562,7 @@ export function IntegracoesRgePage() {
     }
     setSalvando(true)
     try {
-      await chamar('/rge/senha', {
+      await chamar('/rge/credencial-senha', {
         method: 'POST',
         body: JSON.stringify({ credencial_id: senhaCredencial.id, senha: novaSenhaEdit }),
       })
@@ -618,7 +618,7 @@ export function IntegracoesRgePage() {
     }
     setSalvandoBen(true)
     try {
-      await chamar('/rge/beneficiarias', {
+      await chamar('/rge/beneficiarias-uc', {
         method: 'POST',
         body: JSON.stringify({
           id: benEmEdicao?.id,
@@ -630,7 +630,7 @@ export function IntegracoesRgePage() {
           ativo: true,
         }),
       })
-      const r = await chamar<{ ok: boolean; itens: Beneficiaria[] }>('/rge/beneficiarias')
+      const r = await chamar<{ ok: boolean; itens: Beneficiaria[] }>('/rge/beneficiarias-uc')
       setBeneficiarias(r.itens || [])
       limparFormBen()
       toast({ title: 'Beneficiária salva' })
@@ -644,7 +644,7 @@ export function IntegracoesRgePage() {
 
   const removerBeneficiaria = async (b: Beneficiaria) => {
     try {
-      await chamar(`/rge/beneficiarias?id=${encodeURIComponent(b.id)}`, { method: 'DELETE' })
+      await chamar(`/rge/beneficiarias-uc?id=${encodeURIComponent(b.id)}`, { method: 'DELETE' })
       setBeneficiarias((prev) => prev.filter((x) => x.id !== b.id))
       toast({ title: 'Beneficiária removida' })
     } catch (err: unknown) {
