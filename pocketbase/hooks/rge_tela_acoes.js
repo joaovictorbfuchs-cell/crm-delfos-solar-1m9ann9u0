@@ -175,6 +175,33 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
     var puladas = []
     var migradosIds = []
 
+    // Completa o DOCUMENTO (CPF/CNPJ do titular) das credenciais que já existem.
+    // O robô usa esse número para achar o titular no portal. Roda sempre, mesmo
+    // quando não há nada novo para migrar.
+    var docsCompletados = 0
+    var credsExistentes = []
+    try {
+      credsExistentes = $app.findRecordsByFilter('rge_credenciais', '', '', 500, 0)
+    } catch (eCE) {
+      credsExistentes = []
+    }
+    for (var cc = 0; cc < credsExistentes.length; cc++) {
+      var recC = credsExistentes[cc]
+      if (String(recC.getString('documento') || '')) continue
+      var ucC = String(recC.getString('uc') || '')
+      var mapa = mapaUsinaPorUc[ucC]
+      if (!mapa || !mapa.doc) continue
+      var docLimpo = ''
+      for (var qx = 0; qx < mapa.doc.length; qx++) {
+        var cx = mapa.doc.charAt(qx)
+        if (cx >= '0' && cx <= '9') docLimpo += cx
+      }
+      if (!docLimpo) continue
+      recC.set('documento', docLimpo)
+      $app.save(recC)
+      docsCompletados++
+    }
+
     for (var k = 0; k < achadas.length; k++) {
       var a = achadas[k]
       if (!a.uc) {
@@ -268,6 +295,7 @@ routerAdd('POST', '/backend/v1/rge/migrar-credenciais-usinas', (e) => {
       criadas: criadas,
       atualizadas: atualizadas,
       usinas_limpas: limpas,
+      docs_completados: docsCompletados,
       campos_limpos: limparCampos,
       puladas: puladas,
     })
