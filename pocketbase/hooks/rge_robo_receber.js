@@ -144,6 +144,25 @@ routerAdd('GET', '/backend/v1/rge/robo-ping', (e) => {
     var enviado = e.request.header.get('X-Robo-Secret') || ''
     if (enviado !== segredo) return e.json(401, { ok: false, error: 'Segredo invalido' })
 
+    // diagnostico dos arquivos PDF
+    var comArquivo = 0
+    var detalhe = []
+    try {
+      var todos = $app.findRecordsByFilter('rge_contas', '', '', 50, 0)
+      for (var i = 0; i < todos.length; i++) {
+        var arqs = []
+        try {
+          arqs = todos[i].getStringSlice('arquivo_pdf')
+        } catch (eA) {}
+        if (arqs && arqs.length) comArquivo++
+        detalhe.push({
+          id: todos[i].id,
+          uc: todos[i].getString('uc'),
+          arq: arqs && arqs.length ? arqs[0] : '',
+        })
+      }
+    } catch (eD) {}
+
     // diagnostico: quantas contas existem e como o filtro se comporta
     var info = { ok: true, hora: new Date().toISOString() }
     try {
@@ -177,6 +196,8 @@ routerAdd('GET', '/backend/v1/rge/robo-ping', (e) => {
     } catch (eDiag) {
       info.diag_erro = String(eDiag).slice(0, 300)
     }
+    info.com_arquivo = comArquivo
+    info.arquivos = detalhe
     return e.json(200, info)
   } catch (err) {
     return e.json(400, { ok: false, error: String(err) })
