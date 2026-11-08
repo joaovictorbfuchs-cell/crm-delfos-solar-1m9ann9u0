@@ -28,43 +28,46 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.isAbort === true) return true
-    if (errObj.name === 'AbortError') return true
-    if (typeof errObj.message === 'string' && errObj.message.includes('autocancelled')) return true
-  }
-  return false
-}
-
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.isAbort === true) return false
-    const status =
-      (errObj.status as number) ||
-      (errObj.statusCode as number) ||
-      ((errObj.response as any)?.status as number)
-    if (status === 401 || status === 403) return true
-    const msg = typeof errObj.message === 'string' ? errObj.message.toLowerCase() : ''
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('sessão expirada') ||
-      msg.includes('login expirou') ||
-      msg.includes('failed to authenticate')
-    ) {
-      return true
-    }
+  const err = error as Record<string, unknown>
+  const status =
+    err.status ??
+    err.statusCode ??
+    (err.response && typeof err.response === 'object'
+      ? (err.response as Record<string, unknown>).status
+      : undefined)
+
+  if (status === 401 || status === 403) return true
+
+  const msg =
+    (typeof err.message === 'string' && err.message) ||
+    (typeof (err.response as Record<string, unknown> | undefined)?.message === 'string' &&
+      ((err.response as Record<string, unknown>).message as string)) ||
+    ''
+
+  const lower = msg.toLowerCase()
+  if (
+    lower.includes('token is expired') ||
+    lower.includes('sessão expirada') ||
+    lower.includes('sessao expirada') ||
+    lower.includes('login expirou') ||
+    lower.includes('failed to authenticate')
+  ) {
+    return true
   }
+
   return false
 }
 
-export function formatPbError(error: unknown, fallback = 'Ocorreu um erro inesperado.'): string {
-  if (!error) return fallback
-  if (isAbortError(error)) return 'Requisição cancelada.'
-  if (isAuthSessionError(error)) return 'Sua sessão expirou. Faça login novamente.'
-  return getErrorMessage(error) || fallback
+export function isAbortError(error: unknown): boolean {
+  if (!error) return false
+  const err = error as Record<string, unknown>
+  if (err.isAbort === true) return true
+  if (err.name === 'AbortError') return true
+  return false
+}
+
+export function formatPbError(error: unknown): string {
+  return getErrorMessage(error)
 }

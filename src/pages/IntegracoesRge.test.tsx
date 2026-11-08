@@ -1,106 +1,213 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import React from 'react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { IntegracoesRgePage } from '@/pages/IntegracoesRge'
 
 describe('IntegracoesRgePage', () => {
+  const originalFetch = global.fetch
+
   beforeEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('renderiza e carrega credenciais e contas com sucesso sem erro 400', async () => {
-    const credenciaisMock = [
-      {
-        id: 'rec_cred_1',
-        uc: '20041900119',
-        rotulo: 'Usina Matriz',
-        login: 'joao@delfosengenharia.com.br',
-        tem_senha: true,
-        tem_token: false,
-        modo_auth: 'senha',
-        status: 'novo',
-        ativo: true,
-      },
-    ]
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
 
-    const contasMock = [
-      {
-        id: 'rec_conta_1',
-        uc: '20041900119',
-        competencia: '2026-10',
-        consumo_kwh: 1450,
-        nome_arquivo: 'conta-20041900119.pdf',
-        created: '2026-11-08T10:00:00Z',
+  const mockCredenciais = [
+    {
+      id: 'cred-1',
+      uc: '80203300140',
+      login: 'carlosortizalberto15@gmail.com',
+      rotulo: 'Carlos Ortiz',
+      status: 'ok',
+      ultimo_login: new Date(Date.now() - 30 * 86400000).toISOString(),
+      cliente_id: 'cli-1',
+      expand: {
+        cliente_id: { id: 'cli-1', nome: 'Carlos Ortiz' },
       },
-    ]
+    },
+    {
+      id: 'cred-2',
+      uc: '27136200162',
+      login: 'claitongasparetto5729@gmail.com',
+      rotulo: 'Claiton Gasparetto',
+      status: 'ok',
+      ultimo_login: new Date(Date.now() - 30 * 86400000).toISOString(),
+    },
+    {
+      id: 'cred-3',
+      uc: '19131100122',
+      login: 'jaque.lupges@gmail.com',
+      rotulo: 'SERGIO LUPGES',
+      status: 'erro',
+      ultimo_erro: 'Token expirado',
+      ultimo_login: new Date(Date.now() - 60 * 86400000).toISOString(),
+    },
+  ]
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
+  const mockContas = [
+    {
+      id: 'conta-1',
+      uc: '80203300140',
+      competencia: '2026-11',
+      consumo_kwh: 340,
+      origem: 'automático',
+      created: new Date(Date.now() - 3600000).toISOString(),
+      credencial_id: 'cred-1',
+    },
+    {
+      id: 'conta-2',
+      uc: '19131100122',
+      competencia: '2026-11',
+      consumo_kwh: 520,
+      origem: 'manual',
+      created: new Date(Date.now() - 2 * 3600000).toISOString(),
+      credencial_id: 'cred-3',
+    },
+  ]
+
+  function setupFetchMock(opts: { failCredenciais?: boolean } = {}) {
+    global.fetch = vi.fn().mockImplementation((url: RequestInfo | URL) => {
       const urlStr = String(url)
       if (urlStr.includes('/backend/v1/rge/credenciais')) {
-        return new Response(JSON.stringify({ ok: true, itens: credenciaisMock }), {
+        if (opts.failCredenciais) {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: async () => ({
+              ok: false,
+              error: "Invalid sort field 'created'",
+            }),
+          })
+        }
+        return Promise.resolve({
+          ok: true,
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          json: async () => ({
+            ok: true,
+            itens: mockCredenciais,
+          }),
         })
       }
-      if (urlStr.includes('/backend/v1/rge/contas')) {
-        return new Response(JSON.stringify({ ok: true, itens: contasMock }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      }
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    })
 
+      if (urlStr.includes('/backend/v1/rge/contas')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            itens: mockContas,
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true }),
+      })
+    }) as unknown as typeof fetch
+  }
+
+  it('exibe os 3 cards de métricas no topo com contagens e badges corretos', async () => {
+    setupFetchMock()
     render(<IntegracoesRgePage />)
 
-    // Aguarda carregar
-    await waitFor(() => {
-      expect(screen.getByText('20041900119')).toBeTruthy()
-    })
+    // Card 1: Cadastradas (3) e 1 Pendentes
+    expect(await screen.findByText('Cadastradas')).toBeTruthy()
+    expect(screen.getByText('3')).toBeTruthy()
+    expect(screen.getByText('1 Pendentes')).toBeTruthy()
 
-    expect(screen.getByText('Usina Matriz')).toBeTruthy()
-    expect(screen.getByText('joao@delfosengenharia.com.br')).toBeTruthy()
-    expect(screen.queryByText(/GoError: invalid sort field/i)).toBeNull()
+    // Card 2: Sucesso (2) e 1 Falhas
+    expect(screen.getByText('Sucesso')).toBeTruthy()
+    expect(screen.getByText('2')).toBeTruthy()
+    expect(screen.getByText('1 Falhas')).toBeTruthy()
 
-    // Clicar em "Atualizar" deve recarregar sem erros
-    const btnAtualizar = screen.getByRole('button', { name: /Atualizar/i })
-    fireEvent.click(btnAtualizar)
+    // Card 3: Em Dia (2) e 01 Atrasadas
+    expect(screen.getByText('Em Dia')).toBeTruthy()
+    expect(screen.getByText('01 Atrasadas')).toBeTruthy()
+  })
 
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/backend/v1/rge/credenciais'),
-        expect.anything(),
-      )
-    })
+  it('renderiza abas Gerenciar Concessionária e Gerenciar Faturas e busca global', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
 
-    expect(screen.queryByText(/Não foi possível carregar a integração/i)).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Gerenciar Concessionária' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Gerenciar Faturas' })).toBeTruthy()
+    expect(screen.getByPlaceholderText('Buscar...')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Integrar Concessionária/i })).toBeTruthy()
+  })
+
+  it('exibe colunas da aba Gerenciar Concessionária com senha mascarada e status', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    expect(await screen.findByText('80203300140')).toBeTruthy()
+    expect(screen.getByText('carlosortizalberto15@gmail.com')).toBeTruthy()
+
+    // Senha mascarada
+    const mascaras = screen.getAllByText('••••••••')
+    expect(mascaras.length).toBeGreaterThan(0)
+
+    // Badges Integrado e Promover
+    expect(screen.getAllByText('Integrado').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Promover').length).toBeGreaterThanOrEqual(1)
+
+    // Link da concessionária RGE
+    expect(screen.getAllByText('RGE').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('alterna para a aba Gerenciar Faturas e exibe lista com competência formatada e alertas', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    const btnFaturas = await screen.findByRole('button', { name: 'Gerenciar Faturas' })
+    fireEvent.click(btnFaturas)
+
+    // Competência formatada NOV/2026
+    const competencias = await screen.findAllByText('NOV/2026')
+    expect(competencias.length).toBe(2)
+
+    // Alertas COM ERRO e SEM ALERTA
+    expect(screen.getByText('COM ERRO')).toBeTruthy()
+    expect(screen.getByText('SEM ALERTA')).toBeTruthy()
+
+    // Origens
+    expect(screen.getByText('AUTOMÁTICO')).toBeTruthy()
+    expect(screen.getByText('MANUAL')).toBeTruthy()
+  })
+
+  it('permite filtrar na busca global', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await screen.findByText('80203300140')
+
+    const inputBusca = screen.getByPlaceholderText('Buscar...')
+    fireEvent.change(inputBusca, { target: { value: 'carlosortiz' } })
+
+    // Deve manter apenas o carlos
+    expect(screen.getByText('80203300140')).toBeTruthy()
+    expect(screen.queryByText('27136200162')).toBeNull()
+  })
+
+  it('abre modal de Integrar Concessionária ao clicar no botão', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    const btnIntegrar = await screen.findByRole('button', { name: /Integrar Concessionária/i })
+    fireEvent.click(btnIntegrar)
+
+    expect(await screen.findByText('Integrar Concessionária RGE')).toBeTruthy()
+    expect(screen.getByText('Número da Unidade Consumidora (UC) *')).toBeTruthy()
   })
 
   it('exibe mensagem quando endpoint rge/credenciais retorna erro', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
-      const urlStr = String(url)
-      if (urlStr.includes('/backend/v1/rge/credenciais')) {
-        return new Response(
-          JSON.stringify({ ok: false, error: 'GoError: invalid sort field "created"' }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          },
-        )
-      }
-      return new Response(JSON.stringify({ ok: true, itens: [] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    })
-
+    setupFetchMock({ failCredenciais: true })
     render(<IntegracoesRgePage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/GoError: invalid sort field "created"/i)).toBeTruthy()
+      expect(screen.getByText("Invalid sort field 'created'")).toBeTruthy()
     })
   })
 })
