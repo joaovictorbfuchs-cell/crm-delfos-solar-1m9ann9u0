@@ -201,19 +201,17 @@ routerAdd(
       } catch (e2) {}
       if (!arqs || !arqs.length)
         return e.json(200, { ok: false, error: 'Esta conta ainda não tem PDF' })
-      // o arquivo exige auth; window.open não manda header -> token na query
+      // arqs[0] já é o nome REAL gravado (o PocketBase renomeia: pontos/traços
+      // viram "_" e ganha sufixo). Usar o nome do campo daria 404.
+      // O arquivo exige auth e window.open não manda header -> token na query.
       var tok = e.request.header.get('Authorization') || ''
-      var soToken = tok.replace(/^Bearer\s+/i, '')
+      var soToken = tok.replace(/^Bearer\s+/i, '').trim()
       return e.json(200, {
         ok: true,
         nome_arquivo: rec.getString('nome_arquivo') || arqs[0],
-        url:
-          '/api/files/rge_contas/' +
-          rec.id +
-          '/' +
-          arqs[0] +
-          '?token=' +
-          encodeURIComponent(soToken),
+        arquivo: String(arqs[0]),
+        url: '/api/files/rge_contas/' + rec.id + '/' + encodeURIComponent(String(arqs[0])),
+        token: soToken,
       })
     } catch (err) {
       return e.json(400, { ok: false, error: String(err).slice(0, 400) })

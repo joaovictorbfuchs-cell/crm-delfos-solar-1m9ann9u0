@@ -496,7 +496,17 @@ export function IntegracoesRgePage() {
         `/rge/url-pdf?id=${conta.id}`,
       )
       if (!res.ok || !res.url) throw new Error(res.error || 'PDF indisponível')
-      window.open(`${pb.baseUrl}${res.url}`, '_blank', 'noopener')
+
+      // baixa com o header de autenticação e abre o arquivo local: o arquivo do
+      // PocketBase exige auth e uma nova aba não manda o header
+      const r = await fetch(`${pb.baseUrl}${res.url}`, {
+        headers: { Authorization: `Bearer ${pb.authStore.token}` },
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status} ao buscar o PDF`)
+      const blob = await r.blob()
+      const objUrl = URL.createObjectURL(blob)
+      window.open(objUrl, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(objUrl), 60000)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       toast({ title: 'Erro ao abrir o PDF', description: msg, variant: 'destructive' })
