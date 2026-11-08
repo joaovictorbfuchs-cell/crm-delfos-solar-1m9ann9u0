@@ -935,9 +935,7 @@ export function IntegracoesRgePage() {
     if (busca.trim()) {
       const q = busca.toLowerCase().trim()
       lista = lista.filter(
-        (b) =>
-          b.uc.toLowerCase().includes(q) ||
-          resolverRotuloBen(b).toLowerCase().includes(q),
+        (b) => b.uc.toLowerCase().includes(q) || resolverRotuloBen(b).toLowerCase().includes(q),
       )
     }
     lista.sort((a, b) => {
@@ -1445,7 +1443,7 @@ export function IntegracoesRgePage() {
               </Button>
             </div>
           </div>
-        ) : (
+        ) : abaAtiva === 'faturas' ? (
           /* (4) Aba Gerenciar Faturas */
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
