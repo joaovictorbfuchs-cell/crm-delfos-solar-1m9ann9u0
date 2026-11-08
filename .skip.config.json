@@ -32,9 +32,9 @@
     "README.md"
   ],
   "deployment": {
-    "lastDevBuildRef": "abb442e",
-    "lastProdBuildRef": "abb442e",
-    "publishedAt": "2026-11-08T22:46:05.885Z",
-    "lastPublishedRef": "abb442e"
+    "lastDevBuildRef": "7a289a6",
+    "lastProdBuildRef": "7a289a6",
+    "publishedAt": "2026-11-08T23:39:42.768Z",
+    "lastPublishedRef": "7a289a6"
   }
 }
