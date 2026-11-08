@@ -201,10 +201,19 @@ routerAdd(
       } catch (e2) {}
       if (!arqs || !arqs.length)
         return e.json(200, { ok: false, error: 'Esta conta ainda não tem PDF' })
+      // o arquivo exige auth; window.open não manda header -> token na query
+      var tok = e.request.header.get('Authorization') || ''
+      var soToken = tok.replace(/^Bearer\s+/i, '')
       return e.json(200, {
         ok: true,
         nome_arquivo: rec.getString('nome_arquivo') || arqs[0],
-        url: '/api/files/rge_contas/' + rec.id + '/' + arqs[0],
+        url:
+          '/api/files/rge_contas/' +
+          rec.id +
+          '/' +
+          arqs[0] +
+          '?token=' +
+          encodeURIComponent(soToken),
       })
     } catch (err) {
       return e.json(400, { ok: false, error: String(err).slice(0, 400) })
