@@ -1,0 +1,214 @@
+// RGE — rotas novas da tela de Integrações:
+//   PATCH /backend/v1/rge/credenciais/{id}  -> editar UC/login/senha/rótulo/documento
+//   POST  /backend/v1/rge/anexar-conta      -> anexar PDF de conta baixada na mão
+//
+// Por que arquivo separado: o path de PATCH é distinto (com {id}) e o de anexar
+// é novo, então não colidem com as rotas de rge_contas.js (mesmo METODO+path
+// duplicado derruba o boot).
+//
+// Tudo inline (a VM do Skip não herda escopo de topo).
+
+routerAdd(
+  'PATCH',
+  '/backend/v1/rge/credenciais/{id}',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var id = String(e.request.pathValue('id') || '')
+      if (!id) return e.json(400, { ok: false, error: 'Informe o id da credencial' })
+
+      var rec = null
+      try {
+        rec = $app.findRecordById('rge_credenciais', id)
+      } catch (eFind) {
+        return e.json(404, { ok: false, error: 'Credencial não encontrada' })
+      }
+
+      var body = e.requestInfo().body || {}
+
+      if (body.uc !== undefined) {
+        var uc = String(body.uc).replace(/\D/g, '')
+        if (!uc) return e.json(400, { ok: false, error: 'UC inválida' })
+        // não deixa duas credenciais com a mesma UC
+        var outras = []
+        try {
+          outras = $app.findRecordsByFilter('rge_credenciais', 'uc = "' + uc + '"', '', 5, 0)
+        } catch (eDup) {
+          outras = []
+        }
+        for (var i = 0; i < outras.length; i++) {
+          if (outras[i].id !== rec.id) {
+            return e.json(400, { ok: false, error: 'Já existe uma credencial para a UC ' + uc })
+          }
+        }
+        rec.set('uc', uc)
+      }
+      if (body.rotulo !== undefined) rec.set('rotulo', String(body.rotulo).slice(0, 200))
+      if (body.documento !== undefined)
+        rec.set('documento', String(body.documento).replace(/\D/g, ''))
+      if (body.login !== undefined) rec.set('login', String(body.login).slice(0, 200))
+      // senha: só troca se vier preenchida (campo em branco = manter a atual)
+      if (body.senha !== undefined && String(body.senha) !== '') {
+        rec.set('senha', String(body.senha))
+      }
+      if (body.ativo !== undefined) rec.set('ativo', !!body.ativo)
+      if (body.cliente_id !== undefined) rec.set('cliente_id', body.cliente_id)
+      if (body.usina_id !== undefined) rec.set('usina_id', body.usina_id)
+
+      $app.save(rec)
+
+      return e.json(200, {
+        ok: true,
+        item: {
+          id: rec.id,
+          uc: rec.getString('uc'),
+          rotulo: rec.getString('rotulo'),
+          documento: rec.getString('documento'),
+          login: rec.getString('login'),
+          tem_senha: !!rec.getString('senha'),
+          ativo: rec.getBool('ativo'),
+        },
+      })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
+  '/backend/v1/rge/anexar-conta',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+
+      var body = e.requestInfo().body || {}
+      var uc = String(body.uc == null ? '' : body.uc).replace(/\D/g, '')
+      if (!uc) return e.json(400, { ok: false, error: 'Informe a UC' })
+      var competencia = String(body.competencia == null ? '' : body.competencia)
+        .trim()
+        .slice(0, 20)
+      if (!/^\d{4}-[a-z]{3}$/i.test(competencia)) {
+        return e.json(400, { ok: false, error: 'Competência deve ser AAAA-mmm (ex.: 2026-out)' })
+      }
+
+      var b64 = String(body.pdf_base64 == null ? '' : body.pdf_base64)
+      if (b64.length < 1000) return e.json(400, { ok: false, error: 'Nenhum PDF recebido' })
+
+      // decodifica base64 na mão (não existe base64ToBytes nesta versão)
+      var ALF = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+      var limpo = String(b64).replace(/[^A-Za-z0-9+/=]/g, '')
+      var tam = limpo.length
+      var sobra = 0
+      if (tam > 0 && limpo.charAt(tam - 1) === '=') sobra++
+      if (tam > 1 && limpo.charAt(tam - 2) === '=') sobra++
+      var outLen = Math.floor((tam * 3) / 4) - sobra
+      if (outLen < 1000) return e.json(400, { ok: false, error: 'PDF vazio' })
+      var bytes = new Uint8Array(outLen)
+      var pos = 0
+      var j = 0
+      while (j < tam) {
+        var c1 = ALF.indexOf(limpo.charAt(j++))
+        var c2 = ALF.indexOf(limpo.charAt(j++))
+        var c3 = ALF.indexOf(limpo.charAt(j++))
+        var c4 = ALF.indexOf(limpo.charAt(j++))
+        if (c1 < 0 || c2 < 0) break
+        bytes[pos++] = ((c1 << 2) | (c2 >> 4)) & 0xff
+        if (c3 >= 0 && pos < outLen) bytes[pos++] = (((c2 & 15) << 4) | (c3 >> 2)) & 0xff
+        if (c4 >= 0 && pos < outLen) bytes[pos++] = (((c3 & 3) << 6) | c4) & 0xff
+      }
+      if (pos < outLen) bytes = bytes.subarray(0, pos)
+
+      // 1 conta por UC + competência
+      var filtro = 'uc = "' + uc + '" && competencia = "' + competencia + '"'
+      var achados = []
+      try {
+        achados = $app.findRecordsByFilter('rge_contas', filtro, '', 10, 0)
+      } catch (eF) {
+        achados = []
+      }
+      var rec = achados.length ? achados[0] : null
+      if (achados.length > 1) {
+        for (var d = 1; d < achados.length; d++) {
+          try {
+            $app.delete(achados[d])
+          } catch (eDel) {}
+        }
+      }
+      if (!rec) rec = new Record($app.findCollectionByNameOrId('rge_contas'))
+
+      var nomeArq = String(body.nome_arquivo || 'conta-' + uc + '-' + competencia + '.pdf').slice(
+        0,
+        180,
+      )
+      if (!/\.pdf$/i.test(nomeArq)) nomeArq = nomeArq + '.pdf'
+
+      rec.set('uc', uc)
+      rec.set('competencia', competencia)
+      if (body.vencimento) rec.set('vencimento', String(body.vencimento).slice(0, 20))
+      if (body.valor !== undefined && body.valor !== null && body.valor !== '') {
+        var v = Number(String(body.valor).replace(/\./g, '').replace(',', '.'))
+        if (!isNaN(v)) rec.set('valor', v)
+      }
+      if (body.consumo_kwh !== undefined && body.consumo_kwh !== null && body.consumo_kwh !== '') {
+        var k = Number(body.consumo_kwh)
+        if (!isNaN(k)) rec.set('consumo_kwh', k)
+      }
+      rec.set('nome_arquivo', nomeArq)
+      rec.set('origem', 'manual')
+      if (body.credencial_id) rec.set('credencial_id', body.credencial_id)
+      if (body.cliente_id) rec.set('cliente_id', body.cliente_id)
+      if (body.usina_id) rec.set('usina_id', body.usina_id)
+      rec.set('dados', {
+        tipo: 'manual',
+        anexado_por: e.auth.getString('email') || e.auth.id,
+        anexado_em: new Date().toISOString(),
+        bytes: bytes.length,
+      })
+
+      rec.set('arquivo_pdf', $filesystem.fileFromBytes(bytes, nomeArq))
+      $app.save(rec)
+
+      return e.json(200, {
+        ok: true,
+        conta_id: rec.id,
+        uc: uc,
+        competencia: competencia,
+        kb: Math.round(bytes.length / 1024),
+      })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+    }
+  },
+  $apis.bodyLimit(30 * 1024 * 1024),
+  $apis.requireAuth(),
+)
+
+// devolve a URL pública do arquivo PDF de uma conta
+routerAdd(
+  'GET',
+  '/backend/v1/rge/url-pdf',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var q = e.requestInfo().query || {}
+      if (!q.id) return e.json(400, { ok: false, error: 'Informe id' })
+      var rec = $app.findRecordById('rge_contas', q.id)
+      var arqs = []
+      try {
+        arqs = rec.getStringSlice('arquivo_pdf')
+      } catch (e2) {}
+      if (!arqs || !arqs.length)
+        return e.json(200, { ok: false, error: 'Esta conta ainda não tem PDF' })
+      return e.json(200, {
+        ok: true,
+        nome_arquivo: rec.getString('nome_arquivo') || arqs[0],
+        url: '/api/files/rge_contas/' + rec.id + '/' + arqs[0],
+      })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+    }
+  },
+  $apis.requireAuth(),
+)

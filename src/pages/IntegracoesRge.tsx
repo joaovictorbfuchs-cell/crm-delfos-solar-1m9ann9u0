@@ -17,6 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  Pencil,
+  Upload,
+  FileText,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { toast } from '@/hooks/use-toast'
@@ -33,6 +36,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatarTempoRelativo, formatarCompetenciaRge } from '@/lib/rgeFormatters'
@@ -62,6 +66,9 @@ export interface ContaRge {
   id: string
   uc: string
   competencia: string
+  tem_pdf?: boolean
+  tipo?: string
+  titular?: string
   consumo_kwh?: number
   nome_arquivo?: string
   created?: string
@@ -125,6 +132,31 @@ export function IntegracoesRgePage() {
   const [formSenha, setFormSenha] = useState('')
   const [formToken, setFormToken] = useState('')
   const [salvando, setSalvando] = useState(false)
+
+  // --- Editar credencial (lápis) ---
+  const [modalEditarCredAberto, setModalEditarCredAberto] = useState(false)
+  const [edUc, setEdUc] = useState('')
+  const [edRotulo, setEdRotulo] = useState('')
+  const [edDoc, setEdDoc] = useState('')
+  const [edLogin, setEdLogin] = useState('')
+  const [edSenha, setEdSenha] = useState('')
+  const [edAtivo, setEdAtivo] = useState(true)
+
+  // --- Anexar conta baixada na mão ---
+  const [modalAnexarAberto, setModalAnexarAberto] = useState(false)
+  const [anCredId, setAnCredId] = useState<string | null>(null)
+  const [anUc, setAnUc] = useState('')
+  const [anCompetencia, setAnCompetencia] = useState('')
+  const [anValor, setAnValor] = useState('')
+  const [anVencimento, setAnVencimento] = useState('')
+  const [anArquivo, setAnArquivo] = useState<File | null>(null)
+  const [anEnviando, setAnEnviando] = useState(false)
+
+  // --- Ver contas de uma UC ---
+  const [modalContasUcAberto, setModalContasUcAberto] = useState(false)
+  const [contasDaUc, setContasDaUc] = useState<ContaRge[]>([])
+  const [carregandoContasUc, setCarregandoContasUc] = useState(false)
+  const [tituloContasUc, setTituloContasUc] = useState('')
 
   // Chamada autenticada para o backend
   const chamar = useCallback(
@@ -213,9 +245,12 @@ export function IntegracoesRgePage() {
         chamar<{ ok: boolean; itens: Credencial[] }>('/rge/credenciais').catch((err) => {
           throw err
         }),
-        chamar<{ ok: boolean; itens: ContaRge[] }>('/rge/contas').catch((err) => {
+        chamar<{ ok: boolean; itens: ContaRge[] }>('/rge/contas-pdf').catch((err) => {
           console.warn('Erro ao carregar contas rge:', err)
-          return { ok: true, itens: [] }
+          return chamar<{ ok: boolean; itens: ContaRge[] }>('/rge/contas').catch(() => ({
+            ok: true,
+            itens: [],
+          }))
         }),
       ])
 
@@ -315,6 +350,156 @@ export function IntegracoesRgePage() {
         description: msg,
         variant: 'destructive',
       })
+    }
+  }
+
+  // ---------- Editar credencial ----------
+  const abrirEditarCredencial = (c: Credencial) => {
+    setCredencialEmEdicao(c)
+    setEdUc(c.uc || '')
+    setEdRotulo(c.rotulo || '')
+    setEdDoc(c.documento || '')
+    setEdLogin(c.login || '')
+    setEdSenha('')
+    setEdAtivo(c.ativo !== false)
+    setModalEditarCredAberto(true)
+  }
+
+  const handleSalvarEdicao = async (ev: React.FormEvent) => {
+    ev.preventDefault()
+    if (!credencialEmEdicao) return
+    if (!edUc) {
+      toast({ title: 'Informe o número da UC', variant: 'destructive' })
+      return
+    }
+    setSalvando(true)
+    try {
+      await chamar(`/rge/credenciais/${credencialEmEdicao.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          uc: edUc,
+          rotulo: edRotulo,
+          documento: edDoc,
+          login: edLogin,
+          senha: edSenha,
+          ativo: edAtivo,
+        }),
+      })
+      toast({ title: 'Credencial atualizada!' })
+      setModalEditarCredAberto(false)
+      setCredencialEmEdicao(null)
+      await carregarDados()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao salvar', description: msg, variant: 'destructive' })
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  // ---------- Anexar conta baixada na mão ----------
+  const abrirAnexarConta = (c: Credencial) => {
+    setAnCredId(c.id)
+    setAnUc(c.uc || '')
+    const hoje = new Date()
+    const mm = String(hoje.getMonth() + 1).padStart(2, '0')
+    const nomes = [
+      'jan',
+      'fev',
+      'mar',
+      'abr',
+      'mai',
+      'jun',
+      'jul',
+      'ago',
+      'set',
+      'out',
+      'nov',
+      'dez',
+    ]
+    setAnCompetencia(`${hoje.getFullYear()}-${nomes[Number(mm) - 1]}`)
+    setAnValor('')
+    setAnVencimento('')
+    setAnArquivo(null)
+    setModalAnexarAberto(true)
+  }
+
+  const handleAnexarConta = async (ev: React.FormEvent) => {
+    ev.preventDefault()
+    if (!anCompetencia) {
+      toast({ title: 'Informe a competência', variant: 'destructive' })
+      return
+    }
+    if (!anArquivo) {
+      toast({ title: 'Escolha o arquivo PDF', variant: 'destructive' })
+      return
+    }
+    setAnEnviando(true)
+    try {
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => {
+          const r = String(fr.result || '')
+          resolve(r.slice(r.indexOf(',') + 1))
+        }
+        fr.onerror = () => reject(new Error('Não consegui ler o arquivo'))
+        fr.readAsDataURL(anArquivo)
+      })
+      const res = await chamar<{ ok: boolean; conta_id?: string; error?: string }>(
+        '/rge/anexar-conta',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            uc: anUc,
+            competencia: anCompetencia,
+            valor: anValor,
+            vencimento: anVencimento,
+            nome_arquivo: anArquivo.name,
+            pdf_base64: b64,
+            credencial_id: anCredId,
+          }),
+        },
+      )
+      if (!res.ok) throw new Error(res.error || 'Falha ao anexar')
+      toast({ title: 'Conta anexada!', description: `${anUc} · ${anCompetencia}` })
+      setModalAnexarAberto(false)
+      await carregarDados()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao anexar', description: msg, variant: 'destructive' })
+    } finally {
+      setAnEnviando(false)
+    }
+  }
+
+  // ---------- Ver contas da UC ----------
+  const abrirContasDaUc = async (c: Credencial) => {
+    setAnCredId(c.id)
+    setTituloContasUc(c.rotulo ? `${c.rotulo} · UC ${c.uc}` : `UC ${c.uc}`)
+    setContasDaUc([])
+    setModalContasUcAberto(true)
+    setCarregandoContasUc(true)
+    try {
+      const res = await chamar<{ ok: boolean; itens: ContaRge[] }>(`/rge/contas-pdf?uc=${c.uc}`)
+      setContasDaUc(res.itens || [])
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao carregar contas', description: msg, variant: 'destructive' })
+    } finally {
+      setCarregandoContasUc(false)
+    }
+  }
+
+  const abrirPdfConta = async (conta: ContaRge) => {
+    try {
+      const res = await chamar<{ ok: boolean; url?: string; error?: string }>(
+        `/rge/url-pdf?id=${conta.id}`,
+      )
+      if (!res.ok || !res.url) throw new Error(res.error || 'PDF indisponível')
+      window.open(`${pb.baseUrl}${res.url}`, '_blank', 'noopener')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Erro ao abrir o PDF', description: msg, variant: 'destructive' })
     }
   }
 
@@ -722,6 +907,25 @@ export function IntegracoesRgePage() {
             />
           </div>
           <Button
+            variant="outline"
+            onClick={() => {
+              const primeira = credenciais[0]
+              if (!primeira) {
+                toast({
+                  title: 'Cadastre uma credencial primeiro',
+                  description: 'O anexo precisa estar ligado a uma UC.',
+                  variant: 'destructive',
+                })
+                return
+              }
+              abrirAnexarConta(primeira)
+            }}
+            className="h-10 rounded-lg flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Anexar conta</span>
+          </Button>
+          <Button
             onClick={() => setModalNovaAberto(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg h-10 px-4 flex items-center gap-1.5 shadow-sm whitespace-nowrap"
           >
@@ -841,25 +1045,20 @@ export function IntegracoesRgePage() {
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-48">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setCredencialEmEdicao(c)
-                                  setFormToken(c.token || '')
-                                  setModalEditarTokenAberto(true)
-                                }}
-                              >
-                                <Key className="w-4 h-4 mr-2" />
-                                Colar Token
+                            <DropdownMenuContent align="start" className="w-56">
+                              <DropdownMenuItem onClick={() => abrirEditarCredencial(c)}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Editar dados
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleSincronizar(c)}>
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                Sincronizar Agora
+                              <DropdownMenuItem onClick={() => abrirAnexarConta(c)}>
+                                <Upload className="w-4 h-4 mr-2" />
+                                Anexar conta baixada
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleBaixarConta(c)}>
-                                <FileDown className="w-4 h-4 mr-2" />
-                                Baixar Última Conta
+                              <DropdownMenuItem onClick={() => abrirContasDaUc(c)}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                Ver contas da UC
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => handleExcluirCredencial(c)}
                                 className="text-rose-600 focus:text-rose-600"
@@ -1083,21 +1282,20 @@ export function IntegracoesRgePage() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 Ver Detalhes
                               </DropdownMenuItem>
-                              {info.cred ? (
-                                <DropdownMenuItem onClick={() => handleBaixarConta(info.cred!)}>
-                                  <FileDown className="w-4 h-4 mr-2" />
-                                  Baixar PDF
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleBaixarConta({ id: fat.credencial_id || '', uc: fat.uc })
-                                  }
-                                >
-                                  <FileDown className="w-4 h-4 mr-2" />
-                                  Baixar PDF
-                                </DropdownMenuItem>
-                              )}
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (fat.id) abrirPdfConta(fat)
+                                  else
+                                    toast({
+                                      title: 'Conta sem PDF',
+                                      description: 'Anexe o PDF desta conta para poder abrir.',
+                                      variant: 'destructive',
+                                    })
+                                }}
+                              >
+                                <FileDown className="w-4 h-4 mr-2" />
+                                Abrir PDF
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -1407,6 +1605,232 @@ export function IntegracoesRgePage() {
           )}
           <DialogFooter className="pt-2">
             <Button variant="outline" onClick={() => setModalDetalhesContaAberto(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- Editar credencial ---------- */}
+      <Dialog open={modalEditarCredAberto} onOpenChange={setModalEditarCredAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-slate-600" />
+              Editar credencial
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSalvarEdicao} className="space-y-3 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-600">Número da UC *</label>
+              <Input
+                value={edUc}
+                onChange={(e) => setEdUc(e.target.value)}
+                placeholder="20041900119"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">Nome / Apelido</label>
+              <Input
+                value={edRotulo}
+                onChange={(e) => setEdRotulo(e.target.value)}
+                placeholder="Ex.: Delfos matriz"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">CPF/CNPJ do Titular</label>
+              <Input
+                value={edDoc}
+                onChange={(e) => setEdDoc(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-600">E-mail de Login</label>
+                <Input
+                  value={edLogin}
+                  onChange={(e) => setEdLogin(e.target.value)}
+                  placeholder="usuario@email.com"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Senha</label>
+                <Input
+                  type="password"
+                  value={edSenha}
+                  onChange={(e) => setEdSenha(e.target.value)}
+                  placeholder="deixe em branco p/ manter"
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-slate-700 pt-1">
+              <input
+                type="checkbox"
+                checked={edAtivo}
+                onChange={(e) => setEdAtivo(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Credencial ativa
+            </label>
+            <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-2">
+              A senha fica guardada no CRM e só é usada pelo robô que roda no PC da Delfos. Deixar
+              em branco mantém a senha atual.
+            </p>
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setModalEditarCredAberto(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={salvando}>
+                {salvando ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- Anexar conta baixada na mão ---------- */}
+      <Dialog open={modalAnexarAberto} onOpenChange={setModalAnexarAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="w-4 h-4 text-slate-600" />
+              Anexar conta baixada
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAnexarConta} className="space-y-3 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-600">UC</label>
+              <Input
+                value={anUc}
+                onChange={(e) => setAnUc(e.target.value)}
+                placeholder="20041900119"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">Mês de referência *</label>
+              <Input
+                value={anCompetencia}
+                onChange={(e) => setAnCompetencia(e.target.value)}
+                placeholder="2026-out"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Formato: AAAA-mmm (ex.: 2026-out, 2026-set)
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Valor (R$)</label>
+                <Input
+                  value={anValor}
+                  onChange={(e) => setAnValor(e.target.value)}
+                  placeholder="617,44"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Vencimento</label>
+                <Input
+                  value={anVencimento}
+                  onChange={(e) => setAnVencimento(e.target.value)}
+                  placeholder="21/10/2026"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">Arquivo PDF *</label>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => setAnArquivo(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+              />
+              {anArquivo && (
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {anArquivo.name} · {(anArquivo.size / 1024).toFixed(0)} KB
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-2">
+              Se já existir uma conta desta UC neste mês, ela é substituída. Assim fica uma conta
+              por mês em cada UC.
+            </p>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setModalAnexarAberto(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={anEnviando}>
+                {anEnviando ? 'Enviando...' : 'Anexar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- Contas da UC ---------- */}
+      <Dialog open={modalContasUcAberto} onOpenChange={setModalContasUcAberto}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-slate-600" />
+              Contas de {tituloContasUc}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="pt-2 max-h-[60vh] overflow-auto">
+            {carregandoContasUc ? (
+              <p className="text-sm text-slate-500 py-8 text-center">Carregando...</p>
+            ) : contasDaUc.length === 0 ? (
+              <p className="text-sm text-slate-500 py-8 text-center">
+                Nenhuma conta guardada para esta UC ainda.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase text-slate-400 border-b border-slate-200">
+                    <th className="py-2 font-semibold">Mês</th>
+                    <th className="py-2 font-semibold">Valor</th>
+                    <th className="py-2 font-semibold">Vencimento</th>
+                    <th className="py-2 font-semibold">Origem</th>
+                    <th className="py-2 font-semibold text-right">PDF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contasDaUc.map((ct) => (
+                    <tr key={ct.id} className="border-b border-slate-100 hover:bg-slate-50/60">
+                      <td className="py-2 font-medium">{formatarCompetenciaRge(ct.competencia)}</td>
+                      <td className="py-2">
+                        {ct.valor !== undefined && ct.valor !== null
+                          ? `R$ ${Number(ct.valor).toFixed(2).replace('.', ',')}`
+                          : '-'}
+                      </td>
+                      <td className="py-2">{ct.vencimento || '-'}</td>
+                      <td className="py-2">
+                        <span className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                          {ct.origem || '-'}
+                        </span>
+                      </td>
+                      <td className="py-2 text-right">
+                        {ct.tem_pdf ? (
+                          <Button size="sm" variant="outline" onClick={() => abrirPdfConta(ct)}>
+                            <FileDown className="w-3.5 h-3.5 mr-1" />
+                            Abrir
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-slate-400">sem PDF</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setModalContasUcAberto(false)}>
               Fechar
             </Button>
           </DialogFooter>
