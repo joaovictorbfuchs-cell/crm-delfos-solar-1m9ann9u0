@@ -68,6 +68,16 @@ describe('contatosService', () => {
       expect(normalizarChaveTelefone('(54) 99123-4567')).toBe('54991234567')
     })
 
+    it('aceita e normaliza telefones fixos de 10 dígitos (sem o 9)', () => {
+      expect(normalizarChaveTelefone('(54) 3522-0000')).toBe('5435220000')
+      expect(normalizarChaveTelefone('+55 54 3522-0000')).toBe('5435220000')
+    })
+
+    it('retorna vazio para placeholder "Número não identificado pelo WhatsApp"', () => {
+      expect(normalizarChaveTelefone('Número não identificado pelo WhatsApp')).toBe('')
+      expect(normalizarChaveTelefone('Número oculto pelo WhatsApp (LID)')).toBe('')
+    })
+
     it('retorna vazio para telefone inválido ou placeholder de zeros', () => {
       expect(normalizarChaveTelefone('00000000000')).toBe('')
       expect(normalizarChaveTelefone('123')).toBe('')

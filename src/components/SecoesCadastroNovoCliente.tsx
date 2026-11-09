@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { formatWhatsAppPhone } from '@/lib/formatters'
+import { formatWhatsAppPhone, limparTelefonePlaceholder } from '@/lib/formatters'
 import { formatarCNPJ } from '@/lib/orcamentoParser'
 import {
   consultarCNPJReceita,
@@ -140,9 +140,10 @@ export const SecoesCadastroNovoCliente: React.FC<SecoesCadastroNovoClienteProps>
     if (sobrescrever || !next.cidade) next.cidade = d.municipio || next.cidade
     if (sobrescrever || !next.estado) next.estado = d.uf || next.estado
     if (sobrescrever || !next.cep) next.cep = d.cep || next.cep
-    if (d.telefone && (sobrescrever || !next.telefone)) {
-      next.telefone = d.telefone
-      if (!next.whatsapp || sobrescrever) next.whatsapp = d.telefone
+    const telReceita = limparTelefonePlaceholder(d.telefone)
+    if (telReceita && (sobrescrever || !next.telefone)) {
+      next.telefone = telReceita
+      if (!next.whatsapp || sobrescrever) next.whatsapp = telReceita
     }
     if (d.email && (sobrescrever || !next.email)) next.email = d.email
 
@@ -722,11 +723,11 @@ export const SecoesCadastroNovoCliente: React.FC<SecoesCadastroNovoClienteProps>
             </Label>
             <Input
               type="text"
-              value={dados.telefone}
+              value={limparTelefonePlaceholder(dados.telefone)}
               onChange={(e) => {
-                const formatted = formatWhatsAppPhone(e.target.value)
+                const raw = limparTelefonePlaceholder(e.target.value)
+                const formatted = formatWhatsAppPhone(raw)
                 updateField('telefone', formatted)
-                if (!dados.whatsapp) updateField('whatsapp', formatted)
               }}
               placeholder="(54) 3522-0000"
               className="text-xs h-9 bg-white"
@@ -740,8 +741,11 @@ export const SecoesCadastroNovoCliente: React.FC<SecoesCadastroNovoClienteProps>
             <Label className="text-[11px] font-bold text-slate-700">WhatsApp</Label>
             <Input
               type="text"
-              value={dados.whatsapp}
-              onChange={(e) => updateField('whatsapp', formatWhatsAppPhone(e.target.value))}
+              value={limparTelefonePlaceholder(dados.whatsapp)}
+              onChange={(e) => {
+                const raw = limparTelefonePlaceholder(e.target.value)
+                updateField('whatsapp', formatWhatsAppPhone(raw))
+              }}
               placeholder="(54) 99999-0000"
               className="text-xs h-9 bg-white"
               disabled={disabled}

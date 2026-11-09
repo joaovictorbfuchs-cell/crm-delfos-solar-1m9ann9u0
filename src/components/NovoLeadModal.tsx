@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import type { OrigemLeadTipo, ProdutoTipo, TipoVendaSelect } from '@/types/crm'
 import { TIPOS_VENDA_OPTIONS, TIPOS_VENDA_CONFIG } from '@/constants/tipoVenda'
-import { formatWhatsAppPhone } from '@/lib/formatters'
+import { formatWhatsAppPhone, limparTelefonePlaceholder } from '@/lib/formatters'
 import { useCnpjLookup } from '@/hooks/useCnpjLookup'
 import {
   CnpjInputWithLookup,
@@ -230,9 +230,10 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     if (sobrescrever || !complemento) setComplemento(d.complemento || complemento)
     if (sobrescrever || !bairro) setBairro(d.bairro || bairro)
     if (sobrescrever || !cep) setCep(d.cep || cep)
-    if (d.telefone && (sobrescrever || !telefone)) {
-      setTelefone(d.telefone)
-      if (!whatsapp || sobrescrever) setWhatsapp(d.telefone)
+    const telReceita = limparTelefonePlaceholder(d.telefone)
+    if (telReceita && (sobrescrever || !telefone)) {
+      setTelefone(telReceita)
+      if (!whatsapp || sobrescrever) setWhatsapp(telReceita)
     }
     if (d.email && (sobrescrever || !email)) setEmail(d.email)
     if (d.cnae_principal && (sobrescrever || !cnaePrincipal)) setCnaePrincipal(d.cnae_principal)
@@ -325,17 +326,11 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     const isCnpj = docLimpo.length === 14
     const isCpf = docLimpo.length === 11
 
-    const telFinal = (
-      dadosNovoCliente.telefone ||
-      telefone ||
-      dadosNovoCliente.whatsapp ||
-      whatsapp
+    const telFinal = limparTelefonePlaceholder(
+      dadosNovoCliente.telefone || telefone || dadosNovoCliente.whatsapp || whatsapp,
     ).trim()
-    const whatsFinal = (
-      dadosNovoCliente.whatsapp ||
-      whatsapp ||
-      dadosNovoCliente.telefone ||
-      telefone
+    const whatsFinal = limparTelefonePlaceholder(
+      dadosNovoCliente.whatsapp || whatsapp || dadosNovoCliente.telefone || telefone,
     ).trim()
     const emailFinal = (dadosNovoCliente.email || email).trim().toLowerCase()
 

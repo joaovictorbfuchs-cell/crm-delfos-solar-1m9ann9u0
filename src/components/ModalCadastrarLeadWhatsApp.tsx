@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { formatWhatsAppPhone } from '@/lib/formatters'
+import { formatWhatsAppPhone, limparTelefonePlaceholder } from '@/lib/formatters'
 import { UserPlus, Loader2, Sparkles, AlertCircle, FileText, Zap } from 'lucide-react'
 import { ClienteTipo, ProdutoTipo, OrigemLeadTipo } from '@/types/crm'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -104,9 +104,8 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
       const nomeSugerido =
         conversaNome && conversaNome.trim() && conversaNome !== conversaNumero ? conversaNome : ''
       setNome((prev) => (prev.trim() ? prev : nomeSugerido))
-      setTelefone((prev) =>
-        prev.trim() ? prev : formatWhatsAppPhone(conversaNumero) || conversaNumero,
-      )
+      const telLimpo = limparTelefonePlaceholder(conversaNumero)
+      setTelefone((prev) => (prev.trim() ? prev : telLimpo ? formatWhatsAppPhone(telLimpo) : ''))
       setOrigemLead('WhatsApp')
       setErrorMsg(null)
     } else {
@@ -168,7 +167,8 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
         .join(' ')
       setEndereco(endComp)
     }
-    if (d.telefone && (sobrescrever || !telefone)) setTelefone(d.telefone)
+    const telReceita = limparTelefonePlaceholder(d.telefone)
+    if (telReceita && (sobrescrever || !telefone)) setTelefone(telReceita)
     if (d.email && (sobrescrever || !email)) setEmail(d.email)
     setTipoCliente('comercial')
     setConflitosCnpj([])
@@ -228,7 +228,8 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatWhatsAppPhone(e.target.value)
+    const raw = limparTelefonePlaceholder(e.target.value)
+    const formatted = formatWhatsAppPhone(raw)
     setTelefone(formatted)
   }
 
@@ -267,9 +268,11 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
     }
 
     const montarPayloadWhatsAppLead = () => {
+      const telLimpo = limparTelefonePlaceholder(telefone)
       const payload: Record<string, unknown> = {
         nome: nome.trim(),
-        telefone: telefone.trim(),
+        telefone: telLimpo,
+        whatsapp: telLimpo,
         email: email.trim() || undefined,
         cpf: cpf.trim() || undefined,
         endereco: endereco.trim() || undefined,

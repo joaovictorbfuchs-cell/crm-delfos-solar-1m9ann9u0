@@ -86,4 +86,23 @@ describe('sanitizarPayloadUsina (crmService)', () => {
     const out = sanitizarPayloadUsina({ numero_medidor: { a: 1 } })
     expect(out.numero_medidor).toBeUndefined()
   })
+
+  it('sanitizarPayloadCliente: descarta placeholder "Número não identificado pelo WhatsApp" e preserva 10 e 11 dígitos', async () => {
+    const { sanitizarPayloadCliente } = await import('@/services/crmService')
+    const out = sanitizarPayloadCliente({
+      nome: 'Cliente Teste',
+      telefone: 'Número não identificado pelo WhatsApp',
+      whatsapp: '(54) 99999-0000',
+    })
+    expect(out.telefone).toBe('')
+    expect(out.whatsapp).toBe('(54) 99999-0000')
+
+    const outFixo = sanitizarPayloadCliente({
+      nome: 'Cliente Fixo',
+      telefone: '(54) 3522-0000',
+      whatsapp: 'Número não identificado pelo WhatsApp',
+    })
+    expect(outFixo.telefone).toBe('(54) 3522-0000')
+    expect(outFixo.whatsapp).toBe('')
+  })
 })

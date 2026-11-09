@@ -26,12 +26,36 @@ export function aplicarRegraWhatsAppAutoritativo(dados: { telefone?: string; wha
 }
 
 /**
+ * Sanitiza campos de telefone e WhatsApp em qualquer objeto de contato/cliente:
+ * - Filtra placeholders como "Número não identificado pelo WhatsApp"
+ * - Permite números com 10 dígitos (fixo, sem o 9) ou 11 dígitos (celular, com o 9)
+ * - NENHUM DDD automático é imposto
+ */
+export function sanitizarTelefoneContato(tel?: string | null): string {
+  if (!tel) return ''
+  const trimmed = tel.trim()
+  if (
+    trimmed.toLowerCase().includes('não identificado') ||
+    trimmed.toLowerCase().includes('nao identificado') ||
+    trimmed.toLowerCase().includes('número oculto') ||
+    trimmed.toLowerCase().includes('numero oculto') ||
+    trimmed.toLowerCase().includes('lid')
+  ) {
+    return ''
+  }
+  return trimmed
+}
+
+/**
  * Normaliza número de telefone/WhatsApp para chave de comparação única.
  * Remove prefixo 55 se houver mais de 11 dígitos e descarta zeros como "00000000000".
+ * Aceita números com 8, 9, 10 ou 11 dígitos.
  */
 export function normalizarChaveTelefone(tel?: string | null): string {
   if (!tel) return ''
-  let digits = cleanPhoneDigits(tel)
+  const sanitized = sanitizarTelefoneContato(tel)
+  if (!sanitized) return ''
+  let digits = cleanPhoneDigits(sanitized)
   if (!digits || digits === '00000000000' || digits.length < 8) return ''
   if (digits.length >= 12 && digits.startsWith('55')) {
     digits = digits.slice(2)

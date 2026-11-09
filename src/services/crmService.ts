@@ -1,5 +1,6 @@
 import pb from '@/lib/pocketbase/client'
 import { ClientResponseError } from 'pocketbase'
+import { isTelefonePlaceholder } from '@/lib/formatters'
 import { normalizeChecklist } from '@/components/CalendarioExecucaoOS'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import type { FieldErrors } from '@/lib/pocketbase/errors'
@@ -1108,6 +1109,10 @@ export function sanitizarPayloadCliente(raw: Record<string, unknown>): Record<st
 
     // Demais campos de texto
     if (typeof value === 'string') {
+      if ((key === 'telefone' || key === 'whatsapp') && isTelefonePlaceholder(value)) {
+        sanitized[key] = ''
+        continue
+      }
       sanitized[key] = value
       continue
     }

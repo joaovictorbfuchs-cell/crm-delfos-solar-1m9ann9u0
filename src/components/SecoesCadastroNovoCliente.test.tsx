@@ -72,4 +72,36 @@ describe('Modal Novo Negócio - Expansão de Novo Cliente e Salvaguardas', () =>
     expect(html).toContain('Anexar Conta de Luz (PDF/Foto)')
     expect(html).toContain('Consultar BrasilAPI')
   })
+
+  it('aceita telefone com 10 dígitos (fixo, sem 9) e whatsapp com 11 dígitos (com 9)', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecoesCadastroNovoCliente, {
+        dados: {
+          ...DADOS_NOVO_CLIENTE_INICIAIS,
+          telefone: '(54) 3522-0000',
+          whatsapp: '(54) 99999-0000',
+        },
+        onChange: () => {},
+      }),
+    )
+
+    expect(html).toContain('value="(54) 3522-0000"')
+    expect(html).toContain('value="(54) 99999-0000"')
+  })
+
+  it('filtra o placeholder "Número não identificado pelo WhatsApp" para não exibir nos campos', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecoesCadastroNovoCliente, {
+        dados: {
+          ...DADOS_NOVO_CLIENTE_INICIAIS,
+          telefone: 'Número não identificado pelo WhatsApp',
+          whatsapp: 'Número não identificado pelo WhatsApp',
+        },
+        onChange: () => {},
+      }),
+    )
+
+    expect(html).not.toContain('value="Número não identificado pelo WhatsApp"')
+    expect(html).toContain('value=""')
+  })
 })

@@ -142,16 +142,47 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       expect(formatWhatsAppPhone('999999999999999')).toBe('Número não identificado pelo WhatsApp')
     })
 
-    it('deve formatar número sem DDD assumindo 54 para celular (9 dígitos) e fixo (8 dígitos)', () => {
-      expect(formatWhatsAppPhone('99123-4567')).toBe('(54) 99123-4567')
-      expect(formatWhatsAppPhone('991234567')).toBe('(54) 99123-4567')
-      expect(formatWhatsAppPhone('3522-1234')).toBe('(54) 3522-1234')
-      expect(formatWhatsAppPhone('35221234')).toBe('(54) 3522-1234')
+    it('NENHUM DDD AUTOMÁTICO: deve formatar número sem DDD sem forçar 54 ou outro DDD', () => {
+      expect(formatWhatsAppPhone('99123-4567')).toBe('99123-4567')
+      expect(formatWhatsAppPhone('991234567')).toBe('99123-4567')
+      expect(formatWhatsAppPhone('3522-1234')).toBe('3522-1234')
+      expect(formatWhatsAppPhone('35221234')).toBe('3522-1234')
+    })
+
+    it('deve formatar números com DDD digitado (qualquer DDD, ex 11, 48, 51, 54)', () => {
+      expect(formatWhatsAppPhone('11991234567')).toBe('(11) 99123-4567')
+      expect(formatWhatsAppPhone('4832221234')).toBe('(48) 3222-1234')
+      expect(formatWhatsAppPhone('(54) 3522-0000')).toBe('(54) 3522-0000')
+      expect(formatWhatsAppPhone('(54) 99999-0000')).toBe('(54) 99999-0000')
+      expect(formatWhatsAppPhone('5435220000')).toBe('(54) 3522-0000')
+      expect(formatWhatsAppPhone('54999990000')).toBe('(54) 99999-0000')
+    })
+
+    it('deve filtrar o texto placeholder "Número não identificado pelo WhatsApp" retornando vazio', async () => {
+      const {
+        isTelefonePlaceholder,
+        limparTelefonePlaceholder,
+        TEXTO_NUMERO_NAO_IDENTIFICADO,
+        cleanPhoneDigits,
+      } = await import('./formatters')
+
+      expect(isTelefonePlaceholder(TEXTO_NUMERO_NAO_IDENTIFICADO)).toBe(true)
+      expect(isTelefonePlaceholder('Número não identificado pelo WhatsApp')).toBe(true)
+      expect(isTelefonePlaceholder('numero nao identificado')).toBe(true)
+      expect(isTelefonePlaceholder('Número oculto pelo WhatsApp (LID)')).toBe(true)
+      expect(isTelefonePlaceholder('(54) 99123-4567')).toBe(false)
+
+      expect(limparTelefonePlaceholder('Número não identificado pelo WhatsApp')).toBe('')
+      expect(limparTelefonePlaceholder('(54) 3522-0000')).toBe('(54) 3522-0000')
+
+      expect(formatWhatsAppPhone('Número não identificado pelo WhatsApp')).toBe('')
+      expect(cleanPhoneDigits('Número não identificado pelo WhatsApp')).toBe('')
     })
 
     it('deve remover DDI 55 e preservar DDD', () => {
       expect(formatWhatsAppPhone('+55 54 99123-4567')).toBe('(54) 99123-4567')
       expect(formatWhatsAppPhone('+55 51 98888-7766')).toBe('(51) 98888-7766')
+      expect(formatWhatsAppPhone('+55 11 3522-1234')).toBe('(11) 3522-1234')
     })
   })
 })

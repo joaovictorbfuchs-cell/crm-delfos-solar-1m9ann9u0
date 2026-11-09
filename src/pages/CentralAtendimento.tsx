@@ -1741,7 +1741,7 @@ export const CentralAtendimento: React.FC = () => {
           open={Boolean(conversaParaNovoLead)}
           onOpenChange={(open) => !open && setConversaParaNovoLead(null)}
           conversaNumero={conversaParaNovoLead.numero}
-          conversaNome={conversaParaNovoLead.numero}
+          conversaNome={conversaParaNovoLead.cliente_nome || conversaParaNovoLead.numero}
           onSubmit={handleCadastrarNovoLead}
         />
       )}

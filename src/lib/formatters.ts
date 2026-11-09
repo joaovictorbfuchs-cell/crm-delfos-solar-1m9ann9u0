@@ -103,8 +103,43 @@ export function isWhatsAppLid(phone: string | undefined | null): boolean {
   return digits.length === 14 && !digits.startsWith('55')
 }
 
+export const TEXTO_NUMERO_NAO_IDENTIFICADO = 'Número não identificado pelo WhatsApp'
+
+/**
+ * Detecta se uma string é placeholder de número não identificado ou oculto.
+ */
+export function isTelefonePlaceholder(phone: string | undefined | null): boolean {
+  if (!phone || typeof phone !== 'string') return false
+  const lower = phone.toLowerCase().trim()
+  return (
+    lower.includes('não identificado') ||
+    lower.includes('nao identificado') ||
+    lower.includes('número oculto') ||
+    lower.includes('numero oculto') ||
+    lower.includes('lid')
+  )
+}
+
+/**
+ * Remove placeholders como "Número não identificado pelo WhatsApp", retornando string vazia.
+ */
+export function limparTelefonePlaceholder(phone: string | undefined | null): string {
+  if (!phone || isTelefonePlaceholder(phone)) return ''
+  return phone.trim()
+}
+
+/**
+ * Valida se um telefone possui entre 8 e 11 dígitos válidos (fixo ou celular, com ou sem DDD).
+ */
+export function isTelefoneValido(phone: string | undefined | null): boolean {
+  if (!phone || isTelefonePlaceholder(phone)) return false
+  const digits = cleanPhoneDigits(phone)
+  return digits.length >= 8 && digits.length <= 11
+}
+
 export function formatWhatsAppPhone(phone: string | undefined | null): string {
   if (!phone) return ''
+  if (isTelefonePlaceholder(phone)) return ''
   let digits = phone.replace(/\D/g, '')
   if (digits.length === 0) return ''
 
@@ -118,30 +153,48 @@ export function formatWhatsAppPhone(phone: string | undefined | null): string {
     digits = digits.slice(2)
   }
 
-  // Quando o número não tem DDD (8 dígitos para fixo ou 9 dígitos para celular),
-  // assume o DDD padrão regional 54 (Delfos Solar - RS)
-  if (digits.length === 8 || digits.length === 9) {
-    digits = `54${digits}`
+  // NENHUM DDD AUTOMÁTICO:
+  // Se tiver 8 dígitos sem parênteses: telefone fixo local sem DDD -> XXXX-XXXX
+  if (digits.length === 8 && !phone.includes('(')) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`
   }
 
-  // 1 ou 2 dígitos (início da digitação do DDD)
-  if (digits.length <= 2) {
-    return `(${digits}`
+  // Se tiver 9 dígitos sem parênteses: celular local sem DDD -> XXXXX-XXXX
+  if (digits.length === 9 && !phone.includes('(')) {
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`
   }
 
-  // Entre 3 e 6 dígitos: "(XX) XXX..."
-  if (digits.length <= 6) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  // Se começou com parênteses ou está no início da digitação (1 ou 2 dígitos)
+  if (phone.includes('(') || digits.length <= 2) {
+    if (digits.length <= 2) {
+      return phone.includes('(') ? `(${digits}` : digits
+    }
+    if (digits.length <= 6) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+    }
+    if (digits.length <= 10) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+    }
+    if (digits.length === 11) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`
+    }
   }
 
-  // Entre 7 e 10 dígitos (fixo completo tem 10 dígitos: "(XX) XXXX-XXXX")
-  if (digits.length <= 10) {
+  // Formatação para números completos sem parênteses digitados:
+  // 10 dígitos: fixo com DDD -> (XX) XXXX-XXXX
+  if (digits.length === 10) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
   }
 
-  // 11 dígitos: celular brasileiro padrão "(XX) XXXXX-XXXX"
+  // 11 dígitos: celular com DDD -> (XX) XXXXX-XXXX
   if (digits.length === 11) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`
+  }
+
+  // Entre 3 e 7 dígitos sem DDD
+  if (digits.length < 8) {
+    if (digits.length <= 4) return digits
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`
   }
 
   // Mais de 11 dígitos não reconhecidos como telefone válido (sem gerar formatação lixo)
@@ -149,7 +202,7 @@ export function formatWhatsAppPhone(phone: string | undefined | null): string {
 }
 
 export function cleanPhoneDigits(phone: string | undefined | null): string {
-  if (!phone) return ''
+  if (!phone || isTelefonePlaceholder(phone)) return ''
   return phone.replace(/\D/g, '')
 }
 
