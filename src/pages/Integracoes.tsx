@@ -120,10 +120,6 @@ export function IntegracoesPage() {
                   Disponível
                 </Badge>
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed max-w-2xl">
-                Cadastre a UC e o acesso do cliente e baixe a conta em PDF e o histórico de consumo
-                de 13 meses direto do portal da CPFL, sem sair do CRM.
-              </p>
             </div>
           </div>
           <Button asChild className="shrink-0">
@@ -143,35 +139,7 @@ export function IntegracoesPage() {
             <Card
               key={item.id}
               className="flex flex-col border border-gray-200/90 rounded-2xl shadow-xs hover:shadow-md transition-shadow bg-white overflow-hidden"
-            >
-              <CardHeader className="p-5 pb-3 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div
-                    className={`w-10 h-10 rounded-xl ${item.bgIcone} flex items-center justify-center shrink-0 border`}
-                  >
-                    <Icon className={`w-5 h-5 ${item.corIcone}`} />
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold py-0.5 px-2 bg-amber-50 text-amber-900 border-amber-300"
-                  >
-                    <Clock className="w-3 h-3 text-amber-600" />
-                    <span>Em breve</span>
-                  </Badge>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
-                    {item.categoria}
-                  </span>
-                  <CardTitle className="text-base font-bold text-gray-900 mt-0.5 leading-snug">
-                    {item.titulo}
-                  </CardTitle>
-                </div>
-                <CardDescription className="text-xs text-gray-600 leading-relaxed">
-                  {item.descricao}
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            ></Card>
           )
         })}
       </div>
