@@ -310,6 +310,21 @@ routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
       return e.json(404, { ok: false, error: 'Leitura nao encontrada' })
     }
 
+    // devolver: o robo reservou mas NAO chegou a enviar (modo simulacao, ou
+    // desistiu). Volta para a fila sem tocar na atividade.
+    if (body.devolver === true) {
+      rec.set('status', 'na_fila')
+      rec.set('mensagem', String(body.mensagem || 'devolvido a fila').slice(0, 4000))
+      $app.save(rec)
+      return e.json(200, { ok: true, leitura_id: rec.id, devolvido: true })
+    }
+
+    // apagar: limpa um pedido de teste sem mexer na atividade
+    if (body.apagar === true) {
+      $app.delete(rec)
+      return e.json(200, { ok: true, apagado: true })
+    }
+
     var sucesso = body.ok !== false
     rec.set('status', sucesso ? 'enviada' : 'erro')
     rec.set('protocolo', String(body.protocolo || '').slice(0, 40))
@@ -376,6 +391,113 @@ routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
       leitura_id: rec.id,
       status: rec.getString('status'),
       atividade_atualizada: !!atividadeId && sucesso,
+    })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+  }
+})
+
+// ---------------------------------------------------------------- preencher na mao
+// Grava na atividade os dados de uma leitura JA FEITA no portal (registro
+// retroativo ou correcao). Nao fala com a RGE: so escreve no CRM.
+// Aceita usuario logado OU o segredo do robo.
+routerAdd('POST', '/backend/v1/rge/leitura-preencher', (e) => {
+  try {
+    var porSegredo = false
+    try {
+      var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+      if (seg && (e.request.header.get('X-Robo-Secret') || '') === seg) porSegredo = true
+    } catch (eS) {}
+    if (!porSegredo && (!e.auth || !e.auth.id))
+      return e.json(401, { ok: false, error: 'Autenticação necessária' })
+
+    var body = e.requestInfo().body || {}
+    var atividadeId = String(body.atividade_id || '')
+    if (!atividadeId) return e.json(400, { ok: false, error: 'Informe atividade_id' })
+
+    var atv = null
+    try {
+      atv = $app.findRecordById('atividades', atividadeId)
+    } catch (eAt) {
+      return e.json(404, { ok: false, error: 'Atividade nao encontrada' })
+    }
+
+    var protocolo = String(body.protocolo || '').slice(0, 40)
+    if (!protocolo) return e.json(400, { ok: false, error: 'Informe o protocolo da leitura' })
+
+    // valores: aceita com ou sem zeros a esquerda; guarda com 5 posicoes
+    var v03 = ''
+    var b03 = String(body.valor_03 == null ? '' : body.valor_03)
+    for (var a = 0; a < b03.length; a++) {
+      var ch = b03.charAt(a)
+      if (ch >= '0' && ch <= '9') v03 += ch
+    }
+    while (v03.length > 0 && v03.length < 5) v03 = '0' + v03
+
+    var vA3 = ''
+    var bA3 = String(body.valor_a3 == null ? '' : body.valor_a3)
+    for (var b2 = 0; b2 < bA3.length; b2++) {
+      var ch3 = bA3.charAt(b2)
+      if (ch3 >= '0' && ch3 <= '9') vA3 += ch3
+    }
+    while (vA3.length > 0 && vA3.length < 5) vA3 = '0' + vA3
+
+    var quando = String(body.data_hora || new Date().toISOString())
+    var dataFormatada = String(body.data_hora_texto || '').slice(0, 60)
+    var mesRef = String(body.mes_referencia || '').slice(0, 20)
+    var telefone = String(body.telefone || '').slice(0, 30)
+    var ucTexto = String(body.uc || '').slice(0, 40)
+    var ucAntiga = String(body.uc_antiga || '').slice(0, 40)
+    var protAtend = String(body.protocolo_atendimento || '').slice(0, 40)
+    var observacao = String(body.observacao || '').slice(0, 1000)
+
+    var linhas = ['Leitura registrada no portal da RGE (autoleitura)']
+    if (ucTexto)
+      linhas.push('UC: ' + ucTexto + (ucAntiga ? ' (código antigo ' + ucAntiga + ')' : ''))
+    if (mesRef) linhas.push('Mês de referência: ' + mesRef)
+    if (v03) linhas.push('03 - Totalizador Consumo Ativo: ' + v03)
+    if (vA3) linhas.push('A3 - Totalizador Consumo Ativo Reverso: ' + vA3)
+    if (telefone) linhas.push('Telefone do solicitante: ' + telefone)
+    linhas.push('Protocolo da leitura: ' + protocolo)
+    if (dataFormatada) linhas.push('Data da solicitação: ' + dataFormatada)
+    if (protAtend) linhas.push('Protocolo de atendimento (sessão): ' + protAtend)
+    if (observacao) linhas.push(observacao)
+    var texto = linhas.join('\n')
+
+    atv.set('protocolo_rge', protocolo)
+    if (v03) atv.set('valor_grandeza_03', v03)
+    if (vA3) atv.set('valor_grandeza_103', vA3)
+    atv.set('data_leitura', quando)
+    atv.set('status', 'concluida')
+    atv.set('dados_leitura_registrados', texto)
+    atv.set('auto_leitura_obs', texto)
+    if (ucTexto) atv.set('numero_uc', ucTexto)
+    $app.save(atv)
+
+    // conclui a mae tambem
+    var maeOk = false
+    var parentId = String(atv.getString('parent_id') || '')
+    if (parentId) {
+      try {
+        var mae = $app.findRecordById('atividades', parentId)
+        mae.set('status', 'concluida')
+        mae.set('dados_leitura_registrados', texto)
+        mae.set('auto_leitura_obs', texto)
+        mae.set('protocolo_rge', protocolo)
+        $app.save(mae)
+        maeOk = true
+      } catch (eMae) {}
+    }
+
+    return e.json(200, {
+      ok: true,
+      atividade_id: atv.id,
+      protocolo: protocolo,
+      valor_03: v03,
+      valor_a3: vA3,
+      status: atv.getString('status'),
+      mae_concluida: maeOk,
+      texto: texto,
     })
   } catch (err) {
     return e.json(400, { ok: false, error: String(err).slice(0, 400) })
