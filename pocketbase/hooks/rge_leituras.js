@@ -346,18 +346,34 @@ routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
           atv.set('valor_grandeza_03', valor03)
           if (valorA3) atv.set('valor_grandeza_103', valorA3)
           atv.set('data_leitura', String(body.horario || new Date().toISOString()))
+          // a mae tambem recebe os valores, para o historico ficar completo
+          try {
+            var pid0 = String(atv.getString('parent_id') || '')
+            if (pid0) {
+              var m0 = $app.findRecordById('atividades', pid0)
+              if (valor03) m0.set('valor_grandeza_03', valor03)
+              if (valorA3) m0.set('valor_grandeza_103', valorA3)
+              m0.set('data_leitura', String(body.horario || new Date().toISOString()))
+              $app.save(m0)
+            }
+          } catch (eM0) {}
           atv.set('status', 'concluida')
 
+          // texto com TUDO o que a tela do portal mostrou
           var quando = new Date().toLocaleString('pt-BR')
-          var texto =
-            'Leitura registrada automaticamente pelo robo\n' +
-            'Grandeza 03: ' +
-            valor03 +
-            (valorA3 ? '\nGrandeza A3: ' + valorA3 : '') +
-            '\nProtocolo RGE: ' +
-            (protocolo || '(nao retornado)') +
-            '\nData do envio: ' +
-            quando
+          var dataTela = String(body.data_hora_texto || '').slice(0, 60)
+          var telTela = String(body.telefone || '').slice(0, 30)
+          var mesTela = String(body.mes_referencia || '').slice(0, 20)
+          var linhas = ['Leitura registrada no portal da RGE (autoleitura)']
+          var ucCrm = String(atv.getString('numero_uc') || '').slice(0, 40)
+          if (ucCrm) linhas.push('UC: ' + ucCrm)
+          if (mesTela) linhas.push('Mês de referência: ' + mesTela)
+          if (valor03) linhas.push('03 - Totalizador Consumo Ativo: ' + valor03)
+          if (valorA3) linhas.push('A3 - Totalizador Consumo Ativo Reverso: ' + valorA3)
+          if (telTela) linhas.push('Telefone do solicitante: ' + telTela)
+          linhas.push('Protocolo da leitura: ' + (protocolo || '(nao retornado)'))
+          linhas.push('Data da solicitação: ' + (dataTela || quando))
+          var texto = linhas.join('\n')
           atv.set('dados_leitura_registrados', texto)
           atv.set('auto_leitura_obs', texto)
 
