@@ -1150,6 +1150,76 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
             />
           )}
 
+          {/* SEÇÃO ESPECIAL: RESULTADO DA LEITURA NA FILHA DE LEMBRETE
+              O painel da mãe fica dentro do bloco "Ciclo de Leituras", que só
+              renderiza em tipo auto_leitura_rge. A filha (lembrete) precisa do
+              seu próprio bloco, senão o operador nao ve protocolo/valores. */}
+          {isFilhaLembrete &&
+            (atividade.protocolo_rge ||
+              atividade.valor_grandeza_03 ||
+              atividade.valor_grandeza_103) && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wide">
+                    Leitura registrada na RGE
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                    <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                      Protocolo
+                    </span>
+                    <span className="text-xs font-mono font-bold text-gray-900 break-all">
+                      {atividade.protocolo_rge || '—'}
+                    </span>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                    <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                      Data do envio
+                    </span>
+                    <span className="text-xs font-semibold text-gray-900">
+                      {atividade.data_leitura
+                        ? new Date(atividade.data_leitura).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                    <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                      03 — Consumo ativo
+                    </span>
+                    <span className="text-xs font-mono font-bold text-gray-900 tracking-widest">
+                      {atividade.valor_grandeza_03 || '—'}
+                    </span>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                    <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                      A3 — Ativo reverso
+                    </span>
+                    <span className="text-xs font-mono font-bold text-gray-900 tracking-widest">
+                      {atividade.valor_grandeza_103 || '—'}
+                    </span>
+                  </div>
+                </div>
+                {atividade.dados_leitura_registrados && (
+                  <details>
+                    <summary className="text-[10px] font-semibold text-emerald-800 cursor-pointer hover:text-emerald-900 select-none">
+                      Ver tudo o que foi registrado
+                    </summary>
+                    <pre className="mt-1.5 p-2 bg-white rounded-lg border border-emerald-100 text-[10px] leading-relaxed text-gray-700 whitespace-pre-wrap font-sans">
+                      {atividade.dados_leitura_registrados}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
+
           {/* SEÇÃO ESPECIAL: AUTO LEITURA RGE (MÃE E ATIVIDADES FILHAS) */}
           {tipo === 'auto_leitura_rge' && (
             <div className="space-y-4 p-4 rounded-2xl border border-orange-200 bg-orange-50/40 shadow-xs">
@@ -1186,6 +1256,75 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                   className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono bg-white font-medium"
                 />
               </div>
+
+              {/* Resultado da leitura registrada (protocolo, valores e data).
+                  Sem isto os dados ficavam gravados no banco e invisiveis na tela. */}
+              {(atividade.protocolo_rge ||
+                atividade.valor_grandeza_03 ||
+                atividade.valor_grandeza_103) && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wide">
+                      Leitura registrada na RGE
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                      <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                        Protocolo
+                      </span>
+                      <span className="text-xs font-mono font-bold text-gray-900 break-all">
+                        {atividade.protocolo_rge || '—'}
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                      <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                        Data do envio
+                      </span>
+                      <span className="text-xs font-semibold text-gray-900">
+                        {atividade.data_leitura
+                          ? new Date(atividade.data_leitura).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                      <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                        03 — Consumo ativo
+                      </span>
+                      <span className="text-xs font-mono font-bold text-gray-900 tracking-widest">
+                        {atividade.valor_grandeza_03 || '—'}
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-lg border border-emerald-100 px-2.5 py-1.5">
+                      <span className="block text-[9px] font-semibold text-gray-500 uppercase tracking-wide">
+                        A3 — Ativo reverso
+                      </span>
+                      <span className="text-xs font-mono font-bold text-gray-900 tracking-widest">
+                        {atividade.valor_grandeza_103 || '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {atividade.dados_leitura_registrados && (
+                    <details className="group">
+                      <summary className="text-[10px] font-semibold text-emerald-800 cursor-pointer hover:text-emerald-900 select-none">
+                        Ver tudo o que foi registrado
+                      </summary>
+                      <pre className="mt-1.5 p-2 bg-white rounded-lg border border-emerald-100 text-[10px] leading-relaxed text-gray-700 whitespace-pre-wrap font-sans">
+                        {atividade.dados_leitura_registrados}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              )}
 
               {/* Campo para adicionar nova data de leitura */}
               <div className="space-y-2 pt-2 border-t border-orange-100">
