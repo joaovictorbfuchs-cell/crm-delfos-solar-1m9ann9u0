@@ -66,4 +66,24 @@ describe('Trava Permanente de Exports do PocketBase (client.ts & errors.ts)', ()
     expect(pbBarrelNamed).toBeDefined()
     expect(typeof isAuthSessionErrorBarrel).toBe('function')
   })
+
+  it('garante re-exports nas salvaguardas raiz @/lib/client e @/lib/errors e @/services/errors', async () => {
+    const rootClient = await import('@/lib/client')
+    const rootErrors = await import('@/lib/errors')
+    const servErrors = await import('@/services/errors')
+
+    expect(rootClient.default).toBeDefined()
+    expect(rootClient.pb).toBeDefined()
+    expect(typeof rootClient.isAuthSessionError).toBe('function')
+
+    expect(typeof rootErrors.isAuthSessionError).toBe('function')
+    expect(typeof rootErrors.isAbortError).toBe('function')
+    expect(typeof rootErrors.formatPbError).toBe('function')
+    expect(typeof rootErrors.extractFieldErrors).toBe('function')
+    expect(typeof rootErrors.getErrorMessage).toBe('function')
+
+    expect(typeof servErrors.isAuthSessionError).toBe('function')
+    expect(typeof servErrors.isAbortError).toBe('function')
+    expect(typeof servErrors.formatPbError).toBe('function')
+  })
 })
