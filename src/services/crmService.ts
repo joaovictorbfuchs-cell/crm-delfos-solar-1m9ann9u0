@@ -263,8 +263,20 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
   )
 }
 
+// Campos que a LISTAGEM traz de cada atividade. Este `fields` e um allowlist:
+// o que nao esta aqui chega `undefined` no objeto, mesmo existindo no banco.
+// Foi o que aconteceu com a leitura automatica: protocolo_rge, os valores de
+// grandeza e o texto registrado estavam gravados, mas nunca chegavam a tela
+// porque nao estavam nesta lista (o modal recebe a atividade vinda da lista).
 export const ATIVIDADES_LISTAGEM_FIELDS =
-  'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,autor,data,status,responsavel_id,responsavel_nome,tecnicos_ids,tecnicos_nomes,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
+  'id,cliente_id,usina_id,tipo,tipo_custom_id,titulo,descricao,autor,data,status,responsavel_id,responsavel_nome,tecnicos_ids,tecnicos_nomes,horario_inicio,horario_fim,duracao_minutos,negocio_id,created,updated,' +
+  // Auto Leitura RGE (protocolo, valores e registro aparecem no modal)
+  'numero_uc,parent_id,data_leitura,data_lembrete,datas_leitura,protocolo_rge,valor_grandeza_03,valor_grandeza_103,dados_leitura_registrados,auto_leitura_obs,auto_leitura_dados,mensagem_cliente,lembrete_whatsapp_enviado_em,foto_medidor,' +
+  // Solicitar contas RGE / acompanhamento
+  'protocolo_atendimento,retorno_rge,retornos_rge,prazo_conclusao_rge,email_destinatario,email_enviado_em,' +
+  // Custos e deslocamento (usados no card e no modal)
+  'valor_servico,valor_por_placa,qtd_modulos,cobrar_deslocamento,distancia_km,valor_km,custo_deslocamento,custo_placas,custo_total,' +
+  'expand.cliente_id.id,expand.cliente_id.nome,expand.usina_id.id,expand.usina_id.nome,expand.responsavel_id.id,expand.responsavel_id.name'
 
 // Cache de promessa em voo para deduplicar chamadas concorrentes idênticas a fetchAtividades
 const _inFlightFetchAtividades = new Map<string, Promise<Atividade[]>>()
