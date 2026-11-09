@@ -303,6 +303,8 @@ routerAdd('GET', '/backend/v1/rge/fila-do-robo', (e) => {
       itens.push({
         id: r.id,
         uc: r.getString('uc'),
+        // numeracao antiga (codigo de instalacao), guardada quando a RGE renumerou
+        uc_antiga: r.getString('uc_antiga'),
         rotulo: r.getString('rotulo'),
         documento: r.getString('documento'),
         login: login,
