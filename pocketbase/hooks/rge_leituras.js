@@ -1,185 +1,181 @@
 // RGE — autoleitura pelo robo do PC da Delfos.
 //
 // Rotas:
-//   POST /backend/v1/rge/leitura-solicitar   (usuario logado) cria o pedido
+//   POST /backend/v1/rge/leitura-solicitar   (usuario logado OU segredo do robo)
 //   GET  /backend/v1/rge/leitura-fila        (X-Robo-Secret) lista a fila
+//   POST /backend/v1/rge/leitura-pegar       (X-Robo-Secret) reserva o item
 //   POST /backend/v1/rge/leitura-resultado   (X-Robo-Secret) grava o retorno
 //   GET  /backend/v1/rge/leitura-atividade   (usuario logado) pedidos de uma atividade
 //
 // O robo NUNCA recebe senha por aqui: ele le a credencial da UC em
 // rge_credenciais, como ja faz para baixar contas.
 //
-// Tudo inline (a VM do Skip nao herda escopo de topo).
-
-function segredoRoboOk(e) {
-  try {
-    var seg = $secrets.get('RGE_ROBO_SECRET') || ''
-    if (!seg) return false
-    return (e.request.header.get('X-Robo-Secret') || '') === seg
-  } catch (err) {
-    return false
-  }
-}
-
-function apenasDigitos(v) {
-  var s = String(v == null ? '' : v)
-  var out = ''
-  for (var i = 0; i < s.length; i++) {
-    var c = s.charAt(i)
-    if (c >= '0' && c <= '9') out += c
-  }
-  return out
-}
-
-// Normaliza a leitura para 5 posicoes com zeros a esquerda, que e o que a
-// tela do portal espera (5 quadradinhos de 1 digito).
-function normalizarLeitura(v) {
-  var d = apenasDigitos(v)
-  if (!d) return { erro: 'leitura vazia' }
-  if (d.length > 5) return { erro: 'leitura com mais de 5 digitos: ' + d }
-  while (d.length < 5) d = '0' + d
-  return { valor: d }
-}
+// IMPORTANTE: a VM do Skip executa cada callback num pool separado e NAO
+// herda escopo de topo — por isso funcoes auxiliares dao "Hook scoping error".
+// Todo o codigo vai INLINE dentro de cada callback.
 
 // ---------------------------------------------------------------- solicitar
-routerAdd(
-  'POST',
-  '/backend/v1/rge/leitura-solicitar',
-  (e) => {
+routerAdd('POST', '/backend/v1/rge/leitura-solicitar', (e) => {
+  try {
+    // aceita o usuario logado (botao na tela) OU o segredo do robo
+    var porSegredo = false
     try {
-      // aceita o usuario logado (botao na tela) OU o segredo do robo
-      // (para testes e para automatismos no PC da Delfos)
-      var porSegredo = segredoRoboOk(e)
-      if (!porSegredo && (!e.auth || !e.auth.id))
-        return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+      if (seg && (e.request.header.get('X-Robo-Secret') || '') === seg) porSegredo = true
+    } catch (eS) {}
+    if (!porSegredo && (!e.auth || !e.auth.id))
+      return e.json(401, { ok: false, error: 'Autenticação necessária' })
 
-      var body = e.requestInfo().body || {}
-      var uc = apenasDigitos(body.uc)
-      if (!uc) return e.json(400, { ok: false, error: 'Informe a UC (numero_uc)' })
+    var body = e.requestInfo().body || {}
 
-      var l03 = normalizarLeitura(body.valor_03)
-      if (l03.erro) return e.json(400, { ok: false, error: 'Leitura 03 invalida: ' + l03.erro })
-      var lA3 = { valor: '' }
-      if (body.valor_a3 !== undefined && String(body.valor_a3) !== '') {
-        lA3 = normalizarLeitura(body.valor_a3)
-        if (lA3.erro) return e.json(400, { ok: false, error: 'Leitura A3 invalida: ' + lA3.erro })
+    var ucBruta = String(body.uc == null ? '' : body.uc)
+    var uc = ''
+    for (var q = 0; q < ucBruta.length; q++) {
+      var ch = ucBruta.charAt(q)
+      if (ch >= '0' && ch <= '9') uc += ch
+    }
+    if (!uc) return e.json(400, { ok: false, error: 'Informe a UC (numero_uc)' })
+
+    // leitura: 5 posicoes com zeros a esquerda (a tela tem 5 quadradinhos)
+    var d03 = ''
+    var b03 = String(body.valor_03 == null ? '' : body.valor_03)
+    for (var a = 0; a < b03.length; a++) {
+      var c03 = b03.charAt(a)
+      if (c03 >= '0' && c03 <= '9') d03 += c03
+    }
+    if (!d03) return e.json(400, { ok: false, error: 'Leitura 03 invalida: vazia' })
+    if (d03.length > 5)
+      return e.json(400, { ok: false, error: 'Leitura 03 invalida: mais de 5 digitos' })
+    while (d03.length < 5) d03 = '0' + d03
+
+    var dA3 = ''
+    if (body.valor_a3 !== undefined && String(body.valor_a3) !== '') {
+      var bA3 = String(body.valor_a3)
+      for (var b2 = 0; b2 < bA3.length; b2++) {
+        var cA3 = bA3.charAt(b2)
+        if (cA3 >= '0' && cA3 <= '9') dA3 += cA3
       }
+      if (!dA3) return e.json(400, { ok: false, error: 'Leitura A3 invalida: vazia' })
+      if (dA3.length > 5)
+        return e.json(400, { ok: false, error: 'Leitura A3 invalida: mais de 5 digitos' })
+      while (dA3.length < 5) dA3 = '0' + dA3
+    }
 
-      var tel = apenasDigitos(body.telefone)
-      if (tel.length < 10 || tel.length > 11)
-        return e.json(400, {
-          ok: false,
-          error: 'Telefone deve ter 10 ou 11 digitos (DDD + numero)',
-        })
+    var telBruto = String(body.telefone == null ? '' : body.telefone)
+    var tel = ''
+    for (var t = 0; t < telBruto.length; t++) {
+      var ct = telBruto.charAt(t)
+      if (ct >= '0' && ct <= '9') tel += ct
+    }
+    if (tel.length < 10 || tel.length > 11)
+      return e.json(400, { ok: false, error: 'Telefone deve ter 10 ou 11 digitos (DDD + numero)' })
 
-      var atividadeId = String(body.atividade_id || '')
-      if (!atividadeId) return e.json(400, { ok: false, error: 'Informe a atividade_id' })
+    var atividadeId = String(body.atividade_id || '')
+    if (!atividadeId) return e.json(400, { ok: false, error: 'Informe a atividade_id' })
 
-      var atividade = null
+    var atividade = null
+    try {
+      atividade = $app.findRecordById('atividades', atividadeId)
+    } catch (eAt) {
+      return e.json(404, { ok: false, error: 'Atividade nao encontrada' })
+    }
+
+    // A UC precisa ter credencial ativa (dona ou beneficiaria): sem isso o
+    // robo nao tem login e o pedido morreria na fila.
+    var temCred = false
+    try {
+      if (
+        $app.findRecordsByFilter('rge_credenciais', 'uc = "' + uc + '" && ativo = true', '', 1, 0)
+          .length
+      )
+        temCred = true
+    } catch (eCr) {}
+    if (!temCred) {
       try {
-        atividade = $app.findRecordById('atividades', atividadeId)
-      } catch (eAt) {
-        return e.json(404, { ok: false, error: 'Atividade nao encontrada' })
-      }
-
-      // A UC pedida tem que existir entre as credenciais ativas: sem isso o
-      // robo nao tem login para entrar e o pedido morreria na fila.
-      var cred = []
-      try {
-        cred = $app.findRecordsByFilter(
-          'rge_credenciais',
-          'uc = "' + uc + '" && ativo = true',
-          '',
-          2,
-          0,
-        )
-      } catch (eCr) {
-        cred = []
-      }
-      var temBenef = []
-      if (!cred.length) {
-        try {
-          temBenef = $app.findRecordsByFilter(
+        if (
+          $app.findRecordsByFilter(
             'rge_beneficiarias',
             'uc = "' + uc + '" && ativo = true',
             '',
-            2,
+            1,
             0,
-          )
-        } catch (eB) {
-          temBenef = []
-        }
-      }
-      if (!cred.length && !temBenef.length)
-        return e.json(400, {
-          ok: false,
-          error: 'Nenhuma credencial ativa para a UC ' + uc + '. Cadastre em Integrações RGE.',
-        })
-
-      // um pedido aberto por atividade: nao deixa duplicar
-      var abertos = []
-      try {
-        abertos = $app.findRecordsByFilter(
-          'rge_leituras',
-          'atividade_id = "' + atividadeId + '" && (status = "na_fila" || status = "processando")',
-          '',
-          5,
-          0,
+          ).length
         )
-      } catch (eAb) {
-        abertos = []
-      }
-      if (abertos.length)
-        return e.json(409, {
-          ok: false,
-          error: 'Esta atividade ja tem uma leitura na fila',
-          leitura_id: abertos[0].id,
-        })
-
-      var rec = new Record($app.findCollectionByNameOrId('rge_leituras'))
-      rec.set('atividade_id', atividadeId)
-      var clienteId = String(atividade.getString('cliente_id') || '')
-      if (clienteId) rec.set('cliente_id', clienteId)
-      rec.set('uc', uc)
-      rec.set('mes_referencia', String(body.mes_referencia || '').slice(0, 20))
-      rec.set('valor_03', l03.valor)
-      rec.set('valor_a3', lA3.valor)
-      rec.set('telefone', tel)
-      rec.set('status', 'na_fila')
-      var quem = 'robo'
-      if (!porSegredo) {
-        try {
-          quem = String(e.auth.getString('nome') || e.auth.getString('name') || e.auth.email || '')
-        } catch (eQ) {
-          quem = ''
-        }
-      }
-      rec.set('solicitado_por', quem.slice(0, 120))
-      rec.set('tentativas', 0)
-      $app.save(rec)
-
-      return e.json(200, {
-        ok: true,
-        leitura_id: rec.id,
-        valor_03: l03.valor,
-        valor_a3: lA3.valor,
-        uc: uc,
-        status: 'na_fila',
-      })
-    } catch (err) {
-      return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+          temCred = true
+      } catch (eB) {}
     }
-  },
-  // SEM $apis.requireAuth(): o handler aceita usuario logado OU o segredo do
-  // robo, e o middleware cortaria o segredo antes de chegar aqui.
-  // A autorizacao e conferida dentro do handler (porSegredo).
-)
+    if (!temCred)
+      return e.json(400, {
+        ok: false,
+        error: 'Nenhuma credencial ativa para a UC ' + uc + '. Cadastre em Integrações RGE.',
+      })
+
+    // um pedido aberto por atividade (nao duplicar)
+    var abertos = []
+    try {
+      abertos = $app.findRecordsByFilter(
+        'rge_leituras',
+        'atividade_id = "' + atividadeId + '" && (status = "na_fila" || status = "processando")',
+        '',
+        5,
+        0,
+      )
+    } catch (eAb) {
+      abertos = []
+    }
+    if (abertos.length)
+      return e.json(409, {
+        ok: false,
+        error: 'Esta atividade ja tem uma leitura na fila',
+        leitura_id: abertos[0].id,
+      })
+
+    var quem = 'robo'
+    if (!porSegredo) {
+      try {
+        quem = String(e.auth.getString('nome') || e.auth.getString('name') || e.auth.email || '')
+      } catch (eQ) {
+        quem = ''
+      }
+    }
+
+    var rec = new Record($app.findCollectionByNameOrId('rge_leituras'))
+    rec.set('atividade_id', atividadeId)
+    var clienteId = String(atividade.getString('cliente_id') || '')
+    if (clienteId) rec.set('cliente_id', clienteId)
+    rec.set('uc', uc)
+    rec.set('mes_referencia', String(body.mes_referencia || '').slice(0, 20))
+    rec.set('valor_03', d03)
+    rec.set('valor_a3', dA3)
+    rec.set('telefone', tel)
+    rec.set('status', 'na_fila')
+    rec.set('solicitado_por', quem.slice(0, 120))
+    rec.set('tentativas', 0)
+    $app.save(rec)
+
+    return e.json(200, {
+      ok: true,
+      leitura_id: rec.id,
+      valor_03: d03,
+      valor_a3: dA3,
+      uc: uc,
+      status: 'na_fila',
+    })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+  }
+})
 
 // ---------------------------------------------------------------- fila do robo
 // O robo pergunta "tem leitura para enviar?" e recebe o pedido + o login da UC.
 routerAdd('GET', '/backend/v1/rge/leitura-fila', (e) => {
   try {
-    if (!segredoRoboOk(e)) return e.json(401, { ok: false, error: 'Segredo invalido' })
+    var okSeg = false
+    try {
+      var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+      if (seg && (e.request.header.get('X-Robo-Secret') || '') === seg) okSeg = true
+    } catch (eS) {}
+    if (!okSeg) return e.json(401, { ok: false, error: 'Segredo invalido' })
 
     var fila = []
     try {
@@ -193,7 +189,6 @@ routerAdd('GET', '/backend/v1/rge/leitura-fila', (e) => {
       var r = fila[i]
       var uc = r.getString('uc')
 
-      // credencial da UC (ou da geradora, quando a UC e beneficiaria)
       var login = ''
       var senha = ''
       var documento = ''
@@ -247,7 +242,6 @@ routerAdd('GET', '/backend/v1/rge/leitura-fila', (e) => {
       itens.push({
         id: r.id,
         uc: uc,
-        uc_antiga: '',
         valor_03: r.getString('valor_03'),
         valor_a3: r.getString('valor_a3'),
         telefone: r.getString('telefone'),
@@ -266,10 +260,16 @@ routerAdd('GET', '/backend/v1/rge/leitura-fila', (e) => {
   }
 })
 
-// O robo reserva o item antes de comecar (evita dois roboes pegando o mesmo)
+// O robo reserva o item antes de comecar (evita dois roboes no mesmo pedido)
 routerAdd('POST', '/backend/v1/rge/leitura-pegar', (e) => {
   try {
-    if (!segredoRoboOk(e)) return e.json(401, { ok: false, error: 'Segredo invalido' })
+    var okSeg = false
+    try {
+      var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+      if (seg && (e.request.header.get('X-Robo-Secret') || '') === seg) okSeg = true
+    } catch (eS) {}
+    if (!okSeg) return e.json(401, { ok: false, error: 'Segredo invalido' })
+
     var body = e.requestInfo().body || {}
     if (!body.id) return e.json(400, { ok: false, error: 'Informe id' })
     var rec = $app.findRecordById('rge_leituras', body.id)
@@ -290,11 +290,15 @@ routerAdd('POST', '/backend/v1/rge/leitura-pegar', (e) => {
 })
 
 // ---------------------------------------------------------------- resultado
-// Grava o retorno e atualiza a atividade: protocolo, horario, mensagem e
-// status. Assim o operador ve na propria atividade que a leitura foi aceita.
+// Grava o retorno e atualiza a atividade: protocolo, valores, data e status.
 routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
   try {
-    if (!segredoRoboOk(e)) return e.json(401, { ok: false, error: 'Segredo invalido' })
+    var okSeg = false
+    try {
+      var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+      if (seg && (e.request.header.get('X-Robo-Secret') || '') === seg) okSeg = true
+    } catch (eS) {}
+    if (!okSeg) return e.json(401, { ok: false, error: 'Segredo invalido' })
 
     var body = e.requestInfo().body || {}
     if (!body.id) return e.json(400, { ok: false, error: 'Informe id' })
@@ -314,27 +318,29 @@ routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
     if (body.mes_referencia) rec.set('mes_referencia', String(body.mes_referencia).slice(0, 20))
     $app.save(rec)
 
-    // devolve para a atividade
     var atividadeId = String(rec.getString('atividade_id') || '')
     if (atividadeId) {
       try {
         var atv = $app.findRecordById('atividades', atividadeId)
+        var valor03 = rec.getString('valor_03')
+        var valorA3 = rec.getString('valor_a3')
+        var protocolo = String(body.protocolo || '').slice(0, 40)
+
         if (sucesso) {
-          atv.set('protocolo_rge', String(body.protocolo || '').slice(0, 40))
-          atv.set('valor_grandeza_03', rec.getString('valor_03'))
-          if (rec.getString('valor_a3')) atv.set('valor_grandeza_103', rec.getString('valor_a3'))
+          atv.set('protocolo_rge', protocolo)
+          atv.set('valor_grandeza_03', valor03)
+          if (valorA3) atv.set('valor_grandeza_103', valorA3)
           atv.set('data_leitura', String(body.horario || new Date().toISOString()))
           atv.set('status', 'concluida')
 
-          // texto livre que a tela ja mostra hoje
           var quando = new Date().toLocaleString('pt-BR')
           var texto =
             'Leitura registrada automaticamente pelo robo\n' +
             'Grandeza 03: ' +
-            rec.getString('valor_03') +
-            (rec.getString('valor_a3') ? '\nGrandeza A3: ' + rec.getString('valor_a3') : '') +
+            valor03 +
+            (valorA3 ? '\nGrandeza A3: ' + valorA3 : '') +
             '\nProtocolo RGE: ' +
-            String(body.protocolo || '(nao retornado)') +
+            (protocolo || '(nao retornado)') +
             '\nData do envio: ' +
             quando
           atv.set('dados_leitura_registrados', texto)
@@ -348,12 +354,11 @@ routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
               mae.set('status', 'concluida')
               mae.set('dados_leitura_registrados', texto)
               mae.set('auto_leitura_obs', texto)
-              mae.set('protocolo_rge', String(body.protocolo || '').slice(0, 40))
+              mae.set('protocolo_rge', protocolo)
               $app.save(mae)
             } catch (eMae) {}
           }
         } else {
-          // erro: guarda o motivo sem concluir a atividade
           var obsAtual = String(atv.getString('auto_leitura_obs') || '')
           var linha =
             '[' +
@@ -378,7 +383,6 @@ routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
 })
 
 // ---------------------------------------------------------------- consulta na tela
-// A tela da atividade mostra o estado do envio (na fila / enviada / erro).
 routerAdd(
   'GET',
   '/backend/v1/rge/leitura-atividade',
