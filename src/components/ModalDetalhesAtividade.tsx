@@ -23,6 +23,7 @@ import {
   Layers,
   FileCheck,
   Sun,
+  Zap,
 } from 'lucide-react'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { BlocoRetornosRGE } from '@/components/BlocoRetornosRGE'
@@ -40,6 +41,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { ModalEnviarLembreteAutoLeituraWhatsApp } from './ModalEnviarLembreteAutoLeituraWhatsApp'
 import { ModalRegistrarDadosLeitura } from './ModalRegistrarDadosLeitura'
+import { ModalEnviarLeituraRGE } from './ModalEnviarLeituraRGE'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import {
   ATIVIDADES_12_TIPOS,
@@ -164,6 +166,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   // Modais de ação para lembrete de auto leitura (WhatsApp e Registro de Leitura)
   const [modalLembreteWhatsAppOpen, setModalLembreteWhatsAppOpen] = useState(false)
   const [modalRegistrarLeituraOpen, setModalRegistrarLeituraOpen] = useState(false)
+  const [modalEnviarLeituraRGEOpen, setModalEnviarLeituraRGEOpen] = useState(false)
   const [confirmarExclusaoOpen, setConfirmarExclusaoOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [atividadeFilhaAlvo, setAtividadeFilhaAlvo] = useState<Atividade | null>(null)
@@ -559,6 +562,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     tipo === 'lembrete_auto_leitura' || atividade.tipo === 'lembrete_auto_leitura'
   const podeEnviarWhatsApp = isFilhaLembrete && (status === 'pendente' || status === 'enviado')
   const podeRegistrarLeitura = isFilhaLembrete && status !== 'concluida'
+  // Enviar para RGE: mesma condicao do registro manual (e a versao automatica)
+  const podeEnviarLeituraRGE = isFilhaLembrete && status !== 'concluida'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
@@ -1639,6 +1644,21 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               </button>
             )}
 
+            {podeEnviarLeituraRGE && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAtividadeFilhaAlvo(atividade)
+                  setModalEnviarLeituraRGEOpen(true)
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition-all shadow-xs flex items-center gap-1.5"
+                title="O robô entra no portal da RGE e registra a leitura automaticamente"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Enviar para RGE</span>
+              </button>
+            )}
+
             {/* Botão Cancelar: fecha sem salvar */}
             <button
               type="button"
@@ -1685,6 +1705,23 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
             if (atvAtualizada && atvAtualizada.id === atividade.id) {
               setStatus(atvAtualizada.status || 'enviado')
             }
+            recarregarFilhas()
+            if (onSuccess) onSuccess(atvAtualizada)
+            if (onSaved && atvAtualizada) onSaved(atvAtualizada)
+          }}
+        />
+      )}
+
+      {modalEnviarLeituraRGEOpen && (
+        <ModalEnviarLeituraRGE
+          isOpen={modalEnviarLeituraRGEOpen}
+          onClose={() => {
+            setModalEnviarLeituraRGEOpen(false)
+            setAtividadeFilhaAlvo(null)
+          }}
+          atividade={atividadeFilhaAlvo || atividade}
+          cliente={clienteAtual}
+          onEnviadoSucesso={(atvAtualizada) => {
             recarregarFilhas()
             if (onSuccess) onSuccess(atvAtualizada)
             if (onSaved && atvAtualizada) onSaved(atvAtualizada)
