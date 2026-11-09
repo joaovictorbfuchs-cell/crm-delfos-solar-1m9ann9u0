@@ -3343,37 +3343,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         )}
       </div>
 
-      {/* 5. DETALHES DA EXECUÇÃO */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-3">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-          <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
-            <FileText className="w-5 h-5 text-emerald-600" />
-            5. Detalhes da Execução & Observações Técnicas
-          </h3>
-          <span className="text-[11px] text-gray-400">{detalhesExecucao.length} caracteres</span>
-        </div>
-
-        <p className="text-xs text-gray-500 leading-relaxed">
-          Descreva o que foi realizado em campo, problemas ou anomalias encontradas, medições
-          elétricas, peças trocadas ou recomendações para o cliente:
-        </p>
-
-        <Textarea
-          value={detalhesExecucao}
-          onChange={(e) => setDetalhesExecucao(e.target.value)}
-          disabled={!podeEditarOS}
-          placeholder="Ex: Realizada lavagem de 30 placas com água deionizada. Medições de Voc em 385V string 1 e 390V string 2. Inversor operando com geração nominal de 11.8 kW. Nenhum hotspot detectado na termografia..."
-          className="min-h-[130px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y disabled:opacity-75 disabled:cursor-not-allowed"
-        />
-      </div>
-
-      {/* 6. PENDÊNCIAS E RECOMENDAÇÕES */}
+      {/* 5. PENDÊNCIAS E RECOMENDAÇÕES (Seção de Detalhes da Execução duplicada com Pendências foi unificada nesta seção) */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-3">
         <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
           <div>
             <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
               <FileText className="w-5 h-5 text-emerald-600" />
-              6. Pendências e Recomendações
+              5. Pendências e Recomendações
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
               Observações técnicas e pendências operacionais para o cliente no relatório final.
@@ -3397,13 +3373,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         />
       </div>
 
-      {/* 7. SOLICITAÇÃO DE AVALIAÇÃO NO GOOGLE */}
+      {/* 6. SOLICITAÇÃO DE AVALIAÇÃO NO GOOGLE */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-gray-100 pb-3 gap-3 flex-wrap sm:flex-nowrap">
           <div className="space-y-0.5">
             <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
               <span className="text-amber-500 text-base sm:text-lg">⭐</span>
-              <span>Solicitação de avaliação no Google</span>
+              <span>6. Solicitação de avaliação no Google</span>
             </h3>
             <p className="text-xs text-gray-500 leading-relaxed">
               Exibe um bloco no relatório para o cliente avaliar o atendimento no Google.

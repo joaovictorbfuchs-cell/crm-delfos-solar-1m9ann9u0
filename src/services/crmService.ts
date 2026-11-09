@@ -4368,6 +4368,20 @@ export async function fetchOrdemServicoById(
           checklist: normalizeChecklist(atv.checklist),
           detalhes_execucao: atv.observacoes || atv.detalhes_execucao || atv.descricao || '',
           concluida_em: atv.status === 'concluida' ? atv.updated || atv.data : undefined,
+          horario_inicio:
+            atv.horario_inicio ||
+            (atv.data && atv.data.length >= 16
+              ? atv.data.replace(' ', 'T').slice(11, 16)
+              : undefined),
+          horario_fim: atv.horario_fim || undefined,
+          duracao_minutos:
+            typeof atv.duracao_minutos === 'number'
+              ? atv.duracao_minutos
+              : atv.duracao_minutos
+                ? Number(atv.duracao_minutos)
+                : undefined,
+          pendencias_recomendacoes: atv.pendencias_recomendacoes || undefined,
+          blocos_relatorio: atv.blocos_relatorio || undefined,
           origem: 'atividades',
           solicitar_avaliacao_google: Boolean(atv.solicitar_avaliacao_google),
           avaliacao_google_texto: atv.avaliacao_google_texto || '',
@@ -4481,6 +4495,12 @@ export async function updateAtividadeComoOrdemServico(
   }
   if (data.data_agendada) {
     payloadAtividade.data = data.data_agendada
+  }
+  if (data.pendencias_recomendacoes !== undefined) {
+    payloadAtividade.pendencias_recomendacoes = data.pendencias_recomendacoes || ''
+  }
+  if (data.blocos_relatorio !== undefined) {
+    payloadAtividade.blocos_relatorio = data.blocos_relatorio
   }
 
   // Solicitação de avaliação no Google
@@ -4656,6 +4676,12 @@ export async function updateAtividadeComoOrdemServico(
       typeof atvRecord.duracao_minutos === 'number'
         ? atvRecord.duracao_minutos
         : (data.duracao_minutos ?? (data as any).tempo_previsto_minutos ?? undefined),
+    pendencias_recomendacoes:
+      atvRecord.pendencias_recomendacoes !== undefined
+        ? atvRecord.pendencias_recomendacoes
+        : data.pendencias_recomendacoes,
+    blocos_relatorio:
+      atvRecord.blocos_relatorio !== undefined ? atvRecord.blocos_relatorio : data.blocos_relatorio,
     endereco,
     data_agendada: atvRecord.data || atvRecord.created,
     status: osStatus,

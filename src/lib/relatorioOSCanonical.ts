@@ -193,14 +193,21 @@ export function compilarDadosRelatorioOS(
       ? cidadeEstado
       : 'Não informado'
 
-  // Data do atendimento e horários
+  // Data do atendimento: priorizar a data real do registro (data_agendada ou created),
+  // convertendo de UTC para São Paulo (UTC-3). NUNCA usar dataEmissao como fallback da data do atendimento.
   const dataAgendadaRaw = os?.data_agendada || os?.created
-  let dataAtendimento = dataEmissao
+  let dataAtendimento = 'Não informada'
   if (dataAgendadaRaw) {
     try {
       const d = new Date(dataAgendadaRaw)
       if (!isNaN(d.getTime())) {
-        dataAtendimento = d.toLocaleDateString('pt-BR')
+        // Deslocamento determinístico para UTC-3 (São Paulo)
+        const spMs = d.getTime() - 3 * 60 * 60 * 1000
+        const spDate = new Date(spMs)
+        const dia = String(spDate.getUTCDate()).padStart(2, '0')
+        const mes = String(spDate.getUTCMonth() + 1).padStart(2, '0')
+        const ano = spDate.getUTCFullYear()
+        dataAtendimento = `${dia}/${mes}/${ano}`
       }
     } catch {
       /* ignore */
@@ -213,15 +220,44 @@ export function compilarDadosRelatorioOS(
   let duracaoStr: string | null = null
   let dataInicioRealObj: Date | null = null
 
+  // 1. Ler PRIMEIRO os campos nativos do registro (os.horario_inicio, os.horario_fim, os.duracao_minutos)
+  if (os?.horario_inicio && typeof os.horario_inicio === 'string' && os.horario_inicio.trim()) {
+    const rawIni = os.horario_inicio.trim()
+    const m = rawIni.match(/(\d{1,2}:\d{2})/)
+    if (m) {
+      horarioInicio = m[1].padStart(5, '0')
+    }
+  }
+
+  if (os?.horario_fim && typeof os.horario_fim === 'string' && os.horario_fim.trim()) {
+    const rawFim = os.horario_fim.trim()
+    const m = rawFim.match(/(\d{1,2}:\d{2})/)
+    if (m) {
+      horarioFim = m[1].padStart(5, '0')
+    }
+  }
+
+  if (
+    typeof os?.duracao_minutos === 'number' &&
+    !isNaN(os.duracao_minutos) &&
+    os.duracao_minutos > 0
+  ) {
+    const durMinTotal = Math.floor(os.duracao_minutos)
+    const horas = Math.floor(durMinTotal / 60)
+    const minutos = durMinTotal % 60
+    duracaoStr = `${String(horas).padStart(2, '0')}h${String(minutos).padStart(2, '0')}min`
+  }
+
+  // 2. Fallbacks secundários se não preenchidos nativamente:
   // Tenta extrair do texto detalhes_execucao se houver "[INÍCIO DO ATENDIMENTO: ...]"
   const detalhesRaw = String(os?.detalhes_execucao || os?.observacoes || os?.descricao || '')
   const matchInicio = detalhesRaw.match(/\[INÍCIO DO ATENDIMENTO:\s*([^\]]+)\]/i)
 
-  if (matchInicio && matchInicio[1]) {
+  if (!horarioInicio && matchInicio && matchInicio[1]) {
     const rawInicio = matchInicio[1].trim()
     const matchHora = rawInicio.match(/(\d{1,2}:\d{2})/)
     if (matchHora) {
-      horarioInicio = matchHora[1]
+      horarioInicio = matchHora[1].padStart(5, '0')
     }
     // Tenta montar Date para início se houver data/hora completa no match
     try {
@@ -238,7 +274,12 @@ export function compilarDadosRelatorioOS(
     try {
       const d = new Date(os.data_agendada)
       if (!isNaN(d.getTime())) {
-        horarioInicio = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        // Formatar em UTC-3 determinístico
+        const spMs = d.getTime() - 3 * 60 * 60 * 1000
+        const spDate = new Date(spMs)
+        const hh = String(spDate.getUTCHours()).padStart(2, '0')
+        const mm = String(spDate.getUTCMinutes()).padStart(2, '0')
+        horarioInicio = `${hh}:${mm}`
         dataInicioRealObj = d
       }
     } catch {
@@ -246,20 +287,26 @@ export function compilarDadosRelatorioOS(
     }
   }
 
-  if (os?.concluida_em) {
+  if (!horarioFim && os?.concluida_em) {
     try {
       const dFim = new Date(os.concluida_em)
       if (!isNaN(dFim.getTime())) {
-        horarioFim = dFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        // Se houver data real para início, calcula a duração real
-        const dIniParaCalculo =
-          dataInicioRealObj || (os.data_agendada ? new Date(os.data_agendada) : null)
-        if (dIniParaCalculo && !isNaN(dIniParaCalculo.getTime())) {
-          const diffMs = Math.max(0, dFim.getTime() - dIniParaCalculo.getTime())
-          const diffMinTotal = Math.floor(diffMs / 60000)
-          const horas = Math.floor(diffMinTotal / 60)
-          const minutos = diffMinTotal % 60
-          duracaoStr = `${String(horas).padStart(2, '0')}h${String(minutos).padStart(2, '0')}min`
+        const spMs = dFim.getTime() - 3 * 60 * 60 * 1000
+        const spDate = new Date(spMs)
+        const hh = String(spDate.getUTCHours()).padStart(2, '0')
+        const mm = String(spDate.getUTCMinutes()).padStart(2, '0')
+        horarioFim = `${hh}:${mm}`
+        // Se houver data real para início e duracaoStr ainda não foi resolvida, calcula a duração real
+        if (!duracaoStr) {
+          const dIniParaCalculo =
+            dataInicioRealObj || (os.data_agendada ? new Date(os.data_agendada) : null)
+          if (dIniParaCalculo && !isNaN(dIniParaCalculo.getTime())) {
+            const diffMs = Math.max(0, dFim.getTime() - dIniParaCalculo.getTime())
+            const diffMinTotal = Math.floor(diffMs / 60000)
+            const horas = Math.floor(diffMinTotal / 60)
+            const minutos = diffMinTotal % 60
+            duracaoStr = `${String(horas).padStart(2, '0')}h${String(minutos).padStart(2, '0')}min`
+          }
         }
       }
     } catch {

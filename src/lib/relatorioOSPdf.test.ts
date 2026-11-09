@@ -569,5 +569,67 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
       })
       expect(html).toContain('Manutenção corretiva — Inversor em Falha E023')
     })
+
+    it('formata dataAtendimento, horários nativos, duração e pendencias_recomendacoes corretamente no canônico e no HTML', async () => {
+      const { compilarDadosRelatorioOS } = await import('./relatorioOSCanonical')
+      const { gerarHTMLRelatorioOS } = await import('./relatorioOSPdf')
+
+      // Caso com data 2026-10-01 17:00:00Z (14h Brasília), horario_inicio 14:00, horario_fim 16:00, duracao_minutos 90
+      const osComHorarios = {
+        id: 'r98if0d7pjp6h8t',
+        titulo: 'Manutenção Corretiva',
+        tipo: 'manutencao_corretiva',
+        data: '2026-10-01 17:00:00.000Z',
+        horario_inicio: '14:00',
+        horario_fim: '16:00',
+        duracao_minutos: 90,
+        pendencias_recomendacoes:
+          'Reparo concluído com sucesso. Micro inversor reposicionado em local ventilado.',
+        checklist: [],
+        fotos: [],
+      }
+
+      const canonical = compilarDadosRelatorioOS(osComHorarios as any, clienteMock, sistemaMock)
+
+      // Data de atendimento deve ser 01/10/2026 e nunca a data de emissão
+      expect(canonical.dataAtendimento).toBe('01/10/2026')
+      expect(canonical.horarioInicioTermino).toContain('14:00 às 16:00')
+      expect(canonical.horarioInicioTermino).toContain('01h30min')
+      expect(canonical.pendenciasRecomendacoes).toBe(
+        'Reparo concluído com sucesso. Micro inversor reposicionado em local ventilado.',
+      )
+
+      const html = gerarHTMLRelatorioOS({
+        os: osComHorarios as any,
+        cliente: clienteMock,
+        sistema: sistemaMock,
+      })
+
+      expect(html).toContain('01/10/2026')
+      expect(html).toContain('14:00 às 16:00')
+      expect(html).toContain('01h30min')
+      expect(html).toContain('Reparo concluído com sucesso. Micro inversor reposicionado em local ventilado.')
+      expect(html).not.toContain('Horários: Não informado')
+    })
+
+    it('preserva fallback para horário e conformidade técnica quando não informados', async () => {
+      const { compilarDadosRelatorioOS } = await import('./relatorioOSCanonical')
+      const osSemHorarios = {
+        id: 'os-sem-horarios',
+        titulo: 'Limpeza Periódica',
+        tipo: 'limpeza',
+        data_agendada: '2026-05-15T12:00:00.000Z',
+      }
+
+      const canonical = compilarDadosRelatorioOS(
+        osSemHorarios as any,
+        clienteMock,
+        sistemaMock,
+      )
+
+      expect(canonical.horarioInicioTermino).toBe('Não informado')
+      expect(canonical.pendenciasRecomendacoes).toBe('')
+      expect(canonical.conformidadeTecnica).toBeTruthy()
+    })
   })
 })
