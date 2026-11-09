@@ -520,6 +520,85 @@ routerAdd('POST', '/backend/v1/rge/leitura-preencher', (e) => {
   }
 })
 
+// ---------------------------------------------------------------- corrigir UC do titulo
+// A RGE renumerou as UCs: atividades antigas ficaram com o codigo velho no
+// TITULO ("Auto Leitura RGE - UC 4004280183"). Esta rota troca o titulo e o
+// campo numero_uc da atividade e das filhas. Aceita segredo do robo.
+routerAdd('POST', '/backend/v1/rge/atividade-trocar-uc', (e) => {
+  try {
+    var porSegredo = false
+    try {
+      var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+      if (seg && (e.request.header.get('X-Robo-Secret') || '') === seg) porSegredo = true
+    } catch (eS) {}
+    if (!porSegredo && (!e.auth || !e.auth.id))
+      return e.json(401, { ok: false, error: 'Autenticação necessária' })
+
+    var body = e.requestInfo().body || {}
+    var atividadeId = String(body.atividade_id || '')
+    var ucNova = String(body.uc_nova || '').slice(0, 40)
+    if (!atividadeId) return e.json(400, { ok: false, error: 'Informe atividade_id' })
+    if (!ucNova) return e.json(400, { ok: false, error: 'Informe uc_nova' })
+
+    var alterados = []
+    var atv = null
+    try {
+      atv = $app.findRecordById('atividades', atividadeId)
+    } catch (eAt) {
+      return e.json(404, { ok: false, error: 'Atividade nao encontrada' })
+    }
+
+    // titulo: troca apenas o trecho "UC <algo>" pelo novo, preservando o resto
+    var tituloAtual = String(atv.getString('titulo') || '')
+    var novoTitulo = tituloAtual
+    if (/UC\\s+[0-9.\\-]+/i.test(tituloAtual)) {
+      novoTitulo = tituloAtual.replace(/UC\\s+[0-9.\\-]+/i, 'UC ' + ucNova)
+    } else if (tituloAtual) {
+      novoTitulo = tituloAtual + ' - UC ' + ucNova
+    }
+    atv.set('titulo', novoTitulo.slice(0, 200))
+    atv.set('numero_uc', ucNova)
+    var desc = String(atv.getString('descricao') || '')
+    if (desc && /UC\\s+[0-9.\\-]+/i.test(desc)) {
+      atv.set('descricao', desc.replace(/UC\\s+[0-9.\\-]+/i, 'UC ' + ucNova))
+    }
+    $app.save(atv)
+    alterados.push({ id: atv.id, titulo: atv.getString('titulo'), papel: 'atividade' })
+
+    // filhas (e a mae, se esta for filha) tambem recebem o numero_uc novo
+    var parentId = String(atv.getString('parent_id') || '')
+    if (parentId) {
+      try {
+        var mae = $app.findRecordById('atividades', parentId)
+        var tm = String(mae.getString('titulo') || '')
+        if (/UC\\s+[0-9.\\-]+/i.test(tm))
+          mae.set('titulo', tm.replace(/UC\\s+[0-9.\\-]+/i, 'UC ' + ucNova).slice(0, 200))
+        mae.set('numero_uc', ucNova)
+        $app.save(mae)
+        alterados.push({ id: mae.id, titulo: mae.getString('titulo'), papel: 'mae' })
+      } catch (eMae) {}
+    }
+    try {
+      var filhas = $app.findRecordsByFilter(
+        'atividades',
+        'parent_id = "' + atv.id + '"',
+        '',
+        200,
+        0,
+      )
+      for (var i = 0; i < filhas.length; i++) {
+        filhas[i].set('numero_uc', ucNova)
+        $app.save(filhas[i])
+        alterados.push({ id: filhas[i].id, titulo: filhas[i].getString('titulo'), papel: 'filha' })
+      }
+    } catch (eF) {}
+
+    return e.json(200, { ok: true, alterados: alterados })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+  }
+})
+
 // ---------------------------------------------------------------- consulta na tela
 routerAdd(
   'GET',
