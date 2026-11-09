@@ -608,7 +608,9 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
       expect(html).toContain('01/10/2026')
       expect(html).toContain('14:00 às 16:00')
       expect(html).toContain('01h30min')
-      expect(html).toContain('Reparo concluído com sucesso. Micro inversor reposicionado em local ventilado.')
+      expect(html).toContain(
+        'Reparo concluído com sucesso. Micro inversor reposicionado em local ventilado.',
+      )
       expect(html).not.toContain('Horários: Não informado')
     })
 
@@ -621,11 +623,7 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
         data_agendada: '2026-05-15T12:00:00.000Z',
       }
 
-      const canonical = compilarDadosRelatorioOS(
-        osSemHorarios as any,
-        clienteMock,
-        sistemaMock,
-      )
+      const canonical = compilarDadosRelatorioOS(osSemHorarios as any, clienteMock, sistemaMock)
 
       expect(canonical.horarioInicioTermino).toBe('Não informado')
       expect(canonical.pendenciasRecomendacoes).toBe('')
