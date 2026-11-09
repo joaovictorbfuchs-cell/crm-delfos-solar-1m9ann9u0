@@ -649,8 +649,77 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                   const solucaoAdotada =
                     (rawAtiv as any)?.solucao_adotada || (rawAtiv as any)?.solucao
 
+                  // Resultado da autoleitura na RGE (o robo grava estes campos
+                  // na atividade). Este e o modal que o operador realmente abre
+                  // a partir da lista, entao o painel tem de ficar AQUI.
+                  const protocoloLeitura = rawAtiv?.protocolo_rge
+                  const grandeza03 = rawAtiv?.valor_grandeza_03
+                  const grandezaA3 = rawAtiv?.valor_grandeza_103
+                  const textoLeitura = rawAtiv?.dados_leitura_registrados
+                  const temLeitura = !!(protocoloLeitura || grandeza03 || grandezaA3)
+                  const ehLembreteLeitura =
+                    String(rawAtiv?.tipo || '') === 'lembrete_auto_leitura' ||
+                    String(rawAtiv?.tipo || '') === 'auto_leitura_rge'
+
                   return (
                     <div className="space-y-4">
+                      {/* 0. Resultado da autoleitura RGE */}
+                      {temLeitura && (
+                        <div className="bg-emerald-50/70 rounded-xl p-4 border border-emerald-200 shadow-xs space-y-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
+                              Leitura registrada na RGE
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2.5 text-xs">
+                            <div className="p-2.5 rounded-lg bg-white border border-emerald-200">
+                              <span className="text-[11px] text-emerald-700 block">Protocolo</span>
+                              <span className="font-bold text-gray-900 font-mono break-all">
+                                {protocoloLeitura || '—'}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-white border border-emerald-200">
+                              <span className="text-[11px] text-emerald-700 block">
+                                Data do envio
+                              </span>
+                              <span className="font-bold text-gray-900">
+                                {rawAtiv?.data_leitura
+                                  ? new Date(
+                                      String(rawAtiv.data_leitura).replace(' ', 'T'),
+                                    ).toLocaleString('pt-BR', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })
+                                  : '—'}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-white border border-emerald-200">
+                              <span className="text-[11px] text-emerald-700 block">
+                                03 — Consumo ativo
+                              </span>
+                              <span className="font-bold text-gray-900 font-mono tracking-widest">
+                                {grandeza03 || '—'}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-white border border-emerald-200">
+                              <span className="text-[11px] text-emerald-700 block">
+                                A3 — Ativo reverso
+                              </span>
+                              <span className="font-bold text-gray-900 font-mono tracking-widest">
+                                {grandezaA3 || '—'}
+                              </span>
+                            </div>
+                          </div>
+                          {textoLeitura && (
+                            <pre className="p-2.5 bg-white rounded-lg border border-emerald-200 text-[11px] leading-relaxed text-gray-700 whitespace-pre-wrap font-sans">
+                              {String(textoLeitura)}
+                            </pre>
+                          )}
+                        </div>
+                      )}
                       {/* 1. Card Informações da Atividade & Manutenção */}
                       <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-xs space-y-3">
                         <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">

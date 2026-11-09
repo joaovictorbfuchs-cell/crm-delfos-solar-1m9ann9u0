@@ -257,8 +257,14 @@ export async function carregarCentralAtividades(
     const col = pb.collection('atividades') as any
     const options = {
       sort: '-data,-created',
+      // ATENCAO: `fields` e allowlist. O modal de detalhes da timeline recebe
+      // `rawAtividade` deste objeto — campo fora daqui chega undefined e o
+      // painel de leitura nao renderiza, mesmo com o dado no banco.
       fields:
-        'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,categoria_unificada,origem,chave_importacao,registro_original_id,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,valor_servico,numero_uc,protocolo_atendimento,retornos_rge,retorno_rge,prazo_conclusao_rge,created,updated',
+        'id,cliente_id,usina_id,tipo,tipo_custom_id,subtipo,tipo_unificado,categoria_unificada,origem,chave_importacao,registro_original_id,titulo,descricao,data,status,responsavel_id,responsavel_nome,autor,valor_servico,numero_uc,protocolo_atendimento,retornos_rge,retorno_rge,prazo_conclusao_rge,' +
+        'parent_id,data_leitura,data_lembrete,datas_leitura,protocolo_rge,valor_grandeza_03,valor_grandeza_103,dados_leitura_registrados,auto_leitura_obs,auto_leitura_dados,foto_medidor,mensagem_cliente,' +
+        'qtd_modulos,cobrar_deslocamento,distancia_km,valor_km,custo_deslocamento,custo_placas,custo_total,equipe_nome,checklist,documentos_anexados,' +
+        'created,updated',
       requestKey: null,
     }
 
