@@ -488,6 +488,10 @@ routerAdd('POST', '/backend/v1/rge/leitura-preencher', (e) => {
     atv.set('dados_leitura_registrados', texto)
     atv.set('auto_leitura_obs', texto)
     if (ucTexto) atv.set('numero_uc', ucTexto)
+    // descricao: se vier, substitui (e o que aparece no CARD e no modal)
+    if (body.descricao !== undefined && String(body.descricao) !== '') {
+      atv.set('descricao', String(body.descricao).slice(0, 5000))
+    }
     $app.save(atv)
 
     // conclui a mae tambem
