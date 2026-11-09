@@ -551,8 +551,21 @@ routerAdd('POST', '/backend/v1/rge/atividade-trocar-uc', (e) => {
     // titulo: troca apenas o trecho "UC <algo>" pelo novo, preservando o resto
     var tituloAtual = String(atv.getString('titulo') || '')
     var novoTitulo = tituloAtual
-    if (/UC\\s+[0-9.\\-]+/i.test(tituloAtual)) {
-      novoTitulo = tituloAtual.replace(/UC\\s+[0-9.\\-]+/i, 'UC ' + ucNova)
+    if (/UC\s+[0-9.\-]+/i.test(tituloAtual)) {
+      // troca TODOS os trechos "UC <numero>" por um unico "UC <nova>".
+      // Antes era .replace com regex global=false: um titulo que ja tinha
+      // sido trocado ganhava outra UC no fim e virava
+      // "Auto Leitura RGE - UC 4004280183 - UC 3.741.688.001-68 - UC ...".
+      var somenteUC = tituloAtual
+        .replace(/UC\s+[0-9.\-]+/gi, '')
+        .replace(/\s*-\s*$/, '')
+        .trim()
+      // remove separadores soltos que sobraram ("... - - ...")
+      somenteUC = somenteUC
+        .replace(/\s*-\s*-\s*/g, ' - ')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+      novoTitulo = somenteUC ? somenteUC + ' - UC ' + ucNova : 'UC ' + ucNova
     } else if (tituloAtual) {
       novoTitulo = tituloAtual + ' - UC ' + ucNova
     }
