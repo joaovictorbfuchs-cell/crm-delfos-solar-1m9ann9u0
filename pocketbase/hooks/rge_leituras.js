@@ -47,7 +47,11 @@ routerAdd(
   '/backend/v1/rge/leitura-solicitar',
   (e) => {
     try {
-      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticação necessária' })
+      // aceita o usuario logado (botao na tela) OU o segredo do robo
+      // (para testes e para automatismos no PC da Delfos)
+      var porSegredo = segredoRoboOk(e)
+      if (!porSegredo && (!e.auth || !e.auth.id))
+        return e.json(401, { ok: false, error: 'Autenticação necessária' })
 
       var body = e.requestInfo().body || {}
       var uc = apenasDigitos(body.uc)
@@ -142,13 +146,15 @@ routerAdd(
       rec.set('valor_a3', lA3.valor)
       rec.set('telefone', tel)
       rec.set('status', 'na_fila')
-      rec.set(
-        'solicitado_por',
-        String(e.auth.getString('nome') || e.auth.getString('name') || e.auth.email || '').slice(
-          0,
-          120,
-        ),
-      )
+      var quem = 'robo'
+      if (!porSegredo) {
+        try {
+          quem = String(e.auth.getString('nome') || e.auth.getString('name') || e.auth.email || '')
+        } catch (eQ) {
+          quem = ''
+        }
+      }
+      rec.set('solicitado_por', quem.slice(0, 120))
       rec.set('tentativas', 0)
       $app.save(rec)
 
@@ -164,7 +170,9 @@ routerAdd(
       return e.json(400, { ok: false, error: String(err).slice(0, 400) })
     }
   },
-  $apis.requireAuth(),
+  // SEM $apis.requireAuth(): o handler aceita usuario logado OU o segredo do
+  // robo, e o middleware cortaria o segredo antes de chegar aqui.
+  // A autorizacao e conferida dentro do handler (porSegredo).
 )
 
 // ---------------------------------------------------------------- fila do robo
