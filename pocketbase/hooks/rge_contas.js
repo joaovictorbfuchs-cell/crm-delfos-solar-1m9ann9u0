@@ -486,6 +486,58 @@ routerAdd('POST', '/backend/v1/rge/importar-credenciais', (e) => {
   }
 })
 
+// ---------------- migrar UC antiga -> UC nova (guarda a antiga) ----------------
+// A RGE trocou a numeracao das UCs. O CRM passa a usar a UC NOVA (11 ou 12
+// digitos) e guarda a antiga em `uc_antiga`, para conferencia e para o robo
+// poder tentar as duas.
+routerAdd('POST', '/backend/v1/rge/migrar-uc', (e) => {
+  try {
+    var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+    var env = e.request.header.get('X-Robo-Secret') || ''
+    var porSegredo = !!seg && env === seg
+    if (!porSegredo && (!e.auth || !e.auth.id))
+      return e.json(401, { ok: false, error: 'Autenticacao necessaria' })
+
+    var body = e.requestInfo().body || {}
+    var lista = body.migracoes || []
+    if (!lista.length) return e.json(400, { ok: false, error: 'Nenhuma migracao enviada' })
+
+    var mudadas = 0
+    var puladas = []
+    for (var i = 0; i < lista.length; i++) {
+      var m = lista[i]
+      var antiga = String(m.uc_antiga == null ? '' : m.uc_antiga).replace(/\D/g, '')
+      var nova = String(m.uc_nova == null ? '' : m.uc_nova).replace(/\D/g, '')
+      if (!antiga || !nova) {
+        puladas.push({ uc_antiga: antiga, motivo: 'uc vazia' })
+        continue
+      }
+      var recs = []
+      try {
+        recs = $app.findRecordsByFilter('rge_credenciais', 'uc = "' + antiga + '"', '', 20, 0)
+      } catch (errF) {
+        recs = []
+      }
+      for (var j = 0; j < recs.length; j++) {
+        var rec = recs[j]
+        rec.set('uc_antiga', antiga)
+        rec.set('uc', nova)
+        rec.set('status', 'novo')
+        rec.set('ultimo_erro', '')
+        try {
+          $app.save(rec)
+          mudadas++
+        } catch (errS) {
+          puladas.push({ uc_antiga: antiga, motivo: String(errS).slice(0, 100) })
+        }
+      }
+    }
+    return e.json(200, { ok: true, mudadas: mudadas, puladas: puladas })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+  }
+})
+
 // ---------------- remover credencial (manutencao, segredo do robo) ----------------
 routerAdd('DELETE', '/backend/v1/rge/credencial-remover', (e) => {
   try {
