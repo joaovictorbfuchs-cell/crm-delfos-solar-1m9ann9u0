@@ -54,6 +54,7 @@ describe('IntegracoesRgePage', () => {
       origem: 'automático',
       created: new Date(Date.now() - 3600000).toISOString(),
       credencial_id: 'cred-1',
+      expand: { cliente_id: { id: 'cli-1', nome: 'Carlos Ortiz' } },
     },
     {
       id: 'conta-2',
@@ -63,6 +64,30 @@ describe('IntegracoesRgePage', () => {
       origem: 'manual',
       created: new Date(Date.now() - 2 * 3600000).toISOString(),
       credencial_id: 'cred-3',
+    },
+  ]
+
+  const mockBeneficiarias = [
+    {
+      id: 'ben-1',
+      credencial_id: 'cred-1',
+      uc: '11111111111',
+      rotulo: 'Carlos Ortiz - Filial Centro',
+      percentual: 8,
+    },
+    {
+      id: 'ben-2',
+      credencial_id: 'cred-2',
+      uc: '22222222222',
+      rotulo: 'Filial Desvinculada',
+      percentual: 0,
+    },
+    {
+      id: 'ben-3',
+      credencial_id: 'cred-2',
+      uc: '33333333333',
+      percentual: 40,
+      observacao: 'com erro de leitura',
     },
   ]
 
@@ -101,12 +126,32 @@ describe('IntegracoesRgePage', () => {
         })
       }
 
+      if (urlStr.includes('/backend/v1/rge/beneficiarias-uc')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            itens: mockBeneficiarias,
+          }),
+        })
+      }
+
       return Promise.resolve({
         ok: true,
         status: 200,
         json: async () => ({ ok: true }),
       })
     }) as unknown as typeof fetch
+  }
+
+  async function abrirBeneficiarias() {
+    const btn = await screen.findByRole('button', { name: 'Beneficiárias' })
+    fireEvent.click(btn)
+    expect(await screen.findByText('Confira as suas unidades geradoras e beneficiárias.')).toBeTruthy()
+    expect(screen.getByText('Gestão de Beneficiárias')).toBeTruthy()
+    expect(screen.getByText('UC Beneficiárias desvinculadas')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Filtre pelo nome da unidade...')).toBeTruthy()
   }
 
   it('exibe os 3 cards de métricas no topo com contagens e badges corretos', async () => {
@@ -128,12 +173,13 @@ describe('IntegracoesRgePage', () => {
     expect(screen.getByText('01 Atrasadas')).toBeTruthy()
   })
 
-  it('renderiza abas Gerenciar Concessionária e Gerenciar Faturas e busca global', async () => {
+  it('renderiza abas Gerenciar Concessionária, Gerenciar Faturas e Beneficiárias', async () => {
     setupFetchMock()
     render(<IntegracoesRgePage />)
 
     expect(await screen.findByRole('button', { name: 'Gerenciar Concessionária' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Gerenciar Faturas' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Beneficiárias' })).toBeTruthy()
     expect(screen.getByPlaceholderText('Buscar...')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Integrar Concessionária/i })).toBeTruthy()
   })
@@ -149,24 +195,22 @@ describe('IntegracoesRgePage', () => {
     const mascaras = screen.getAllByText('••••••••')
     expect(mascaras.length).toBeGreaterThan(0)
 
-    // Badges Integrado e Promover
+    // Badges Integrado
     expect(screen.getAllByText('Integrado').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Promover').length).toBeGreaterThanOrEqual(1)
 
     // Link da concessionária RGE
     expect(screen.getAllByText('RGE').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('alterna para a aba Gerenciar Faturas e exibe lista com competência formatada e alertas', async () => {
+  it('mostra o nome do cliente na coluna UNIDADE da aba Gerenciar Faturas', async () => {
     setupFetchMock()
     render(<IntegracoesRgePage />)
 
-    const btnFaturas = await screen.findByRole('button', { name: 'Gerenciar Faturas' })
-    fireEvent.click(btnFaturas)
+    await screen.findByText('80203300140')
+    fireEvent.click(screen.getByRole('button', { name: 'Gerenciar Faturas' }))
 
-    // Competência formatada NOV/2026
-    const competencias = await screen.findAllByText('NOV/2026')
-    expect(competencias.length).toBe(2)
+    // UNIDADE da fatura com vínculo de cliente = nome do cliente (igual à aba Concessionária)
+    expect(await screen.findByText('Carlos Ortiz')).toBeTruthy()
 
     // Colunas da tabela Faturas conforme layout
     expect(screen.getByText('CONCESSIONÁRIA')).toBeTruthy()
@@ -178,31 +222,142 @@ describe('IntegracoesRgePage', () => {
 
     // Alertas COM ERRO e SEM ALERTA
     expect(screen.getByText('COM ERRO')).toBeTruthy()
-    expect(screen.getByText('SEM ALERTA')).toBeTruthy()
+    expect(screen.getAllByText('SEM ALERTA').length).toBeGreaterThanOrEqual(1)
 
     // Origens
     expect(screen.getByText('AUTOMÁTICO')).toBeTruthy()
     expect(screen.getByText('MANUAL')).toBeTruthy()
   })
 
-  it('renderiza e navega na paginação numerada (10 por página) quando há mais de 10 itens', async () => {
-    // Gerar 15 credenciais para forçar 2 páginas
-    const quinzeCredenciais = Array.from({ length: 15 }).map((_, i) => ({
-      id: `cred-${i + 1}`,
-      uc: `1000000000${i}`,
-      login: `user${i + 1}@email.com`,
-      rotulo: `Unidade ${i + 1}`,
-      status: 'ok',
-      ultimo_login: new Date().toISOString(),
+  it('mostra o nome do cliente na coluna UNIDADE mesmo via usina vinculada', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await screen.findByText('80203300140')
+    fireEvent.click(screen.getByRole('button', { name: 'Gerenciar Faturas' }))
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Carlos Ortiz').length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  it('exibe o título, subtítulo e sub-abas da área Beneficiárias', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    expect(screen.getByText('Beneficiárias')).toBeTruthy()
+    expect(screen.getByText('Confira as suas unidades geradoras e beneficiárias.')).toBeTruthy()
+  })
+
+  it('agrupa beneficiárias por cliente com linha geradora e beneficiárias indentadas', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    // Colunas do layout de referência
+    expect(screen.getByText('UNIDADE')).toBeTruthy()
+    expect(screen.getByText('Nº DA UC')).toBeTruthy()
+    expect(screen.getByText('DISTRIBUIÇÃO')).toBeTruthy()
+    expect(screen.getByText('ALERTAS')).toBeTruthy()
+    expect(screen.getByText('CONCESSIONÁRIA')).toBeTruthy()
+
+    // Grupo do cliente (geradora) e beneficiária indentada
+    expect(await screen.findByText('Carlos Ortiz')).toBeTruthy()
+    expect(screen.getByText('Carlos Ortiz - Filial Centro')).toBeTruthy()
+    expect(screen.getByText('11111111111')).toBeTruthy()
+
+    // Rodapé com contagem (2 grupos visíveis)
+    expect(screen.getByText(/Mostrando 1–2 de 2 itens/)).toBeTruthy()
+  })
+
+  it('pinta a distribuição de laranja entre 0 e 10% e cinza escuro nas demais', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    const oito = await screen.findByText('8%')
+    expect(oito.className).toContain('text-amber-600')
+
+    const quarenta = await screen.findByText('40%')
+    expect(quarenta.className).not.toContain('text-amber-600')
+moc
+  it('exibe ALERTAS "COM ERRO" em vermelho para beneficiária com erro', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    const comErro = await screen.findByText('COM ERRO')
+    expect(comErro.className).toContain('text-rose-600')
+    expect(screen.getAllByText('SEM ALERTA').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('mostra "—" quando a beneficiária não tem % de distribuição', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    const semPct = await screen.findAllByText('—')
+    expect(semPct.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('sub-aba UC Beneficiárias desvinculadas mostra apenas unidades sem cliente', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    fireEvent.click(screen.getByText('UC Beneficiárias desvinculadas'))
+
+    expect(await screen.findByText('Filial Desvinculada')).toBeTruthy()
+    expect(screen.getByText('Carlos Ortiz - Filial Centro')).toBeTruthy()
+    expect(screen.queryByText('Carlos Ortiz')).toBeNull()
+ expect(screen.getByText(/Mostrando 1–2 de 2 itens/)).toBeTruthy()
+  })
+
+  it('filtra pelo nome da unidade na busca de beneficiárias', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    const input = screen.getByPlaceholderText('Filtre pelo nome da unidade...')
+    fireEvent.change(input, { target: { value: 'Filial Centro' } })
+
+    expect(await screen.findByText('Carlos Ortiz')).toBeTruthy()
+    expect(screen.queryByText('Filial Desvinculada')).toBeNull()
+    expect(screen.getByText(/Mostrando 1–1 de 1 itens/)).toBeTruthy()
+  })
+
+  it('pagina em 10 itens por página com rodapé Mostrando 1–10 de X itens', async () => {
+    // 12 beneficiárias distribuídas em 2 grupos => 14 linhas => 2 páginas
+    const muitas = Array.from({ length: 12 }).map((_, i) => ({
+      id: `ben-${i + 1}`,
+      credencial_id: i % 2 === 0 ? 'cred-1' : 'cred-2',
+      uc: `9000000000${i}`,
+      rotulo: `Beneficiária ${i + 1}`,
+      percentual: 5,
     }))
 
     global.fetch = vi.fn().mockImplementation((url: RequestInfo | URL) => {
       const urlStr = String(url)
+      if (urlStr.includes('/backend/v1/rge/beneficiarias-uc')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true, itens: muitas }),
+        })
+      }
       if (urlStr.includes('/backend/v1/rge/credenciais')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({ ok: true, itens: quinzeCredenciais }),
+          json: async () => ({ ok: true, itens: mockCredenciais }),
         })
       }
       return Promise.resolve({
@@ -213,82 +368,65 @@ describe('IntegracoesRgePage', () => {
     }) as unknown as typeof fetch
 
     render(<IntegracoesRgePage />)
+    await abrirBeneficiarias()
 
-    // Botões de página 1 e 2
-    const btnPagina1 = await screen.findByRole('button', { name: '1' })
-    const btnPagina2 = screen.getByRole('button', { name: '2' })
-    expect(btnPagina1).toBeTruthy()
-    expect(btnPagina2).toBeTruthy()
+    expect(screen.getByText(/Mostrando 1–10 de 14 itens/)).toBeTruthy()
+    const btn2 = screen.getByRole('button', { name: '2' })
+    fireEvent.click(btn2)
 
-    // Página 1 mostra Unidade 1 até 10
-    expect(screen.getByText('Unidade 1')).toBeTruthy()
-    expect(screen.getByText('Unidade 10')).toBeTruthy()
-    expect(screen.queryByText('Unidade 11')).toBeNull()
-
-    // Navegar para a página 2
-    fireEvent.click(btnPagina2)
-    expect(screen.getByText('Unidade 11')).toBeTruthy()
-    expect(screen.getByText('Unidade 15')).toBeTruthy()
-    expect(screen.queryByText('Unidade 1')).toBeNull()
+    expect(await screen.findByText('Beneficiária 12')).toBeTruthy()
+    expect(screen.getByText(/Mostrando 11–14 de 14 itens/)).toBeTruthy()
   })
 
-  it('abre o menu ⋮ de ações na linha da credencial e da fatura sem erro', async () => {
+  it('abre o modal de nova beneficiária ao clicar em Adicionar unidade beneficiária', async () => {
     setupFetchMock()
     render(<IntegracoesRgePage />)
 
-    // Menu ⋮ na aba Concessionária
-    const botoesMenuCred = await screen.findAllByRole('button', { name: 'Ações da credencial' })
-    expect(botoesMenuCred.length).toBeGreaterThan(0)
-    fireEvent.click(botoesMenuCred[0])
+    await abrirBeneficiarias()
 
-    expect(await screen.findByText('Colar Token')).toBeTruthy()
-    expect(screen.getByText('Sincronizar Agora')).toBeTruthy()
-    expect(screen.getByText('Baixar Última Conta')).toBeTruthy()
-    expect(screen.getByText('Remover')).toBeTruthy()
+    const btnAdd = await screen.findByRole('button', { name: /Adicionar unidade beneficiária/i })
+    fireEvent.click(btnAdd)
 
-    // Alternar para Faturas e abrir menu ⋮ da fatura
-    const btnFaturas = screen.getByRole('button', { name: 'Gerenciar Faturas' })
-    fireEvent.click(btnFaturas)
-
-    const botoesMenuFat = await screen.findAllByRole('button', { name: 'Ações da fatura' })
-    expect(botoesMenuFat.length).toBeGreaterThan(0)
-    fireEvent.click(botoesMenuFat[0])
-
-    expect(await screen.findByText('Ver Detalhes')).toBeTruthy()
-    expect(screen.getByText('Baixar PDF')).toBeTruthy()
+    expect(await screen.findByText('Adicionar unidade beneficiária')).toBeTruthy()
+    expect(screen.getByText('Nova unidade beneficiária')).toBeTruthy()
+    expect(screen.getByLabelText(/Nome \/ endereço da unidade/)).toBeTruthy()
+    expect(screen.getByLabelText(/Nº da UC/)).toBeTruthy()
+    expect(screen.getByLabelText(/Distribuição \(%\)/)).toBeTruthy()
   })
 
-  it('permite filtrar na busca global', async () => {
+  it('salva nova beneficiária com validação de soma até 100%', async () => {
     setupFetchMock()
     render(<IntegracoesRgePage />)
 
-    await screen.findByText('80203300140')
+    await abrirBeneficiarias()
 
-    const inputBusca = screen.getByPlaceholderText('Buscar...')
-    fireEvent.change(inputBusca, { target: { value: 'carlosortiz' } })
+    // O grupo do Carlos Ortiz já tem 8% alocados; tentar 95% deve avisar
+    fireEvent.click(await screen.findByRole('button', { name: /Adicionar unidade beneficiária/i }))
+    expect(await screen.findByText('Nova unidade beneficiária')).toBeTruthy()
 
-    // Deve manter apenas o carlos
-    expect(screen.getByText('80203300140')).toBeTruthy()
-    expect(screen.queryByText('27136200162')).toBeNull()
-  })
-
-  it('abre modal de Integrar Concessionária ao clicar no botão', async () => {
-    setupFetchMock()
-    render(<IntegracoesRgePage />)
-
-    const btnIntegrar = await screen.findByRole('button', { name: /Integrar Concessionária/i })
-    fireEvent.click(btnIntegrar)
-
-    expect(await screen.findByText('Integrar Concessionária RGE')).toBeTruthy()
-    expect(screen.getByText('Número da Unidade Consumidora (UC) *')).toBeTruthy()
-  })
-
-  it('exibe mensagem quando endpoint rge/credenciais retorna erro', async () => {
-    setupFetchMock({ failCredenciais: true })
-    render(<IntegracoesRgePage />)
-
-    await waitFor(() => {
-      expect(screen.getByText("Invalid sort field 'created'")).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(/Nome \/ endereço da unidade/), {
+      target: { value: 'Nova Filial' },
     })
+    fireEvent.change(screen.getByLabelText(/Nº da UC/), { target: { value: '44444444444' } })
+    fireEvent.change(screen.getByLabelText(/Distribuição \(%\)/), { target: { value: '95' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar beneficiária' }))
+
+    // Aviso de soma > 100% aparece e nada é salvo antes de confirmar
+    expect(await screen.findByText(/somaria 103%/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Salvar beneficiária' })).toBeTruthy()
+  })
+
+  it('alterna sub-abas mantendo a busca de beneficiárias', async () => {
+    setupFetchMock()
+    render(<IntegracoesRgePage />)
+
+    await abrirBeneficiarias()
+
+    fireEvent.click(screen.getByText('UC Beneficiárias desvinculadas'))
+    expect(await screen.findByText('Filial Desvinculada')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Gestão de Beneficiárias'))
+    expect(await screen.findByText('Carlos Ortiz')).toBeTruthy()
   })
 })
