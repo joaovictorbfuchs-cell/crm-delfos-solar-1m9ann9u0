@@ -102,23 +102,6 @@ export function IntegracoesPage() {
       </div>
 
       {/* Alerta de status explicativo */}
-      <div className="bg-gradient-to-r from-blue-50/70 via-slate-50 to-emerald-50/40 border border-blue-200/70 rounded-2xl p-4 sm:p-5 shadow-2xs">
-        <div className="flex items-start gap-3.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div className="space-y-1 text-xs">
-            <h2 className="font-bold text-gray-900 text-sm">
-              Módulo de Integrações Externas em Preparação
-            </h2>
-            <p className="text-gray-600 leading-relaxed">
-              Esta área está estruturada para receber as credenciais e parâmetros das conexões
-              diretas do sistema Delfos. Nenhuma chave secreta foi configurada ainda. Os conectores
-              serão ativados gradualmente conforme as APIs forem validadas pela engenharia.
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Integração disponível: contas de energia RGE/CPFL */}
       <Card className="border border-blue-200 rounded-2xl shadow-xs bg-gradient-to-r from-blue-50/70 to-white overflow-hidden">
@@ -188,44 +171,6 @@ export function IntegracoesPage() {
                   {item.descricao}
                 </CardDescription>
               </CardHeader>
-
-              <CardContent className="p-5 pt-0 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-3 pt-3 border-t border-gray-100">
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-bold text-gray-700 block">
-                      Exemplos atendidos:
-                    </span>
-                    <p className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded-lg border border-gray-100">
-                      {item.exemplos}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-gray-700 block">
-                      Espaço reservado para:
-                    </span>
-                    <ul className="space-y-1 text-[11px] text-gray-500">
-                      {item.detalhesCampos.map((campo, idx) => (
-                        <li key={idx} className="flex items-center gap-1.5">
-                          <KeyRound className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span>{campo}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled
-                    className="w-full text-xs font-semibold h-9 rounded-xl border-dashed border-gray-300 text-gray-400 cursor-not-allowed"
-                  >
-                    Configurar Conexão (Em breve)
-                  </Button>
-                </div>
-              </CardContent>
             </Card>
           )
         })}
