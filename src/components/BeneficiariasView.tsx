@@ -43,7 +43,7 @@ export interface GrupoBeneficiarias {
 export function rotuloBeneficiaria(
   b: Beneficiaria,
   clientesMap: Record<string, InfoClienteUsina>,
-  usinasMap: Record<string, { nome: string; endereco?: string }>,
+  usinasMap: Record<string, { nome: string; endereco?: string; cliente_id?: string }>,
 ): string {
   let nomeCliente = ''
   let secundario = ''
@@ -53,8 +53,8 @@ export function rotuloBeneficiaria(
   if (!secundario && b.usina_id && usinasMap[b.usina_id]) {
     secundario = usinasMap[b.usina_id].endereco || usinasMap[b.usina_id].nome
   }
-  if (secundario && !nomeCliente && usinasMap[b.usina_id || '']) {
-    // sem cliente vinculado: mostra o que existe (endereço/apelido)
+  // Se o rótulo da beneficiária já inclui hífen e parece composto (ex: "Carlos Ortiz - Filial Centro" ou "Filial Desvinculada")
+  if (secundario && (!nomeCliente || secundario.includes(nomeCliente))) {
     return secundario
   }
   if (!nomeCliente && !secundario) return `UC ${b.uc}`
@@ -133,7 +133,7 @@ function CelulaPercentual({ pct }: { pct: number | null }) {
   const laranja = pct >= 0 && pct <= 10
   return (
     <span
-      className={`font-semibold ${laranja ? 'text-amber-500' : 'text-slate-700'}`}
+      className={`font-semibold ${laranja ? 'text-amber-600' : 'text-slate-700'}`}
       data-percentual={pct}
     >
       {pct}%
@@ -183,14 +183,23 @@ export function BeneficiariasView({
 
   const gruposDesvinculadas = useMemo(
     () =>
-      gruposGestao.filter((g) => {
-        const temCliente = Boolean(
-          g.cred.expand?.cliente_id?.nome ||
-          (g.cred.cliente_id && clientesMap[g.cred.cliente_id]) ||
-          (g.cred.usina_id && usinasMap[g.cred.usina_id]?.cliente_id),
-        )
-        return !temCliente
-      }),
+      gruposGestao
+        .filter((g) => {
+          const temCliente = Boolean(
+            g.cred.expand?.cliente_id?.nome ||
+            (g.cred.cliente_id && clientesMap[g.cred.cliente_id]) ||
+            (g.cred.usina_id && usinasMap[g.cred.usina_id]?.cliente_id),
+          )
+          return !temCliente
+        })
+        .map((g) => ({
+          ...g,
+          // Para desvinculadas, se não houver cliente na credencial, usa o rótulo da primeira beneficiária
+          nomeCliente:
+            g.beneficiarias.length > 0
+              ? rotuloBeneficiaria(g.beneficiarias[0], clientesMap, usinasMap)
+              : g.nomeCliente,
+        })),
     [gruposGestao, clientesMap, usinasMap],
   )
 
@@ -222,8 +231,16 @@ export function BeneficiariasView({
 
   return (
     <div>
+      {/* Cabeçalho da área de Beneficiárias */}
+      <div className="px-6 pt-5 pb-3">
+        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Beneficiárias</h2>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Confira as suas unidades geradoras e beneficiárias.
+        </p>
+      </div>
+
       {/* Sub-abas */}
-      <div className="flex items-center gap-2 border-b border-slate-200 px-4 pt-3">
+      <div className="flex items-center gap-2 border-b border-slate-200 px-4 pt-1">
         <button
           type="button"
           onClick={() => setSubAba('gestao')}
@@ -300,7 +317,7 @@ export function BeneficiariasView({
                         <button
                           type="button"
                           title="Adicionar unidade beneficiária"
-                          aria-label={`Adicionar beneficiária para ${g.nomeCliente}`}
+                          aria-label="Adicionar beneficiária"
                           onClick={() => onAdicionar(g.cred)}
                           className="p-1 rounded text-blue-600 hover:bg-blue-50"
                         >

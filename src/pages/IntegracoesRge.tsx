@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatarTempoRelativo, formatarCompetenciaRge } from '@/lib/rgeFormatters'
+import { BeneficiariasView } from '@/components/BeneficiariasView'
 
 export interface Credencial {
   id: string
@@ -812,28 +813,49 @@ export function IntegracoesRgePage() {
   // Resolver dados de uma fatura
   const resolverInfoFatura = useCallback(
     (fat: ContaRge) => {
-      let unidadeNome = ''
-      let endereco = ''
-
-      if (fat.expand?.usina_id?.nome) {
-        unidadeNome = fat.expand.usina_id.nome
-        endereco = fat.expand.usina_id.endereco || ''
-      } else if (fat.usina_id && usinasMap[fat.usina_id]) {
-        unidadeNome = usinasMap[fat.usina_id].nome
-        endereco = usinasMap[fat.usina_id].endereco || ''
-      }
-
-      if (!unidadeNome) {
-        if (fat.expand?.cliente_id?.nome) {
-          unidadeNome = fat.expand.cliente_id.nome
-        } else if (fat.cliente_id && clientesMap[fat.cliente_id]) {
-          unidadeNome = clientesMap[fat.cliente_id].nome
-        }
-      }
-
       const cred = fat.credencial_id
         ? credenciais.find((k) => k.id === fat.credencial_id)
         : credenciais.find((k) => k.uc === fat.uc)
+
+      let clienteNome = ''
+      let isVinculadoCliente = false
+      let secundario = ''
+
+      // Prioridade 1: cliente direto da fatura
+      if (fat.expand?.cliente_id?.nome) {
+        clienteNome = fat.expand.cliente_id.nome
+        isVinculadoCliente = true
+      } else if (fat.cliente_id && clientesMap[fat.cliente_id]) {
+        clienteNome = clientesMap[fat.cliente_id].nome
+        isVinculadoCliente = true
+      }
+
+      // Prioridade 2: usina da fatura
+      if (fat.expand?.usina_id?.nome) {
+        secundario = fat.expand.usina_id.endereco || fat.expand.usina_id.nome
+      } else if (fat.usina_id && usinasMap[fat.usina_id]) {
+        secundario = usinasMap[fat.usina_id].endereco || usinasMap[fat.usina_id].nome
+        if (!isVinculadoCliente && usinasMap[fat.usina_id].cliente_id) {
+          const cid = usinasMap[fat.usina_id].cliente_id!
+          if (clientesMap[cid]) {
+            clienteNome = clientesMap[cid].nome
+            isVinculadoCliente = true
+          }
+        }
+      }
+
+      // Prioridade 3: credencial vinculada (onde a maioria dos vínculos vive)
+      if (cred) {
+        const infoCred = resolverInfoCredencial(cred)
+        if (!clienteNome && infoCred.isVinculadoCliente) {
+          clienteNome = infoCred.labelExibicao
+          isVinculadoCliente = true
+        } else if (!clienteNome && cred.rotulo) {
+          secundario = cred.rotulo
+        }
+      }
+
+      const unidadeNome = clienteNome || secundario || `UC ${fat.uc}`
 
       const comErro =
         cred?.status === 'erro' ||
@@ -841,14 +863,15 @@ export function IntegracoesRgePage() {
         Boolean(cred?.ultimo_erro) ||
         fat.nome_arquivo === 'erro'
 
-      const label = endereco || unidadeNome || `UC ${fat.uc}`
       return {
-        unidadeNome: label,
+        unidadeNome,
+        secundario: secundario && secundario !== unidadeNome ? secundario : '',
+        isVinculadoCliente,
         comErro,
         cred,
       }
     },
-    [clientesMap, usinasMap, credenciais],
+    [clientesMap, usinasMap, credenciais, resolverInfoCredencial],
   )
 
   // (1) Métricas calculadas para os 3 cards do topo
@@ -1125,7 +1148,7 @@ export function IntegracoesRgePage() {
                 : 'text-slate-600 border-transparent hover:text-slate-900'
             }`}
           >
-            Gestão de Beneficiárias
+            Beneficiárias
           </button>
         </div>
 
@@ -1577,15 +1600,29 @@ export function IntegracoesRgePage() {
                         </td>
 
                         <td className="py-3 px-4">
-                          <span
-                            onClick={() => {
-                              setContaSelecionada(fat)
-                              setModalDetalhesContaAberto(true)
-                            }}
-                            className="text-blue-600 font-medium hover:underline cursor-pointer"
-                          >
-                            {info.unidadeNome}
-                          </span>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                onClick={() => {
+                                  setContaSelecionada(fat)
+                                  setModalDetalhesContaAberto(true)
+                                }}
+                                className="text-blue-600 font-medium hover:underline cursor-pointer"
+                              >
+                                {info.unidadeNome}
+                              </span>
+                              {info.isVinculadoCliente && (
+                                <span title="Vinculado a cliente">
+                                  <Award className="w-3.5 h-3.5 text-amber-500 fill-amber-400 flex-shrink-0" />
+                                </span>
+                              )}
+                            </div>
+                            {info.secundario && (
+                              <span className="text-[11px] text-slate-400 truncate max-w-[240px]">
+                                {info.secundario}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-3 px-4 text-slate-600 font-mono text-xs">{fat.uc}</td>
@@ -1678,147 +1715,27 @@ export function IntegracoesRgePage() {
           </div>
         ) : (
           /* (5) Aba Gestão de Beneficiárias */
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/40 text-[11px] font-semibold text-slate-500 uppercase tracking-wider select-none">
-                  <th className="py-3.5 pl-6 pr-2 w-10 text-slate-400">
-                    <span className="sr-only">Ações</span>
-                  </th>
-                  <th className="py-3.5 px-4">UNIDADE</th>
-                  <th className="py-3.5 px-4">Nº DA UC</th>
-                  <th className="py-3.5 px-4">DISTRIBUIÇÃO</th>
-                  <th className="py-3.5 px-4">ALERTAS</th>
-                  <th className="py-3.5 px-4">CONCESSIONÁRIA</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {beneficiariasFiltradas.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-500">
-                      Nenhuma beneficiária cadastrada.
-                      <br />
-                      <span className="text-xs">
-                        Use o menu da aba Gerenciar Concessionária → Gerenciar beneficiárias.
-                      </span>
-                    </td>
-                  </tr>
-                ) : (
-                  beneficiariasPaginadas.map((b) => {
-                    const cred = credenciais.find((k) => k.id === b.credencial_id)
-                    const rot = b.rotulo || resolverRotuloBen(b)
-                    const pct = b.percentual
-                    return (
-                      <tr key={b.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3 pl-6 pr-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                aria-label="Ações da beneficiária"
-                                className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-52">
-                              <DropdownMenuItem onClick={() => editarBeneficiaria(b)}>
-                                <Pencil className="w-4 h-4 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => removerBeneficiaria(b)}
-                                className="text-rose-600 focus:text-rose-600"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Remover
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-slate-800">{rot}</span>
-                            <span className="text-[11px] text-slate-400">
-                              Geradora: {cred?.uc || b.credencial_id}
-                              {cred?.rotulo ? ` · ${cred.rotulo}` : ''}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-xs text-slate-600">{b.uc}</td>
-                        <td className="py-3 px-4">
-                          {pct != null ? (
-                            <span
-                              className={`inline-flex items-center gap-1 font-semibold ${
-                                pct === 0 ? 'text-slate-400' : 'text-blue-600'
-                              }`}
-                            >
-                              {pct}%
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-[11px] font-medium text-slate-400 tracking-wide">
-                            SEM ALERTA
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 font-semibold text-blue-600">RGE</td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-
-            <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-white">
-              <span className="text-xs text-slate-500">
-                Mostrando {beneficiariasPaginadas.length} de {beneficiariasFiltradas.length} itens
-              </span>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={paginaBen <= 1}
-                  onClick={() => setPaginaBen((p) => Math.max(1, p - 1))}
-                  className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900"
-                  aria-label="Página anterior beneficiárias"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                {Array.from({ length: totalPaginasBen }).map((_, idx) => {
-                  const num = idx + 1
-                  const ativa = paginaBen === num
-                  return (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setPaginaBen(num)}
-                      className={`h-8 w-8 rounded text-xs font-semibold transition-colors ${
-                        ativa
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {num}
-                    </button>
-                  )
-                })}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={paginaBen >= totalPaginasBen}
-                  onClick={() => setPaginaBen((p) => Math.min(totalPaginasBen, p + 1))}
-                  className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900"
-                  aria-label="Próxima página beneficiárias"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+          <BeneficiariasView
+            credenciais={credenciais}
+            beneficiarias={beneficiarias}
+            clientesMap={clientesMap}
+            usinasMap={usinasMap}
+            busca={busca}
+            setBusca={setBusca}
+            carregando={carregando}
+            onAdicionar={(cred) => {
+              abrirBeneficiarias(cred)
+            }}
+            onEditar={(b) => {
+              const credDona = credenciais.find((c) => c.id === b.credencial_id)
+              if (credDona) setBenCredencial(credDona)
+              editarBeneficiaria(b)
+              setModalBenAberto(true)
+            }}
+            onRemover={(b) => {
+              removerBeneficiaria(b)
+            }}
+          />
         )}
       </div>
 
