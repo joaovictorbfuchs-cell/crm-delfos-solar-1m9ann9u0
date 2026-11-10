@@ -9,6 +9,7 @@ import {
   Trash2,
   AlertCircle,
   Sparkles,
+  Send,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -46,6 +47,11 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [erroValidacao, setErroValidacao] = useState<string | null>(null)
+  // Campos de leitura para enviar a RGE
+  const [valor03, setValor03] = useState(atividade.valor_grandeza_03 || '')
+  const [valorA3, setValorA3] = useState(atividade.valor_grandeza_103 || '')
+  const [enviandoRGE, setEnviandoRGE] = useState(false)
+  const [protocoloRGE, setProtocoloRGE] = useState(atividade.protocolo_rge || '')
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +59,9 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
       setFotoArquivo(null)
       setFotoPreview(null)
       setErroValidacao(null)
+      setValor03(atividade.valor_grandeza_03 || '')
+      setValorA3(atividade.valor_grandeza_103 || '')
+      setProtocoloRGE(atividade.protocolo_rge || '')
 
       // Se já tiver foto_medidor gravada no backend, monta url de preview
       if (atividade.foto_medidor && atividade.id) {
@@ -98,6 +107,54 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
     setTextoDados(exemplo)
   }
 
+  // Envia a leitura para a RGE pelo robo (fila no CRM)
+  const handleEnviarRGE = async () => {
+    const l03 = String(valor03 || '').replace(/\D/g, '')
+    const lA3 = String(valorA3 || '').replace(/\D/g, '')
+    if (!l03) {
+      setErroValidacao('Informe a leitura do totalizador 03.')
+      return
+    }
+    if (l03.length > 5) {
+      setErroValidacao('A leitura 03 tem no máximo 5 dígitos.')
+      return
+    }
+    if (lA3.length > 5) {
+      setErroValidacao('A leitura A3 tem no máximo 5 dígitos.')
+      return
+    }
+    try {
+      setEnviandoRGE(true)
+      setErroValidacao(null)
+      const token = pb.authStore.token
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch(`${pb.baseUrl}/backend/v1/rge/leitura-solicitar`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          atividade_id: atividade.id,
+          uc: atividade.numero_uc || cliente?.uc || '',
+          valor_03: l03,
+          valor_a3: lA3 || undefined,
+          telefone: (cliente?.telefone || '').replace(/\D/g, ''),
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
+      toast({
+        title: 'Leitura enviada para a fila',
+        description: `03=${json.valor_03}${json.valor_a3 ? ` · A3=${json.valor_a3}` : ''}. O robô envia ao portal em instantes.`,
+      })
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Erro ao enviar a leitura.'
+      setErroValidacao(msg)
+      toast({ title: 'Não foi possível enviar', description: msg, variant: 'destructive' })
+    } finally {
+      setEnviandoRGE(false)
+    }
+  }
+
   const handleSalvar = async () => {
     if (!textoDados.trim()) {
       setErroValidacao('Informe os dados da leitura (número, protocolo, observações).')
@@ -113,6 +170,9 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
       const formData = new FormData()
       formData.append('status', 'concluida')
       formData.append('dados_leitura_registrados', textoDados.trim())
+      // gravar os valores de leitura na atividade
+      if (valor03.trim()) formData.append('valor_grandeza_03', valor03.trim())
+      if (valorA3.trim()) formData.append('valor_grandeza_103', valorA3.trim())
 
       if (fotoArquivo) {
         formData.append('foto_medidor', fotoArquivo)
@@ -229,11 +289,50 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
             </span>
           </div>
 
+          {/* Campos de leitura 03 e A3 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="font-bold text-gray-700 uppercase tracking-wide block text-[11px]">
+                03 — Consumo ativo <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={5}
+                value={valor03}
+                onChange={(e) => setValor03(e.target.value.replace(/\D/g, ''))}
+                placeholder="00040"
+                className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono tracking-widest text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="font-bold text-gray-700 uppercase tracking-wide block text-[11px]">
+                A3 — Ativo reverso
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={5}
+                value={valorA3}
+                onChange={(e) => setValorA3(e.target.value.replace(/\D/g, ''))}
+                placeholder="01985"
+                className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono tracking-widest text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Protocolo (se o robô já respondeu) */}
+          {protocoloRGE && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900">
+              <strong>Protocolo RGE:</strong> <span className="font-mono">{protocoloRGE}</span>
+            </div>
+          )}
+
           {/* Campo Único Formato Livre */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="font-bold text-gray-700 uppercase tracking-wide block">
-                Dados Registrados da Leitura (formato livre) <span className="text-red-500">*</span>
+                Observações (opcional)
               </label>
               <button
                 type="button"
@@ -360,6 +459,29 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
           >
             Cancelar
           </button>
+
+          {/* Botão Enviar para RGE */}
+          {!protocoloRGE && (
+            <button
+              type="button"
+              disabled={enviandoRGE || !valor03.trim()}
+              onClick={handleEnviarRGE}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-orange-600 hover:bg-orange-700 shadow-sm disabled:opacity-50 transition-all"
+              title="O robô entra no portal da RGE e registra a leitura"
+            >
+              {enviandoRGE ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Enviando...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>Enviar para RGE</span>
+                </>
+              )}
+            </button>
+          )}
 
           <button
             type="button"

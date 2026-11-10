@@ -330,6 +330,12 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
     // 3. Atividades & Anotações
     for (const atv of atividades) {
       if (atv.cliente_id !== cliente.id) continue
+      // Nao mostrar o card do LEMBRETE de auto leitura (o que o sistema gera
+      // 2 dias antes como aviso). Ele vira so a mensagem de WhatsApp.
+      // A atividade de REGISTRO (que tem data no titulo) continua aparecendo.
+      if (atv.tipo === 'lembrete_auto_leitura' && !/\d{2}\/\d{2}\/\d{4}/.test(atv.titulo || '')) {
+        continue
+      }
       const dataIso = atv.data || atv.created
       const isAnotacao = atv.tipo === 'anotacao'
       const isOutras = atv.tipo === 'mudanca_estagio' || (atv.tipo as string) === 'outro'
