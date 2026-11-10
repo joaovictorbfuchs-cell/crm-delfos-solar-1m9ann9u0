@@ -5,19 +5,24 @@ export type FieldErrors = Record<string, string>
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, any>
-    if (err.isAbort || err.name === 'AbortError') return false
-    const status = err.status ?? err.statusCode ?? err.response?.status
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort) return false
+    const status =
+      errObj.status ??
+      errObj.statusCode ??
+      (errObj.response as Record<string, unknown> | undefined)?.status
     if (status === 401 || status === 403) return true
-    const message = (err.message || err.response?.message || '') + ''
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
     if (
-      /token/i.test(message) &&
-      /(expired|invalid|revoked|missing|expirad|inválid)/i.test(message)
+      msg.includes('token is expired') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('login expirou') ||
+      msg.includes('failed to authenticate')
     ) {
       return true
     }
-    if (/(sessão|sessao|login)\s+expir/i.test(message)) return true
-    if (/failed to authenticate/i.test(message)) return true
   }
   return false
 }
@@ -25,33 +30,17 @@ export function isAuthSessionError(error: unknown): boolean {
 export function isAbortError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, any>
-    if (err.isAbort === true || err.name === 'AbortError') return true
-    if (typeof err.message === 'string' && /aborted|autocancelled/i.test(err.message)) return true
+    const errObj = error as Record<string, unknown>
+    if (errObj.isAbort === true) return true
+    if (errObj.name === 'AbortError') return true
   }
   return false
 }
 
-export function formatPbError(error: unknown, fallbackMessage = 'Erro na operação'): string {
-  if (!error) return fallbackMessage
-  if (error instanceof ClientResponseError) {
-    const data = error.response?.data
-    if (data && typeof data === 'object') {
-      const fieldEntries = Object.entries(data)
-        .map(([field, detail]: [string, any]) => {
-          const msg = detail?.message || (typeof detail === 'string' ? detail : '')
-          return msg ? `${field}: ${msg}` : field
-        })
-        .filter(Boolean)
-      if (fieldEntries.length > 0) {
-        return `${error.message || fallbackMessage} (${fieldEntries.join(', ')})`
-      }
-    }
-    return error.message || fallbackMessage
-  }
-  if (error instanceof Error) return error.message || fallbackMessage
-  if (typeof error === 'string') return error
-  return fallbackMessage
+export function formatPbError(error: unknown, fallback = 'Erro inesperado na operação'): string {
+  if (!error) return fallback
+  const msg = getErrorMessage(error)
+  return msg || fallback
 }
 
 export function extractFieldErrors(error: unknown): FieldErrors {

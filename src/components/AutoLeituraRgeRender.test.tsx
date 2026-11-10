@@ -106,6 +106,60 @@ describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
     expect(screen.getByText(/Concluída/i)).toBeTruthy()
   })
 
+  it('LinhaDoTempoUnificada exibe botão "Enviar para RGE" quando registro_auto_leitura está concluída mas sem protocolo_rge', () => {
+    const atvConcluidaSemProtocolo: Atividade = {
+      id: 'adl3gy2u844ue1u',
+      cliente_id: 'cli-001',
+      titulo: 'Registro de auto leitura — 10/11/2026',
+      tipo: 'registro_auto_leitura',
+      status: 'concluida',
+      data: '2026-11-10 12:00:00',
+      data_leitura: '2026-11-10 12:00:00',
+      protocolo_rge: '',
+      protocolo_atendimento: '',
+      valor_grandeza_03: '12345',
+      valor_grandeza_103: '67890',
+      dados_leitura_registrados: '03: 12345 | A3: 67890',
+      collectionId: 'atividades_col',
+      collectionName: 'atividades',
+      created: '2026-11-10T12:00:00.000Z',
+      updated: '2026-11-10T12:00:00.000Z',
+    }
+
+    render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvConcluidaSemProtocolo]} />)
+
+    expect(screen.getByText('Registro de auto leitura — 10/11/2026')).toBeTruthy()
+    // Botão deve dizer explicitamente "Enviar para RGE"
+    expect(screen.getByRole('button', { name: /Enviar para RGE/i })).toBeTruthy()
+  })
+
+  it('LinhaDoTempoUnificada NÃO exibe botão "Registrar leitura" ou "Enviar para RGE" quando concluída COM protocolo_rge', () => {
+    const atvConcluidaComProtocolo: Atividade = {
+      id: 'atv-concluida-ok',
+      cliente_id: 'cli-001',
+      titulo: 'Registro de auto leitura — 10/11/2026',
+      tipo: 'registro_auto_leitura',
+      status: 'concluida',
+      data: '2026-11-10 12:00:00',
+      data_leitura: '2026-11-10 12:00:00',
+      protocolo_rge: 'RGE-2026-999999',
+      protocolo_atendimento: 'ATD-12345',
+      valor_grandeza_03: '12345',
+      valor_grandeza_103: '67890',
+      dados_leitura_registrados: '03: 12345 | A3: 67890',
+      collectionId: 'atividades_col',
+      collectionName: 'atividades',
+      created: '2026-11-10T12:00:00.000Z',
+      updated: '2026-11-10T12:00:00.000Z',
+    }
+
+    render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvConcluidaComProtocolo]} />)
+
+    expect(screen.getByText('Registro de auto leitura — 10/11/2026')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Enviar para RGE/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Registrar leitura/i })).toBeNull()
+  })
+
   it('AtividadeItem garante botão de excluir visível (não apenas no hover) para auto leitura', () => {
     const onDelete = vi.fn()
     const atv: Atividade = {
