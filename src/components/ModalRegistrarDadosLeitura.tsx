@@ -177,10 +177,21 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
         title: 'Leitura enviada para a fila RGE',
         description: `03=${json.valor_03 || l03}${json.valor_a3 || lA3 ? ` · A3=${json.valor_a3 || lA3}` : ''}. O robô envia ao portal em instantes.`,
       })
+
+      // FECHAR o modal imediatamente — o robô processa em background
+      // e o retorno (protocolo) aparece na atividade quando terminar.
+      if (onSalvoSucesso) {
+        onSalvoSucesso(atividade)
+      }
+      onClose()
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro ao enviar a leitura.'
       setErroValidacao(msg)
-      toast({ title: 'Não foi possível enviar', description: msg, variant: 'destructive' })
+      toast({
+        title: 'Não foi possível enviar',
+        description: msg + '. Se persistir, faça manualmente pelo portal da RGE.',
+        variant: 'destructive',
+      })
     } finally {
       setEnviandoRGE(false)
     }
