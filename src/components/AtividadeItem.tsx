@@ -119,15 +119,17 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
                 <span className="truncate">{atividade.expand.usina_id.nome}</span>
               </span>
             )}
-            {/* Lembrete de Auto Leitura: badge com a data de leitura programada */}
-            {atividade.tipo === 'lembrete_auto_leitura' && atividade.data_leitura && (
-              <span className="inline-flex items-center gap-1 font-semibold text-orange-800 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded text-[10px]">
-                Leitura:{' '}
-                {new Date(atividade.data_leitura).toLocaleDateString('pt-BR', {
-                  timeZone: 'UTC',
-                })}
-              </span>
-            )}
+            {/* Lembrete / Registro de Auto Leitura: badge com a data de leitura programada */}
+            {(atividade.tipo === 'lembrete_auto_leitura' ||
+              atividade.tipo === 'registro_auto_leitura') &&
+              atividade.data_leitura && (
+                <span className="inline-flex items-center gap-1 font-semibold text-orange-800 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded text-[10px]">
+                  Leitura:{' '}
+                  {new Date(atividade.data_leitura).toLocaleDateString('pt-BR', {
+                    timeZone: 'UTC',
+                  })}
+                </span>
+              )}
 
             <div className="flex items-center text-[11px] text-gray-500 gap-1">
               <Calendar className="w-3 h-3 text-gray-400" />
@@ -149,8 +151,16 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
             {onDelete && (
               <button
                 type="button"
-                onClick={() => onDelete(atividade.id)}
-                className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(atividade.id)
+                }}
+                className={`p-1 rounded transition-all ${
+                  atividade.tipo === 'lembrete_auto_leitura' ||
+                  atividade.tipo === 'registro_auto_leitura'
+                    ? 'opacity-100 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200'
+                    : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 hover:bg-red-50'
+                }`}
                 title="Excluir atividade"
                 aria-label="Excluir atividade"
               >

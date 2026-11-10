@@ -1,0 +1,115 @@
+import { describe, it, expect, vi } from 'vitest'
+import React from 'react'
+import { render, screen } from '@testing-library/react'
+import { LinhaDoTempoUnificada } from './LinhaDoTempoUnificada'
+import { AtividadeItem } from './AtividadeItem'
+import type { Atividade, Cliente } from '@/types/crm'
+
+vi.mock('@/contexts/ClientesContext', () => ({
+  useClientes: () => ({
+    orcamentosSolar: [],
+    propostasOM: [],
+    contratosOM: [],
+    documentosCliente: [],
+    removeAtividade: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}))
+
+describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
+  const clienteMock: Cliente = {
+    id: 'cli-001',
+    nome: 'Pedrinho Spassini',
+    whatsapp: '54999991111',
+  } as unknown as Cliente
+
+  it('LinhaDoTempoUnificada renderiza Aviso automático com subtítulo correto e botões Enviar WhatsApp e Excluir', () => {
+    const atvAviso: Atividade = {
+      id: 'atv-aviso-1',
+      cliente_id: 'cli-001',
+      titulo: 'Aviso automático — leitura em 15/01/2027',
+      tipo: 'lembrete_auto_leitura',
+      status: 'pendente',
+      created: '2026-11-10T12:00:00.000Z',
+      updated: '2026-11-10T12:00:00.000Z',
+    }
+
+    render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvAviso]} />)
+
+    // Título real mantido
+    expect(screen.getByText('Aviso automático — leitura em 15/01/2027')).toBeInTheDocument()
+    // Subtítulo canônico
+    expect(screen.getByText('Mensagem WhatsApp 2 dias antes')).toBeInTheDocument()
+    // Botão Enviar WhatsApp
+    expect(screen.getByRole('button', { name: /Enviar WhatsApp/i })).toBeInTheDocument()
+    // Botão Excluir visível
+    expect(
+      screen.getByRole('button', { name: /Excluir atividade Aviso automático/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('LinhaDoTempoUnificada renderiza Registro de auto leitura com subtítulo e botões Registrar leitura, Enviar WhatsApp e Excluir', () => {
+    const atvRegistro: Atividade = {
+      id: 'atv-reg-1',
+      cliente_id: 'cli-001',
+      titulo: 'Registro de auto leitura — 15/01/2027',
+      tipo: 'registro_auto_leitura',
+      status: 'pendente',
+      created: '2026-11-10T12:00:00.000Z',
+      updated: '2026-11-10T12:00:00.000Z',
+    }
+
+    render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvRegistro]} />)
+
+    // Título real
+    expect(screen.getByText('Registro de auto leitura — 15/01/2027')).toBeInTheDocument()
+    // Subtítulo canônico
+    expect(screen.getByText('Preencher 03/A3 e enviar para a RGE')).toBeInTheDocument()
+    // Botão Registrar leitura
+    expect(screen.getByRole('button', { name: /Registrar leitura/i })).toBeInTheDocument()
+    // Botão Enviar WhatsApp
+    expect(screen.getByRole('button', { name: /Enviar WhatsApp/i })).toBeInTheDocument()
+    // Botão Excluir
+    expect(
+      screen.getByRole('button', { name: /Excluir atividade Registro de auto leitura/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('LinhaDoTempoUnificada renderiza lembretes antigos concluídos sem quebra', () => {
+    const atvAntigaConcluida: Atividade = {
+      id: 'eku54kxya9r7x05',
+      cliente_id: 'cli-001',
+      titulo: 'Lembrete de Auto Leitura — 10/10/2026',
+      tipo: 'lembrete_auto_leitura',
+      status: 'concluida',
+      created: '2026-10-10T12:00:00.000Z',
+      updated: '2026-10-10T12:00:00.000Z',
+    }
+
+    render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvAntigaConcluida]} />)
+
+    expect(screen.getByText('Lembrete de Auto Leitura — 10/10/2026')).toBeInTheDocument()
+    expect(screen.getByText(/Concluída/i)).toBeInTheDocument()
+  })
+
+  it('AtividadeItem garante botão de excluir visível (não apenas no hover) para auto leitura', () => {
+    const onDelete = vi.fn()
+    const atv: Atividade = {
+      id: 'atv-01',
+      titulo: 'Aviso automático — leitura em 15/01/2027',
+      tipo: 'lembrete_auto_leitura',
+      status: 'pendente',
+      created: '2026-11-10T12:00:00.000Z',
+      updated: '2026-11-10T12:00:00.000Z',
+    }
+
+    render(<AtividadeItem atividade={atv} onDelete={onDelete} />)
+
+    const btnDelete = screen.getByRole('button', { name: /Excluir atividade/i })
+    expect(btnDelete).toBeInTheDocument()
+    expect(btnDelete).toHaveClass('opacity-100')
+  })
+})

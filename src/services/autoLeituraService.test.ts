@@ -4,7 +4,9 @@ import {
   formatarDataParaDDMMAAAA,
   normalizarDatasLeitura,
   substituirVariaveisAutoLeitura,
+  sincronizarFilhasNovas,
 } from './autoLeituraService'
+import type { Atividade } from '@/types/crm'
 
 describe('autoLeituraService', () => {
   it('formata datas YYYY-MM-DD para DD/MM/AAAA corretamente', () => {
@@ -100,5 +102,103 @@ describe('autoLeituraService', () => {
       dataLeitura: '2027-03-01',
     })
     expect(res).toBe('Leitura em 01/03/2027, lembrete em 26/02/2027.')
+  })
+
+  it('sincronizarFilhasNovas cria DUAS filhas por data: Aviso automático (2 dias antes) e Registro de auto leitura (no dia)', async () => {
+    const criadas: Array<{ col: string; data: Record<string, unknown> }> = []
+
+    const mockPb = {
+      collection: (col: string) => ({
+        getFullList: async () => [] as Atividade[],
+        create: async (data: Record<string, unknown>) => {
+          criadas.push({ col, data })
+          return { id: `mock-${criadas.length}`, ...data }
+        },
+      }),
+    }
+
+    const atividadeMae: Atividade = {
+      id: 'mae-123',
+      titulo: 'Auto Leitura RGE',
+      tipo: 'auto_leitura_rge',
+      cliente_id: 'cli-001',
+      usina_id: 'usina-001',
+      responsavel_id: 'user-001',
+      numero_uc: '196.880.001-93',
+      created: '2026-11-10T12:00:00.000Z',
+      updated: '2026-11-10T12:00:00.000Z',
+    }
+
+    // Datas a sincronizar: 1 data -> deve gerar exatamente 2 filhas
+    const filhasCriadas = await sincronizarFilhasNovas(atividadeMae, ['2027-01-15'], mockPb as any)
+
+    expect(filhasCriadas).toHaveLength(2)
+    expect(criadas).toHaveLength(2)
+
+    // Primeira filha: Aviso automático (lembrete_auto_leitura)
+    const aviso = criadas.find((c) => c.data.tipo === 'lembrete_auto_leitura')
+    expect(aviso).toBeDefined()
+    expect(aviso?.data.titulo).toBe('Aviso automático — leitura em 15/01/2027')
+    expect(aviso?.data.tipo).toBe('lembrete_auto_leitura')
+    expect(aviso?.data.status).toBe('pendente')
+    expect(aviso?.data.parent_id).toBe('mae-123')
+    expect(aviso?.data.numero_uc).toBe('196.880.001-93')
+    // 2027-01-15 é sexta-feira -> 2 dias antes é quarta 13/01
+    expect(aviso?.data.data).toBe('2027-01-13T08:00:00.000Z')
+
+    // Segunda filha: Registro de auto leitura (registro_auto_leitura)
+    const registro = criadas.find((c) => c.data.tipo === 'registro_auto_leitura')
+    expect(registro).toBeDefined()
+    expect(registro?.data.titulo).toBe('Registro de auto leitura — 15/01/2027')
+    expect(registro?.data.tipo).toBe('registro_auto_leitura')
+    expect(registro?.data.status).toBe('pendente')
+    expect(registro?.data.parent_id).toBe('mae-123')
+    expect(registro?.data.numero_uc).toBe('196.880.001-93')
+    // Data = dia da leitura
+    expect(registro?.data.data).toBe('2027-01-15T12:00:00.000Z')
+  })
+
+  it('não duplica filhas se uma data já tiver aviso ou registro existente', async () => {
+    const criadas: Array<{ col: string; data: Record<string, unknown> }> = []
+
+    // Já existe o aviso da data 2027-01-15, mas não existe o registro
+    const existentes: Atividade[] = [
+      {
+        id: 'filha-existente',
+        titulo: 'Aviso automático — leitura em 15/01/2027',
+        tipo: 'lembrete_auto_leitura',
+        data_leitura: '2027-01-15',
+        parent_id: 'mae-123',
+        status: 'pendente',
+        created: '2026-11-10T12:00:00.000Z',
+        updated: '2026-11-10T12:00:00.000Z',
+      },
+    ]
+
+    const mockPb = {
+      collection: (col: string) => ({
+        getFullList: async () => existentes,
+        create: async (data: Record<string, unknown>) => {
+          criadas.push({ col, data })
+          return { id: `mock-${criadas.length}`, ...data }
+        },
+      }),
+    }
+
+    const atividadeMae: Atividade = {
+      id: 'mae-123',
+      titulo: 'Auto Leitura RGE',
+      tipo: 'auto_leitura_rge',
+      cliente_id: 'cli-001',
+      created: '2026-11-10T12:00:00.000Z',
+      updated: '2026-11-10T12:00:00.000Z',
+    }
+
+    const res = await sincronizarFilhasNovas(atividadeMae, ['2027-01-15'], mockPb as any)
+
+    // Apenas o registro_auto_leitura deve ser criado, pois o aviso já existia
+    expect(res).toHaveLength(1)
+    expect(criadas).toHaveLength(1)
+    expect(criadas[0].data.tipo).toBe('registro_auto_leitura')
   })
 })

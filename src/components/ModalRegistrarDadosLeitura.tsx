@@ -50,8 +50,14 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
   // Campos de leitura para enviar a RGE
   const [valor03, setValor03] = useState(atividade.valor_grandeza_03 || '')
   const [valorA3, setValorA3] = useState(atividade.valor_grandeza_103 || '')
+  const [telefoneSolicitante, setTelefoneSolicitante] = useState(
+    cliente?.whatsapp || cliente?.telefone || cliente?.titular_telefone || '',
+  )
   const [enviandoRGE, setEnviandoRGE] = useState(false)
   const [protocoloRGE, setProtocoloRGE] = useState(atividade.protocolo_rge || '')
+  const [dataEnvioLeitura, setDataEnvioLeitura] = useState<string>(
+    atividade.data_leitura || atividade.updated || '',
+  )
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +67,11 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
       setErroValidacao(null)
       setValor03(atividade.valor_grandeza_03 || '')
       setValorA3(atividade.valor_grandeza_103 || '')
+      setTelefoneSolicitante(
+        cliente?.whatsapp || cliente?.telefone || cliente?.titular_telefone || '',
+      )
       setProtocoloRGE(atividade.protocolo_rge || '')
+      setDataEnvioLeitura(atividade.data_leitura || atividade.updated || '')
 
       // Se já tiver foto_medidor gravada no backend, monta url de preview
       if (atividade.foto_medidor && atividade.id) {
@@ -69,7 +79,7 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
         setFotoPreview(url)
       }
     }
-  }, [isOpen, atividade])
+  }, [isOpen, atividade, cliente])
 
   if (!isOpen) return null
 
@@ -111,8 +121,15 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
   const handleEnviarRGE = async () => {
     const l03 = String(valor03 || '').replace(/\D/g, '')
     const lA3 = String(valorA3 || '').replace(/\D/g, '')
+    const tel = String(telefoneSolicitante || '').replace(/\D/g, '')
+    const ucLimpa = String(atividade.numero_uc || cliente?.uc || '').replace(/\D/g, '')
+
+    if (!ucLimpa) {
+      setErroValidacao('Informe a UC da unidade consumidora.')
+      return
+    }
     if (!l03) {
-      setErroValidacao('Informe a leitura do totalizador 03.')
+      setErroValidacao('Informe a leitura do totalizador 03 (Consumo ativo).')
       return
     }
     if (l03.length > 5) {
@@ -123,6 +140,11 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
       setErroValidacao('A leitura A3 tem no máximo 5 dígitos.')
       return
     }
+    if (tel.length > 0 && tel.length < 10) {
+      setErroValidacao('Telefone do solicitante deve ter DDD e no mínimo 10 dígitos.')
+      return
+    }
+
     try {
       setEnviandoRGE(true)
       setErroValidacao(null)
@@ -134,17 +156,26 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
         headers,
         body: JSON.stringify({
           atividade_id: atividade.id,
-          uc: atividade.numero_uc || cliente?.uc || '',
+          uc: ucLimpa,
           valor_03: l03,
           valor_a3: lA3 || undefined,
-          telefone: (cliente?.telefone || '').replace(/\D/g, ''),
+          telefone: tel || (cliente?.telefone || '').replace(/\D/g, ''),
         }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
+
+      // Atualiza valores locais
+      if (json.valor_03) setValor03(json.valor_03)
+      if (json.valor_a3) setValorA3(json.valor_a3)
+      if (json.protocolo) {
+        setProtocoloRGE(json.protocolo)
+        setDataEnvioLeitura(new Date().toISOString())
+      }
+
       toast({
-        title: 'Leitura enviada para a fila',
-        description: `03=${json.valor_03}${json.valor_a3 ? ` · A3=${json.valor_a3}` : ''}. O robô envia ao portal em instantes.`,
+        title: 'Leitura enviada para a fila RGE',
+        description: `03=${json.valor_03 || l03}${json.valor_a3 || lA3 ? ` · A3=${json.valor_a3 || lA3}` : ''}. O robô envia ao portal em instantes.`,
       })
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro ao enviar a leitura.'
@@ -156,11 +187,6 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
   }
 
   const handleSalvar = async () => {
-    if (!textoDados.trim()) {
-      setErroValidacao('Informe os dados da leitura (número, protocolo, observações).')
-      return
-    }
-
     try {
       setIsSubmitting(true)
       setErroValidacao(null)
@@ -169,10 +195,16 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
       // status: 'concluida', dados_leitura_registrados, foto_medidor (se houver)
       const formData = new FormData()
       formData.append('status', 'concluida')
-      formData.append('dados_leitura_registrados', textoDados.trim())
+      if (textoDados.trim()) {
+        formData.append('dados_leitura_registrados', textoDados.trim())
+      } else if (valor03.trim() || valorA3.trim() || protocoloRGE.trim()) {
+        const resumo = `03: ${valor03.trim() || '—'} | A3: ${valorA3.trim() || '—'}${protocoloRGE ? ` | Protocolo: ${protocoloRGE}` : ''}`
+        formData.append('dados_leitura_registrados', resumo)
+      }
       // gravar os valores de leitura na atividade
       if (valor03.trim()) formData.append('valor_grandeza_03', valor03.trim())
       if (valorA3.trim()) formData.append('valor_grandeza_103', valorA3.trim())
+      if (protocoloRGE.trim()) formData.append('protocolo_rge', protocoloRGE.trim())
 
       if (fotoArquivo) {
         formData.append('foto_medidor', fotoArquivo)
@@ -180,7 +212,7 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
 
       const filhaAtualizada = await pb
         .collection('atividades')
-        .update<Atividade>(atividade.id, formData, {
+        .update<Atividade>(atividade.id, formData as any, {
           expand: 'cliente_id,usina_id,responsavel_id,parent_id',
         })
 
@@ -289,7 +321,64 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
             </span>
           </div>
 
-          {/* Campos de leitura 03 e A3 */}
+          {/* Protocolo e valores retornados (se preenchido na atividade) */}
+          {protocoloRGE ? (
+            <div className="p-3 bg-emerald-50/80 border border-emerald-300 rounded-xl space-y-2 text-emerald-950">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
+                  Leitura Concluída e Registrada na RGE
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-full border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  Concluída
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                  <span className="text-[10px] text-emerald-700 block font-medium">
+                    Protocolo RGE
+                  </span>
+                  <span className="font-mono font-bold text-gray-900 break-all">
+                    {protocoloRGE}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                  <span className="text-[10px] text-emerald-700 block font-medium">
+                    Data / Hora
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    {dataEnvioLeitura
+                      ? new Date(dataEnvioLeitura.replace(' ', 'T')).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '—'}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                  <span className="text-[10px] text-emerald-700 block font-medium">
+                    03 — Consumo ativo
+                  </span>
+                  <span className="font-mono font-bold text-gray-900 tracking-widest">
+                    {valor03 || '—'}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                  <span className="text-[10px] text-emerald-700 block font-medium">
+                    A3 — Ativo reverso
+                  </span>
+                  <span className="font-mono font-bold text-gray-900 tracking-widest">
+                    {valorA3 || '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Campos de leitura 03, A3 e Telefone do solicitante */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="font-bold text-gray-700 uppercase tracking-wide block text-[11px]">
@@ -304,6 +393,7 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
                 placeholder="00040"
                 className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono tracking-widest text-sm"
               />
+              <span className="text-[10px] text-gray-400 block">Máximo 5 dígitos numéricos</span>
             </div>
             <div className="space-y-1">
               <label className="font-bold text-gray-700 uppercase tracking-wide block text-[11px]">
@@ -318,15 +408,27 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
                 placeholder="01985"
                 className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono tracking-widest text-sm"
               />
+              <span className="text-[10px] text-gray-400 block">Máximo 5 dígitos numéricos</span>
             </div>
           </div>
 
-          {/* Protocolo (se o robô já respondeu) */}
-          {protocoloRGE && (
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900">
-              <strong>Protocolo RGE:</strong> <span className="font-mono">{protocoloRGE}</span>
-            </div>
-          )}
+          {/* Telefone do solicitante (opcional) */}
+          <div className="space-y-1">
+            <label className="font-bold text-gray-700 uppercase tracking-wide block text-[11px]">
+              Telefone do solicitante <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              inputMode="tel"
+              value={telefoneSolicitante}
+              onChange={(e) => setTelefoneSolicitante(e.target.value)}
+              placeholder="(54) 99999-9999"
+              className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+            />
+            <span className="text-[10px] text-gray-400 block">
+              Telefone com DDD enviado para o protocolo da RGE
+            </span>
+          </div>
 
           {/* Campo Único Formato Livre */}
           <div className="space-y-1.5">
@@ -460,47 +562,49 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
             Cancelar
           </button>
 
-          {/* Botão Enviar para RGE */}
-          {!protocoloRGE && (
+          <div className="flex items-center gap-2">
+            {/* Botão Enviar para RGE (laranja) - OCULTO quando protocolo_rge estiver preenchido */}
+            {!protocoloRGE && (
+              <button
+                type="button"
+                disabled={enviandoRGE || !valor03.trim()}
+                onClick={handleEnviarRGE}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-orange-600 hover:bg-orange-700 shadow-sm disabled:opacity-50 transition-all"
+                title="O robô entra no portal da RGE e registra a leitura"
+              >
+                {enviandoRGE ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Enviar para RGE</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <button
               type="button"
-              disabled={enviandoRGE || !valor03.trim()}
-              onClick={handleEnviarRGE}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-orange-600 hover:bg-orange-700 shadow-sm disabled:opacity-50 transition-all"
-              title="O robô entra no portal da RGE e registra a leitura"
+              disabled={isSubmitting}
+              onClick={handleSalvar}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm disabled:opacity-50 transition-all"
             >
-              {enviandoRGE ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Enviando...</span>
+                  <span>Salvando dados...</span>
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4" />
-                  <span>Enviar para RGE</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Salvar e Concluir</span>
                 </>
               )}
             </button>
-          )}
-
-          <button
-            type="button"
-            disabled={isSubmitting || !textoDados.trim()}
-            onClick={handleSalvar}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm disabled:opacity-50 transition-all"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Salvando dados...</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Salvar e Concluir Leitura</span>
-              </>
-            )}
-          </button>
+          </div>
         </div>
       </div>
     </div>

@@ -659,6 +659,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                   const temLeitura = !!(protocoloLeitura || grandeza03 || grandezaA3)
                   const ehLembreteLeitura =
                     String(rawAtiv?.tipo || '') === 'lembrete_auto_leitura' ||
+                    String(rawAtiv?.tipo || '') === 'registro_auto_leitura' ||
                     String(rawAtiv?.tipo || '') === 'auto_leitura_rge'
 
                   return (
@@ -1011,16 +1012,21 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                 </div>
               )}
 
-              {/* Destaque para Auto Leitura RGE ou Lembrete de Auto Leitura */}
+              {/* Destaque para Auto Leitura RGE, Aviso ou Registro de Auto Leitura */}
               {(item.rawAtividade?.tipo === 'auto_leitura_rge' ||
-                item.rawAtividade?.tipo === 'lembrete_auto_leitura') && (
+                item.rawAtividade?.tipo === 'lembrete_auto_leitura' ||
+                item.rawAtividade?.tipo === 'registro_auto_leitura') && (
                 <div className="pt-2 border-t border-gray-100">
                   <div className="p-3 rounded-xl bg-orange-50/80 border border-orange-200 text-xs text-orange-950 space-y-1.5">
                     <div className="flex items-center justify-between flex-wrap gap-1 font-bold text-orange-900">
                       <span>
-                        {item.rawAtividade?.tipo === 'lembrete_auto_leitura'
-                          ? 'Lembrete de Auto Leitura RGE'
-                          : 'Auto Leitura RGE (Atividade Mãe)'}
+                        {item.rawAtividade?.tipo === 'registro_auto_leitura'
+                          ? 'Registro de Auto Leitura RGE'
+                          : item.rawAtividade?.tipo === 'lembrete_auto_leitura'
+                            ? item.titulo?.startsWith('Aviso automático')
+                              ? 'Aviso Automático de Auto Leitura'
+                              : 'Lembrete de Auto Leitura RGE'
+                            : 'Auto Leitura RGE (Atividade Mãe)'}
                       </span>
                       {item.rawAtividade?.numero_uc && (
                         <span className="font-mono text-[10px] bg-white text-orange-900 px-2 py-0.5 rounded border border-orange-200 font-bold">

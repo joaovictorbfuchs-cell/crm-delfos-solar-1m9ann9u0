@@ -356,32 +356,26 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
 
       const configTipo = getTipoAtividadeConfig(atv.tipo, customDefs)
 
-      // Renomear cards de auto leitura para ficar claro o fluxo:
-      // - "Lembrete de Auto Leitura" (sem data) = aviso automatico (WhatsApp)
-      // - "Lembrete de Auto Leitura - DD/MM/AAAA" = registro de auto leitura
-      const tituloOriginal = atv.titulo || configTipo.tituloPadrao
-      const ehAvisoAuto =
-        /lembrete de auto leitura/i.test(tituloOriginal) &&
-        !/\d{2}\/\d{2}\/\d{4}/.test(tituloOriginal)
-      const ehRegistroAuto =
-        /lembrete de auto leitura/i.test(tituloOriginal) &&
-        /\d{2}\/\d{2}\/\d{4}/.test(tituloOriginal)
-      const tituloFinal = ehAvisoAuto
-        ? 'Aviso automático — leitura programada'
-        : ehRegistroAuto
-          ? tituloOriginal.replace(/Lembrete de Auto Leitura/i, 'Registro de auto leitura')
-          : tituloOriginal
-      const subtituloFinal = ehAvisoAuto
-        ? 'Mensagem WhatsApp enviada 2 dias antes ao cliente'
-        : ehRegistroAuto
-          ? 'Preencher 03/A3 e enviar para a RGE'
-          : configTipo.tituloPadrao
+      // Nunca renomear o título real da atividade.
+      // Subtítulo derivado canonicamente do tipo/título sem violar regras do projeto:
+      // - lembrete_auto_leitura: se título começa com "Aviso automático" -> "Mensagem WhatsApp 2 dias antes", senão padrão
+      // - registro_auto_leitura: "Preencher 03/A3 e enviar para a RGE"
+      const tituloReal = atv.titulo || configTipo.tituloPadrao
+      let subtituloFinal = configTipo.tituloPadrao
+
+      if (atv.tipo === 'registro_auto_leitura') {
+        subtituloFinal = 'Preencher 03/A3 e enviar para a RGE'
+      } else if (atv.tipo === 'lembrete_auto_leitura') {
+        if (tituloReal.startsWith('Aviso automático')) {
+          subtituloFinal = 'Mensagem WhatsApp 2 dias antes'
+        }
+      }
 
       items.push({
         id: `atv-${atv.id}`,
         categoria: cat,
         tipoFiltro: filtro,
-        titulo: tituloFinal,
+        titulo: tituloReal,
         subtitulo: subtituloFinal,
         descricao: atv.descricao || undefined,
         data: dataIso,
@@ -1096,7 +1090,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                         </button>
                       )}
 
-                      {/* Botões específicos para Lembrete de Auto Leitura */}
+                      {/* Botões específicos para Lembrete / Aviso automático de Auto Leitura */}
                       {item.categoria === 'atividade' &&
                         item.rawAtividade?.tipo === 'lembrete_auto_leitura' &&
                         item.rawAtividade?.status !== 'concluida' && (
@@ -1115,33 +1109,81 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-2xs"
                                 title={
                                   item.rawAtividade.status === 'enviado'
-                                    ? 'Reenviar lembrete por WhatsApp via Z-API'
-                                    : 'Enviar lembrete por WhatsApp via Z-API'
+                                    ? 'Reenviar mensagem por WhatsApp via Z-API'
+                                    : 'Enviar WhatsApp para o cliente via Z-API'
                                 }
                               >
                                 <Send className="w-3 h-3 text-emerald-600" />
                                 <span>
                                   {item.rawAtividade.status === 'enviado'
-                                    ? 'Reenviar lembrete'
-                                    : 'Enviar lembrete por WhatsApp'}
+                                    ? 'Reenviar WhatsApp'
+                                    : 'Enviar WhatsApp'}
                                 </span>
                               </button>
                             )}
 
-                            {/* Botão Registrar leitura (visível quando status !== 'concluida') */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setAtividadeLembreteSelecionada(item.rawAtividade!)
-                                setModalRegistrarLeituraOpen(true)
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
-                              title="Registrar dados e foto da leitura do medidor"
-                            >
-                              <CheckCircle className="w-3 h-3 text-indigo-600" />
-                              <span>Registrar leitura</span>
-                            </button>
+                            {/* Para lembretes antigos que ainda não possuem atividade de registro separada */}
+                            {!item.titulo?.startsWith('Aviso automático') && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setAtividadeLembreteSelecionada(item.rawAtividade!)
+                                  setModalRegistrarLeituraOpen(true)
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
+                                title="Registrar dados e foto da leitura do medidor"
+                              >
+                                <CheckCircle className="w-3 h-3 text-indigo-600" />
+                                <span>Registrar leitura</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                      {/* Botões específicos para Registro de Auto Leitura */}
+                      {item.categoria === 'atividade' &&
+                        item.rawAtividade?.tipo === 'registro_auto_leitura' && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Botão Registrar leitura */}
+                            {item.rawAtividade.status !== 'concluida' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setAtividadeLembreteSelecionada(item.rawAtividade!)
+                                  setModalRegistrarLeituraOpen(true)
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
+                                title="Registrar grandezas 03/A3 e enviar para RGE"
+                              >
+                                <CheckCircle className="w-3 h-3 text-indigo-600" />
+                                <span>Registrar leitura</span>
+                              </button>
+                            )}
+
+                            {/* Botão Enviar WhatsApp */}
+                            {(item.rawAtividade.status === 'pendente' ||
+                              item.rawAtividade.status === 'enviado' ||
+                              !item.rawAtividade.status) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setAtividadeLembreteSelecionada(item.rawAtividade!)
+                                  setModalLembreteWhatsAppOpen(true)
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-2xs"
+                                title="Enviar mensagem por WhatsApp para o cliente"
+                              >
+                                <Send className="w-3 h-3 text-emerald-600" />
+                                <span>
+                                  {item.rawAtividade.status === 'enviado'
+                                    ? 'Reenviar WhatsApp'
+                                    : 'Enviar WhatsApp'}
+                                </span>
+                              </button>
+                            )}
                           </div>
                         )}
 

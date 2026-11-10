@@ -450,50 +450,78 @@ export async function sincronizarFilhasNovas(
   } = params
 
   const existentes = filhasExistentes ?? (await buscarAtividadesFilhasAutoLeitura(maeId))
-  const datasJaExistentes = new Set(
-    existentes.map((f) => extrairDataYYYYMMDD(f.data_leitura || f.data)),
+  const chavesExistentes = new Set(
+    existentes.map((f) => {
+      const dataIso = extrairDataYYYYMMDD(f.data_leitura || f.data)
+      const tipo = f.tipo || 'lembrete_auto_leitura'
+      return `${tipo}::${dataIso}`
+    }),
   )
 
-  const novasDatas = datasLeitura.filter((d) => !datasJaExistentes.has(d))
   const criadas: Atividade[] = []
 
-  for (const dataStr of novasDatas) {
+  for (const dataStr of datasLeitura) {
     const { dataLeituraIso, dataLembreteIso } = calcularDataLembrete2DiasAntes(dataStr)
     const dataFormatada = formatarDataParaDDMMAAAA(dataStr)
     const ucDesc = numeroUc ? ` para a UC ${numeroUc}` : ''
 
     const normalizarDataPb = (d: string) => d.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
 
-    const filhaPayload: Record<string, any> = {
-      cliente_id: clienteId,
-      parent_id: maeId,
-      tipo: 'lembrete_auto_leitura',
-      titulo: `Registro de auto leitura — ${dataFormatada}`,
-      descricao: `Atividade de registro de auto leitura${ucDesc}. Data da leitura programada: ${dataFormatada}. Preencher as grandezas 03 e A3 e clicar em "Enviar para RGE".`,
-      data: normalizarDataPb(dataLembreteIso),
-      data_leitura: normalizarDataPb(dataLeituraIso),
-      data_lembrete: normalizarDataPb(dataLembreteIso),
-      status: 'pendente',
-      autor: autor || responsavelNome || 'Sistema Delfos',
-      mensagem_cliente: mensagemCliente || undefined,
+    // (a) Aviso automático — 2 dias antes da leitura
+    const chaveAviso = `lembrete_auto_leitura::${dataStr}`
+    if (!chavesExistentes.has(chaveAviso)) {
+      const avisoPayload: Record<string, any> = {
+        cliente_id: clienteId,
+        parent_id: maeId,
+        tipo: 'lembrete_auto_leitura',
+        titulo: `Aviso automático — leitura em ${dataFormatada}`,
+        descricao: `Aviso automático programado 2 dias antes da data de auto leitura${ucDesc}. Data da leitura: ${dataFormatada}. Enviar mensagem de lembrete por WhatsApp para o cliente.`,
+        data: normalizarDataPb(dataLembreteIso),
+        data_leitura: normalizarDataPb(dataLeituraIso),
+        data_lembrete: normalizarDataPb(dataLembreteIso),
+        status: 'pendente',
+        autor: autor || responsavelNome || 'Sistema Delfos',
+        mensagem_cliente: mensagemCliente || undefined,
+      }
+
+      if (usinaId && usinaId.trim()) avisoPayload.usina_id = usinaId.trim()
+      if (numeroUc && numeroUc.trim()) avisoPayload.numero_uc = numeroUc.trim()
+      if (responsavelId && responsavelId.trim()) avisoPayload.responsavel_id = responsavelId.trim()
+      if (responsavelNome && responsavelNome.trim())
+        avisoPayload.responsavel_nome = responsavelNome.trim()
+
+      const avisoRecord = await client.collection('atividades').create(avisoPayload)
+      criadas.push(avisoRecord as Atividade)
+      chavesExistentes.add(chaveAviso)
     }
 
-    if (usinaId && usinaId.trim()) {
-      filhaPayload.usina_id = usinaId.trim()
-    }
-    if (numeroUc && numeroUc.trim()) {
-      filhaPayload.numero_uc = numeroUc.trim()
-    }
-    if (responsavelId && responsavelId.trim()) {
-      filhaPayload.responsavel_id = responsavelId.trim()
-    }
-    if (responsavelNome && responsavelNome.trim()) {
-      filhaPayload.responsavel_nome = responsavelNome.trim()
-    }
+    // (b) Registro de auto leitura — no dia da leitura
+    const chaveRegistro = `registro_auto_leitura::${dataStr}`
+    if (!chavesExistentes.has(chaveRegistro)) {
+      const registroPayload: Record<string, any> = {
+        cliente_id: atividadeMae.cliente_id,
+        parent_id: atividadeMae.id,
+        tipo: 'registro_auto_leitura',
+        titulo: `Registro de auto leitura — ${dataFormatada}`,
+        descricao: `Atividade de registro de auto leitura${ucDesc}. Data da leitura programada: ${dataFormatada}. Preencher as grandezas 03 e A3 e clicar em "Enviar para RGE".`,
+        data: normalizarDataPb(dataLeituraIso),
+        data_leitura: normalizarDataPb(dataLeituraIso),
+        data_lembrete: normalizarDataPb(dataLembreteIso),
+        status: 'pendente',
+        autor: atividadeMae.responsavel_nome || atividadeMae.autor || 'Sistema Delfos',
+        mensagem_cliente: atividadeMae.mensagem_cliente || undefined,
+      }
 
-    const filhaRecord = await pb.collection('atividades').create<Atividade>(filhaPayload as any)
+      if (atividadeMae.usina_id?.trim()) registroPayload.usina_id = atividadeMae.usina_id.trim()
+      if (atividadeMae.numero_uc?.trim()) registroPayload.numero_uc = atividadeMae.numero_uc.trim()
+      if (atividadeMae.responsavel_id?.trim())
+        registroPayload.responsavel_id = atividadeMae.responsavel_id.trim()
+      if (atividadeMae.responsavel_nome?.trim())
+        registroPayload.responsavel_nome = atividadeMae.responsavel_nome.trim()
 
-    criadas.push(filhaRecord)
+      const registroRecord = await client.collection('atividades').create(registroPayload)      criadas.push(registroRecord)
+      chavesExistentes.add(chaveRegistro)
+    }
   }
 
   return criadas
