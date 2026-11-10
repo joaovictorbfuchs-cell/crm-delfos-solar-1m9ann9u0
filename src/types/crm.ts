@@ -1074,6 +1074,7 @@ export interface Atividade extends RecordModel {
   titulo?: string
   descricao?: string
   data: string
+  data_finalizacao?: string
   horario_inicio?: string
   horario_fim?: string
   duracao_minutos?: number
@@ -1461,6 +1462,7 @@ export interface OrdemServico extends RecordModel {
   tipo_custom_id?: string
   endereco?: string
   data_agendada: string
+  data_finalizacao?: string
   horario_inicio?: string
   horario_fim?: string
   duracao_minutos?: number

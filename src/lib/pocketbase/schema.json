@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T12:27:14.928Z",
+  "generatedAt": "2026-11-10T12:46:04.693Z",
   "collections": [
     {
       "name": "users",
@@ -1325,6 +1325,12 @@
         {
           "name": "blocos_relatorio",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_finalizacao",
+          "type": "date",
           "required": false,
           "system": false
         }
@@ -4613,6 +4619,12 @@
         {
           "name": "duracao_minutos",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_finalizacao",
+          "type": "date",
           "required": false,
           "system": false
         }

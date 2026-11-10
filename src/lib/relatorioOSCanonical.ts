@@ -193,13 +193,14 @@ export function compilarDadosRelatorioOS(
       ? cidadeEstado
       : 'Não informado'
 
-  // Data do atendimento: priorizar a data real do registro (data_agendada ou created),
+  // Data do atendimento: priorizar data_finalizacao manual (admin), seguida pela data agendada ou created,
   // convertendo de UTC para São Paulo (UTC-3). NUNCA usar dataEmissao como fallback da data do atendimento.
-  const dataAgendadaRaw = os?.data_agendada || os?.created
+  const dataAtendimentoRaw =
+    (os as any)?.data_finalizacao || (os as any)?.data || os?.data_agendada || os?.created
   let dataAtendimento = 'Não informada'
-  if (dataAgendadaRaw) {
+  if (dataAtendimentoRaw) {
     try {
-      const d = new Date(dataAgendadaRaw)
+      const d = new Date(dataAtendimentoRaw)
       if (!isNaN(d.getTime())) {
         // Deslocamento determinístico para UTC-3 (São Paulo)
         const spMs = d.getTime() - 3 * 60 * 60 * 1000
@@ -246,6 +247,20 @@ export function compilarDadosRelatorioOS(
     const horas = Math.floor(durMinTotal / 60)
     const minutos = durMinTotal % 60
     duracaoStr = `${String(horas).padStart(2, '0')}h${String(minutos).padStart(2, '0')}min`
+  } else if (horarioInicio && horarioFim) {
+    // Se não houver duracao_minutos preenchida manualmente, recalcula a partir de horarioInicio e horarioFim
+    const [hIni, mIni] = horarioInicio.split(':').map((v) => parseInt(v, 10))
+    const [hFim, mFim] = horarioFim.split(':').map((v) => parseInt(v, 10))
+    if (!isNaN(hIni) && !isNaN(mIni) && !isNaN(hFim) && !isNaN(mFim)) {
+      const minIni = hIni * 60 + mIni
+      const minFim = hFim * 60 + mFim
+      const diffMin = minFim >= minIni ? minFim - minIni : 24 * 60 - minIni + minFim
+      if (diffMin > 0) {
+        const horas = Math.floor(diffMin / 60)
+        const minutos = diffMin % 60
+        duracaoStr = `${String(horas).padStart(2, '0')}h${String(minutos).padStart(2, '0')}min`
+      }
+    }
   }
 
   // 2. Fallbacks secundários se não preenchidos nativamente:

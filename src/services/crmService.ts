@@ -4508,6 +4508,9 @@ export async function updateAtividadeComoOrdemServico(
   if (data.data_agendada) {
     payloadAtividade.data = data.data_agendada
   }
+  if (data.data_finalizacao !== undefined) {
+    payloadAtividade.data_finalizacao = data.data_finalizacao || null
+  }
   if (data.pendencias_recomendacoes !== undefined) {
     payloadAtividade.pendencias_recomendacoes = data.pendencias_recomendacoes || ''
   }
