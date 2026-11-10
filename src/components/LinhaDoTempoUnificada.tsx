@@ -333,7 +333,10 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       // Nao mostrar o card do LEMBRETE de auto leitura (o que o sistema gera
       // 2 dias antes como aviso). Ele vira so a mensagem de WhatsApp.
       // A atividade de REGISTRO (que tem data no titulo) continua aparecendo.
-      if (atv.tipo === 'lembrete_auto_leitura' && !/\d{2}\/\d{2}\/\d{4}/.test(atv.titulo || '')) {
+      // Filtra por TITULO (pega qualquer tipo) porque o sistema gera o
+      // lembrete com tipos diferentes (lembrete_auto_leitura, anexo_g, etc).
+      const tituloAtv = String(atv.titulo || '')
+      if (/lembrete de auto leitura/i.test(tituloAtv) && !/\d{2}\/\d{2}\/\d{4}/.test(tituloAtv)) {
         continue
       }
       const dataIso = atv.data || atv.created
