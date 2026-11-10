@@ -613,6 +613,50 @@ routerAdd('POST', '/backend/v1/rge/atividade-trocar-uc', (e) => {
   }
 })
 
+// ---------------------------------------------------------------- criar atividade
+// Cria uma atividade de registro de auto leitura (ou qualquer tipo).
+// Aceita segredo do robo. Serve para gerar as atividades de registro quando
+// o fluxo automatico nao criou (ex.: importacao, correcao manual).
+routerAdd('POST', '/backend/v1/rge/atividade-criar', (e) => {
+  try {
+    var porSegredo = false
+    try {
+      var seg = $secrets.get('RGE_ROBO_SECRET') || ''
+      if (seg && (e.request.header.get('X-Robo-Secret') || '') === seg) porSegredo = true
+    } catch (eS) {}
+    if (!porSegredo && (!e.auth || !e.auth.id))
+      return e.json(401, { ok: false, error: 'Autenticação necessária' })
+
+    var body = e.requestInfo().body || {}
+    var clienteId = String(body.cliente_id || '')
+    var titulo = String(body.titulo || '').slice(0, 200)
+    var tipo = String(body.tipo || 'lembrete_auto_leitura').slice(0, 50)
+    if (!clienteId) return e.json(400, { ok: false, error: 'Informe cliente_id' })
+    if (!titulo) return e.json(400, { ok: false, error: 'Informe titulo' })
+
+    var rec = new Record($app.findCollectionByNameOrId('atividades'))
+    rec.set('cliente_id', clienteId)
+    rec.set('titulo', titulo)
+    rec.set('tipo', tipo)
+    rec.set('descricao', String(body.descricao || '').slice(0, 5000))
+    rec.set('status', String(body.status || 'pendente'))
+    rec.set('data', String(body.data || new Date().toISOString()))
+    if (body.data_leitura) rec.set('data_leitura', String(body.data_leitura))
+    if (body.data_lembrete) rec.set('data_lembrete', String(body.data_lembrete))
+    if (body.numero_uc) rec.set('numero_uc', String(body.numero_uc).slice(0, 40))
+    if (body.parent_id) rec.set('parent_id', String(body.parent_id))
+    if (body.usina_id) rec.set('usina_id', String(body.usina_id))
+    if (body.responsavel_nome)
+      rec.set('responsavel_nome', String(body.responsavel_nome).slice(0, 120))
+    if (body.autor) rec.set('autor', String(body.autor).slice(0, 120))
+    $app.save(rec)
+
+    return e.json(200, { ok: true, atividade_id: rec.id, titulo: rec.getString('titulo') })
+  } catch (err) {
+    return e.json(400, { ok: false, error: String(err).slice(0, 400) })
+  }
+})
+
 // ---------------------------------------------------------------- consulta na tela
 routerAdd(
   'GET',
