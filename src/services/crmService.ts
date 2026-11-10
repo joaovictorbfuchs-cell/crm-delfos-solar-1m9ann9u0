@@ -4386,6 +4386,7 @@ export async function fetchOrdemServicoById(
               ? atv.data.replace(' ', 'T').slice(11, 16)
               : undefined),
           horario_fim: atv.horario_fim || undefined,
+          data_finalizacao: atv.data_finalizacao || undefined,
           duracao_minutos:
             typeof atv.duracao_minutos === 'number'
               ? atv.duracao_minutos
@@ -4687,6 +4688,10 @@ export async function updateAtividadeComoOrdemServico(
         ? atvRecord.data.replace(' ', 'T').slice(11, 16)
         : undefined),
     horario_fim: atvRecord.horario_fim || undefined,
+    data_finalizacao:
+      atvRecord.data_finalizacao !== undefined && atvRecord.data_finalizacao !== null
+        ? atvRecord.data_finalizacao
+        : (data.data_finalizacao ?? undefined),
     duracao_minutos:
       typeof atvRecord.duracao_minutos === 'number'
         ? atvRecord.duracao_minutos

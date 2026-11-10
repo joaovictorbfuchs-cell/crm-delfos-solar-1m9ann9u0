@@ -316,6 +316,20 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     os?.tipo_servico === 'Auto Leitura – RGE' ||
     os?.tipo_servico === 'Auto Leitura - RGE' ||
     (os as any)?.tipo === 'auto_leitura_rge'
+  // Data de Finalização (admin-only): campo manual da atividade, prioridade no relatório canônico
+  const [dataFinalizacao, setDataFinalizacao] = useState<string>(() => {
+    const raw: any = (os as any)?.data_finalizacao
+    if (!raw) return ''
+    try {
+      const spIso = formatUtcToSaoPauloInput(raw)
+      if (spIso && spIso.length >= 10) return spIso.slice(0, 10)
+      const rawStr = String(raw).trim()
+      if (rawStr.length >= 10) return rawStr.slice(0, 10)
+      return ''
+    } catch {
+      return ''
+    }
+  })
   const [atividadeDataHora, setAtividadeDataHora] = useState<string>(() => {
     const raw: any = os?.data_agendada
     if (!raw) return ''
@@ -1962,6 +1976,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     setDuracaoMinutos(novaDuracao)
   }
 
+  // Alterar a Data de Finalização manualmente: se ambos os horários existirem, recalcula a duração
+  // (duração digitada manualmente pelo admin prevalece; aqui recalculamos apenas quando o admin mexe nos horários)
+  const handleDataFinalizacaoChange = (novaData: string) => {
+    setDataFinalizacao(novaData)
+    if (novaData && horarioInicio && horarioFim) {
+      const novaDuracao = calcularDiferencaMinutos(horarioInicio, horarioFim)
+      if (!isNaN(novaDuracao) && novaDuracao > 0) {
+        setDuracaoMinutos(novaDuracao)
+      }
+    }
+  }
+
   const handleDuracaoChange = (novaDuracao: number) => {
     const duracaoSegura = isNaN(novaDuracao) || novaDuracao < 0 ? 0 : novaDuracao
     setDuracaoMinutos(duracaoSegura)
@@ -1999,8 +2025,34 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           responsavel_id: atividadeResponsavelId || null,
           responsavel_nome: respObj?.name || '',
         }
+        // Data de Finalização: somente admin (campo âmbar da ficha); vazia limpa o campo (null)
+        if (podeEditarPainelAtividade) {
+          payload.data_finalizacao = dataFinalizacao || null
+        }
 
-        const atualizado = await updateAtividade(os.id, payload)
+        // Roteamento por origem: atividades usa updateAtividade; demais usam updateOrdemServico
+        // (que resolve internamente atividades vs ordens_servico via updateAtividadeComoOrdemServico)
+        const atualizado: any =
+          isOrigemAtividades || (os as any)?.collectionName === 'atividades'
+            ? await updateAtividade(os.id, payload)
+            : await updateOrdemServico(os.id, payload as any)
+        // Persistir data_finalizacao em ordens_servico quando o roteamento não passou pelo caminho acima
+        if (
+          podeEditarPainelAtividade &&
+          !isOrigemAtividades &&
+          (os as any)?.collectionName !== 'atividades'
+        ) {
+          try {
+            await pb.collection('ordens_servico').update(os.id, {
+              data_finalizacao: dataFinalizacao || null,
+            })
+          } catch (errDf) {
+            console.warn(
+              'Falha ao persistir data_finalizacao em ordens_servico (não fatal):',
+              errDf,
+            )
+          }
+        }
 
         const duracaoFinal =
           typeof atualizado.duracao_minutos === 'number' && atualizado.duracao_minutos > 0
@@ -2009,7 +2061,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
         const osAtualizada: OrdemServico = {
           ...os,
-          data_agendada: atualizado.data || dataFormatada,
+          data_agendada: atualizado.data || atualizado.data_agendada || dataFormatada,
+          data_finalizacao: podeEditarPainelAtividade
+            ? dataFinalizacao
+            : ((os as any)?.data_finalizacao ?? undefined),
           horario_inicio: atualizado.horario_inicio || horarioInicio,
           horario_fim: atualizado.horario_fim || horarioFim,
           duracao_minutos: duracaoFinal,
@@ -2658,6 +2713,25 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   </div>
                 )}
 
+                {/* Data de Finalização (somente Admin — destaque âmbar) */}
+                {!isAutoLeituraOS && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Data de Finalização:</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={dataFinalizacao || ''}
+                      onChange={(e) => handleDataFinalizacaoChange(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-amber-50 text-amber-900 font-medium"
+                    />
+                    <p className="text-[10px] text-amber-800 font-medium">
+                      Se preenchida, é usada como data do atendimento no relatório da OS (admin).
+                    </p>
+                  </div>
+                )}
+
                 {/* Campo Único de Responsável */}
                 <div className={`space-y-1.5 ${isAutoLeituraOS ? 'sm:col-span-2' : ''}`}>
                   <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
@@ -2734,13 +2808,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   </div>
                 </div>
 
-                {/* Horário de Fim */}
+                {/* Horário de Fim (editável manualmente, destaque âmbar admin) */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-gray-900 flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-amber-900 flex items-center gap-1">
                     <span>Horário de Fim</span>
                     <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-1">
+                  <div className="grid grid-cols-2 gap-1 rounded-xl border border-amber-200 bg-amber-50 p-0.5">
                     <select
                       value={safeHorarioStr(horarioFim, '09:00').split(':')[0] || '09'}
                       onChange={(e) => {
@@ -2748,7 +2822,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         const m = safeHorarioStr(horarioFim, '09:00').split(':')[1] || '00'
                         handleHorarioFimChange(`${h}:${m}`)
                       }}
-                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-mono font-medium"
+                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-amber-50/70 text-amber-900 font-mono font-medium"
                     >
                       {HORAS_24.map((h) => (
                         <option key={`ficha-fim-h-${h}`} value={h}>
@@ -2770,7 +2844,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         const m = e.target.value
                         handleHorarioFimChange(`${h}:${m}`)
                       }}
-                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#16A34A] bg-gray-50/50 text-gray-900 font-mono font-medium"
+                      className="w-full text-xs px-1.5 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-amber-50/70 text-amber-900 font-mono font-medium"
                     >
                       {MINUTOS_PASSO_5.map((m) => (
                         <option key={`ficha-fim-m-${m}`} value={m}>
