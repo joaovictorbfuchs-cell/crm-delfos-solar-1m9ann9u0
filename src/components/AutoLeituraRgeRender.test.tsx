@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { LinhaDoTempoUnificada } from './LinhaDoTempoUnificada'
@@ -33,6 +34,10 @@ describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
       titulo: 'Aviso automático — leitura em 15/01/2027',
       tipo: 'lembrete_auto_leitura',
       status: 'pendente',
+      data: '2027-01-13 12:00:00',
+      data_leitura: '2027-01-15 12:00:00',
+      collectionId: 'atividades_col',
+      collectionName: 'atividades',
       created: '2026-11-10T12:00:00.000Z',
       updated: '2026-11-10T12:00:00.000Z',
     }
@@ -40,15 +45,13 @@ describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
     render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvAviso]} />)
 
     // Título real mantido
-    expect(screen.getByText('Aviso automático — leitura em 15/01/2027')).toBeInTheDocument()
+    expect(screen.getByText('Aviso automático — leitura em 15/01/2027')).toBeTruthy()
     // Subtítulo canônico
-    expect(screen.getByText('Mensagem WhatsApp 2 dias antes')).toBeInTheDocument()
+    expect(screen.getByText('Mensagem WhatsApp 2 dias antes')).toBeTruthy()
     // Botão Enviar WhatsApp
-    expect(screen.getByRole('button', { name: /Enviar WhatsApp/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Enviar WhatsApp/i })).toBeTruthy()
     // Botão Excluir visível
-    expect(
-      screen.getByRole('button', { name: /Excluir atividade Aviso automático/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Excluir atividade Aviso automático/i })).toBeTruthy()
   })
 
   it('LinhaDoTempoUnificada renderiza Registro de auto leitura com subtítulo e botões Registrar leitura, Enviar WhatsApp e Excluir', () => {
@@ -58,6 +61,10 @@ describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
       titulo: 'Registro de auto leitura — 15/01/2027',
       tipo: 'registro_auto_leitura',
       status: 'pendente',
+      data: '2027-01-15 12:00:00',
+      data_leitura: '2027-01-15 12:00:00',
+      collectionId: 'atividades_col',
+      collectionName: 'atividades',
       created: '2026-11-10T12:00:00.000Z',
       updated: '2026-11-10T12:00:00.000Z',
     }
@@ -65,17 +72,17 @@ describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
     render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvRegistro]} />)
 
     // Título real
-    expect(screen.getByText('Registro de auto leitura — 15/01/2027')).toBeInTheDocument()
+    expect(screen.getByText('Registro de auto leitura — 15/01/2027')).toBeTruthy()
     // Subtítulo canônico
-    expect(screen.getByText('Preencher 03/A3 e enviar para a RGE')).toBeInTheDocument()
+    expect(screen.getByText('Preencher 03/A3 e enviar para a RGE')).toBeTruthy()
     // Botão Registrar leitura
-    expect(screen.getByRole('button', { name: /Registrar leitura/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Registrar leitura/i })).toBeTruthy()
     // Botão Enviar WhatsApp
-    expect(screen.getByRole('button', { name: /Enviar WhatsApp/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Enviar WhatsApp/i })).toBeTruthy()
     // Botão Excluir
     expect(
       screen.getByRole('button', { name: /Excluir atividade Registro de auto leitura/i }),
-    ).toBeInTheDocument()
+    ).toBeTruthy()
   })
 
   it('LinhaDoTempoUnificada renderiza lembretes antigos concluídos sem quebra', () => {
@@ -85,23 +92,31 @@ describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
       titulo: 'Lembrete de Auto Leitura — 10/10/2026',
       tipo: 'lembrete_auto_leitura',
       status: 'concluida',
+      data: '2026-10-10 12:00:00',
+      data_leitura: '2026-10-10 12:00:00',
+      collectionId: 'atividades_col',
+      collectionName: 'atividades',
       created: '2026-10-10T12:00:00.000Z',
       updated: '2026-10-10T12:00:00.000Z',
     }
 
     render(<LinhaDoTempoUnificada cliente={clienteMock} atividades={[atvAntigaConcluida]} />)
 
-    expect(screen.getByText('Lembrete de Auto Leitura — 10/10/2026')).toBeInTheDocument()
-    expect(screen.getByText(/Concluída/i)).toBeInTheDocument()
+    expect(screen.getByText('Lembrete de Auto Leitura — 10/10/2026')).toBeTruthy()
+    expect(screen.getByText(/Concluída/i)).toBeTruthy()
   })
 
   it('AtividadeItem garante botão de excluir visível (não apenas no hover) para auto leitura', () => {
     const onDelete = vi.fn()
     const atv: Atividade = {
       id: 'atv-01',
+      cliente_id: 'cli-001',
       titulo: 'Aviso automático — leitura em 15/01/2027',
       tipo: 'lembrete_auto_leitura',
       status: 'pendente',
+      data: '2027-01-13 12:00:00',
+      collectionId: 'atividades_col',
+      collectionName: 'atividades',
       created: '2026-11-10T12:00:00.000Z',
       updated: '2026-11-10T12:00:00.000Z',
     }
@@ -109,7 +124,7 @@ describe('Auto Leitura RGE - Linha do Tempo e AtividadeItem', () => {
     render(<AtividadeItem atividade={atv} onDelete={onDelete} />)
 
     const btnDelete = screen.getByRole('button', { name: /Excluir atividade/i })
-    expect(btnDelete).toBeInTheDocument()
-    expect(btnDelete).toHaveClass('opacity-100')
+    expect(btnDelete).toBeTruthy()
+    expect(btnDelete.className).toContain('opacity-100')
   })
 })

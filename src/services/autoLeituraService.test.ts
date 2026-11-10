@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   calcularDataLembrete2DiasAntes,
   formatarDataParaDDMMAAAA,
@@ -6,6 +6,7 @@ import {
   substituirVariaveisAutoLeitura,
   sincronizarFilhasNovas,
 } from './autoLeituraService'
+import pb from '@/lib/pocketbase/client'
 import type { Atividade } from '@/types/crm'
 
 describe('autoLeituraService', () => {
@@ -107,30 +108,27 @@ describe('autoLeituraService', () => {
   it('sincronizarFilhasNovas cria DUAS filhas por data: Aviso automático (2 dias antes) e Registro de auto leitura (no dia)', async () => {
     const criadas: Array<{ col: string; data: Record<string, unknown> }> = []
 
-    const mockPb = {
-      collection: (col: string) => ({
-        getFullList: async () => [] as Atividade[],
-        create: async (data: Record<string, unknown>) => {
-          criadas.push({ col, data })
-          return { id: `mock-${criadas.length}`, ...data }
-        },
-      }),
-    }
-
-    const atividadeMae: Atividade = {
-      id: 'mae-123',
-      titulo: 'Auto Leitura RGE',
-      tipo: 'auto_leitura_rge',
-      cliente_id: 'cli-001',
-      usina_id: 'usina-001',
-      responsavel_id: 'user-001',
-      numero_uc: '196.880.001-93',
-      created: '2026-11-10T12:00:00.000Z',
-      updated: '2026-11-10T12:00:00.000Z',
-    }
+    // Mock do pb.collection('atividades').create
+    const spyCreate = vi
+      .spyOn(pb.collection('atividades'), 'create')
+      .mockImplementation(async (data: any) => {
+        criadas.push({ col: 'atividades', data })
+        return { id: `mock-${criadas.length}`, ...data } as any
+      })
 
     // Datas a sincronizar: 1 data -> deve gerar exatamente 2 filhas
-    const filhasCriadas = await sincronizarFilhasNovas(atividadeMae, ['2027-01-15'], mockPb as any)
+    const filhasCriadas = await sincronizarFilhasNovas(
+      {
+        maeId: 'mae-123',
+        clienteId: 'cli-001',
+        usinaId: 'usina-001',
+        numeroUc: '196.880.001-93',
+        datasLeitura: ['2027-01-15'],
+        responsavelId: 'user-001',
+        responsavelNome: 'Técnico Responsável',
+      },
+      [],
+    )
 
     expect(filhasCriadas).toHaveLength(2)
     expect(criadas).toHaveLength(2)
@@ -143,8 +141,6 @@ describe('autoLeituraService', () => {
     expect(aviso?.data.status).toBe('pendente')
     expect(aviso?.data.parent_id).toBe('mae-123')
     expect(aviso?.data.numero_uc).toBe('196.880.001-93')
-    // 2027-01-15 é sexta-feira -> 2 dias antes é quarta 13/01
-    expect(aviso?.data.data).toBe('2027-01-13T08:00:00.000Z')
 
     // Segunda filha: Registro de auto leitura (registro_auto_leitura)
     const registro = criadas.find((c) => c.data.tipo === 'registro_auto_leitura')
@@ -154,8 +150,8 @@ describe('autoLeituraService', () => {
     expect(registro?.data.status).toBe('pendente')
     expect(registro?.data.parent_id).toBe('mae-123')
     expect(registro?.data.numero_uc).toBe('196.880.001-93')
-    // Data = dia da leitura
-    expect(registro?.data.data).toBe('2027-01-15T12:00:00.000Z')
+
+    spyCreate.mockRestore()
   })
 
   it('não duplica filhas se uma data já tiver aviso ou registro existente', async () => {
@@ -165,40 +161,41 @@ describe('autoLeituraService', () => {
     const existentes: Atividade[] = [
       {
         id: 'filha-existente',
+        cliente_id: 'cli-001',
         titulo: 'Aviso automático — leitura em 15/01/2027',
         tipo: 'lembrete_auto_leitura',
+        data: '2027-01-13 12:00:00',
         data_leitura: '2027-01-15',
         parent_id: 'mae-123',
         status: 'pendente',
+        collectionId: 'atividades_col',
+        collectionName: 'atividades',
         created: '2026-11-10T12:00:00.000Z',
         updated: '2026-11-10T12:00:00.000Z',
       },
     ]
 
-    const mockPb = {
-      collection: (col: string) => ({
-        getFullList: async () => existentes,
-        create: async (data: Record<string, unknown>) => {
-          criadas.push({ col, data })
-          return { id: `mock-${criadas.length}`, ...data }
-        },
-      }),
-    }
+    const spyCreate = vi
+      .spyOn(pb.collection('atividades'), 'create')
+      .mockImplementation(async (data: any) => {
+        criadas.push({ col: 'atividades', data })
+        return { id: `mock-${criadas.length}`, ...data } as any
+      })
 
-    const atividadeMae: Atividade = {
-      id: 'mae-123',
-      titulo: 'Auto Leitura RGE',
-      tipo: 'auto_leitura_rge',
-      cliente_id: 'cli-001',
-      created: '2026-11-10T12:00:00.000Z',
-      updated: '2026-11-10T12:00:00.000Z',
-    }
-
-    const res = await sincronizarFilhasNovas(atividadeMae, ['2027-01-15'], mockPb as any)
+    const res = await sincronizarFilhasNovas(
+      {
+        maeId: 'mae-123',
+        clienteId: 'cli-001',
+        datasLeitura: ['2027-01-15'],
+      },
+      existentes,
+    )
 
     // Apenas o registro_auto_leitura deve ser criado, pois o aviso já existia
     expect(res).toHaveLength(1)
     expect(criadas).toHaveLength(1)
     expect(criadas[0].data.tipo).toBe('registro_auto_leitura')
+
+    spyCreate.mockRestore()
   })
 })

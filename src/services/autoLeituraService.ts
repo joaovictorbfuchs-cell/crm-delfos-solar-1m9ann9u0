@@ -490,7 +490,7 @@ export async function sincronizarFilhasNovas(
       if (responsavelNome && responsavelNome.trim())
         avisoPayload.responsavel_nome = responsavelNome.trim()
 
-      const avisoRecord = await client.collection('atividades').create(avisoPayload)
+      const avisoRecord = await pb.collection('atividades').create(avisoPayload)
       criadas.push(avisoRecord as Atividade)
       chavesExistentes.add(chaveAviso)
     }
@@ -499,8 +499,8 @@ export async function sincronizarFilhasNovas(
     const chaveRegistro = `registro_auto_leitura::${dataStr}`
     if (!chavesExistentes.has(chaveRegistro)) {
       const registroPayload: Record<string, any> = {
-        cliente_id: atividadeMae.cliente_id,
-        parent_id: atividadeMae.id,
+        cliente_id: clienteId,
+        parent_id: maeId,
         tipo: 'registro_auto_leitura',
         titulo: `Registro de auto leitura — ${dataFormatada}`,
         descricao: `Atividade de registro de auto leitura${ucDesc}. Data da leitura programada: ${dataFormatada}. Preencher as grandezas 03 e A3 e clicar em "Enviar para RGE".`,
@@ -508,18 +508,19 @@ export async function sincronizarFilhasNovas(
         data_leitura: normalizarDataPb(dataLeituraIso),
         data_lembrete: normalizarDataPb(dataLembreteIso),
         status: 'pendente',
-        autor: atividadeMae.responsavel_nome || atividadeMae.autor || 'Sistema Delfos',
-        mensagem_cliente: atividadeMae.mensagem_cliente || undefined,
+        autor: autor || responsavelNome || 'Sistema Delfos',
+        mensagem_cliente: mensagemCliente || undefined,
       }
 
-      if (atividadeMae.usina_id?.trim()) registroPayload.usina_id = atividadeMae.usina_id.trim()
-      if (atividadeMae.numero_uc?.trim()) registroPayload.numero_uc = atividadeMae.numero_uc.trim()
-      if (atividadeMae.responsavel_id?.trim())
-        registroPayload.responsavel_id = atividadeMae.responsavel_id.trim()
-      if (atividadeMae.responsavel_nome?.trim())
-        registroPayload.responsavel_nome = atividadeMae.responsavel_nome.trim()
+      if (usinaId && usinaId.trim()) registroPayload.usina_id = usinaId.trim()
+      if (numeroUc && numeroUc.trim()) registroPayload.numero_uc = numeroUc.trim()
+      if (responsavelId && responsavelId.trim())
+        registroPayload.responsavel_id = responsavelId.trim()
+      if (responsavelNome && responsavelNome.trim())
+        registroPayload.responsavel_nome = responsavelNome.trim()
 
-      const registroRecord = await client.collection('atividades').create(registroPayload)      criadas.push(registroRecord)
+      const registroRecord = await pb.collection('atividades').create(registroPayload)
+      criadas.push(registroRecord as Atividade)
       chavesExistentes.add(chaveRegistro)
     }
   }

@@ -62,9 +62,9 @@ export const ORDEM_FUNIL_CLIENTE: ClienteStatus[] = [
 interface LinhaDoTempoUnificadaProps {
   cliente: Cliente
   atividades: Atividade[]
-  orcamentosSolar: OrcamentoSolar[]
-  propostasOM: PropostaOM[]
-  onItemClick: (item: TimelineUnifiedItem) => void
+  orcamentosSolar?: OrcamentoSolar[]
+  propostasOM?: PropostaOM[]
+  onItemClick?: (item: TimelineUnifiedItem) => void
   onToggleAtividadeStatus?: (id: string, current: string) => Promise<void>
   onNovaAtividadeClick?: () => void
   onNovoOrcamentoSolarClick?: () => void
@@ -74,9 +74,9 @@ interface LinhaDoTempoUnificadaProps {
 export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   cliente,
   atividades,
-  orcamentosSolar,
-  propostasOM,
-  onItemClick,
+  orcamentosSolar = [],
+  propostasOM = [],
+  onItemClick = () => {},
   onToggleAtividadeStatus,
   onNovaAtividadeClick,
   onNovoOrcamentoSolarClick,
