@@ -471,6 +471,19 @@ export async function carregarCentralAtividades(
         rotaOriginal = '/manutencoes'
       }
 
+      // Regra especial Auto Leitura RGE: se for registro_auto_leitura com status concluida MAS sem protocolo_rge,
+      // a atividade está aguardando envio para o portal da RGE. Deve ser exibida e filtrada como 'pendente' / 'aguardando envio'.
+      const isRegistroSemProtocolo =
+        atv.tipo === 'registro_auto_leitura' &&
+        atv.status === 'concluida' &&
+        !atv.protocolo_rge &&
+        !atv.protocolo_atendimento
+
+      const statusItem = isRegistroSemProtocolo
+        ? 'Aguardando Envio RGE'
+        : formatarStatus(atv.status || 'pendente')
+      const statusRawItem = isRegistroSemProtocolo ? 'aguardando_envio' : atv.status || 'pendente'
+
       items.push({
         id: isUnificadaComOrigem ? `unif_${atv.id}` : `atv_${atv.id}`,
         origemId: atv.id,
@@ -487,8 +500,8 @@ export async function carregarCentralAtividades(
         clienteNome: cliNome,
         usinaId: atv.usina_id,
         usinaNome,
-        status: formatarStatus(atv.status || 'pendente'),
-        statusRaw: atv.status || 'pendente',
+        status: statusItem,
+        statusRaw: statusRawItem,
         responsavel,
         responsavelId: atv.responsavel_id,
         data: dataStr,
@@ -933,15 +946,21 @@ export function filtrarCentralAtividades(
 
       const matchExato = sItem === sFiltro || sRaw === sFiltro || sFmt === sFiltro
 
-      // Compatibilidade semântica: pendente engloba agendado/aberto
+      // Compatibilidade semântica: pendente engloba agendado/aberto e aguardando_envio (auto leitura sem protocolo)
       const matchPendente =
         (sFiltro === 'pendente' ||
           sFiltro === 'pendente / agendado' ||
           sFiltro === 'agendada' ||
           sFiltro === 'agendado') &&
-        ['pendente', 'aberto', 'agendado', 'agendada', 'pendente / agendado'].includes(
-          sRaw || sItem,
-        )
+        [
+          'pendente',
+          'aberto',
+          'agendado',
+          'agendada',
+          'pendente / agendado',
+          'aguardando_envio',
+          'aguardando envio rge',
+        ].includes(sRaw || sItem)
 
       // Compatibilidade semântica: concluído engloba resolvido/faturado
       const matchConcluido =

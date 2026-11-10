@@ -558,12 +558,18 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     }
   }
 
+  const isRegistroAutoLeitura =
+    tipo === 'registro_auto_leitura' || atividade.tipo === 'registro_auto_leitura'
   const isFilhaLembrete =
     tipo === 'lembrete_auto_leitura' || atividade.tipo === 'lembrete_auto_leitura'
+  const semProtocoloRGE = !atividade.protocolo_rge && !atividade.protocolo_atendimento
+
   const podeEnviarWhatsApp = isFilhaLembrete && (status === 'pendente' || status === 'enviado')
-  const podeRegistrarLeitura = isFilhaLembrete && status !== 'concluida'
-  // Enviar para RGE: mesma condicao do registro manual (e a versao automatica)
-  const podeEnviarLeituraRGE = isFilhaLembrete && status !== 'concluida'
+  // Se for registro_auto_leitura ou lembrete_auto_leitura sem protocolo, sempre permite registrar/enviar mesmo se concluida
+  const podeRegistrarLeitura =
+    (isRegistroAutoLeitura || isFilhaLembrete) && (status !== 'concluida' || semProtocoloRGE)
+  // Enviar para RGE: visivel sempre que protocolo_rge estiver vazio, mesmo com status concluida
+  const podeEnviarLeituraRGE = (isRegistroAutoLeitura || isFilhaLembrete) && semProtocoloRGE
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">

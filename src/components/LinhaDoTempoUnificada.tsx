@@ -1145,8 +1145,10 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                       {item.categoria === 'atividade' &&
                         item.rawAtividade?.tipo === 'registro_auto_leitura' && (
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {/* Botão Registrar leitura */}
-                            {item.rawAtividade.status !== 'concluida' && (
+                            {/* Botão Registrar leitura / Enviar para RGE (visível se não concluída OU se sem protocolo RGE) */}
+                            {(item.rawAtividade.status !== 'concluida' ||
+                              (!item.rawAtividade.protocolo_rge &&
+                                !item.rawAtividade.protocolo_atendimento)) && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1154,11 +1156,17 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                                   setAtividadeLembreteSelecionada(item.rawAtividade!)
                                   setModalRegistrarLeituraOpen(true)
                                 }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
-                                title="Registrar grandezas 03/A3 e enviar para RGE"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors shadow-2xs"
+                                title="Abrir registro e enviar leitura para a RGE"
                               >
-                                <CheckCircle className="w-3 h-3 text-indigo-600" />
-                                <span>Registrar leitura</span>
+                                <Send className="w-3 h-3 text-orange-600" />
+                                <span>
+                                  {!item.rawAtividade.protocolo_rge &&
+                                  !item.rawAtividade.protocolo_atendimento &&
+                                  item.rawAtividade.status === 'concluida'
+                                    ? 'Enviar para RGE'
+                                    : 'Registrar leitura'}
+                                </span>
                               </button>
                             )}
 

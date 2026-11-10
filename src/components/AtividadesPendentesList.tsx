@@ -86,21 +86,32 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
     })
   }, [atividades, usuarioSelecionadoId, usuarios])
 
+  // Regra especial Auto Leitura RGE: se for registro_auto_leitura com status concluida MAS sem protocolo_rge,
+  // ainda é considerada pendente (aguardando envio para RGE) e continua visível na aba pendentes.
+  const isAtividadePendenteEfetiva = (a: Atividade) => {
+    if (a.status !== 'concluida') return true
+    if (a.tipo === 'registro_auto_leitura' && !a.protocolo_rge && !a.protocolo_atendimento) {
+      return true
+    }
+    return false
+  }
+
   // Contagens
   const countPendentes = useMemo(() => {
-    return atividadesDoUsuario.filter((a) => a.status !== 'concluida').length
+    return atividadesDoUsuario.filter(isAtividadePendenteEfetiva).length
   }, [atividadesDoUsuario])
 
   const countConcluidas = useMemo(() => {
-    return atividadesDoUsuario.filter((a) => a.status === 'concluida').length
+    return atividadesDoUsuario.filter((a) => !isAtividadePendenteEfetiva(a)).length
   }, [atividadesDoUsuario])
 
   // Filtragem final por status e busca
   const filteredList = useMemo(() => {
     return atividadesDoUsuario
       .filter((a) => {
-        if (tabStatus === 'pendentes' && a.status === 'concluida') return false
-        if (tabStatus === 'concluidas' && a.status !== 'concluida') return false
+        const pendenteEfetiva = isAtividadePendenteEfetiva(a)
+        if (tabStatus === 'pendentes' && !pendenteEfetiva) return false
+        if (tabStatus === 'concluidas' && pendenteEfetiva) return false
 
         if (searchTerm.trim()) {
           const term = searchTerm.toLowerCase()

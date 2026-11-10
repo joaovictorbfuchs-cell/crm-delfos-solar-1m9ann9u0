@@ -33,7 +33,13 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
   showClienteName,
 }) => {
   const config = getAtividadeConfig(atividade.tipo)
-  const isConcluida = atividade.status === 'concluida'
+  const isRegistroSemProtocolo =
+    atividade.tipo === 'registro_auto_leitura' &&
+    atividade.status === 'concluida' &&
+    !atividade.protocolo_rge &&
+    !atividade.protocolo_atendimento
+  // Se concluída mas sem protocolo RGE, não esmaece como concluída (aguardando envio para RGE)
+  const isConcluida = atividade.status === 'concluida' && !isRegistroSemProtocolo
   const responsavel = atividade.responsavel_nome || atividade.autor
 
   return (
