@@ -101,6 +101,7 @@ export type AtividadeTipo =
   | 'analise_fatura'
   | 'auto_leitura_rge'
   | 'lembrete_auto_leitura'
+  | 'registro_auto_leitura'
   | 'relatorio_solarview'
   | 'anexo_g'
   | 'troca_titularidade'

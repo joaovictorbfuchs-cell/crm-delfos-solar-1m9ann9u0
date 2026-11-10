@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T17:59:42.816Z",
+  "generatedAt": "2026-11-10T18:43:51.084Z",
   "collections": [
     {
       "name": "users",
@@ -896,7 +896,8 @@
             "lembrete_auto_leitura",
             "limpeza",
             "manutencao_preventiva",
-            "manutencao_corretiva"
+            "manutencao_corretiva",
+            "registro_auto_leitura"
           ]
         },
         {
