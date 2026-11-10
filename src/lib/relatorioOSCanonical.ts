@@ -1434,7 +1434,7 @@ export function compilarDadosRelatorioOS(
   if (!proximaManutencao) {
     origemDataManutencao = 'fallback'
     try {
-      const dManut = new Date(dataAgendadaRaw || Date.now())
+      const dManut = new Date(dataAtendimentoRaw || Date.now())
       if (!isNaN(dManut.getTime())) {
         dManut.setMonth(dManut.getMonth() + 6)
         proximaManutencao = dManut.toLocaleDateString('pt-BR')
