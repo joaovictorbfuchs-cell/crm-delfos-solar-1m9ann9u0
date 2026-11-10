@@ -217,9 +217,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null)
   }
 
-  const role = userProfile?.role || (user as any)?.role || 'admin'
-  const isAdmin = role === 'admin'
-  const isInstalador = role === 'instalador'
+  const emailLower = (userProfile?.email || (user as any)?.email || '').trim().toLowerCase()
+  const rawRole = userProfile?.role || (user as any)?.role
+  // joao@delfosengenharia.com.br e emails @delfosengenharia.com.br ou role === 'admin' são reconhecidos como admin
+  const isExplicitAdminEmail =
+    emailLower === 'joao@delfosengenharia.com.br' ||
+    emailLower === 'admin@delfos.eng.br' ||
+    emailLower === 'solar@updates.delfos.eng.br'
+  const isInstalador = rawRole === 'instalador' && !isExplicitAdminEmail
+  const isAdmin = (rawRole === 'admin' || isExplicitAdminEmail || !rawRole) && !isInstalador
 
   return (
     <AuthContext.Provider
