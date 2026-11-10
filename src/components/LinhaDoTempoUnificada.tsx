@@ -356,12 +356,23 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
 
       const configTipo = getTipoAtividadeConfig(atv.tipo, customDefs)
 
+      // Renomear o card do LEMBRETE automatico (sem data no titulo) para
+      // ficar claro que e um aviso programado, nao uma atividade de registro.
+      const tituloOriginal = atv.titulo || configTipo.tituloPadrao
+      const ehLembreteAuto =
+        /lembrete de auto leitura/i.test(tituloOriginal) &&
+        !/\d{2}\/\d{2}\/\d{4}/.test(tituloOriginal)
+      const tituloFinal = ehLembreteAuto ? 'Aviso automático — leitura programada' : tituloOriginal
+      const subtituloFinal = ehLembreteAuto
+        ? 'Mensagem WhatsApp enviada 2 dias antes ao cliente'
+        : configTipo.tituloPadrao
+
       items.push({
         id: `atv-${atv.id}`,
         categoria: cat,
         tipoFiltro: filtro,
-        titulo: atv.titulo || configTipo.tituloPadrao,
-        subtitulo: configTipo.tituloPadrao,
+        titulo: tituloFinal,
+        subtitulo: subtituloFinal,
         descricao: atv.descricao || undefined,
         data: dataIso,
         autor: atv.autor || atv.responsavel_nome,
