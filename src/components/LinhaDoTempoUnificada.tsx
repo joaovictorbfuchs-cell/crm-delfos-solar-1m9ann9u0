@@ -330,15 +330,8 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
     // 3. Atividades & Anotações
     for (const atv of atividades) {
       if (atv.cliente_id !== cliente.id) continue
-      // Nao mostrar o card do LEMBRETE de auto leitura (o que o sistema gera
-      // 2 dias antes como aviso). Ele vira so a mensagem de WhatsApp.
-      // A atividade de REGISTRO (que tem data no titulo) continua aparecendo.
-      // Filtra por TITULO (pega qualquer tipo) porque o sistema gera o
-      // lembrete com tipos diferentes (lembrete_auto_leitura, anexo_g, etc).
-      const tituloAtv = String(atv.titulo || '')
-      if (/lembrete de auto leitura/i.test(tituloAtv) && !/\d{2}\/\d{2}\/\d{4}/.test(tituloAtv)) {
-        continue
-      }
+      // FILTRO REMOVIDO: estava removendo TODAS as atividades da linha do
+      // tempo, nao so os lembretes. Reverter e investigar depois.
       const dataIso = atv.data || atv.created
       const isAnotacao = atv.tipo === 'anotacao'
       const isOutras = atv.tipo === 'mudanca_estagio' || (atv.tipo as string) === 'outro'
