@@ -362,8 +362,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
               if (primeiraEtapaNova.dias_apos === 0) {
                 let agendadoDate = agora
                 try {
-                  const hcWebhook = require(`${__hooks}/horario_comercial_util.js`)
-                  agendadoDate = hcWebhook.ajustarDataEnvio(agora, 'adiar')
+                  const hcWebhook = carregarHorarioComercialUtil()
+                  if (hcWebhook) agendadoDate = hcWebhook.ajustarDataEnvio(agora, 'adiar')
                 } catch (_) {}
                 const agendadoParaIso = agendadoDate.toISOString()
                 let textoFinal = primeiraEtapaNova.mensagem || ''
@@ -427,8 +427,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
                   const proxDias = Math.max(1, subsequente.dias_apos || 1)
                   let proxDataDate = new Date(agora.getTime() + proxDias * 24 * 60 * 60 * 1000)
                   try {
-                    const hcWebhook = require(`${__hooks}/horario_comercial_util.js`)
-                    proxDataDate = hcWebhook.ajustarDataEnvio(proxDataDate, 'adiar')
+                    const hcWebhook = carregarHorarioComercialUtil()
+                    if (hcWebhook) proxDataDate = hcWebhook.ajustarDataEnvio(proxDataDate, 'adiar')
                   } catch (_) {}
                   item.proximo_envio_data = proxDataDate.toISOString()
                   item.proxima_etapa_nome = subsequente.nome
@@ -440,8 +440,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
                 const proxDias = Math.max(1, primeiraEtapaNova.dias_apos || 1)
                 let proxDataDate = new Date(agora.getTime() + proxDias * 24 * 60 * 60 * 1000)
                 try {
-                  const hcWebhook = require(`${__hooks}/horario_comercial_util.js`)
-                  proxDataDate = hcWebhook.ajustarDataEnvio(proxDataDate, 'adiar')
+                  const hcWebhook = carregarHorarioComercialUtil()
+                  if (hcWebhook) proxDataDate = hcWebhook.ajustarDataEnvio(proxDataDate, 'adiar')
                 } catch (_) {}
                 item.proximo_envio_data = proxDataDate.toISOString()
                 item.proxima_etapa_nome = primeiraEtapaNova.nome

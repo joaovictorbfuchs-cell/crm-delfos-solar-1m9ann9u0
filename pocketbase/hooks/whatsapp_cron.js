@@ -28,8 +28,8 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
     try {
       let dentroJanela = true
       try {
-        const hcUtil = require(`${__hooks}/horario_comercial_util.js`)
-        if (!hcUtil.estaNaJanelaComercial(now)) {
+        const hcUtil = carregarHorarioComercialUtil()
+        if (hcUtil && !hcUtil.estaNaJanelaComercial(now)) {
           dentroJanela = false
         }
       } catch (eHc) {
@@ -521,8 +521,8 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
       let dentroJanelaLeitura = true
       let hcLeitura = null
       try {
-        hcLeitura = require(`${__hooks}/horario_comercial_util.js`)
-        if (!hcLeitura.estaNaJanelaComercial(now)) {
+        hcLeitura = carregarHorarioComercialUtil()
+        if (hcLeitura && !hcLeitura.estaNaJanelaComercial(now)) {
           dentroJanelaLeitura = false
         }
       } catch (eHcLeitura) {

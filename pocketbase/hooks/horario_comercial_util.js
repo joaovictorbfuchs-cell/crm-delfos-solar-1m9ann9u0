@@ -158,3 +158,29 @@ var horarioComercialUtil = (function () {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = horarioComercialUtil
 }
+
+// Registro no escopo global do VM dos hooks: em alguns runtimes do PocketBase o require()
+// de arquivos utilitários falha com "GoError: Invalid module" (arquivo ausente no bundle
+// ou módulo simples não registrado). Como este arquivo é avaliado no boot, o utilitário
+// fica disponível globalmente e os consumidores usam o loader abaixo com fallback —
+// a checagem de janela comercial nunca fica inerte.
+if (typeof globalThis !== 'undefined') {
+  globalThis.horarioComercialUtil = horarioComercialUtil
+  globalThis.carregarHorarioComercialUtil = function () {
+    if (horarioComercialUtil && typeof horarioComercialUtil.estaNaJanelaComercial === 'function') {
+      return horarioComercialUtil
+    }
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') return m
+    } catch (_) {}
+    return null
+  }
+}
+
+if (typeof globalThis !== 'undefined' && !globalThis.carregarHorarioComercialUtil) {
+  // Não deveria acontecer (acima sempre define), mas mantém o consumidor sempre seguro.
+  globalThis.carregarHorarioComercialUtil = function () {
+    return horarioComercialUtil || null
+  }
+}

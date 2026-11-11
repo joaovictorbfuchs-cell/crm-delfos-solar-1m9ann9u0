@@ -203,8 +203,8 @@ cronAdd('automacoes_worker', '0 * * * *', () => {
             // sucesso para a idempotência não reprocessar no próximo ciclo.
             let deferidoJanela = false
             try {
-              const hcJanela = require(`${__hooks}/horario_comercial_util.js`)
-              if (telDestino && !hcJanela.estaNaJanelaComercial(now)) {
+              const hcJanela = carregarHorarioComercialUtil()
+              if (telDestino && hcJanela && !hcJanela.estaNaJanelaComercial(now)) {
                 deferidoJanela = true
                 const textoFinalJ = formatTexto(
                   configAcao.mensagem || 'Mensagem automática Delfos Solar',

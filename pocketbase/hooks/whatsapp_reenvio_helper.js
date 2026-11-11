@@ -741,8 +741,8 @@ function processarReenviosDisparosMassa(app) {
         // Agendar envio da etapa — ajustar para próximo dia útil na janela comercial (08:00–16:30 BRT)
         let agendadoParaDate = new Date(agendamentoBaseMs + reenviosAgendadosLote * intervalMs)
         try {
-          const hcReenvio = require(`${__hooks}/horario_comercial_util.js`)
-          agendadoParaDate = hcReenvio.ajustarDataEnvio(agendadoParaDate, 'adiar')
+          const hcReenvio = carregarHorarioComercialUtil()
+          if (hcReenvio) agendadoParaDate = hcReenvio.ajustarDataEnvio(agendadoParaDate, 'adiar')
         } catch (_) {}
         const agendadoParaIso = agendadoParaDate.toISOString()
         reenviosAgendadosLote++
@@ -827,8 +827,8 @@ function processarReenviosDisparosMassa(app) {
           const proxPrazoMs = proxPrazoDias * 24 * 60 * 60 * 1000
           let proxDataDate = new Date(agora.getTime() + proxPrazoMs)
           try {
-            const hcReenvio = require(`${__hooks}/horario_comercial_util.js`)
-            proxDataDate = hcReenvio.ajustarDataEnvio(proxDataDate, 'adiar')
+            const hcReenvio = carregarHorarioComercialUtil()
+            if (hcReenvio) proxDataDate = hcReenvio.ajustarDataEnvio(proxDataDate, 'adiar')
           } catch (_) {}
           item.proximo_envio_data = proxDataDate.toISOString()
           item.proxima_etapa_nome = subsequente.nome
@@ -1353,8 +1353,8 @@ function processarRespostaAutomaticaCliente(app, params) {
             if (primeiraEtapaNova.dias_apos === 0) {
               let agendadoRespDate = agora
               try {
-                const hcReenvio = require(`${__hooks}/horario_comercial_util.js`)
-                agendadoRespDate = hcReenvio.ajustarDataEnvio(agora, 'adiar')
+                const hcReenvio = carregarHorarioComercialUtil()
+                if (hcReenvio) agendadoRespDate = hcReenvio.ajustarDataEnvio(agora, 'adiar')
               } catch (_) {}
               const agendadoParaIso = agendadoRespDate.toISOString()
               let textoFinal = primeiraEtapaNova.mensagem || ''
@@ -1419,8 +1419,8 @@ function processarRespostaAutomaticaCliente(app, params) {
                 const proxDias = Math.max(1, subsequente.dias_apos || 1)
                 let proxDataDate = new Date(agora.getTime() + proxDias * 24 * 60 * 60 * 1000)
                 try {
-                  const hcReenvio = require(`${__hooks}/horario_comercial_util.js`)
-                  proxDataDate = hcReenvio.ajustarDataEnvio(proxDataDate, 'adiar')
+                  const hcReenvio = carregarHorarioComercialUtil()
+                  if (hcReenvio) proxDataDate = hcReenvio.ajustarDataEnvio(proxDataDate, 'adiar')
                 } catch (_) {}
                 item.proximo_envio_data = proxDataDate.toISOString()
                 item.proxima_etapa_nome = subsequente.nome
@@ -1433,8 +1433,8 @@ function processarRespostaAutomaticaCliente(app, params) {
               const proxDias = Math.max(1, primeiraEtapaNova.dias_apos || 1)
               let proxDataDate = new Date(agora.getTime() + proxDias * 24 * 60 * 60 * 1000)
               try {
-                const hcReenvio = require(`${__hooks}/horario_comercial_util.js`)
-                proxDataDate = hcReenvio.ajustarDataEnvio(proxDataDate, 'adiar')
+                const hcReenvio = carregarHorarioComercialUtil()
+                if (hcReenvio) proxDataDate = hcReenvio.ajustarDataEnvio(proxDataDate, 'adiar')
               } catch (_) {}
               item.proximo_envio_data = proxDataDate.toISOString()
               item.proxima_etapa_nome = primeiraEtapaNova.nome

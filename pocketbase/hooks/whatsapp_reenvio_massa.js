@@ -818,8 +818,8 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
 
         let agendadoParaDate = new Date(agendamentoBaseMs)
         try {
-          const hcMassa = require(`${__hooks}/horario_comercial_util.js`)
-          agendadoParaDate = hcMassa.ajustarDataEnvio(agendadoParaDate, 'adiar')
+          const hcMassa = carregarHorarioComercialUtil()
+          if (hcMassa) agendadoParaDate = hcMassa.ajustarDataEnvio(agendadoParaDate, 'adiar')
         } catch (_) {}
         const agendadoParaIso = agendadoParaDate.toISOString()
         agendamentoBaseMs += intervalMs
@@ -880,8 +880,8 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
           const proxPrazoMs = proxPrazoDias * 24 * 60 * 60 * 1000
           let proxDataDate = new Date(agora.getTime() + proxPrazoMs)
           try {
-            const hcMassa = require(`${__hooks}/horario_comercial_util.js`)
-            proxDataDate = hcMassa.ajustarDataEnvio(proxDataDate, 'adiar')
+            const hcMassa = carregarHorarioComercialUtil()
+            if (hcMassa) proxDataDate = hcMassa.ajustarDataEnvio(proxDataDate, 'adiar')
           } catch (_) {}
           item.proximo_envio_data = proxDataDate.toISOString()
           item.proxima_etapa_nome = subsequente.nome
@@ -1768,8 +1768,8 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
 
         let agendadoParaDate2 = new Date(agendamentoBaseMs)
         try {
-          const hcMassa2 = require(`${__hooks}/horario_comercial_util.js`)
-          agendadoParaDate2 = hcMassa2.ajustarDataEnvio(agendadoParaDate2, 'adiar')
+          const hcMassa2 = carregarHorarioComercialUtil()
+          if (hcMassa2) agendadoParaDate2 = hcMassa2.ajustarDataEnvio(agendadoParaDate2, 'adiar')
         } catch (_) {}
         const agendadoParaIso = agendadoParaDate2.toISOString()
         agendamentoBaseMs += intervalMs
@@ -1830,8 +1830,8 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
           const proxPrazoMs = proxPrazoDias * 24 * 60 * 60 * 1000
           let proxDataDate2 = new Date(agora.getTime() + proxPrazoMs)
           try {
-            const hcMassa2 = require(`${__hooks}/horario_comercial_util.js`)
-            proxDataDate2 = hcMassa2.ajustarDataEnvio(proxDataDate2, 'adiar')
+            const hcMassa2 = carregarHorarioComercialUtil()
+            if (hcMassa2) proxDataDate2 = hcMassa2.ajustarDataEnvio(proxDataDate2, 'adiar')
           } catch (_) {}
           item.proximo_envio_data = proxDataDate2.toISOString()
           item.proxima_etapa_nome = subsequente.nome
