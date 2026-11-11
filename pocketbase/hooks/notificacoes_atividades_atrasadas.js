@@ -5,7 +5,11 @@
 cronAdd('notificacoes_atividades_worker', '0 * * * *', () => {
   try {
     const agora = new Date()
-    const hojeYmd = agora.toISOString().substring(0, 10)
+    // Data de referência no fuso de Brasília (America/Sao_Paulo, UTC-3 fixo)
+    const spOffsetMs = -3 * 60 * 60 * 1000
+    const spDate = new Date(agora.getTime() + spOffsetMs)
+    const pad = (n) => (n < 10 ? '0' + n : String(n))
+    const hojeYmd = `${spDate.getUTCFullYear()}-${pad(spDate.getUTCMonth() + 1)}-${pad(spDate.getUTCDate())}`
     const agoraTimestamp = agora.getTime()
 
     let countCriadas = 0
@@ -29,7 +33,14 @@ cronAdd('notificacoes_atividades_worker', '0 * * * *', () => {
       const prevTimestamp = dataPrev.getTime()
       if (isNaN(prevTimestamp)) continue
 
-      const prevYmd = dataStr.substring(0, 10)
+      // Interpretar a data da atividade no fuso de Brasília caso seja timestamp completo UTC
+      let prevYmd = dataStr.substring(0, 10)
+      if (dataStr.length > 10) {
+        const dataSp = new Date(dataPrev.getTime() + spOffsetMs)
+        if (!isNaN(dataSp.getTime())) {
+          prevYmd = `${dataSp.getUTCFullYear()}-${pad(dataSp.getUTCMonth() + 1)}-${pad(dataSp.getUTCDate())}`
+        }
+      }
 
       if (prevYmd < hojeYmd || agoraTimestamp - prevTimestamp > 24 * 60 * 60 * 1000) {
         const diffMs = agoraTimestamp - prevTimestamp

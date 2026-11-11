@@ -574,10 +574,63 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
             const jaEnviado = atvFilha.getString('lembrete_whatsapp_enviado_em')
             if (jaEnviado) continue
 
-            // Extrair a data da leitura (YYYY-MM-DD)
+            // DEDUPLICAÇÃO DE ATIVIDADES IRMÃS (mesmo parent_id, mesma UC e mesma data_leitura)
+            const parentId = atvFilha.getString('parent_id')
+            const ucAtv = (atvFilha.getString('numero_uc') || '').trim()
+            if (parentId) {
+              try {
+                // Verificar se a própria atividade mãe já teve lembrete enviado
+                const atvMaeCheck = $app.findRecordById('atividades', parentId)
+                if (atvMaeCheck && atvMaeCheck.getString('lembrete_whatsapp_enviado_em')) {
+                  console.log(
+                    `[AUTO LEITURA CRON DEDUP] Pulando atividade ${atvFilha.id}: mãe ${parentId} já teve lembrete enviado em ${atvMaeCheck.getString('lembrete_whatsapp_enviado_em')}`,
+                  )
+                  continue
+                }
+
+                // Buscar irmãs da mesma mãe
+                let filtroIrmas = `parent_id = '${parentId}' && id != '${atvFilha.id}' && lembrete_whatsapp_enviado_em != ''`
+                if (dataLeituraYmd) {
+                  filtroIrmas += ` && data_leitura ~ '${dataLeituraYmd}'`
+                }
+                const irmasEnviadas = $app.findRecordsByFilter(
+                  'atividades',
+                  filtroIrmas,
+                  '-created',
+                  10,
+                  0,
+                )
+                let irmaJaEnviou = false
+                for (let im = 0; im < irmasEnviadas.length; im++) {
+                  const irma = irmasEnviadas[im]
+                  const ucIrma = (irma.getString('numero_uc') || '').trim()
+                  // Se UC estiver preenchida em ambas, checa match; se não, basta ser da mesma mãe e data
+                  if (!ucAtv || !ucIrma || ucAtv === ucIrma) {
+                    irmaJaEnviou = true
+                    console.log(
+                      `[AUTO LEITURA CRON DEDUP] Pulando atividade ${atvFilha.id}: irmã ${irma.id} da mãe ${parentId} (UC ${ucIrma || 'N/A'}, data ${dataLeituraYmd}) já enviou lembrete em ${irma.getString('lembrete_whatsapp_enviado_em')}`,
+                    )
+                    break
+                  }
+                }
+                if (irmaJaEnviou) {
+                  continue
+                }
+              } catch (eDedupCron) {
+                console.log('[AUTO LEITURA CRON DEDUP] Erro ao checar irmãs:', eDedupCron)
+              }
+            }
+
+            // Extrair a data da leitura (YYYY-MM-DD) no fuso de São Paulo
             const rawDataLeitura = atvFilha.getString('data_leitura')
             if (!rawDataLeitura) continue
-            const dataLeituraYmd = rawDataLeitura.substring(0, 10)
+            let dataLeituraYmd = rawDataLeitura.substring(0, 10)
+            if (rawDataLeitura.length > 10) {
+              const parsedDt = new Date(rawDataLeitura)
+              if (!isNaN(parsedDt.getTime())) {
+                dataLeituraYmd = getSaoPauloDateStr(parsedDt)
+              }
+            }
             const partesLeitura = dataLeituraYmd.split('-').map(Number)
             if (
               partesLeitura.length !== 3 ||
@@ -790,10 +843,14 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
               const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
               textoFinal = tplHelper.interpolarTemplate(textoBase, {
                 nome_cliente: nomeCliente,
+                cliente_nome: nomeCliente,
                 usina: usinaAutoNome,
+                nome_usina: usinaAutoNome,
                 numero_uc: numeroUcAuto,
+                uc: numeroUcAuto,
                 endereco: enderecoAuto,
                 data: diaLeituraStr,
+                data_leitura: diaLeituraStr,
                 dia_anterior: diaAnteriorStr,
                 empresa: 'Delfos Solar',
               })
@@ -803,9 +860,24 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
                 .replace(/\[data\]/gi, diaLeituraStr)
                 .replace(/\[dia anterior\]/gi, diaAnteriorStr)
                 .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
+                .replace(/\{\{cliente_nome\}\}/g, nomeCliente)
+                .replace(/\{\{usina\}\}/g, usinaAutoNome)
+                .replace(/\{\{nome_usina\}\}/g, usinaAutoNome)
+                .replace(/\{\{numero_uc\}\}/g, numeroUcAuto)
+                .replace(/\{\{uc\}\}/g, numeroUcAuto)
+                .replace(/\{\{endereco\}\}/g, enderecoAuto)
                 .replace(/\{\{data\}\}/g, diaLeituraStr)
+                .replace(/\{\{data_leitura\}\}/g, diaLeituraStr)
                 .replace(/\{\{dia_anterior\}\}/g, diaAnteriorStr)
             }
+
+            // Fallback de segurança para garantir que nenhum placeholder cru reste
+            textoFinal = (textoFinal || '')
+              .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
+              .replace(/\{\{usina\}\}/g, usinaAutoNome)
+              .replace(/\{\{numero_uc\}\}/g, numeroUcAuto)
+              .replace(/\{\{endereco\}\}/g, enderecoAuto)
+              .replace(/\{\{data\}\}/g, diaLeituraStr)
 
             // Conversa de WhatsApp (CRM)
             let conversaId = ''
@@ -1001,10 +1073,19 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
       for (let s = 0; s < atvsChecagem.length; s++) {
         const atvItem = atvsChecagem[s]
 
-        // Data da leitura
+        // Data da leitura convertida para data civil de São Paulo (UTC-3 fixo)
         const rawDtLeitura = atvItem.getString('data_leitura')
         if (!rawDtLeitura) continue
-        const dtLeituraYmd = rawDtLeitura.substring(0, 10)
+
+        let dtLeituraYmd = rawDtLeitura.substring(0, 10)
+        // Se data_leitura for timestamp completo UTC (ex: "2026-11-10T03:00:00.000Z"),
+        // converter para o fuso de São Paulo para não adiantar o dia civil.
+        if (rawDtLeitura.length > 10) {
+          const parsedDt = new Date(rawDtLeitura)
+          if (!isNaN(parsedDt.getTime())) {
+            dtLeituraYmd = getSaoPauloDateStr(parsedDt)
+          }
+        }
 
         // Só processa se a data da leitura já chegou (<= hoje em SP)
         if (dtLeituraYmd > hojeSpStrSemRetorno) {

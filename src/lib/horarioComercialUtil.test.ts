@@ -115,25 +115,29 @@ describe('horarioComercialUtil — janela 08:00–16:30 Brasília (UTC−3 fixo)
       expect(res.toISOString()).toBe('2026-12-22T11:00:00Z')
     })
 
-    it('caso 7: clamp após a janela (17:45 BRT → 16:30 BRT do mesmo dia)', () => {
-      // Terça-feira 22/12/2026 às 17:45 BRT (20:45 UTC) → 16:30 BRT (19:30 UTC)
-      const res = util.ajustarDataEnvio(new Date('2026-12-22T20:45:00Z'), 'adiar')
-      expect(res.toISOString()).toBe('2026-12-22T19:30:00Z')
+    it('caso 7: clamp após a janela (19:45 BRT → 18:00 BRT do mesmo dia)', () => {
+      // Terça-feira 22/12/2026 às 19:45 BRT (22:45 UTC) → 18:00 BRT (21:00 UTC)
+      const res = util.ajustarDataEnvio(new Date('2026-12-22T22:45:00Z'), 'adiar')
+      expect(res.toISOString()).toBe('2026-12-22T21:00:00Z')
     })
 
-    it('caso 8: dia útil dentro da janela comercial (08:00–16:30 BRT) sai inalterado', () => {
+    it('caso 8: dia útil dentro da janela comercial (08:00–18:00 BRT) sai inalterado', () => {
       // Terça-feira 22/12/2026 às 11:00 BRT (14:00 UTC)
       const envioAdiar = util.ajustarDataEnvio(new Date('2026-12-22T14:00:00Z'), 'adiar')
       expect(envioAdiar.toISOString()).toBe('2026-12-22T14:00:00Z')
 
       const envioAntecipar = util.ajustarDataEnvio(new Date('2026-12-22T14:00:00Z'), 'antecipar')
       expect(envioAntecipar.toISOString()).toBe('2026-12-22T14:00:00Z')
+
+      // 17:30 BRT (20:30 UTC) está dentro da janela (08:00–18:00 BRT)
+      const envioFimTarde = util.ajustarDataEnvio(new Date('2026-12-22T20:30:00Z'), 'adiar')
+      expect(envioFimTarde.toISOString()).toBe('2026-12-22T20:30:00Z')
     })
 
-    it('combinação: sábado às 19:00 BRT modo adiar → segunda-feira às 16:30 BRT', () => {
-      // Sábado 12/12/2026 19:00 BRT (22:00 UTC) → Segunda 14/12/2026 16:30 BRT (19:30 UTC)
+    it('combinação: sábado às 19:00 BRT modo adiar → segunda-feira às 18:00 BRT', () => {
+      // Sábado 12/12/2026 19:00 BRT (22:00 UTC) → Segunda 14/12/2026 18:00 BRT (21:00 UTC)
       const res = util.ajustarDataEnvio(new Date('2026-12-12T22:00:00Z'), 'adiar')
-      expect(res.toISOString()).toBe('2026-12-14T19:30:00Z')
+      expect(res.toISOString()).toBe('2026-12-14T21:00:00Z')
     })
 
     it('combinação: domingo às 06:00 BRT modo adiar → segunda-feira às 08:00 BRT', () => {
@@ -144,19 +148,20 @@ describe('horarioComercialUtil — janela 08:00–16:30 Brasília (UTC−3 fixo)
   })
 
   describe('estaNaJanelaComercial — guarda de worker da fila agendada', () => {
-    it('bloqueia envio em finais de semana, feriados e fora do horário 08:00–16:30 BRT', () => {
+    it('bloqueia envio em finais de semana, feriados e fora do horário 08:00–18:00 BRT', () => {
       expect(util.estaNaJanelaComercial(new Date('2026-12-12T13:00:00Z'))).toBe(false) // sábado
       expect(util.estaNaJanelaComercial(new Date('2026-12-13T13:00:00Z'))).toBe(false) // domingo
       expect(util.estaNaJanelaComercial(new Date('2026-12-25T13:00:00Z'))).toBe(false) // feriado Natal
       expect(util.estaNaJanelaComercial(new Date('2026-12-14T10:00:00Z'))).toBe(false) // seg 07:00 BRT (antes)
-      expect(util.estaNaJanelaComercial(new Date('2026-12-14T20:00:00Z'))).toBe(false) // seg 17:00 BRT (depois)
+      expect(util.estaNaJanelaComercial(new Date('2026-12-14T21:01:00Z'))).toBe(false) // seg 18:01 BRT (depois)
     })
 
-    it('permite envio dentro da janela comercial em dia útil (incluindo limites 08:00 e 16:30 BRT)', () => {
+    it('permite envio dentro da janela comercial em dia útil (incluindo limites 08:00 e 18:00 BRT)', () => {
       expect(util.estaNaJanelaComercial(new Date('2026-12-14T11:00:00Z'))).toBe(true) // seg 08:00 BRT (início)
       expect(util.estaNaJanelaComercial(new Date('2026-12-14T13:00:00Z'))).toBe(true) // seg 10:00 BRT
       expect(util.estaNaJanelaComercial(new Date('2026-12-14T15:30:00Z'))).toBe(true) // seg 12:30 BRT
-      expect(util.estaNaJanelaComercial(new Date('2026-12-14T19:30:00Z'))).toBe(true) // seg 16:30 BRT (limite exato)
+      expect(util.estaNaJanelaComercial(new Date('2026-12-14T20:00:00Z'))).toBe(true) // seg 17:00 BRT
+      expect(util.estaNaJanelaComercial(new Date('2026-12-14T21:00:00Z'))).toBe(true) // seg 18:00 BRT (limite exato)
     })
   })
 })

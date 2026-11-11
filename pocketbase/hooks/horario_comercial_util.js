@@ -10,7 +10,7 @@
 var horarioComercialUtil = (function () {
   var OFFSET_BRASILIA_MS = -3 * 60 * 60 * 1000 // UTC−3 fixo
   var MIN_INICIO_JANELA = 8 * 60 // 08:00
-  var MIN_FIM_JANELA = 16 * 60 + 30 // 16:30
+  var MIN_FIM_JANELA = 18 * 60 // 18:00
   var MS_DIA = 24 * 60 * 60 * 1000
 
   // Feriados nacionais fixos (chave "mes-dia", mês 1-based)
@@ -99,7 +99,7 @@ var horarioComercialUtil = (function () {
     return !eFeriadoNacional(date)
   }
 
-  /** Dentro da janela comercial: dia útil e hora entre 08:00 e 16:30 de Brasília (limites inclusos). */
+  /** Dentro da janela comercial: dia útil e hora entre 08:00 e 18:00 de Brasília (limites inclusos). */
   function estaNaJanelaComercial(date) {
     var p = getBrasiliaParts(date)
     if (!p) return false
@@ -112,8 +112,8 @@ var horarioComercialUtil = (function () {
    * Ajusta uma data/hora de envio:
    *  - modo 'antecipar': enquanto o dia não for útil, recua 1 dia (leituras → sexta/dia útil anterior);
    *  - modo 'adiar': enquanto o dia não for útil, avança 1 dia (fluxos → dia seguinte/segunda-feira);
-   *  - em seguida clampa a hora para a janela 08:00–16:30 de Brasília no MESMO dia resolvido
-   *    (< 08:00 → 08:00; > 16:30 → 16:30; dentro → mantém).
+   *  - em seguida clampa a hora para a janela 08:00–18:00 de Brasília no MESMO dia resolvido
+   *    (< 08:00 → 08:00; > 18:00 → 18:00; dentro → mantém).
    * Resultado no passado é devolvido como está — o guarda do worker segura o envio
    * até a próxima abertura da janela. Timestamps de entrada são UTC; toda decisão de
    * dia útil/janela é tomada já convertendo para Brasília.

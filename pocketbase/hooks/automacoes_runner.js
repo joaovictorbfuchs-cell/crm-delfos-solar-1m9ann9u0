@@ -233,18 +233,18 @@ cronAdd('automacoes_worker', '0 * * * *', () => {
                 if (refKey) msgAgJ.set('referencia_id', refKey)
                 $app.save(msgAgJ)
                 sucesso = true
-                mensagemResultado = `Fora da janela comercial (08:00–16:30 BRT, dias úteis): WhatsApp agendado para ${agPara}`
+                mensagemResultado = `Fora da janela comercial (08:00–18:00 BRT, dias úteis): WhatsApp agendado para ${agPara}`
                 payloadGravado = { agendado_para: agPara, telefone: telDestino }
               }
             } catch (eJanelaAuto) {
               console.log(
-                '[AUTOMACOES RUNNER] Janela comercial indisponível, seguindo com envio imediato:',
+                '[AUTOMACAO RUNNER] Erro ao checar janela comercial em automacoes_runner:',
                 eJanelaAuto,
               )
             }
             if (deferidoJanela) {
               // Fora da janela: nada a enviar agora; o worker da fila agendada envia
-              // no próximo dia útil dentro de 08:00–16:30 BRT.
+              // no próximo dia útil dentro de 08:00–18:00 BRT.
             } else if (!telDestino) {
               sucesso = false
               mensagemResultado = 'Cliente sem telefone/WhatsApp cadastrado para envio'

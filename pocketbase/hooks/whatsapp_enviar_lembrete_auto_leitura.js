@@ -19,6 +19,67 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       return e.json(404, { error: 'Atividade não encontrada', ok: false })
     }
 
+    // TRAVA DE DEDUPLICAÇÃO E IDEMPOTÊNCIA:
+    // Se a própria atividade já teve lembrete enviado, rejeita reenvio
+    const jaEnviadoAtv = atvRecord.getString('lembrete_whatsapp_enviado_em')
+    if (jaEnviadoAtv) {
+      return e.json(400, {
+        ok: false,
+        error: `Lembrete já enviado para esta atividade em ${jaEnviadoAtv}. Reenvio duplicado bloqueado.`,
+        lembrete_whatsapp_enviado_em: jaEnviadoAtv,
+      })
+    }
+
+    // Se possui atividade mãe (parent_id), verificar se a mãe ou qualquer atividade irmã
+    // da mesma mãe, mesma UC e mesma data_leitura já teve lembrete enviado
+    const parentIdAtv = atvRecord.getString('parent_id')
+    const ucAtv = (atvRecord.getString('numero_uc') || '').trim()
+    const rawDataLeituraAtv = (
+      atvRecord.getString('data_leitura') ||
+      atvRecord.getString('data_vencimento') ||
+      ''
+    ).trim()
+    const dataLeituraYmd = rawDataLeituraAtv ? rawDataLeituraAtv.substring(0, 10) : ''
+
+    if (parentIdAtv) {
+      try {
+        const maeRecord = $app.findRecordById(atvCol.id, parentIdAtv)
+        if (maeRecord && maeRecord.getString('lembrete_whatsapp_enviado_em')) {
+          return e.json(400, {
+            ok: false,
+            error: `Lembrete de auto leitura já enviado anteriormente na atividade principal (ID: ${parentIdAtv}).`,
+            lembrete_whatsapp_enviado_em: maeRecord.getString('lembrete_whatsapp_enviado_em'),
+          })
+        }
+
+        let filtroIrmas = `parent_id = '${parentIdAtv}' && id != '${atvRecord.id}' && lembrete_whatsapp_enviado_em != ''`
+        if (dataLeituraYmd) {
+          filtroIrmas += ` && data_leitura ~ '${dataLeituraYmd}'`
+        }
+        const irmasJaEnviadas = $app.findRecordsByFilter(
+          'atividades',
+          filtroIrmas,
+          '-created',
+          10,
+          0,
+        )
+        for (let im = 0; im < irmasJaEnviadas.length; im++) {
+          const irma = irmasJaEnviadas[im]
+          const ucIrma = (irma.getString('numero_uc') || '').trim()
+          if (!ucAtv || !ucIrma || ucAtv === ucIrma) {
+            const enviadaEm = irma.getString('lembrete_whatsapp_enviado_em')
+            return e.json(400, {
+              ok: false,
+              error: `Lembrete já enviado para a atividade irmã ${irma.id} da mesma leitura (UC: ${ucIrma || 'N/A'}, data: ${dataLeituraYmd || 'N/A'}) em ${enviadaEm}. Envio duplicado impedido.`,
+              lembrete_whatsapp_enviado_em: enviadaEm,
+            })
+          }
+        }
+      } catch (errDedup) {
+        console.log('[whatsapp_enviar_lembrete] erro ao checar deduplicação de irmãs:', errDedup)
+      }
+    }
+
     const clienteId = atvRecord.getString('cliente_id')
     if (!clienteId) {
       return e.json(400, {
@@ -116,26 +177,35 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       } catch (_) {}
     }
 
-    // Montar texto padrão ou utilizar mensagem_personalizada do modal de conferência
-    const mensagemPersonalizada = (body.mensagem_personalizada || body.mensagem || '').trim()
+    // Montar dados para interpolação segura com fallback
+    const nomeClienteResolvido = (clienteRecord.getString('nome') || 'Cliente').trim()
 
     const nomeUsinaOuCliente =
       (usinaRecord ? usinaRecord.getString('nome') : '') ||
+      atvRecord.getString('usina_nome') ||
       clienteRecord.getString('nome') ||
-      'sua unidade'
+      'Usina cadastrada'
 
     const numeroInstalacao =
+      atvRecord.getString('numero_uc') ||
       (usinaRecord
         ? usinaRecord.getString('numero_uc') || usinaRecord.getString('uc_codigo')
         : '') ||
       clienteRecord.getString('uc') ||
       clienteRecord.getString('numero_instalacao') ||
-      'não informado'
+      'Não informada'
 
     let enderecoInstalacao = ''
     if (usinaRecord && usinaRecord.getString('endereco')) {
-      enderecoInstalacao = usinaRecord.getString('endereco')
-    } else {
+      const partesU = [
+        usinaRecord.getString('endereco'),
+        usinaRecord.getString('numero'),
+        usinaRecord.getString('bairro'),
+        usinaRecord.getString('cidade'),
+      ].filter(Boolean)
+      enderecoInstalacao = partesU.join(', ') || usinaRecord.getString('endereco')
+    }
+    if (!enderecoInstalacao) {
       const rawNum = (clienteRecord.getString('numero') || '').trim()
       const numFmt = rawNum && rawNum.toUpperCase() !== 'S/N' ? `nº ${rawNum}` : ''
       const partes = [
@@ -145,7 +215,40 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
         clienteRecord.getString('cidade'),
       ].filter(Boolean)
       enderecoInstalacao =
-        partes.join(', ') || clienteRecord.getString('cidade') || 'endereço cadastrado'
+        partes.join(', ') || clienteRecord.getString('cidade') || 'Endereço cadastrado'
+    }
+
+    // Resolver data de leitura formatada em DD/MM/AAAA (respeitando fuso de São Paulo)
+    const rawDataLeituraStr =
+      atvRecord.getString('data_leitura') ||
+      atvRecord.getString('data_vencimento') ||
+      atvRecord.getString('data_inicio') ||
+      atvRecord.getString('data') ||
+      ''
+    let dataFormatada = ''
+    if (rawDataLeituraStr) {
+      try {
+        let ymd = rawDataLeituraStr.substring(0, 10)
+        if (rawDataLeituraStr.length > 10) {
+          const dUtc = new Date(rawDataLeituraStr)
+          if (!isNaN(dUtc.getTime())) {
+            const spMs = dUtc.getTime() - 3 * 60 * 60 * 1000
+            const spDate = new Date(spMs)
+            const y = spDate.getUTCFullYear()
+            const m = String(spDate.getUTCMonth() + 1).padStart(2, '0')
+            const day = String(spDate.getUTCDate()).padStart(2, '0')
+            ymd = `${y}-${m}-${day}`
+          }
+        }
+        const partesDt = ymd.split('-')
+        if (partesDt.length === 3) {
+          dataFormatada = `${partesDt[2]}/${partesDt[1]}/${partesDt[0]}`
+        }
+      } catch (_) {}
+    }
+    if (!dataFormatada) {
+      const agoraD = new Date(Date.now() - 3 * 60 * 60 * 1000)
+      dataFormatada = `${String(agoraD.getUTCDate()).padStart(2, '0')}/${String(agoraD.getUTCMonth() + 1).padStart(2, '0')}/${agoraD.getUTCFullYear()}`
     }
 
     // Template no banco se existir
@@ -158,45 +261,51 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       )
     } catch (_) {}
 
-    let mensagemTexto = mensagemPersonalizada
-    if (!mensagemTexto) {
-      const dataStr =
-        atvRecord.getString('data_vencimento') || atvRecord.getString('data_inicio') || ''
-      let dataFormatada = ''
-      if (dataStr) {
-        try {
-          const d = new Date(dataStr)
-          if (!isNaN(d.getTime())) {
-            const dia = String(d.getUTCDate()).padStart(2, '0')
-            const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-            const ano = d.getUTCFullYear()
-            dataFormatada = `${dia}/${mes}/${ano}`
-          }
-        } catch (_) {}
-      }
-      const rawConteudo =
-        tplLeitura && tplLeitura.getString('conteudo')
-          ? tplLeitura.getString('conteudo')
-          : `Olá, {{nome_cliente}}! Chegou o momento da leitura do medidor de energia na usina {{usina}}, instalação consumidora {{numero_uc}} e endereço {{endereco}}. A leitura referente a {{data}} é fundamental para garantirmos o correto envio à RGE. Pedimos que nos encaminhe foto ou vídeo nítido do medidor com as grandezas 03 (consumo kWh) e 103 (injeção kWh), e em seguida nos informe os valores por escrito para validação.`
+    const mensagemPersonalizada = (body.mensagem_personalizada || body.mensagem || '').trim()
+    const rawTextoParaEnviar =
+      mensagemPersonalizada ||
+      atvRecord.getString('mensagem_cliente') ||
+      (tplLeitura && tplLeitura.getString('conteudo')) ||
+      `Olá, {{nome_cliente}}! Chegou o momento da leitura do medidor de energia na usina {{usina}}, instalação consumidora {{numero_uc}} e endereço {{endereco}}. A leitura referente a {{data}} é fundamental para garantirmos o correto envio à RGE. Pedimos que nos encaminhe foto ou vídeo nítido do medidor com as grandezas 03 (consumo kWh) e 103 (injeção kWh), e em seguida nos informe os valores por escrito para validação.`
 
-      try {
-        const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
-        mensagemTexto = tplHelper.interpolarTemplate(rawConteudo, {
-          nome_cliente: clienteRecord.getString('nome') || 'Cliente',
-          usina: nomeUsinaOuCliente,
-          numero_uc: numeroInstalacao,
-          endereco: enderecoInstalacao,
-          data: dataFormatada,
-        })
-      } catch (_) {
-        mensagemTexto = rawConteudo
-          .replace(/\{\{nome_cliente\}\}/g, clienteRecord.getString('nome') || 'Cliente')
-          .replace(/\{\{usina\}\}/g, nomeUsinaOuCliente)
-          .replace(/\{\{numero_uc\}\}/g, numeroInstalacao)
-          .replace(/\{\{endereco\}\}/g, enderecoInstalacao)
-          .replace(/\{\{data\}\}/g, dataFormatada)
-      }
+    // OBRIGATÓRIO: passar pela função central whatsapp_template_vars.js
+    // NUNCA deixar variáveis cruas como {{usina}}, {{numero_uc}}, {{endereco}}, {{data}}
+    let mensagemTexto = rawTextoParaEnviar
+    try {
+      const tplHelper = require(`${__hooks}/whatsapp_template_vars.js`)
+      mensagemTexto = tplHelper.interpolarTemplate(rawTextoParaEnviar, {
+        nome_cliente: nomeClienteResolvido,
+        cliente_nome: nomeClienteResolvido,
+        usina: nomeUsinaOuCliente,
+        nome_usina: nomeUsinaOuCliente,
+        numero_uc: numeroInstalacao,
+        uc: numeroInstalacao,
+        endereco: enderecoInstalacao,
+        data: dataFormatada,
+        data_leitura: dataFormatada,
+        empresa: 'Delfos Solar',
+      })
+    } catch (eTpl) {
+      console.log('[whatsapp_enviar_lembrete] erro ao interpolar via whatsapp_template_vars:', eTpl)
+      mensagemTexto = rawTextoParaEnviar
+        .replace(/\{\{nome_cliente\}\}/g, nomeClienteResolvido)
+        .replace(/\{\{cliente_nome\}\}/g, nomeClienteResolvido)
+        .replace(/\{\{usina\}\}/g, nomeUsinaOuCliente)
+        .replace(/\{\{nome_usina\}\}/g, nomeUsinaOuCliente)
+        .replace(/\{\{numero_uc\}\}/g, numeroInstalacao)
+        .replace(/\{\{uc\}\}/g, numeroInstalacao)
+        .replace(/\{\{endereco\}\}/g, enderecoInstalacao)
+        .replace(/\{\{data\}\}/g, dataFormatada)
+        .replace(/\{\{data_leitura\}\}/g, dataFormatada)
     }
+
+    // Limpeza final de segurança para garantir que nenhum placeholder cru reste
+    mensagemTexto = mensagemTexto
+      .replace(/\{\{nome_cliente\}\}/g, nomeClienteResolvido)
+      .replace(/\{\{usina\}\}/g, nomeUsinaOuCliente)
+      .replace(/\{\{numero_uc\}\}/g, numeroInstalacao)
+      .replace(/\{\{endereco\}\}/g, enderecoInstalacao)
+      .replace(/\{\{data\}\}/g, dataFormatada)
 
     // Obter credenciais Z-API dos Secrets
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim().replace(/[\r\n\t]/g, '')
