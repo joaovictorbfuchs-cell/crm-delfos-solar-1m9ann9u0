@@ -912,13 +912,10 @@ function ExecucaoOSContent() {
     )
   }, [tiposAtividadesCustom])
 
-  // Lista de todos os nomes de prestadores para o dropdown
+  // Lista de prestadores para o dropdown — SOMENTE cadastros (profissionais + usuários instaladores).
+  // Nunca derivar opções de ordens.atribuida_a (texto livre de OSs antigas gera nomes fantasmas).
   const prestadoresOpcoes = useMemo(() => {
     const set = new Set<string>()
-    ;(ordens || []).forEach((os) => {
-      const nome = String(os?.atribuida_a || '').trim()
-      if (nome) set.add(nome)
-    })
     ;(instaladores || []).forEach((i) => {
       const nome = String(i?.name || '').trim()
       if (nome) set.add(nome)
@@ -928,7 +925,7 @@ function ExecucaoOSContent() {
       if (nome) set.add(nome)
     })
     return Array.from(set).sort()
-  }, [ordens, instaladores, profissionais])
+  }, [instaladores, profissionais])
 
   const filteredList = useMemo(() => {
     const agora = new Date()
