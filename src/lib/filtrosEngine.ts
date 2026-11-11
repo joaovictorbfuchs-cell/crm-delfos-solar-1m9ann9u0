@@ -6,6 +6,12 @@
 
 import type { CondicaoFiltro, EstruturaCondicoes, ModuloFiltro } from '@/types/filtros'
 import { getCampoPorId, OPERADORES_POR_TIPO } from '@/lib/filtrosCatalogo'
+import {
+  avaliarCondicaoCategoria,
+  avaliarCondicaoTipo,
+  categoriaDeTipoAtividade,
+  rotuloCategoriaCanonica,
+} from '@/lib/filtrosTipoNormalizacao'
 
 /**
  * Validação mínima: uma condição só é válida para avaliação se tiver valor preenchido
@@ -181,25 +187,28 @@ export function extrairValorRegistro(registro: any, campoId: string): any {
 
     // Atividades
     case 'tipo':
-      return (
-        registro.tipo ||
-        registro.tipo_atividade ||
-        registro.tipoAtividade ||
-        registro.tipoId ||
-        registro.tipo_custom_id ||
-        registro.tipoCustomId ||
-        registro.tipo_servico ||
-        registro.tipoServico ||
-        ''
-      )
+      // Para o motor, 'tipo' é o PRÓPRIO REGISTRO: a comparação canônica
+      // (avaliarCondicaoTipo) usa tipo + tipo_custom_id + aliases, nunca um valor único.
+      return registro
     case 'categoria': {
+      // Deriva a categoria SEMPRE do tipo canônico (regra: sem heurística de título).
+      const categoriaDeTipo = categoriaDeTipoAtividade(
+        registro.tipo ||
+          registro.tipo_atividade ||
+          registro.tipoId ||
+          registro.tipo_custom_id ||
+          registro.tipoCustomId ||
+          registro.tipo_servico ||
+          registro.tipoServico ||
+          '',
+      )
+      if (categoriaDeTipo) return rotuloCategoriaCanonica(categoriaDeTipo)
       const raw =
         registro.categoriaNome ||
         registro.categoria ||
         registro.categoria_atividade ||
         registro.categoriaId ||
         registro.setor ||
-        (registro.tipo_servico || registro.atribuida_a ? 'Manutenção' : '') ||
         ''
       const low = String(raw).toLowerCase().trim()
       if (low.startsWith('comerc')) return 'Comercial'
@@ -422,7 +431,14 @@ export function avaliarCondicao(
     }
   }
 
-  // Lista
+  // Lista — campos 'tipo' e 'categoria' de atividades usam normalização canônica
+  if (modulo === 'atividades' && cond.campoId === 'tipo') {
+    return avaliarCondicaoTipo(cond, valorRegistro)
+  }
+  if (modulo === 'atividades' && cond.campoId === 'categoria') {
+    return avaliarCondicaoCategoria(cond, valorRegistro)
+  }
+
   if (tipo === 'lista') {
     const valRegStr = String(valorRegistro ?? '')
       .trim()
