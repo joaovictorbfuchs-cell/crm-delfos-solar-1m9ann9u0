@@ -73,6 +73,11 @@ import { BlocoAnotacoesUsina } from '@/components/BlocoAnotacoesUsina'
 
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
 import { ModalImportarRateioProtocolo } from '@/components/ModalImportarRateioProtocolo'
+import { ModalPercentuaisBeneficiarias } from '@/components/ModalPercentuaisBeneficiarias'
+import type { VersaoBeneficiarias, SugestaoUc } from '@/components/ModalPercentuaisBeneficiarias'
+import type { Beneficiaria } from '@/pages/IntegracoesRge'
+import pb from '@/lib/pocketbase/client'
+import { toast } from '@/hooks/use-toast'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { createAtividade } from '@/services/crmService'
 import { InlineEditField } from '@/components/InlineEditField'
@@ -151,6 +156,14 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [modalImportarDocUsinaOpen, setModalImportarDocUsinaOpen] = useState(false)
   const [modalImportarRateioOpen, setModalImportarRateioOpen] = useState(false)
   const [modalNovaAtividadeUsinaOpen, setModalNovaAtividadeUsinaOpen] = useState(false)
+
+  // Modal de percentuais das beneficiárias na Ficha Técnica
+  const [modalPctAberto, setModalPctAberto] = useState(false)
+  const [pctUsina, setPctUsina] = useState<UsinaCliente | null>(null)
+  const [pctBeneficiarias, setPctBeneficiarias] = useState<Beneficiaria[]>([])
+  const [pctHistorico, setPctHistorico] = useState<VersaoBeneficiarias[]>([])
+  const [pctSugestoes, setPctSugestoes] = useState<SugestaoUc[]>([])
+  const [pctSalvando, setPctSalvando] = useState(false)
 
   // Form states para edição na ficha própria
   const [editNome, setEditNome] = useState('')
@@ -342,6 +355,198 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     } catch (err) {
       console.error('Erro ao atualizar múltiplos campos da usina:', err)
       throw err
+    }
+  }
+
+  // Normaliza usina.beneficiarias nos formatos legados (atracacao / {numero_uc, percentual})
+  // e atual ({ uc, rotulo, percentual }) para a lista de beneficiárias do modal
+  const extrairBeneficiariasDaUsina = (usina: UsinaCliente): Beneficiaria[] => {
+    const ben = usina.beneficiarias as
+      | (UsinaBeneficiariasConfig & { atracacao?: unknown[] })
+      | null
+      | undefined
+    if (!ben) return []
+    const cru =
+      Array.isArray(ben.atracacao) && ben.atracacao.length
+        ? ben.atracacao
+        : Array.isArray(ben.unidades)
+          ? ben.unidades
+          : []
+    return cru
+      .map((raw): Beneficiaria | null => {
+        if (!raw || typeof raw !== 'object') return null
+        const item = raw as Record<string, unknown>
+        const uc = String(
+          (item.uc as string) || (item.numero_uc as string) || (item.UC as string) || '',
+        ).replace(/\D/g, '')
+        if (!uc) return null
+        return {
+          id: String(item.id || `${usina.id}-${uc}`),
+          credencial_id: String(item.credencial_id || ''),
+          uc,
+          rotulo: String(item.rotulo || item.identificacao || ''),
+          percentual: Number(item.percentual) || 0,
+          cliente_id: String(item.cliente_id || usina.cliente_id || ''),
+          usina_id: String(item.usina_id || usina.id),
+          ativo: item.ativo !== false,
+        } as Beneficiaria
+      })
+      .filter((b): b is Beneficiaria => b !== null)
+  }
+
+  const carregarHistoricoPercentuais = async (usinaId: string) => {
+    try {
+      const token = pb.authStore.token
+      const resp = await fetch(
+        `${pb.baseUrl}/backend/v1/rge/beneficiarias-uc/versoes?usina_id=${encodeURIComponent(usinaId)}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        },
+      )
+      const json = await resp.json().catch(() => null)
+      if (resp.ok && json?.ok && Array.isArray(json.itens)) {
+        setPctHistorico(json.itens as VersaoBeneficiarias[])
+      } else {
+        setPctHistorico([])
+      }
+    } catch {
+      setPctHistorico([])
+    }
+  }
+
+  const abrirPercentuaisFicha = async (usina: UsinaCliente) => {
+    setPctUsina(usina)
+    setPctBeneficiarias(extrairBeneficiariasDaUsina(usina))
+    setPctHistorico([])
+    setPctSugestoes(
+      usinas
+        .filter((u) => u.id !== usina.id && u.numero_uc && String(u.numero_uc).replace(/\D/g, ''))
+        .map((u) => ({
+          uc: String(u.numero_uc).replace(/\D/g, ''),
+          nome: u.nome,
+          endereco: u.endereco || '',
+          usina_id: u.id,
+          cliente_id: u.cliente_id,
+        })),
+    )
+    setModalPctAberto(true)
+    await carregarHistoricoPercentuais(usina.id)
+  }
+
+  const handleSalvarPercentuaisFicha = async (payload: {
+    vigencia_inicio: string
+    vigencia_fim: string
+    itens: {
+      id?: string
+      uc: string
+      rotulo?: string
+      percentual: number
+      cliente_id?: string
+      usina_id?: string
+    }[]
+  }) => {
+    if (!pctUsina) return
+    if (!payload.itens.length) {
+      toast({
+        title: 'Nenhuma beneficiária',
+        description: 'Adicione ao menos uma unidade beneficiária antes de salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setPctSalvando(true)
+    try {
+      // Credencial da usina é obrigatória no hook do lote — buscar pela usina
+      let credencialId = ''
+      try {
+        const token = pb.authStore.token
+        // GET /rge/credenciais não filtra por usina_id — filtrar no cliente
+        const resp = await fetch(`${pb.baseUrl}/backend/v1/rge/credenciais`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+        const json = await resp.json().catch(() => null)
+        const itensCred = Array.isArray(json?.itens) ? json.itens : Array.isArray(json) ? json : []
+        const daUsina = itensCred.find(
+          (c: { usina_id?: string; ativo?: boolean }) =>
+            String(c?.usina_id || '') === pctUsina.id && c?.ativo !== false,
+        )
+        if (daUsina) credencialId = String(daUsina.id || '')
+      } catch {
+        credencialId = ''
+      }
+      if (!credencialId) {
+        toast({
+          title: 'Credencial RGE não encontrada',
+          description:
+            'Esta usina não tem conta RGE vinculada. Cadastre a conta em Integrações › RGE antes de gravar os percentuais.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const token = pb.authStore.token
+      const resp = await fetch(`${pb.baseUrl}/backend/v1/rge/beneficiarias-uc/lote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          credencial_id: credencialId,
+          vigencia_inicio: payload.vigencia_inicio,
+          vigencia_fim: payload.vigencia_fim,
+          itens: payload.itens,
+        }),
+      })
+      const json = await resp.json().catch(() => null)
+      if (!resp.ok || !json?.ok) {
+        toast({
+          title: 'Erro ao salvar percentuais',
+          description: String(json?.error || `HTTP ${resp.status}`),
+          variant: 'destructive',
+        })
+        return
+      }
+
+      // Atualiza a ficha: beneficiarias + timeline (mesmo comportamento do rateio importado)
+      const novoConfig: UsinaBeneficiariasConfig = {
+        habilitado: true,
+        percentual_geradora: 0,
+        unidades: payload.itens.map((it) => ({
+          numero_uc: it.uc,
+          identificacao: it.rotulo || '',
+          percentual: Number(it.percentual) || 0,
+        })),
+        atualizado_em: new Date().toISOString(),
+      }
+      await handleUpdateUsinaField('beneficiarias', novoConfig)
+      setEditBeneficiariasHabilitado(true)
+      setEditPercentualGeradora(0)
+      setEditBeneficiariasLista(
+        payload.itens.map((it) => ({
+          numero_uc: it.uc,
+          identificacao: it.rotulo || '',
+          percentual: Number(it.percentual) || 0,
+        })),
+      )
+
+      toast({
+        title: 'Percentuais salvos',
+        description: json.aviso
+          ? `Gravados com aviso: ${String(json.aviso).slice(0, 160)}`
+          : `Distribuição gravada para ${payload.itens.length} beneficiária(s).`,
+      })
+      setModalPctAberto(false)
+      await carregarHistoricoPercentuais(pctUsina.id)
+    } catch (err) {
+      console.error('Erro ao salvar percentuais na ficha:', err)
+      toast({
+        title: 'Erro ao salvar percentuais',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setPctSalvando(false)
     }
   }
 
@@ -1098,6 +1303,22 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                 }}
               />
 
+              {/* Modal de Percentuais das Beneficiárias (mesmo de /integracoes/rge) */}
+              <ModalPercentuaisBeneficiarias
+                open={modalPctAberto}
+                onOpenChange={(aberto) => {
+                  setModalPctAberto(aberto)
+                  if (!aberto) setPctUsina(null)
+                }}
+                cred={null}
+                nomeGeradora={usinaDetalhes?.nome || ''}
+                beneficiarias={pctBeneficiarias}
+                historico={pctHistorico}
+                sugestoes={pctSugestoes}
+                salvando={pctSalvando}
+                onSalvar={handleSalvarPercentuaisFicha}
+              />
+
               <DialogHeader>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
@@ -1618,6 +1839,31 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                                     </Button>
                                   </div>
                                 </div>
+
+                                {/* Geradora: card clicável que abre o modal de percentuais (mesmo de /integracoes/rge) */}
+                                <button
+                                  type="button"
+                                  onClick={() => abrirPercentuaisFicha(usinaDetalhes)}
+                                  className="w-full flex items-center justify-between gap-2 rounded-lg border border-blue-200 bg-white px-2.5 py-2 text-left hover:bg-blue-50/60 hover:border-blue-300 transition-colors cursor-pointer"
+                                  title="Abrir modal de percentuais das beneficiárias"
+                                >
+                                  <span className="flex items-center gap-2 min-w-0">
+                                    <Zap className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                    <span className="min-w-0">
+                                      <span className="block text-[11px] font-bold text-slate-800 truncate">
+                                        Unidade geradora
+                                      </span>
+                                      <span className="block text-[10px] text-slate-500 truncate font-mono">
+                                        {usinaDetalhes.numero_uc
+                                          ? `UC ${usinaDetalhes.numero_uc}`
+                                          : 'UC não informada'}
+                                        {' · '}
+                                        {unidades.length} beneficiária(s)
+                                      </span>
+                                    </span>
+                                  </span>
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                </button>
 
                                 {habilitado && (
                                   <div className="space-y-2 pl-6">

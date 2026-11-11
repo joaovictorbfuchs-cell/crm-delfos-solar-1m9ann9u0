@@ -203,7 +203,7 @@ export function ModalPercentuaisBeneficiarias({
   }
 
   const salvar = () => {
-    if (!cred) return
+    if (!onSalvar) return
     if (!vigInicio) return
     const itensLimpos = itens
       .filter((i) => i.uc)
