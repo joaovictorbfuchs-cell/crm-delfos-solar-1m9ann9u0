@@ -85,6 +85,7 @@ export interface Beneficiaria {
   usina_id?: string
   ativo?: boolean
   observacao?: string
+  ultimo_erro?: string
 }
 
 export interface ContaRge {

@@ -626,6 +626,7 @@ routerAdd(
           usina_id: r.getString('usina_id'),
           ativo: r.getBool('ativo'),
           observacao: r.getString('observacao'),
+          ultimo_erro: r.getString('ultimo_erro'),
         })
       }
       return e.json(200, { ok: true, itens: itens })

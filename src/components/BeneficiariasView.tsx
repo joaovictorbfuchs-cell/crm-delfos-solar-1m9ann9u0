@@ -142,7 +142,26 @@ function CelulaPercentual({ pct }: { pct: number | null }) {
   )
 }
 
-function CelulaAlertas({ comErro }: { comErro: boolean }) {
+function CelulaAlertas({
+  comErro,
+  erroBeneficiaria,
+}: {
+  comErro: boolean
+  erroBeneficiaria?: string
+}) {
+  // erroBeneficiaria: ultimo_erro gravado pelo robô quando ele NÃO conseguiu
+  // baixar a conta desta UC beneficiária (ex.: "UC não encontrada...").
+  if (erroBeneficiaria)
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 underline tracking-wide cursor-help"
+        title={erroBeneficiaria}
+        data-testid="alerta-erro-beneficiaria"
+      >
+        <AlertTriangle className="w-3 h-3" />
+        COM ERRO
+      </span>
+    )
   return comErro ? (
     <span
       className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 underline tracking-wide cursor-help"
@@ -431,7 +450,7 @@ export function BeneficiariasView({
                         <CelulaPercentual pct={b.percentual ?? null} />
                       </td>
                       <td className="py-3 px-4">
-                        <CelulaAlertas comErro={g.comErro} />
+                        <CelulaAlertas comErro={g.comErro} erroBeneficiaria={b.ultimo_erro} />
                       </td>
                       <td className="py-3 px-4 font-semibold text-blue-600">RGE</td>
                     </tr>

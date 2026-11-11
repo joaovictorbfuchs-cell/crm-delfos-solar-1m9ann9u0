@@ -344,7 +344,37 @@ routerAdd('POST', '/backend/v1/rge/robo-marcar', (e) => {
     rec.set('ultimo_login', new Date().toISOString())
     rec.set('ultimo_erro', ok ? '' : String(body.erro || '').slice(0, 300))
     $app.save(rec)
-    return e.json(200, { ok: true })
+
+    // Erros por beneficiária: o robô manda beneficiarias_erro = [{id, erro}]
+    // quando NAO conseguiu baixar a conta de uma UC beneficiária (ex.: "UC nao
+    // encontrada em nenhum titular deste login"). Grava em ultimo_erro da
+    // beneficiária e segue — um erro individual nunca para o loop.
+    var bensComErro = 0
+    if (Array.isArray(body.beneficiarias_erro)) {
+      for (var bi = 0; bi < body.beneficiarias_erro.length; bi++) {
+        var be = body.beneficiarias_erro[bi]
+        if (!be || !be.id) continue
+        try {
+          var brec = $app.findRecordById('rge_beneficiarias', String(be.id))
+          brec.set('ultimo_erro', String(be.erro || 'erro desconhecido').slice(0, 300))
+          $app.save(brec)
+          bensComErro++
+        } catch (eBen) {}
+      }
+    }
+    // beneficiárias que baixaram OK: limpa o erro antigo
+    if (Array.isArray(body.beneficiarias_ok)) {
+      for (var bo = 0; bo < body.beneficiarias_ok.length; bo++) {
+        var bok = body.beneficiarias_ok[bo]
+        if (!bok || !bok.id) continue
+        try {
+          var brok = $app.findRecordById('rge_beneficiarias', String(bok.id))
+          brok.set('ultimo_erro', '')
+          $app.save(brok)
+        } catch (eBenOk) {}
+      }
+    }
+    return e.json(200, { ok: true, beneficiarias_erro: bensComErro })
   } catch (err) {
     return e.json(400, { ok: false, error: String(err).slice(0, 400) })
   }
@@ -398,6 +428,8 @@ routerAdd(
           tipo: dd && dd.tipo ? dd.tipo : '',
           titular: dd && dd.titular ? dd.titular : '',
           created: r.getString('created'),
+          cliente_id: r.getString('cliente_id'),
+          usina_id: r.getString('usina_id'),
         })
       }
       return e.json(200, { ok: true, itens: itens })
