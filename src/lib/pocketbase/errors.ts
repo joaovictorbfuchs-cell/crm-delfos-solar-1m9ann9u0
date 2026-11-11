@@ -2,52 +2,40 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
-/**
- * Detecta erros de sessão expirada/inválida (auth token revogado) que exigem
- * novo login. Implementação canônica — salvaguardas (lib/errors, lib/client,
- * services/*) apenas reexportam.
- */
+// Detecta erro de sessão/token expirado (401/403) — canônico, reexportado por lib/errors e services/errors
 export function isAuthSessionError(error: unknown): boolean {
-  if (!(error instanceof ClientResponseError)) return false
-  const status = error.status
-  if (status === 401) return true
-  if (status === 400 || status === 403) {
-    const data = error.response?.data as { code?: unknown } | undefined
-    if (data && typeof data === 'object') {
-      const code = String(data.code ?? '')
-      return code === 'auto_cancelled' || code.includes('auth')
-    }
-    const msg = (error.response?.message ?? '').toLowerCase()
-    return msg.includes('token') || msg.includes('auth') || msg.includes('session')
-  }
-  return false
+  if (!error || typeof error !== 'object') return false
+  const anyErr = error as { status?: unknown; response?: { status?: unknown }; message?: unknown }
+  const status = anyErr.status ?? anyErr.response?.status
+  if (status === 401 || status === 403) return true
+  const msg = String(
+    (error instanceof Error && error.message) ||
+      (typeof anyErr.message === 'string' ? anyErr.message : ''),
+  )
+  return (
+    msg.includes('token') ||
+    msg.includes('Token') ||
+    msg.includes('expirada') ||
+    msg.includes('expirou') ||
+    msg.includes('Failed to authenticate')
+  )
 }
 
-/**
- * Detecta erros de requisição abortada (auto cancellation do SDK ou AbortController).
- */
+// Detecta abort de requisição (auto-cancelamento do SDK)
 export function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === 'AbortError') return true
-  if (
-    error instanceof ClientResponseError &&
-    (error.originalError?.name === 'AbortError' || error.message?.includes('cancelled'))
-  ) {
-    return true
-  }
-  return false
+  if (!error || typeof error !== 'object') return false
+  const anyErr = error as { isAbort?: unknown; name?: unknown }
+  return Boolean(anyErr.isAbort) || anyErr.name === 'AbortError'
 }
 
-/**
- * Formata um erro para exibição amigável ao usuário.
- */
+// Mensagem amigável de ClientResponseError (concatena erros por campo)
 export function formatPbError(error: unknown): string {
   if (error instanceof ClientResponseError) {
     const fieldMsgs = Object.values(extractFieldErrors(error))
     if (fieldMsgs.length > 0) return fieldMsgs.join(' ')
     return error.message || 'Erro inesperado.'
   }
-  if (error instanceof Error) return error.message
-  return String(error ?? 'Erro inesperado.')
+  return error instanceof Error ? error.message : 'Erro inesperado.'
 }
 
 export function extractFieldErrors(error: unknown): FieldErrors {

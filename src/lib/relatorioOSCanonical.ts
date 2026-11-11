@@ -514,31 +514,34 @@ export function compilarDadosRelatorioOS(
     }
   }
 
-  checklistItens = checklistItens.map((item, idx) => {
-    const rawId =
-      item?.id !== undefined && item?.id !== null && String(item.id).trim() !== ''
-        ? String(item.id).trim()
-        : undefined
-    const rawDescCliente =
-      (item as any)?.descricao_cliente || (item as any)?.descricaoCliente || undefined
-    const descCliente =
-      rawDescCliente && String(rawDescCliente).trim() ? String(rawDescCliente).trim() : undefined
-    const itemTexto = String(
-      item?.item ||
-        (item as any)?.texto ||
-        (item as any)?.descricao ||
-        (item as any)?.nome ||
-        `Item ${idx + 1}`,
-    ).trim()
+  // Itens marcados como excluídos são omitidos do relatório (id permanece nos dados para fotos vinculadas)
+  checklistItens = checklistItens
+    .filter((item) => !(item as any)?.excluido)
+    .map((item, idx) => {
+      const rawId =
+        item?.id !== undefined && item?.id !== null && String(item.id).trim() !== ''
+          ? String(item.id).trim()
+          : undefined
+      const rawDescCliente =
+        (item as any)?.descricao_cliente || (item as any)?.descricaoCliente || undefined
+      const descCliente =
+        rawDescCliente && String(rawDescCliente).trim() ? String(rawDescCliente).trim() : undefined
+      const itemTexto = String(
+        item?.item ||
+          (item as any)?.texto ||
+          (item as any)?.descricao ||
+          (item as any)?.nome ||
+          `Item ${idx + 1}`,
+      ).trim()
 
-    return {
-      ...item,
-      id: rawId || `chk_${idx + 1}`,
-      item: itemTexto,
-      concluido: Boolean(item?.concluido),
-      ...(descCliente ? { descricao_cliente: descCliente } : {}),
-    }
-  })
+      return {
+        ...item,
+        id: rawId || `chk_${idx + 1}`,
+        item: itemTexto,
+        concluido: Boolean(item?.concluido),
+        ...(descCliente ? { descricao_cliente: descCliente } : {}),
+      }
+    })
 
   // Registro fotográfico: lista de fotos na mesma ordem em que aparecem no Registro Fotográfico
   const fotosUrls = fotosDataUrls || []

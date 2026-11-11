@@ -488,6 +488,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const isChecklistAutosavingRef = useRef<boolean>(false)
   const lastSavedChecklistJsonRef = useRef<string>('')
 
+  // Texto da nova etapa a adicionar ao final do checklist
+  const [novoItemTexto, setNovoItemTexto] = useState<string>('')
+
   const [checklist, setChecklist] = useState<OSChecklistItem[]>(() => {
     const normalizado = normalizeChecklist(os?.checklist)
     const inicial =
@@ -1113,9 +1116,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         ? `${carimbo}${detalhesExecucao}`
         : `${carimbo}Atendimento iniciado em campo pelo prestador.`
 
-      // Marca o primeiro item do checklist (ex: "Chegou no local da usina")
+      // Marca o primeiro item NÃO excluído do checklist (ex: "Chegou no local da usina")
+      const primeiroIdxAtivo = checklist.findIndex((item) => !(item as any)?.excluido)
       const updatedChecklist = checklist.map((item, idx) =>
-        idx === 0 ? { ...item, concluido: true } : item,
+        idx === primeiroIdxAtivo ? { ...item, concluido: true } : item,
       )
 
       const updated = await updateOrdemServico(os.id, {
@@ -1208,6 +1212,48 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       agendarAutosaveChecklist(proximo)
       return proximo
     })
+  }
+
+  // Exclusão DIRETA de item do checklist (decisão 11/11: sem campo de motivo).
+  // O item é marcado como excluido: true e o id é PRESERVADO no array para não quebrar
+  // as fotos vinculadas a ele; some do checklist renderizado, dos contadores e do relatório.
+  const handleExcluirChecklistItem = (id: string) => {
+    if (!podeEditarOS) return
+    checklistInteractedRef.current = true
+    setChecklist((prev) => {
+      const proximo = prev.map((item) => (item.id === id ? { ...item, excluido: true } : item))
+      checklistRef.current = proximo
+      agendarAutosaveChecklist(proximo)
+      return proximo
+    })
+    toast({
+      title: 'Etapa excluída',
+      description: 'O item foi removido do checklist, dos contadores e do relatório.',
+    })
+  }
+
+  // Adiciona uma nova etapa ao final do checklist, com autor e horário
+  const handleAdicionarEtapa = () => {
+    if (!podeEditarOS) return
+    const texto = (novoItemTexto || '').trim()
+    if (!texto) return
+    checklistInteractedRef.current = true
+    const agoraIso = new Date().toISOString()
+    const novoItem: OSChecklistItem = {
+      id: `chk_add_${Date.now()}`,
+      item: texto,
+      concluido: false,
+      autor: userProfile?.name || userProfile?.email || 'Usuário',
+      atualizado_em: agoraIso,
+      criado_em: agoraIso,
+    }
+    setChecklist((prev) => {
+      const proximo = [...prev, novoItem]
+      checklistRef.current = proximo
+      agendarAutosaveChecklist(proximo)
+      return proximo
+    })
+    setNovoItemTexto('')
   }
 
   // Upload imediato de foto(s) para o banco de dados (PocketBase / Skip Cloud)
@@ -2254,7 +2300,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   }
 
   // Indicador de progresso do checklist defensivo contra ErrorBoundary
-  const checklistRenderizado = Array.isArray(checklist) ? checklist : []
+  // Itens excluídos (excluido: true) NÃO entram no checklist renderizado nem nos contadores
+  const checklistRenderizado = (Array.isArray(checklist) ? checklist : []).filter(
+    (c) => !(c as any)?.excluido,
+  )
   const totalItens = checklistRenderizado.length
   const concluidosCount = checklistRenderizado.filter((c) => Boolean(c?.concluido)).length
   const progressoPct = totalItens > 0 ? Math.round((concluidosCount / totalItens) * 100) : 0
@@ -3173,11 +3222,54 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                         <Paperclip className="w-4 h-4" />
                       )}
                     </button>
+                    {/* Exclusão direta da etapa (sem motivo, decisão 11/11) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleExcluirChecklistItem(item.id)
+                      }}
+                      className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 hover:border-red-600 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
+                      title={`Excluir etapa: "${item.item}"`}
+                      aria-label="Excluir etapa do checklist"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>
             )
           })}
+
+          {/* Adicionar nova etapa ao final do checklist */}
+          {podeEditarOS && (
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                value={novoItemTexto}
+                onChange={(e) => setNovoItemTexto(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAdicionarEtapa()
+                  }
+                }}
+                placeholder="Nova etapa (ex: Verificou estrutura de fixação)"
+                className="h-10 text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl"
+                maxLength={300}
+              />
+              <button
+                type="button"
+                onClick={handleAdicionarEtapa}
+                disabled={!novoItemTexto.trim()}
+                className="h-10 px-3.5 inline-flex items-center gap-1.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all shadow-2xs active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                title="Adicionar etapa ao checklist"
+                aria-label="Adicionar etapa ao checklist"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Adicionar etapa</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

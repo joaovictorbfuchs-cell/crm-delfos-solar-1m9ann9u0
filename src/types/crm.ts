@@ -1431,6 +1431,14 @@ export interface OSChecklistItem {
   item: string
   descricao_cliente?: string
   concluido: boolean
+  /** Indica que o item foi excluído pelo operador (id preservado para fotos vinculadas) */
+  excluido?: boolean
+  /** Autor da inclusão/edição do item (nome de exibição do usuário autenticado) */
+  autor?: string
+  /** Momento da inclusão do item (ISO string) */
+  criado_em?: string
+  /** Momento da inclusão/edição do item (ISO string) */
+  atualizado_em?: string
 }
 
 export interface FotoMetadadoItem {

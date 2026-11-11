@@ -665,6 +665,10 @@ export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
           item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
           descricao_cliente: descCliente || undefined,
           concluido: Boolean(item.concluido),
+          excluido: Boolean(item.excluido),
+          autor: safeStr(item.autor) || undefined,
+          criado_em: safeStr(item.criado_em) || undefined,
+          atualizado_em: safeStr(item.atualizado_em) || undefined,
         }
       })
   }
@@ -683,6 +687,10 @@ export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
               item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
               descricao_cliente: descCliente || undefined,
               concluido: Boolean(item.concluido),
+              excluido: Boolean(item.excluido),
+              autor: safeStr(item.autor) || undefined,
+              criado_em: safeStr(item.criado_em) || undefined,
+              atualizado_em: safeStr(item.atualizado_em) || undefined,
             }
           })
       }
@@ -714,6 +722,10 @@ export function normalizeChecklist(raw: unknown): OSChecklistItem[] {
             item: safeStr(item.item || item.texto || item.nome || `Item ${idx + 1}`),
             descricao_cliente: descCliente || undefined,
             concluido: Boolean(item.concluido),
+            excluido: Boolean(item.excluido),
+            autor: safeStr(item.autor) || undefined,
+            criado_em: safeStr(item.criado_em) || undefined,
+            atualizado_em: safeStr(item.atualizado_em) || undefined,
           }
         })
     } catch {
@@ -2918,7 +2930,7 @@ function CalendarioExecucaoOSContent({
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const listChecklist = normalizeChecklist(os.checklist)
+                const listChecklist = normalizeChecklist(os.checklist).filter((c) => !c?.excluido)
                 const checklistTotal = listChecklist.length
                 const checklistFeitos = listChecklist.filter((c) => c?.concluido).length
 
@@ -3068,7 +3080,7 @@ function CalendarioExecucaoOSContent({
                   os.expand?.cliente_id?.nome ||
                   os.expand?.cliente_id?.razao_social ||
                   'Cliente Solar'
-                const listChecklist = normalizeChecklist(os.checklist)
+                const listChecklist = normalizeChecklist(os.checklist).filter((c) => !c?.excluido)
                 const checklistTotal = listChecklist.length
                 const checklistFeitos = listChecklist.filter((c) => c?.concluido).length
 
