@@ -692,6 +692,220 @@ routerAdd(
   $apis.requireAuth(),
 )
 
+// ---------------- beneficiarias: salvar em lote (modal de percentuais) ----------------
+// Grava uma linha por UC em rge_beneficiarias, atualiza usinas.beneficiarias
+// e cria uma versao em rge_beneficiarias_versoes (versao = max+1 por usina).
+routerAdd(
+  'POST',
+  '/backend/v1/rge/beneficiarias-uc/lote',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticacao necessaria' })
+      var body = e.requestInfo().body || {}
+      var credId = String(body.credencial_id == null ? '' : body.credencial_id)
+      if (!credId) return e.json(400, { ok: false, error: 'Informe credencial_id' })
+      var cred = $app.findRecordById('rge_credenciais', credId)
+
+      var usinaGeradoraId = String(cred.getString('usina_id') || '')
+      var itens = body.itens || []
+      if (!Array.isArray(itens)) return e.json(400, { ok: false, error: 'itens invalidos' })
+
+      var colBen = $app.findCollectionByNameOrId('rge_beneficiarias')
+      var colVersoes = null
+      try {
+        colVersoes = $app.findCollectionByNameOrId('rge_beneficiarias_versoes')
+      } catch (eV) {
+        colVersoes = null
+      }
+
+      // desativa as beneficiarias atuais que nao vieram na lista
+      var atuais = []
+      try {
+        atuais = $app.findRecordsByFilter(
+          'rge_beneficiarias',
+          'credencial_id = "' + credId + '"',
+          '',
+          500,
+          0,
+        )
+      } catch (errA) {
+        atuais = []
+      }
+      var ucsNovas = {}
+      for (var n = 0; n < itens.length; n++) {
+        var ucn = String(itens[n] && itens[n].uc == null ? '' : itens[n].uc).replace(/\D/g, '')
+        if (ucn) ucsNovas[ucn] = true
+      }
+      for (var a = 0; a < atuais.length; a++) {
+        var ucAt = String(atuais[a].getString('uc') || '')
+        if (!ucsNovas[ucAt] && atuais[a].getBool('ativo')) {
+          atuais[a].set('ativo', false)
+          $app.save(atuais[a])
+        }
+      }
+
+      var gravadas = 0
+      for (var i = 0; i < itens.length; i++) {
+        var it = itens[i]
+        var uc = String(it.uc == null ? '' : it.uc).replace(/\D/g, '')
+        if (!uc) continue
+        var pct = Number(String(it.percentual == null ? 0 : it.percentual).replace(',', '.'))
+        if (isNaN(pct)) pct = 0
+
+        var rec = null
+        if (it.id) {
+          try {
+            rec = $app.findRecordById('rge_beneficiarias', String(it.id))
+          } catch (errId) {
+            rec = null
+          }
+        }
+        if (!rec) {
+          try {
+            var ach = $app.findRecordsByFilter(
+              'rge_beneficiarias',
+              'credencial_id = "' + credId + '" && uc = "' + uc + '"',
+              '',
+              1,
+              0,
+            )
+            if (ach.length) rec = ach[0]
+          } catch (errL) {}
+        }
+        if (!rec) rec = new Record(colBen)
+        rec.set('credencial_id', credId)
+        rec.set('uc', uc)
+        rec.set('rotulo', String(it.rotulo == null ? '' : it.rotulo).slice(0, 200))
+        rec.set('percentual', pct)
+        if (it.cliente_id) rec.set('cliente_id', String(it.cliente_id))
+        if (it.usina_id) rec.set('usina_id', String(it.usina_id))
+        rec.set('ativo', true)
+        $app.save(rec)
+        gravadas++
+      }
+
+      // atualiza usinas.beneficiarias da geradora (UsinaBeneficiariasConfig.unidades)
+      var tipoVersao = 'inicial'
+      if (usinaGeradoraId) {
+        try {
+          var usina = $app.findRecordById('usinas', usinaGeradoraId)
+          var unidades = []
+          for (var u = 0; u < itens.length; u++) {
+            var iu = itens[u]
+            var ucU = String(iu.uc == null ? '' : iu.uc).replace(/\D/g, '')
+            if (!ucU) continue
+            unidades.push({
+              uc: ucU,
+              rotulo: String(iu.rotulo == null ? '' : iu.rotulo).slice(0, 200),
+              percentual:
+                Number(String(iu.percentual == null ? 0 : iu.percentual).replace(',', '.')) || 0,
+              usina_id: String(iu.usina_id == null ? '' : iu.usina_id),
+              cliente_id: String(iu.cliente_id == null ? '' : iu.cliente_id),
+            })
+          }
+          // marca a versao como "alteracao" se ja existia configuracao gravada
+          var benAnt = usina.get('beneficiarias')
+          var jaTinha = benAnt && typeof benAnt === 'object' && (benAnt.unidades || []).length > 0
+          tipoVersao = jaTinha ? 'alteracao' : 'inicial'
+          usina.set('beneficiarias', {
+            unidades: unidades,
+            atualizado_em: new Date().toISOString(),
+          })
+          $app.save(usina)
+
+          // cria versao no historico de vigencia (versao = max+1 por usina)
+          if (colVersoes) {
+            var ultimas = $app.findRecordsByFilter(
+              'rge_beneficiarias_versoes',
+              'usina_id = "' + usinaGeradoraId + '"',
+              '-versao',
+              1,
+              0,
+            )
+            var proxima = ultimas.length ? Number(ultimas[0].getFloat('versao')) + 1 : 1
+            var versao = new Record(colVersoes)
+            versao.set('usina_id', usinaGeradoraId)
+            versao.set('credencial_id', credId)
+            versao.set('versao', proxima)
+            if (body.vigencia_inicio) versao.set('vigencia_inicio', String(body.vigencia_inicio))
+            if (body.vigencia_fim) versao.set('vigencia_fim', String(body.vigencia_fim))
+            versao.set('tipo', tipoVersao)
+            versao.set('itens', {
+              resumo: unidades.map(function (un) {
+                return { uc: un.uc, rotulo: un.rotulo, percentual: un.percentual }
+              }),
+            })
+            $app.save(versao)
+          }
+        } catch (errUs) {
+          // usina/versao falhou: nao desfaz as beneficiarias gravadas
+          return e.json(200, {
+            ok: true,
+            gravadas: gravadas,
+            aviso: String(errUs).slice(0, 200),
+          })
+        }
+      }
+
+      return e.json(200, { ok: true, gravadas: gravadas, versao_tipo: tipoVersao })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err).slice(0, 300) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+// ---------------- beneficiarias: historico de versoes por usina ----------------
+routerAdd(
+  'GET',
+  '/backend/v1/rge/beneficiarias-uc/versoes',
+  (e) => {
+    try {
+      if (!e.auth || !e.auth.id) return e.json(401, { ok: false, error: 'Autenticacao necessaria' })
+      var q = e.requestInfo().query || {}
+      var usinaId = String(q.usina_id == null ? '' : q.usina_id)
+      if (!usinaId) return e.json(400, { ok: false, error: 'Informe usina_id' })
+      var recs = []
+      try {
+        recs = $app.findRecordsByFilter(
+          'rge_beneficiarias_versoes',
+          'usina_id = "' + usinaId + '"',
+          '-versao',
+          100,
+          0,
+        )
+      } catch (errF) {
+        recs = []
+      }
+      var itens = []
+      for (var i = 0; i < recs.length; i++) {
+        var r = recs[i]
+        var itensV = r.get('itens') || {}
+        var resumo = Array.isArray(itensV.resumo) ? itensV.resumo : []
+        var total = 0
+        for (var j = 0; j < resumo.length; j++) {
+          total += Number(resumo[j] && resumo[j].percentual) || 0
+        }
+        total = Math.round(total * 100) / 100
+        itens.push({
+          id: r.id,
+          numero: r.getFloat('versao'),
+          vigencia_inicio: r.getString('vigencia_inicio'),
+          vigencia_fim: r.getString('vigencia_fim'),
+          tipo: r.getString('tipo'),
+          created: r.getString('created'),
+          total_distribuido: total,
+          resumo: resumo,
+        })
+      }
+      return e.json(200, { ok: true, itens: itens })
+    } catch (err) {
+      return e.json(400, { ok: false, error: String(err).slice(0, 300) })
+    }
+  },
+  $apis.requireAuth(),
+)
+
 // ---------------- beneficiarias: remover ----------------
 routerAdd(
   'DELETE',

@@ -27,6 +27,7 @@ interface BeneficiariasViewProps {
   onAdicionar: (cred: Credencial) => void
   onEditar: (b: Beneficiaria) => void
   onRemover: (b: Beneficiaria) => void
+  onAbrirPercentuais?: (cred: Credencial) => void
 }
 
 export interface GrupoBeneficiarias {
@@ -167,6 +168,7 @@ export function BeneficiariasView({
   onAdicionar,
   onEditar,
   onRemover,
+  onAbrirPercentuais,
 }: BeneficiariasViewProps) {
   const [subAba, setSubAba] = useState<'gestao' | 'desvinculadas'>('gestao')
   const [pagina, setPagina] = useState(1)
@@ -350,21 +352,35 @@ export function BeneficiariasView({
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Sun className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 text-left group cursor-pointer rounded"
+                        onClick={() => onAbrirPercentuais?.(g.cred)}
+                        title="Definir percentuais das beneficiárias"
+                      >
+                        <Sun className="w-4 h-4 text-slate-500 flex-shrink-0 group-hover:text-blue-600" />
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-900">{g.nomeCliente}</span>
+                          <span className="font-bold text-slate-900 group-hover:text-blue-700 group-hover:underline">
+                            {g.nomeCliente}
+                          </span>
                           {g.subtituloCliente && g.subtituloCliente !== g.nomeCliente && (
                             <span className="text-[11px] text-slate-400 truncate max-w-[280px]">
                               {g.subtituloCliente}
                             </span>
                           )}
                         </div>
-                      </div>
+                      </button>
                     </td>
                     <td className="py-3 px-4 font-mono text-xs text-slate-600">{g.ucGeradora}</td>
                     <td className="py-3 px-4">
-                      <CelulaPercentual pct={g.percentualGeradora} />
+                      <button
+                        type="button"
+                        className="cursor-pointer"
+                        onClick={() => onAbrirPercentuais?.(g.cred)}
+                        title="Definir percentuais das beneficiárias"
+                      >
+                        <CelulaPercentual pct={g.percentualGeradora} />
+                      </button>
                     </td>
                     <td className="py-3 px-4">
                       <CelulaAlertas comErro={g.comErro} />

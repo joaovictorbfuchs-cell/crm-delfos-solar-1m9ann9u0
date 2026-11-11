@@ -45,6 +45,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { formatarTempoRelativo, formatarCompetenciaRge } from '@/lib/rgeFormatters'
 import { BeneficiariasView } from '@/components/BeneficiariasView'
+import { ModalPercentuaisBeneficiarias } from '@/components/ModalPercentuaisBeneficiarias'
+import type { VersaoBeneficiarias, SugestaoUc } from '@/components/ModalPercentuaisBeneficiarias'
 
 export interface Credencial {
   id: string
@@ -196,6 +198,15 @@ export function IntegracoesRgePage() {
   const [fBenPercentual, setFBenPercentual] = useState('')
   const [fBenObs, setFBenObs] = useState('')
   const [salvandoBen, setSalvandoBen] = useState(false)
+
+  // --- Modal de percentuais (unidade geradora) ---
+  const [modalPctAberto, setModalPctAberto] = useState(false)
+  const [pctCred, setPctCred] = useState<Credencial | null>(null)
+  const [pctBeneficiarias, setPctBeneficiarias] = useState<Beneficiaria[]>([])
+  const [pctHistorico, setPctHistorico] = useState<VersaoBeneficiarias[]>([])
+  const [pctSugestoes, setPctSugestoes] = useState<SugestaoUc[]>([])
+  const [pctSalvando, setPctSalvando] = useState(false)
+  const [pctCarregando, setPctCarregando] = useState(false)
 
   // Chamada autenticada para o backend
   const chamar = useCallback(
@@ -653,6 +664,100 @@ export function IntegracoesRgePage() {
       toast({ title: 'Erro ao remover', description: msg, variant: 'destructive' })
     }
   }
+
+  // ---------- Modal de percentuais (unidade geradora) ----------
+  const abrirPercentuais = useCallback(
+    async (c: Credencial) => {
+      setPctCred(c)
+      setPctBeneficiarias(beneficiarias.filter((b) => b.credencial_id === c.id))
+      setPctHistorico([])
+      setPctSugestoes([])
+      setPctCarregando(true)
+      setModalPctAberto(true)
+      try {
+        // Histórico de vigência da usina geradora
+        if (c.usina_id) {
+          const rV = await chamar<{ ok: boolean; itens: VersaoBeneficiarias[] }>(
+            `/rge/beneficiarias-uc/versoes?usina_id=${encodeURIComponent(c.usina_id)}`,
+          )
+          setPctHistorico(rV.itens || [])
+        }
+        // Sugestões: UCs de usinas do MESMO cliente da geradora (outro endereço)
+        const cliId = c.cliente_id || c.expand?.usina_id?.cliente_id || ''
+        const sufs: SugestaoUc[] = []
+        if (cliId) {
+          for (const idU in usinasMap) {
+            const u = usinasMap[idU]
+            if (u.cliente_id !== cliId) continue
+            const ucProp = (u as { numero_uc?: string }).numero_uc || ''
+            if (!ucProp) continue
+            if (ucProp.replace(/\D/g, '') === String(c.uc).replace(/\D/g, '')) continue
+            sufs.push({
+              uc: ucProp,
+              nome: u.nome,
+              endereco: u.endereco,
+              usina_id: u.id,
+              cliente_id: u.cliente_id,
+            })
+          }
+        }
+        setPctSugestoes(sufs)
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        toast({
+          title: 'Erro ao carregar dados do modal',
+          description: msg,
+          variant: 'destructive',
+        })
+      } finally {
+        setPctCarregando(false)
+      }
+    },
+    [beneficiarias, chamar, usinasMap],
+  )
+
+  const handleSalvarPercentuais = useCallback(
+    async (payload: {
+      vigencia_inicio: string
+      vigencia_fim: string
+      itens: {
+        id?: string
+        uc: string
+        rotulo?: string
+        percentual: number
+        cliente_id?: string
+        usina_id?: string
+      }[]
+    }) => {
+      if (!pctCred) return
+      setPctSalvando(true)
+      try {
+        await chamar('/rge/beneficiarias-uc/lote', {
+          method: 'POST',
+          body: JSON.stringify({ credencial_id: pctCred.id, ...payload }),
+        })
+        toast({ title: 'Percentuais salvos', description: 'Beneficiárias atualizadas' })
+        setModalPctAberto(false)
+        const [rBen] = await Promise.all([
+          chamar<{ ok: boolean; itens: Beneficiaria[] }>('/rge/beneficiarias-uc'),
+          carregarApoio(),
+        ])
+        setBeneficiarias(rBen.itens || [])
+        if (pctCred.usina_id) {
+          const rV = await chamar<{ ok: boolean; itens: VersaoBeneficiarias[] }>(
+            `/rge/beneficiarias-uc/versoes?usina_id=${encodeURIComponent(pctCred.usina_id)}`,
+          )
+          setPctHistorico(rV.itens || [])
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        toast({ title: 'Erro ao salvar percentuais', description: msg, variant: 'destructive' })
+      } finally {
+        setPctSalvando(false)
+      }
+    },
+    [pctCred, chamar, carregarApoio],
+  )
 
   // ---------- Ver contas da UC ----------
   const abrirContasDaUc = async (c: Credencial) => {
@@ -1744,9 +1849,32 @@ export function IntegracoesRgePage() {
             onRemover={(b) => {
               removerBeneficiaria(b)
             }}
+            onAbrirPercentuais={(cred) => {
+              abrirPercentuais(cred)
+            }}
           />
         )}
       </div>
+
+      {/* Modal: percentuais das beneficiárias (célula UNIDADE da geradora) */}
+      <ModalPercentuaisBeneficiarias
+        open={modalPctAberto}
+        onOpenChange={setModalPctAberto}
+        cred={pctCred}
+        nomeGeradora={
+          pctCred
+            ? pctCred.expand?.usina_id?.nome ||
+              usinasMap[pctCred.usina_id || '']?.nome ||
+              pctCred.rotulo ||
+              `UC ${pctCred.uc}`
+            : ''
+        }
+        beneficiarias={pctBeneficiarias}
+        historico={pctHistorico}
+        sugestoes={pctSugestoes}
+        salvando={pctSalvando}
+        onSalvar={handleSalvarPercentuais}
+      />
 
       {/* Modal: Integrar Concessionária */}
       <Dialog open={modalNovaAberto} onOpenChange={setModalNovaAberto}>
