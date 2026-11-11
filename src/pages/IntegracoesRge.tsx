@@ -65,7 +65,13 @@ export interface Credencial {
   usina_id?: string
   expand?: {
     cliente_id?: { id: string; nome: string }
-    usina_id?: { id: string; nome: string; endereco?: string; beneficiarias?: unknown }
+    usina_id?: {
+      id: string
+      nome: string
+      endereco?: string
+      beneficiarias?: unknown
+      cliente_id?: string
+    }
   }
 }
 
