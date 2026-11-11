@@ -574,6 +574,26 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
             const jaEnviado = atvFilha.getString('lembrete_whatsapp_enviado_em')
             if (jaEnviado) continue
 
+            // Extrair a data da leitura (YYYY-MM-DD) no fuso de São Paulo
+            const rawDataLeitura = atvFilha.getString('data_leitura')
+            if (!rawDataLeitura) continue
+            let dataLeituraYmd = rawDataLeitura.substring(0, 10)
+            if (rawDataLeitura.length > 10) {
+              const parsedDt = new Date(rawDataLeitura)
+              if (!isNaN(parsedDt.getTime())) {
+                dataLeituraYmd = getSaoPauloDateStr(parsedDt)
+              }
+            }
+            const partesLeitura = dataLeituraYmd.split('-').map(Number)
+            if (
+              partesLeitura.length !== 3 ||
+              !partesLeitura[0] ||
+              !partesLeitura[1] ||
+              !partesLeitura[2]
+            ) {
+              continue
+            }
+
             // DEDUPLICAÇÃO DE ATIVIDADES IRMÃS (mesmo parent_id, mesma UC e mesma data_leitura)
             const parentId = atvFilha.getString('parent_id')
             const ucAtv = (atvFilha.getString('numero_uc') || '').trim()
@@ -621,26 +641,6 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
               }
             }
 
-            // Extrair a data da leitura (YYYY-MM-DD) no fuso de São Paulo
-            const rawDataLeitura = atvFilha.getString('data_leitura')
-            if (!rawDataLeitura) continue
-            let dataLeituraYmd = rawDataLeitura.substring(0, 10)
-            if (rawDataLeitura.length > 10) {
-              const parsedDt = new Date(rawDataLeitura)
-              if (!isNaN(parsedDt.getTime())) {
-                dataLeituraYmd = getSaoPauloDateStr(parsedDt)
-              }
-            }
-            const partesLeitura = dataLeituraYmd.split('-').map(Number)
-            if (
-              partesLeitura.length !== 3 ||
-              !partesLeitura[0] ||
-              !partesLeitura[1] ||
-              !partesLeitura[2]
-            ) {
-              continue
-            }
-
             // Data da leitura como Date (meio-dia UTC para evitar trocas de fuso)
             const dtLeitura = new Date(
               Date.UTC(partesLeitura[0], partesLeitura[1] - 1, partesLeitura[2], 12, 0, 0),
@@ -678,7 +678,6 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
 
             // Atividade mãe vinculada
             let atvMae = null
-            const parentId = atvFilha.getString('parent_id')
             if (parentId) {
               try {
                 atvMae = $app.findRecordById('atividades', parentId)

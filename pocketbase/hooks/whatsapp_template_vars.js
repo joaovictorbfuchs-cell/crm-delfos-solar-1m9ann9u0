@@ -172,4 +172,8 @@ function interpolar(texto, contexto, tag) {
   return interpolarComDetalhe(texto, contexto, tag).texto
 }
 
-module.exports = { interpolar: interpolar, interpolarComDetalhe: interpolarComDetalhe }
+module.exports = {
+  interpolar: interpolar,
+  interpolarTemplate: interpolar,
+  interpolarComDetalhe: interpolarComDetalhe,
+}
