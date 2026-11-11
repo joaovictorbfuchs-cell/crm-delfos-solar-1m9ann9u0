@@ -227,6 +227,79 @@ describe('Motor de Filtragem Único (filtrosEngine)', () => {
     })
   })
 
+  describe('Módulo Atividades — normalização canônica de tipo/categoria (Correção 3)', () => {
+    // Registros como vêm do backend: tipo canônico, tipo custom (tipo_custom_id) e legado
+    const atividadesTipos = [
+      { id: 'a-limp', tipo: 'limpeza' },
+      { id: 'a-limp-legado', tipo: 'limpeza_manutencao' },
+      { id: 'a-prev', tipo: 'manutencao_preventiva' },
+      { id: 'a-corr', tipo: 'manutencao_corretiva' },
+      { id: 'a-custom', tipo: 'custom', tipo_custom_id: 'abc123' },
+      { id: 'a-comercial', tipo: 'contato_ligacao' },
+    ]
+
+    it('"Tipo é Limpeza" (rótulo "Limpeza dos Módulos") mostra só limpezas', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [{ id: '1', campoId: 'tipo', operador: 'e', valor: 'Limpeza dos Módulos' }],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(atividadesTipos, estrutura, 'atividades')
+      expect(resultado.map((r) => r.id)).toEqual(['a-limp', 'a-limp-legado', 'a-custom'])
+    })
+
+    it('"Tipo é Limpeza" com id canônico também casa legado limpeza_manutencao', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [{ id: '1', campoId: 'tipo', operador: 'e', valor: 'limpeza' }],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(atividadesTipos, estrutura, 'atividades')
+      expect(resultado.map((r) => r.id)).toEqual(['a-limp', 'a-limp-legado', 'a-custom'])
+    })
+
+    it('"Categoria é Manutenção" agrupa preventiva + corretiva + limpeza (incl. legado)', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [{ id: '1', campoId: 'categoria', operador: 'e', valor: 'Manutenção' }],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(atividadesTipos, estrutura, 'atividades')
+      expect(resultado.map((r) => r.id)).toEqual([
+        'a-limp',
+        'a-limp-legado',
+        'a-prev',
+        'a-corr',
+        'a-custom',
+      ])
+    })
+
+    it('"Categoria é Manutenção" com e_um_de e id de categoria também agrupa', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [{ id: '1', campoId: 'categoria', operador: 'e_um_de', valor: ['manutencao'] }],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(atividadesTipos, estrutura, 'atividades')
+      expect(resultado).toHaveLength(5)
+      expect(resultado.some((r) => r.id === 'a-comercial')).toBe(false)
+    })
+
+    it('rótulo legado "Limpeza + Manutenção" salvo no filtro casa com registro de tipo canônico limpeza', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [{ id: '1', campoId: 'tipo', operador: 'e', valor: 'Limpeza + Manutenção' }],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(atividadesTipos, estrutura, 'atividades')
+      expect(resultado.map((r) => r.id)).toEqual(['a-limp', 'a-limp-legado', 'a-custom'])
+    })
+
+    it('"Tipo não é Limpeza" exclui limpezas (canônico, legado e custom)', () => {
+      const estrutura: EstruturaCondicoes = {
+        all: [{ id: '1', campoId: 'tipo', operador: 'nao_e', valor: 'limpeza' }],
+        any: [],
+      }
+      const resultado = aplicarFiltroSalvo(atividadesTipos, estrutura, 'atividades')
+      expect(resultado.map((r) => r.id)).toEqual(['a-prev', 'a-corr', 'a-comercial'])
+    })
+  })
+
   describe('Módulo Contratos O&M', () => {
     const mockContratosOM = [
       {

@@ -1,5 +1,5 @@
 // Salvaguarda de compatibilidade: reexporta erros e helpers do PocketBase
-export * from '@/lib/pocketbase/errors'
+export * from '@/lib/errors'
 export {
   isAuthSessionError,
   isAbortError,
@@ -7,6 +7,6 @@ export {
   extractFieldErrors,
   getErrorMessage,
   type FieldErrors,
-} from '@/lib/pocketbase/errors'
-import * as errorsModule from '@/lib/pocketbase/errors'
+} from '@/lib/errors'
+import * as errorsModule from '@/lib/errors'
 export default errorsModule
