@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T19:35:24.299Z",
+  "generatedAt": "2026-11-11T19:51:40.026Z",
   "collections": [
     {
       "name": "users",
@@ -8956,6 +8956,59 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_rge_leituras_status ON rge_leituras (status)"]
+    },
+    {
+      "name": "rge_beneficiarias_versoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "usina_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "usinas"
+        },
+        {
+          "name": "versao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vigencia_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vigencia_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens",
+          "type": "json",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_rge_ben_ver_usina ON rge_beneficiarias_versoes (usina_id, versao)"
+      ]
     }
   ]
 }
