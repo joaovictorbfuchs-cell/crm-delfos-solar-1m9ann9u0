@@ -927,35 +927,37 @@ function ExecucaoOSContent() {
     return Array.from(set).sort()
   }, [instaladores, profissionais])
 
-  const filteredList = useMemo(() => {
-    const agora = new Date()
-    const agoraYear = !isNaN(agora.getFullYear()) ? agora.getFullYear() : 2026
-    const agoraMonth = !isNaN(agora.getMonth()) ? agora.getMonth() : 0
-    const agoraDate = !isNaN(agora.getDate()) ? agora.getDate() : 1
-
-    const inicioHoje = new Date(agoraYear, agoraMonth, agoraDate).getTime()
-    const fimHoje = inicioHoje + 24 * 60 * 60 * 1000 - 1
-
-    const inicioSemana = new Date(agoraYear, agoraMonth, agoraDate)
-    const dayOfWeek = inicioSemana.getDay()
-    inicioSemana.setDate(inicioSemana.getDate() - (isNaN(dayOfWeek) ? 0 : dayOfWeek))
-    inicioSemana.setHours(0, 0, 0, 0)
-    const fimSemana = new Date(inicioSemana)
-    fimSemana.setDate(inicioSemana.getDate() + 7)
-
-    const inicioMes = new Date(agoraYear, agoraMonth, 1).getTime()
-    const fimMes = new Date(agoraYear, agoraMonth + 1, 0, 23, 59, 59).getTime()
-
-    let base = (listToDisplay || []).filter((os) => {
+  // Predicado compartilhado entre a LISTA e o CALENDÁRIO:
+  // tipo de serviço + prestador + período + busca textual.
+  const osPassaFiltrosBase = useCallback(
+    (os: OrdemServico | null | undefined) => {
       if (!os) return false
+
+      const agora = new Date()
+      const agoraYear = !isNaN(agora.getFullYear()) ? agora.getFullYear() : 2026
+      const agoraMonth = !isNaN(agora.getMonth()) ? agora.getMonth() : 0
+      const agoraDate = !isNaN(agora.getDate()) ? agora.getDate() : 1
+
+      const inicioHoje = new Date(agoraYear, agoraMonth, agoraDate).getTime()
+      const fimHoje = inicioHoje + 24 * 60 * 60 * 1000 - 1
+
+      const inicioSemana = new Date(agoraYear, agoraMonth, agoraDate)
+      const dayOfWeek = inicioSemana.getDay()
+      inicioSemana.setDate(inicioSemana.getDate() - (isNaN(dayOfWeek) ? 0 : dayOfWeek))
+      inicioSemana.setHours(0, 0, 0, 0)
+      const fimSemana = new Date(inicioSemana)
+      fimSemana.setDate(inicioSemana.getDate() + 7)
+
+      const inicioMes = new Date(agoraYear, agoraMonth, 1).getTime()
+      const fimMes = new Date(agoraYear, agoraMonth + 1, 0, 23, 59, 59).getTime()
 
       try {
         // Filtro por tipo de serviço (correspondência canônica por id do tipo)
         if (selectedTipoFilter !== 'todos') {
-          const rawTipo = String(os?.tipo || '')
+          const rawTipo = String(os.tipo || '')
             .trim()
             .toLowerCase()
-          const rawTipoCustomId = String(os?.tipo_custom_id || '').trim()
+          const rawTipoCustomId = String(os.tipo_custom_id || '').trim()
           const filterNorm = String(selectedTipoFilter).trim().toLowerCase()
 
           // Caso especial: limpeza_manutencao legado casa com o tipo canônico limpeza
@@ -976,10 +978,10 @@ function ExecucaoOSContent() {
         // Filtro por prestador (ignorado para instalador, pois a visão já é filtrada/atribuída a ele)
         // Regra do usuário: lógica OU (tecnicos_ids.includes OU responsavel_id === OU atribuida_a / tecnicos_nomes contendo o nome)
         if (!isInstalador && selectedPrestadorFilter !== 'todos') {
-          const prestadorOS = String(os?.atribuida_a || '').toLowerCase()
+          const prestadorOS = String(os.atribuida_a || '').toLowerCase()
           const target = String(selectedPrestadorFilter || '').toLowerCase()
           const matchesPrestador = prestadorOS.includes(target)
-          const matchesResponsavelId = os?.responsavel_usuario_id === selectedPrestadorFilter
+          const matchesResponsavelId = os.responsavel_usuario_id === selectedPrestadorFilter
 
           const matchesTecnicosIds =
             Array.isArray(os?.tecnicos_ids) && os.tecnicos_ids.includes(selectedPrestadorFilter)
@@ -1003,7 +1005,7 @@ function ExecucaoOSContent() {
 
         // Filtro por período agendado com validação robusta
         if (selectedPeriodoFilter !== 'todos') {
-          const rawData = os?.data_agendada
+          const rawData = os.data_agendada
           if (!rawData) return false
           const dataStr = String(rawData).trim()
           if (!dataStr) return false
@@ -1024,14 +1026,11 @@ function ExecucaoOSContent() {
         if (safeSearch) {
           const query = safeSearch.toLowerCase()
           const clienteNome = String(
-            os?.expand?.cliente_id?.nome ||
-              os?.expand?.cliente_id?.razao_social ||
-              os?.endereco ||
-              '',
+            os.expand?.cliente_id?.nome || os.expand?.cliente_id?.razao_social || os.endereco || '',
           ).toLowerCase()
-          const endereco = String(os?.endereco || '').toLowerCase()
-          const atribuida = String(os?.atribuida_a || '').toLowerCase()
-          const tipo = String(os?.tipo_servico || '').toLowerCase()
+          const endereco = String(os.endereco || '').toLowerCase()
+          const atribuida = String(os.atribuida_a || '').toLowerCase()
+          const tipo = String(os.tipo_servico || '').toLowerCase()
 
           return (
             clienteNome.includes(query) ||
@@ -1045,53 +1044,35 @@ function ExecucaoOSContent() {
         console.warn('Erro ao filtrar item de OS:', err)
         return true
       }
-    })
+    },
+    [selectedTipoFilter, selectedPrestadorFilter, selectedPeriodoFilter, searchTerm, isInstalador],
+  )
 
-    if (filtroSalvoAtivo?.condicoes || quickFiltersAtivos.length > 0) {
-      const estruturaCombinada = combinarEstruturasFiltros(
-        filtroSalvoAtivo?.condicoes,
-        quickFiltersAtivos,
-      )
-      base = aplicarFiltroSalvo(base, estruturaCombinada, 'atividades')
-    }
+  // Aplica filtros salvos + quick filters (mesmo pipeline em lista e calendário)
+  const aplicarFiltrosCompostos = useCallback(
+    (base: OrdemServico[]) => {
+      if (filtroSalvoAtivo?.condicoes || quickFiltersAtivos.length > 0) {
+        const estruturaCombinada = combinarEstruturasFiltros(
+          filtroSalvoAtivo?.condicoes,
+          quickFiltersAtivos,
+        )
+        return aplicarFiltroSalvo(base, estruturaCombinada, 'atividades')
+      }
+      return base
+    },
+    [filtroSalvoAtivo, quickFiltersAtivos],
+  )
 
-    return base
-  }, [
-    listToDisplay,
-    selectedTipoFilter,
-    selectedPrestadorFilter,
-    selectedPeriodoFilter,
-    searchTerm,
-    isInstalador,
-    filtroSalvoAtivo,
-    quickFiltersAtivos,
-  ])
+  const filteredList = useMemo(() => {
+    return aplicarFiltrosCompostos((listToDisplay || []).filter(osPassaFiltrosBase))
+  }, [listToDisplay, osPassaFiltrosBase, aplicarFiltrosCompostos])
 
-  // Filtragem canônica das ordens enviadas ao Calendário pelo tipo selecionado
+  // O CALENDÁRIO usa o MESMO pipeline de filtros da lista (tipo, prestador, período, busca,
+  // filtros salvos e quick filters), aplicado sobre TODAS as ordens (pendentes + concluídas).
+  // Sem nenhum filtro ativo, mostra tudo.
   const ordensCalendario = useMemo(() => {
-    if (selectedTipoFilter === 'todos') {
-      return ordens
-    }
-    return (ordens || []).filter((os) => {
-      if (!os) return false
-      const rawTipo = String(os?.tipo || '')
-        .trim()
-        .toLowerCase()
-      const rawTipoCustomId = String(os?.tipo_custom_id || '').trim()
-      const filterNorm = String(selectedTipoFilter).trim().toLowerCase()
-
-      const tipoEquivalente = rawTipo === 'limpeza_manutencao' ? 'limpeza' : rawTipo
-
-      const matchTipoCanonico = tipoEquivalente === filterNorm || rawTipo === filterNorm
-
-      const matchCustomId =
-        Boolean(rawTipoCustomId) &&
-        (rawTipoCustomId === selectedTipoFilter ||
-          `custom_${rawTipoCustomId}` === selectedTipoFilter)
-
-      return matchTipoCanonico || matchCustomId
-    })
-  }, [ordens, selectedTipoFilter])
+    return aplicarFiltrosCompostos((ordens || []).filter(osPassaFiltrosBase))
+  }, [ordens, osPassaFiltrosBase, aplicarFiltrosCompostos])
 
   // Ação de admin para visualizar o PDF do relatório usando o gerador canônico @react-pdf/renderer
   const handleVerRelatorioPdf = async (os: OrdemServico) => {
