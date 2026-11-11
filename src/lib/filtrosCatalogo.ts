@@ -6,11 +6,36 @@ import type {
   TipoCampoFiltro,
 } from '@/types/filtros'
 import { TIPOS_VENDA_OPTIONS } from '@/constants/tipoVenda'
-import {
-  ATIVIDADES_PADRAO,
-  buildCustomTipoDef,
-  deduplicarTiposAtividades,
-} from '@/constants/atividadesTipos'
+/**
+ * Opções de fallback do campo 'tipo' (Tipo da Atividade): SOMENTE os 3 canônicos.
+ * Tipos legados (ex: 'Limpeza + Manutenção'/'limpeza_manutencao') NUNCA aparecem aqui —
+ * só entram se existirem como tipos cadastrados em tipos_atividades_custom (injetados
+ * via injetarOpcoesTipoAtividades, a partir de buildCustomTipoDef/deduplicarTiposAtividades,
+ * a mesma fonte de tiposManutencaoOpcoes em src/pages/ExecucaoOS.tsx).
+ */
+export const OPCOES_TIPO_ATIVIDADES_FALLBACK: OpcaoSelect[] = [
+  { label: 'Limpeza dos Módulos', value: 'limpeza' },
+  { label: 'Manutenção Preventiva', value: 'manutencao_preventiva' },
+  { label: 'Manutenção Corretiva', value: 'manutencao_corretiva' },
+]
+
+// Opções dinâmicas injetadas (canônicos + tipos cadastrados em tipos_atividades_custom)
+let opcoesTipoDinamicas: OpcaoSelect[] | null = null
+
+/**
+ * Injeta as opções dinâmicas do campo 'tipo' no catálogo de filtros.
+ * Deve ser chamada por quem já carrega tipos_atividades_custom (ClientesContext),
+ * usando a MESMA fonte de tiposManutencaoOpcoes em src/pages/ExecucaoOS.tsx:
+ * buildCustomTipoDef + deduplicarTiposAtividades sobre os registros cadastrados.
+ * Mutar campo.opcoes do campo 'tipo' de CAMPOS_ATIVIDADES propaga por referência
+ * para todos os consumidores (getCatalogoPorModulo/getCampoPorId).
+ */
+export function injetarOpcoesTipoAtividades(opcoes: OpcaoSelect[]): void {
+  if (!Array.isArray(opcoes) || opcoes.length === 0) return
+  opcoesTipoDinamicas = [...opcoes]
+  const campoTipo = CAMPOS_ATIVIDADES.find((c) => c.id === 'tipo')
+  if (campoTipo) campoTipo.opcoes = opcoesTipoDinamicas
+}
 
 export const ETAPAS_FUNIL_LISTA: { id: string; label: string }[] = [
   { id: 'novo lead', label: '1 - Novo Lead' },

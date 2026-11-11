@@ -142,6 +142,12 @@ import type {
 } from '@/types/crm'
 import { notificacoesService } from '@/services/notificacoesService'
 import { useRealtime } from '@/hooks/use-realtime'
+import { injetarOpcoesTipoAtividades } from '@/lib/filtrosCatalogo'
+import {
+  ATIVIDADES_PADRAO,
+  buildCustomTipoDef,
+  deduplicarTiposAtividades,
+} from '@/constants/atividadesTipos'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { pb } from '@/lib/pocketbase/client'
@@ -940,6 +946,19 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       loadAllData()
     }
   }, [isAuthenticated, user?.id, token, loadAllData])
+
+  // Injeção das opções dinâmicas do campo 'tipo' no catálogo de filtros salvos:
+  // reflete automaticamente qualquer mudança em tipos_atividades_custom (carga inicial,
+  // realtime ou CRUD do catálogo) na lista do editor de Filtro Salvo.
+  useEffect(() => {
+    try {
+      const customDefs = (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
+      const unificados = deduplicarTiposAtividades(ATIVIDADES_PADRAO, customDefs)
+      injetarOpcoesTipoAtividades(unificados.map((t) => ({ label: t.tituloPadrao, value: t.id })))
+    } catch (e) {
+      console.warn('Falha ao injetar opções de tipo no catálogo de filtros:', e)
+    }
+  }, [tiposAtividadesCustom])
 
   // Realtime updates for clientes
   useRealtime<Cliente>(
