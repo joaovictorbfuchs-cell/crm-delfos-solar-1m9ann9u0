@@ -2,6 +2,64 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
+/** Mensagens que indicam sessão/token expirado ou inválido. */
+const MENSAGENS_SESSAO_EXPIRADA = [
+  'token is expired',
+  'token is invalid',
+  'sessão expirada',
+  'sessao expirada',
+  'login expirou',
+  'failed to authenticate',
+  'autenticação falhou',
+  'autenticacao falhou',
+  'unauthorized',
+  'não autorizado',
+  'nao autorizado',
+]
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // ClientResponseError e objetos com status/statusCode (401/403)
+  const possivelStatus: number[] = []
+  if (typeof error === 'object') {
+    const obj = error as Record<string, unknown>
+    if (typeof obj.status === 'number') possivelStatus.push(obj.status)
+    if (typeof obj.statusCode === 'number') possivelStatus.push(obj.statusCode)
+    const response = obj.response as Record<string, unknown> | undefined
+    if (response && typeof response === 'object' && typeof response.status === 'number') {
+      possivelStatus.push(response.status)
+    }
+  }
+  if (possivelStatus.some((s) => s === 401 || s === 403)) return true
+
+  // Erros com mensagem indicando sessão expirada
+  let mensagem: string | undefined
+  if (error instanceof Error) mensagem = error.message
+  else if (typeof error === 'object') {
+    const obj = error as Record<string, unknown>
+    if (typeof obj.message === 'string') mensagem = obj.message
+  }
+  if (mensagem) {
+    const normalizada = mensagem.toLowerCase()
+    if (MENSAGENS_SESSAO_EXPIRADA.some((m) => normalizada.includes(m))) return true
+  }
+
+  return false
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const obj = error as Record<string, unknown>
+  return obj.isAbort === true || obj.name === 'AbortError'
+}
+
+export function formatPbError(error: unknown): string {
+  if (isAbortError(error)) return 'Operação cancelada.'
+  if (isAuthSessionError(error)) return 'Sua sessão expirou. Faça login novamente.'
+  return getErrorMessage(error)
+}
+
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -26,48 +84,4 @@ export function getErrorMessage(error: unknown): string {
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-// Detecta erro de sessão expirada / autenticação (401/403 ou texto de token expirado).
-// Export crítico protegido por exportsGuard.test.ts — NÃO remover.
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const anyErr = error as {
-    status?: unknown
-    statusCode?: unknown
-    response?: { status?: unknown }
-    message?: unknown
-  }
-  const status = anyErr.status ?? anyErr.statusCode ?? anyErr.response?.status
-  if (status === 401 || status === 403) return true
-  const msg = typeof anyErr.message === 'string' ? anyErr.message.toLowerCase() : ''
-  if (!msg) return false
-  const marcadores = [
-    'token is expired',
-    'token expired',
-    'invalid or expired token',
-    'sessão expirada',
-    'sessao expirada',
-    'login expirou',
-    'failed to authenticate',
-    'authentication failed',
-  ]
-  return marcadores.some((m) => msg.includes(m))
-}
-
-// Detecta erro de requisição abortada (auto-cancelamento do SDK, fetch abortado).
-// Export crítico protegido por exportsGuard.test.ts — NÃO remover.
-export function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const anyErr = error as { isAbort?: unknown; name?: unknown; message?: unknown }
-  if (anyErr.isAbort === true) return true
-  if (anyErr.name === 'AbortError') return true
-  const msg = typeof anyErr.message === 'string' ? anyErr.message.toLowerCase() : ''
-  return msg.includes('aborted') || msg.includes('aborterror')
-}
-
-// Formata um erro do PocketBase em mensagem legível para o usuário.
-// Export crítico protegido por exportsGuard.test.ts — NÃO remover.
-export function formatPbError(error: unknown): string {
-  return getErrorMessage(error)
 }
