@@ -77,13 +77,12 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   if (!data || typeof data !== 'object') return {}
   const errors: FieldErrors = {}
   for (const [field, detail] of Object.entries(data)) {
-    if (
-      detail &&
-      typeof detail === 'object' &&
-      'message' in detail &&
-      typeof (detail as { message: unknown }).message === 'string'
-    ) {
-      errors[field] = (detail as { message: unknown }).message
+    const msg =
+      detail && typeof detail === 'object' && 'message' in detail
+        ? (detail as { message: unknown }).message
+        : undefined
+    if (typeof msg === 'string') {
+      errors[field] = msg
     }
   }
   return errors
