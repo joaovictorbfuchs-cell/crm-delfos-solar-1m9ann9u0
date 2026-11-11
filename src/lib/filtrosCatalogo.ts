@@ -2,9 +2,15 @@ import type {
   DefinicaoCampo,
   ModuloFiltro,
   OperadorCondicao,
+  OpcaoSelect,
   TipoCampoFiltro,
 } from '@/types/filtros'
 import { TIPOS_VENDA_OPTIONS } from '@/constants/tipoVenda'
+import {
+  ATIVIDADES_PADRAO,
+  buildCustomTipoDef,
+  deduplicarTiposAtividades,
+} from '@/constants/atividadesTipos'
 
 export const ETAPAS_FUNIL_LISTA: { id: string; label: string }[] = [
   { id: 'novo lead', label: '1 - Novo Lead' },
@@ -383,21 +389,10 @@ export const CAMPOS_ATIVIDADES: DefinicaoCampo[] = [
     tipo: 'lista',
     modulo: 'atividades',
     categoria: 'Dados Básicos',
-    opcoes: [
-      { label: 'Limpeza', value: 'limpeza' },
-      { label: 'Manutenção Preventiva', value: 'manutencao_preventiva' },
-      { label: 'Manutenção Corretiva', value: 'manutencao_corretiva' },
-      { label: 'Limpeza + Manutenção', value: 'limpeza_manutencao' },
-      { label: 'Visita Técnica', value: 'visita_tecnica' },
-      { label: 'Reunião', value: 'reuniao' },
-      { label: 'Ligação', value: 'ligacao' },
-      { label: 'WhatsApp', value: 'whatsapp' },
-      { label: 'E-mail', value: 'email' },
-      { label: 'Elaboração de Proposta', value: 'elaboracao_proposta' },
-      { label: 'Follow-up Comercial', value: 'follow_up' },
-      { label: 'Auto Leitura', value: 'auto_leitura' },
-      { label: 'Outro', value: 'outro' },
-    ],
+    // Opções REAIS: canônicos + tipos cadastrados (injetados via injetarOpcoesTipoAtividades).
+    // Nunca listar tipos legados hardcoded (ex: 'Limpeza + Manutenção'): só aparece se
+    // existir tipo cadastrado com esse título. Valor gravado é sempre o ID do tipo.
+    opcoes: OPCOES_TIPO_ATIVIDADES_FALLBACK,
   },
   {
     id: 'categoria',
