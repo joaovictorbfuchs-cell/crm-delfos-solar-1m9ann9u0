@@ -34,7 +34,8 @@ routerAdd('POST', '/backend/v1/rge/leitura-solicitar', (e) => {
       var ch = ucBruta.charAt(q)
       if (ch >= '0' && ch <= '9') uc += ch
     }
-    if (!uc) return e.json(400, { ok: false, error: 'Informe a UC (numero_uc)' })
+    // Se a UC nao veio no body, resolve depois pela atividade -> usina
+    // vinculada (a UC mora na usina; nunca gravar numero_uc na atividade).
 
     // leitura: 5 posicoes com zeros a esquerda (a tela tem 5 quadradinhos)
     var d03 = ''
@@ -79,6 +80,30 @@ routerAdd('POST', '/backend/v1/rge/leitura-solicitar', (e) => {
     } catch (eAt) {
       return e.json(404, { ok: false, error: 'Atividade nao encontrada' })
     }
+
+    // UC mora na usina: se o body nao trouxe UC, resolve pela atividade ->
+    // usina vinculada (usina_id -> usinas.numero_uc). Nunca grava numero_uc
+    // na atividade (sem backfill).
+    if (!uc) {
+      var numeroUcAuto = String(atividade.getString('numero_uc') || '')
+      var usinaIdAuto = String(atividade.getString('usina_id') || '')
+      if (!numeroUcAuto && usinaIdAuto) {
+        try {
+          var usinaRec = $app.findRecordById('usinas', usinaIdAuto)
+          if (usinaRec) numeroUcAuto = usinaRec.getString('numero_uc') || ''
+        } catch (eU) {}
+      }
+      for (var r = 0; r < numeroUcAuto.length; r++) {
+        var chU = numeroUcAuto.charAt(r)
+        if (chU >= '0' && chU <= '9') uc += chU
+      }
+    }
+    if (!uc)
+      return e.json(400, {
+        ok: false,
+        error:
+          'A usina vinculada a esta atividade nao tem UC (numero_uc) cadastrada. Cadastre a UC na ficha da usina.',
+      })
 
     // A UC precisa ter credencial ativa (dona ou beneficiaria): sem isso o
     // robo nao tem login e o pedido morreria na fila.

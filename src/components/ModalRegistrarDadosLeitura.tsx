@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
-import type { Atividade, Cliente } from '@/types/crm'
+import type { Atividade, Cliente, UsinaCliente } from '@/types/crm'
 import { formatarDataParaDDMMAAAA } from '@/services/autoLeituraService'
 
 export interface ModalRegistrarDadosLeituraProps {
@@ -58,6 +58,50 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
   const [dataEnvioLeitura, setDataEnvioLeitura] = useState<string>(
     atividade.data_leitura || atividade.updated || '',
   )
+
+  // UC da usina vinculada à atividade (princípio: a UC mora na usina — nunca
+  // pedir para digitar e nunca copiar numero_uc para a atividade).
+  const usinaId = atividade.usina_id || atividade.expand?.usina_id?.id || ''
+  const [ucResolvida, setUcResolvida] = useState<string>(
+    atividade.numero_uc || atividade.expand?.usina_id?.numero_uc || '',
+  )
+  const [carregandoUc, setCarregandoUc] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    // 1) UC explícita na atividade (caso antigo) já serve
+    if (atividade.numero_uc) {
+      setUcResolvida(atividade.numero_uc)
+      return
+    }
+    // 2) UC da usina já expandida no fetch da atividade
+    const usinaExpandida = atividade.expand?.usina_id
+    if (usinaExpandida?.numero_uc) {
+      setUcResolvida(usinaExpandida.numero_uc)
+      return
+    }
+    // 3) Busca a usina por id e lê o numero_uc dela
+    if (!usinaId) {
+      setUcResolvida('')
+      return
+    }
+    let cancelado = false
+    setCarregandoUc(true)
+    pb.collection('usinas')
+      .getOne<UsinaCliente>(usinaId)
+      .then((usina) => {
+        if (!cancelado) setUcResolvida(usina.numero_uc || '')
+      })
+      .catch(() => {
+        if (!cancelado) setUcResolvida('')
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoUc(false)
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [isOpen, atividade, usinaId])
 
   useEffect(() => {
     if (isOpen) {
@@ -122,10 +166,12 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
     const l03 = String(valor03 || '').replace(/\D/g, '')
     const lA3 = String(valorA3 || '').replace(/\D/g, '')
     const tel = String(telefoneSolicitante || '').replace(/\D/g, '')
-    const ucLimpa = String(atividade.numero_uc || cliente?.uc || '').replace(/\D/g, '')
+    const ucLimpa = String(ucResolvida || '').replace(/\D/g, '')
 
     if (!ucLimpa) {
-      setErroValidacao('Informe a UC da unidade consumidora.')
+      setErroValidacao(
+        'A usina vinculada a esta atividade não tem UC (numero_uc) cadastrada. Cadastre a UC na ficha da usina antes de enviar a leitura.',
+      )
       return
     }
     if (!l03) {
@@ -324,11 +370,59 @@ export const ModalRegistrarDadosLeitura: React.FC<ModalRegistrarDadosLeituraProp
                 {dataVencimentoFormatada
                   ? `Data programada: ${dataVencimentoFormatada}`
                   : 'Lembrete de Auto Leitura'}
-                {atividade.numero_uc ? ` • UC: ${atividade.numero_uc}` : ''}
               </span>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[9px] uppercase font-bold tracking-wider text-indigo-600 block">
+                UC da usina
+              </span>
+              {carregandoUc ? (
+                <span className="inline-flex items-center gap-1 text-[10px] text-indigo-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  buscando...
+                </span>
+              ) : ucResolvida ? (
+                <span
+                  className="font-mono font-bold text-sm text-indigo-950"
+                  title="UC da usina vinculada (somente leitura)"
+                >
+                  {ucResolvida}
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-amber-700">usina sem UC</span>
+              )}
             </div>
             <span className="text-[10px] font-bold text-indigo-800 bg-white px-2 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
               Filha de Auto Leitura
+            </span>
+          </div>
+
+          {/* UC resolvida pela usina vinculada — só leitura, para conferência */}
+          <div className="p-3 bg-slate-50/80 border border-slate-200 rounded-xl flex items-center justify-between gap-2">
+            <div>
+              <span className="text-[9px] uppercase font-bold tracking-wider text-slate-500 block">
+                Unidade consumidora (UC)
+              </span>
+              {carregandoUc ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  buscando na usina vinculada...
+                </span>
+              ) : ucResolvida ? (
+                <span
+                  className="font-mono font-bold text-sm text-slate-900"
+                  title="UC da usina vinculada a esta atividade (somente leitura)"
+                >
+                  {ucResolvida}
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold text-amber-700">
+                  Usina vinculada sem UC cadastrada
+                </span>
+              )}
+            </div>
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+              da usina vinculada · não editável
             </span>
           </div>
 
