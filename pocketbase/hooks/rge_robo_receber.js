@@ -328,8 +328,31 @@ routerAdd('GET', '/backend/v1/rge/fila-do-robo', (e) => {
   }
 })
 
-// O robô avisa que terminou uma credencial (atualiza status/último login)
+// O robô avisa que terminou uma credencial (atualiza status/último login).
+//
+// Classificacao de erro (regra do usuario, v0.0.1686): login/uc = erro REAL —
+// credencial/beneficiaria ficam em estado de erro; transitorio = falha do SITE
+// da RGE (timeout, 5xx, fora do ar) — NAO pode deixar nada em estado de erro:
+// so grava anotacao, e nunca apaga um ultimo_erro anterior de erro real.
+// Se o robo ja manda tipo_erro ('login'|'uc'|'transitorio'), usamos direto;
+// senao classificamos pelo texto.
+// (tudo inline no callback — a VM do PocketBase nao herda escopo de topo)
 routerAdd('POST', '/backend/v1/rge/robo-marcar', (e) => {
+  function classificarErro(erro, tipoErro) {
+    var t = String(tipoErro || '')
+      .toLowerCase()
+      .trim()
+    if (t === 'login' || t === 'uc' || t === 'transitorio') return t
+    var s = String(erro || '').toLowerCase()
+    if (/senha|login|usu[áa]rio|credencial|captcha|401|403/.test(s)) return 'login'
+    if (/n[ãa]o encontrad|uc inv[áa]lid|inexistente|nao localizad/.test(s)) return 'uc'
+    return 'transitorio'
+  }
+
+  function ehTransitorio(texto) {
+    return String(texto || '').indexOf('[transitorio] ') === 0
+  }
+
   try {
     var segredo = $secrets.get('RGE_ROBO_SECRET') || ''
     if (!segredo) return e.json(500, { ok: false, error: 'RGE_ROBO_SECRET nao configurado' })
@@ -339,26 +362,55 @@ routerAdd('POST', '/backend/v1/rge/robo-marcar', (e) => {
     var body = e.requestInfo().body || {}
     if (!body.credencial_id) return e.json(400, { ok: false, error: 'Informe credencial_id' })
     var rec = $app.findRecordById('rge_credenciais', body.credencial_id)
-    var ok = body.status !== 'erro'
-    rec.set('status', ok ? 'ok' : 'erro')
+    var classe = classificarErro(body.erro, body.tipo_erro)
+    var falhou = body.status === 'erro' && classe !== 'transitorio'
+    // Falha transitoria: credencial continua 'ok' (antes ficava 'erro' vermelho).
+    rec.set('status', falhou ? 'erro' : 'ok')
     rec.set('ultimo_login', new Date().toISOString())
-    rec.set('ultimo_erro', ok ? '' : String(body.erro || '').slice(0, 300))
+    if (falhou) {
+      rec.set('ultimo_erro', String(body.erro || '').slice(0, 300))
+    } else if (body.status === 'erro') {
+      // transitorio: anota o texto sem apagar um erro real anterior
+      var anterior = String(rec.getString('ultimo_erro') || '')
+      if (!ehTransitorio(anterior)) {
+        rec.set('ultimo_erro', ('[transitorio] ' + String(body.erro || '')).slice(0, 300))
+      }
+      // se ja era transitorio, mantem o texto atual
+    } else {
+      // sucesso real: limpa a anotacao
+      rec.set('ultimo_erro', '')
+    }
     $app.save(rec)
 
-    // Erros por beneficiária: o robô manda beneficiarias_erro = [{id, erro}]
-    // quando NAO conseguiu baixar a conta de uma UC beneficiária (ex.: "UC nao
-    // encontrada em nenhum titular deste login"). Grava em ultimo_erro da
-    // beneficiária e segue — um erro individual nunca para o loop.
+    // Erros por beneficiária. Formato novo: lista de objetos {uc, tipo_erro,
+    // erro}; formato antigo: [{id, erro}] do texto puro. Acha a beneficiária
+    // por id OU por uc (dentro das beneficiárias desta credencial). Só grava em
+    // ultimo_erro quando for erro real (login/uc); transitório ignora — não
+    // pinta de vermelho na tela.
     var bensComErro = 0
     if (Array.isArray(body.beneficiarias_erro)) {
       for (var bi = 0; bi < body.beneficiarias_erro.length; bi++) {
         var be = body.beneficiarias_erro[bi]
-        if (!be || !be.id) continue
+        var item =
+          typeof be === 'string' ? { uc: String(be).replace(/\D/g, ''), erro: String(be) } : be
+        if (!item || (!item.id && !item.uc)) continue
+        var classeBen = classificarErro(item.erro, item.tipo_erro)
+        if (classeBen === 'transitorio') continue // ignora transitório
         try {
-          var brec = $app.findRecordById('rge_beneficiarias', String(be.id))
-          brec.set('ultimo_erro', String(be.erro || 'erro desconhecido').slice(0, 300))
-          $app.save(brec)
-          bensComErro++
+          var brec = null
+          if (item.id) {
+            brec = $app.findRecordById('rge_beneficiarias', String(item.id))
+          } else {
+            var ucBen = String(item.uc || '').replace(/\D/g, '')
+            var filtroBen = 'credencial_id = "' + body.credencial_id + '" && uc = "' + ucBen + '"'
+            var achBen = $app.findRecordsByFilter('rge_beneficiarias', filtroBen, '', 1, 0)
+            brec = achBen.length ? achBen[0] : null
+          }
+          if (brec) {
+            brec.set('ultimo_erro', String(item.erro || 'erro desconhecido').slice(0, 300))
+            $app.save(brec)
+            bensComErro++
+          }
         } catch (eBen) {}
       }
     }

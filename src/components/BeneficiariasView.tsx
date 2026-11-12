@@ -96,7 +96,9 @@ export function agruparBeneficiarias(
     const percentualGeradora = typeof pctCred === 'number' && !isNaN(pctCred) ? pctCred : null
 
     const comErro =
-      cred.status === 'erro' || cred.status === 'expirado' || Boolean(cred.ultimo_erro)
+      cred.status === 'erro' ||
+      cred.status === 'expirado' ||
+      Boolean(cred.ultimo_erro && !ehErroTransitorio(cred.ultimo_erro))
 
     return {
       cred,
@@ -142,6 +144,12 @@ function CelulaPercentual({ pct }: { pct: number | null }) {
   )
 }
 
+// Erro transitório do site da RGE (prefixo gravado pelo robô-marcar, v0.0.1686)
+// não é estado de erro: não conta nem pinta de vermelho na UI.
+export function ehErroTransitorio(texto?: string | null): boolean {
+  return typeof texto === 'string' && texto.startsWith('[transitorio]')
+}
+
 function CelulaAlertas({
   comErro,
   erroBeneficiaria,
@@ -151,7 +159,8 @@ function CelulaAlertas({
 }) {
   // erroBeneficiaria: ultimo_erro gravado pelo robô quando ele NÃO conseguiu
   // baixar a conta desta UC beneficiária (ex.: "UC não encontrada...").
-  if (erroBeneficiaria)
+  // Prefixo "[transitorio]" = falha do site da RGE: não é erro.
+  if (erroBeneficiaria && !ehErroTransitorio(erroBeneficiaria))
     return (
       <span
         className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 underline tracking-wide cursor-help"
