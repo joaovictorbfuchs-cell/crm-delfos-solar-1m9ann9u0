@@ -358,7 +358,18 @@ routerAdd('POST', '/backend/v1/rge/leitura-resultado', (e) => {
     if (body.mes_referencia) rec.set('mes_referencia', String(body.mes_referencia).slice(0, 20))
     $app.save(rec)
 
-    var atividadeId = String(rec.getString('atividade_id') || '')
+    // Buscar atividade_id: getString() em campo relation pode voltar vazio.
+    // Usa get() como fallback e tambem aceita do body (o robo ja sabe o id).
+    var atividadeId = ''
+    try {
+      atividadeId = String(rec.get('atividade_id') || '')
+    } catch (eRel) {}
+    if (!atividadeId) {
+      try {
+        atividadeId = String(rec.getString('atividade_id') || '')
+      } catch (eRel2) {}
+    }
+    if (!atividadeId) atividadeId = String(body.atividade_id || '')
     if (atividadeId) {
       try {
         var atv = $app.findRecordById('atividades', atividadeId)
