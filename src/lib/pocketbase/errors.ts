@@ -2,38 +2,73 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
-// Detecta erro de sessão/token expirado (401/403) — canônico, reexportado por lib/errors e services/errors
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const anyErr = error as { status?: unknown; response?: { status?: unknown }; message?: unknown }
-  const status = anyErr.status ?? anyErr.response?.status
-  if (status === 401 || status === 403) return true
-  const msg = String(
-    (error instanceof Error && error.message) ||
-      (typeof anyErr.message === 'string' ? anyErr.message : ''),
-  )
-  return (
-    msg.includes('token') ||
-    msg.includes('Token') ||
-    msg.includes('expirada') ||
-    msg.includes('expirou') ||
-    msg.includes('Failed to authenticate')
-  )
+/** Textos que indicam sessão/auth expirada independentemente do status HTTP. */
+const TEXTO_SESSAO_EXPIRADA = [
+  'token is expired',
+  'token expired',
+  'sessão expirada',
+  'sessao expirada',
+  'login expirou',
+  'failed to authenticate',
+  'the request requires valid authentication',
+  'unauthorized',
+]
+
+/** Normaliza a mensagem de um erro desconhecido para comparação de texto. */
+function mensagemDoErro(error: unknown): string {
+  if (error instanceof Error) return String(error.message || '').toLowerCase()
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message || '').toLowerCase()
+  }
+  return ''
 }
 
-// Detecta abort de requisição (auto-cancelamento do SDK)
+/** Erros de sessão/auth expirada (401/403 ou texto de token inválido) — disparam alerta de sessão expirada no app. */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+
+  // Objetos simples com status (ex.: mocks em testes)
+  if (typeof error === 'object' && 'status' in error) {
+    const status = (error as { status?: unknown }).status
+    if (status === 401 || status === 403) return true
+  }
+
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    // ClientResponseError antigo guardava o status em response.status
+    const responseStatus = (error.response as { status?: unknown } | undefined)?.status
+    if (responseStatus === 401 || responseStatus === 403) return true
+    if (error.isAbort) return false
+  }
+
+  const msg = mensagemDoErro(error)
+  if (!msg) return false
+  return TEXTO_SESSAO_EXPIRADA.some((t) => msg.includes(t))
+}
+
+/** Erros de requisição abortada (auto-cancellation do SDK). */
 export function isAbortError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
-  const anyErr = error as { isAbort?: unknown; name?: unknown }
-  return Boolean(anyErr.isAbort) || anyErr.name === 'AbortError'
+  if ((error as { isAbort?: unknown }).isAbort === true) return true
+  if ((error as { name?: unknown }).name === 'AbortError') return true
+  if (
+    error instanceof ClientResponseError &&
+    (error.status === 0 ||
+      String(error.message || '')
+        .toLowerCase()
+        .includes('abort'))
+  ) {
+    return true
+  }
+  return false
 }
 
-// Mensagem amigável de ClientResponseError (concatena erros por campo)
+/** Mensagem amigável a partir de um ClientResponseError do PocketBase. */
 export function formatPbError(error: unknown): string {
   if (error instanceof ClientResponseError) {
     const fieldMsgs = Object.values(extractFieldErrors(error))
     if (fieldMsgs.length > 0) return fieldMsgs.join(' ')
-    return error.message || 'Erro inesperado.'
+    if (error.response?.message) return error.response.message
   }
   return error instanceof Error ? error.message : 'Erro inesperado.'
 }
