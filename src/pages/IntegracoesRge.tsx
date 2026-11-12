@@ -13,7 +13,6 @@ import {
   Key,
   FileDown,
   Trash2,
-  ExternalLink,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -158,7 +157,7 @@ export function IntegracoesRgePage() {
   const [formDoc, setFormDoc] = useState('')
   const [formLogin, setFormLogin] = useState('')
   const [formSenha, setFormSenha] = useState('')
-  const [formToken, setFormToken] = useState('')
+  const [formTokenEditar, setFormTokenEditar] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   // --- Editar credencial (lápis) ---
@@ -823,7 +822,6 @@ export function IntegracoesRgePage() {
           documento: formDoc,
           login: formLogin,
           senha: formSenha,
-          token: formToken,
         }),
       })
       toast({ title: 'Credencial cadastrada!' })
@@ -833,7 +831,6 @@ export function IntegracoesRgePage() {
       setFormDoc('')
       setFormLogin('')
       setFormSenha('')
-      setFormToken('')
       await carregarDados()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -856,7 +853,7 @@ export function IntegracoesRgePage() {
         method: 'PATCH',
         body: JSON.stringify({
           id: credencialEmEdicao.id,
-          token: formToken,
+          token: formTokenEditar,
           status: 'ok',
           ultimo_erro: '',
         }),
@@ -864,7 +861,7 @@ export function IntegracoesRgePage() {
       toast({ title: 'Token atualizado com sucesso!' })
       setModalEditarTokenAberto(false)
       setCredencialEmEdicao(null)
-      setFormToken('')
+      setFormTokenEditar('')
       await carregarDados()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -1938,29 +1935,6 @@ export function IntegracoesRgePage() {
                 />
               </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600">
-                Token Bearer (Agência Web CPFL)
-              </label>
-              <textarea
-                value={formToken}
-                onChange={(e) => setFormToken(e.target.value)}
-                rows={3}
-                placeholder="Cole o token do portal se já tiver copiado do DevTools..."
-                className="w-full text-xs font-mono p-2 border rounded-md border-slate-200"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">
-                O token é gerado ao logar em{' '}
-                <a
-                  href="https://servicosonline.cpfl.com.br/agencia-webapp/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-600 hover:underline inline-flex items-center gap-0.5"
-                >
-                  servicosonline.cpfl.com.br <ExternalLink className="w-3 h-3" />
-                </a>
-              </p>
-            </div>
             <DialogFooter className="pt-2">
               <Button
                 type="button"
@@ -1995,8 +1969,8 @@ export function IntegracoesRgePage() {
                 Token Bearer Atualizado
               </label>
               <textarea
-                value={formToken}
-                onChange={(e) => setFormToken(e.target.value)}
+                value={formTokenEditar}
+                onChange={(e) => setFormTokenEditar(e.target.value)}
                 rows={4}
                 placeholder="Cole aqui o token do portal CPFL..."
                 className="w-full text-xs font-mono p-2 border rounded-md border-slate-200"
