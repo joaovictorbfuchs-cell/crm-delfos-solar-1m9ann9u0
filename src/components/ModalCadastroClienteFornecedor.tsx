@@ -443,13 +443,9 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
     }
 
     if (tipoPessoa === 'fisica') {
+      // CPF é opcional: só valida formato quando preenchido
       const rawCpf = cpf.replace(/\D/g, '')
-      if (!rawCpf) {
-        setDocError('Informe o CPF da pessoa física.')
-        toast.error('Informe o CPF')
-        return
-      }
-      if (!validarCPF(rawCpf)) {
+      if (rawCpf && !validarCPF(rawCpf)) {
         setDocError('CPF inválido. Por favor, corrija antes de salvar.')
         toast.error('CPF inválido')
         return
@@ -810,7 +806,8 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
             <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="font-semibold text-gray-700 text-xs block">
-                  CPF (Pessoa Física) <span className="text-red-500">*</span>
+                  CPF (Pessoa Física){' '}
+                  <span className="text-gray-400 text-[10px] font-normal">(opcional)</span>
                 </label>
                 <span className="text-[11px] text-gray-400">
                   Preenchimento manual (dados PF protegidos pela LGPD)
