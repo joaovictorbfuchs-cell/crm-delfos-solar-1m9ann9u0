@@ -1,58 +1,76 @@
-# Causa raiz da regressão recorrente de exports do PocketBase (12 ocorrências)
+# Causa raiz da regressão recorrente de exports do PocketBase (13→14 ocorrências)
 
 ## Sintoma
 
 Em rodadas de mudança, `src/lib/pocketbase/errors.ts` perde `isAuthSessionError`
 (e às vezes `isAbortError`/`formatPbError`) e `src/lib/pocketbase/client.ts` perde
-o reexport de `pb` (named) e `isAuthSessionError`. Importadores quebram em runtime
-com ErrorBoundary (AuthContext, ClientesContext, AtividadesCalendario, chunks lazy
-como o relatório público `/relatorio-fatura/:token`) mesmo quando o build às vezes
-passa.
+o reexport de `pb` (named) e dos helpers. Importadores quebram em runtime com
+ErrorBoundary (AuthContext, ClientesContext, AtividadesCalendario, chunks lazy
+como o relatório público `/relatorio-fatura/:token`) mesmo quando o build às
+vezes passa.
 
-## Causa raiz (confirmada por grep no tree quebrado, v0.0.1693 → 12ª ocorrência)
+## Investigação completa (v0.0.1696→14ª ocorrência) — o que foi verificado
 
-**O mecanismo é a reescrita INTEGRAL desses arquivos por rodadas que mexem em
-código adjacente.** Evidências desta rodada:
+Foi feita varredura exaustiva do repositório atrás de QUALQUER mecanismo que
+escreva ou regenere arquivos em `src/lib/pocketbase/`:
 
-1. No tree quebrado, `grep isAuthSessionError` retornou **zero arquivos definindo
-   a função** — nem cópia duplicada existia. Não era merge/conflito/barrel: os
-   arquivos foram regenerados "de memória" pelo agente de escrita, com a parte
-   "óbvia" do arquivo (extractFieldErrors/getErrorMessage em errors.ts; só
-   `new PocketBase(...)` em client.ts) e sem os exports críticos que não estavam
-   em jogo naquela rodada.
-2. O arquivo frágil tinha implementação + salvaguarda no MESMO arquivo: um
-   rewrite "de limpeza" derruba os dois de uma vez.
-3. O guard existente (`exportsGuard.test.ts`) nunca roda — o pipeline de QA da
-   plataforma não executa a suíte de testes do projeto (`pnpm test` roda só 3
-   arquivos; o QA do builder roda setup/lint/tsc/build, não vitest).
+1. **Scripts do repo**: os únicos `fs.writeFileSync` do repo são
+   `scripts/auditoria-duplicados.mjs` (escreve relatório em `docs/`),
+   `scripts/exportSchema.js` (gera xlsx em tmp) e `scripts/check_collections.js`
+   (gera `scripts/output_cols.txt`). **Nenhum escreve em `src/lib/pocketbase/`.**
+2. **Plugin Vite** (`vite-plugin-react-uid.js`): transform em memória, sem I/O
+   em disco.
+3. **Hooks pb_hooks / migrations**: nenhum referencia `errors.ts`, `client.ts` ou
+   caminho `lib/pocketbase` (grep no diretório `pocketbase/` inteiro → zero).
+4. **`src/lib/pocketbase/index.ts`, `src/lib/errors.ts`, `src/lib/client.ts`,
+   `src/services/errors.ts`**: são salvaguardas de REEXPORT (não duplicam
+   lógica) — não são a fonte.
+5. **errors_impl.ts**: nunca foi degradado em nenhuma ocorrência — a perda é
+   sempre e apenas nos wrappers.
+6. **Config da plataforma** (`.skip.config.json`): a proteção de escrita da
+   plataforma é a lista `preventAI`; os wrappers NÃO estão nela. Não há CI,
+   git hooks, watch, sync ou copiador de templates no repo.
 
-## O que foi feito (estrutura à prova de perda)
+### Conclusão da causa raiz
 
-1. **Implementação isolada**: `src/lib/pocketbase/errors_impl.ts` agora é a
-   ÚNICA cópia da implementação real de `isAuthSessionError`, `isAbortError`,
-   `formatPbError`, `extractFieldErrors`, `getErrorMessage` (semântica exata
-   preservada: 401/403, status/statusCode/response.status, textos de token).
-2. **Wrappers minúsculos**: `errors.ts` e `client.ts` viraram wrappers de ~10
-   linhas que SÓ reexportam. Arquivos tão pequenos e com responsabilidade única
-   têm muito menos atrito para serem reescritos — e se forem, a superfície de
-   perda é mínima e óbvia.
-3. **Tripwire no pipeline de QA**: `src/lib/pocketbase/exportsTripwire.ts`
-   referencia cada export crítico em tempo de TIPO (não runtime), importado por
-   `src/main.tsx` — logo, dentro do grafo compilado pelo `tsc --noEmit` do QA.
-   Se qualquer export sumir, o tsc falha com TS2305 ("has no exported member")
-   ANTES do build. Foi exatamente assim que o QA desta rodada pegou a perda
-   já presente no tree: `errors.ts` e `client.ts` estavam quebrados no início
-   dela, e o tripwire acusam os 7 pontos de quebra imediatamente.
-4. **Duplicatas**: nenhuma outra cópia da implementação existe no repo (grep
-   `export function isAuthSessionError` → só errors_impl.ts). As salvaguardas
-   `src/lib/client.ts`, `src/lib/errors.ts`, `src/services/errors.ts` e
-   `src/lib/pocketbase/index.ts` são reexports (não duplicam lógica) e também
-   estão cobertas pelo tripwire.
+**Não existe gerador, script, transform ou processo de build do repositório que
+reescreva os wrappers.** O mecanismo é a própria rodada de edição (o agente de
+escrita) reescrever os arquivos "de memória" ao mexer em código adjacente:
+regenera só a parte "óbvia" do arquivo (extractFieldErrors/getErrorMessage em
+errors.ts; só `new PocketBase(...)` em client.ts) e perde os reexports que não
+estavam em jogo naquela rodada. Como os wrappers são minúsculos, a reescrita é
+barata e passa despercebida — e como `errors_impl.ts` tem a implementação, o
+dano é sempre "só" nos reexports.
+
+## Defesas em vigor (mantidas nesta rodada)
+
+1. **Implementação isolada**: `errors_impl.ts` é a ÚNICA cópia da implementação
+   real (`isAuthSessionError`, `isAbortError`, `formatPbError`,
+   `extractFieldErrors`, `getErrorMessage`).
+2. **Wrappers minúsculos de reexport** (`errors.ts`, `client.ts`) — nunca
+   reescrever inteiros; se um export sumir, ACRESCENTAR a linha de reexport.
+3. **Tripwire de tipo** (`exportsTripwire.ts`, via `main.tsx`): tsc falha com
+   TS2305 se qualquer export crítico sumir. Pegou as ocorrências 12–14.
+4. **NOVO — guard de TEXTO em tempo de build**:
+   `scripts/check-exports-pocketbase.mjs` verifica os reexports canônicos nos
+   três arquivos e falha o build com instrução de correção. Para rodar em todos
+   os builds, o `package.json` (protegido, `preventAI`) precisa da linha
+   adicionada MANUALMENTE pelo dono do projeto:
+   `"prebuild": "node scripts/check-exports-pocketbase.mjs"`.
+5. **Opcional (recomendado, requer ação do dono)**: acrescentar em
+   `.skip.config.json` → `"preventAI"`:
+   `"src/lib/pocketbase/errors.ts"`, `"src/lib/pocketbase/client.ts"`,
+   `"src/lib/pocketbase/errors_impl.ts"` — isso impede que o próprio agente
+   escreva nesses arquivos, eliminando a causa (reescrita de memória) e não
+   apenas detectando o efeito. Alternativa mais branda: mover os wrappers para
+   um subdiretório de baixo tráfego (ex.: `src/lib/pocketbase/core/`) e só
+   reexportar de lá — reduz a chance de serem arrastados por rodadas de
+   enxugamento.
 
 ## Regra para rodadas futuras
 
 - **NUNCA reescrever `errors.ts`/`client.ts` inteiros** — mudar só o impl
   (`errors_impl.ts`) ou acrescentar linhas.
-- Se uma rodada precisa remover algum desses exports, é uma quebra de contrato:
+- Se uma rodada precisa remover algum desses exports, é quebra de contrato:
   atualizar o tripwire junto e justificar.
 - Rodar `run_qa` e conferir QA verde antes de `commit_changes` (regra existente).
