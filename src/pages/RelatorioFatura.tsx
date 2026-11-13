@@ -103,7 +103,10 @@ export const RelatorioFaturaPage: React.FC = () => {
   const medicao = safeObj(dados.medicao_e_creditos)
   const papelGd = safeObj(dados.papel_gd)
   const indicadores = safeObj(dados.indicadores)
-  const demo = useMemo(() => construirDemonstrativo(dados), [dados])
+  const demo = useMemo(
+    () => construirDemonstrativo(dados.itens_faturados, dados),
+    [dados],
+  )
 
   const gd = useMemo<GdCalculada>(() => {
     const injetada =

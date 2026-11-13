@@ -2,13 +2,13 @@ import React from 'react'
 import { Receipt } from 'lucide-react'
 import { CardSecao, BadgeSecao, formatarMoeda } from './CardSecao'
 import { num } from './safeGuards'
-import type { DemonstrativoCiclo, LinhaParcela } from './demonstrativo'
+import type { DemonstrativoResultado } from './demonstrativo'
 
 const linhaCelula = 'px-3 py-2.5 align-middle'
 
-/** Uma parcela do quadro — crédito, Fio B, atípica ou comum. */
-const LinhaParcelaRow: React.FC<{ p: LinhaParcela }> = ({ p }) => {
-  if (p.isCredito) {
+/** Uma parcela do quadro — crédito (abatimento), atípica ou comum. */
+const LinhaParcelaRow: React.FC<{ p: DemonstrativoResultado['itens'][number] }> = ({ p }) => {
+  if (p.valor < 0) {
     return (
       <tr className="bg-emerald-50/50">
         <td className={linhaCelula}>
@@ -17,14 +17,16 @@ const LinhaParcelaRow: React.FC<{ p: LinhaParcela }> = ({ p }) => {
             abatimento
           </span>
         </td>
-        <td className={linhaCelula + ' text-right text-sm text-gray-500'}>—</td>
+        <td className={linhaCelula + ' text-right text-sm text-gray-500'}>
+          {p.kwh ? p.kwh.toLocaleString('pt-BR') : '—'}
+        </td>
         <td className={linhaCelula + ' text-right text-sm font-bold text-emerald-600'}>
           {'- ' + formatarMoeda(Math.abs(p.valor))}
         </td>
       </tr>
     )
   }
-  if (p.isAtipica) {
+  if (p.atipico) {
     return (
       <tr className="bg-amber-50/60">
         <td className={linhaCelula}>
@@ -33,8 +35,8 @@ const LinhaParcelaRow: React.FC<{ p: LinhaParcela }> = ({ p }) => {
             Parcela atípica
           </BadgeSecao>
           <p className="text-xs text-amber-800/80 mt-0.5">
-            {p.descricao ||
-              'Custo incomum neste ciclo — não é consumo de energia nem abatimento. Verifique com a distribuidora.'}
+            Custo incomum neste ciclo — não é consumo de energia nem abatimento. Verifique com a
+            distribuidora.
           </p>
         </td>
         <td className={linhaCelula + ' text-right text-sm text-gray-500'}>
@@ -50,14 +52,14 @@ const LinhaParcelaRow: React.FC<{ p: LinhaParcela }> = ({ p }) => {
     <tr className="border-t border-gray-100">
       <td className={linhaCelula}>
         <span className="text-sm text-gray-800">{p.nome}</span>
-        {p.isFioB && (
+        {p.fio_b && (
           <BadgeSecao tone="sky" className="ml-2">
             Lei 14.300
           </BadgeSecao>
         )}
-        {p.isBandeira && (
-          <BadgeSecao tone="amber" className="ml-2">
-            Bandeira
+        {p.origem_fio_b && (
+          <BadgeSecao tone="gray" className="ml-1">
+            {p.origem_fio_b === 'fatura' ? 'Valor da fatura' : 'Estimativa'}
           </BadgeSecao>
         )}
       </td>
@@ -71,22 +73,16 @@ const LinhaParcelaRow: React.FC<{ p: LinhaParcela }> = ({ p }) => {
   )
 }
 
-/** Quadro único "Demonstrativo do Ciclo" — substitui 3 seções antigas. */
-export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoCiclo }> = ({ demo }) => {
-  const totalAbatimentos = demo.parcelas
-    .filter((p) => p.isCredito)
-    .reduce((acc, p) => acc + Math.abs(p.valor), 0)
-  const totalFaturado = num(demo.totalFaturado)
-  const totalPagar = num(demo.totalPagar)
+/** Quadro único "Demonstrativo do Ciclo" — consolidado e reconciliado. */
+export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoResultado }> = ({ demo }) => {
+  const totalAbatimentos = num(demo.abatimentos)
+  const totalFaturado = num(demo.total_faturado)
+  const totalPagar = num(demo.total_a_pagar_calculado)
+  const divergencia = num(demo.divergencia_rs)
   return (
     <CardSecao
       title="Demonstrativo do Ciclo"
       icon={<Receipt className="h-4 w-4 text-gray-400" />}
-      right={
-        demo.temBandeira ? (
-          <BadgeSecao tone="amber">Bandeira {demo.bandeiraCor}</BadgeSecao>
-        ) : undefined
-      }
       bodyClassName="space-y-4"
     >
       <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -105,7 +101,7 @@ export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoCiclo }> = ({ dem
             </tr>
           </thead>
           <tbody>
-            {demo.parcelas.map((p, i) => (
+            {demo.itens.map((p, i) => (
               <LinhaParcelaRow key={i} p={p} />
             ))}
           </tbody>
@@ -115,7 +111,7 @@ export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoCiclo }> = ({ dem
                 Tributos inclusos (ICMS + PIS + COFINS)
               </td>
               <td className={linhaCelula + ' text-right text-sm font-bold text-gray-700'}>
-                {formatarMoeda(demo.totalTributos)}
+                {formatarMoeda(num(demo.tributos_total))}
               </td>
             </tr>
             <tr className="border-t border-gray-200">
@@ -139,12 +135,23 @@ export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoCiclo }> = ({ dem
                 )}
               </td>
             </tr>
+            {divergencia > 0 && (
+              <tr>
+                <td colSpan={3} className="px-3 py-1.5 text-right">
+                  <span className="text-[10px] text-gray-400">
+                    Divergência de {formatarMoeda(divergencia)} vs. fatura (
+                    {formatarMoeda(num(demo.total_a_pagar_fatura))})
+                  </span>
+                </td>
+              </tr>
+            )}
           </tfoot>
         </table>
       </div>
       <p className="text-[11px] text-gray-400">
         Valores em reais (R$). Créditos de energia aparecem como abatimento (verde) e reduzem o
-        total a pagar.
+        total a pagar. Fio B sobre energia compensada conforme Lei 14.300/2022 — valor estimado
+        quando não impresso na fatura.
       </p>
     </CardSecao>
   )
