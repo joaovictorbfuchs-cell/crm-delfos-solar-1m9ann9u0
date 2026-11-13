@@ -337,13 +337,15 @@ export const RelatorioFaturaPage: React.FC = () => {
   const resumoImpostos = useMemo(() => {
     let baseIcms = 0
     let aliqIcms: number | null = null
-    let valorIcms = num(impostos.impostos_atuais?.icms_total_rs)
+    // Formato antigo: impostos.impostos_atuais.{icms,pis,cofins}_total_rs; formato novo (v0.0.1689): plano em impostos
+    let valorIcms = num(impostos.impostos_atuais?.icms_total_rs) || num(impostos.icms_total_rs)
 
     let basePis = 0
-    let valorPis = num(impostos.impostos_atuais?.pis_total_rs)
+    let valorPis = num(impostos.impostos_atuais?.pis_total_rs) || num(impostos.pis_total_rs)
 
     let baseCofins = 0
-    let valorCofins = num(impostos.impostos_atuais?.cofins_total_rs)
+    let valorCofins =
+      num(impostos.impostos_atuais?.cofins_total_rs) || num(impostos.cofins_total_rs)
 
     // Se houver itens faturados, somar as bases de cálculo e alíquotas com precisão
     if (itens && itens.length > 0) {

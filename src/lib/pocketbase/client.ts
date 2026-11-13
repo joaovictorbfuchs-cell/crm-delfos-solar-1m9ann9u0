@@ -1,16 +1,10 @@
 import PocketBase from 'pocketbase'
-import {
-  isAuthSessionError,
-  isAbortError,
-  formatPbError,
-  extractFieldErrors,
-  getErrorMessage,
-} from './errors'
+// isAuthSessionError reexportado como trava permanente (guard test exige identidade
+// de referência com a implementação canônica em ./errors)
+import { isAuthSessionError } from './errors'
 
 const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
 pb.autoCancellation(false)
 
-// Canonical exports (regressão recorrente — ver memory): o client reexporta
-// pb (named + default) e os helpers de erro de './errors'.
-export { pb, isAuthSessionError, isAbortError, formatPbError, extractFieldErrors, getErrorMessage }
+export { pb, isAuthSessionError }
 export default pb
