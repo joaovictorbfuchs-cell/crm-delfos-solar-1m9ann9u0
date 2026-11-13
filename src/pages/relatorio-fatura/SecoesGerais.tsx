@@ -1,7 +1,7 @@
 import React from 'react'
-import { AlertTriangle, CalendarClock, ShieldAlert, TrendingUp, User } from 'lucide-react'
-import { CardSecao, BadgeSecao, formatarMoeda, LabelCampo } from './CardSecao'
-import { num, safeStr } from './safeGuards'
+import { CalendarClock, TrendingUp, User } from 'lucide-react'
+import { CardSecao, BadgeSecao, LabelCampo } from './CardSecao'
+import { safeStr } from './safeGuards'
 import type { ConsumoHistoricoItem } from './tipos'
 
 /** Cabeçalho do relatório — dados cadastrais + período consolidados (sem seção de período separada). */
@@ -35,43 +35,6 @@ export const CabecalhoRelatorio: React.FC<{
           </div>
         ))}
       </div>
-    </CardSecao>
-  )
-}
-
-/** Alertas da análise — bandeira vira linha no quadro, card isolado removido. */
-export const SecaoAlertas: React.FC<{ alertas: Record<string, any>[] }> = ({ alertas }) => {
-  if (!alertas.length) return null
-  return (
-    <CardSecao
-      title="Alertas da Análise"
-      icon={<ShieldAlert className="h-4 w-4 text-amber-500" />}
-      bodyClassName="space-y-2"
-    >
-      {alertas.map((a, i) => {
-        const nivel = safeStr(a.nivel, 'informativo')
-        const tone =
-          nivel === 'alerta' || nivel === 'atencao' ? ('amber' as const) : ('sky' as const)
-        return (
-          <div
-            key={i}
-            className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/50 p-3"
-          >
-            <AlertTriangle
-              className={
-                'h-4 w-4 shrink-0 mt-0.5 ' + (tone === 'amber' ? 'text-amber-500' : 'text-sky-500')
-              }
-            />
-            <div>
-              <span className="text-sm font-bold text-gray-900">{safeStr(a.titulo, 'Aviso')}</span>
-              <BadgeSecao tone={tone} className="ml-2">
-                {nivel}
-              </BadgeSecao>
-              <p className="text-sm text-gray-600 mt-0.5">{safeStr(a.mensagem)}</p>
-            </div>
-          </div>
-        )
-      })}
     </CardSecao>
   )
 }
@@ -119,40 +82,6 @@ export const SecaoHistoricoConsumo: React.FC<{
           Barra âmbar = maior consumo · barra azul = menor consumo.
         </p>
       )}
-    </CardSecao>
-  )
-}
-
-/** Conclusões e recomendações da análise. */
-export const SecaoConclusoes: React.FC<{
-  conclusoes: string[]
-  indicadores: Record<string, any>
-}> = ({ conclusoes, indicadores }) => {
-  const economiaAnual = num(indicadores?.economia_acumulada_estimada_anual_rs)
-  return (
-    <CardSecao
-      title="Conclusões e Recomendações"
-      icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}
-      bodyClassName="space-y-3"
-    >
-      {economiaAnual > 0 && (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-emerald-900">
-            Economia acumulada estimada em 12 meses
-          </span>
-          <span className="text-lg font-extrabold text-emerald-700">
-            {formatarMoeda(economiaAnual)}
-          </span>
-        </div>
-      )}
-      <ul className="space-y-2">
-        {conclusoes.map((c, i) => (
-          <li key={i} className="flex items-start gap-2 text-sm text-gray-700 leading-relaxed">
-            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-            {c}
-          </li>
-        ))}
-      </ul>
     </CardSecao>
   )
 }

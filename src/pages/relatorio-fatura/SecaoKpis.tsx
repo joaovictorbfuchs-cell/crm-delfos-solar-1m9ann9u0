@@ -1,16 +1,27 @@
 import React from 'react'
 import { LabelCampo, formatarMoeda } from './CardSecao'
 import { num } from './safeGuards'
+import { calcularEconomiaCiclo } from './demonstrativo'
 import type { GdCalculada } from './tipos'
 
 /** KPIs do topo — 4 cards (sem "Total a Pagar", que repete o quadro). */
-export const SecaoKpis: React.FC<{ medicao: any; gd: GdCalculada; indicadores: any }> = ({
-  medicao,
-  gd,
-  indicadores,
-}) => {
+export const SecaoKpis: React.FC<{
+  medicao: any
+  gd: GdCalculada
+  indicadores: any
+  dados?: Record<string, any>
+  /** Valor determinístico pré-calculado em RelatorioFatura.tsx (calcularEconomiaCiclo). */
+  economiaCalculada?: number
+}> = ({ medicao, gd, indicadores, dados, economiaCalculada }) => {
   const consumo = num(medicao?.energia_ativa_consumida?.consumo_mes_kwh)
-  const economia = num(indicadores?.economia_estimada_mes_rs)
+  // Economia do Ciclo determinística (item 5): consumo medido × tarifa cheia
+  // efetiva − total a pagar IMPRESSO da fatura. Sem dupla contagem: a tarifa
+  // cheia já embute a parcela Fio B/TUSD e o total impresso já desconta os
+  // créditos compensados. Só usa o valor da IA quando não é possível calcular.
+  const economia =
+    economiaCalculada ||
+    (dados ? calcularEconomiaCiclo(dados) : 0) ||
+    num(indicadores?.economia_estimada_mes_rs)
   return (
     <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
       <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
@@ -21,14 +32,16 @@ export const SecaoKpis: React.FC<{ medicao: any; gd: GdCalculada; indicadores: a
         </div>
         <span className="text-[10px] text-gray-400 block">Medido pela distribuidora</span>
       </div>
-      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
-        <LabelCampo className="!text-emerald-700">Energia Injetada</LabelCampo>
-        <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 flex items-baseline gap-1">
-          {gd.injetada.toLocaleString('pt-BR')}
-          <span className="text-xs text-emerald-600/70 font-normal">kWh</span>
+      {gd.injetada > 0 && (
+        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
+          <LabelCampo className="!text-emerald-700">Energia Injetada</LabelCampo>
+          <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 flex items-baseline gap-1">
+            {gd.injetada.toLocaleString('pt-BR')}
+            <span className="text-xs text-emerald-600/70 font-normal">kWh</span>
+          </div>
+          <span className="text-[10px] text-gray-400 block">Injetada na rede</span>
         </div>
-        <span className="text-[10px] text-gray-400 block">Injetada na rede</span>
-      </div>
+      )}
       <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
         <LabelCampo className="!text-sky-700">Compensados no Mês</LabelCampo>
         <div className="text-xl sm:text-2xl font-extrabold text-sky-600 flex items-baseline gap-1">

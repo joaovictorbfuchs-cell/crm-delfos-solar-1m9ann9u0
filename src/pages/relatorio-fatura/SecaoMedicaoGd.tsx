@@ -38,6 +38,16 @@ export const SecaoMedicaoGd: React.FC<Props> = ({ medicao, papelGd, gd }) => {
   const creditos = safeObj(medicao?.creditos)
   const saldo = safeObj(medicao?.saldo_energia)
   const papel = safeStr(papelGd?.papel_uc, gd.detalheFluxo ? 'mista' : '')
+  // Energia injetada só aparece quando há injeção real (> 0 kWh) na fatura —
+  // faturas que apenas consomem créditos não mostram a linha/badge de injeção.
+  const temInjecao =
+    num(injetada?.kwh_injetados_mes) > 0 ||
+    (injetada?.leitura_anterior != null &&
+      injetada?.leitura_atual != null &&
+      (num(injetada.leitura_atual) - num(injetada.leitura_anterior)) *
+        (num(injetada.multiplicador) || 1) >
+        0) ||
+    num(gd?.injetada) > 0
 
   return (
     <CardSecao
@@ -59,7 +69,7 @@ export const SecaoMedicaoGd: React.FC<Props> = ({ medicao, papelGd, gd }) => {
           </thead>
           <tbody>
             <LinhaMedicao rotulo="Energia ativa consumida" obj={consumo} />
-            <LinhaMedicao rotulo="Energia injetada (geração)" obj={injetada} />
+            {temInjecao && <LinhaMedicao rotulo="Energia injetada (geração)" obj={injetada} />}
           </tbody>
         </table>
       </div>

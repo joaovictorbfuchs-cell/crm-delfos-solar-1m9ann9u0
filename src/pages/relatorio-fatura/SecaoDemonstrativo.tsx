@@ -57,10 +57,16 @@ const LinhaParcelaRow: React.FC<{ p: DemonstrativoResultado['itens'][number] }> 
             Lei 14.300
           </BadgeSecao>
         )}
-        {p.origem_fio_b && (
-          <BadgeSecao tone="gray" className="ml-1">
-            {p.origem_fio_b === 'fatura' ? 'Valor da fatura' : 'Estimativa'}
+        {p.estimativa_ja_inclusa ? (
+          <BadgeSecao tone="gray" className="ml-2">
+            Estimativa (já incluso no total da fatura)
           </BadgeSecao>
+        ) : (
+          p.origem_fio_b && (
+            <BadgeSecao tone="gray" className="ml-1">
+              {p.origem_fio_b === 'fatura' ? 'Valor da fatura' : 'Estimativa'}
+            </BadgeSecao>
+          )
         )}
       </td>
       <td className={linhaCelula + ' text-right text-sm text-gray-600'}>
@@ -77,7 +83,9 @@ const LinhaParcelaRow: React.FC<{ p: DemonstrativoResultado['itens'][number] }> 
 export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoResultado }> = ({ demo }) => {
   const totalAbatimentos = num(demo.abatimentos)
   const totalFaturado = num(demo.total_faturado)
-  const totalPagar = num(demo.total_a_pagar_calculado)
+  // Fonte da verdade = total impresso da fatura (headline); soma recalculada = detalhe.
+  const totalPagar = num(demo.total_a_pagar_exibido)
+  const totalPagarCalculado = num(demo.total_a_pagar_calculado)
   const divergencia = num(demo.divergencia_rs)
   return (
     <CardSecao
@@ -139,12 +147,23 @@ export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoResultado }> = ({
               <tr>
                 <td colSpan={3} className="px-3 py-1.5 text-right">
                   <span className="text-[10px] text-gray-400">
-                    Divergência de {formatarMoeda(divergencia)} vs. fatura (
-                    {formatarMoeda(num(demo.total_a_pagar_fatura))})
+                    Detalhe das parcelas difere em {formatarMoeda(divergencia)} do total impresso
+                    pela fatura
                   </span>
                 </td>
               </tr>
             )}
+            {Math.abs(totalPagarCalculado - totalPagar) <= 0.5 &&
+              totalAbatimentos > 0 &&
+              totalPagarCalculado !== totalPagar && (
+                <tr>
+                  <td colSpan={3} className="px-3 py-1.5 text-right">
+                    <span className="text-[10px] text-gray-400">
+                      Soma das parcelas: {formatarMoeda(totalPagarCalculado)}
+                    </span>
+                  </td>
+                </tr>
+              )}
           </tfoot>
         </table>
       </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Sparkles, AlertTriangle, Send, Copy, Check } from 'lucide-react'
+// Seções "Alertas da Análise" e "Conclusões" removidas do relatório público (decisão do usuário).
 import {
   obterRelatorioFaturaPorToken,
   type AnaliseFaturaRegistro,
@@ -8,17 +9,12 @@ import {
 import { ModalEnviarAnaliseWhatsApp } from '@/components/ModalEnviarAnaliseWhatsApp'
 import { useToast } from '@/hooks/use-toast'
 import { safeObj, safeArr, num, safeStr } from './relatorio-fatura/safeGuards'
-import { construirDemonstrativo } from './relatorio-fatura/demonstrativo'
+import { construirDemonstrativo, calcularEconomiaCiclo } from './relatorio-fatura/demonstrativo'
 import { CardSecao } from './relatorio-fatura/CardSecao'
 import { SecaoKpis } from './relatorio-fatura/SecaoKpis'
 import { SecaoDemonstrativo } from './relatorio-fatura/SecaoDemonstrativo'
 import { SecaoMedicaoGd } from './relatorio-fatura/SecaoMedicaoGd'
-import {
-  CabecalhoRelatorio,
-  SecaoAlertas,
-  SecaoHistoricoConsumo,
-  SecaoConclusoes,
-} from './relatorio-fatura/SecoesGerais'
+import { CabecalhoRelatorio, SecaoHistoricoConsumo } from './relatorio-fatura/SecoesGerais'
 import type { GdCalculada, ConsumoHistoricoItem } from './relatorio-fatura/tipos'
 
 export const RelatorioFaturaPage: React.FC = () => {
@@ -102,12 +98,31 @@ export const RelatorioFaturaPage: React.FC = () => {
   const periodo = safeObj(dados.periodo)
   const medicao = safeObj(dados.medicao_e_creditos)
   const papelGd = safeObj(dados.papel_gd)
-  const indicadores = safeObj(dados.indicadores)
+  const indicadores = useMemo(
+    () => ({
+      ...safeObj(dados.indicadores),
+      // injetada já vem do gd (só > 0 quando a fatura realmente injeta)
+    }),
+    [dados],
+  )
   const demo = useMemo(() => construirDemonstrativo(dados.itens_faturados, dados), [dados])
+  // Economia do Ciclo determinística (item 5) — injetada só entra quando é real.
+  const economiaCiclo = useMemo(() => calcularEconomiaCiclo(dados), [dados])
 
   const gd = useMemo<GdCalculada>(() => {
-    const injetada =
-      num(medicao.energia_injetada_geracao?.kwh_injetados_mes) || num(dados.energia_injetada_kwh)
+    const injetadaObj = safeObj(medicao.energia_injetada_geracao)
+    const kwhInjetadosMes = num(injetadaObj.kwh_injetados_mes)
+    // Energia injetada só conta quando a fatura realmente injeta (> 0 kWh).
+    // Faturas que apenas consomem créditos: sem injeção — nem linha, nem badge.
+    let injetada = 0
+    if (kwhInjetadosMes > 0) {
+      injetada = kwhInjetadosMes
+    } else if (injetadaObj.leitura_anterior != null && injetadaObj.leitura_atual != null) {
+      const calcInj =
+        (num(injetadaObj.leitura_atual) - num(injetadaObj.leitura_anterior)) *
+        (num(injetadaObj.multiplicador) || 1)
+      if (calcInj > 0) injetada = calcInj
+    }
     const compensadosMesAtual = num(medicao.creditos?.creditos_compensados_mes_atual_kwh)
     const saldoAtualInstalacao = num(safeObj(medicao.saldo_energia).saldo_atual_instalacao_kwh)
     const participacao = num(papelGd.participacao_geracao_percentual)
@@ -147,14 +162,7 @@ export const RelatorioFaturaPage: React.FC = () => {
   const mediaConsumo = historico.length
     ? historico.reduce((acc, h) => acc + h.consumo_kwh, 0) / historico.length
     : 0
-  const alertas = useMemo(() => safeArr(dados.alertas).map((a) => safeObj(a)), [dados])
-  const conclusoes = useMemo(
-    () =>
-      safeArr(dados.conclusoes_recomendacoes)
-        .map((c) => safeStr(c))
-        .filter(Boolean),
-    [dados],
-  )
+  // Alertas/Conclusões não são mais exibidos no relatório público.
 
   const copiarLink = async () => {
     try {
@@ -235,7 +243,13 @@ export const RelatorioFaturaPage: React.FC = () => {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-5 pb-16">
-        <SecaoKpis medicao={medicao} gd={gd} indicadores={indicadores} />
+        <SecaoKpis
+          medicao={medicao}
+          gd={gd}
+          indicadores={indicadores}
+          dados={dados}
+          economiaCalculada={economiaCiclo}
+        />
         <CabecalhoRelatorio
           cad={cad}
           periodo={periodo}
@@ -250,8 +264,6 @@ export const RelatorioFaturaPage: React.FC = () => {
           maior={maiorConsumo}
           menor={menorConsumo}
         />
-        <SecaoAlertas alertas={alertas} />
-        <SecaoConclusoes conclusoes={conclusoes} indicadores={indicadores} />
       </main>
 
       <ModalEnviarAnaliseWhatsApp

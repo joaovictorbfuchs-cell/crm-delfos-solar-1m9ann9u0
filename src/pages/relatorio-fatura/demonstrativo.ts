@@ -1,15 +1,18 @@
 /**
  * Demonstrativo do Ciclo — cálculos centralizados (fonte única).
- * Regras da última orientação (v0.0.1698):
- * - Fio B SEMPRE visível: usa item fio_b da fatura se existir; senão linha sintética
- *   a partir do bloco calculado dados.fio_b (origem 'fatura' | 'estimativa').
+ * Regras v0.0.1701:
+ * - FONTE DA VERDADE = totais impressos da fatura (totais.total_a_pagar_rs):
+ *   o headline "Total a pagar" é o valor IMPRESSO, não a soma recalculada das
+ *   linhas. A soma das linhas é apenas detalhe — se diferir > R$ 0,50 do
+ *   impresso, o impresso segue em destaque e a UI mostra a nota discreta
+ *   "Detalhe das parcelas difere em R$ X".
+ * - Fio B SEM dupla contagem: linha sintética com origem='estimativa' é exibida
+ *   (badge "Estimativa (já incluso no total da fatura)") mas NÃO entra na soma
+ *   dos totais; item Fio B impresso na fatura (origem='fatura') soma normal.
  * - isItemAtipica: apenas juros/multa/atualização monetária são atípicos;
  *   ip/cip/iluminação são padrão comum (NÃO atípicos).
- * - Tributos do rodapé = soma de icms/pis/cofins dos itens exibidos (fonte única);
+ * - Tributos do rodapé = soma de icms/pis/cofins dos itens exibidos;
  *   imposto de item de crédito (valor negativo) conta como 0.
- * - Total faturado = soma das parcelas positivas exibidas; abatimentos em verde;
- *   Total a pagar = total faturado − abatimentos; divergência > R$ 0,50 vs.
- *   total_a_pagar_rs da fatura mostra nota discreta.
  */
 import { num } from './safeGuards'
 
@@ -44,6 +47,8 @@ export interface DemonstrativoItem {
   atipico: boolean
   fio_b: boolean
   origem_fio_b?: 'fatura' | 'estimativa'
+  /** Estimativa já inclusa no total impresso — NÃO somar aos totais recalculados. */
+  estimativa_ja_inclusa?: boolean
 }
 
 export interface DemonstrativoResultado {
@@ -53,6 +58,8 @@ export interface DemonstrativoResultado {
   abatimentos: number
   total_a_pagar_calculado: number
   total_a_pagar_fatura: number
+  /** Headline: valor impresso da fatura; fallback = soma recalculada. */
+  total_a_pagar_exibido: number
   divergencia: number
   divergencia_rs: number
   tributos_icms: number
@@ -99,9 +106,9 @@ const COMUNS = [
 ]
 
 /**
- * Classifica um item como atípico. Regra da última orientação:
- * só juros/multa/atualização monetária (e similares de mora) são atípicos.
- * IP/CIP/iluminação são padrão comum. O fallback final NÃO marca atípico.
+ * Classifica um item como atípico: só juros/multa/atualização monetária (e
+ * similares de mora) são atípicos. IP/CIP/iluminação são padrão comum.
+ * O fallback final NÃO marca atípico.
  */
 export function isItemAtipica(item: ItemFaturado | string): boolean {
   const nome = typeof item === 'string' ? item : String(item?.item || '')
@@ -136,7 +143,7 @@ const normaFioB = (nome: string) => nome.toLowerCase().replace(/\s+/g, ' ').trim
 
 /**
  * Constrói as linhas do Demonstrativo do Ciclo com TODAS as regras:
- * Fio B sempre visível, totais e tributos reconciliados.
+ * Fio B sempre visível (estimativa fora dos totais), total impresso em destaque.
  */
 export function construirDemonstrativo(
   itensFaturados: unknown,
@@ -151,7 +158,6 @@ export function construirDemonstrativo(
 
   const itens: DemonstrativoItem[] = []
   let temItemFioB = false
-  const nomesFioBFatura: string[] = []
 
   for (const raw of itensArr) {
     if (!raw || typeof raw !== 'object') continue
@@ -159,10 +165,7 @@ export function construirDemonstrativo(
     if (!nome) continue
     const valor = num(raw.valor_total_rs)
     const fioBItem = isItemFioB(raw)
-    if (fioBItem) {
-      temItemFioB = true
-      nomesFioBFatura.push(normaFioB(nome))
-    }
+    if (fioBItem) temItemFioB = true
     itens.push({
       nome,
       kwh: raw.quantidade_kwh != null && raw.quantidade_kwh !== '' ? num(raw.quantidade_kwh) : null,
@@ -179,10 +182,11 @@ export function construirDemonstrativo(
       atipico: isItemAtipica(raw),
       fio_b: fioBItem,
       origem_fio_b: fioBItem ? 'fatura' : undefined,
+      estimativa_ja_inclusa: false,
     })
   }
 
-  // --- Fio B SEMPRE visível ---
+  // --- Fio B SEMPRE visível, SEM dupla contagem ---
   let fioBLinha: DemonstrativoItem | null = null
   if (fioBCalc && typeof fioBCalc === 'object') {
     const fioBValorCalc = num(fioBCalc.fio_b_rs)
@@ -194,7 +198,11 @@ export function construirDemonstrativo(
         if (alvo && alvo.valor === 0) alvo.valor = fioBValorCalc
       }
     } else if (fioBValorCalc > 0 || num(fioBCalc.kwh_compensados) > 0) {
-      // Linha sintética a partir do bloco calculado
+      // Linha sintética a partir do bloco calculado.
+      // origem='estimativa': o total impresso da fatura JÁ inclui esse custo
+      // (componente Fio B da TUSD conforme Lei 14.300) — a linha é exibida
+      // apenas como detalhe e NÃO é somada aos totais recalculados.
+      const origem = fioBCalc.origem === 'fatura' ? 'fatura' : ('estimativa' as const)
       fioBLinha = {
         nome: 'Fio B — Uso do Sistema de Distribuição (energia compensada)',
         kwh: num(fioBCalc.kwh_compensados),
@@ -208,20 +216,19 @@ export function construirDemonstrativo(
         cofins: 0,
         atipico: false,
         fio_b: true,
-        origem_fio_b:
-          fioBCalc.origem === 'fatura'
-            ? 'fatura'
-            : fioBCalc.origem === 'estimativa'
-              ? 'estimativa'
-              : 'estimativa',
+        origem_fio_b: origem,
+        estimativa_ja_inclusa: origem === 'estimativa',
       }
       itens.push(fioBLinha)
     }
   }
 
-  // --- Totais reconciliados (fonte única: itens exibidos) ---
-  const totalFaturado = itens.filter((it) => it.valor > 0).reduce((acc, it) => acc + it.valor, 0)
-  const abatimentos = itens
+  // --- Totais: itens que entram na soma (estimativa Fio B fica de fora) ---
+  const itensSomaveis = itens.filter((it) => !it.estimativa_ja_inclusa)
+  const totalFaturado = itensSomaveis
+    .filter((it) => it.valor > 0)
+    .reduce((acc, it) => acc + it.valor, 0)
+  const abatimentos = itensSomaveis
     .filter((it) => it.valor < 0)
     .reduce((acc, it) => acc + Math.abs(it.valor), 0)
   const totalAPagarCalculado = Math.round((totalFaturado - abatimentos) * 100) / 100
@@ -229,6 +236,9 @@ export function construirDemonstrativo(
   const totalAPagarFatura = num(dadosCompletos?.totais?.total_a_pagar_rs)
   const divergencia = Math.round((totalAPagarCalculado - totalAPagarFatura) * 100) / 100
   const divergenciaRs = Math.abs(divergencia) > 0.5 ? divergencia : 0
+
+  // Headline = valor impresso da fatura (fonte da verdade); fallback = soma.
+  const totalAPagarExibido = totalAPagarFatura > 0 ? totalAPagarFatura : totalAPagarCalculado
 
   // --- Tributos do rodapé = soma dos itens exibidos (fonte única) ---
   const tributosIcms = itens.reduce((acc, it) => acc + it.icms, 0)
@@ -242,6 +252,7 @@ export function construirDemonstrativo(
     abatimentos: Math.round(abatimentos * 100) / 100,
     total_a_pagar_calculado: totalAPagarCalculado,
     total_a_pagar_fatura: totalAPagarFatura,
+    total_a_pagar_exibido: Math.round(totalAPagarExibido * 100) / 100,
     divergencia: totalAPagarFatura > 0 ? divergenciaRs : 0,
     divergencia_rs: totalAPagarFatura > 0 ? Math.abs(divergenciaRs) : 0,
     tributos_icms: Math.round(tributosIcms * 100) / 100,
@@ -249,4 +260,22 @@ export function construirDemonstrativo(
     tributos_cofins: Math.round(tributosCofins * 100) / 100,
     tributos_total: Math.round((tributosIcms + tributosPis + tributosCofins) * 100) / 100,
   }
+}
+
+/**
+ * Economia do Ciclo determinística (sem dupla contagem):
+ * consumo medido × tarifa cheia efetiva − total a pagar impresso da fatura.
+ * A tarifa cheia já contém a parcela Fio B/TUSD e o total a pagar já desconta
+ * os créditos de energia compensada — não há dupla contagem. Só usa o valor
+ * da IA quando o cálculo determinístico não é possível.
+ */
+export function calcularEconomiaCiclo(dados: Record<string, any> | null | undefined): number {
+  const consumo = num(dados?.medicao_e_creditos?.energia_ativa_consumida?.consumo_mes_kwh)
+  const tarifaCheia = num(dados?.indicadores?.tarifa_cheia_efetiva_rs_kwh)
+  const totalPagar = num(dados?.totais?.total_a_pagar_rs)
+  if (consumo > 0 && tarifaCheia > 0 && totalPagar > 0) {
+    const calc = Math.round((consumo * tarifaCheia - totalPagar) * 100) / 100
+    if (calc > 0) return calc
+  }
+  return num(dados?.indicadores?.economia_estimada_mes_rs)
 }

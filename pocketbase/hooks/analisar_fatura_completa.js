@@ -233,11 +233,14 @@ FORMATO JSON ESPERADO:
       // Coletar base64 e textos de todos os arquivos
       const parts = []
       let userText = `Analisando fatura(s) para o cliente "${clienteNome}". Quantidade de arquivos: ${arquivos.length}.\n\n`
+      // Texto do PDF (pdfjs no front) — usado pelo fallback regex determinístico.
+      let textoPdfConcatenado = ''
 
       for (let i = 0; i < arquivos.length; i++) {
         const arq = arquivos[i]
         userText += `Arquivo [${i + 1}/${arquivos.length}]: ${arq.file_name} (${arq.mime_type})\n`
         if (arq.text_content) {
+          textoPdfConcatenado += '\n' + String(arq.text_content)
           userText += `Texto extraído:\n"""\n${arq.text_content.substring(0, 50000)}\n"""\n\n`
         }
         if (arq.file_base64) {
@@ -367,6 +370,86 @@ FORMATO JSON ESPERADO:
         }
       }
 
+      // --- VALIDAÇÃO DETERMINÍSTICA + FALLBACK REGEX (pdfjs) ---
+      // Se a extração IA falhou em campo crítico (total a pagar, vencimento,
+      // competência), extrai por regex do texto do PDF antes de aceitar valor
+      // divergente. Marca flag de consistência da soma dos itens vs impresso.
+      function extrairFallbackRegex(texto, parsedAtual) {
+        if (!texto || typeof texto !== 'string') return parsedAtual
+        const alvo = parsedAtual || {}
+        if (!alvo.totais) alvo.totais = {}
+        if (!alvo.periodo) alvo.periodo = {}
+
+        // Total a pagar — padrões comuns de fatura RGE/DANFE.
+        // Se o PDF imprime o total, ele SOBRESCREVE valor IA divergente:
+        // o impresso é a fonte da verdade (regra v0.0.1701).
+        const mTotal =
+          texto.match(/total\s*a\s*pagar[^0-9R$]{0,40}R?\$\s*([\d.]+,\d{2})/i) ||
+          texto.match(/total\s*a\s*pagar[^0-9]{0,40}([\d.]+,\d{2})/i)
+        if (mTotal) {
+          const totalPdf = safeParseFloat(mTotal[1], 0)
+          if (totalPdf > 0) {
+            const totalIa = safeParseFloat(alvo.totais.total_a_pagar_rs, 0)
+            if (!(totalIa > 0)) {
+              alvo.totais.total_a_pagar_rs = totalPdf
+            } else if (Math.abs(totalPdf - totalIa) > 0.5) {
+              console.log(
+                `[ANALISE COMPLETA] total_a_pagar IA (${totalIa}) diverge do PDF (${totalPdf}) — usando o impresso`,
+              )
+              alvo.totais.total_a_pagar_rs = totalPdf
+            }
+          }
+        }
+        // Vencimento
+        if (!alvo.periodo.vencimento) {
+          const mVenc =
+            texto.match(/vencimento[^0-9]{0,20}(\d{2}\/\d{2}\/\d{4})/i) ||
+            texto.match(/data\s+de\s+vencimento[^0-9]{0,20}(\d{2}\/\d{2}\/\d{4})/i)
+          if (mVenc) alvo.periodo.vencimento = mVenc[1]
+        }
+        // Competência (mês/ano de referência)
+        if (!alvo.periodo.mes_referencia) {
+          const mRef = texto.match(/referent[^a-zA-Z]{0,20}([A-Z]{3}\/\d{4})/i)
+          if (mRef) alvo.periodo.mes_referencia = mRef[1].toUpperCase()
+        }
+        return alvo
+      }
+
+      // O fallback regex roda sobre o TEXTO DO PDF (pdfjs no front), NÃO sobre a
+      // resposta da IA — a resposta da IA é justamente a fonte suspeita.
+      parsed = extrairFallbackRegex(textoPdfConcatenado || rawText, parsed)
+      if (parsed && typeof parsed === 'object' && !parsed.totais) parsed.totais = {}
+      if (parsed && typeof parsed === 'object' && !parsed.periodo) parsed.periodo = {}
+
+      // Flag de consistência: soma dos itens vs total impresso (após fallback).
+      // A soma EXCLUI itens Fio B — em faturas onde o total impresso já embute
+      // o Fio B da TUSD, incluir a linha Fio B contaria o custo em dobro.
+      let consistenciaTotais = null
+      if (parsed && typeof parsed === 'object' && parsed.totais) {
+        const totalImpresso = safeParseFloat(parsed.totais.total_a_pagar_rs, 0)
+        const itensArr = Array.isArray(parsed.itens_faturados) ? parsed.itens_faturados : []
+        let somaItens = 0
+        for (const it of itensArr) {
+          if (!it || typeof it !== 'object') continue
+          if (it.fio_b === true || /fio\s*b/i.test(String(it.item || ''))) continue
+          somaItens += safeParseFloat(it.valor_total_rs, 0)
+        }
+        somaItens = Math.round(somaItens * 100) / 100
+        parsed.totais.soma_itens_rs = somaItens
+        if (totalImpresso > 0) {
+          const diff = Math.round((somaItens - totalImpresso) * 100) / 100
+          // consistente se soma == impresso, ou se a diferença corresponde a
+          // abatimentos não mapeados — qualquer diferença > 0,50 é sinalizada
+          parsed.totais.consistencia_itens_vs_impresso = {
+            soma_itens_rs: somaItens,
+            total_impresso_rs: totalImpresso,
+            diferenca_rs: diff,
+            consistente: Math.abs(diff) <= 0.5,
+          }
+          consistenciaTotais = parsed.totais.consistencia_itens_vs_impresso
+        }
+      }
+
       if (!parsed) {
         return e.json(200, {
           ok: false,
@@ -374,7 +457,6 @@ FORMATO JSON ESPERADO:
           raw_text: rawText,
         })
       }
-
       if (parsed.e_fatura_rge === false) {
         return e.json(200, {
           ok: false,
@@ -589,10 +671,27 @@ FORMATO JSON ESPERADO:
               parsed.medicao_e_creditos?.saldo_energia?.saldo_a_expirar_proximo_mes_kwh,
               0,
             )
-      const economiaRs =
-        typeof parsed.indicadores?.economia_estimada_mes_rs === 'number'
-          ? parsed.indicadores.economia_estimada_mes_rs
-          : safeParseFloat(parsed.indicadores?.economia_estimada_mes_rs, 0)
+      // Economia do Ciclo determinística (item 5): consumo × tarifa cheia
+      // efetiva − total a pagar impresso. Sem dupla contagem com créditos/Fio B:
+      // a tarifa cheia já embute TUSD/Fio B e o total impresso já desconta os
+      // créditos compensados. Valor IA só entra quando o cálculo não fecha.
+      const economiaCalc =
+        consumoKwh > 0 &&
+        safeParseFloat(parsed.indicadores?.tarifa_cheia_efetiva_rs_kwh, 0) > 0 &&
+        totalPagar > 0
+          ? Math.round(
+              (consumoKwh * safeParseFloat(parsed.indicadores.tarifa_cheia_efetiva_rs_kwh, 0) -
+                totalPagar) *
+                100,
+            ) / 100
+          : 0
+      const economiaIa = safeParseFloat(parsed.indicadores?.economia_estimada_mes_rs, 0)
+      const economiaRs = economiaCalc > 0 ? economiaCalc : economiaIa
+      if (!parsed.indicadores) parsed.indicadores = {}
+      parsed.indicadores.economia_estimada_mes_rs = economiaRs
+      if (economiaCalc > 0) {
+        parsed.indicadores.economia_origem_calculo = 'deterministica'
+      }
 
       const ucFatura =
         parsed.dados_cadastrais_fatura?.uc || clienteUcCadastrada || 'não informado na fatura'
