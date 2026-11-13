@@ -1,90 +1,90 @@
+// ⚠️ ARQUIVO CRÍTICO — exports canônicos de erros do PocketBase (Delfos Solar)
+// REGRA PERMANENTE: `isAuthSessionError`, `isAbortError`, `formatPbError`,
+// `extractFieldErrors` e `getErrorMessage` DEVEM permanecer exportados daqui.
+// Módulos como AtividadesCalendario, CalendarioExecucaoOS, FichaExecucaoOS,
+// ModalMensagemWhatsAppMassa e RelatorioOSConteudo importam daqui — se um destes
+// exports sumir, o chunk quebra em runtime e a rota cai em ErrorBoundary.
 import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
 /**
- * isAuthSessionError — trava permanente de export (v0.0.1682+).
- * Detecta sessão expirada/inválida: status 401/403 (direto, aninhado em response
- * ou statusCode legado) ou mensagens conhecidas de token expirado.
- * NUNCA remover deste arquivo: o barrel index.ts, client.ts e as salvaguardas
- * raiz (lib/client, lib/errors, services/errors) reexportam desta implementação.
+ * Detecta erro de sessão de autenticação (token expirado/inválido ou permissão negada).
+ * Cobertura: status 401/403 direto ou dentro de response/statusCode, e textos clássicos
+ * de token expirado ("Token is expired or invalid", "Sessão expirada", "Login expirou",
+ * "Failed to authenticate").
  */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
 
-  // ClientResponseError (objeto ou instância) — status direto
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
+  // PocketBase ClientResponseError e similares: status numérico
+  const status =
+    typeof (error as { status?: unknown }).status === 'number'
+      ? (error as { status: number }).status
+      : typeof (error as { response?: { status?: unknown } }).response?.status === 'number'
+        ? (error as { response: { status: number } }).response.status
+        : typeof (error as { statusCode?: unknown }).statusCode === 'number'
+          ? (error as { statusCode: number }).statusCode
+          : undefined
 
-  const candidate = error as {
-    status?: unknown
-    statusCode?: unknown
-    response?: { status?: unknown }
-    message?: unknown
-  }
+  if (status === 401 || status === 403) return true
 
-  // Status direto, statusCode legado ou aninhado em response
-  if (candidate.status === 401 || candidate.status === 403) return true
-  if (candidate.statusCode === 401 || candidate.statusCode === 403) return true
-  if (candidate.response?.status === 401 || candidate.response?.status === 403) return true
+  // Textos clássicos de token/sessão expirada
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof (error as { message?: unknown }).message === 'string'
+        ? (error as { message: string }).message
+        : ''
 
-  // Mensagens conhecidas de token/sessão expirada (pt-BR e en)
-  if (typeof candidate.message === 'string') {
-    const msg = candidate.message.toLowerCase()
-    const tokensExpirados = [
-      'token is expired',
-      'token expired',
-      'failed to authenticate',
-      'the request requires valid',
-      'sessão expirada',
-      'sessao expirada',
-      'login expirou',
-      'não autenticado',
-      'nao autenticado',
-      'não autorizado',
-      'nao autorizado',
-    ]
-    if (tokensExpirados.some((t) => msg.includes(t))) return true
-  }
-
-  return false
+  const tokenPhrases = [
+    'token is expired',
+    'token is invalid',
+    'token expirado',
+    'token inválido',
+    'sessão expirada',
+    'sessao expirada',
+    'login expirou',
+    'failed to authenticate',
+    'authentication is required',
+  ]
+  const lower = message.toLowerCase()
+  return tokenPhrases.some((p) => lower.includes(p))
 }
 
-/**
- * isAbortError — detecta erros de requisição abortada (auto-cancellation, timeouts).
- */
+/** Detecta erro de requisição abortada (auto-cancellation do SDK). */
 export function isAbortError(error: unknown): boolean {
-  if (!error) return false
-  const candidate = error as { isAbort?: unknown; name?: unknown; message?: unknown }
-  if (candidate.isAbort === true) return true
-  if (candidate.name === 'AbortError') return true
-  if (
-    typeof candidate.message === 'string' &&
-    candidate.message.toLowerCase().includes('request was aborted')
-  ) {
-    return true
-  }
-  return false
+  if (!error || typeof error !== 'object') return false
+  if ((error as { isAbort?: unknown }).isAbort === true) return true
+  return (error as { name?: unknown }).name === 'AbortError'
 }
 
 /**
- * formatPbError — formata um erro PocketBase em mensagem legível para o usuário.
+ * Normaliza qualquer erro em uma mensagem amigável em português, pronta para exibição.
+ * Prioriza mensagens de campo validados, depois a mensagem do próprio erro.
  */
 export function formatPbError(error: unknown): string {
-  if (isAbortError(error)) {
-    return 'A requisição foi cancelada. Tente novamente.'
-  }
-  if (isAuthSessionError(error)) {
-    return 'Sua sessão expirou. Faça login novamente.'
-  }
+  if (!error) return 'Ocorreu um erro inesperado.'
+
+  // PocketBase ClientResponseError com campos validados
   if (error instanceof ClientResponseError) {
-    const msgs = Object.values(extractFieldErrors(error))
-    if (msgs.length > 0) return msgs.join(' ')
-    if (error.response?.message) return error.response.message
+    const fieldMsgs = Object.values(extractFieldErrors(error))
+    if (fieldMsgs.length > 0) return fieldMsgs.join(' ')
+    return error.message || 'Ocorreu um erro inesperado.'
   }
-  if (error instanceof Error && error.message) return error.message
-  return 'Ocorreu um erro inesperado. Tente novamente.'
+
+  if (isAbortError(error)) return 'Requisição cancelada. Tente novamente.'
+
+  if (isAuthSessionError(error)) return 'Sua sessão expirou. Faça login novamente.'
+
+  if (error instanceof Error) return error.message
+
+  if (typeof error === 'object' && 'message' in (error as Record<string, unknown>)) {
+    const msg = (error as { message?: unknown }).message
+    if (typeof msg === 'string' && msg) return msg
+  }
+
+  return 'Ocorreu um erro inesperado.'
 }
 
 export function extractFieldErrors(error: unknown): FieldErrors {

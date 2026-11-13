@@ -1,0 +1,158 @@
+import React from 'react'
+import { AlertTriangle, CalendarClock, ShieldAlert, TrendingUp, User } from 'lucide-react'
+import { CardSecao, BadgeSecao, formatarMoeda, LabelCampo } from './CardSecao'
+import { num, safeStr } from './safeGuards'
+import type { ConsumoHistoricoItem } from './tipos'
+
+/** Cabeçalho do relatório — dados cadastrais + período consolidados (sem seção de período separada). */
+export const CabecalhoRelatorio: React.FC<{
+  cad: Record<string, any>
+  periodo: Record<string, any>
+  concessionaria: string
+  competencia: string
+}> = ({ cad, periodo, concessionaria, competencia }) => {
+  const campos: Array<[string, string]> = [
+    ['Unidade Consumidora', safeStr(cad.uc) || '—'],
+    ['Titular', safeStr(cad.titular) || '—'],
+    ['Concessionária', concessionaria || '—'],
+    ['Competência', competencia || safeStr(periodo.mes_referencia) || '—'],
+    ['Emissão', safeStr(periodo.data_emissao) || '—'],
+    ['Vencimento', safeStr(periodo.vencimento) || '—'],
+    ['Endereço', safeStr(cad.endereco) || '—'],
+    ['Cidade/UF', safeStr(cad.cidade) || '—'],
+  ]
+  return (
+    <CardSecao
+      title="Dados da Fatura"
+      icon={<User className="h-4 w-4 text-gray-400" />}
+      right={<BadgeSecao tone="sky">{safeStr(cad.tipo_fornecimento) || 'Fornecimento'}</BadgeSecao>}
+    >
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+        {campos.map(([rotulo, valor]) => (
+          <div key={rotulo}>
+            <LabelCampo>{rotulo}</LabelCampo>
+            <span className="text-sm font-semibold text-gray-900">{valor}</span>
+          </div>
+        ))}
+      </div>
+    </CardSecao>
+  )
+}
+
+/** Alertas da análise — bandeira vira linha no quadro, card isolado removido. */
+export const SecaoAlertas: React.FC<{ alertas: Record<string, any>[] }> = ({ alertas }) => {
+  if (!alertas.length) return null
+  return (
+    <CardSecao
+      title="Alertas da Análise"
+      icon={<ShieldAlert className="h-4 w-4 text-amber-500" />}
+      bodyClassName="space-y-2"
+    >
+      {alertas.map((a, i) => {
+        const nivel = safeStr(a.nivel, 'informativo')
+        const tone =
+          nivel === 'alerta' || nivel === 'atencao' ? ('amber' as const) : ('sky' as const)
+        return (
+          <div
+            key={i}
+            className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/50 p-3"
+          >
+            <AlertTriangle
+              className={
+                'h-4 w-4 shrink-0 mt-0.5 ' + (tone === 'amber' ? 'text-amber-500' : 'text-sky-500')
+              }
+            />
+            <div>
+              <span className="text-sm font-bold text-gray-900">{safeStr(a.titulo, 'Aviso')}</span>
+              <BadgeSecao tone={tone} className="ml-2">
+                {nivel}
+              </BadgeSecao>
+              <p className="text-sm text-gray-600 mt-0.5">{safeStr(a.mensagem)}</p>
+            </div>
+          </div>
+        )
+      })}
+    </CardSecao>
+  )
+}
+
+/** Histórico de consumo — gráfico de barras com max/min marcados. */
+export const SecaoHistoricoConsumo: React.FC<{
+  historico: ConsumoHistoricoItem[]
+  media: number
+  maior: ConsumoHistoricoItem | null
+  menor: ConsumoHistoricoItem | null
+}> = ({ historico, media, maior, menor }) => {
+  if (!historico.length) return null
+  const max = Math.max(...historico.map((x) => x.consumo_kwh)) || 1
+  return (
+    <CardSecao
+      title="Histórico de Consumo"
+      icon={<TrendingUp className="h-4 w-4 text-gray-400" />}
+      right={<BadgeSecao tone="slate">média {media.toLocaleString('pt-BR')} kWh</BadgeSecao>}
+    >
+      <div className="flex items-end gap-2 h-40">
+        {historico.map((h, i) => {
+          const pct = Math.max(4, (h.consumo_kwh / max) * 100)
+          const isMax = maior?.mes === h.mes
+          const isMin = menor?.mes === h.mes
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+              <span className="text-[10px] font-bold text-gray-600">
+                {h.consumo_kwh.toLocaleString('pt-BR')}
+              </span>
+              <div
+                className={
+                  'w-full rounded-t-md transition-colors ' +
+                  (isMax ? 'bg-amber-400' : isMin ? 'bg-sky-300' : 'bg-emerald-400')
+                }
+                style={{ height: `${pct}%` }}
+              />
+              <span className="text-[10px] text-gray-500 whitespace-nowrap">{h.mes}</span>
+            </div>
+          )
+        })}
+      </div>
+      {historico.some((h) => h.dias_ciclo) && (
+        <p className="text-[11px] text-gray-400 mt-2 flex items-center gap-1">
+          <CalendarClock className="h-3 w-3" />
+          Barra âmbar = maior consumo · barra azul = menor consumo.
+        </p>
+      )}
+    </CardSecao>
+  )
+}
+
+/** Conclusões e recomendações da análise. */
+export const SecaoConclusoes: React.FC<{
+  conclusoes: string[]
+  indicadores: Record<string, any>
+}> = ({ conclusoes, indicadores }) => {
+  const economiaAnual = num(indicadores?.economia_acumulada_estimada_anual_rs)
+  return (
+    <CardSecao
+      title="Conclusões e Recomendações"
+      icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}
+      bodyClassName="space-y-3"
+    >
+      {economiaAnual > 0 && (
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold text-emerald-900">
+            Economia acumulada estimada em 12 meses
+          </span>
+          <span className="text-lg font-extrabold text-emerald-700">
+            {formatarMoeda(economiaAnual)}
+          </span>
+        </div>
+      )}
+      <ul className="space-y-2">
+        {conclusoes.map((c, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm text-gray-700 leading-relaxed">
+            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+            {c}
+          </li>
+        ))}
+      </ul>
+    </CardSecao>
+  )
+}

@@ -1,6 +1,9 @@
+// ⚠️ ARQUIVO CRÍTICO — instância canônica do PocketBase (Delfos Solar)
+// REGRA PERMANENTE: client.ts deve SEMPRE exportar `pb` tanto como default
+// quanto como named, e reexportar `isAuthSessionError` de './errors'.
+// Se esses exports sumirem, o barrel index.ts (que importa `{ pb }` daqui)
+// quebra em runtime e várias rotas caem em ErrorBoundary.
 import PocketBase from 'pocketbase'
-// isAuthSessionError reexportado como trava permanente (guard test exige identidade
-// de referência com a implementação canônica em ./errors)
 import { isAuthSessionError } from './errors'
 
 const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
