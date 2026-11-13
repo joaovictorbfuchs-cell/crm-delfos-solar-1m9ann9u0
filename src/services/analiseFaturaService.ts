@@ -313,15 +313,15 @@ export async function obterRelatorioFaturaPorToken(token: string): Promise<Anali
     throw new Error(errMsg)
   }
 
-  const json = (await res.json()) as AnaliseFaturaRegistro
+  const json = (await res.json()) as unknown as AnaliseFaturaRegistro
 
   // Blindagem: dados_completos pode vir como string JSON dependendo do endpoint
-  const brutos = (json as Record<string, unknown>)?.dados_completos
+  const brutos = (json as unknown as Record<string, unknown>)?.dados_completos
   if (typeof brutos === 'string') {
     try {
-      ;(json as Record<string, unknown>).dados_completos = JSON.parse(brutos)
+      ;(json as unknown as Record<string, unknown>).dados_completos = JSON.parse(brutos)
     } catch {
-      ;(json as Record<string, unknown>).dados_completos = null
+      ;(json as unknown as Record<string, unknown>).dados_completos = null
     }
   }
 

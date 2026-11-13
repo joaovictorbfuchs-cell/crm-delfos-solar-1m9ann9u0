@@ -162,16 +162,22 @@ export const RelatorioFaturaPage: React.FC = () => {
   const fioB = safeObj(dados?.fio_b)
   const alertas = useMemo(() => {
     const rawAlertas = safeArr(dados?.alertas)
-    return rawAlertas.filter((alerta) => {
-      const tituloNormalizado = (alerta.titulo || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-      if (tituloNormalizado.includes('divergencia')) return false
-      if (tituloNormalizado.includes('saldo acumulado')) return false
-      return true
-    })
+    // Tolerar itens null/não-objeto: a IA pode devolver lixo no array de alertas
+    return rawAlertas
+      .filter((alerta): alerta is Record<string, any> => !!alerta && typeof alerta === 'object')
+      .filter((alerta) => {
+        const tituloNormalizado = String(alerta.titulo || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+        if (tituloNormalizado.includes('divergencia')) return false
+        if (tituloNormalizado.includes('saldo acumulado')) return false
+        return true
+      })
   }, [dados?.alertas])
+
+  // Seção Fio B só quando houver dados (registros antigos não têm fio_b)
+  const temFioB = Object.keys(fioB).length > 0
 
   // --- 1. LÓGICA DE GD E FLUXO DE CRÉDITOS ---
   const gdCalculada = useMemo(() => {
@@ -922,7 +928,10 @@ export const RelatorioFaturaPage: React.FC = () => {
         </section>
 
         {/* 3.1 Fio B (Lei 14.300/2022) — Uso do Sistema de Distribuição sobre energia injetada */}
-        <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
+        <section
+          className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4"
+          style={{ display: temFioB ? undefined : 'none' }}
+        >
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
