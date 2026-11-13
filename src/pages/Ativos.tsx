@@ -348,7 +348,7 @@ export default function AtivosPage() {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-[#0F2038] tracking-tight">
-                Cadastro de Ativos das Usinas
+                Ativos
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 Organização centralizada de inversores, placas, baterias e equipamentos por usina

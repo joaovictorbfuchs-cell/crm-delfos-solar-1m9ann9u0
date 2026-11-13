@@ -238,7 +238,7 @@ export function Fornecedores() {
           <div className="flex items-center gap-2.5">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
               <Building2 className="w-6 h-6 text-emerald-600" />
-              Fornecedores de Equipamentos Fotovoltaicos
+              Fornecedores
             </h2>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
               {fornecedoresFiltrados.length} cadastrados

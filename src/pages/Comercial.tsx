@@ -289,11 +289,8 @@ export default function Comercial() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
           <div className="flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Erro ao carregar dados do CRM</p>
-              <p className="text-red-700 mt-0.5">{error}</p>
-            </div>
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <p className="font-bold">Erro ao carregar dados do CRM</p>
           </div>
           <button
             type="button"
@@ -314,13 +311,7 @@ export default function Comercial() {
         negociosList.length === 0 &&
         clientesAtivos.length === 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
-            <div>
-              <p className="font-bold">Nenhum negócio ou lead encontrado no Funil Comercial.</p>
-              <p className="text-amber-700">
-                Se você já possui negócios cadastrados, clique no botão para recarregar os dados do
-                sistema.
-              </p>
-            </div>
+            <p className="font-bold">Nenhum negócio ou lead encontrado no Funil Comercial.</p>
             <button
               type="button"
               onClick={handleRefresh}
@@ -349,8 +340,6 @@ export default function Comercial() {
           totalPerdidos={clientesPerdidos.length}
           onNovoNegocio={() => setIsNovoLeadOpen(true)}
           onNovoLead={() => setIsNovoLeadOpen(true)}
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
           filtroResponsavel={filtroResponsavel}
           onFiltroResponsavelChange={(id) => setFiltroResponsavel(id)}
           usuarios={usuarios}
@@ -465,7 +454,7 @@ export default function Comercial() {
                               cor: 'bg-gray-100 text-gray-500 border-gray-200',
                             }
 
-                        const obsExibida = cliente.observacoes_perda || cliente.observacoes || '—'
+                        const obsExibida = cliente.observacoes_perda || '—'
 
                         const dataExibida =
                           cliente.updated || cliente.created

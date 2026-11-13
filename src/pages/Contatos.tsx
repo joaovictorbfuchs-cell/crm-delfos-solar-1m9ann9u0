@@ -15,7 +15,6 @@ import {
   UserCheck,
   User,
   MessageSquare,
-  RotateCcw,
   Sparkles,
   Link as LinkIcon,
   Briefcase,
@@ -138,7 +137,6 @@ export const ContatosView: React.FC = () => {
   const [contatos, setContatos] = useState<ContatoUnico[]>([])
   const [negocios, setNegocios] = useState<Negocio[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('')
@@ -586,9 +584,7 @@ export const ContatosView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                Cadastro Único de Contatos
-              </h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">Contatos</h2>
             </div>
             <p className="text-xs text-gray-500">
               Todos os contatos do CRM reunidos em um único lugar: clientes, leads, fornecedores,
@@ -598,21 +594,6 @@ export const ContatosView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => carregarDados(true)}
-            disabled={isRefreshing}
-            className="text-xs border-gray-200 text-gray-700 hover:bg-gray-50 cursor-pointer"
-            title="Recarregar contatos do banco"
-          >
-            <RotateCcw
-              className={`w-3.5 h-3.5 mr-1 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
-            />
-            Atualizar
-          </Button>
-
           <Button
             type="button"
             size="sm"

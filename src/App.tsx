@@ -404,7 +404,7 @@ const App = () => (
                 path="/integracoes"
                 element={
                   <ProtectedRoute requiredRole="admin">
-                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Central de Integrações">
+                    <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a página de Integrações">
                       <Integracoes />
                     </ErrorBoundary>
                   </ProtectedRoute>

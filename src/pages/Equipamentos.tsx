@@ -385,7 +385,7 @@ export function EquipamentosPage() {
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-              Cadastro de Equipamentos
+              Equipamentos
             </h1>
             <p className="text-xs sm:text-sm text-gray-500">
               Gerencie os inversores e módulos fotovoltaicos que alimentam as propostas comerciais

@@ -236,7 +236,7 @@ export function InstalacoesGaleriaPage() {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                Biblioteca de Instalações Fotovoltaicas
+                Galeria de Instalações
               </h1>
               <p className="text-xs text-gray-500">
                 Fotos de usinas homologadas para inclusão automática na galeria da proposta

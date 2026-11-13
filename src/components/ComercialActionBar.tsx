@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react'
 import {
   Kanban,
   List,
-  History,
   ArchiveX,
   Plus,
   ChevronDown,
@@ -46,8 +45,6 @@ export interface ComercialActionBarProps {
   // Ações de criação
   onNovoNegocio: () => void
   onNovoLead?: () => void
-  onRefresh?: () => void
-  isRefreshing?: boolean
   // Filtro de Responsável
   filtroResponsavel: string
   onFiltroResponsavelChange: (id: string) => void
@@ -67,6 +64,8 @@ export interface ComercialActionBarProps {
   onFiltroSalvoChange?: (filtro: FiltroSalvoRecord | null) => void
 }
 
+// 'onRefresh' e 'isRefreshing' foram removidos da barra: o header global já recarrega.
+// Recarregamento interno por eventos (delfos:negocios-changed / delfos:recarregar-dados) é mantido na página.
 export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
   viewMode,
   onViewModeChange,
@@ -74,8 +73,6 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
   totalPerdidos = 0,
   onNovoNegocio,
   onNovoLead,
-  onRefresh,
-  isRefreshing = false,
   filtroResponsavel,
   onFiltroResponsavelChange,
   usuarios,
@@ -668,16 +665,6 @@ export const ComercialActionBar: React.FC<ComercialActionBarProps> = ({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {onRefresh && (
-                  <DropdownMenuItem
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                    className="cursor-pointer gap-2 text-xs"
-                  >
-                    <History className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    <span>Recarregar dados</span>
-                  </DropdownMenuItem>
-                )}
                 {onLimparNegocios && (
                   <DropdownMenuItem
                     onClick={onLimparNegocios}

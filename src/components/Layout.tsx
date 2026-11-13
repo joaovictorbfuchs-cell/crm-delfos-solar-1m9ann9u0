@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   Users,
   UserCog,
-  FileSpreadsheet,
   Truck,
   Menu,
   X,
@@ -122,15 +121,15 @@ export function Layout({ children }: LayoutProps = {}) {
       case '/central-atendimento':
         return 'Central de Atendimento WhatsApp'
       case '/clientes':
-        return 'Gestão de Clientes'
+        return 'Clientes'
       case '/contatos':
-        return 'Visão Consolidada de Contatos'
+        return 'Contatos'
       case '/automacoes':
         return 'Automações do CRM'
       case '/equipamentos':
-        return 'Cadastro de Equipamentos'
+        return 'Equipamentos'
       case '/ativos':
-        return 'Cadastro de Ativos das Usinas'
+        return 'Ativos'
       case '/importar-clientes':
         return 'Importar Clientes (Pipedrive / Conta Azul)'
       case '/importar-contatos-google':
@@ -138,15 +137,15 @@ export function Layout({ children }: LayoutProps = {}) {
       case '/importar-acessos':
         return 'Importar Acessos & Monitoramento'
       case '/fornecedores':
-        return 'Fornecedores de Equipamentos'
+        return 'Fornecedores'
       case '/instalacoes-galeria':
-        return 'Biblioteca de Instalações'
+        return 'Galeria de Instalações'
       case '/gerenciar-usuarios':
         return 'Gerenciar Usuários'
       case '/mensagens-whatsapp':
         return 'Mensagens WhatsApp'
       case '/integracoes':
-        return 'Central de Integrações'
+        return 'Integrações'
       case '/financeiro':
         return 'Gestão Financeira'
       case '/configuracoes':
@@ -309,15 +308,6 @@ export function Layout({ children }: LayoutProps = {}) {
             </button>
           </div>
           <div className="flex items-center gap-1.5 select-none pt-0.5 leading-none">
-            <a
-              href="/schema-delfos-solar.xlsx"
-              download="schema-delfos-solar.xlsx"
-              className="p-0.5 text-gray-400 hover:text-[#166534] hover:bg-emerald-50 rounded transition-colors flex items-center justify-center"
-              title="Exportar Schema do Banco (XLSX)"
-              aria-label="Exportar Schema (XLSX)"
-            >
-              <FileSpreadsheet className="w-3 h-3" />
-            </a>
             <span
               className="text-[9px] font-mono text-gray-400 text-center cursor-default"
               title={`Delfos v${APP_VERSION}`}

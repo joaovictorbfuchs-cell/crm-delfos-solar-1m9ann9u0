@@ -127,25 +127,12 @@ export default function Index() {
 
   return (
     <div className="space-y-6">
-      {/* Top title */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Dashboard Delfos Solar</h1>
-          <p className="text-xs text-gray-500">
-            Acompanhamento de vendas, metas comerciais e ordens de serviço
-          </p>
-        </div>
-      </div>
-
       {/* Banner de erro quando houver falha ao carregar dados do CRM */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
           <div className="flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Erro ao carregar dados do CRM</p>
-              <p className="text-red-700 mt-0.5">{error}</p>
-            </div>
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <p className="font-bold">Erro ao carregar dados do CRM</p>
           </div>
           <button
             type="button"
@@ -162,13 +149,7 @@ export default function Index() {
       {/* Alerta defensivo quando a lista estiver vazia após carregar */}
       {!isLoading && !error && safeClientes.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
-          <div>
-            <p className="font-bold">Nenhum cliente carregado no painel.</p>
-            <p className="text-amber-700">
-              Se você possui dados cadastrados no CRM, clique em recarregar para revalidar a
-              consulta.
-            </p>
-          </div>
+          <p className="font-bold">Nenhum cliente carregado no painel.</p>
           <button
             type="button"
             onClick={handleRefresh}
@@ -249,7 +230,7 @@ export default function Index() {
                 activeTab === 'comercial' ? 'text-[#166534]' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Aba Comercial (Funil de Vendas)
+              Comercial
               {activeTab === 'comercial' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#16A34A] rounded-full" />
               )}
@@ -261,7 +242,7 @@ export default function Index() {
                 activeTab === 'manutencoes' ? 'text-[#166534]' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Aba Manutenções & O.S.
+              Manutenções & O.S.
               {activeTab === 'manutencoes' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#16A34A] rounded-full" />
               )}
@@ -285,17 +266,6 @@ export default function Index() {
           {activeTab === 'comercial' ? (
             <ErrorBoundary compact errorMessage="Não foi possível exibir o funil comercial.">
               <div className="animate-in fade-in duration-150 space-y-4">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900">
-                      Funil Comercial de Oportunidades
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Visão em Kanban das negociações por estágio na região de Erechim, Passo Fundo
-                      e Chapecó
-                    </p>
-                  </div>
-                </div>
                 <KanbanBoard
                   clientes={clientesAtivosCadastrados}
                   negocios={negociosList}

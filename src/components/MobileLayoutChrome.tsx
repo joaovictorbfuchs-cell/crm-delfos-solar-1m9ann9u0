@@ -167,7 +167,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       return { id: 'equipamentos', label: 'Equipamentos', isFunil: false }
     }
     if (location.pathname === '/ativos') {
-      return { id: 'ativos', label: 'Ativos das Usinas', isFunil: false }
+      return { id: 'ativos', label: 'Ativos', isFunil: false }
     }
     if (location.pathname === '/gerenciar-usuarios') {
       return { id: 'gerenciar-usuarios', label: 'Gerenciar Usuários', isFunil: false }
@@ -180,6 +180,12 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     }
     if (location.pathname === '/configuracoes') {
       return { id: 'configuracoes', label: 'Configurações', isFunil: false }
+    }
+    if (location.pathname === '/instalacoes-galeria') {
+      return { id: 'instalacoes-galeria', label: 'Galeria de Instalações', isFunil: false }
+    }
+    if (location.pathname === '/fornecedores') {
+      return { id: 'fornecedores', label: 'Fornecedores', isFunil: false }
     }
     return { id: 'crm', label: 'Comercial', isFunil: true }
   }, [location.pathname])
@@ -345,7 +351,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
             { label: 'Funil de Projetos', path: '/projetos', icon: FolderKanban },
             { label: 'Propostas', path: '/propostas', icon: Sun },
             { label: 'Atividades', path: '/central-atividades', icon: Layers },
-            { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
+            { label: 'Clientes', path: '/clientes', icon: Users },
             { label: 'Contatos', path: '/contatos', icon: Contact },
           ],
         },
@@ -380,8 +386,8 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
             { label: 'Automações do CRM', path: '/automacoes', icon: Zap },
             { label: 'Mensagens WhatsApp', path: '/mensagens-whatsapp', icon: WhatsAppIcon },
             { label: 'Equipamentos', path: '/equipamentos', icon: Cpu },
-            { label: 'Ativos das Usinas', path: '/ativos', icon: Cpu },
-            { label: 'Galeria de Usinas', path: '/instalacoes-galeria', icon: Images },
+            { label: 'Ativos', path: '/ativos', icon: Cpu },
+            { label: 'Galeria de Instalações', path: '/instalacoes-galeria', icon: Images },
             { label: 'Fornecedores', path: '/fornecedores', icon: Truck },
             { label: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
             ...(isAdmin
@@ -507,7 +513,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-emerald-600" />
-                    <span>Gestão de Clientes</span>
+                    <span>Clientes</span>
                   </div>
                   {location.pathname === '/clientes' && (
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />

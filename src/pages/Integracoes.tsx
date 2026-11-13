@@ -85,7 +85,7 @@ export function IntegracoesPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                Central de Integrações
+                Integrações
               </h1>
               <Badge
                 variant="outline"
