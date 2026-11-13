@@ -4,6 +4,10 @@ import App from './App'
 import './main.css'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
 import { instalarManipuladoresGlobaisErros } from './lib/registroErrosGlobais'
+// Tripwire de exports críticos do PocketBase: mantém o módulo no grafo do tsc/vite.
+// Ver src/lib/pocketbase/exportsTripwire.ts — NÃO REMOVER.
+import type { ExportsTripwire } from './lib/pocketbase/exportsTripwire'
+export type MainExportsTripwire = ExportsTripwire
 
 // Captura crashes fora de ErrorBoundary (erros assíncronos, extensões, etc.)
 // e grava em logs_erro_frontend, no mesmo formato fire-and-forget do boundary.
