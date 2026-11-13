@@ -177,8 +177,7 @@ export const ContatosView: React.FC = () => {
   const carregarDados = useCallback(
     async (isRefresh = false) => {
       try {
-        if (isRefresh) setIsRefreshing(true)
-        else setIsLoading(true)
+        setIsLoading(true)
 
         const [contatosData, negociosData] = await Promise.all([
           fetchContatosConsolidados({
@@ -194,7 +193,6 @@ export const ContatosView: React.FC = () => {
         toast.error('Erro ao carregar contatos. Tente novamente.')
       } finally {
         setIsLoading(false)
-        setIsRefreshing(false)
       }
     },
     [clientes],

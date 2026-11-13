@@ -1,16 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import {
-  List,
-  Loader2,
-  UserPlus,
-  LayoutGrid,
-  RefreshCw,
-  AlertCircle,
-  ArchiveX,
-  RotateCcw,
-  Search,
-  Sparkles,
-} from 'lucide-react'
+import { Loader2, RefreshCw, AlertCircle, ArchiveX, RotateCcw, Search } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
