@@ -24,6 +24,18 @@ export interface ItemFaturadoDetalhado {
     base_calculo?: number
     valor?: number
   }
+  fio_b?: boolean
+  fio_b_valor_impresso_rs?: number | null
+  fio_b_tarifa_rs_kwh?: number | null
+}
+
+/** Resumo de Fio B (Lei 14.300/2022) calculado no hook de análise */
+export interface FioBResumo {
+  kwh_compensados: number
+  tarifa_fio_b_ano: number
+  percentual_transicao_14300: number
+  fio_b_rs: number
+  origem: 'fatura' | 'estimativa'
 }
 
 export interface AlertaAnaliseFatura {
@@ -138,6 +150,7 @@ export interface AnaliseFaturaCompletaDados {
   }
   alertas?: AlertaAnaliseFatura[]
   conclusoes_recomendacoes?: string[]
+  fio_b?: FioBResumo | null
 }
 
 export interface AnaliseFaturaRegistro {
@@ -155,6 +168,7 @@ export interface AnaliseFaturaRegistro {
   saldo_energia_kwh?: number
   saldo_expirar_kwh?: number
   economia_estimada_rs?: number
+  fio_b_rs?: number
   papel_uc?: string
   arquivos_nomes?: string[]
   dados_completos?: AnaliseFaturaCompletaDados
@@ -299,8 +313,19 @@ export async function obterRelatorioFaturaPorToken(token: string): Promise<Anali
     throw new Error(errMsg)
   }
 
-  const json = await res.json()
-  return json as AnaliseFaturaRegistro
+  const json = (await res.json()) as AnaliseFaturaRegistro
+
+  // Blindagem: dados_completos pode vir como string JSON dependendo do endpoint
+  const brutos = (json as Record<string, unknown>)?.dados_completos
+  if (typeof brutos === 'string') {
+    try {
+      ;(json as Record<string, unknown>).dados_completos = JSON.parse(brutos)
+    } catch {
+      ;(json as Record<string, unknown>).dados_completos = null
+    }
+  }
+
+  return json
 }
 
 /**

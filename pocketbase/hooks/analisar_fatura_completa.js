@@ -165,6 +165,10 @@ Para cada item na descrição da fatura (ex: "Consumo Uso Sistema [KWh]-TUSD", "
 - icms: { base_calculo: number, aliquota: number, valor: number }
 - pis: { base_calculo: number, valor: number }
 - cofins: { base_calculo: number, valor: number }
+EXTRAIA TAMBÉM os itens de FIO B / USO DO SISTEMA DE DISTRIBUIÇÃO aplicados sobre a energia INJETADA/COMPENSADA (Lei 14.300/2022). Na fatura RGE costumam aparecer como "Energia Ativa Injetada TUSD", "Consumo Uso Sistema [KWh]-TUSD Fio B", "Uso do Sistema de Distribuição - Fio B (kWh injetado)", "Parcela Fio B" ou linhas TUSD com valores POSITIVOS acompanhando a energia injetada/compensada. Para esses itens inclua no objeto o campo extra:
+- fio_b: true (somente nesses itens de Fio B/Uso do Sistema da energia injetada)
+- fio_b_valor_impresso_rs: number ou null (valor de Fio B impresso na fatura, se estiver explícito)
+- fio_b_tarifa_rs_kwh: number ou null (tarifa de Fio B (R$/kWh) impressa na fatura, se estiver explícita)
 
 5. TOTAIS E FORMA DE PAGAMENTO:
 - total_distribuidora_rs: number
@@ -457,6 +461,99 @@ FORMATO JSON ESPERADO:
         parsed.medicao_e_creditos.historico_consumo = parsed.historico_consumo
       }
 
+      // --- FIO B (Lei 14.300/2022): resumo determinístico do custo da transição ---
+      // Percentual do Fio B cobrado sobre a energia compensada conforme cronograma de
+      // transição da Lei 14.300/2022 (2023: 15%, 2024: 30%, 2025: 45%, 2026: 60%,
+      // 2027: 75%, 2028: 90%, 2029+: 100%).
+      function anoDaCompetencia(comp) {
+        const m = String(comp || '').match(/(20\d{2})/)
+        if (m) return parseInt(m[1], 10)
+        return new Date().getFullYear()
+      }
+      function percentualTransicaoFioB(ano) {
+        if (ano <= 2023) return 15
+        if (ano === 2024) return 30
+        if (ano === 2025) return 45
+        if (ano === 2026) return 60
+        if (ano === 2027) return 75
+        if (ano === 2028) return 90
+        return 100
+      }
+
+      const itensFaturadosArr = Array.isArray(parsed.itens_faturados) ? parsed.itens_faturados : []
+
+      // (a) Valor/tarifa de Fio B impressos na fatura, se a IA os identificou
+      let fioBValorImpresso = 0
+      let fioBTarifaImpressa = 0
+      for (const it of itensFaturadosArr) {
+        if (!it || typeof it !== 'object') continue
+        if (it.fio_b === true || /fio\s*b/i.test(String(it.item || ''))) {
+          fioBValorImpresso += safeParseFloat(it.fio_b_valor_impresso_rs, 0)
+          if (!fioBTarifaImpressa) {
+            fioBTarifaImpressa = safeParseFloat(it.fio_b_tarifa_rs_kwh, 0)
+          }
+        }
+      }
+
+      // (b) Cálculo determinístico: kWh compensados no mês × tarifa Fio B do ano × percentual da transição
+      const competenciaFioB = parsed.periodo?.mes_referencia || ''
+      const anoCompFioB = anoDaCompetencia(competenciaFioB)
+      const percentualTransicao14300 = percentualTransicaoFioB(anoCompFioB)
+
+      let tarifaFioBAno = 0
+      try {
+        const paramsCol = $app.findCollectionByNameOrId('parametros_tarifarios')
+        const paramsRows = $app.findRecordsByFilter(paramsCol.id, `ano = ${anoCompFioB}`, '', 2, 0)
+        if (paramsRows && paramsRows.length > 0) {
+          tarifaFioBAno = paramsRows[0].getFloat('fio_b')
+        }
+      } catch (errParams) {
+        console.log(
+          '[ANALISE COMPLETA] parametros_tarifarios não encontrado para o ano',
+          anoCompFioB,
+          ':',
+          errParams,
+        )
+      }
+
+      const kwhCompensadosFioB = compensadosMesCalc
+      let fioB = null
+      if (fioBValorImpresso > 0) {
+        // Fio B explicitamente cobrado na fatura: usar o valor impresso
+        fioB = {
+          kwh_compensados: kwhCompensadosFioB,
+          tarifa_fio_b_ano: fioBTarifaImpressa || tarifaFioBAno,
+          percentual_transicao_14300: percentualTransicao14300,
+          fio_b_rs: Math.round(fioBValorImpresso * 100) / 100,
+          origem: 'fatura',
+        }
+      } else if (kwhCompensadosFioB === 0) {
+        // Sem energia compensada neste ciclo: Fio B zerado
+        fioB = {
+          kwh_compensados: 0,
+          tarifa_fio_b_ano: tarifaFioBAno,
+          percentual_transicao_14300: percentualTransicao14300,
+          fio_b_rs: 0,
+          origem: 'estimativa',
+        }
+      } else if (tarifaFioBAno > 0) {
+        const fioBCalculado = kwhCompensadosFioB * tarifaFioBAno * (percentualTransicao14300 / 100)
+        fioB = {
+          kwh_compensados: kwhCompensadosFioB,
+          tarifa_fio_b_ano: tarifaFioBAno,
+          percentual_transicao_14300: percentualTransicao14300,
+          fio_b_rs: Math.round(fioBCalculado * 100) / 100,
+          origem: 'estimativa',
+        }
+      }
+      // (tarifa desconhecida e sem valor impresso → fioB fica null; relatório omite a seção)
+
+      if (fioB) {
+        parsed.fio_b = fioB
+        if (!parsed.indicadores) parsed.indicadores = {}
+        parsed.indicadores.fio_b = fioB
+      }
+
       // Gerar token único criptográfico/aleatório para a análise
       const token = $security.randomString(32)
 
@@ -522,6 +619,7 @@ FORMATO JSON ESPERADO:
       analiseRec.set('saldo_energia_kwh', saldoKwh)
       analiseRec.set('saldo_expirar_kwh', saldoExpirar)
       analiseRec.set('economia_estimada_rs', economiaRs)
+      analiseRec.set('fio_b_rs', fioB ? fioB.fio_b_rs : 0)
       analiseRec.set('papel_uc', papelUc)
       analiseRec.set(
         'arquivos_nomes',
@@ -606,6 +704,7 @@ routerAdd('GET', '/backend/v1/relatorio-fatura-publico/{token}', (e) => {
       saldo_energia_kwh: rec.getFloat('saldo_energia_kwh'),
       saldo_expirar_kwh: rec.getFloat('saldo_expirar_kwh'),
       economia_estimada_rs: rec.getFloat('economia_estimada_rs'),
+      fio_b_rs: rec.getFloat('fio_b_rs'),
       papel_uc: rec.getString('papel_uc'),
       arquivos_nomes: rec.get('arquivos_nomes'),
       dados_completos: rec.get('dados_completos'),

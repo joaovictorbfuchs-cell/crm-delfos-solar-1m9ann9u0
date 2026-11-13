@@ -19,6 +19,7 @@ import {
   Receipt,
   TrendingUp,
   TrendingDown,
+  Zap,
 } from 'lucide-react'
 import {
   BarChart,
@@ -108,7 +109,16 @@ export const RelatorioFaturaPage: React.FC = () => {
   }, [token])
 
   const dados: AnaliseFaturaCompletaDados | null = useMemo(() => {
-    return (registro?.dados_completos as AnaliseFaturaCompletaDados) || null
+    const raw = registro?.dados_completos as unknown
+    if (!raw) return null
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw) as AnaliseFaturaCompletaDados
+      } catch {
+        return null
+      }
+    }
+    return raw as AnaliseFaturaCompletaDados
   }, [registro])
 
   const linkCompleto = useMemo(() => {
@@ -125,17 +135,33 @@ export const RelatorioFaturaPage: React.FC = () => {
     })
   }
 
-  // Desestruturação segura dos campos da análise
-  const cad = dados?.dados_cadastrais_fatura || {}
-  const periodo = dados?.periodo || {}
-  const papelGd = dados?.papel_gd || {}
-  const medicao = dados?.medicao_e_creditos || {}
-  const itens = dados?.itens_faturados || []
-  const totais = dados?.totais || {}
-  const impostos = dados?.impostos || {}
-  const indicadores = dados?.indicadores || {}
+  // Desestruturação segura dos campos da análise — tudo com guarda de tipo.
+  // A IA pode devolver strings/objetos fora do formato esperado; o relatório
+  // NÃO pode cair em ErrorBoundary por isso (endpoint 200 com dados parciais).
+  const safeObj = (v: unknown): Record<string, any> =>
+    v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, any>) : {}
+  const safeArr = (v: unknown): any[] => (Array.isArray(v) ? v : [])
+  // Coerção segura para número: a IA pode devolver strings ("12,34") ou null
+  const num = (v: unknown): number => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v
+    if (typeof v === 'string') {
+      const n = parseFloat(v.replace(',', '.'))
+      if (Number.isFinite(n)) return n
+    }
+    return 0
+  }
+
+  const cad = safeObj(dados?.dados_cadastrais_fatura)
+  const periodo = safeObj(dados?.periodo)
+  const papelGd = safeObj(dados?.papel_gd)
+  const medicao = safeObj(dados?.medicao_e_creditos)
+  const itens = safeArr(dados?.itens_faturados)
+  const totais = safeObj(dados?.totais)
+  const impostos = safeObj(dados?.impostos)
+  const indicadores = safeObj(dados?.indicadores)
+  const fioB = safeObj(dados?.fio_b)
   const alertas = useMemo(() => {
-    const rawAlertas = dados?.alertas || []
+    const rawAlertas = safeArr(dados?.alertas)
     return rawAlertas.filter((alerta) => {
       const tituloNormalizado = (alerta.titulo || '')
         .toLowerCase()
@@ -305,29 +331,25 @@ export const RelatorioFaturaPage: React.FC = () => {
   const resumoImpostos = useMemo(() => {
     let baseIcms = 0
     let aliqIcms: number | null = null
-    let valorIcms = impostos.impostos_atuais?.icms_total_rs || 0
+    let valorIcms = num(impostos.impostos_atuais?.icms_total_rs)
 
     let basePis = 0
-    let valorPis = impostos.impostos_atuais?.pis_total_rs || 0
+    let valorPis = num(impostos.impostos_atuais?.pis_total_rs)
 
     let baseCofins = 0
-    let valorCofins = impostos.impostos_atuais?.cofins_total_rs || 0
+    let valorCofins = num(impostos.impostos_atuais?.cofins_total_rs)
 
     // Se houver itens faturados, somar as bases de cálculo e alíquotas com precisão
     if (itens && itens.length > 0) {
       itens.forEach((it) => {
-        if (it.icms?.base_calculo && it.icms.base_calculo > baseIcms) {
-          baseIcms = Math.max(baseIcms, it.icms.base_calculo)
-        }
-        if (it.icms?.aliquota && it.icms.aliquota > 0) {
-          aliqIcms = it.icms.aliquota
-        }
-        if (it.pis?.base_calculo && it.pis.base_calculo > basePis) {
-          basePis = Math.max(basePis, it.pis.base_calculo)
-        }
-        if (it.cofins?.base_calculo && it.cofins.base_calculo > baseCofins) {
-          baseCofins = Math.max(baseCofins, it.cofins.base_calculo)
-        }
+        const baseIcmsItem = num(it.icms?.base_calculo)
+        if (baseIcmsItem > baseIcms) baseIcms = baseIcmsItem
+        const aliqItem = num(it.icms?.aliquota)
+        if (aliqItem > 0) aliqIcms = aliqItem
+        const basePisItem = num(it.pis?.base_calculo)
+        if (basePisItem > basePis) basePis = basePisItem
+        const baseCofinsItem = num(it.cofins?.base_calculo)
+        if (baseCofinsItem > baseCofins) baseCofins = baseCofinsItem
       })
     }
 
@@ -397,10 +419,10 @@ export const RelatorioFaturaPage: React.FC = () => {
           ? 'UC Geradora com Autoconsumo Remoto'
           : 'UC Mista (Consumo e Geração)'
 
-  const saldoExpirar = medicao.saldo_energia?.saldo_a_expirar_proximo_mes_kwh || 0
+  const saldoExpirar = num(medicao.saldo_energia?.saldo_a_expirar_proximo_mes_kwh)
   const totalDistribuidora =
-    totais.total_distribuidora_rs || totais.total_a_pagar_rs || registro.total_pagar || 0
-  const totalPagar = totais.total_a_pagar_rs || registro.total_pagar || 0
+    num(totais.total_distribuidora_rs) || num(totais.total_a_pagar_rs) || num(registro.total_pagar)
+  const totalPagar = num(totais.total_a_pagar_rs) || num(registro.total_pagar)
   const formaPagto = totais.forma_pagamento || 'Código de barras / Boleto / PIX'
 
   return (
@@ -899,6 +921,81 @@ export const RelatorioFaturaPage: React.FC = () => {
           </div>
         </section>
 
+        {/* 3.1 Fio B (Lei 14.300/2022) — Uso do Sistema de Distribuição sobre energia injetada */}
+        <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500" />
+                Fio B (Lei 14.300)
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Custo de Uso do Sistema de Distribuição (TUSD) incidente sobre a energia injetada e
+                compensada — transição prevista na Lei 14.300/2022.
+              </p>
+            </div>
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
+                fioB.origem === 'fatura'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}
+            >
+              {fioB.origem === 'fatura' ? 'Valor da fatura' : 'Estimativa'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <span className="text-[11px] text-gray-500 uppercase font-semibold tracking-wider block">
+                kWh Compensados
+              </span>
+              <div className="text-xl font-black text-gray-900 font-mono">
+                {num(fioB.kwh_compensados).toLocaleString('pt-BR')}
+              </div>
+              <span className="text-[11px] text-gray-400 block">
+                Energia injetada/compensada no ciclo
+              </span>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <span className="text-[11px] text-gray-500 uppercase font-semibold tracking-wider block">
+                Tarifa Fio B
+              </span>
+              <div className="text-xl font-black text-gray-900 font-mono">
+                {fioB.tarifa_fio_b_ano !== undefined && fioB.tarifa_fio_b_ano !== null
+                  ? `R$ ${num(fioB.tarifa_fio_b_ano).toFixed(4)}`
+                  : '—'}
+              </div>
+              <span className="text-[11px] text-gray-400 block">R$/kWh (ano de referência)</span>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <span className="text-[11px] text-gray-500 uppercase font-semibold tracking-wider block">
+                Transição Lei 14.300
+              </span>
+              <div className="text-xl font-black text-gray-900 font-mono">
+                {num(fioB.percentual_transicao_14300).toLocaleString('pt-BR')}%
+              </div>
+              <span className="text-[11px] text-gray-400 block">
+                2026: 60% · 2027: 75% · 2028: 90% · 2029+: 100%
+              </span>
+            </div>
+
+            <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-1">
+              <span className="text-[11px] text-amber-800 uppercase font-bold tracking-wider block">
+                Custo Fio B no Mês
+              </span>
+              <div className="text-2xl font-black text-amber-700 font-mono">
+                R$ {num(fioB.fio_b_rs).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <span className="text-[11px] text-amber-800/80 block">
+                kWh compensados × tarifa × % transição
+              </span>
+            </div>
+          </div>
+        </section>
+
         {/* 4. Arranjo de Geração Distribuída (GD) & Fluxo de Créditos Corrigido */}
         <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
@@ -1164,21 +1261,21 @@ export const RelatorioFaturaPage: React.FC = () => {
                   </tr>
                 ) : (
                   itens.map((it, idx) => {
-                    const isCredito = it.valor_total_rs < 0
-                    const pisCofins = (it.pis?.valor || 0) + (it.cofins?.valor || 0)
+                    const isCredito = num(it.valor_total_rs) < 0
+                    const pisCofins = num(it.pis?.valor) + num(it.cofins?.valor)
                     return (
                       <tr key={idx} className={isCredito ? 'bg-emerald-50/30' : ''}>
                         <td className="py-2.5 px-3 font-medium text-gray-900">{it.item}</td>
                         <td className="py-2.5 px-3 text-right font-mono">
                           {it.quantidade_kwh !== null && it.quantidade_kwh !== undefined
-                            ? it.quantidade_kwh.toLocaleString('pt-BR')
+                            ? num(it.quantidade_kwh).toLocaleString('pt-BR')
                             : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono">
-                          {it.tarifa_com_impostos
-                            ? it.tarifa_com_impostos.toFixed(4)
-                            : it.tarifa_base
-                              ? it.tarifa_base.toFixed(4)
+                          {num(it.tarifa_com_impostos)
+                            ? num(it.tarifa_com_impostos).toFixed(4)
+                            : num(it.tarifa_base)
+                              ? num(it.tarifa_base).toFixed(4)
                               : '—'}
                         </td>
                         <td
@@ -1187,10 +1284,12 @@ export const RelatorioFaturaPage: React.FC = () => {
                           }`}
                         >
                           R${' '}
-                          {it.valor_total_rs.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {num(it.valor_total_rs).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-gray-600">
-                          {it.icms?.valor ? `R$ ${it.icms.valor.toFixed(2)}` : '—'}
+                          {num(it.icms?.valor) ? `R$ ${num(it.icms?.valor).toFixed(2)}` : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-gray-600">
                           {pisCofins > 0 ? `R$ ${pisCofins.toFixed(2)}` : '—'}
@@ -1245,7 +1344,10 @@ export const RelatorioFaturaPage: React.FC = () => {
             <span className="font-semibold text-gray-700">Delfos</span>
             <span>•</span>
             <span>
-              Relatório emitido em {new Date(registro.created).toLocaleDateString('pt-BR')}
+              Relatório emitido em{' '}
+              {Number.isFinite(new Date(registro.created).getTime())
+                ? new Date(registro.created).toLocaleDateString('pt-BR')
+                : '—'}
             </span>
           </div>
 
