@@ -237,7 +237,7 @@ export const Atividades: React.FC = () => {
             variant="outline"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
+            className="h-9 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5"
             title="Atualizar dados"
           >
             <RefreshCw className={`w-4 h-4 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -246,7 +246,7 @@ export const Atividades: React.FC = () => {
           <Button
             type="button"
             onClick={() => setModalMensagemMassaOpen(true)}
-            className="h-10 px-4 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white font-semibold shadow-xs inline-flex items-center gap-1.5"
+            className="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5"
             title="Disparar mensagens em massa via WhatsApp"
           >
             <MessageSquare className="w-4 h-4" />
@@ -257,7 +257,7 @@ export const Atividades: React.FC = () => {
             onClick={() => {
               setModalOpen(true)
             }}
-            className="h-10 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium shadow-xs"
+            className="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4 mr-1.5" />
             Nova Atividade

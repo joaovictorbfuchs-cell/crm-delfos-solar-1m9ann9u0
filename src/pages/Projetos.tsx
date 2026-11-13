@@ -177,7 +177,7 @@ export const Projetos: React.FC = () => {
             variant="outline"
             onClick={handleRefresh}
             disabled={isRefreshing || isLoading}
-            className="hidden lg:inline-flex h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
+            className="hidden lg:inline-flex h-9 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold text-xs shadow-2xs"
             title="Atualizar dados"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -187,7 +187,7 @@ export const Projetos: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsNovoProjetoModalOpen(true)}
-            className="hidden lg:inline-flex h-10 px-4 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all items-center gap-1.5 shadow-xs whitespace-nowrap"
+            className="hidden lg:inline-flex h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all items-center gap-1.5 shadow-xs whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>Novo Projeto</span>

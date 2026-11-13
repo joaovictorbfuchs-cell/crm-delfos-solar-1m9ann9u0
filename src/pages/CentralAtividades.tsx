@@ -751,7 +751,7 @@ export default function CentralAtividadesPage() {
             type="button"
             variant="outline"
             onClick={() => setModalGerenciarAtividadesOpen(true)}
-            className="h-9 px-2.5 sm:px-3 rounded-xl border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100/70 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap pt-[9px] pl-[7px] mr-[0px] text-center pb-[7px] pr-[5px]"
+            className="h-9 px-2.5 sm:px-3 rounded-xl border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100/70 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Gerenciar padrões de atividades, checklists e links"
           >
             <Settings2 className="w-3.5 h-3.5 text-amber-600" />
@@ -763,7 +763,7 @@ export default function CentralAtividadesPage() {
           <Button
             type="button"
             onClick={() => abrirModalNovaAtividade()}
-            className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Criar nova atividade no CRM"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -1585,7 +1585,7 @@ export default function CentralAtividadesPage() {
               type="button"
               size="sm"
               onClick={handleAplicarFiltros}
-              className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+              className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs"
             >
               <Check className="w-3.5 h-3.5 mr-1.5" />
               Aplicar filtros

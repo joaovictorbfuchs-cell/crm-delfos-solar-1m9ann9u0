@@ -973,7 +973,7 @@ export default function ImportarClientes() {
                 type="button"
                 disabled={isProcessandoArquivo}
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
               >
                 <Upload className="w-4 h-4" />
                 <span>Escolher Arquivo .xlsx / .csv</span>
@@ -1701,7 +1701,7 @@ export default function ImportarClientes() {
                 type="button"
                 disabled={isImportando || contadoresPipedrive.totalAprovados === 0}
                 onClick={handleExecutarImportacaoPipedrive}
-                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-base font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {isImportando ? (
                   <>
@@ -1792,7 +1792,7 @@ export default function ImportarClientes() {
                 type="button"
                 disabled={isImportando}
                 onClick={handleExecutarImportacaoContaAzul}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {isImportando ? (
                   <>

@@ -1255,7 +1255,7 @@ function ExecucaoOSContent() {
                 type="button"
                 size="sm"
                 onClick={() => setOsParaEnviarCliente(selectedOS)}
-                className="h-8 px-2.5 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1.5"
+                className="h-8 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs inline-flex items-center gap-1.5"
                 title="Abrir modal para envio do relatório por e-mail e WhatsApp ao cliente"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -2095,7 +2095,7 @@ function ExecucaoOSContent() {
                               type="button"
                               size="sm"
                               onClick={() => setOsParaEnviarCliente(os)}
-                              className="h-8 px-2.5 text-[11px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs inline-flex items-center gap-1"
+                              className="h-8 px-2.5 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs inline-flex items-center gap-1"
                               title="Enviar Relatório Técnico de Execução por E-mail e WhatsApp ao Cliente"
                             >
                               <Send className="w-3 h-3" />
@@ -2363,7 +2363,7 @@ function ExecucaoOSContent() {
                 type="button"
                 disabled={isSavingAtribuicao}
                 onClick={handleSalvarAtribuicao}
-                className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold rounded-lg h-8 px-3 text-xs"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg h-8 px-3 text-xs"
               >
                 {isSavingAtribuicao ? 'Salvando...' : 'Confirmar Reatribuição'}
               </Button>

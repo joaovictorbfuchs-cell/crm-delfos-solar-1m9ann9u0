@@ -571,7 +571,7 @@ export function ImportarAcessos() {
             <button
               type="button"
               onClick={() => navigate('/clientes')}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-xs transition-colors"
             >
               Ver Clientes Atualizados
             </button>

@@ -1252,7 +1252,7 @@ export const CentralAtendimento: React.FC = () => {
           <button
             type="button"
             onClick={() => setPainelAcompanhamentoOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
             title="Acompanhar disparos em massa e reenvios automáticos"
             aria-label="Acompanhamento de Disparos em Massa"
           >

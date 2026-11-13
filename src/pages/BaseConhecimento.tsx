@@ -549,7 +549,7 @@ export default function BaseConhecimento() {
               placeholder="Pesquisar nos artigos e documentos..."
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
-              className="pl-9 h-9 text-xs bg-gray-50 border-gray-200 focus:bg-white rounded-lg transition-colors"
+              className="pl-9 h-9 text-xs bg-gray-50 border-gray-200 focus:bg-white rounded-xl transition-colors"
             />
             {termoBusca && (
               <button
@@ -565,7 +565,7 @@ export default function BaseConhecimento() {
             <Button
               onClick={abrirNovoArtigo}
               disabled={!categoriaSelecionada}
-              className="h-9 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-2xs shrink-0 flex items-center gap-1.5"
+              className="h-9 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-2xs shrink-0 flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden md:inline">Novo Artigo</span>
@@ -1164,7 +1164,7 @@ export default function BaseConhecimento() {
                 )}
               </label>
               <Select value={artCategoriaId} onValueChange={setArtCategoriaId}>
-                <SelectTrigger className="text-xs h-9 bg-white">
+                <SelectTrigger className="text-xs h-9 bg-white rounded-xl">
                   <SelectValue placeholder="Selecione a categoria..." />
                 </SelectTrigger>
                 <SelectContent>

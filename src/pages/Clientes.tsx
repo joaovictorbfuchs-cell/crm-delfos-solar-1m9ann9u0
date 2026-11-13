@@ -736,7 +736,7 @@ export default function Clientes() {
             type="button"
             variant="outline"
             onClick={() => setIsPainelAcompanhamentoOpen(true)}
-            className="h-9 px-2.5 sm:px-3 rounded-xl border-sky-300 hover:bg-sky-50 text-sky-800 text-xs font-bold shrink-0 whitespace-nowrap inline-flex items-center gap-1.5"
+            className="h-9 px-2.5 sm:px-3 rounded-xl border-sky-300 hover:bg-sky-50 text-sky-800 text-xs font-semibold shadow-2xs shrink-0 whitespace-nowrap inline-flex items-center gap-1.5"
             title="Ver histórico e acompanhamento dos lotes de disparo em massa"
           >
             <Send className="w-3.5 h-3.5 text-[#0284C7]" />
@@ -762,7 +762,7 @@ export default function Clientes() {
           <Button
             type="button"
             onClick={() => setIsModalNovoOpen(true)}
-            className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Adicionar novo cliente ou contato"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -808,7 +808,7 @@ export default function Clientes() {
               size="sm"
               disabled={clientesSelecionadosParaMesclar.length < 2}
               onClick={() => setIsModalMesclarOpen(true)}
-              className="h-8 px-3 rounded-xl border-emerald-300 bg-white hover:bg-emerald-100/60 text-emerald-900 font-bold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-8 px-3 rounded-xl border-emerald-300 bg-white hover:bg-emerald-100/60 text-emerald-900 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
               title={
                 clientesSelecionadosParaMesclar.length < 2
                   ? 'Selecione 2 ou mais clientes da base para mesclar'
@@ -826,7 +826,7 @@ export default function Clientes() {
               size="sm"
               disabled={isExcluindoMassa}
               onClick={handleExcluirSelecionados}
-              className="h-8 px-3 rounded-xl border-red-200 bg-white hover:bg-red-50 text-red-700 hover:text-red-800 font-bold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50"
+              className="h-8 px-3 rounded-xl border-red-200 bg-white hover:bg-red-50 text-red-700 hover:text-red-800 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50"
               title="Excluir todos os clientes selecionados"
             >
               <Trash2 className="w-3.5 h-3.5 text-red-600" />
@@ -837,7 +837,7 @@ export default function Clientes() {
             <Button
               type="button"
               onClick={() => setIsModalMensagemMassaOpen(true)}
-              className="h-8 px-3 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+              className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
               title="Disparar mensagens individuais via WhatsApp para os clientes selecionados"
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -1443,7 +1443,7 @@ export default function Clientes() {
               type="button"
               size="sm"
               onClick={handleAplicarFiltros}
-              className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+              className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs"
             >
               <Check className="w-3.5 h-3.5 mr-1.5" />
               Aplicar filtros

@@ -256,7 +256,7 @@ export function InstalacoesGaleriaPage() {
           </button>
           <button
             onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-all hover:shadow"
           >
             <Plus className="w-4 h-4" />
             <span>Adicionar Foto de Usina</span>
@@ -394,7 +394,7 @@ export function InstalacoesGaleriaPage() {
           </p>
           <button
             onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D]"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700"
           >
             <Plus className="w-4 h-4" />
             <span>Cadastrar Primeira Usina</span>
@@ -649,7 +649,7 @@ export function InstalacoesGaleriaPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Salvando...' : 'Salvar Instalação'}
                 </button>

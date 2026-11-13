@@ -1293,7 +1293,7 @@ export function IntegracoesRgePage() {
           </Button>
           <Button
             onClick={() => setModalNovaAberto(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg h-10 px-4 flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl h-9 px-4 flex items-center gap-1.5 shadow-xs whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>Integrar Concessionária</span>

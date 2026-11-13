@@ -373,7 +373,7 @@ export default function GerenciarUsuarios() {
           <Button
             type="button"
             onClick={handleOpenNovoModal}
-            className="h-11 px-4 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs sm:text-sm shadow-sm flex items-center gap-2"
+            className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-sm flex items-center gap-2"
           >
             <UserPlus className="w-4 h-4" />
             <span>Adicionar Novo Usuário</span>
@@ -828,7 +828,7 @@ export default function GerenciarUsuarios() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold rounded-xl h-10"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-9"
               >
                 {isSubmitting ? 'Cadastrando...' : 'Criar Usuário'}
               </Button>
@@ -1032,7 +1032,7 @@ export default function GerenciarUsuarios() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold rounded-xl h-10"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-9"
               >
                 {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
               </Button>

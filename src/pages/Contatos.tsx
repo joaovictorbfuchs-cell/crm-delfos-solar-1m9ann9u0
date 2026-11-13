@@ -596,7 +596,7 @@ export const ContatosView: React.FC = () => {
             type="button"
             size="sm"
             onClick={() => handleNovoContato()}
-            className="text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs cursor-pointer"
+            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
             Novo Contato
@@ -750,7 +750,7 @@ export const ContatosView: React.FC = () => {
             type="button"
             size="sm"
             onClick={() => handleNovoContato()}
-            className="text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
+            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <Plus className="w-3.5 h-3.5 mr-1" />
             Cadastrar Contato
@@ -1155,7 +1155,7 @@ export const ContatosView: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={isSaving || !formNome.trim()}
-                className="text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
+                className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 {isSaving ? 'Salvando...' : contatoEmEdicao ? 'Salvar Alterações' : 'Criar Contato'}
               </Button>

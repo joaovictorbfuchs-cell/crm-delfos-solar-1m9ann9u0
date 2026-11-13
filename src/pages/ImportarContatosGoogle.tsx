@@ -1274,7 +1274,7 @@ export default function ImportarContatosGoogle() {
                   type="button"
                   onClick={handleAplicarDecisoes}
                   disabled={isAplicando || estatisticas.pendentes === 0}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#16A34A] hover:bg-[#166534] shadow-xs hover:shadow transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs hover:shadow transition-all disabled:opacity-50"
                 >
                   {isAplicando ? (
                     <>

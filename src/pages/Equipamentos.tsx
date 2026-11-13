@@ -416,7 +416,7 @@ export function EquipamentosPage() {
 
           <button
             onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all hover:shadow active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-all hover:shadow active:scale-[0.98]"
           >
             <Plus className="w-4 h-4" />
             <span>Novo Equipamento</span>
@@ -685,7 +685,7 @@ export function EquipamentosPage() {
               </p>
               <button
                 onClick={handleOpenCreate}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D] shadow-xs"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700 shadow-xs"
               >
                 <Plus className="w-4 h-4" />
                 <span>Cadastrar Equipamento</span>

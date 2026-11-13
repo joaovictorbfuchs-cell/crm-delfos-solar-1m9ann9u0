@@ -288,7 +288,7 @@ export default function AutomacoesPage() {
         </div>
       ) : automacoesFiltradas.length === 0 ? (
         <div className="py-20 text-center flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300 p-8">
-          <Zap className="w-12 h-12 text-gray-300 mb-3" />
+          <Zap className="w-10 h-10 text-gray-300 mb-2" />
           <h3 className="text-sm font-bold text-gray-800">
             {busca ? 'Nenhuma automação encontrada para esta busca' : 'Nenhuma automação criada'}
           </h3>

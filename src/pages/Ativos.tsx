@@ -388,7 +388,7 @@ export default function AtivosPage() {
             type="button"
             size="sm"
             onClick={() => handleOpenCreate()}
-            className="bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold text-xs gap-1.5 rounded-xl shadow-xs border border-slate-700"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 rounded-xl shadow-xs border border-emerald-700 h-9 px-3.5 inline-flex items-center"
           >
             <Plus className="w-4 h-4 text-[#E0A838]" />
             <span>+ Novo Ativo</span>
@@ -792,7 +792,7 @@ export default function AtivosPage() {
             <div>
               <Label className="text-xs font-bold text-slate-700">Usina à qual pertence *</Label>
               <Select value={formUsinaId} onValueChange={setFormUsinaId}>
-                <SelectTrigger className="mt-1 text-xs">
+                <SelectTrigger className="mt-1 text-xs rounded-xl h-9">
                   <SelectValue placeholder="Selecione a usina" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
@@ -813,7 +813,7 @@ export default function AtivosPage() {
               <div>
                 <Label className="text-xs font-bold text-slate-700">Tipo de Equipamento *</Label>
                 <Select value={formTipo} onValueChange={(val) => setFormTipo(val as TipoAtivo)}>
-                  <SelectTrigger className="mt-1 text-xs">
+                  <SelectTrigger className="mt-1 text-xs rounded-xl h-9">
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -846,7 +846,7 @@ export default function AtivosPage() {
                     value={formStatusOperacional}
                     onValueChange={(val) => setFormStatusOperacional(val as StatusOperacionalAtivo)}
                   >
-                    <SelectTrigger className="mt-1 text-xs">
+                    <SelectTrigger className="mt-1 text-xs rounded-xl h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
