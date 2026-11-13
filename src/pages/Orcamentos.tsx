@@ -561,31 +561,6 @@ export const Orcamentos: React.FC = () => {
 
   return (
     <div className="space-y-5 w-full">
-      {/* Header Unificado do Hub de Propostas */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center shadow-xs">
-              {abaAtivaHub === 'solar' ? (
-                <Sun className="w-5 h-5 text-white" />
-              ) : (
-                <FileCheck className="w-5 h-5 text-white" />
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                  Propostas
-                </h1>
-              </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Central de geração e acompanhamento de propostas comerciais
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Linha das Abas do Hub com Botão de Filtro (apenas ícone) e Botão + (dropdown) alinhados à direita */}
       <div className="flex items-center justify-between gap-2 w-full">
         {/* Navegador de Abas por Produto (Design System Verde Solar) */}
