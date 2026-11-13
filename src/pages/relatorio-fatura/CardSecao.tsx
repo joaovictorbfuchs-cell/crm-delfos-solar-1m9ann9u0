@@ -52,7 +52,7 @@ export const formatarMoeda = (v: number): string =>
 /** Badge padronizado (text-[10px], pill, borda colorida). */
 export const BadgeSecao: React.FC<{
   children: React.ReactNode
-  tone?: 'emerald' | 'amber' | 'sky' | 'slate'
+  tone?: 'emerald' | 'amber' | 'sky' | 'slate' | 'gray'
   className?: string
 }> = ({ children, tone = 'slate', className }) => {
   const tones: Record<string, string> = {
@@ -60,6 +60,7 @@ export const BadgeSecao: React.FC<{
     amber: 'bg-amber-50 text-amber-800 border-amber-200',
     sky: 'bg-sky-50 text-sky-800 border-sky-200',
     slate: 'bg-slate-100 text-slate-700 border-slate-200',
+    gray: 'bg-gray-100 text-gray-600 border-gray-200',
   }
   return (
     <span

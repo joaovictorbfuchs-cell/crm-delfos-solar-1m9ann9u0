@@ -1,3 +1,4 @@
+// ⚠️ WRAPPER: cliente único do PocketBase, reexportado — nunca reescrever.
 import PocketBase from 'pocketbase'
 
 const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
@@ -5,7 +6,7 @@ pb.autoCancellation(false)
 
 export default pb
 export { pb }
-// Reexports obrigatórios de errors_impl.ts (tripwire: exportsTripwire.ts) — regressão de exports já ocorreu 15x.
+// Reexports canônicos (wrapper — nunca reescrever; implementação em errors_impl.ts)
 export {
   isAuthSessionError,
   isAbortError,
