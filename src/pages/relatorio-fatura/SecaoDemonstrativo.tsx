@@ -34,10 +34,6 @@ const LinhaParcelaRow: React.FC<{ p: DemonstrativoResultado['itens'][number] }> 
           <BadgeSecao tone="amber" className="ml-2">
             Parcela atípica
           </BadgeSecao>
-          <p className="text-xs text-amber-800/80 mt-0.5">
-            Custo incomum neste ciclo — não é consumo de energia nem abatimento. Verifique com a
-            distribuidora.
-          </p>
         </td>
         <td className={linhaCelula + ' text-right text-sm text-gray-500'}>
           {p.kwh ? p.kwh.toLocaleString('pt-BR') : '—'}
