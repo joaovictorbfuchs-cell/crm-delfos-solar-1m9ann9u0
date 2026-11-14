@@ -93,6 +93,12 @@ export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoResultado }> = ({
       icon={<Receipt className="h-4 w-4 text-gray-400" />}
       bodyClassName="space-y-4"
     >
+      {(!demo?.itens || !demo.itens.length) && (
+        <p className="text-xs text-gray-500">
+          Esta fatura não possui parcelas de consumo de energia no quadro — o ciclo utilizou somente
+          créditos de energia compensada.
+        </p>
+      )}
       <div className="overflow-x-auto rounded-xl border border-gray-200">
         <table className="w-full text-sm">
           <thead>
@@ -109,7 +115,7 @@ export const SecaoDemonstrativo: React.FC<{ demo: DemonstrativoResultado }> = ({
             </tr>
           </thead>
           <tbody>
-            {demo.itens.map((p, i) => (
+            {(Array.isArray(demo?.itens) ? demo.itens : []).map((p, i) => (
               <LinhaParcelaRow key={i} p={p} />
             ))}
           </tbody>

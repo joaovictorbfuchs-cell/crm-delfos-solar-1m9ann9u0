@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Sparkles, AlertTriangle, Send, Copy, Check } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { Sparkles, AlertTriangle, Send, Copy, Check, X } from 'lucide-react'
 // Seções "Alertas da Análise" e "Conclusões" removidas do relatório público (decisão do usuário).
 import {
   obterRelatorioFaturaPorToken,
@@ -27,6 +27,19 @@ export const RelatorioFaturaPage: React.FC = () => {
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false)
   const [linkCopiado, setLinkCopiado] = useState(false)
   const [clienteTelefone, setClienteTelefone] = useState('')
+  // true quando o usuário clicou "Fechar" vindo de um link público (sem histórico interno)
+  const [fechado, setFechado] = useState(false)
+  const navigate = useNavigate()
+
+  const fecharRelatorio = () => {
+    // Aberto de dentro do app: volta para a tela anterior.
+    if (window.history.length > 1 && window.history.state && window.history.state.idx > 0) {
+      navigate(-1)
+      return
+    }
+    // Link público (sem histórico interno): tela "Relatório fechado".
+    setFechado(true)
+  }
 
   useEffect(() => {
     let cancelado = false
@@ -186,6 +199,27 @@ export const RelatorioFaturaPage: React.FC = () => {
     )
   }
 
+  if (fechado) {
+    // Chegada por link público (sem histórico interno): tela "Relatório fechado".
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <CardSecao className="max-w-md w-full text-center space-y-3">
+          <X className="h-8 w-8 text-gray-400 mx-auto" />
+          <h2 className="text-lg font-bold text-gray-900">Relatório fechado</h2>
+          <p className="text-sm text-gray-500">
+            Você fechou a visualização deste relatório. Ele continua disponível no link recebido.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+          >
+            Abrir novamente
+          </button>
+        </CardSecao>
+      </div>
+    )
+  }
+
   if (error || !registro) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -220,6 +254,13 @@ export const RelatorioFaturaPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={fecharRelatorio}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+              Fechar
+            </button>
             <button
               onClick={copiarLink}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors"

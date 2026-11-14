@@ -16,6 +16,51 @@
  */
 import { num } from './safeGuards'
 
+/** Resultado vazio e seguro do Demonstrativo (fatura sem itens extraídos etc.). */
+const DEMO_VAZIO: DemonstrativoResultado = {
+  itens: [],
+  fio_b_linha: null,
+  total_faturado: 0,
+  abatimentos: 0,
+  total_a_pagar_calculado: 0,
+  total_a_pagar_fatura: 0,
+  total_a_pagar_exibido: 0,
+  divergencia: 0,
+  divergencia_rs: 0,
+  tributos_icms: 0,
+  tributos_pis: 0,
+  tributos_cofins: 0,
+  tributos_total: 0,
+}
+
+/**
+ * Guarda de formato do retorno: garante que TODOS os campos existam em QUALQUER
+ * ramo de execução — o relatório público NÃO pode cair em ErrorBoundary por um
+ * retorno incompleto (ex.: demo.itens undefined quebra o .map da UI).
+ */
+function garantirResultado(
+  r: Partial<DemonstrativoResultado> | null | undefined,
+): DemonstrativoResultado {
+  const base = r && typeof r === 'object' ? r : {}
+  return {
+    ...DEMO_VAZIO,
+    ...base,
+    itens: Array.isArray(base.itens) ? base.itens : [],
+    fio_b_linha: base.fio_b_linha && typeof base.fio_b_linha === 'object' ? base.fio_b_linha : null,
+    total_faturado: num(base.total_faturado),
+    abatimentos: num(base.abatimentos),
+    total_a_pagar_calculado: num(base.total_a_pagar_calculado),
+    total_a_pagar_fatura: num(base.total_a_pagar_fatura),
+    total_a_pagar_exibido: num(base.total_a_pagar_exibido),
+    divergencia: num(base.divergencia),
+    divergencia_rs: num(base.divergencia_rs),
+    tributos_icms: num(base.tributos_icms),
+    tributos_pis: num(base.tributos_pis),
+    tributos_cofins: num(base.tributos_cofins),
+    tributos_total: num(base.tributos_total),
+  }
+}
+
 export interface ItemFaturado {
   item?: string
   quantidade_kwh?: number | string | null
@@ -149,6 +194,26 @@ export function construirDemonstrativo(
   itensFaturados: unknown,
   dadosCompletos: Record<string, any> | null | undefined,
 ): DemonstrativoResultado {
+  // Blindagem: qualquer exceção aqui NÃO pode derrubar o relatório público em
+  // ErrorBoundary — retorno vazio garantido (itens: [] etc.).
+  try {
+    return construirDemonstrativoInterno(itensFaturados, dadosCompletos)
+  } catch (err) {
+    console.warn(
+      '[RelatorioFatura] construirDemonstrativo falhou — usando demonstrativo vazio:',
+      err,
+    )
+    return garantirResultado(null)
+  }
+}
+
+function construirDemonstrativoInterno(
+  itensFaturados: unknown,
+  dadosCompletos: Record<string, any> | null | undefined,
+): DemonstrativoResultado {
+  if (!dadosCompletos || typeof dadosCompletos !== 'object') {
+    return garantirResultado(null)
+  }
   const itensArr: ItemFaturado[] = Array.isArray(itensFaturados)
     ? (itensFaturados as ItemFaturado[])
     : []
@@ -241,11 +306,12 @@ export function construirDemonstrativo(
   const totalAPagarExibido = totalAPagarFatura > 0 ? totalAPagarFatura : totalAPagarCalculado
 
   // --- Tributos do rodapé = soma dos itens exibidos (fonte única) ---
-  const tributosIcms = itens.reduce((acc, it) => acc + it.icms, 0)
-  const tributosPis = itens.reduce((acc, it) => acc + it.pis, 0)
-  const tributosCofins = itens.reduce((acc, it) => acc + it.cofins, 0)
+  const tributosIcms = itens.reduce((acc, it) => acc + (num(it.icms) || 0), 0)
+  const tributosPis = itens.reduce((acc, it) => acc + (num(it.pis) || 0), 0)
+  const tributosCofins = itens.reduce((acc, it) => acc + (num(it.cofins) || 0), 0)
 
-  return {
+  // Retorno SEMPRE completo via guard — nenhum ramo devolve objeto parcial.
+  return garantirResultado({
     itens,
     fio_b_linha: fioBLinha,
     total_faturado: Math.round(totalFaturado * 100) / 100,
@@ -259,7 +325,7 @@ export function construirDemonstrativo(
     tributos_pis: Math.round(tributosPis * 100) / 100,
     tributos_cofins: Math.round(tributosCofins * 100) / 100,
     tributos_total: Math.round((tributosIcms + tributosPis + tributosCofins) * 100) / 100,
-  }
+  })
 }
 
 /**
