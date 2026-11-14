@@ -27,18 +27,22 @@ export const RelatorioFaturaPage: React.FC = () => {
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false)
   const [linkCopiado, setLinkCopiado] = useState(false)
   const [clienteTelefone, setClienteTelefone] = useState('')
-  // true quando o usuário clicou "Fechar" vindo de um link público (sem histórico interno)
-  const [fechado, setFechado] = useState(false)
   const navigate = useNavigate()
 
   const fecharRelatorio = () => {
-    // Aberto de dentro do app: volta para a tela anterior.
-    if (window.history.length > 1 && window.history.state && window.history.state.idx > 0) {
+    // Aba aberta via window.open (ex.: linha do tempo do cliente): tenta fechar a aba.
+    window.close()
+    // window.close() não lança erro quando o navegador bloqueia — não há como detectar.
+    // Se a aba continuou aberta e há histórico interno (aberto por navegação no app),
+    // volta para a tela anterior. Sem histórico (link público), o relatório
+    // simplesmente permanece aberto — sem tela intermediária.
+    const idx =
+      window.history.state && typeof window.history.state.idx === 'number'
+        ? window.history.state.idx
+        : 0
+    if (idx > 0) {
       navigate(-1)
-      return
     }
-    // Link público (sem histórico interno): tela "Relatório fechado".
-    setFechado(true)
   }
 
   useEffect(() => {
@@ -195,27 +199,6 @@ export const RelatorioFaturaPage: React.FC = () => {
           <Sparkles className="h-8 w-8 text-emerald-500 mx-auto animate-pulse" />
           <p className="text-sm text-gray-500">Carregando relatório...</p>
         </div>
-      </div>
-    )
-  }
-
-  if (fechado) {
-    // Chegada por link público (sem histórico interno): tela "Relatório fechado".
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <CardSecao className="max-w-md w-full text-center space-y-3">
-          <X className="h-8 w-8 text-gray-400 mx-auto" />
-          <h2 className="text-lg font-bold text-gray-900">Relatório fechado</h2>
-          <p className="text-sm text-gray-500">
-            Você fechou a visualização deste relatório. Ele continua disponível no link recebido.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
-          >
-            Abrir novamente
-          </button>
-        </CardSecao>
       </div>
     )
   }

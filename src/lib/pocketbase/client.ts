@@ -5,6 +5,6 @@ pb.autoCancellation(false)
 
 export default pb
 
-// Reexport nomeado canônico (manter SEMPRE — tripwire de exports quebra o tsc sem ele):
+// Reexports nomeados canônicos — restauração por ACRÉSCIMO (18ª regressão de exports).
 export { pb }
 export { isAuthSessionError } from './errors_impl'
