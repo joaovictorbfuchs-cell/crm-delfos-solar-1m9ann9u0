@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Sun, Home, Search, Plus, MoreVertical, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import {
+  Sun,
+  Home,
+  Search,
+  Plus,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  FileSpreadsheet,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -28,6 +38,7 @@ interface BeneficiariasViewProps {
   onEditar: (b: Beneficiaria) => void
   onRemover: (b: Beneficiaria) => void
   onAbrirPercentuais?: (cred: Credencial) => void
+  onImportarPlanilha?: () => void
 }
 
 export interface GrupoBeneficiarias {
@@ -197,6 +208,7 @@ export function BeneficiariasView({
   onEditar,
   onRemover,
   onAbrirPercentuais,
+  onImportarPlanilha,
 }: BeneficiariasViewProps) {
   const [subAba, setSubAba] = useState<'gestao' | 'desvinculadas'>('gestao')
   const [pagina, setPagina] = useState(1)
@@ -295,8 +307,8 @@ export function BeneficiariasView({
         </button>
       </div>
 
-      {/* Busca */}
-      <div className="px-4 py-3 border-b border-slate-100">
+      {/* Busca + Importar planilha */}
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
         <div className="relative w-full md:w-96">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input
@@ -307,6 +319,18 @@ export function BeneficiariasView({
             className="pl-9 bg-white border-slate-200 rounded-lg h-9 text-sm"
           />
         </div>
+        {onImportarPlanilha && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onImportarPlanilha}
+            className="h-9 text-sm border-slate-300 text-slate-700 hover:bg-slate-50"
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
+            Importar planilha
+          </Button>
+        )}
       </div>
 
       {/* Tabela agrupada */}

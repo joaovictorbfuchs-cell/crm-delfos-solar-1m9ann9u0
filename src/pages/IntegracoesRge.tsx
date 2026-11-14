@@ -45,6 +45,7 @@ import {
 import { formatarTempoRelativo, formatarCompetenciaRge } from '@/lib/rgeFormatters'
 import { BeneficiariasView } from '@/components/BeneficiariasView'
 import { ModalPercentuaisBeneficiarias } from '@/components/ModalPercentuaisBeneficiarias'
+import { ModalImportarBeneficiarias } from '@/components/ModalImportarBeneficiarias'
 import type { VersaoBeneficiarias, SugestaoUc } from '@/components/ModalPercentuaisBeneficiarias'
 
 export interface Credencial {
@@ -204,6 +205,9 @@ export function IntegracoesRgePage() {
   const [fBenPercentual, setFBenPercentual] = useState('')
   const [fBenObs, setFBenObs] = useState('')
   const [salvandoBen, setSalvandoBen] = useState(false)
+
+  // --- Modal de importação de beneficiárias por planilha ---
+  const [modalImportarAberto, setModalImportarAberto] = useState(false)
 
   // --- Modal de percentuais (unidade geradora) ---
   const [modalPctAberto, setModalPctAberto] = useState(false)
@@ -1839,6 +1843,7 @@ export function IntegracoesRgePage() {
             clientesMap={clientesMap}
             usinasMap={usinasMap}
             busca={busca}
+            onImportarPlanilha={() => setModalImportarAberto(true)}
             setBusca={setBusca}
             carregando={carregando}
             onAdicionar={(cred) => {
@@ -1859,6 +1864,15 @@ export function IntegracoesRgePage() {
           />
         )}
       </div>
+
+      {/* Modal: importar beneficiárias de planilha */}
+      <ModalImportarBeneficiarias
+        open={modalImportarAberto}
+        onOpenChange={setModalImportarAberto}
+        credenciais={credenciais}
+        beneficiarias={beneficiarias}
+        onImportado={carregarDados}
+      />
 
       {/* Modal: percentuais das beneficiárias (célula UNIDADE da geradora) */}
       <ModalPercentuaisBeneficiarias

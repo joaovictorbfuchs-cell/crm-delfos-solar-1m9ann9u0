@@ -5,6 +5,6 @@ pb.autoCancellation(false)
 
 export default pb
 
-// ⚠️ Wrapper canônico (v0.0.1706): reexports obrigatórios — não remover.
+// Reexports canônicos (wrapper — restauração 18ª regressão, por acréscimo de linhas)
 export { pb }
-export { isAuthSessionError, isAbortError, formatPbError } from './errors_impl'
+export { isAuthSessionError } from './errors'
