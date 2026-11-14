@@ -27,3 +27,8 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
+
+// ⚠️ Wrapper canônico (v0.0.1706): a lógica real vive em ./errors_impl.
+// extractFieldErrors/getErrorMessage permanecem LOCAIS aqui — NUNCA reexportá-los
+// de './errors_impl' junto (conflito TS2484, ver regressões 13/15).
+export { isAuthSessionError, isAbortError, formatPbError } from './errors_impl'
