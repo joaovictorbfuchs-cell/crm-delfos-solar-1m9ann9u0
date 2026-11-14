@@ -3,6 +3,35 @@
 // Fase 2: Suporta fluxos encadeados, regras de desvio por etapa (timeout sem resposta),
 // condições automáticas de saída (negócio ganho, atividade agendada, não perturbe) e trilha de origem.
 
+// ============================================================================
+// LOADER LOCAL DO UTIL DE JANELA COMERCIAL
+// Fix de "carregarHorarioComercialUtil is not defined": neste runtime cada arquivo
+// de hook é avaliado em VM isolada — o globalThis definido por
+// horario_comercial_util.js NÃO fica visível nos demais arquivos. A ponte confiável
+// é require() (mesmo padrão de whatsapp_template_vars.js), com fallback ao
+// globalThis do boot e null final — os consumidores já tratam null sem quebrar.
+// ============================================================================
+var carregarHorarioComercialUtil = function () {
+  try {
+    var m = require(`${__hooks}/horario_comercial_util.js`)
+    if (m && typeof m.estaNaJanelaComercial === 'function') {
+      return m
+    }
+  } catch (_) {}
+  try {
+    if (
+      typeof globalThis !== 'undefined' &&
+      typeof globalThis.carregarHorarioComercialUtil === 'function'
+    ) {
+      var g = globalThis.carregarHorarioComercialUtil()
+      if (g && typeof g.estaNaJanelaComercial === 'function') {
+        return g
+      }
+    }
+  } catch (_) {}
+  return null
+}
+
 /**
  * Normaliza e gera todas as variações canônicas de um número de telefone brasileiro
  * para comparação bidirecional robusta com ou sem 9º dígito móvel e com ou sem DDI 55.

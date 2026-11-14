@@ -3,10 +3,38 @@
 // Implementação 100% autocontida (sem funções top-level referenciadas em callbacks).
 
 // ============================================================================
+// LOADER LOCAL DO UTIL DE JANELA COMERCIAL
+// Fix de "carregarHorarioComercialUtil is not defined": os callbacks (cron e rotas)
+// rodam em pool de VM separado — nem top-level deste arquivo nem o globalThis do
+// boot são visíveis neles. Cada callback carrega o util DENTRO de si via require()
+// (mesmo padrão de whatsapp_template_vars.js), com fallback ao globalThis e null
+// final — os consumidores já tratam null sem quebrar.
+// ============================================================================
 // REGISTRO DE CRON E ROTAS HTTP
 // ============================================================================
 
 cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
+  function carregarHorarioComercialUtil() {
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') {
+        return m
+      }
+    } catch (_) {}
+    try {
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof globalThis.carregarHorarioComercialUtil === 'function'
+      ) {
+        var g = globalThis.carregarHorarioComercialUtil()
+        if (g && typeof g.estaNaJanelaComercial === 'function') {
+          return g
+        }
+      }
+    } catch (_) {}
+    return null
+  }
+
   function gerarVariacoesTelefone(tel) {
     if (!tel) return []
     let s = String(tel).split('@')[0].split(':')[0].trim()
@@ -970,6 +998,27 @@ cronAdd('whatsapp_reenvios_massa_worker', '*/10 * * * *', () => {
 })
 
 routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
+  function carregarHorarioComercialUtil() {
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') {
+        return m
+      }
+    } catch (_) {}
+    try {
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof globalThis.carregarHorarioComercialUtil === 'function'
+      ) {
+        var g = globalThis.carregarHorarioComercialUtil()
+        if (g && typeof g.estaNaJanelaComercial === 'function') {
+          return g
+        }
+      }
+    } catch (_) {}
+    return null
+  }
+
   function gerarVariacoesTelefone(tel) {
     if (!tel) return []
     let s = String(tel).split('@')[0].split(':')[0].trim()
@@ -1937,6 +1986,27 @@ routerAdd('POST', '/backend/v1/delfos/processar-reenvios-massa', (c) => {
  * Body: { cliente_ids: string[] | string, fluxo_id: string }
  */
 routerAdd('POST', '/backend/v1/delfos/mover-para-fluxo', (c) => {
+  function carregarHorarioComercialUtil() {
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') {
+        return m
+      }
+    } catch (_) {}
+    try {
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof globalThis.carregarHorarioComercialUtil === 'function'
+      ) {
+        var g = globalThis.carregarHorarioComercialUtil()
+        if (g && typeof g.estaNaJanelaComercial === 'function') {
+          return g
+        }
+      }
+    } catch (_) {}
+    return null
+  }
+
   function carregarEtapasDoFluxo(app, fluxoId) {
     if (!fluxoId) return []
     try {
@@ -2341,6 +2411,27 @@ routerAdd('POST', '/backend/v1/delfos/mover-para-fluxo', (c) => {
  * Body opcional: { lote_id?: string }
  */
 routerAdd('POST', '/backend/v1/delfos/reconciliar-respostas-disparos', (c) => {
+  function carregarHorarioComercialUtil() {
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') {
+        return m
+      }
+    } catch (_) {}
+    try {
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof globalThis.carregarHorarioComercialUtil === 'function'
+      ) {
+        var g = globalThis.carregarHorarioComercialUtil()
+        if (g && typeof g.estaNaJanelaComercial === 'function') {
+          return g
+        }
+      }
+    } catch (_) {}
+    return null
+  }
+
   function gerarVariacoesTelefone(tel) {
     if (!tel) return []
     let s = String(tel).split('@')[0].split(':')[0].trim()
@@ -2723,6 +2814,27 @@ routerAdd('POST', '/backend/v1/delfos/reconciliar-respostas-disparos', (c) => {
 })
 
 routerAdd('POST', '/reconciliar-respostas-disparos', (c) => {
+  function carregarHorarioComercialUtil() {
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') {
+        return m
+      }
+    } catch (_) {}
+    try {
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof globalThis.carregarHorarioComercialUtil === 'function'
+      ) {
+        var g = globalThis.carregarHorarioComercialUtil()
+        if (g && typeof g.estaNaJanelaComercial === 'function') {
+          return g
+        }
+      }
+    } catch (_) {}
+    return null
+  }
+
   function gerarVariacoesTelefone(tel) {
     if (!tel) return []
     let s = String(tel).split('@')[0].split(':')[0].trim()

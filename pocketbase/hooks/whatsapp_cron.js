@@ -2,7 +2,34 @@
 // 1. Processa fila de mensagens agendadas com data/hora vencida
 // 2. Dispara lembretes de visitas técnicas agendadas para o dia seguinte (se não enviadas)
 // 3. Dispara follow-up pós-venda para instalações concluídas há mais de 7 dias (se não enviadas)
+
+// Fix de "carregarHorarioComercialUtil is not defined": o callback do cron roda em
+// pool de VM separado — nem top-level deste arquivo nem o globalThis do boot são
+// visíveis nele. O util é carregado DENTRO do callback via require() (mesmo padrão
+// de whatsapp_template_vars.js), com fallback ao globalThis e null final — os
+// consumidores já tratam null sem quebrar.
 cronAdd('whatsapp_worker', '*/2 * * * *', () => {
+  function carregarHorarioComercialUtil() {
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') {
+        return m
+      }
+    } catch (_) {}
+    try {
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof globalThis.carregarHorarioComercialUtil === 'function'
+      ) {
+        var g = globalThis.carregarHorarioComercialUtil()
+        if (g && typeof g.estaNaJanelaComercial === 'function') {
+          return g
+        }
+      }
+    } catch (_) {}
+    return null
+  }
+
   try {
     const now = new Date()
     // Normalizar formato de data para o padrão do PocketBase (espaço em vez de 'T')

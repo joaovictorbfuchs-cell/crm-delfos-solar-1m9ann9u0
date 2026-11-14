@@ -2,7 +2,37 @@
 // Endpoint: POST /backend/v1/whatsapp/webhook
 // Também atende GET /backend/v1/whatsapp/webhook para verificação/ping de conformidade
 // Validação e homologação v0.0.848 Delfos Solar
+
+// ============================================================================
+// LOADER LOCAL DO UTIL DE JANELA COMERCIAL
+// Fix de "carregarHorarioComercialUtil is not defined": os callbacks (cron e rotas)
+// rodam em pool de VM separado — nem top-level deste arquivo nem o globalThis do
+// boot são visíveis neles. O util é carregado DENTRO de cada callback via require()
+// (mesmo padrão de whatsapp_template_vars.js), com fallback ao globalThis e null
+// final — os consumidores já tratam null sem quebrar.
+// ============================================================================
 routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
+  function carregarHorarioComercialUtil() {
+    try {
+      var m = require(`${__hooks}/horario_comercial_util.js`)
+      if (m && typeof m.estaNaJanelaComercial === 'function') {
+        return m
+      }
+    } catch (_) {}
+    try {
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof globalThis.carregarHorarioComercialUtil === 'function'
+      ) {
+        var g = globalThis.carregarHorarioComercialUtil()
+        if (g && typeof g.estaNaJanelaComercial === 'function') {
+          return g
+        }
+      }
+    } catch (_) {}
+    return null
+  }
+
   // ============================================================================
   // FUNÇÕES AUTOCONTIDAS DE FOLLOW-UP / FASE 4 (DENTRO DO CORPO DO CALLBACK)
   // ============================================================================
