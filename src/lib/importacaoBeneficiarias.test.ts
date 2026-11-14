@@ -3,6 +3,7 @@ import {
   construirPlanoImportacao,
   normalizarUc,
   parsePercentualPlanilha,
+  planoAtualizacoesPercentual,
   type BeneficiariaLike,
   type CredencialLike,
 } from './importacaoBeneficiarias'
@@ -45,7 +46,6 @@ describe('parsePercentualPlanilha', () => {
     expect(parsePercentualPlanilha(0.05)).toBeCloseTo(0.05)
     expect(parsePercentualPlanilha('0,05')).toBeCloseTo(0.05)
     expect(parsePercentualPlanilha(0.9)).toBeCloseTo(0.9)
-    aguardar
     expect(parsePercentualPlanilha(1)).toBeCloseTo(1)
   })
 
@@ -58,6 +58,59 @@ describe('parsePercentualPlanilha', () => {
   it('texto com sufixo % é tratado como percentual ("10%" = 0.10)', () => {
     expect(parsePercentualPlanilha('10%')).toBeCloseTo(0.1)
     expect(parsePercentualPlanilha('15%')).toBeCloseTo(0.15)
+  })
+
+  it('casos reais da planilha RGE: 0,1 vira 10% e 0,05 vira 5% (não 0,1%/0,05%)', () => {
+    expect(parsePercentualPlanilha('0,1')).toBeCloseTo(0.1)
+    expect(parsePercentualPlanilha('0.05')).toBeCloseTo(0.05)
+    expect(parsePercentualPlanilha('0,15')).toBeCloseTo(0.15)
+    expect(parsePercentualPlanilha('0,1')).not.toBeCloseTo(0.001)
+    expect(parsePercentualPlanilha('0,05')).not.toBeCloseTo(0.0005)
+  })
+
+  it('valor vazio ou sem número devolve 0', () => {
+    expect(parsePercentualPlanilha('')).toBe(0)
+    expect(parsePercentualPlanilha(null)).toBe(0)
+    expect(parsePercentualPlanilha('abc')).toBe(0)
+  })
+})
+
+describe('planoAtualizacoesPercentual', () => {
+  it('beneficiária já cadastrada com percentual diferente vira atualização (de X para Y)', () => {
+    const jaExiste: BeneficiariaLike = {
+      id: 'b1',
+      credencial_id: 'cred-a',
+      uc: '999',
+      percentual: 0.001, // gravado errado (0,1%) por versão anterior
+      ativo: true,
+    }
+    const csv = [
+      csvLinha(HEADERS),
+      csvLinha(['Tela 1', 'Usina A', 'Geradora', 'Usina A', '123', '0']),
+      csvLinha(['Tela 1', 'Usina A', 'Beneficiária', 'Já existe', '999', '0,1']),
+    ].join('\n')
+    const plano = construirPlanoImportacao(tabelaCsv(csv), [CRED_A], [jaExiste])
+    const atualizacoes = planoAtualizacoesPercentual(plano, [jaExiste])
+    expect(atualizacoes).toHaveLength(1)
+    expect(atualizacoes[0]?.de).toBeCloseTo(0.001)
+    expect(atualizacoes[0]?.para).toBeCloseTo(0.1)
+  })
+
+  it('percentual igual não entra como atualização', () => {
+    const jaExiste: BeneficiariaLike = {
+      id: 'b2',
+      credencial_id: 'cred-a',
+      uc: '999',
+      percentual: 0.5,
+      ativo: true,
+    }
+    const csv = [
+      csvLinha(HEADERS),
+      csvLinha(['Tela 1', 'Usina A', 'Geradora', 'Usina A', '123', '0']),
+      csvLinha(['Tela 1', 'Usina A', 'Beneficiária', 'Já existe', '999', '0,5']),
+    ].join('\n')
+    const plano = construirPlanoImportacao(tabelaCsv(csv), [CRED_A], [jaExiste])
+    expect(planoAtualizacoesPercentual(plano, [jaExiste])).toHaveLength(0)
   })
 })
 

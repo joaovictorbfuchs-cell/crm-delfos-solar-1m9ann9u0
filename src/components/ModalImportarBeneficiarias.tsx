@@ -15,11 +15,13 @@ import { parseSpreadsheetFile } from '@/lib/spreadsheetParser'
 import {
   construirPlanoImportacao,
   normalizarUc,
+  planoAtualizacoesPercentual,
   somaPercentuaisUsina,
   type BeneficiariaLike,
   type CredencialLike,
   type PlanoPreview,
   type ResumoImportacao,
+  type AtualizacaoPercentual,
 } from '@/lib/importacaoBeneficiarias'
 
 interface ModalImportarBeneficiariasProps {
@@ -51,6 +53,7 @@ export function ModalImportarBeneficiarias({
   const [importando, setImportando] = useState(false)
   const [importados, setImportados] = useState(0)
   const [totalImportar, setTotalImportar] = useState(0)
+  const [atualizacoes, setAtualizacoes] = useState<AtualizacaoPercentual[]>([])
 
   const resetar = () => {
     setFase('upload')
@@ -60,6 +63,7 @@ export function ModalImportarBeneficiarias({
     setImportando(false)
     setImportados(0)
     setTotalImportar(0)
+    setAtualizacoes([])
     if (inputArquivoRef.current) inputArquivoRef.current.value = ''
   }
 
@@ -82,6 +86,7 @@ export function ModalImportarBeneficiarias({
       setNomeArquivo(file.name)
       setPlano(p)
       setResumo(null)
+      setAtualizacoes(planoAtualizacoesPercentual(p, beneficiarias))
       setFase('preview')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -94,7 +99,9 @@ export function ModalImportarBeneficiarias({
     const alvos = plano.usinas.flatMap((u) =>
       u.itens.filter((i) => i.status === 'criar').map((i) => ({ usina: u, item: i })),
     )
-    setTotalImportar(alvos.length)
+    const pendentes = planoAtualizacoesPercentual(plano, beneficiarias)
+    setAtualizacoes(pendentes)
+    setTotalImportar(alvos.length + pendentes.length)
     setImportados(0)
     setImportando(true)
     const contagem: ResumoImportacao = {
@@ -106,6 +113,7 @@ export function ModalImportarBeneficiarias({
       erros: 0,
       usinas: [],
       ignoradasDetalhe: plano.ignoradasDetalhe,
+      atualizacoesDetalhe: [],
     }
     const novasCredenciais = new Set<string>()
     // Mapa das beneficiárias já existentes por credencial_id + UC para permitir
@@ -114,6 +122,39 @@ export function ModalImportarBeneficiarias({
     for (const b of beneficiarias) {
       const chave = `${b.credencial_id}|${normalizarUc(b.uc)}`
       if (!existentesPorChave.has(chave)) existentesPorChave.set(chave, b)
+    }
+
+    // 0. beneficiárias já cadastradas com percentual diferente: ATUALIZAR o
+    //    percentual gravado (corrige registros errados de versões anteriores)
+    for (const a of pendentes) {
+      try {
+        const resp = await fetch(`${pb.baseUrl}/backend/v1/rge/beneficiarias-uc`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${pb.authStore.token}`,
+          },
+          body: JSON.stringify({
+            id: a.existente.id,
+            percentual: a.para,
+          }),
+        })
+        const json = await resp.json().catch(() => ({}))
+        if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`)
+        contagem.percentuaisAtualizados++
+        contagem.atualizacoesDetalhe.push(
+          `Usina "${a.usina.nome}" · UC ${a.item.uc}${a.item.rotulo ? ` (${a.item.rotulo})` : ''}: ` +
+            `${pctFmt(a.de)} → ${pctFmt(a.para)}`,
+        )
+      } catch (err) {
+        contagem.erros++
+        const msg = err instanceof Error ? err.message : String(err)
+        contagem.ignoradasDetalhe.push(
+          `Usina "${a.usina.nome}" · UC ${a.item.uc}: erro ao atualizar percentual — ${msg}`,
+        )
+      } finally {
+        setImportados((n) => n + 1)
+      }
     }
 
     for (const u of plano.usinas) {
@@ -276,10 +317,34 @@ export function ModalImportarBeneficiarias({
                 {plano.itensParaImportar} beneficiária(s) serão processadas
               </span>
               {plano.jaCadastradas > 0 &&
-                `, ${plano.jaCadastradas} já cadastrada(s) serão pulada(s)`}
+                `, ${plano.jaCadastradas} já cadastrada(s)${
+                  atualizacoes.length > 0
+                    ? ` — ${atualizacoes.length} com percentual diferente será(ao) atualizada(s)`
+                    : ' serão pulada(s)'
+                }`}
               {plano.duplicatas > 0 && `, ${plano.duplicatas} duplicata(s) no arquivo`}
               {plano.ignoradas > 0 && `, ${plano.ignoradas} ignorada(s) (UC inválida)`}.
             </p>
+            {atualizacoes.length > 0 && (
+              <div className="border border-blue-200 bg-blue-50/60 rounded-lg p-3">
+                <div className="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-1.5">
+                  Percentuais a atualizar ({atualizacoes.length})
+                </div>
+                <ul className="space-y-1 max-h-32 overflow-y-auto">
+                  {atualizacoes.map((a, i) => (
+                    <li key={i} className="text-xs text-slate-600 flex justify-between gap-2">
+                      <span className="truncate">
+                        <span className="font-mono">{a.item.uc}</span> ·{' '}
+                        {a.item.rotulo || a.usina.nome}
+                      </span>
+                      <span className="font-semibold text-blue-700 whitespace-nowrap">
+                        {pctFmt(a.de)} → {pctFmt(a.para)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-72 overflow-y-auto">
               {plano.usinas.map((u, ui) => (
                 <div key={ui} className="px-3 py-2.5 text-sm">
@@ -387,6 +452,21 @@ export function ModalImportarBeneficiarias({
                 ))}
               </div>
             </div>
+
+            {resumo.atualizacoesDetalhe.length > 0 && (
+              <details className="text-sm" open>
+                <summary className="cursor-pointer text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                  Percentuais atualizados ({resumo.atualizacoesDetalhe.length})
+                </summary>
+                <ul className="mt-1.5 space-y-1 border border-blue-200 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  {resumo.atualizacoesDetalhe.map((d, i) => (
+                    <li key={i} className="text-xs text-blue-700">
+                      • {d}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
 
             {resumo.ignoradasDetalhe.length > 0 && (
               <details className="text-sm">

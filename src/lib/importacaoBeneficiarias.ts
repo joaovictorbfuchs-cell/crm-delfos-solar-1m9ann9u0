@@ -17,6 +17,7 @@ export interface BeneficiariaLike {
   id: string
   credencial_id: string
   uc: string
+  percentual?: number
   ativo?: boolean
 }
 
@@ -273,10 +274,51 @@ export interface ResumoImportacao {
   erros: number
   usinas: ResumoUsinaImportacao[]
   ignoradasDetalhe: string[]
+  atualizacoesDetalhe: string[]
 }
 
 export function somaPercentuaisUsina(u: UsinaPlanoImportacao): number {
   return u.itens
     .filter((i) => i.status === 'criar' || i.status === 'ja_cadastrada')
     .reduce((s, i) => s + i.percentual, 0)
+}
+
+export interface AtualizacaoPercentual {
+  usina: UsinaPlanoImportacao
+  item: ItemPlanoBeneficiaria
+  existente: BeneficiariaLike
+  /** Percentual gravado hoje (fração decimal). */
+  de: number
+  /** Percentual vindo da planilha (fração decimal). */
+  para: number
+}
+
+/**
+ * Beneficiárias já cadastradas (mesma credencial + UC) cujo percentual da
+ * planilha difere do gravado — na reimportação elas são ATUALIZADAS em vez de
+ * puladas, corrigindo registros gravados errados por versões anteriores.
+ */
+export function planoAtualizacoesPercentual(
+  plano: PlanoPreview,
+  beneficiarias: BeneficiariaLike[],
+): AtualizacaoPercentual[] {
+  const porChave = new Map<string, BeneficiariaLike>()
+  for (const b of beneficiarias) {
+    const chave = `${b.credencial_id}|${normalizarUc(b.uc)}`
+    if (!porChave.has(chave)) porChave.set(chave, b)
+  }
+  const alvos: AtualizacaoPercentual[] = []
+  for (const u of plano.usinas) {
+    if (!u.credencialId) continue
+    for (const item of u.itens) {
+      if (item.status !== 'ja_cadastrada') continue
+      const existente = porChave.get(`${u.credencialId}|${item.uc}`)
+      if (!existente) continue
+      const de = existente.percentual ?? 0
+      if (Math.abs(de - item.percentual) > 1e-9) {
+        alvos.push({ usina: u, item, existente, de, para: item.percentual })
+      }
+    }
+  }
+  return alvos
 }
