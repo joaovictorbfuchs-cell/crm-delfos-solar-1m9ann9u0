@@ -99,7 +99,8 @@ export function ModalImportarBeneficiarias({
     setImportando(true)
     const contagem: ResumoImportacao = {
       criadas: 0,
-      jaExistentes: plano.jaCadastradas,
+      jaExistentes: 0,
+      percentuaisAtualizados: 0,
       ignoradas: plano.ignoradas,
       duplicatas: plano.duplicatas,
       erros: 0,
@@ -107,6 +108,13 @@ export function ModalImportarBeneficiarias({
       ignoradasDetalhe: plano.ignoradasDetalhe,
     }
     const novasCredenciais = new Set<string>()
+    // Mapa das beneficiárias já existentes por credencial_id + UC para permitir
+    // atualização de percentual na reimportação (em vez de pular silenciosamente).
+    const existentesPorChave = new Map<string, BeneficiariaLike>()
+    for (const b of beneficiarias) {
+      const chave = `${b.credencial_id}|${normalizarUc(b.uc)}`
+      if (!existentesPorChave.has(chave)) existentesPorChave.set(chave, b)
+    }
 
     for (const u of plano.usinas) {
       const itensGravar = u.itens.filter((i) => i.status === 'criar')
@@ -156,6 +164,8 @@ export function ModalImportarBeneficiarias({
 
       // 2. gravar cada beneficiária (um item falho não aborta o lote)
       for (const { item } of alvos.filter((a) => a.usina === u && a.item.status === 'criar')) {
+        const chaveItem = `${credId}|${item.uc}`
+        const existente = credId ? existentesPorChave.get(chaveItem) : undefined
         try {
           const resp = await fetch(`${pb.baseUrl}/backend/v1/rge/beneficiarias-uc`, {
             method: 'POST',
@@ -173,7 +183,12 @@ export function ModalImportarBeneficiarias({
           })
           const json = await resp.json().catch(() => ({}))
           if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`)
-          contagem.criadas++
+          if (existente && Math.abs(existente.percentual - item.percentual) > 1e-9) {
+            // Já existia com percentual diferente: atualizado na reimportação
+            contagem.percentuaisAtualizados++
+          } else {
+            contagem.criadas++
+          }
         } catch (err) {
           contagem.erros++
           const msg = err instanceof Error ? err.message : String(err)
@@ -320,10 +335,15 @@ export function ModalImportarBeneficiarias({
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
               Importação concluída
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
               {[
                 { label: 'Criadas', valor: resumo.criadas, cor: 'text-emerald-700' },
                 { label: 'Já existentes', valor: resumo.jaExistentes, cor: 'text-slate-700' },
+                {
+                  label: 'Percentuais atualizados',
+                  valor: resumo.percentuaisAtualizados,
+                  cor: 'text-blue-700',
+                },
                 { label: 'Ignoradas', valor: resumo.ignoradas, cor: 'text-amber-600' },
                 { label: 'Duplicatas', valor: resumo.duplicatas, cor: 'text-slate-500' },
                 { label: 'Erros', valor: resumo.erros, cor: 'text-rose-600' },

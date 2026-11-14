@@ -40,10 +40,24 @@ describe('normalizarUc', () => {
 })
 
 describe('parsePercentualPlanilha', () => {
-  it('aceita decimal e inteiro', () => {
-    expect(parsePercentualPlanilha('0,15')).toBeCloseTo(0.15)
-    expect(parsePercentualPlanilha('15%')).toBeCloseTo(0.15)
+  it('fração <= 1 mantém o valor como está (0.1 = 10%, 0.05 = 5%)', () => {
+    expect(parsePercentualPlanilha(0.1)).toBeCloseTo(0.1)
+    expect(parsePercentualPlanilha(0.05)).toBeCloseTo(0.05)
+    expect(parsePercentualPlanilha('0,05')).toBeCloseTo(0.05)
     expect(parsePercentualPlanilha(0.9)).toBeCloseTo(0.9)
+    aguardar
+    expect(parsePercentualPlanilha(1)).toBeCloseTo(1)
+  })
+
+  it('valor > 1 é percentual e é dividido por 100 (10 = 10%, 2.5 = 2.5%)', () => {
+    expect(parsePercentualPlanilha(10)).toBeCloseTo(0.1)
+    expect(parsePercentualPlanilha(2.5)).toBeCloseTo(0.025)
+    expect(parsePercentualPlanilha(15)).toBeCloseTo(0.15)
+  })
+
+  it('texto com sufixo % é tratado como percentual ("10%" = 0.10)', () => {
+    expect(parsePercentualPlanilha('10%')).toBeCloseTo(0.1)
+    expect(parsePercentualPlanilha('15%')).toBeCloseTo(0.15)
   })
 })
 

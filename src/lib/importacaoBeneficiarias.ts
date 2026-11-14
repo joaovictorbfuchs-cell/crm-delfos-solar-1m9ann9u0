@@ -62,13 +62,20 @@ export function chaveRotulo(valor: unknown): string {
     .trim()
 }
 
-/** Aceita "0,15", "0.15" ou "15%" e devolve o decimal (0,15 = 15%). */
+/**
+ * Aceita "0,15", "0.15" ou "15%" e devolve o decimal (0,15 = 15%).
+ *
+ * Regra de conversão: o valor <= 1 é uma FRAÇÃO e fica como está
+ * (0.1 = 10%, 0.05 = 5%); valor > 1 é PERCENTUAL e é dividido por 100
+ * (10 = 10%, 2.5 = 2.5%). Textos com sufixo "%" (ex.: "10%") são
+ * tratados como percentual e divididos por 100 ("10%" = 0.10); textos
+ * com vírgula decimal ("0,1") viram 0.1 e então caem na mesma regra.
+ */
 export function parsePercentualPlanilha(valor: unknown): number {
-  const t = String(valor == null ? '' : valor)
-    .trim()
-    .replace('%', '')
-    .replace(/\s/g, '')
-  if (!t) return 0
+  const bruto = String(valor == null ? '' : valor).trim()
+  if (!bruto) return 0
+  const temSufixoPct = bruto.includes('%')
+  const t = bruto.replace('%', '').replace(/\s/g, '')
   let n = Number(t.replace(',', '.'))
   if (isNaN(n)) {
     const m = t.match(/[\d.,]+/)
@@ -76,6 +83,7 @@ export function parsePercentualPlanilha(valor: unknown): number {
     n = Number(m[0].replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'))
   }
   if (isNaN(n)) return 0
+  if (temSufixoPct) return n / 100
   if (n > 1) n = n / 100
   return n
 }
@@ -259,6 +267,7 @@ export interface ResumoUsinaImportacao {
 export interface ResumoImportacao {
   criadas: number
   jaExistentes: number
+  percentuaisAtualizados: number
   ignoradas: number
   duplicatas: number
   erros: number

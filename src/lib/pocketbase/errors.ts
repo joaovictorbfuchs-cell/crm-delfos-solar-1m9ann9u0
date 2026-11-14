@@ -25,5 +25,8 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
+
+// Reexports canônicos (wrapper — não remover; implementação em errors_impl.ts)
+export { isAuthSessionError, isAbortError, formatPbError } from './errors_impl'
