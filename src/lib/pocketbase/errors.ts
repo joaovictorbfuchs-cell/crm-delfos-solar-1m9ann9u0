@@ -28,5 +28,6 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-// Reexports da implementação canônica (errors_impl.ts) — restauração por ACRÉSCIMO (18ª regressão).
+// Reexports canônicos de errors_impl (restauração v0.0.1712 — sempre por acréscimo,
+// nunca reescrever este wrapper; extractFieldErrors/getErrorMessage permanecem LOCAIS).
 export { isAuthSessionError, isAbortError, formatPbError } from './errors_impl'

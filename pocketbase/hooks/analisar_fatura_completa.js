@@ -791,7 +791,13 @@ routerAdd('GET', '/backend/v1/relatorio-fatura-publico/{token}', (e) => {
     const rec = records[0]
     return e.json(200, {
       ok: true,
+      // id e cliente_id são necessários no front (RelatorioFatura.tsx busca o
+      // telefone do cliente e ModalEnviarAnaliseWhatsApp resolve destino e
+      // marca whatsapp_enviado na análise). Sem eles aparece o aviso de
+      // "cliente não possui WhatsApp" mesmo com WhatsApp cadastrado.
+      id: rec.id,
       token: rec.getString('token'),
+      cliente_id: rec.getString('cliente_id'),
       cliente_nome: rec.getString('cliente_nome'),
       uc: rec.getString('uc'),
       competencia: rec.getString('competencia'),
